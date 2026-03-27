@@ -28,7 +28,8 @@ class Database {
     // Create request-scoped context
     const context = {
       pool,
-      userId: (req.session && req.session.currentTenantUserId) || (req.session && req.session.user && req.session.user.id),
+      tenantId: (req.session && req.session.tenantId) || null,
+      tenantSchemaName: (req.session && req.session.tenantSchemaName) || null,
     };
 
     // Return database adapter with context

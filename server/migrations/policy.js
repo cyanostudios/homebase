@@ -7,6 +7,8 @@ const PUBLIC_ONLY_MIGRATIONS = new Set([
   '054-user-mfa.sql',
   '064-drop-public-products.sql',
   '071-drop-public-channel-tables.sql',
+  '081-tenant-memberships-and-plugin-access.sql',
+  '084-drop-user-id-from-public-tenants.sql',
 ]);
 
 function isPublicOnlyMigration(fileName) {

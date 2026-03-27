@@ -8,6 +8,7 @@ const { Pool } = require('pg');
 const { sanitizeFolderPath } = require('../../../plugins/files/pathUtils');
 const FilesModel = require('../../../plugins/files/model');
 const InspectionModel = require('../../../plugins/inspection/model');
+const TenantContextService = require('./tenant/TenantContextService');
 
 const UPLOAD_ROOT = path.join(process.cwd(), 'server', 'uploads', 'files');
 const filesModel = new FilesModel();
@@ -30,27 +31,41 @@ async function buildIntakeReq() {
   const req = {
     session: {
       user: { id: userId },
-      currentTenantUserId: userId,
+      tenantConnectionString: null,
+      tenantSchemaName: null,
+      tenantId: null,
+      tenantRole: null,
+      tenantOwnerUserId: null,
     },
     tenantPool: undefined,
   };
 
-  if (process.env.TENANT_PROVIDER === 'neon') {
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const r = await pool.query(
-        'SELECT neon_connection_string FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
-        [userId],
-      );
-      await pool.end();
-      if (r.rows?.length && r.rows[0].neon_connection_string) {
-        const ServiceManager = require('../ServiceManager');
-        const connectionPool = ServiceManager.get('connectionPool');
-        req.tenantPool = connectionPool.getTenantPool(r.rows[0].neon_connection_string);
-      }
-    } catch (e) {
-      throw new Error(`Failed to resolve tenant for intake user ${userId}: ${e.message}`);
+  // Resolve canonical tenant context for the intake user.
+  const mainPool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const tcs = new TenantContextService(mainPool);
+    const tenantContext = await tcs.getTenantContextByUserId(userId);
+    if (!tenantContext) {
+      throw new Error('Tenant membership not configured');
     }
+
+    req.session.tenantConnectionString = tenantContext.tenantConnectionString || null;
+    req.session.tenantSchemaName = tenantContext.tenantSchemaName || null;
+    req.session.tenantId = tenantContext.tenantId;
+    req.session.tenantRole = tenantContext.tenantRole;
+    req.session.tenantOwnerUserId = tenantContext.tenantOwnerUserId;
+
+    if (process.env.TENANT_PROVIDER === 'neon') {
+      const ServiceManager = require('../ServiceManager');
+      const connectionPool = ServiceManager.get('connectionPool');
+      if (req.session.tenantConnectionString) {
+        req.tenantPool = connectionPool.getTenantPool(req.session.tenantConnectionString);
+      }
+    }
+  } catch (e) {
+    throw new Error(`Failed to resolve tenant for intake user ${userId}: ${e.message}`);
+  } finally {
+    await mainPool.end();
   }
 
   return req;

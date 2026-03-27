@@ -12,13 +12,10 @@ class SelloModel {
   async getSettings(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const res = await db.query(
-        `SELECT * FROM ${SelloModel.SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
-        [userId],
-      );
+      const res = await db.query(`SELECT * FROM ${SelloModel.SETTINGS_TABLE} LIMIT 1`, []);
       return res.length ? this.transformSettingsRow(res[0]) : null;
     } catch (error) {
       Logger.error('Failed to get Sello settings', error);
@@ -30,29 +27,34 @@ class SelloModel {
   async upsertSettings(req, data) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const apiKey = String(data.apiKey || '').trim();
       const connected = Boolean(apiKey);
+      const enc = apiKey ? CredentialsCrypto.encrypt(apiKey) : null;
 
-      const sql = `
-        INSERT INTO ${SelloModel.SETTINGS_TABLE} (
-          user_id, api_key, connected, created_at, updated_at
-        ) VALUES (
-          $1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (user_id) DO UPDATE SET
-          api_key = EXCLUDED.api_key,
-          connected = EXCLUDED.connected,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING *
-      `;
-      const res = await db.query(sql, [
-        userId,
-        apiKey ? CredentialsCrypto.encrypt(apiKey) : null,
-        connected,
-      ]);
+      const existing = await db.query(
+        `SELECT id FROM ${SelloModel.SETTINGS_TABLE} ORDER BY id ASC LIMIT 1`,
+        [],
+      );
+      let res;
+      if (existing.length) {
+        res = await db.query(
+          `UPDATE ${SelloModel.SETTINGS_TABLE}
+           SET api_key = $1, connected = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3
+           RETURNING *`,
+          [enc, connected, existing[0].id],
+        );
+      } else {
+        res = await db.query(
+          `INSERT INTO ${SelloModel.SETTINGS_TABLE} (api_key, connected, created_at, updated_at)
+           VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+           RETURNING *`,
+          [enc, connected],
+        );
+      }
       return this.transformSettingsRow(res[0]);
     } catch (error) {
       Logger.error('Failed to save Sello settings', error);

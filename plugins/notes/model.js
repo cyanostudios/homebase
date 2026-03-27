@@ -12,7 +12,7 @@ class NoteModel {
     try {
       const db = Database.get(req);
 
-      // Tenant isolation automatic - no need to filter by user_id
+      // Tenant isolation is handled by schema/database routing.
       const rows = await db.query('SELECT * FROM notes ORDER BY created_at DESC', []);
 
       return rows.map(this.transformRow);
@@ -102,11 +102,7 @@ class NoteModel {
       // Use direct pool access for cross-plugin operations
       const pool = req.tenantPool;
       if (pool) {
-        const userId = req.session?.user?.id;
-        await pool.query('DELETE FROM tasks WHERE created_from_note = $1 AND user_id = $2', [
-          noteId,
-          userId,
-        ]);
+        await pool.query('DELETE FROM tasks WHERE created_from_note = $1', [noteId]);
       }
 
       // Delete the note (tenant isolation automatic)

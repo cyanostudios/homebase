@@ -13,7 +13,7 @@ const ALLOW_SET_SEARCH_PATH = new Set(['server/index.ts']);
 
 const SEARCH_PATH_RE = /SET\s+search_path\s+TO/gi;
 const UNQUALIFIED_AUTH_RE =
-  /\b(FROM|JOIN|INTO|UPDATE|DELETE\s+FROM)\s+(?!public\.)(users|tenants|user_plugin_access|user_settings|user_mfa|sessions)\b/gi;
+  /\b(FROM|JOIN|INTO|UPDATE|DELETE\s+FROM)\s+(?!public\.)(users|tenants|tenant_memberships|tenant_plugin_access|user_settings|user_mfa|sessions)\b/gi;
 
 function walk(dir, out) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });

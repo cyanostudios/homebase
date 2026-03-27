@@ -128,35 +128,35 @@ async function createTestUser() {
     const user = userResult.rows[0];
     console.log(`✅ User created with ID: ${user.id}`);
 
-    // Create Neon tenant database
-    if (!process.env.NEON_API_KEY) {
-      console.log('⚠️  NEON_API_KEY not set, skipping Neon database creation');
-      console.log('📝 User created but without Neon database. You can create it manually later.');
-    } else {
-      console.log('🗄️  Creating Neon database...');
-      try {
-        const neonService = new NeonService(process.env.NEON_API_KEY);
-        const tenantDb = await neonService.createTenantDatabase(user.id, user.email);
+    // Create tenant (local schema-per-tenant or Neon database-per-tenant depending on TENANT_PROVIDER)
+    const ServiceManager = require('../server/core/ServiceManager');
+    const tenantService = ServiceManager.get('tenant');
+    const tenantDb = await tenantService.createTenant(user.id, user.email);
 
-        // Save tenant info
-        await client.query(
-          'INSERT INTO public.tenants (user_id, neon_project_id, neon_database_name, neon_connection_string) VALUES ($1, $2, $3, $4)',
-          [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString],
-        );
+    // Save tenant info (canonical owner_user_id)
+    const tenantRow = await client.query(
+      `INSERT INTO public.tenants (owner_user_id, neon_project_id, neon_database_name, neon_connection_string)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString],
+    );
+    const tenantId = tenantRow.rows[0]?.id;
 
-        console.log(`✅ Neon database created: ${tenantDb.databaseName}`);
-      } catch (error) {
-        console.error('❌ Failed to create Neon database:', error.message);
-        console.log('📝 User created but without Neon database. You can create it manually later.');
-      }
-    }
+    // Membership: owner is admin
+    await client.query(
+      `INSERT INTO public.tenant_memberships (tenant_id, user_id, role, status, created_by)
+       VALUES ($1, $2, 'admin', 'active', $2)`,
+      [tenantId, user.id],
+    );
 
-    // Give access to contacts and notes plugins only
+    // Give access to contacts and notes plugins only (tenant-scoped)
     const plugins = ['contacts', 'notes'];
     for (const pluginName of plugins) {
       await client.query(
-        'INSERT INTO public.user_plugin_access (user_id, plugin_name, enabled, granted_by) VALUES ($1, $2, true, $1)',
-        [user.id, pluginName],
+        `INSERT INTO public.tenant_plugin_access (tenant_id, plugin_name, enabled, granted_by_user_id)
+         VALUES ($1, $2, true, $3)
+         ON CONFLICT (tenant_id, plugin_name) DO NOTHING`,
+        [tenantId, pluginName, user.id],
       );
     }
 

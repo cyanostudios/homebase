@@ -15,11 +15,11 @@ class InspectionModel {
     try {
       const db = Database.get(req);
       const rows = await db.query(
-        `SELECT p.id, p.user_id, p.name, p.description, p.admin_notes, p.created_at, p.updated_at,
+        `SELECT p.id, p.name, p.description, p.admin_notes, p.created_at, p.updated_at,
                 (SELECT COUNT(*)::int FROM ${FILES_TABLE} f WHERE f.project_id = p.id) AS file_count
          FROM ${PROJECTS_TABLE} p
          ORDER BY p.created_at DESC`,
-        []
+        [],
       );
       return rows.map((r) => this.transformProject(r, r.file_count));
     } catch (error) {
@@ -32,11 +32,11 @@ class InspectionModel {
     try {
       const db = Database.get(req);
       const rows = await db.query(
-        `SELECT id, user_id, name, description, admin_notes, created_at, updated_at
+        `SELECT id, name, description, admin_notes, created_at, updated_at
          FROM ${PROJECTS_TABLE}
          WHERE id = $1
          LIMIT 1`,
-        [projectId]
+        [projectId],
       );
       if (rows.length === 0) return null;
 
@@ -58,7 +58,7 @@ class InspectionModel {
        FROM ${PROJECTS_TABLE}
        WHERE id = $1
        LIMIT 1`,
-      [projectId]
+      [projectId],
     );
     return rows.length > 0;
   }
@@ -66,11 +66,11 @@ class InspectionModel {
   async getProjectRow(req, projectId) {
     const db = Database.get(req);
     const rows = await db.query(
-      `SELECT id, user_id, name, description, admin_notes, created_at, updated_at
+      `SELECT id, name, description, admin_notes, created_at, updated_at
        FROM ${PROJECTS_TABLE}
        WHERE id = $1
        LIMIT 1`,
-      [projectId]
+      [projectId],
     );
     return rows.length ? rows[0] : null;
   }
@@ -79,7 +79,7 @@ class InspectionModel {
     const db = Database.get(req);
     const rows = await db.query(
       `SELECT pf.file_id FROM ${FILES_TABLE} pf WHERE pf.project_id = $1`,
-      [projectId]
+      [projectId],
     );
     return rows.map((r) => String(r.file_id));
   }
@@ -89,7 +89,6 @@ class InspectionModel {
     const rows = await db.query(
       `SELECT
           uf.id,
-          uf.user_id,
           uf.name,
           uf.size,
           uf.mime_type,
@@ -102,7 +101,7 @@ class InspectionModel {
        JOIN ${USER_FILES_TABLE} uf ON uf.id = pf.file_id
        WHERE pf.project_id = $1
        ORDER BY pf.created_at ASC`,
-      [projectId]
+      [projectId],
     );
     return rows.map((r) => ({
       id: String(r.id),
@@ -172,14 +171,14 @@ class InspectionModel {
        FROM ${FILE_LISTS_TABLE}
        WHERE project_id = $1
        ORDER BY created_at ASC`,
-      [projectId]
+      [projectId],
     );
     const result = [];
     for (const r of rows) {
       const itemRows = await db.query(
         `SELECT file_id FROM ${FILE_LIST_ITEMS_TABLE}
          WHERE project_file_list_id = $1 ORDER BY created_at ASC`,
-        [r.id]
+        [r.id],
       );
       result.push({
         id: String(r.id),
@@ -195,7 +194,7 @@ class InspectionModel {
   async addFileList(req, projectId, listId) {
     const db = Database.get(req);
     const listsModel = require('../../server/core/lists/listsModel');
-    const userId = listsModel.getUserId(req);
+    listsModel.requireTenantId(req);
 
     const exists = await this.projectExists(req, projectId);
     if (!exists) throw new AppError('Project not found', 404, AppError.CODES.NOT_FOUND);
@@ -207,7 +206,7 @@ class InspectionModel {
     const existing = await db.query(
       `SELECT id FROM ${FILE_LISTS_TABLE}
        WHERE project_id = $1 AND source_list_id = $2 LIMIT 1`,
-      [projectId, listId]
+      [projectId, listId],
     );
     if (existing && existing.length > 0) {
       return this.getById(req, projectId);
@@ -228,7 +227,11 @@ class InspectionModel {
       });
     }
 
-    Logger.info('File list added to inspection project', { projectId, listId, fileCount: fileIds.length });
+    Logger.info('File list added to inspection project', {
+      projectId,
+      listId,
+      fileCount: fileIds.length,
+    });
     return this.getById(req, projectId);
   }
 
@@ -240,7 +243,7 @@ class InspectionModel {
     await db.query(
       `DELETE FROM ${FILE_LISTS_TABLE}
        WHERE id = $1 AND project_id = $2`,
-      [fileListId, projectId]
+      [fileListId, projectId],
     );
     Logger.info('File list removed from inspection project', { projectId, fileListId });
     return this.getById(req, projectId);
@@ -266,13 +269,13 @@ class InspectionModel {
 
   /**
    * Bulk delete inspection projects only. Touches ONLY inspection_projects and inspection_project_files.
-   * Same pattern as orders/products: include user_id in WHERE so the DB adapter does not append and break RETURNING.
+   * Tenant isolation is handled by schema/database selection.
    */
   async bulkDelete(req, idsRaw) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const idList = (Array.isArray(idsRaw) ? idsRaw : [])
         .map((id) => (id != null && Number.isFinite(Number(id)) ? Number(id) : null))
@@ -280,22 +283,29 @@ class InspectionModel {
       if (idList.length === 0) return { deletedCount: 0, deletedIds: [] };
 
       await db.query(
-        `DELETE FROM ${FILES_TABLE} WHERE project_id IN (SELECT id FROM ${PROJECTS_TABLE} WHERE user_id = $1 AND id = ANY($2))`,
-        [userId, idList]
+        `DELETE FROM ${FILES_TABLE} WHERE project_id IN (SELECT id FROM ${PROJECTS_TABLE} WHERE id = ANY($1))`,
+        [idList],
       );
       const deleted = await db.query(
-        `DELETE FROM ${PROJECTS_TABLE} WHERE user_id = $1 AND id = ANY($2) RETURNING id`,
-        [userId, idList]
+        `DELETE FROM ${PROJECTS_TABLE} WHERE id = ANY($1) RETURNING id`,
+        [idList],
       );
       const deletedIds = (deleted || []).map((r) => String(r.id));
       if (deletedIds.length > 0) {
-        Logger.info('Inspection projects bulk deleted', { count: deletedIds.length, ids: deletedIds });
+        Logger.info('Inspection projects bulk deleted', {
+          count: deletedIds.length,
+          ids: deletedIds,
+        });
       }
       return { deletedCount: deletedIds.length, deletedIds };
     } catch (error) {
       Logger.error('Failed to bulk delete inspection projects', error);
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to bulk delete inspection projects', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError(
+        'Failed to bulk delete inspection projects',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -366,10 +376,10 @@ class InspectionModel {
     try {
       const db = Database.get(req);
 
-      await db.query(
-        `DELETE FROM ${FILES_TABLE} WHERE project_id = $1 AND file_id = $2`,
-        [projectId, fileId]
-      );
+      await db.query(`DELETE FROM ${FILES_TABLE} WHERE project_id = $1 AND file_id = $2`, [
+        projectId,
+        fileId,
+      ]);
 
       Logger.info('File removed from inspection project', { projectId, fileId });
 

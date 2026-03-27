@@ -11,12 +11,12 @@ class ShippingModel {
   static SERVICES_TABLE = 'shipping_service_presets';
   static ORDERS_TABLE = 'orders';
 
-  getUserId(req) {
-    const userId = req.session?.user?.id;
-    if (!userId) {
-      throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  requireTenantId(req) {
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
     }
-    return userId;
+    return tenantId;
   }
 
   transformSettings(row) {
@@ -65,17 +65,14 @@ class ShippingModel {
 
   async getSettings(req) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
-    const rows = await db.query(
-      `SELECT * FROM ${ShippingModel.SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
-      [userId],
-    );
+    this.requireTenantId(req);
+    const rows = await db.query(`SELECT * FROM ${ShippingModel.SETTINGS_TABLE} LIMIT 1`, []);
     return rows.length ? this.transformSettings(rows[0]) : null;
   }
 
   async upsertSettings(req, data) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
 
     const bookingUrl = String(data?.bookingUrl || '').trim() || null;
     const authScheme =
@@ -92,64 +89,76 @@ class ShippingModel {
         .toUpperCase() || 'PDF';
     const labelFormat = LABEL_FORMATS.includes(rawLabelFormat) ? rawLabelFormat : 'PDF';
     const connected = !!(bookingUrl && authScheme && apiKey);
-
-    const rows = await db.query(
-      `
-      INSERT INTO ${ShippingModel.SETTINGS_TABLE}
-        (user_id, booking_url, auth_scheme, integration_id, api_key, api_secret, api_key_header_name, label_format, connected, created_at, updated_at)
-      VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (user_id) DO UPDATE SET
-        booking_url = EXCLUDED.booking_url,
-        auth_scheme = EXCLUDED.auth_scheme,
-        integration_id = EXCLUDED.integration_id,
-        api_key = EXCLUDED.api_key,
-        api_secret = EXCLUDED.api_secret,
-        api_key_header_name = EXCLUDED.api_key_header_name,
-        label_format = EXCLUDED.label_format,
-        connected = EXCLUDED.connected,
-        updated_at = CURRENT_TIMESTAMP
-      RETURNING *
-      `,
-      [
-        userId,
-        bookingUrl,
-        authScheme,
-        integrationId,
-        apiKey ? CredentialsCrypto.encrypt(apiKey) : null,
-        apiSecret ? CredentialsCrypto.encrypt(apiSecret) : null,
-        apiKeyHeaderName,
-        labelFormat,
-        connected,
-      ],
+    const values = [
+      bookingUrl,
+      authScheme,
+      integrationId,
+      apiKey ? CredentialsCrypto.encrypt(apiKey) : null,
+      apiSecret ? CredentialsCrypto.encrypt(apiSecret) : null,
+      apiKeyHeaderName,
+      labelFormat,
+      connected,
+    ];
+    const existing = await db.query(
+      `SELECT id FROM ${ShippingModel.SETTINGS_TABLE} ORDER BY id ASC LIMIT 1`,
+      [],
     );
+    const rows = existing.length
+      ? await db.query(
+          `
+          UPDATE ${ShippingModel.SETTINGS_TABLE}
+          SET
+            booking_url = $1,
+            auth_scheme = $2,
+            integration_id = $3,
+            api_key = $4,
+            api_secret = $5,
+            api_key_header_name = $6,
+            label_format = $7,
+            connected = $8,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $9
+          RETURNING *
+          `,
+          [...values, existing[0].id],
+        )
+      : await db.query(
+          `
+          INSERT INTO ${ShippingModel.SETTINGS_TABLE}
+            (booking_url, auth_scheme, integration_id, api_key, api_secret, api_key_header_name, label_format, connected, created_at, updated_at)
+          VALUES
+            ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING *
+          `,
+          values,
+        );
 
     return this.transformSettings(rows[0]);
   }
 
   async listSenders(req) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
     const rows = await db.query(
-      `SELECT * FROM ${ShippingModel.SENDERS_TABLE} WHERE user_id = $1 ORDER BY name ASC, id ASC`,
-      [userId],
+      `SELECT * FROM ${ShippingModel.SENDERS_TABLE} ORDER BY name ASC, id ASC`,
+      [],
     );
     return rows.map((r) => this.transformSender(r));
   }
 
   async getSenderById(req, id) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
     const rows = await db.query(
-      `SELECT * FROM ${ShippingModel.SENDERS_TABLE} WHERE user_id = $1 AND id = $2 LIMIT 1`,
-      [userId, Number(id)],
+      `SELECT * FROM ${ShippingModel.SENDERS_TABLE} WHERE id = $1 LIMIT 1`,
+      [Number(id)],
     );
     return rows.length ? this.transformSender(rows[0]) : null;
   }
 
   async upsertSender(req, id, data) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
 
     const payload = {
       name: String(data?.name || '').trim(),
@@ -181,11 +190,10 @@ class ShippingModel {
           contact_name = $8,
           contact_phone = $9,
           updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = $1 AND id = $2
+        WHERE id = $1
         RETURNING *
         `,
         [
-          userId,
           Number(id),
           payload.name,
           payload.street,
@@ -205,13 +213,12 @@ class ShippingModel {
     const rows = await db.query(
       `
       INSERT INTO ${ShippingModel.SENDERS_TABLE}
-        (user_id, name, street, postal_code, city, country, contact_name, contact_phone, created_at, updated_at)
+        (name, street, postal_code, city, country, contact_name, contact_phone, created_at, updated_at)
       VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
       `,
       [
-        userId,
         payload.name,
         payload.street,
         payload.postalCode,
@@ -226,10 +233,10 @@ class ShippingModel {
 
   async deleteSender(req, id) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
     const rows = await db.query(
-      `DELETE FROM ${ShippingModel.SENDERS_TABLE} WHERE user_id = $1 AND id = $2 RETURNING id`,
-      [userId, Number(id)],
+      `DELETE FROM ${ShippingModel.SENDERS_TABLE} WHERE id = $1 RETURNING id`,
+      [Number(id)],
     );
     if (!rows.length) {
       throw new AppError('Sender not found', 404, AppError.CODES.NOT_FOUND);
@@ -239,27 +246,27 @@ class ShippingModel {
 
   async listServices(req) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
     const rows = await db.query(
-      `SELECT * FROM ${ShippingModel.SERVICES_TABLE} WHERE user_id = $1 ORDER BY name ASC, id ASC`,
-      [userId],
+      `SELECT * FROM ${ShippingModel.SERVICES_TABLE} ORDER BY name ASC, id ASC`,
+      [],
     );
     return rows.map((r) => this.transformService(r));
   }
 
   async getServiceById(req, id) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
     const rows = await db.query(
-      `SELECT * FROM ${ShippingModel.SERVICES_TABLE} WHERE user_id = $1 AND id = $2 LIMIT 1`,
-      [userId, Number(id)],
+      `SELECT * FROM ${ShippingModel.SERVICES_TABLE} WHERE id = $1 LIMIT 1`,
+      [Number(id)],
     );
     return rows.length ? this.transformService(rows[0]) : null;
   }
 
   async upsertService(req, id, data) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
     const code = String(data?.code || '').trim();
     const name = String(data?.name || '').trim();
     if (!code || !name) {
@@ -274,11 +281,11 @@ class ShippingModel {
       const rows = await db.query(
         `
         UPDATE ${ShippingModel.SERVICES_TABLE}
-        SET code = $3, name = $4, updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = $1 AND id = $2
+        SET code = $2, name = $3, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
         RETURNING *
         `,
-        [userId, Number(id), code, name],
+        [Number(id), code, name],
       );
       if (!rows.length) {
         throw new AppError('Service not found', 404, AppError.CODES.NOT_FOUND);
@@ -289,22 +296,22 @@ class ShippingModel {
     const rows = await db.query(
       `
       INSERT INTO ${ShippingModel.SERVICES_TABLE}
-        (user_id, code, name, created_at, updated_at)
+        (code, name, created_at, updated_at)
       VALUES
-        ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
       `,
-      [userId, code, name],
+      [code, name],
     );
     return this.transformService(rows[0]);
   }
 
   async deleteService(req, id) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
     const rows = await db.query(
-      `DELETE FROM ${ShippingModel.SERVICES_TABLE} WHERE user_id = $1 AND id = $2 RETURNING id`,
-      [userId, Number(id)],
+      `DELETE FROM ${ShippingModel.SERVICES_TABLE} WHERE id = $1 RETURNING id`,
+      [Number(id)],
     );
     if (!rows.length) {
       throw new AppError('Service not found', 404, AppError.CODES.NOT_FOUND);
@@ -314,7 +321,7 @@ class ShippingModel {
 
   async listOrdersByIds(req, ids) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
     if (!Array.isArray(ids) || ids.length === 0) return [];
 
     const validIds = ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0);
@@ -324,16 +331,16 @@ class ShippingModel {
       `
       SELECT id, order_number, channel_order_id, platform_order_number, shipping_address, customer, total_amount, currency, raw
       FROM ${ShippingModel.ORDERS_TABLE}
-      WHERE user_id = $1 AND id = ANY($2::int[])
+      WHERE id = ANY($1::int[])
       ORDER BY id ASC
       `,
-      [userId, validIds],
+      [validIds],
     );
   }
 
   async updateOrderShipping(req, orderId, trackingNumber, carrier, labelData) {
     const db = Database.get(req);
-    const userId = this.getUserId(req);
+    this.requireTenantId(req);
 
     const labelJson = labelData
       ? JSON.stringify({
@@ -347,16 +354,16 @@ class ShippingModel {
       `
       UPDATE ${ShippingModel.ORDERS_TABLE}
       SET
-        shipping_carrier = $3,
-        shipping_tracking_number = $4,
+        shipping_carrier = $2,
+        shipping_tracking_number = $3,
         raw = CASE
-          WHEN $5::jsonb IS NULL THEN raw
-          ELSE COALESCE(raw, '{}'::jsonb) || jsonb_build_object('shipping_labels', $5::jsonb)
+          WHEN $4::jsonb IS NULL THEN raw
+          ELSE COALESCE(raw, '{}'::jsonb) || jsonb_build_object('shipping_labels', $4::jsonb)
         END,
         updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = $1 AND id = $2
+      WHERE id = $1
       `,
-      [userId, Number(orderId), String(carrier || ''), String(trackingNumber || ''), labelJson],
+      [Number(orderId), String(carrier || ''), String(trackingNumber || ''), labelJson],
     );
   }
 

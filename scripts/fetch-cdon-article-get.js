@@ -29,7 +29,7 @@ async function run() {
 
   Bootstrap.initializeServices();
   const req = {
-    session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
+    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
     tenantPool: undefined,
   };
   ServiceManager.initialize(req);

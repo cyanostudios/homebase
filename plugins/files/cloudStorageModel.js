@@ -12,10 +12,10 @@ class CloudStorageModel {
   async getSettings(req, service) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const table = CloudStorageModel.TABLES[service];
@@ -30,10 +30,9 @@ class CloudStorageModel {
       const sql = `
         SELECT *
         FROM ${table}
-        WHERE user_id = $1
         LIMIT 1
       `;
-      const result = await db.query(sql, [userId]);
+      const result = await db.query(sql, []);
       return result.length ? this.transformSettingsRow(result[0], service) : null;
     } catch (error) {
       Logger.error(`Failed to get ${service} settings`, error);
@@ -47,10 +46,10 @@ class CloudStorageModel {
   async upsertSettings(req, service, data) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const table = CloudStorageModel.TABLES[service];
@@ -67,28 +66,33 @@ class CloudStorageModel {
       const tokenExpiresAt = data.tokenExpiresAt || null;
       const connected = Boolean(data.connected);
 
-      const sql = `
-        INSERT INTO ${table} (
-          user_id, access_token, refresh_token, token_expires_at, connected, created_at, updated_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (user_id) DO UPDATE SET
-          access_token = EXCLUDED.access_token,
-          refresh_token = EXCLUDED.refresh_token,
-          token_expires_at = EXCLUDED.token_expires_at,
-          connected = EXCLUDED.connected,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING *
-      `;
-      const result = await db.query(sql, [
-        userId,
+      const values = [
         accessToken ? CredentialsCrypto.encrypt(accessToken) : null,
         refreshToken ? CredentialsCrypto.encrypt(refreshToken) : null,
         tokenExpiresAt,
         connected,
-      ]);
-      Logger.info(`${service} settings saved`, { userId });
+      ];
+      const existing = await db.query(`SELECT id FROM ${table} ORDER BY id ASC LIMIT 1`, []);
+      const result = existing.length
+        ? await db.query(
+            `UPDATE ${table}
+             SET access_token = $1,
+                 refresh_token = $2,
+                 token_expires_at = $3,
+                 connected = $4,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $5
+             RETURNING *`,
+            [...values, existing[0].id],
+          )
+        : await db.query(
+            `INSERT INTO ${table} (
+               access_token, refresh_token, token_expires_at, connected, created_at, updated_at
+             ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             RETURNING *`,
+            values,
+          );
+      Logger.info(`${service} settings saved`, { service });
       return this.transformSettingsRow(result[0], service);
     } catch (error) {
       Logger.error(`Failed to save ${service} settings`, error);
@@ -102,10 +106,10 @@ class CloudStorageModel {
   async disconnect(req, service) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const table = CloudStorageModel.TABLES[service];
@@ -124,11 +128,10 @@ class CloudStorageModel {
             token_expires_at = NULL,
             connected = FALSE,
             updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = $1
         RETURNING *
       `;
-      const result = await db.query(sql, [userId]);
-      Logger.info(`${service} disconnected`, { userId });
+      const result = await db.query(sql, []);
+      Logger.info(`${service} disconnected`, { service });
       return result.length ? this.transformSettingsRow(result[0], service) : null;
     } catch (error) {
       Logger.error(`Failed to disconnect ${service}`, error);
@@ -142,10 +145,10 @@ class CloudStorageModel {
   async upsertOAuthCredentials(req, service, clientId, clientSecret) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const table = CloudStorageModel.TABLES[service];
@@ -157,24 +160,29 @@ class CloudStorageModel {
         );
       }
 
-      const sql = `
-        INSERT INTO ${table} (
-          user_id, client_id, client_secret, updated_at
-        ) VALUES (
-          $1, $2, $3, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (user_id) DO UPDATE SET
-          client_id = EXCLUDED.client_id,
-          client_secret = EXCLUDED.client_secret,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING *
-      `;
-      const result = await db.query(sql, [
-        userId,
+      const values = [
         clientId ? String(clientId).trim() : null,
         clientSecret ? CredentialsCrypto.encrypt(String(clientSecret).trim()) : null,
-      ]);
-      Logger.info(`${service} OAuth credentials saved`, { userId });
+      ];
+      const existing = await db.query(`SELECT id FROM ${table} ORDER BY id ASC LIMIT 1`, []);
+      const result = existing.length
+        ? await db.query(
+            `UPDATE ${table}
+             SET client_id = $1,
+                 client_secret = $2,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3
+             RETURNING *`,
+            [...values, existing[0].id],
+          )
+        : await db.query(
+            `INSERT INTO ${table} (
+               client_id, client_secret, updated_at
+             ) VALUES ($1, $2, CURRENT_TIMESTAMP)
+             RETURNING *`,
+            values,
+          );
+      Logger.info(`${service} OAuth credentials saved`, { service });
       return this.transformSettingsRow(result[0], service);
     } catch (error) {
       Logger.error(`Failed to save ${service} OAuth credentials`, error);
@@ -195,11 +203,10 @@ class CloudStorageModel {
     const refreshToken = row.refresh_token ? CredentialsCrypto.decrypt(row.refresh_token) : null;
     return {
       id: String(row.id),
-      userId: String(row.user_id),
       // OAuth app credentials (optional)
       clientId: row.client_id || null,
       clientSecret,
-      // OAuth tokens (per-user)
+      // OAuth tokens for the active tenant
       accessToken,
       refreshToken,
       tokenExpiresAt: row.token_expires_at || null,

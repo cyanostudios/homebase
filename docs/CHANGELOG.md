@@ -4,6 +4,71 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-26 – Multi-tenant: schema-/DB-isolering, kontrollplan, borttag av `user_id` i tenantdata
+
+**Release:** npm-version **3.2.0**, branch **Homebase-V3.2.0**.
+
+Översikt: Tenantdata isoleras genom **routing** (PostgreSQL `search_path` mot rätt schema lokalt, eller separat anslutningssträng per tenant i Neon), inte genom `user_id`-kolumner på varje rad i plugin-tabeller. **Public** (`DATABASE_URL`) bär identitet, medlemskap och plugin-rättigheter; **tenant** bär affärsdata.
+
+### Arkitektur och modell
+
+- **LocalTenantProvider:** Ett schema per tenant (`tenant_<ownerUserId>` eller motsvarande namnkonvention), `SET search_path` / `SET LOCAL search_path` så att `SELECT * FROM products` implicit är inom rätt tenant utan `WHERE user_id = …`.
+- **NeonTenantProvider:** En databas (eller anslutning) per tenant; isolation är fysisk separation, inte radfilter.
+- **Kanonical ägarskap:** `public.tenants.owner_user_id` pekar på plattformsanvändaren som äger tenanten. **Superuser** kan byta aktiv tenant via admin-API; session bär `tenantId`, `tenantRole`, `tenantOwnerUserId` (ägarens user-id för den aktiva tenanten), inte en separat “current tenant user id” som duplicerar `user.id` för vanliga användare.
+- **Database-lager:** `PostgreSQLAdapter` / `Database.get(req)` **skriver inte om** SQL med `AND user_id = …`; tenantgränsen följer av vilken pool / vilket schema som är aktivt. Plugin-kod ska inte förlita sig på magisk injektion av `user_id` i tenantqueries.
+
+### Kontrollplan (public schema)
+
+- **`public.tenants`:** Koppling tenant ↔ ägare, ev. Neon-URL m.m. Kolumnen **`user_id` på `tenants` är borttagen** (migration `084-drop-user-id-from-public-tenants.sql`); **`owner_user_id`** är den enda ägarreferensen.
+- **`public.tenant_memberships`:** Vilken plattformsanvändare (`user_id` här = FK till `users`, medlemskapsrad) som tillhör vilken tenant och med roll (`admin`/`editor`/…).
+- **`public.tenant_plugin_access`:** Ersätter tidigare per-användar-modell; plugin-tillgång styrs per **tenant** (och eventuellt roll), inte via gammal `user_plugin_access`-semantik för tenantdata.
+
+**Viktigt:** `user_id` finns kvar i **public** där det är korrekt semantiskt (t.ex. `user_settings.user_id`, `activity_log.user_id`, `user_mfa`, `tenant_memberships.user_id`). Det är **inte** samma sak som den gamla “tenantrad = filtrera på user_id”-modellen i plugin-tabeller.
+
+### Session, middleware och typer
+
+- **`express-session` / `SessionData`:** `tenantId`, `tenantConnectionString` (Neon), `tenantRole`, `tenantOwnerUserId`. Fältet **`currentTenantUserId` är borttaget** (var förvirrande och redundant).
+- **`TenantContextService` / `resolveTenantForUser`:** Enhetlig upplösning av tenant från inloggad användare eller admin-byte; syntetiska `req` (scheduler, intake) sätter samma fält utan legacy-alias.
+- **`packages/core` `Context`:** `getTenantUserId` dokumenterat som **tenantägarens** user-id (`tenantOwnerUserId`), inte “rad-user_id” i tabeller.
+- **`server/types/express.d.ts`:** Uppdaterade kommentarer och borttag av `currentTenantUserId`.
+- **`server/core/routes/admin.js`:** Vid lyckat tenant-byte returneras **`tenantOwnerUserId`** (tidigare `tenantUserId`) i JSON och loggfält, i linje med sessionfält.
+
+### Klient
+
+- **`AppContext` / `getMe`:** Aktiv tenant spåras som **`activeTenantId`** (svar från API med `tenantId`), inte `currentTenantUserId`.
+- **`TopBar`:** Markerar vald tenant mot `activeTenantId`.
+
+### Databasförändringar (migrationer, urval)
+
+- **`081-tenant-memberships-and-plugin-access.sql`:** Inför medlemskap och `tenant_plugin_access`; idempotent backfill `owner_user_id` från legacy `tenants.user_id` endast om kolumnen fortfarande finns (så omkörning efter `084` inte fallerar).
+- **`082`–`083`:** Tar bort `user_id` från kärn- och övriga tenant-tabeller (dynamiska `DROP COLUMN … CASCADE` där beroenden krävs, nya index utan `user_id`).
+- **`084-drop-user-id-from-public-tenants.sql`:** Tar bort `user_id` från `public.tenants` efter att `owner_user_id` är kanonisk.
+
+Singleton-upserts och constraints som tidigare använt `ON CONFLICT (user_id)` har uppdaterats till tenant-scoped nycklar (t.ex. per `cache_key` eller en rad per tenant-schema).
+
+### Drift: `run-all-migrations` och idempotens
+
+- **`scripts/run-all-migrations.js`:** Historiktabeller (`hb_public_migration_history` / `hb_migration_history`) så att **samma migration inte körs om** i onödan; **bootstrap** av historik för befintliga scheman där `user_id` redan är borttagen men gamla migrationsfiler annars skulle försöka skapa/alter:a bort dem.
+- Syfte: `npm run migrate:all` ska vara **säker att köra upprepade gånger** mot redan migrerade miljöer utan att gamla SQL med `user_id` kraschar.
+
+### Hjälpjobb och modeller (exempel)
+
+- **`scripts/category-cache-job.js`**, **`server/core/categoryCacheScheduler.js`:** Tenantlista via `owner_user_id`; kategori-cache utan `user_id` på rader i tenant-schema.
+- **`plugins/orders/orderSyncScheduler.js`:** Itererar tenants med `tenant_plugin_access`; syntetisk request utan `currentTenantUserId`.
+- **`plugins/shipping/model.js`:** `requireTenantId(req)` i stället för missvisande `getUserId` som returnerade tenant-id.
+- **`server/core/lists/listsModel.js`**, **`plugins/products/lookupsModel.js`:** `requireTenantId` / `getTenantId` för tydlig namnsättning.
+
+### Dokumentation och terminologi
+
+- Arkitektur- och säkerhetsdokument uppdaterade: **tenant routing / schema-isolering** i stället formler som “automatic `user_id` filtering”; exempel-SQL i guider justerade mot `tenant_plugin_access` och utan felaktig `WHERE user_id` på tenantdata där det inte längre gäller.
+- **`docs/CHANGELOG.md`**, **`LESSONS_LEARNED`**, **`MIGRATIONS_AND_TENANTS`**, m.fl.:\*\* Konsekvent beskrivning av auth DB vs tenantdata.
+
+### Borttagna gamla debug/testskript
+
+Engångs- och lokala hjälpskript som inte längre behövs är borttagna från `scripts/` (t.ex. `check-channel-map.js`, `debug-sello-woo-map.js`, `debug-product-channel-links.js`, `debug-overrides-for-product.js`, `debug-sello-integrations-per-product.js`, `debug-channel-instances.js`, `fetch-fyndiq-article-properties.js`, `run-quantity-push-test.js`, `test-push-109512000.js`, `list-products-in-db.js`, `run-phase1-pilot-2-products.js`, `test-status-filtering.js`). **`SELLO_WOO_MAP_FIX.md`** och **`PRODUCT_CHANNEL_LINKS_INVESTIGATION.md`** pekar på SQL mot tenant-schema i stället för borttagna skript. Drift kvar: `run-all-migrations.js`, `setup-database.js`, övriga migrationsrelaterade npm-script i `package.json`.
+
+---
+
 ## 2026-03-27 – Tenant/migration: public-schema, SET LOCAL, import-renumber, tenant-guards
 
 ### Migrationer och `search_path`
@@ -13,7 +78,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ### Huvuddatabas (public) – explicit kvalificering
 
-- **server/core/routes/auth.js**, **server/core/routes/admin.js**, **server/core/routes/settings.js** m.fl.: SQL mot auth-tabeller kvalificerad som **`public`** (t.ex. `public.users`, `public.user_plugin_access`) för att undvika felaktig upplösning vid varierande `search_path`.
+- **server/core/routes/auth.js**, **server/core/routes/admin.js**, **server/core/routes/settings.js** m.fl.: SQL mot auth-tabeller kvalificerad som **`public`** (t.ex. `public.users`, `public.tenant_plugin_access`) för att undvika felaktig upplösning vid varierande `search_path`.
 - **Diverse `scripts/*.js` och SQL under `scripts/db/manual/`:** Samma mönster där mot huvuddatabasen.
 
 ### Tenant-plugins (CDON/Fyndiq/Woo)
@@ -22,7 +87,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ### Orders
 
-- **plugins/orders/orderSyncScheduler.js:** Läser `public.user_plugin_access`; **en retry** vid tillfälligt fel på användarlistan så inte hela ticken kastas.
+- **plugins/orders/orderSyncScheduler.js:** Läser `public.tenant_plugin_access`; **en retry** vid tillfälligt fel på tenantlistan så inte hela ticken kastas.
 - **client/…/OrdersList.tsx:** Vid import från alla kanaler: `pullOrders(..., renumber: false)` per kanal, därefter **ett** `ordersApi.renumber()` med fel synligt i import-resultatet om det misslyckas.
 - **client/…/cdonApi.ts**, **fyndiqApi.ts**, **woocommerceApi.ts:** `pullOrders` tar valfri `renumber?: boolean`.
 
@@ -57,7 +122,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ### Server – periodisk order-synk
 
-- **plugins/orders/orderSyncScheduler.js:** Scheduler som för alla användare med `user_plugin_access` (orders, enabled) kör `orderSyncService.runSync` med syntetisk `req` (samma tenant-resolution som middleware via **server/core/helpers/resolveTenantForUser.js**). Intervall = `SYNC_INTERVAL_MINUTES` (15), första körning efter 10 s, sedan var 15:e minut. Fel per användare loggas utan att stoppa övriga.
+- **plugins/orders/orderSyncScheduler.js:** Scheduler som för alla tenants med `tenant_plugin_access` (orders, enabled) kör `orderSyncService.runSync` med syntetisk `req` (samma tenant-resolution som middleware via **server/core/helpers/resolveTenantForUser.js**). Intervall = `SYNC_INTERVAL_MINUTES` (15), första körning efter 10 s, sedan var 15:e minut. Fel per tenant loggas utan att stoppa övriga.
 - **server/core/routes/index.js:** `startOrderSyncScheduler(pool)` startas vid serverstart (samma mönster som FX och category-cache).
 - **plugins/orders/orderSyncService.js:** Exporterar `SYNC_INTERVAL_MINUTES` för scheduler.
 - **server/migrations/079-orders-sync-fingerprint-and-channel-map-index.sql:** Index/stöd för orders sync-data och snabbare uppslag.
@@ -170,7 +235,6 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 ### Dokumentation och script
 
 - **docs/PRODUCT_CHANNEL_LINKS_INVESTIGATION.md:** Beskriver kanallänkar (Sello vs sync), URL-format och nuvarande fix.
-- **scripts/debug-product-channel-links.js:** Diagnostik för kanallänkar per produkt.
 
 ---
 
@@ -241,12 +305,6 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 ### Produktlistan – quantity-popup
 
 - **client/…/ProductList.tsx, ProductContext.tsx:** Plus- och minus-knapparna öppnar nu en popup som frågar "Hur mycket vill du öka/minska lagersaldot med?" – användaren anger ett heltal (inget minustecken) och bekräftar.
-
-### Scripts
-
-- **scripts/check-channel-map.js:** Diagnostik – visar channel_product_map och channel_product_overrides för en produkt.
-- **scripts/debug-sello-woo-map.js:** Diagnostik – visar Sello integrations (item_id per kanal) och channel_instances med sello_integration_id.
-- **scripts/run-quantity-push-test.js, test-push-109512000.js:** Test för lager-push.
 
 ---
 
@@ -430,10 +488,6 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 - **sizeText** sätts till null när `size` har preset-match; annars från Size/Storlek.
 - **patternText** sätts till null när `pattern` finns; annars från Mönster/pattern_text. Samma logik som colorText.
-
-### Scripts
-
-- **debug-sello-integrations-per-product.js**: Hämtar alla mappade `sello_integration_id` från `channel_instances` dynamiskt istället för hårdkodade ID:n.
 
 ---
 
@@ -730,9 +784,9 @@ PHASE1_PILOT_USER_ID=1 node scripts/phase2-write-pilot.js
 - **Fix:** Tabellen `sessions` (connect-pg-simple) skapades utan PRIMARY KEY på `sid`, vilket gav fel "there is no unique or exclusion constraint matching the ON CONFLICT specification" vid session save (t.ex. efter login). `scripts/setup-database.js` skapar nu `sessions` med `PRIMARY KEY (sid)` och innehåller ett idempotent steg som lägger till PK om den saknas. Kör ALTER manuellt på befintliga DB om behov.
 - Fil: [scripts/setup-database.js](scripts/setup-database.js).
 
-### Session / tenant – ingen sync av currentTenantUserId i middleware
+### Session / tenant – ingen legacy-sync av tenant-owner-alias i middleware
 
-- **Borttaget:** Middleware som "synkade" `currentTenantUserId` från `user.id` när den saknades (fallback). `currentTenantUserId` sätts nu enbart vid login/signup/MFA-verifiering i auth-routes. Tenant-middleware läser bara `req.session?.currentTenantUserId`; om den saknas sätts ingen tenant-pool (korrekt beteende om sessionen inte är fullständig).
+- **Borttaget:** Middleware som "synkade" ett tenant-owner-alias från `user.id` när det saknades (fallback). Tenant-middleware läser nu bara den kanoniska tenantkontexten i sessionen (`tenantId`, `tenantOwnerUserId`, `tenantConnectionString`, `tenantSchemaName`) och sätter ingen tenant-pool om den saknas.
 - Fil: [server/index.ts](server/index.ts).
 
 ### NPM-skript
@@ -948,8 +1002,8 @@ PHASE1_PILOT_USER_ID=1 node scripts/phase2-write-pilot.js
 ### Dedupe och prioritering (auth och data)
 
 - **En enda getMe**
-  - `GET /api/auth/me` anropas endast från AppContext vid start. TopBar använder `currentTenantUserId` och `user` från `useApp()`; ingen egen fetch till `/api/auth/me` (ingen `loadCurrentTenant`).
-  - AppContext sparar och exponerar `currentTenantUserId` från getMe-svaret. Vid login/signup sätts den till inloggad användare.
+  - `GET /api/auth/me` anropas endast från AppContext vid start. TopBar använder `activeTenantId` och `user` från `useApp()`; ingen egen fetch till `/api/auth/me` (ingen `loadCurrentTenant`).
+  - AppContext sparar och exponerar `activeTenantId` från getMe-svaret via `tenantId`.
   - Filer: [client/src/core/api/AppContext.tsx](client/src/core/api/AppContext.tsx), [client/src/core/ui/TopBar.tsx](client/src/core/ui/TopBar.tsx).
 
 - **Prioriterad dataladdning**

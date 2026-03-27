@@ -49,8 +49,8 @@ const logger = ServiceManager.get('logger');
 // Use database service
 const contacts = await database.query(
   'SELECT * FROM contacts WHERE id = $1',
-  [contactId]
-  // user_id filter automatically added
+  [contactId],
+  // Query runs inside the active tenant context
 );
 ```
 
@@ -70,13 +70,17 @@ if (!contact) {
 ```javascript
 const { commonRules, validateRequest } = require('./server/core/middleware/validation');
 
-router.post('/contacts', [
-  requireAuth(),
-  commonRules.string('companyName', 1, 255),
-  commonRules.email('email'),
-  commonRules.optionalString('phone'),
-  validateRequest,
-], controller.createContact);
+router.post(
+  '/contacts',
+  [
+    requireAuth(),
+    commonRules.string('companyName', 1, 255),
+    commonRules.email('email'),
+    commonRules.optionalString('phone'),
+    validateRequest,
+  ],
+  controller.createContact,
+);
 ```
 
 ### CSRF Protection
@@ -100,7 +104,7 @@ router.post('/auth/login', authLimiter, authController.login);
 
 ## Features
 
-- **Automatic Tenant Isolation**: Database service automatically filters by user_id
+- **Automatic Tenant Isolation**: Database service routes queries to the active tenant schema/database
 - **Parameterized Queries Only**: SQL injection prevention enforced
 - **Structured Logging**: Consistent logging format across all services
 - **Standardized Errors**: AppError class for consistent error responses

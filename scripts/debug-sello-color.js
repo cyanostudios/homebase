@@ -16,7 +16,7 @@ async function run() {
   const ServiceManager = require('../server/core/ServiceManager');
   Bootstrap.initializeServices();
   const req = {
-    session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
+    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
     tenantPool: undefined,
   };
   ServiceManager.initialize(req);
@@ -48,8 +48,12 @@ async function run() {
       (p) =>
         String(JSON.stringify(p)).toLowerCase().includes('red') ||
         String(JSON.stringify(p)).toLowerCase().includes('röd') ||
-        String(p?.property ?? '').toLowerCase().includes('color') ||
-        String(p?.property ?? '').toLowerCase().includes('färg'),
+        String(p?.property ?? '')
+          .toLowerCase()
+          .includes('color') ||
+        String(p?.property ?? '')
+          .toLowerCase()
+          .includes('färg'),
     );
     console.log('\n=== Properties containing Red/Röd/Color/Färg ===');
     console.log(JSON.stringify(colorLike, null, 2));

@@ -4,31 +4,32 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
-function getUserId(req) {
-  return req.session?.user?.id;
+function getTenantId(req) {
+  return req.session?.tenantId;
 }
 
 async function getAll(req, table) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = getTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const validTables = ['brands', 'suppliers', 'manufacturers'];
   if (!validTables.includes(table)) {
     throw new AppError('Invalid lookup table', 400, AppError.CODES.VALIDATION_ERROR);
   }
 
-  const rows = await db.query(
-    `SELECT id, name, created_at FROM ${table} WHERE user_id = $1 ORDER BY name`,
-    [userId],
-  );
-  return (rows || []).map((r) => ({ id: String(r.id), name: r.name || '', createdAt: r.created_at }));
+  const rows = await db.query(`SELECT id, name, created_at FROM ${table} ORDER BY name`, []);
+  return (rows || []).map((r) => ({
+    id: String(r.id),
+    name: r.name || '',
+    createdAt: r.created_at,
+  }));
 }
 
 async function create(req, table, name) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = getTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const validTables = ['brands', 'suppliers', 'manufacturers'];
   if (!validTables.includes(table)) {
@@ -39,10 +40,10 @@ async function create(req, table, name) {
   if (!n) throw new AppError('Name is required', 400, AppError.CODES.VALIDATION_ERROR);
 
   const result = await db.query(
-    `INSERT INTO ${table} (user_id, name) VALUES ($1, $2)
-     ON CONFLICT (user_id, name) DO UPDATE SET name = EXCLUDED.name
+    `INSERT INTO ${table} (name) VALUES ($1)
+     ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
      RETURNING id, name, created_at`,
-    [userId, n],
+    [n],
   );
   const row = result[0];
   return { id: String(row.id), name: row.name || '', createdAt: row.created_at };
@@ -58,8 +59,8 @@ async function create(req, table, name) {
  */
 async function findOrCreateBrandForSello(req, selloBrandId, brandName) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = getTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   let sid = String(selloBrandId ?? '').trim();
   const fname = String(brandName ?? '').trim();
@@ -67,34 +68,30 @@ async function findOrCreateBrandForSello(req, selloBrandId, brandName) {
   if (!sid && !fname) return null;
 
   if (sid) {
-    const byId = await db.query(
-      `SELECT id, name FROM brands WHERE user_id = $1 AND import_brand_id = $2 LIMIT 1`,
-      [userId, sid],
-    );
+    const byId = await db.query(`SELECT id, name FROM brands WHERE import_brand_id = $1 LIMIT 1`, [
+      sid,
+    ]);
     if (byId && byId.length > 0) {
       return { id: String(byId[0].id), name: byId[0].name ?? '' };
     }
   }
   if (fname) {
     const byName = await db.query(
-      `SELECT id, name, import_brand_id FROM brands WHERE user_id = $1 AND name = $2 LIMIT 1`,
-      [userId, fname],
+      `SELECT id, name, import_brand_id FROM brands WHERE name = $1 LIMIT 1`,
+      [fname],
     );
     if (byName && byName.length > 0) {
       const row = byName[0];
       if (sid && !row.import_brand_id) {
-        await db.query(
-          `UPDATE brands SET import_brand_id = $1 WHERE id = $2 AND user_id = $3`,
-          [sid, row.id, userId],
-        );
+        await db.query(`UPDATE brands SET import_brand_id = $1 WHERE id = $2`, [sid, row.id]);
       }
       return { id: String(row.id), name: row.name ?? '' };
     }
   }
   const result = await db.query(
-    `INSERT INTO brands (user_id, name, import_brand_id) VALUES ($1, $2, $3)
+    `INSERT INTO brands (name, import_brand_id) VALUES ($1, $2)
      RETURNING id, name`,
-    [userId, fname || `Sello märke ${sid}`, sid || null],
+    [fname || `Sello märke ${sid}`, sid || null],
   );
   const r = result[0];
   return { id: String(r.id), name: r.name ?? '' };
@@ -110,8 +107,8 @@ async function findOrCreateBrandForSello(req, selloBrandId, brandName) {
  */
 async function findOrCreateManufacturerForSello(req, selloManufacturerId, manufacturerName) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = getTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const sid = String(selloManufacturerId ?? '').trim();
   const fname = String(manufacturerName ?? '').trim();
@@ -119,8 +116,8 @@ async function findOrCreateManufacturerForSello(req, selloManufacturerId, manufa
 
   if (sid) {
     const byId = await db.query(
-      `SELECT id, name FROM manufacturers WHERE user_id = $1 AND import_manufacturer_id = $2 LIMIT 1`,
-      [userId, sid],
+      `SELECT id, name FROM manufacturers WHERE import_manufacturer_id = $1 LIMIT 1`,
+      [sid],
     );
     if (byId && byId.length > 0) {
       return { id: String(byId[0].id), name: byId[0].name ?? '' };
@@ -128,25 +125,25 @@ async function findOrCreateManufacturerForSello(req, selloManufacturerId, manufa
   }
   if (fname) {
     const byName = await db.query(
-      `SELECT id, name, import_manufacturer_id FROM manufacturers WHERE user_id = $1 AND name = $2 LIMIT 1`,
-      [userId, fname],
+      `SELECT id, name, import_manufacturer_id FROM manufacturers WHERE name = $1 LIMIT 1`,
+      [fname],
     );
     if (byName && byName.length > 0) {
       const row = byName[0];
       if (sid && !row.import_manufacturer_id) {
-        await db.query(
-          `UPDATE manufacturers SET import_manufacturer_id = $1 WHERE id = $2 AND user_id = $3`,
-          [sid, row.id, userId],
-        );
+        await db.query(`UPDATE manufacturers SET import_manufacturer_id = $1 WHERE id = $2`, [
+          sid,
+          row.id,
+        ]);
       }
       return { id: String(row.id), name: row.name ?? '' };
     }
   }
   const result = await db.query(
-    `INSERT INTO manufacturers (user_id, name, import_manufacturer_id) VALUES ($1, $2, $3)
-     ON CONFLICT (user_id, name) DO UPDATE SET import_manufacturer_id = COALESCE(manufacturers.import_manufacturer_id, EXCLUDED.import_manufacturer_id)
+    `INSERT INTO manufacturers (name, import_manufacturer_id) VALUES ($1, $2)
+     ON CONFLICT (name) DO UPDATE SET import_manufacturer_id = COALESCE(manufacturers.import_manufacturer_id, EXCLUDED.import_manufacturer_id)
      RETURNING id, name`,
-    [userId, fname || `Sello tillverkare ${sid}`, sid || null],
+    [fname || `Sello tillverkare ${sid}`, sid || null],
   );
   const r = result[0];
   return { id: String(r.id), name: r.name ?? '' };

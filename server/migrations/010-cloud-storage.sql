@@ -1,6 +1,6 @@
 -- 010-cloud-storage.sql
 -- Cloud storage settings for Google Drive integration
--- Supports both centralized OAuth apps (via env) and per-user OAuth apps (via user credentials)
+-- Supports both centralized OAuth apps (via env) and legacy user-owned OAuth app credentials
 
 -- Google Drive settings
 CREATE TABLE IF NOT EXISTS googledrive_settings (
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS googledrive_settings (
   -- OAuth app credentials (optional - if not set, uses env vars)
   client_id TEXT,
   client_secret TEXT,
-  -- OAuth tokens (per-user)
+  -- OAuth tokens (legacy user-owned at creation time)
   access_token TEXT,
   refresh_token TEXT,
   token_expires_at TIMESTAMP,

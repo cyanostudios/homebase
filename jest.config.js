@@ -15,7 +15,7 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   verbose: true,
   // Setup files
-  setupFilesAfterEnv: [],
+  setupFilesAfterEnv: ['<rootDir>/server/__tests__/jest.setup.js'],
   // Module paths
   moduleDirectories: ['node_modules', '<rootDir>'],
   // Transform (if needed for TypeScript)

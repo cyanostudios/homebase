@@ -72,7 +72,7 @@ type PluginNameUnion = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'invoices'
 interface AppContextType {
   // Auth State
   user: User | null;
-  currentTenantUserId: number | null;
+  activeTenantId: number | null;
   isAuthenticated: boolean;
   login: (
     email: string,
@@ -286,7 +286,7 @@ const api = {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [currentTenantUserId, setCurrentTenantUserId] = useState<number | null>(null);
+  const [activeTenantId, setActiveTenantId] = useState<number | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -396,7 +396,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const response = await api.getMe();
       debugLog(`CHECK_AUTH: getMe OK userId: ${response?.user?.id ?? '—'}`);
       setUser(response.user);
-      setCurrentTenantUserId(response.currentTenantUserId ?? response.user?.id ?? null);
+      setActiveTenantId(response.tenantId ?? null);
       setIsAuthenticated(true);
     } catch (err: any) {
       debugLog(
@@ -412,9 +412,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const retryResponse = await api.getMe();
           debugLog(`CHECK_AUTH: retry OK userId: ${retryResponse?.user?.id ?? '—'}`);
           setUser(retryResponse.user);
-          setCurrentTenantUserId(
-            retryResponse.currentTenantUserId ?? retryResponse.user?.id ?? null,
-          );
+          setActiveTenantId(retryResponse.tenantId ?? null);
           setIsAuthenticated(true);
           return;
         } catch (retryErr: any) {
@@ -427,7 +425,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Only clear auth state when we are certain it's an authentication failure.
       if (status === 401 || status === 403) {
         setUser(null);
-        setCurrentTenantUserId(null);
+        setActiveTenantId(null);
         setIsAuthenticated(false);
       }
     } finally {
@@ -454,7 +452,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { requiresMfa: true, mfaToken: response.mfaToken };
       }
       setUser(response.user);
-      setCurrentTenantUserId(response.user?.id ?? null);
+      setActiveTenantId(response.tenantId ?? null);
       setIsAuthenticated(true);
       return true;
     } catch (error) {
@@ -467,7 +465,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const response = await api.verifyMfa(mfaToken, code);
       setUser(response.user);
-      setCurrentTenantUserId(response.user?.id ?? null);
+      setActiveTenantId(response.tenantId ?? null);
       setIsAuthenticated(true);
       return true;
     } catch (error) {
@@ -484,7 +482,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const response = await api.signup(email, password);
       // Auto-login after successful signup
       setUser(response.user);
-      setCurrentTenantUserId(response.user?.id ?? null);
+      setActiveTenantId(response.tenantId ?? null);
       setIsAuthenticated(true);
       return { success: true };
     } catch (error: any) {
@@ -509,7 +507,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
-      setCurrentTenantUserId(null);
+      setActiveTenantId(null);
       setIsAuthenticated(false);
       setContacts([]);
       setNotes([]);
@@ -632,7 +630,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         user,
-        currentTenantUserId,
+        activeTenantId,
         isAuthenticated,
         login,
         verifyMfa,

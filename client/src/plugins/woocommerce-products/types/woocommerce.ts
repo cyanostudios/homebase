@@ -1,6 +1,6 @@
 // client/src/plugins/woocommerce-products/types/woocommerce.ts
 
-// Per-user Woo settings stored in DB
+// Tenant-scoped Woo settings stored in DB
 export interface WooSettings {
   id?: string;
   // Instance metadata (multi-store). Present when editing a specific store.

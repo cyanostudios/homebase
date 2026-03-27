@@ -21,7 +21,6 @@ export interface ChannelSummary {
 // Individual row in channel_product_map (for reading status per product/channel)
 export interface ChannelMapRow {
   id: string;
-  user_id: string;
   product_id: string;
   channel: string;
   enabled: boolean;

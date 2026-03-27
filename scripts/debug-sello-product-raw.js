@@ -17,7 +17,7 @@ async function run() {
   const ServiceManager = require('../server/core/ServiceManager');
   Bootstrap.initializeServices();
   const req = {
-    session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
+    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
     tenantPool: undefined,
   };
   ServiceManager.initialize(req);
@@ -49,7 +49,10 @@ async function run() {
   if (fromList) {
     console.log('manufacturer:', fromList.manufacturer);
     console.log('manufacturer_id:', fromList.manufacturer_id);
-    console.log('integrations keys:', fromList.integrations ? Object.keys(fromList.integrations) : 'N/A');
+    console.log(
+      'integrations keys:',
+      fromList.integrations ? Object.keys(fromList.integrations) : 'N/A',
+    );
     if (fromList.integrations) {
       const sample = {};
       for (const [k, v] of Object.entries(fromList.integrations)) {
@@ -85,7 +88,7 @@ async function run() {
   }
   if (fullRaw.properties && Array.isArray(fullRaw.properties)) {
     const mfr = fullRaw.properties.find((p) =>
-      String(JSON.stringify(p)).toLowerCase().includes('wrebbit')
+      String(JSON.stringify(p)).toLowerCase().includes('wrebbit'),
     );
     if (mfr) console.log('\nProperty containing Wrebbit:', JSON.stringify(mfr, null, 2));
   }
@@ -101,10 +104,15 @@ async function run() {
     if (singleRaw.product && typeof singleRaw.product === 'object') {
       console.log('product.manufacturer:', singleRaw.product.manufacturer);
       console.log('product.manufacturer_id:', singleRaw.product.manufacturer_id);
-      console.log('product.integrations keys:', singleRaw.product.integrations
-        ? Object.keys(singleRaw.product.integrations) : 'N/A');
+      console.log(
+        'product.integrations keys:',
+        singleRaw.product.integrations ? Object.keys(singleRaw.product.integrations) : 'N/A',
+      );
     }
-    console.log('integrations keys:', singleRaw.integrations ? Object.keys(singleRaw.integrations) : 'N/A');
+    console.log(
+      'integrations keys:',
+      singleRaw.integrations ? Object.keys(singleRaw.integrations) : 'N/A',
+    );
     if (singleRaw.integrations) {
       const sample = {};
       for (const [k, v] of Object.entries(singleRaw.integrations)) {

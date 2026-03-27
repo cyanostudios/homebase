@@ -9,6 +9,7 @@ const QRCode = require('qrcode');
 const CredentialsCrypto = require('../services/security/CredentialsCrypto');
 const mfaService = require('../services/mfaService');
 const ServiceManager = require('../ServiceManager');
+const TenantContextService = require('../services/tenant/TenantContextService');
 
 // Dependencies will be injected by setupAuthRoutes()
 let pool = null;
@@ -42,27 +43,28 @@ function setupAuthRoutes(mainPool, limiter, authMiddleware, loader, csrf) {
 }
 
 /**
- * Ensure user has access to all available plugins. Auto-grants any new plugins
- * so existing users see them without manual SQL. On error, returns existing list.
+ * Ensure tenant has access to all available plugins.
+ * Auto-grants new plugins at tenant level so existing tenants see them.
  */
-async function ensurePluginAccess(userId, existingPluginNames) {
+async function ensureTenantPluginAccess(tenantId, existingPluginNames) {
+  if (!tenantId) return existingPluginNames;
   try {
     if (!pluginLoader) return existingPluginNames;
     const availablePlugins = pluginLoader.getAllPlugins().map((p) => p.name);
     const missing = availablePlugins.filter((p) => !existingPluginNames.includes(p));
     for (const pluginName of missing) {
       await pool.query(
-        `INSERT INTO public.user_plugin_access (user_id, plugin_name, enabled)
-         SELECT $1::int, $2::text, true
-         WHERE NOT EXISTS (SELECT 1 FROM public.user_plugin_access WHERE user_id = $1 AND plugin_name = $2::text)`,
-        [userId, String(pluginName)],
+        `INSERT INTO public.tenant_plugin_access (tenant_id, plugin_name, enabled)
+         VALUES ($1::int, $2::text, true)
+         ON CONFLICT (tenant_id, plugin_name) DO NOTHING`,
+        [tenantId, String(pluginName)],
       );
     }
     return missing.length ? [...existingPluginNames, ...missing] : existingPluginNames;
   } catch (err) {
     const logger = ServiceManager.get('logger');
-    logger?.warn?.('ensurePluginAccess failed, using existing plugins', {
-      userId,
+    logger?.warn?.('ensureTenantPluginAccess failed, using existing plugins', {
+      tenantId,
       err: err?.message,
     });
     return existingPluginNames;
@@ -93,25 +95,15 @@ router.post(
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      // Get user's plugin access (auto-grants any new plugins)
-      const pluginAccess = await pool.query(
-        'SELECT plugin_name FROM public.user_plugin_access WHERE user_id = $1 AND enabled = true',
-        [user.id],
-      );
-      const pluginNames = pluginAccess.rows.map((row) => row.plugin_name);
-      const plugins = await ensurePluginAccess(user.id, pluginNames);
-
-      // Validate tenant mapping for provider that uses per-tenant databases.
-      if (process.env.TENANT_PROVIDER !== 'local') {
-        const tenantResult = await pool.query(
-          'SELECT user_id FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
-          [user.id],
-        );
-        if (!tenantResult.rows.length) {
-          const logger = ServiceManager.get('logger');
-          logger.error('No tenant database found', null, { userId: user.id });
-          return res.status(500).json({ error: 'Tenant database not configured' });
-        }
+      // Resolve canonical tenant context (no legacy lookups).
+      const tenantContextService = new TenantContextService(pool, {
+        logger: ServiceManager.get('logger'),
+      });
+      const tenantContext = await tenantContextService.getTenantContextByUserId(user.id);
+      if (!tenantContext) {
+        const logger = ServiceManager.get('logger');
+        logger.error('No tenant membership found for user', null, { userId: user.id });
+        return res.status(500).json({ error: 'Tenant membership not configured' });
       }
 
       // MFA: if enabled globally and user has MFA on, require TOTP before session
@@ -132,23 +124,31 @@ router.post(
         }
       }
 
-      // Save user info in session
+      // Save user info in session (plugins are tenant-scoped)
+      const tenantPlugins = await tenantContextService.getTenantPluginNames(tenantContext.tenantId);
+      const finalPlugins = await ensureTenantPluginAccess(tenantContext.tenantId, tenantPlugins);
+
       req.session.user = {
         id: user.id,
         email: user.email,
         role: user.role,
-        plugins,
+        plugins: finalPlugins,
       };
 
-      // Set currentTenantUserId to logged-in user by default
-      req.session.currentTenantUserId = user.id;
+      // Canonical tenant context in session
+      req.session.tenantConnectionString = tenantContext.tenantConnectionString || null;
+      req.session.tenantSchemaName = tenantContext.tenantSchemaName || null;
+      req.session.tenantId = tenantContext.tenantId;
+      req.session.tenantRole = tenantContext.tenantRole;
+      req.session.tenantOwnerUserId = tenantContext.tenantOwnerUserId;
 
       // Log tenant routing info without exposing connection details
       const logger = ServiceManager.get('logger');
       logger.info('User logged in', {
         userId: user.id,
         email: user.email,
-        tenantUserId: user.id,
+        tenantId: tenantContext.tenantId,
+        tenantOwnerUserId: tenantContext.tenantOwnerUserId,
       });
 
       // Save session explicitly before responding
@@ -165,6 +165,9 @@ router.post(
             role: user.role,
             plugins: req.session.user.plugins,
           },
+          tenantId: req.session.tenantId,
+          tenantRole: req.session.tenantRole,
+          tenantOwnerUserId: req.session.tenantOwnerUserId,
         });
       });
     } catch (error) {
@@ -282,21 +285,36 @@ router.post('/signup', async (req, res) => {
     const tenantDb = await tenantService.createTenant(user.id, user.email);
 
     // Save tenant info in main database
-    await pool.query(
-      'INSERT INTO public.tenants (user_id, neon_project_id, neon_database_name, neon_connection_string) VALUES ($1, $2, $3, $4)',
+    const tenantRow = await pool.query(
+      `INSERT INTO public.tenants (owner_user_id, neon_project_id, neon_database_name, neon_connection_string)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
       [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString],
     );
+    const tenantId = tenantRow.rows?.[0]?.id;
+    if (!tenantId) {
+      throw new Error('Failed to create tenant row');
+    }
 
     logger.info('Tenant database created', {
       userId: user.id,
       databaseName: tenantDb.databaseName,
     });
 
-    // Give selected plugin access
+    // Membership: owner is admin
+    await pool.query(
+      `INSERT INTO public.tenant_memberships (tenant_id, user_id, role, status, created_by)
+       VALUES ($1, $2, 'admin', 'active', $2)`,
+      [tenantId, user.id],
+    );
+
+    // Tenant plugin access (shared)
     for (const pluginName of selectedPlugins) {
       await pool.query(
-        'INSERT INTO public.user_plugin_access (user_id, plugin_name, enabled) VALUES ($1, $2, true)',
-        [user.id, pluginName],
+        `INSERT INTO public.tenant_plugin_access (tenant_id, plugin_name, enabled, granted_by_user_id)
+         VALUES ($1, $2, true, $3)
+         ON CONFLICT (tenant_id, plugin_name) DO NOTHING`,
+        [tenantId, pluginName, user.id],
       );
     }
 
@@ -313,7 +331,11 @@ router.post('/signup', async (req, res) => {
       plugins: selectedPlugins,
     };
 
-    req.session.currentTenantUserId = user.id;
+    req.session.tenantConnectionString = tenantDb.connectionString;
+    req.session.tenantSchemaName = tenantDb.databaseName || null;
+    req.session.tenantId = tenantId;
+    req.session.tenantRole = 'admin';
+    req.session.tenantOwnerUserId = user.id;
 
     // Save session before responding (important for signup auto-login)
     req.session.save((err) => {
@@ -329,6 +351,9 @@ router.post('/signup', async (req, res) => {
           role: user.role,
           plugins: selectedPlugins,
         },
+        tenantId: tenantId,
+        tenantRole: 'admin',
+        tenantOwnerUserId: user.id,
       });
     });
   } catch (error) {
@@ -390,13 +415,16 @@ router.post(
         return res.status(401).json({ error: 'Invalid verification' });
       }
       const user = userResult.rows[0];
+      const tenantContextService = new TenantContextService(pool, {
+        logger: ServiceManager.get('logger'),
+      });
+      const tenantContext = await tenantContextService.getTenantContextByUserId(user.id);
+      if (!tenantContext) {
+        return res.status(500).json({ error: 'Tenant membership not configured' });
+      }
 
-      const pluginAccess = await pool.query(
-        'SELECT plugin_name FROM public.user_plugin_access WHERE user_id = $1 AND enabled = true',
-        [userId],
-      );
-      const plugins = pluginAccess.rows.map((row) => row.plugin_name);
-      const pluginNames = await ensurePluginAccess(userId, plugins);
+      const tenantPlugins = await tenantContextService.getTenantPluginNames(tenantContext.tenantId);
+      const pluginNames = await ensureTenantPluginAccess(tenantContext.tenantId, tenantPlugins);
 
       req.session.user = {
         id: user.id,
@@ -404,7 +432,11 @@ router.post(
         role: user.role,
         plugins: pluginNames,
       };
-      req.session.currentTenantUserId = user.id;
+      req.session.tenantConnectionString = tenantContext.tenantConnectionString || null;
+      req.session.tenantSchemaName = tenantContext.tenantSchemaName || null;
+      req.session.tenantId = tenantContext.tenantId;
+      req.session.tenantRole = tenantContext.tenantRole;
+      req.session.tenantOwnerUserId = tenantContext.tenantOwnerUserId;
 
       const logger = ServiceManager.get('logger');
       logger.info('User logged in (MFA)', { userId: user.id, email: user.email });
@@ -421,6 +453,9 @@ router.post(
             role: user.role,
             plugins: req.session.user.plugins,
           },
+          tenantId: req.session.tenantId,
+          tenantRole: req.session.tenantRole,
+          tenantOwnerUserId: req.session.tenantOwnerUserId,
         });
       });
     } catch (error) {
@@ -605,28 +640,38 @@ router.get(
       req.session?.user?.id,
     );
     try {
-      const currentTenantUserId = req.session.currentTenantUserId || req.session.user.id;
-
-      // Always fetch plugins from database (auto-grants any new plugins)
-      const pluginAccess = await pool.query(
-        'SELECT plugin_name FROM public.user_plugin_access WHERE user_id = $1 AND enabled = true',
-        [currentTenantUserId],
+      const tenantContextService = new TenantContextService(pool, {
+        logger: ServiceManager.get('logger'),
+      });
+      const tenantContext = await tenantContextService.getTenantContextByUserId(
+        req.session.user.id,
       );
-      const pluginNames = pluginAccess.rows.map((row) => row.plugin_name);
-      const plugins = await ensurePluginAccess(currentTenantUserId, pluginNames);
+      if (!tenantContext) {
+        return res.status(500).json({ error: 'Tenant membership not configured' });
+      }
 
-      // Update session with fresh plugins
+      // Refresh session tenant context (single source of truth)
+      req.session.tenantConnectionString = tenantContext.tenantConnectionString || null;
+      req.session.tenantSchemaName = tenantContext.tenantSchemaName || null;
+      req.session.tenantId = tenantContext.tenantId;
+      req.session.tenantRole = tenantContext.tenantRole;
+      req.session.tenantOwnerUserId = tenantContext.tenantOwnerUserId;
+
+      const plugins = await tenantContextService.getTenantPluginNames(tenantContext.tenantId);
+
       if (req.session.user) {
         req.session.user.plugins = plugins;
       }
 
-      console.log('[AUTH/ME] 200 OK currentTenantUserId:', currentTenantUserId);
+      console.log('[AUTH/ME] 200 OK tenantId:', req.session.tenantId);
       res.json({
         user: {
           ...req.session.user,
-          plugins: plugins,
+          plugins,
         },
-        currentTenantUserId: currentTenantUserId,
+        tenantId: req.session.tenantId,
+        tenantRole: req.session.tenantRole,
+        tenantOwnerUserId: req.session.tenantOwnerUserId,
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');

@@ -1,5 +1,5 @@
 -- 013-fyndiq.sql
--- Fyndiq connector settings (per-user)
+-- Fyndiq connector settings (legacy user_id-scoped at creation time)
 
 CREATE TABLE IF NOT EXISTS fyndiq_settings (
   id SERIAL PRIMARY KEY,

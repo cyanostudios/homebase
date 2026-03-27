@@ -356,18 +356,12 @@ Core database service automatically enforces tenant boundaries:
 // Plugin queries without tenant awareness
 const contacts = await database.query('SELECT \* FROM contacts WHERE id = ?', [contactId]);
 
-// Core automatically adds: AND user_id = current_user_id
+// Core routes the query to the active tenant schema/database
 Implementation in DatabaseAdapter:
 class DatabaseAdapter {
 async query(sql, params, context) {
-// Add tenant filter automatically
-const modifiedSQL = this.addTenantFilter(sql, context.userId);
-return this.pool.query(modifiedSQL, [...params, context.userId]);
-}
-
-addTenantFilter(sql, userId) {
-// Parse SQL and inject WHERE user_id = ?
-// Or use Row-Level Security in PostgreSQL
+// Resolve tenant context before executing
+return this.pool.query(sql, params);
 }
 }
 Multi-Tenant Architecture

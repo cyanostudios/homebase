@@ -15,7 +15,7 @@ async function run() {
   Bootstrap.initializeServices();
   const ServiceManager = require('../server/core/ServiceManager');
   const req = {
-    session: { user: { id: 1 }, currentTenantUserId: 1 },
+    session: { user: { id: 1 }, tenantOwnerUserId: 1 },
     tenantPool: undefined,
   };
   ServiceManager.initialize(req);
@@ -27,7 +27,10 @@ async function run() {
   }
   console.log('mainImage:', product.mainImage == null ? '(null)' : product.mainImage);
   console.log('images count:', Array.isArray(product.images) ? product.images.length : 0);
-  if (product.mainImage && (product.mainImage.startsWith('http://') || product.mainImage.startsWith('https://'))) {
+  if (
+    product.mainImage &&
+    (product.mainImage.startsWith('http://') || product.mainImage.startsWith('https://'))
+  ) {
     console.log('mainImage is valid URL: yes');
   } else {
     console.log('mainImage is valid URL: no');

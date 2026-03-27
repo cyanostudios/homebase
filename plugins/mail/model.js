@@ -44,8 +44,8 @@ class MailModel {
   async getHistory(req, options = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
-      if (!userId) {
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
         return [];
       }
       const limit = Math.min(Math.max(1, options.limit || 50), 100);
@@ -53,9 +53,9 @@ class MailModel {
       const pluginSource = options.pluginSource;
       const referenceId = options.referenceId != null ? String(options.referenceId) : null;
 
-      const conditions = ['user_id = $1'];
-      const params = [userId];
-      let idx = 2;
+      const conditions = [];
+      const params = [];
+      let idx = 1;
       if (pluginSource) {
         conditions.push(`plugin_source = $${idx}`);
         params.push(pluginSource);
@@ -69,7 +69,7 @@ class MailModel {
       params.push(limit, offset);
       const sql = `SELECT id, recipients, subject, sent_at, plugin_source, reference_id, created_at, metadata
                    FROM ${TABLE}
-                   WHERE ${conditions.join(' AND ')}
+                   ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
                    ORDER BY sent_at DESC
                    LIMIT $${idx} OFFSET $${idx + 1}`;
 
@@ -93,8 +93,8 @@ class MailModel {
   async getHistoryCount(req, options = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
-      if (!userId) {
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
         return 0;
       }
       const pluginSource = options.pluginSource;
@@ -102,11 +102,11 @@ class MailModel {
       let sql;
       let params;
       if (pluginSource) {
-        sql = `SELECT COUNT(*)::int AS cnt FROM ${TABLE} WHERE user_id = $1 AND plugin_source = $2`;
-        params = [userId, pluginSource];
+        sql = `SELECT COUNT(*)::int AS cnt FROM ${TABLE} WHERE plugin_source = $1`;
+        params = [pluginSource];
       } else {
-        sql = `SELECT COUNT(*)::int AS cnt FROM ${TABLE} WHERE user_id = $1`;
-        params = [userId];
+        sql = `SELECT COUNT(*)::int AS cnt FROM ${TABLE}`;
+        params = [];
       }
 
       const rows = await db.query(sql, params);
@@ -124,16 +124,15 @@ class MailModel {
   async getSettings(req, options = { needsPassword: false }) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
-      if (!userId) {
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
         return null;
       }
       const sql = `SELECT id, provider, host, port, secure, auth_user, auth_pass, from_address,
                           resend_api_key, resend_from_address, created_at, updated_at
                    FROM ${SETTINGS_TABLE}
-                   WHERE user_id = $1
                    LIMIT 1`;
-      const params = [userId];
+      const params = [];
       const rows = await db.query(sql, params);
       const row = rows[0];
       if (!row) return null;
@@ -176,8 +175,8 @@ class MailModel {
   async saveSettings(req, data) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
-      if (!userId) {
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
         throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
       }
       const provider = (data.provider || 'smtp') === 'resend' ? 'resend' : 'smtp';
@@ -189,10 +188,7 @@ class MailModel {
       const resendFromAddress =
         data.resendFromAddress != null ? String(data.resendFromAddress).trim() : null;
 
-      const existing = await db.query(
-        `SELECT id FROM ${SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
-        [userId],
-      );
+      const existing = await db.query(`SELECT id FROM ${SETTINGS_TABLE} LIMIT 1`, []);
       const now = new Date();
 
       if (existing?.length) {

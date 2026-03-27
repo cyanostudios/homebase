@@ -74,7 +74,7 @@ class NeonTenantProvider extends TenantService {
       }
 
       const result = await this.mainPool.query(
-        'SELECT neon_project_id FROM public.tenants WHERE user_id = $1',
+        'SELECT neon_project_id FROM public.tenants WHERE owner_user_id = $1',
         [userId],
       );
 
@@ -107,7 +107,7 @@ class NeonTenantProvider extends TenantService {
     }
 
     const result = await this.mainPool.query(
-      'SELECT neon_connection_string FROM public.tenants WHERE user_id = $1',
+      'SELECT neon_connection_string FROM public.tenants WHERE owner_user_id = $1',
       [userId],
     );
 
@@ -149,9 +149,10 @@ class NeonTenantProvider extends TenantService {
       throw new Error('mainPool not configured for NeonTenantProvider');
     }
 
-    const result = await this.mainPool.query('SELECT 1 FROM public.tenants WHERE user_id = $1', [
-      userId,
-    ]);
+    const result = await this.mainPool.query(
+      'SELECT 1 FROM public.tenants WHERE owner_user_id = $1',
+      [userId],
+    );
 
     return result.rows.length > 0;
   }
@@ -165,7 +166,7 @@ class NeonTenantProvider extends TenantService {
     }
 
     const result = await this.mainPool.query(
-      'SELECT neon_project_id, neon_database_name, neon_connection_string FROM public.tenants WHERE user_id = $1',
+      'SELECT neon_project_id, neon_database_name, neon_connection_string FROM public.tenants WHERE owner_user_id = $1',
       [userId],
     );
 

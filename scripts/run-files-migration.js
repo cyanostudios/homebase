@@ -95,33 +95,37 @@ async function main() {
     // First, check for Neon tenants (they take priority)
     const neonResult = await mainPool.query(`
       SELECT 
-        t.user_id,
+        t.owner_user_id,
         t.neon_connection_string as connection_string,
         u.email
       FROM public.tenants t
-      INNER JOIN public.users u ON t.user_id = u.id
+      INNER JOIN public.users u ON t.owner_user_id = u.id
       WHERE t.neon_connection_string IS NOT NULL
-      ORDER BY t.user_id
+      ORDER BY t.owner_user_id
     `);
 
     if (neonResult.rows.length > 0) {
       console.log(`   Found ${neonResult.rows.length} Neon tenant(s)`);
-      tenants = neonResult.rows;
+      tenants = neonResult.rows.map((row) => ({
+        owner_user_id: row.owner_user_id,
+        connection_string: row.connection_string,
+        email: row.email,
+      }));
     } else {
       // Fallback to local tenants (schema-per-tenant)
       console.log(`   No Neon tenants found, using local schema-per-tenant`);
       const usersResult = await mainPool.query(`
-        SELECT id as user_id, email
+        SELECT id, email
         FROM public.users
         ORDER BY id
       `);
 
       const mainConnectionString = process.env.DATABASE_URL;
       tenants = usersResult.rows.map((user) => ({
-        user_id: user.user_id,
+        owner_user_id: user.id,
         email: user.email,
-        connection_string: `${mainConnectionString}?options=-csearch_path%3Dtenant_${user.user_id}`,
-        schema_name: `tenant_${user.user_id}`,
+        connection_string: `${mainConnectionString}?options=-csearch_path%3Dtenant_${user.id}`,
+        schema_name: `tenant_${user.id}`,
       }));
     }
 
@@ -140,18 +144,18 @@ async function main() {
 
       if (!connectionString) {
         console.log(
-          `⚠️  Skipping tenant ${tenant.user_id} (${tenant.email}): No connection string`,
+          `⚠️  Skipping tenant ${tenant.owner_user_id} (${tenant.email}): No connection string`,
         );
         results.push({
           success: false,
-          tenantInfo: { userId: tenant.user_id, email: tenant.email },
+          tenantInfo: { tenantOwnerUserId: tenant.owner_user_id, email: tenant.email },
           error: 'No connection string',
         });
         continue;
       }
 
       const result = await runMigrationOnTenant(connectionString, {
-        userId: tenant.user_id,
+        userId: tenant.owner_user_id,
         email: tenant.email,
         schemaName: tenant.schema_name,
       });

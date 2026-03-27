@@ -4,7 +4,7 @@ const { AppError } = require('../../server/core/errors/AppError');
 class AnalyticsModel {
   /**
    * Appends filter params to the given params array and returns WHERE clauses.
-   * params must be [userId, ...] so $1, $2, etc. are correct.
+   * params are appended in call order for optional filters.
    */
   buildFilters(filters, params) {
     const clauses = [];
@@ -100,12 +100,12 @@ class AnalyticsModel {
   async getOverview(req, filters) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const params = [userId];
+      const params = [];
       const clauses = this.buildFilters(filters || {}, params);
-      const where = [`o.user_id = $1`, ...clauses].join(' AND ');
+      const where = clauses.length ? clauses.join(' AND ') : 'TRUE';
 
       const currencyExpr = `COALESCE(nullif(trim(upper(o.currency_norm)), ''), 'SEK')`;
 
@@ -157,12 +157,12 @@ class AnalyticsModel {
   async getTimeSeries(req, filters, granularity = 'day') {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const params = [userId];
+      const params = [];
       const clauses = this.buildFilters(filters || {}, params);
-      const where = [`o.user_id = $1`, ...clauses].join(' AND ');
+      const where = clauses.length ? clauses.join(' AND ') : 'TRUE';
       const bucketExpr = this.getBucketExpression(granularity);
 
       const marketExpr = `o.channel_market_norm`;
@@ -231,12 +231,12 @@ class AnalyticsModel {
   async getStatusDistribution(req, filters, granularity = 'day') {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const params = [userId];
+      const params = [];
       const clauses = this.buildFilters(filters || {}, params);
-      const where = [`o.user_id = $1`, ...clauses].join(' AND ');
+      const where = clauses.length ? clauses.join(' AND ') : 'TRUE';
       const bucketExpr = this.getBucketExpression(granularity);
 
       const sql = `
@@ -272,18 +272,17 @@ class AnalyticsModel {
   async getCustomerSegments(req, filters) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const params = [userId];
+      const params = [];
       const clauses = this.buildFilters(filters || {}, params);
-      const where = [`o.user_id = $1`, ...clauses].join(' AND ');
+      const where = clauses.length ? clauses.join(' AND ') : 'TRUE';
 
       const sql = `
         WITH filtered_orders AS (
           SELECT
             o.id,
-            o.user_id,
             o.customer_identifier_norm
           FROM orders o
           WHERE ${where}
@@ -328,8 +327,7 @@ class AnalyticsModel {
           )::int AS unidentified_orders
         FROM filtered_orders fo
         LEFT JOIN customer_first_orders cfo
-          ON cfo.user_id = fo.user_id
-         AND cfo.customer_identifier_norm = fo.customer_identifier_norm
+          ON cfo.customer_identifier_norm = fo.customer_identifier_norm
       `;
 
       const rows = await db.query(sql, params);
@@ -355,12 +353,12 @@ class AnalyticsModel {
   async getChannels(req, filters) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const params = [userId];
+      const params = [];
       const clauses = this.buildFilters(filters || {}, params);
-      const where = [`o.user_id = $1`, ...clauses].join(' AND ');
+      const where = clauses.length ? clauses.join(' AND ') : 'TRUE';
 
       const marketExpr = `o.channel_market_norm`;
       const channelKeyExpr = `
@@ -417,14 +415,14 @@ class AnalyticsModel {
   async getTopProducts(req, filters, limit = 20) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const params = [userId];
+      const params = [];
       const clauses = this.buildFilters(filters || {}, params);
       params.push(Math.min(Math.max(Number(limit) || 20, 1), 100));
       const limitParam = `$${params.length}`;
-      const where = [`o.user_id = $1`, ...clauses].join(' AND ');
+      const where = clauses.length ? clauses.join(' AND ') : 'TRUE';
 
       // Exclude shipping cost line items (WooCommerce frakt) from top products
       const excludeShipping =
@@ -491,10 +489,10 @@ class AnalyticsModel {
   async getDrilldownOrders(req, filters, { sku, limit = 50, offset = 0 } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const params = [userId];
+      const params = [];
       const clauses = this.buildFilters(filters || {}, params);
 
       if (sku) {
@@ -513,7 +511,7 @@ class AnalyticsModel {
       const limitParam = `$${params.length}`;
       params.push(Math.max(Number(offset) || 0, 0));
       const offsetParam = `$${params.length}`;
-      const where = [`o.user_id = $1`, ...clauses].join(' AND ');
+      const where = clauses.length ? clauses.join(' AND ') : 'TRUE';
 
       const sql = `
         SELECT

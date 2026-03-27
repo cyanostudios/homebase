@@ -512,7 +512,7 @@ class EstimateModel {
 
       const shareToken = this.generateShareToken();
 
-      // Insert share (estimate_shares table doesn't have user_id, so we use direct pool)
+      // Insert share directly in the tenant-scoped share table.
       const result = await pool.query(
         `
         INSERT INTO estimate_shares (estimate_id, share_token, valid_until)
@@ -606,7 +606,7 @@ class EstimateModel {
         throw new AppError('Estimate not found or access denied', 404, AppError.CODES.NOT_FOUND);
       }
 
-      // Get shares (estimate_shares table doesn't have user_id, so we use direct pool)
+      // Read shares directly from the tenant-scoped share table.
       const result = await pool.query(
         `
         SELECT * FROM estimate_shares 

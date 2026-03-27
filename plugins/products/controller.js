@@ -670,8 +670,8 @@ class ProductController {
    */
   async pushStockToChannels(req, { productId, sku, quantity, sourceChannel }) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
     const pid = String(productId ?? '').trim();
     if (!pid) return;
@@ -679,22 +679,22 @@ class ProductController {
     const mapRows = await db.query(
       `SELECT channel, enabled, external_id, channel_instance_id
        FROM channel_product_map
-       WHERE user_id = $1 AND product_id::text = $2
+       WHERE product_id::text = $1
          AND (enabled = TRUE OR external_id IS NOT NULL)`,
-      [userId, pid],
+      [pid],
     );
     const overrideRows = await db.query(
       `SELECT o.channel, o.active AS enabled, m.external_id, o.channel_instance_id
        FROM channel_product_overrides o
        INNER JOIN channel_product_map m
-         ON m.user_id = o.user_id AND m.product_id::text = o.product_id::text
+         ON m.product_id::text = o.product_id::text
          AND m.channel = o.channel
          AND (m.channel_instance_id IS NOT DISTINCT FROM o.channel_instance_id)
-       WHERE o.user_id = $1 AND o.product_id::text = $2
+       WHERE o.product_id::text = $1
          AND o.active = TRUE
          AND o.channel_instance_id IS NOT NULL
          AND m.external_id IS NOT NULL`,
-      [userId, pid],
+      [pid],
     );
     const seen = new Set();
     const rows = [];
@@ -931,8 +931,8 @@ class ProductController {
   ) {
     const { Database } = require('@homebase/core');
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId) return;
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) return;
 
     const channelKey = String(channel).toLowerCase();
     const instanceKey = String(instance || '').trim();
@@ -947,14 +947,14 @@ class ProductController {
 
     const instRows = await db.query(
       `
-      INSERT INTO channel_instances (user_id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, NULL, NULL, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (user_id, channel, instance_key) DO UPDATE SET
+      INSERT INTO channel_instances (channel, instance_key, market, label, credentials, enabled, created_at, updated_at)
+      VALUES ($1, $2, $3, NULL, NULL, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (channel, instance_key) DO UPDATE SET
         market = COALESCE(channel_instances.market, EXCLUDED.market),
         updated_at = CURRENT_TIMESTAMP
       RETURNING id
       `,
-      [userId, channelKey, instanceKey, inferredMarket],
+      [channelKey, instanceKey, inferredMarket],
     );
     const channelInstanceId = instRows?.[0]?.id;
 
@@ -971,10 +971,10 @@ class ProductController {
 
     const sql = `
       INSERT INTO channel_product_overrides
-        (user_id, product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, sale_price, original_price, created_at, updated_at)
+        (product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, sale_price, original_price, created_at, updated_at)
       VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (user_id, product_id, channel, instance) DO UPDATE SET
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (product_id, channel, instance) DO UPDATE SET
         channel_instance_id = COALESCE(EXCLUDED.channel_instance_id, channel_product_overrides.channel_instance_id),
         active = EXCLUDED.active,
         price_amount = EXCLUDED.price_amount,
@@ -987,7 +987,6 @@ class ProductController {
     `;
 
     await db.query(sql, [
-      userId,
       String(productId),
       channelKey,
       instanceKey,
@@ -1348,12 +1347,11 @@ class ProductController {
         ids.length > 0
       ) {
         const db = Database.get(req);
-        const userId = req.session?.user?.id;
-        if (userId) {
-          db.query(
-            `SELECT id::text AS id, sku FROM products WHERE user_id = $1 AND id::text = ANY($2::text[])`,
-            [userId, ids],
-          )
+        const tenantId = req.session?.tenantId;
+        if (tenantId) {
+          db.query(`SELECT id::text AS id, sku FROM products WHERE id::text = ANY($1::text[])`, [
+            ids,
+          ])
             .then((rows) => {
               const qty = Math.max(0, Number(quantity));
               for (const r of rows) {
@@ -1893,18 +1891,17 @@ class ProductController {
         rows: [],
       };
       const db = Database.get(req);
-      const userId = Context.getUserId(req);
-      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) return res.status(401).json({ error: 'Unauthorized' });
 
       const channelInstances = await db.query(
         `
         SELECT id, channel, instance_key, market, sello_integration_id, enabled
         FROM channel_instances
-        WHERE user_id = $1
-          AND sello_integration_id IS NOT NULL
+        WHERE sello_integration_id IS NOT NULL
           AND TRIM(sello_integration_id) <> ''
         `,
-        [userId],
+        [],
       );
       const instanceRows = Array.isArray(channelInstances) ? channelInstances : [];
       const instancesByIntegration = new Map();
@@ -2573,10 +2570,10 @@ class ProductController {
     await db.query(
       `
       INSERT INTO channel_product_map
-        (user_id, product_id, channel, channel_instance_id, enabled, external_id, cdon_article_id, last_synced_at, last_sync_status, last_error, created_at, updated_at)
+        (product_id, channel, channel_instance_id, enabled, external_id, cdon_article_id, last_synced_at, last_sync_status, last_error, created_at, updated_at)
       VALUES
-        ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (user_id, product_id, channel, channel_instance_id) DO UPDATE SET
+        ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (product_id, channel, channel_instance_id) DO UPDATE SET
         enabled = EXCLUDED.enabled,
         external_id = EXCLUDED.external_id,
         cdon_article_id = EXCLUDED.cdon_article_id,
@@ -2586,7 +2583,6 @@ class ProductController {
         updated_at = CURRENT_TIMESTAMP
       `,
       [
-        userId,
         String(productId),
         String(channel),
         instId,
@@ -2604,8 +2600,8 @@ class ProductController {
       if (!this.selloModel) return res.status(501).json({ error: 'Sello settings not available' });
       const apiKey = await this.selloModel.getApiKeyForJobs(req);
       const db = Database.get(req);
-      const userId = Context.getUserId(req);
-      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) return res.status(401).json({ error: 'Unauthorized' });
       const integrationsList = await this.selloModel.fetchSelloJson({
         apiKey,
         path: '/v5/integrations',
@@ -2644,9 +2640,9 @@ class ProductController {
         `
         SELECT id, channel, instance_key, sello_integration_id
         FROM channel_instances
-        WHERE user_id = $1
+        WHERE TRUE
         `,
-        [userId],
+        [],
       );
       const instancesByIntegration = new Map();
       for (const row of instances) {
@@ -2703,8 +2699,8 @@ class ProductController {
         const homebaseRows = selloIdList.length
           ? await db.query(
               `SELECT id::text AS id, sku FROM products
-               WHERE user_id = $1 AND (sku = ANY($2::text[]) OR id::text = ANY($2::text[]))`,
-              [userId, selloIdList],
+               WHERE sku = ANY($1::text[]) OR id::text = ANY($1::text[])`,
+              [selloIdList],
             )
           : [];
         const productIdBySelloId = new Map();
@@ -2841,7 +2837,7 @@ class ProductController {
   /**
    * GET /api/products/category-cache?key=...
    * Returns cached channel categories. For cdon:categories:{lang} and fyndiq:categories:{lang},
-   * on-demand fetch and cache on miss (user_id NULL). Woo: no on-demand.
+   * on-demand fetch and cache on miss (tenant-scoped singleton row). Woo: no on-demand.
    */
   async getCategoryCache(req, res) {
     const key = String(req.query?.key ?? '').trim();
@@ -2860,13 +2856,13 @@ class ProductController {
     let row;
     if (prefix === 'woo') {
       const r = await db.query(
-        'SELECT payload, fetched_at FROM category_cache WHERE cache_key = $1 AND user_id = $2',
-        [key, userId],
+        'SELECT payload, fetched_at FROM category_cache WHERE cache_key = $1',
+        [key],
       );
       row = (Array.isArray(r) ? r[0] : r?.rows?.[0]) ?? null;
     } else {
       const r = await db.query(
-        'SELECT payload, fetched_at FROM category_cache WHERE cache_key = $1 AND user_id IS NULL',
+        'SELECT payload, fetched_at FROM category_cache WHERE cache_key = $1',
         [key],
       );
       row = (Array.isArray(r) ? r[0] : r?.rows?.[0]) ?? null;
@@ -2882,8 +2878,8 @@ class ProductController {
             let items = [];
             if (prefix === 'cdon') {
               const credsRows = await db.query(
-                'SELECT api_key, api_secret FROM cdon_settings WHERE user_id = $1 LIMIT 1',
-                [userId],
+                'SELECT api_key, api_secret FROM cdon_settings LIMIT 1',
+                [],
               );
               const c = credsRows?.[0];
               const cdonApiKey = c?.api_key ? CredentialsCrypto.decrypt(c.api_key) : '';
@@ -2897,8 +2893,8 @@ class ProductController {
               items = await fetchCdonCategories(market, lang, cdonApiKey, cdonApiSecret);
             } else {
               const credsRows = await db.query(
-                'SELECT api_key, api_secret FROM fyndiq_settings WHERE user_id = $1 LIMIT 1',
-                [userId],
+                'SELECT api_key, api_secret FROM fyndiq_settings LIMIT 1',
+                [],
               );
               const c = credsRows?.[0];
               const fyndiqApiKey = c?.api_key ? CredentialsCrypto.decrypt(c.api_key) : '';
@@ -2915,12 +2911,12 @@ class ProductController {
             const payload = Array.isArray(items) ? items : [];
             const fetchedAt = new Date();
             const up = await db.query(
-              'UPDATE category_cache SET payload = $2, fetched_at = $3 WHERE cache_key = $1 AND user_id IS NULL',
+              'UPDATE category_cache SET payload = $2, fetched_at = $3 WHERE cache_key = $1',
               [key, JSON.stringify(payload), fetchedAt],
             );
             if (!up.rowCount || up.rowCount === 0) {
               await db.query(
-                'INSERT INTO category_cache (cache_key, user_id, payload, fetched_at) VALUES ($1, NULL, $2::jsonb, $3)',
+                'INSERT INTO category_cache (cache_key, payload, fetched_at) VALUES ($1, $2::jsonb, $3)',
                 [key, JSON.stringify(payload), fetchedAt],
               );
             }

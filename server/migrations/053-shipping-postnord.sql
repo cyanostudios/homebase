@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS shipping_service_presets (
 
 CREATE INDEX IF NOT EXISTS idx_shipping_service_presets_user_id ON shipping_service_presets(user_id);
 -- 053-shipping-postnord.sql
--- PostNord API settings and shipping senders (per-user)
+-- PostNord API settings and shipping senders (legacy user_id-scoped at creation time)
 
 CREATE TABLE IF NOT EXISTS postnord_settings (
   id SERIAL PRIMARY KEY,

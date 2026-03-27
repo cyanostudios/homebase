@@ -941,11 +941,10 @@ class CdonProductsController {
 
       // Pull per-market overrides (SE/DK/FI) from channel_product_overrides
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
       const productIds = normalized.map((p) => String(p.productId));
       const overridesByProductId = new Map();
 
-      if (userId && productIds.length) {
+      if (productIds.length) {
         const rows = await db.query(
           `
           SELECT
@@ -959,12 +958,11 @@ class CdonProductsController {
           FROM channel_product_overrides o
           LEFT JOIN channel_instances ci
             ON ci.id = o.channel_instance_id
-          WHERE o.user_id = $1
-            AND o.channel = 'cdon'
-            AND o.product_id::text = ANY($2::text[])
+          WHERE o.channel = 'cdon'
+            AND o.product_id::text = ANY($1::text[])
             AND lower(COALESCE(ci.market, o.instance)) IN ('se','dk','fi','no')
           `,
-          [userId, productIds],
+          [productIds],
         );
 
         for (const r of rows) {
@@ -989,14 +987,13 @@ class CdonProductsController {
             m.product_id::text AS product_id,
             LOWER(TRIM(ci.market)) AS market
           FROM channel_product_map m
-          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id AND ci.user_id = m.user_id
-          WHERE m.user_id = $1
-            AND m.channel = 'cdon'
+          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id
+          WHERE m.channel = 'cdon'
             AND m.enabled = TRUE
-            AND m.product_id::text = ANY($2::text[])
+            AND m.product_id::text = ANY($1::text[])
             AND TRIM(COALESCE(ci.market, '')) <> ''
           `,
-          [userId, productIds],
+          [productIds],
         );
         if (diagnoseTrace) diagnoseTrace.mapRows = mapRows.map((r) => ({ ...r }));
 
@@ -1022,7 +1019,7 @@ class CdonProductsController {
       }
 
       const mappedArticlesByProductId = new Map();
-      if (userId && productIds.length) {
+      if (productIds.length) {
         const articleMapRows = await db.query(
           `
           SELECT
@@ -1030,15 +1027,14 @@ class CdonProductsController {
             external_id,
             cdon_article_id
           FROM channel_product_map
-          WHERE user_id = $1
-            AND channel = 'cdon'
-            AND product_id::text = ANY($2::text[])
+          WHERE channel = 'cdon'
+            AND product_id::text = ANY($1::text[])
             AND (
               (external_id IS NOT NULL AND TRIM(external_id) <> '')
               OR (cdon_article_id IS NOT NULL AND TRIM(cdon_article_id) <> '')
             )
           `,
-          [userId, productIds],
+          [productIds],
         );
         for (const row of articleMapRows) {
           const productId = String(row.product_id || '').trim();
@@ -1583,11 +1579,10 @@ class CdonProductsController {
             ci.market
           FROM channel_product_map m
           LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id
-          WHERE m.user_id = $1
-            AND m.channel = 'cdon'
-            AND m.product_id::text = ANY($2::text[])
+          WHERE m.channel = 'cdon'
+            AND m.product_id::text = ANY($1::text[])
           `,
-          [userId, productIds],
+          [productIds],
         )
       : [];
     const overrideRows = productIds.length
@@ -1600,12 +1595,11 @@ class CdonProductsController {
             o.currency
           FROM channel_product_overrides o
           LEFT JOIN channel_instances ci ON ci.id = o.channel_instance_id
-          WHERE o.user_id = $1
-            AND o.channel = 'cdon'
-            AND o.product_id::text = ANY($2::text[])
+          WHERE o.channel = 'cdon'
+            AND o.product_id::text = ANY($1::text[])
             AND lower(COALESCE(ci.market, o.instance)) IN ('se', 'dk', 'fi', 'no')
           `,
-          [userId, productIds],
+          [productIds],
         )
       : [];
 
@@ -1909,7 +1903,7 @@ class CdonProductsController {
     if (Array.isArray(json?.failed) && json.failed.length > 0) {
       Logger.warn('CDON strict update reported failed actions', {
         failed: json.failed,
-        userId,
+        userId: Context.getUserId(req),
       });
     }
     return res.json({ ok: true, ...report });
@@ -1942,7 +1936,7 @@ class CdonProductsController {
       }
 
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const userId = Context.getUserId(req);
       if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
       const mapRows =
@@ -1951,9 +1945,9 @@ class CdonProductsController {
               `
               SELECT product_id::text AS product_id, external_id
               FROM channel_product_map
-              WHERE user_id = $1 AND channel = 'cdon' AND product_id::text = ANY($2::text[])
+              WHERE channel = 'cdon' AND product_id::text = ANY($1::text[])
               `,
-              [userId, productIds],
+              [productIds],
             )
           : [];
       const externalIdByProductId = new Map();
@@ -2423,7 +2417,7 @@ class CdonProductsController {
 
   async applyInventoryAdjustments(req, adjustments) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
+    const userId = Context.getUserId(req);
     if (!userId || !Array.isArray(adjustments) || adjustments.length === 0) return;
 
     for (const adj of adjustments) {
@@ -2433,27 +2427,27 @@ class CdonProductsController {
       await db.query(
         `
         UPDATE products
-        SET quantity = GREATEST(quantity - $3, 0),
+        SET quantity = GREATEST(quantity - $2, 0),
             updated_at = NOW()
-        WHERE user_id = $1 AND id = $2
+        WHERE id = $1
         `,
-        [userId, pid, Math.trunc(qty)],
+        [pid, Math.trunc(qty)],
       );
     }
   }
 
   async applyInventoryFromOrderId(req, orderId) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
+    const userId = Context.getUserId(req);
     if (!userId) return;
 
     const items = await db.query(
       `SELECT oi.sku, oi.product_id, oi.quantity
        FROM order_items oi
-       INNER JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
-       WHERE oi.order_id = $2
+       INNER JOIN orders o ON o.id = oi.order_id
+       WHERE oi.order_id = $1
        ORDER BY oi.id`,
-      [userId, Number(orderId)],
+      [Number(orderId)],
     );
     if (!items.length) return;
 

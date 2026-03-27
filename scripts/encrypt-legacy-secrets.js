@@ -149,13 +149,17 @@ async function main() {
       }));
     } else {
       const neonResult = await mainPool.query(`
-        SELECT t.user_id, t.neon_connection_string as connection_string, u.email
+        SELECT t.owner_user_id, t.neon_connection_string as connection_string, u.email
         FROM public.tenants t
-        INNER JOIN public.users u ON t.user_id = u.id
+        INNER JOIN public.users u ON t.owner_user_id = u.id
         WHERE t.neon_connection_string IS NOT NULL
-        ORDER BY t.user_id
+        ORDER BY t.owner_user_id
       `);
-      tenants = neonResult.rows;
+      tenants = neonResult.rows.map((row) => ({
+        owner_user_id: row.owner_user_id,
+        connection_string: row.connection_string,
+        email: row.email,
+      }));
     }
 
     if (tenants.length === 0) {
@@ -169,7 +173,7 @@ async function main() {
       const connectionString = tenant.connection_string || tenant.neon_connection_string;
       if (!connectionString) continue;
       const result = await runOnTenant(connectionString, {
-        userId: tenant.user_id,
+        userId: tenant.owner_user_id ?? tenant.user_id,
         email: tenant.email,
         schemaName: tenant.schema_name,
       });

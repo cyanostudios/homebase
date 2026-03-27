@@ -45,12 +45,6 @@ class MockAdapter extends DatabaseService {
           const record = this.data[table][id];
           return record ? [record] : [];
         }
-
-        // Match by user_id if provided
-        if (params.length > 0 && lowerSql.includes('user_id')) {
-          const userId = params[params.length - 1]; // Usually last param
-          return records.filter((r) => r.user_id === userId);
-        }
       }
 
       return records;

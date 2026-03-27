@@ -73,24 +73,29 @@ class ServiceManager {
    * Initialize tenant service
    */
   _initTenantService() {
-    const provider = this.config.tenant?.provider || process.env.TENANT_PROVIDER || 'neon';
+    const provider =
+      this.config.tenant?.provider ||
+      process.env.TENANT_PROVIDER ||
+      (process.env.NEON_API_KEY ? 'neon' : 'local');
     const logger = this.services.logger || new ConsoleAdapter();
 
+    let TenantProvider;
     try {
-      const TenantProvider = require(
+      TenantProvider = require(
         `./services/tenant/providers/${this._capitalize(provider)}TenantProvider`,
       );
-      const config = {
-        ...this.config.tenant?.[provider],
-        mainPool: this._getDefaultPool(), // Provide main pool for metadata queries
-      };
-
-      logger.info(`Initializing tenant service with provider: ${provider}`);
-      return new TenantProvider(config);
     } catch (error) {
       logger.error(`Failed to load tenant provider '${provider}':`, error);
       throw new Error(`Unknown tenant provider: ${provider}`);
     }
+
+    const config = {
+      ...this.config.tenant?.[provider],
+      mainPool: this._getDefaultPool(), // Provide main pool for metadata queries
+    };
+
+    logger.info(`Initializing tenant service with provider: ${provider}`);
+    return new TenantProvider(config);
   }
 
   /**

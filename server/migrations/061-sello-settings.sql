@@ -1,5 +1,5 @@
 -- 061-sello-settings.sql
--- Sello API settings (per-user) for product import.
+-- Sello API settings (legacy user_id-scoped at creation time) for product import.
 -- api_key: encrypted; format is "key:secret" for Authorization header.
 
 CREATE TABLE IF NOT EXISTS sello_settings (

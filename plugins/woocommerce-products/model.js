@@ -1,6 +1,6 @@
 // plugins/woocommerce-products/model.js
 // Derived from neutral template; structure preserved.
-// Provides per-user WooCommerce settings storage + helpers.
+// Provides tenant-scoped WooCommerce settings storage + helpers.
 // Uses @homebase/core SDK for database access with automatic tenant isolation
 
 const { Logger, Database } = require('@homebase/core');
@@ -48,19 +48,19 @@ class WooCommerceModel {
   async getInstanceByKey(req, instanceKey) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const sql = `
         SELECT id, channel, instance_key, market, label, credentials, created_at, updated_at
         FROM ${WooCommerceModel.CHANNEL_INSTANCES_TABLE}
-        WHERE user_id = $1 AND channel = $2 AND instance_key = $3
+        WHERE channel = $1 AND instance_key = $2
         LIMIT 1
       `;
-      const result = await db.query(sql, [userId, WooCommerceModel.CHANNEL, instanceKey]);
+      const result = await db.query(sql, [WooCommerceModel.CHANNEL, instanceKey]);
       if (!result.length) return null;
 
       const r = result[0];
@@ -84,10 +84,10 @@ class WooCommerceModel {
   async getInstanceById(req, instanceId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const id = Number(instanceId);
@@ -98,10 +98,10 @@ class WooCommerceModel {
       const sql = `
         SELECT id, channel, instance_key, market, label, credentials, created_at, updated_at
         FROM ${WooCommerceModel.CHANNEL_INSTANCES_TABLE}
-        WHERE user_id = $1 AND channel = $2 AND id = $3
+        WHERE channel = $1 AND id = $2
         LIMIT 1
       `;
-      const result = await db.query(sql, [userId, WooCommerceModel.CHANNEL, id]);
+      const result = await db.query(sql, [WooCommerceModel.CHANNEL, id]);
       if (!result.length) return null;
 
       const r = result[0];
@@ -125,19 +125,19 @@ class WooCommerceModel {
   async listInstances(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const sql = `
         SELECT id, channel, instance_key, market, label, credentials, created_at, updated_at
         FROM ${WooCommerceModel.CHANNEL_INSTANCES_TABLE}
-        WHERE user_id = $1 AND channel = $2
+        WHERE channel = $1
         ORDER BY instance_key ASC, id ASC
       `;
-      const rows = await db.query(sql, [userId, WooCommerceModel.CHANNEL]);
+      const rows = await db.query(sql, [WooCommerceModel.CHANNEL]);
 
       return rows.map((r) => ({
         id: String(r.id),
@@ -163,10 +163,10 @@ class WooCommerceModel {
   async upsertInstance(req, { instanceKey, label, credentials } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const key = String(instanceKey || '').trim();
@@ -195,16 +195,16 @@ class WooCommerceModel {
       const rows = await db.query(
         `
         INSERT INTO ${WooCommerceModel.CHANNEL_INSTANCES_TABLE}
-          (user_id, channel, instance_key, market, label, credentials, created_at, updated_at)
+          (channel, instance_key, market, label, credentials, created_at, updated_at)
         VALUES
-          ($1, $2, $3, NULL, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT (user_id, channel, instance_key) DO UPDATE SET
+          ($1, $2, NULL, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (channel, instance_key) DO UPDATE SET
           label = EXCLUDED.label,
           credentials = EXCLUDED.credentials,
           updated_at = CURRENT_TIMESTAMP
         RETURNING id, channel, instance_key, market, label, credentials, created_at, updated_at
         `,
-        [userId, WooCommerceModel.CHANNEL, key, lbl, credsJsonb],
+        [WooCommerceModel.CHANNEL, key, lbl, credsJsonb],
       );
 
       const r = rows[0];
@@ -232,10 +232,10 @@ class WooCommerceModel {
   async deleteInstance(req, instanceId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const id = Number(instanceId);
@@ -246,17 +246,17 @@ class WooCommerceModel {
       const result = await db.query(
         `
         DELETE FROM ${WooCommerceModel.CHANNEL_INSTANCES_TABLE}
-        WHERE user_id = $1 AND channel = $2 AND id = $3
+        WHERE channel = $1 AND id = $2
         RETURNING id
         `,
-        [userId, WooCommerceModel.CHANNEL, id],
+        [WooCommerceModel.CHANNEL, id],
       );
 
       if (!result.length) {
         throw new AppError('Instance not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      Logger.info('WooCommerce instance deleted', { userId, instanceId });
+      Logger.info('WooCommerce instance deleted', { instanceId });
       return { id: String(result[0].id) };
     } catch (error) {
       Logger.error('Failed to delete WooCommerce instance', error);
@@ -281,10 +281,10 @@ class WooCommerceModel {
   ) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const instanceId =
@@ -294,11 +294,11 @@ class WooCommerceModel {
 
       const sql = `
         INSERT INTO ${WooCommerceModel.CHANNEL_MAP_TABLE} (
-          user_id, product_id, channel, channel_instance_id, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
+          product_id, channel, channel_instance_id, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
         ) VALUES (
-          $1,       $2,         $3,      $4,                   TRUE,    $5,          CURRENT_TIMESTAMP, $6,              $7,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          $1,       $2,         $3,      TRUE,                 $4,      CURRENT_TIMESTAMP, $5,              $6,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
-        ON CONFLICT (user_id, product_id, channel, channel_instance_id) DO UPDATE SET
+        ON CONFLICT (product_id, channel, channel_instance_id) DO UPDATE SET
           enabled = TRUE,
           external_id = EXCLUDED.external_id,
           last_synced_at = CURRENT_TIMESTAMP,
@@ -307,7 +307,6 @@ class WooCommerceModel {
           updated_at = CURRENT_TIMESTAMP
       `;
       const params = [
-        userId,
         String(productId),
         String(channel),
         instanceId,
@@ -317,7 +316,6 @@ class WooCommerceModel {
       ];
       await db.query(sql, params);
       Logger.info('Channel map upserted', {
-        userId,
         productId,
         channel,
         channelInstanceId: instanceId,
@@ -340,10 +338,10 @@ class WooCommerceModel {
   async getChannelMapForProducts(req, channel, productIds, instanceId = null) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       if (!Array.isArray(productIds) || productIds.length === 0) return new Map();
@@ -353,13 +351,12 @@ class WooCommerceModel {
       let sql = `
         SELECT product_id, external_id
         FROM ${WooCommerceModel.CHANNEL_MAP_TABLE}
-        WHERE user_id = $1
-          AND channel = $2
-          AND product_id = ANY($3::text[])
+        WHERE channel = $1
+          AND product_id = ANY($2::text[])
       `;
-      const params = [userId, String(channel), productIds.map(String)];
+      const params = [String(channel), productIds.map(String)];
       if (instId !== null) {
-        sql += ` AND channel_instance_id = $4`;
+        sql += ` AND channel_instance_id = $3`;
         params.push(instId);
       } else {
         sql += ` AND (channel_instance_id IS NULL OR channel_instance_id = 0)`;
@@ -390,20 +387,20 @@ class WooCommerceModel {
     try {
       const db = Database.get(req);
       const pool = db.getPool();
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
-      // IMPORTANT: Do NOT query information_schema via db.query() (tenant-isolation may inject user_id).
+      // IMPORTANT: Do NOT query information_schema via db.query() here.
       // Use the raw pool instead (and set search_path for local schema-per-tenant).
       const rawQuery = async (sql, params = []) => {
         const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
         if (isLocalProvider) {
           const client = await pool.connect();
           try {
-            const schemaName = `tenant_${req.session?.currentTenantUserId || userId}`;
+            const schemaName = req.session?.tenantSchemaName;
             if (!/^tenant_\d+$/.test(schemaName)) {
               throw new AppError('Invalid tenant schema', 500, AppError.CODES.DATABASE_ERROR);
             }
@@ -448,10 +445,6 @@ class WooCommerceModel {
       const insertCols = [];
       const values = [];
 
-      if (cols.has('user_id')) {
-        insertCols.push('user_id');
-        values.push(userId);
-      }
       insertCols.push('channel');
       values.push(String(channel));
 
@@ -502,10 +495,10 @@ class WooCommerceModel {
   ) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const instId =
@@ -518,23 +511,21 @@ class WooCommerceModel {
           enabled = FALSE,
           external_id = NULL,
           last_synced_at = CURRENT_TIMESTAMP,
-          last_sync_status = $4,
-          last_error = $5,
+          last_sync_status = $3,
+          last_error = $4,
           updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = $1
-          AND channel = $2
-          AND external_id = $3
+        WHERE channel = $1
+          AND external_id = $2
       `;
-      const params = [userId, String(channel), String(externalId), status || 'idle', error || null];
+      const params = [String(channel), String(externalId), status || 'idle', error || null];
       if (instId !== null) {
-        sql += ` AND channel_instance_id = $6`;
+        sql += ` AND channel_instance_id = $5`;
         params.push(instId);
       } else {
         sql += ` AND (channel_instance_id IS NULL OR channel_instance_id = 0)`;
       }
       await db.query(sql, params);
       Logger.info('Channel map cleared by external ID', {
-        userId,
         channel,
         channelInstanceId: instId,
         externalId,

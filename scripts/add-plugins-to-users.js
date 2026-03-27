@@ -1,5 +1,5 @@
 // scripts/add-plugins-to-users.js
-// Script to add new plugins (channels, products, woocommerce-products, cdon-products, fyndiq-products) to all existing users
+// Script to add new plugins to all existing tenants (tenant_plugin_access).
 
 const { Pool } = require('pg');
 require('dotenv').config({ path: '.env.local' });
@@ -23,34 +23,41 @@ async function addPluginsToUsers() {
   try {
     await client.query('BEGIN');
 
-    console.log('🔌 Adding new plugins to all users...');
+    console.log('🔌 Adding new plugins to all tenants...');
     console.log('📦 Plugins:', NEW_PLUGINS.join(', '));
 
-    // Get all users
-    const usersResult = await client.query('SELECT id, email FROM public.users');
-    const users = usersResult.rows;
+    // Get all tenants (by owner)
+    const tenantsResult = await client.query(
+      `SELECT t.id AS tenant_id, t.owner_user_id, u.email
+       FROM public.tenants t
+       INNER JOIN public.users u ON u.id = t.owner_user_id
+       ORDER BY t.id`,
+    );
+    const tenants = tenantsResult.rows;
 
-    console.log(`👥 Found ${users.length} users`);
+    console.log(`🏢 Found ${tenants.length} tenant(s)`);
 
     let addedCount = 0;
     let skippedCount = 0;
 
-    for (const user of users) {
+    for (const tenant of tenants) {
       for (const pluginName of NEW_PLUGINS) {
-        // Check if user already has this plugin
+        // Check if tenant already has this plugin
         const existing = await client.query(
-          'SELECT 1 FROM public.user_plugin_access WHERE user_id = $1 AND plugin_name = $2',
-          [user.id, pluginName],
+          'SELECT 1 FROM public.tenant_plugin_access WHERE tenant_id = $1 AND plugin_name = $2',
+          [tenant.tenant_id, pluginName],
         );
 
         if (existing.rows.length === 0) {
           // Add plugin access
           await client.query(
-            'INSERT INTO public.user_plugin_access (user_id, plugin_name, enabled) VALUES ($1, $2, true)',
-            [user.id, pluginName],
+            `INSERT INTO public.tenant_plugin_access (tenant_id, plugin_name, enabled, granted_by_user_id)
+             VALUES ($1, $2, true, $3)
+             ON CONFLICT (tenant_id, plugin_name) DO NOTHING`,
+            [tenant.tenant_id, pluginName, tenant.owner_user_id],
           );
           addedCount++;
-          console.log(`  ✅ Added ${pluginName} to ${user.email}`);
+          console.log(`  ✅ Added ${pluginName} to tenant ${tenant.tenant_id} (${tenant.email})`);
         } else {
           skippedCount++;
         }
@@ -77,9 +84,7 @@ async function addPluginsToUsers() {
 
 addPluginsToUsers()
   .then(() => {
-    console.log(
-      '\n💡 Users need to log out and log back in to see the new plugins in the sidebar.',
-    );
+    console.log('\n💡 Users may need to refresh after plugin updates.');
     process.exit(0);
   })
   .catch((error) => {

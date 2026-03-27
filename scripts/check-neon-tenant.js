@@ -18,14 +18,14 @@ async function checkNeonTenant() {
   try {
     const result = await pool.query(`
       SELECT 
-        t.user_id,
+        t.owner_user_id,
         u.email,
         t.neon_connection_string,
         t.neon_database_name,
         t.neon_project_id
       FROM public.tenants t
-      INNER JOIN public.users u ON t.user_id = u.id
-      ORDER BY t.user_id
+      INNER JOIN public.users u ON t.owner_user_id = u.id
+      ORDER BY t.owner_user_id
     `);
 
     if (result.rows.length === 0) {
@@ -34,7 +34,7 @@ async function checkNeonTenant() {
     } else {
       console.log(`Found ${result.rows.length} Neon tenant(s):\n`);
       result.rows.forEach((row) => {
-        console.log(`User ${row.user_id} (${row.email}):`);
+        console.log(`Tenant owner ${row.owner_user_id} (${row.email}):`);
         console.log(
           `  Connection: ${row.neon_connection_string ? '✅ Has connection string' : '❌ No connection string'}`,
         );

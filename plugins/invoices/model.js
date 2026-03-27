@@ -122,7 +122,7 @@ class InvoiceModel {
         Logger.error(errorMsg, null, {
           session: req?.session,
           hasUser: !!req?.session?.user,
-          hasCurrentTenantUserId: !!req?.session?.currentTenantUserId,
+          hasTenantOwnerUserId: !!req?.session?.tenantOwnerUserId,
         });
         throw new AppError(errorMsg, 400, AppError.CODES.VALIDATION_ERROR);
       }
@@ -137,18 +137,13 @@ class InvoiceModel {
       const currentYear = new Date().getFullYear();
       const pattern = `${currentYear}-%`;
 
-      // Use db.query() which automatically handles tenant isolation
-      // It will add user_id filter if not present in the query
-      // The query will become: WHERE invoice_number LIKE $1 AND user_id = $2
+      // Tenant isolation is handled by schema/database selection.
       Logger.info('Executing query for invoice numbers', {
         userId: context.userId,
         year: currentYear,
         pattern: pattern,
       });
 
-      // Query will automatically add user_id filter via _addTenantFilter()
-      // So final query will be: WHERE invoice_number LIKE $1 AND user_id = $2
-      // And params will be: [pattern, userId]
       const result = await db.query(
         `SELECT invoice_number 
          FROM invoices 
@@ -201,7 +196,7 @@ class InvoiceModel {
       // Enhanced error logging
       const errorDetails = {
         userId: req?.session?.user?.id,
-        currentTenantUserId: req?.session?.currentTenantUserId,
+        tenantOwnerUserId: req?.session?.tenantOwnerUserId,
         errorMessage: error?.message,
         errorName: error?.name,
         errorCode: error?.code,
@@ -263,7 +258,7 @@ class InvoiceModel {
       Logger.info('Creating invoice', {
         hasInvoiceNumber: !!invoiceData.invoiceNumber,
         userId: req?.session?.user?.id,
-        currentTenantUserId: req?.session?.currentTenantUserId,
+        tenantOwnerUserId: req?.session?.tenantOwnerUserId,
         hasTenantPool: !!req?.tenantPool,
         hasTenantConnectionString: !!req?.session?.tenantConnectionString,
       });
@@ -373,7 +368,7 @@ class InvoiceModel {
       // Enhanced error logging with full context
       Logger.error('Failed to create invoice - DETAILED ERROR', error, {
         userId: req?.session?.user?.id,
-        currentTenantUserId: req?.session?.currentTenantUserId,
+        tenantOwnerUserId: req?.session?.tenantOwnerUserId,
         invoiceData: {
           invoiceNumber: invoiceData.invoiceNumber,
           contactId: invoiceData.contactId,
@@ -588,7 +583,7 @@ class InvoiceModel {
 
   async createShare(req, invoiceId, validUntil) {
     try {
-      const db = Database.get(req);
+      const context = this._getContext(req);
       const pool = context.pool;
 
       // Verify invoice exists and user owns it
@@ -599,14 +594,14 @@ class InvoiceModel {
 
       const shareToken = this.generateShareToken();
 
-      // Insert share with user_id for tenant isolation
+      // Invoice shares are tenant-isolated by schema/database.
       const result = await pool.query(
         `
-        INSERT INTO invoice_shares (user_id, invoice_id, share_token, valid_until)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO invoice_shares (invoice_id, share_token, valid_until)
+        VALUES ($1, $2, $3)
         RETURNING *
       `,
-        [context.userId, invoiceId, shareToken, validUntil],
+        [invoiceId, shareToken, validUntil],
       );
 
       Logger.info('Share created', { invoiceId, shareId: result.rows[0].id });
@@ -693,14 +688,14 @@ class InvoiceModel {
         throw new AppError('Invoice not found or access denied', 404, AppError.CODES.NOT_FOUND);
       }
 
-      // Get shares filtered by user_id for tenant isolation
+      // Invoice shares are tenant-isolated by schema/database.
       const result = await pool.query(
         `
         SELECT * FROM invoice_shares 
-        WHERE user_id = $1 AND invoice_id = $2 
+        WHERE invoice_id = $1 
         ORDER BY created_at DESC
       `,
-        [context.userId, invoiceId],
+        [invoiceId],
       );
 
       return result.rows.map((row) => ({
@@ -728,11 +723,10 @@ class InvoiceModel {
       const context = this._getContext(req);
       const pool = context.pool;
 
-      // Verify share belongs to user's invoice
-      const shareCheck = await pool.query(
-        'SELECT invoice_id FROM invoice_shares WHERE id = $1 AND user_id = $2',
-        [shareId, context.userId],
-      );
+      // Verify share belongs to the current tenant's invoice.
+      const shareCheck = await pool.query('SELECT invoice_id FROM invoice_shares WHERE id = $1', [
+        shareId,
+      ]);
 
       if (!shareCheck.rows.length) {
         throw new AppError('Share not found', 404, AppError.CODES.NOT_FOUND);
@@ -745,10 +739,10 @@ class InvoiceModel {
         throw new AppError('Share not found or access denied', 404, AppError.CODES.NOT_FOUND);
       }
 
-      // Delete the share with user_id check for tenant isolation
+      // Delete the share inside the current tenant schema.
       const deleteResult = await pool.query(
-        'DELETE FROM invoice_shares WHERE id = $1 AND user_id = $2 RETURNING *',
-        [shareId, context.userId],
+        'DELETE FROM invoice_shares WHERE id = $1 RETURNING *',
+        [shareId],
       );
 
       if (!deleteResult.rows.length) {

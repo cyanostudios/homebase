@@ -8,33 +8,35 @@ const TABLE = 'order_sync_state';
 const FRESH_THRESHOLD_MINUTES = 2;
 const STALE_RUNNING_MINUTES = 15; // Treat running_since older than this as orphaned (crashed sync)
 
-function getUserId(req) {
-  return req?.session?.user?.id;
+function requireTenantId(req) {
+  return req?.session?.tenantId;
 }
 
 /** DB uses 0 for single-instance channels (CDON/Fyndiq). */
 function normInstanceId(channelInstanceId) {
-  return channelInstanceId != null && Number.isFinite(Number(channelInstanceId)) ? Number(channelInstanceId) : 0;
+  return channelInstanceId != null && Number.isFinite(Number(channelInstanceId))
+    ? Number(channelInstanceId)
+    : 0;
 }
 
 /**
- * Get state for one slot (user_id, channel, channel_instance_id).
+ * Get state for one slot (channel, channel_instance_id).
  * @param {object} req - request with session
  * @param {string} channel - cdon | fyndiq | woocommerce
  * @param {number|null} channelInstanceId - null for single-instance channels
  */
 async function getState(req, channel, channelInstanceId = null) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = requireTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const instId = normInstanceId(channelInstanceId);
   const res = await db.query(
     `SELECT last_cursor_placed_at, last_run_at, last_success_at, last_status, last_error, next_run_at, running_since, updated_at
      FROM ${TABLE}
-     WHERE user_id = $1 AND channel = $2 AND channel_instance_id = $3
+     WHERE channel = $1 AND channel_instance_id = $2
      LIMIT 1`,
-    [userId, String(channel), instId],
+    [String(channel), instId],
   );
   return res.length ? res[0] : null;
 }
@@ -45,18 +47,18 @@ async function getState(req, channel, channelInstanceId = null) {
  */
 async function trySetRunning(req, channel, channelInstanceId = null) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = requireTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const instId = normInstanceId(channelInstanceId);
   await ensureRow(req, channel, channelInstanceId);
   const updated = await db.query(
     `UPDATE ${TABLE}
      SET last_run_at = NOW(), last_status = 'running', running_since = NOW(), updated_at = NOW()
-     WHERE user_id = $1 AND channel = $2 AND channel_instance_id = $3
-       AND (running_since IS NULL OR running_since < NOW() - INTERVAL '1 minute' * $4)
-     RETURNING user_id`,
-    [userId, String(channel), instId, STALE_RUNNING_MINUTES],
+     WHERE channel = $1 AND channel_instance_id = $2
+       AND (running_since IS NULL OR running_since < NOW() - INTERVAL '1 minute' * $3)
+     RETURNING channel`,
+    [String(channel), instId, STALE_RUNNING_MINUTES],
   );
   return (updated.rows || updated).length > 0;
 }
@@ -66,36 +68,41 @@ async function trySetRunning(req, channel, channelInstanceId = null) {
  */
 async function setRunning(req, channel, channelInstanceId = null) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = requireTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const instId = normInstanceId(channelInstanceId);
   await db.query(
-    `INSERT INTO ${TABLE} (user_id, channel, channel_instance_id, last_run_at, last_status, running_since, updated_at)
-     VALUES ($1, $2, $3, NOW(), 'running', NOW(), NOW())
-     ON CONFLICT (user_id, channel, channel_instance_id)
+    `INSERT INTO ${TABLE} (channel, channel_instance_id, last_run_at, last_status, running_since, updated_at)
+     VALUES ($1, $2, NOW(), 'running', NOW(), NOW())
+     ON CONFLICT (channel, channel_instance_id)
      DO UPDATE SET last_run_at = NOW(), last_status = 'running', running_since = NOW(), updated_at = NOW()`,
-    [userId, String(channel), instId],
+    [String(channel), instId],
   );
 }
 
 /**
  * Update state after successful sync. Clears running_since.
  */
-async function setSuccess(req, channel, channelInstanceId, { lastCursorPlacedAt = null, nextRunAt = null } = {}) {
+async function setSuccess(
+  req,
+  channel,
+  channelInstanceId,
+  { lastCursorPlacedAt = null, nextRunAt = null } = {},
+) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = requireTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const instId = normInstanceId(channelInstanceId);
   await db.query(
     `UPDATE ${TABLE}
      SET last_success_at = NOW(), last_status = 'success', last_error = NULL,
-         last_cursor_placed_at = COALESCE($4, last_cursor_placed_at),
-         next_run_at = COALESCE($5, next_run_at),
+         last_cursor_placed_at = COALESCE($3, last_cursor_placed_at),
+         next_run_at = COALESCE($4, next_run_at),
          running_since = NULL, updated_at = NOW()
-     WHERE user_id = $1 AND channel = $2 AND channel_instance_id = $3`,
-    [userId, String(channel), instId, lastCursorPlacedAt, nextRunAt],
+     WHERE channel = $1 AND channel_instance_id = $2`,
+    [String(channel), instId, lastCursorPlacedAt, nextRunAt],
   );
 }
 
@@ -104,16 +111,16 @@ async function setSuccess(req, channel, channelInstanceId, { lastCursorPlacedAt 
  */
 async function setError(req, channel, channelInstanceId, errorMessage) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = requireTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const instId = normInstanceId(channelInstanceId);
   const msg = errorMessage != null ? String(errorMessage).slice(0, 2000) : null;
   await db.query(
     `UPDATE ${TABLE}
-     SET last_status = 'error', last_error = $4, running_since = NULL, updated_at = NOW()
-     WHERE user_id = $1 AND channel = $2 AND channel_instance_id = $3`,
-    [userId, String(channel), instId, msg],
+     SET last_status = 'error', last_error = $3, running_since = NULL, updated_at = NOW()
+     WHERE channel = $1 AND channel_instance_id = $2`,
+    [String(channel), instId, msg],
   );
 }
 
@@ -122,33 +129,33 @@ async function setError(req, channel, channelInstanceId, errorMessage) {
  */
 async function ensureRow(req, channel, channelInstanceId = null) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = requireTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const instId = normInstanceId(channelInstanceId);
   await db.query(
-    `INSERT INTO ${TABLE} (user_id, channel, channel_instance_id, updated_at)
-     VALUES ($1, $2, $3, NOW())
-     ON CONFLICT (user_id, channel, channel_instance_id) DO NOTHING`,
-    [userId, String(channel), instId],
+    `INSERT INTO ${TABLE} (channel, channel_instance_id, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (channel, channel_instance_id) DO NOTHING`,
+    [String(channel), instId],
   );
 }
 
 /**
- * True if any sync for this user is currently running (running_since IS NOT NULL and recent).
+ * True if any sync for this tenant is currently running (running_since IS NOT NULL and recent).
  * Stale running_since (older than STALE_RUNNING_MINUTES) is treated as orphaned/crashed and ignored.
  */
 async function isBusyForUser(req) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) return false;
+  const tenantId = requireTenantId(req);
+  if (!tenantId) return false;
 
   const res = await db.query(
     `SELECT 1 FROM ${TABLE}
-     WHERE user_id = $1 AND running_since IS NOT NULL
-       AND running_since > NOW() - INTERVAL '1 minute' * $2
+     WHERE running_since IS NOT NULL
+       AND running_since > NOW() - INTERVAL '1 minute' * $1
      LIMIT 1`,
-    [userId, STALE_RUNNING_MINUTES],
+    [STALE_RUNNING_MINUTES],
   );
   return (res.rows || res).length > 0;
 }
@@ -158,37 +165,33 @@ async function isBusyForUser(req) {
  */
 async function shouldRunQuickSync(req) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) return false;
+  const tenantId = requireTenantId(req);
+  if (!tenantId) return false;
 
-  const anyRow = await db.query(
-    `SELECT 1 FROM ${TABLE} WHERE user_id = $1 LIMIT 1`,
-    [userId],
-  );
+  const anyRow = await db.query(`SELECT 1 FROM ${TABLE} LIMIT 1`, []);
   if (anyRow.length === 0) return true;
 
   const stale = await db.query(
     `SELECT 1 FROM ${TABLE}
-     WHERE user_id = $1
-       AND (last_success_at IS NULL OR last_success_at < NOW() - INTERVAL '1 minute' * $2)
+     WHERE (last_success_at IS NULL OR last_success_at < NOW() - INTERVAL '1 minute' * $1)
      LIMIT 1`,
-    [userId, FRESH_THRESHOLD_MINUTES],
+    [FRESH_THRESHOLD_MINUTES],
   );
   return stale.length > 0;
 }
 
 /**
- * List all state rows for the current user (for status endpoint or scheduler).
+ * List all state rows for the current tenant (for status endpoint or scheduler).
  */
 async function listForUser(req) {
   const db = Database.get(req);
-  const userId = getUserId(req);
-  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+  const tenantId = requireTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
   const rows = await db.query(
     `SELECT channel, channel_instance_id, last_run_at, last_success_at, last_status, last_error, running_since, next_run_at
-     FROM ${TABLE} WHERE user_id = $1 ORDER BY channel, channel_instance_id NULLS FIRST`,
-    [userId],
+     FROM ${TABLE} ORDER BY channel, channel_instance_id NULLS FIRST`,
+    [],
   );
   return rows;
 }

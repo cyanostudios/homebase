@@ -415,8 +415,8 @@ await database.query('DROP TABLE IF EXISTS my_plugin_items');
 }
 };
 Grant Plugin Access
-sqlINSERT INTO user_plugin_access (user_id, plugin_name, enabled)
-SELECT id, 'my-plugin', true FROM users WHERE role = 'superuser';
+sqlINSERT INTO tenant_plugin_access (tenant_id, plugin_name, enabled, granted_by_user_id)
+SELECT t.id, 'my-plugin', true, t.owner_user_id FROM tenants t;
 
 Advanced Patterns
 Using Storage Service

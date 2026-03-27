@@ -19,7 +19,7 @@ Core Features
 Universal Keyboard Navigation - Space + Arrow keys across all plugins
 Cross-Plugin References - Seamless navigation between plugins (@mentions, assignments)
 Mobile-First Design - Responsive components with conditional rendering
-Multi-Tenant Isolation - Automatic tenant filtering at core level
+Multi-Tenant Isolation - Automatic tenant routing at core level
 CSRF Protection - Required on all state-changing operations
 Rate Limiting - Configurable per endpoint
 Audit Logging - Built-in for all operations

@@ -32,24 +32,11 @@ async function setupDatabase() {
       )
     `);
 
-    // Plugin access control
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS user_plugin_access (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        plugin_name VARCHAR(100) NOT NULL,
-        enabled BOOLEAN DEFAULT true,
-        granted_by INTEGER REFERENCES users(id),
-        granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, plugin_name)
-      )
-    `);
-
-    // Tenants table for Neon database mapping
+    // Tenants + memberships + tenant plugin access (canonical multi-tenant model)
     await client.query(`
       CREATE TABLE IF NOT EXISTS tenants (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        owner_user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         neon_project_id VARCHAR(255),
         neon_database_name VARCHAR(255),
         neon_connection_string TEXT,
@@ -58,8 +45,30 @@ async function setupDatabase() {
       )
     `);
 
-    // Create index for tenant lookups
-    await client.query('CREATE INDEX IF NOT EXISTS idx_tenants_user_id ON tenants(user_id)');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tenant_memberships (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role TEXT NOT NULL CHECK (role IN ('user','editor','admin')),
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled','invited')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by INTEGER REFERENCES users(id),
+        UNIQUE(user_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tenant_plugin_access (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        plugin_name VARCHAR(100) NOT NULL,
+        enabled BOOLEAN DEFAULT true,
+        granted_by_user_id INTEGER REFERENCES users(id),
+        granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(tenant_id, plugin_name)
+      )
+    `);
 
     // User settings table
     await client.query(`
@@ -203,10 +212,6 @@ async function setupDatabase() {
     } catch (e) {
       if (e.code !== '42P16' && !e.message?.includes('already exists')) throw e;
     }
-    await client.query(
-      'CREATE INDEX IF NOT EXISTS idx_plugin_access_user ON user_plugin_access(user_id, plugin_name)',
-    );
-
     // Create default superuser
     const hashedPassword = await bcrypt.hash('admin123', 10);
     const result = await client.query(
@@ -223,16 +228,30 @@ async function setupDatabase() {
 
     const superuserId = result.rows[0].id;
 
-    // Grant all plugin access to superuser
+    // Create a tenant for the superuser and grant tenant plugin access.
+    const tenantRow = await client.query(
+      `INSERT INTO public.tenants (owner_user_id)
+       VALUES ($1)
+       ON CONFLICT (owner_user_id) DO UPDATE SET owner_user_id = EXCLUDED.owner_user_id
+       RETURNING id`,
+      [superuserId],
+    );
+    const tenantId = tenantRow.rows[0].id;
+
+    await client.query(
+      `INSERT INTO public.tenant_memberships (tenant_id, user_id, role, status, created_by)
+       VALUES ($1, $2, 'admin', 'active', $2)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [tenantId, superuserId],
+    );
+
     const plugins = ['contacts', 'notes', 'estimates'];
     for (const plugin of plugins) {
       await client.query(
-        `
-        INSERT INTO public.user_plugin_access (user_id, plugin_name, granted_by)
-        VALUES ($1, $2, $1)
-        ON CONFLICT (user_id, plugin_name) DO NOTHING
-      `,
-        [superuserId, plugin],
+        `INSERT INTO public.tenant_plugin_access (tenant_id, plugin_name, enabled, granted_by_user_id)
+         VALUES ($1, $2, true, $3)
+         ON CONFLICT (tenant_id, plugin_name) DO NOTHING`,
+        [tenantId, plugin, superuserId],
       );
     }
 

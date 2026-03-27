@@ -21,7 +21,7 @@ async function runCategoryCacheJob() {
       const label = tenant.schema_name ? `${tenant.email} (${tenant.schema_name})` : tenant.email;
       try {
         await runJobForTenant(tenant.connection_string, {
-          user_id: tenant.user_id,
+          owner_user_id: tenant.owner_user_id,
           email: tenant.email,
           schemaName: tenant.schema_name,
         });

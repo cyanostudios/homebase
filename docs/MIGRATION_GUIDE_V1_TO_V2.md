@@ -30,16 +30,16 @@ Use these current documents instead:
 
 ### Backend Changes
 
-| Old Pattern             | New Pattern                  | Why Changed              |
-| ----------------------- | ---------------------------- | ------------------------ |
-| Direct DB import        | `@homebase/core` SDK         | Swappable infrastructure |
-| Manual tenant filtering | Automatic tenant isolation   | Security & simplicity    |
-| `console.log()`         | `Logger.info/warn/error`     | Structured logging       |
-| `throw new Error()`     | `throw new AppError()`       | Standardized errors      |
-| No validation           | `express-validator` required | Security                 |
-| No CSRF                 | `csrfProtection` required    | Security                 |
-| No rate limiting        | Rate limiters on endpoints   | Security                 |
-| `fs.readFile/writeFile` | `storage.upload/download`    | Cloud-ready storage      |
+| Old Pattern                  | New Pattern                  | Why Changed              |
+| ---------------------------- | ---------------------------- | ------------------------ |
+| Direct DB import             | `@homebase/core` SDK         | Swappable infrastructure |
+| Manual tenant scoping in SQL | Automatic tenant isolation   | Security & simplicity    |
+| `console.log()`              | `Logger.info/warn/error`     | Structured logging       |
+| `throw new Error()`          | `throw new AppError()`       | Standardized errors      |
+| No validation                | `express-validator` required | Security                 |
+| No CSRF                      | `csrfProtection` required    | Security                 |
+| No rate limiting             | Rate limiters on endpoints   | Security                 |
+| `fs.readFile/writeFile`      | `storage.upload/download`    | Cloud-ready storage      |
 
 ### Frontend Changes
 

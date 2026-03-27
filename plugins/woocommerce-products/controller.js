@@ -127,20 +127,19 @@ class WooCommerceController {
   }
 
   async getWooOverrideCategoriesByProduct(req, { productIds, channelInstanceId }) {
-    const userId = req.session?.user?.id;
-    if (!userId || !Array.isArray(productIds) || productIds.length === 0) return new Map();
+    const tenantId = req.session?.tenantId;
+    if (!tenantId || !Array.isArray(productIds) || productIds.length === 0) return new Map();
 
     const db = Database.get(req);
     const rows = await db.query(
       `
       SELECT product_id::text AS product_id, category
       FROM channel_product_overrides
-      WHERE user_id = $1
-        AND channel = 'woocommerce'
-        AND channel_instance_id = $2
-        AND product_id::text = ANY($3::text[])
+      WHERE channel = 'woocommerce'
+        AND channel_instance_id = $1
+        AND product_id::text = ANY($2::text[])
       `,
-      [userId, Number(channelInstanceId), productIds],
+      [Number(channelInstanceId), productIds],
     );
 
     const out = new Map();
@@ -151,20 +150,19 @@ class WooCommerceController {
   }
 
   async getWooOverridePriceAndSaleByProduct(req, { productIds, channelInstanceId }) {
-    const userId = req.session?.user?.id;
-    if (!userId || !Array.isArray(productIds) || productIds.length === 0) return new Map();
+    const tenantId = req.session?.tenantId;
+    if (!tenantId || !Array.isArray(productIds) || productIds.length === 0) return new Map();
 
     const db = Database.get(req);
     const rows = await db.query(
       `
       SELECT product_id::text AS product_id, price_amount, sale_price
       FROM channel_product_overrides
-      WHERE user_id = $1
-        AND channel = 'woocommerce'
-        AND channel_instance_id = $2
-        AND product_id::text = ANY($3::text[])
+      WHERE channel = 'woocommerce'
+        AND channel_instance_id = $1
+        AND product_id::text = ANY($2::text[])
       `,
-      [userId, Number(channelInstanceId), productIds],
+      [Number(channelInstanceId), productIds],
     );
 
     const out = new Map();
@@ -719,9 +717,9 @@ class WooCommerceController {
     const instances = await this._getInstancesFromBodyOrThrow(req);
     const channel = 'woocommerce';
     const productIds = products.map((p) => String(p?.id || '').trim()).filter(Boolean);
-    const userId = Context.getUserId(req);
+    const tenantId = req.session?.tenantId;
     const db = Database.get(req);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!tenantId) return res.status(401).json({ error: 'Tenant not resolved' });
 
     const report = {
       channel: 'woocommerce',
@@ -751,12 +749,11 @@ class WooCommerceController {
             `
             SELECT product_id::text AS product_id, price_amount, sale_price
             FROM channel_product_overrides
-            WHERE user_id = $1
-              AND channel = 'woocommerce'
-              AND channel_instance_id = $2
-              AND product_id::text = ANY($3::text[])
+            WHERE channel = 'woocommerce'
+              AND channel_instance_id = $1
+              AND product_id::text = ANY($2::text[])
             `,
-            [userId, Number(instanceId), productIds],
+            [Number(instanceId), productIds],
           )
         : [];
       const overrideByProductId = new Map();
@@ -1004,18 +1001,20 @@ class WooCommerceController {
       };
       const items = await fetchWooCategoriesFromApi(credentials, 200);
       const cacheKey = `woo:${inst.id}`;
-      const userId = req.session?.user?.id;
       const db = Database.get(req);
       const fetchedAt = new Date();
       const payload = JSON.stringify(items);
 
-      await db.query(
-        `INSERT INTO category_cache (cache_key, user_id, payload, fetched_at)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (cache_key, COALESCE(user_id, -1))
-         DO UPDATE SET payload = EXCLUDED.payload, fetched_at = EXCLUDED.fetched_at`,
-        [cacheKey, userId, payload, fetchedAt],
+      const updated = await db.query(
+        `UPDATE category_cache SET payload = $2, fetched_at = $3 WHERE cache_key = $1 RETURNING cache_key`,
+        [cacheKey, payload, fetchedAt],
       );
+      if (!updated.length) {
+        await db.query(
+          `INSERT INTO category_cache (cache_key, payload, fetched_at) VALUES ($1, $2::jsonb, $3)`,
+          [cacheKey, payload, fetchedAt],
+        );
+      }
       return res.json({ ok: true, count: items.length });
     } catch (error) {
       Logger.error('Woo syncCategoryCache error', error, { userId: Context.getUserId(req) });
@@ -1257,8 +1256,6 @@ class WooCommerceController {
         req.body?.perPage != null ? Math.min(Math.max(Number(req.body.perPage) || 20, 1), 100) : 20;
       const after = req.body?.after ? String(req.body.after) : null;
 
-      const userId = req.session?.user?.id;
-
       const allResults = [];
       let totalFetched = 0;
       let totalCreated = 0;
@@ -1271,7 +1268,7 @@ class WooCommerceController {
         const storeUrl = credentials.storeUrl || credentials.store_url;
         if (!storeUrl) {
           Logger.warn('Skipping WooCommerce instance without storeUrl', {
-            userId,
+            tenantId: req.session?.tenantId,
             instanceId: instance.id,
             instanceKey: instance.instanceKey,
           });
@@ -1298,7 +1295,7 @@ class WooCommerceController {
           if (!resp.ok) {
             const text = await resp.text().catch(() => '');
             Logger.warn('Failed to fetch Woo orders from instance', {
-              userId,
+              tenantId: req.session?.tenantId,
               instanceId: instance.id,
               instanceKey: instance.instanceKey,
               storeUrl,
@@ -1311,7 +1308,7 @@ class WooCommerceController {
           const orders = await resp.json().catch(() => null);
           if (!Array.isArray(orders)) {
             Logger.warn('Unexpected Woo orders response from instance', {
-              userId,
+              tenantId: req.session?.tenantId,
               instanceId: instance.id,
               instanceKey: instance.instanceKey,
               storeUrl,
@@ -1366,7 +1363,7 @@ class WooCommerceController {
           });
         } catch (instanceError) {
           Logger.error('Error processing WooCommerce instance', instanceError, {
-            userId,
+            tenantId: req.session?.tenantId,
             instanceId: instance.id,
             instanceKey: instance.instanceKey,
             storeUrl,
@@ -1417,8 +1414,8 @@ class WooCommerceController {
   // Source channel is Woo, so we only update platform inventory and (optionally) other channels.
   async applyInventoryAdjustments(req, adjustments) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId || !Array.isArray(adjustments) || adjustments.length === 0) return;
+    const tenantId = req.session?.tenantId;
+    if (!tenantId || !Array.isArray(adjustments) || adjustments.length === 0) return;
 
     for (const adj of adjustments) {
       const pid = adj?.productId != null ? Number(adj.productId) : null;
@@ -1427,12 +1424,12 @@ class WooCommerceController {
       const updated = await db.query(
         `
         UPDATE products
-        SET quantity = GREATEST(quantity - $3, 0),
+        SET quantity = GREATEST(quantity - $2, 0),
             updated_at = NOW()
-        WHERE user_id = $1 AND id = $2
+        WHERE id = $1
         RETURNING id, sku, quantity
         `,
-        [userId, pid, qty],
+        [pid, qty],
       );
       if (!updated.length) continue;
 
@@ -1460,16 +1457,16 @@ class WooCommerceController {
 
   async applyInventoryFromOrderId(req, orderId) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId) return;
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) return;
 
     const items = await db.query(
       `SELECT oi.sku, oi.product_id, oi.quantity
        FROM order_items oi
-       INNER JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
-       WHERE oi.order_id = $2
+       INNER JOIN orders o ON o.id = oi.order_id
+       WHERE oi.order_id = $1
        ORDER BY oi.id`,
-      [userId, Number(orderId)],
+      [Number(orderId)],
     );
     if (!items.length) return;
 

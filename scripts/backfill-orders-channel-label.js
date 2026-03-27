@@ -69,24 +69,28 @@ async function main() {
   try {
     if (tenantProvider === 'local') {
       const usersResult = await mainPool.query(`
-        SELECT id as user_id, email FROM public.users ORDER BY id
+        SELECT id, email FROM public.users ORDER BY id
       `);
       const mainConnectionString = process.env.DATABASE_URL;
       tenants = usersResult.rows.map((user) => ({
-        user_id: user.user_id,
+        owner_user_id: user.id,
         email: user.email,
         connection_string: mainConnectionString,
-        schema_name: `tenant_${user.user_id}`,
+        schema_name: `tenant_${user.id}`,
       }));
     } else {
       const neonResult = await mainPool.query(`
-        SELECT t.user_id, t.neon_connection_string as connection_string, u.email
+        SELECT t.owner_user_id, t.neon_connection_string as connection_string, u.email
         FROM public.tenants t
-        INNER JOIN public.users u ON t.user_id = u.id
+        INNER JOIN public.users u ON t.owner_user_id = u.id
         WHERE t.neon_connection_string IS NOT NULL
-        ORDER BY t.user_id
+        ORDER BY t.owner_user_id
       `);
-      tenants = neonResult.rows;
+      tenants = neonResult.rows.map((row) => ({
+        owner_user_id: row.owner_user_id,
+        connection_string: row.connection_string,
+        email: row.email,
+      }));
     }
 
     if (tenants.length === 0) {
@@ -100,7 +104,7 @@ async function main() {
       const connectionString = tenant.connection_string || tenant.neon_connection_string;
       if (!connectionString) continue;
       const result = await runBackfillOnTenant(connectionString, {
-        userId: tenant.user_id,
+        userId: tenant.owner_user_id,
         email: tenant.email,
         schemaName: tenant.schema_name,
       });

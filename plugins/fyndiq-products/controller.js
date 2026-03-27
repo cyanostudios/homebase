@@ -418,11 +418,10 @@ class FyndiqProductsController {
           FROM channel_product_overrides o
           LEFT JOIN channel_instances ci
             ON ci.id = o.channel_instance_id
-          WHERE o.user_id = $1
-            AND o.channel = 'fyndiq'
-            AND o.product_id::text = ANY($2::text[])
+          WHERE o.channel = 'fyndiq'
+            AND o.product_id::text = ANY($1::text[])
           `,
-          [userId, productIds],
+          [productIds],
         );
         if (diagnoseTrace) diagnoseTrace.overrideRows = rows.map((r) => ({ ...r }));
 
@@ -461,11 +460,10 @@ class FyndiqProductsController {
             m.product_id::text AS product_id,
             LOWER(TRIM(ci.market)) AS market
           FROM channel_product_map m
-          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id AND ci.user_id = m.user_id
-          WHERE m.user_id = $1
-            AND m.channel = 'fyndiq'
+          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id
+          WHERE m.channel = 'fyndiq'
             AND m.enabled = TRUE
-            AND m.product_id::text = ANY($2::text[])
+            AND m.product_id::text = ANY($1::text[])
             AND TRIM(COALESCE(ci.market, '')) <> ''
           UNION
           SELECT
@@ -473,17 +471,16 @@ class FyndiqProductsController {
             LOWER(TRIM(ci.market)) AS market
           FROM channel_product_map m
           INNER JOIN channel_product_overrides o
-            ON o.user_id = m.user_id AND o.product_id::text = m.product_id::text
+            ON o.product_id::text = m.product_id::text
             AND o.channel = 'fyndiq' AND o.active = TRUE AND o.channel_instance_id IS NOT NULL
-          INNER JOIN channel_instances ci ON ci.id = o.channel_instance_id AND ci.user_id = o.user_id
-          WHERE m.user_id = $1
-            AND m.channel = 'fyndiq'
+          INNER JOIN channel_instances ci ON ci.id = o.channel_instance_id
+          WHERE m.channel = 'fyndiq'
             AND m.enabled = TRUE
             AND m.channel_instance_id IS NULL
-            AND m.product_id::text = ANY($2::text[])
+            AND m.product_id::text = ANY($1::text[])
             AND TRIM(COALESCE(ci.market, '')) <> ''
           `,
-          [userId, productIds],
+          [productIds],
         );
         if (diagnoseTrace) diagnoseTrace.mapRows = mapRows.map((r) => ({ ...r }));
 
@@ -518,14 +515,13 @@ class FyndiqProductsController {
             product_id::text AS product_id,
             external_id
           FROM channel_product_map
-          WHERE user_id = $1
-            AND channel = 'fyndiq'
+          WHERE channel = 'fyndiq'
             AND channel_instance_id IS NULL
-            AND product_id::text = ANY($2::text[])
+            AND product_id::text = ANY($1::text[])
             AND external_id IS NOT NULL
             AND TRIM(external_id) <> ''
           `,
-          [userId, productIds],
+          [productIds],
         );
         for (const row of articleIdRows) {
           const productId = String(row.product_id || '').trim();
@@ -1248,11 +1244,10 @@ class FyndiqProductsController {
             ci.market
           FROM channel_product_map m
           LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id
-          WHERE m.user_id = $1
-            AND m.channel = 'fyndiq'
-            AND m.product_id::text = ANY($2::text[])
+          WHERE m.channel = 'fyndiq'
+            AND m.product_id::text = ANY($1::text[])
           `,
-          [userId, productIds],
+          [productIds],
         )
       : [];
     const targetMarketRows = productIds.length
@@ -1263,11 +1258,10 @@ class FyndiqProductsController {
             LOWER(TRIM(ci.market)) AS market,
             ci.instance_key
           FROM channel_product_map m
-          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id AND ci.user_id = m.user_id
-          WHERE m.user_id = $1
-            AND m.channel = 'fyndiq'
+          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id
+          WHERE m.channel = 'fyndiq'
             AND m.enabled = TRUE
-            AND m.product_id::text = ANY($2::text[])
+            AND m.product_id::text = ANY($1::text[])
             AND TRIM(COALESCE(ci.market, '')) <> ''
           UNION
           SELECT
@@ -1276,17 +1270,16 @@ class FyndiqProductsController {
             ci.instance_key
           FROM channel_product_map m
           INNER JOIN channel_product_overrides o
-            ON o.user_id = m.user_id AND o.product_id::text = m.product_id::text
+            ON o.product_id::text = m.product_id::text
             AND o.channel = 'fyndiq' AND o.active = TRUE AND o.channel_instance_id IS NOT NULL
-          INNER JOIN channel_instances ci ON ci.id = o.channel_instance_id AND ci.user_id = o.user_id
-          WHERE m.user_id = $1
-            AND m.channel = 'fyndiq'
+          INNER JOIN channel_instances ci ON ci.id = o.channel_instance_id
+          WHERE m.channel = 'fyndiq'
             AND m.enabled = TRUE
             AND m.channel_instance_id IS NULL
-            AND m.product_id::text = ANY($2::text[])
+            AND m.product_id::text = ANY($1::text[])
             AND TRIM(COALESCE(ci.market, '')) <> ''
           `,
-          [userId, productIds],
+          [productIds],
         )
       : [];
     const overrideRows = productIds.length
@@ -1301,12 +1294,11 @@ class FyndiqProductsController {
             o.original_price
           FROM channel_product_overrides o
           LEFT JOIN channel_instances ci ON ci.id = o.channel_instance_id
-          WHERE o.user_id = $1
-            AND o.channel = 'fyndiq'
-            AND o.product_id::text = ANY($2::text[])
+          WHERE o.channel = 'fyndiq'
+            AND o.product_id::text = ANY($1::text[])
             AND lower(COALESCE(ci.market, o.instance)) IN ('se', 'dk', 'fi', 'no')
           `,
-          [userId, productIds],
+          [productIds],
         )
       : [];
 
@@ -1665,7 +1657,7 @@ class FyndiqProductsController {
     if (responseRows.length > 0 && failuresByProduct.size > 0) {
       Logger.warn('Fyndiq strict update reported failed actions', {
         responses: responseRows,
-        userId,
+        userId: Context.getUserId(req),
       });
     }
     return res.json({ ok: true, ...report });
@@ -1696,17 +1688,16 @@ class FyndiqProductsController {
 
       // Resolve SKU for each productId
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const userId = Context.getUserId(req);
       if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
       const rows = await db.query(
         `
         SELECT id::text AS id, sku
         FROM products
-        WHERE user_id = $1
-          AND id::text = ANY($2::text[])
+        WHERE id::text = ANY($1::text[])
         `,
-        [userId, productIds],
+        [productIds],
       );
       const skuById = new Map(rows.map((r) => [String(r.id), r.sku ? String(r.sku).trim() : null]));
 
@@ -2158,7 +2149,7 @@ class FyndiqProductsController {
 
   async applyInventoryAdjustments(req, adjustments) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
+    const userId = Context.getUserId(req);
     if (!userId || !Array.isArray(adjustments) || adjustments.length === 0) return;
 
     for (const adj of adjustments) {
@@ -2168,27 +2159,27 @@ class FyndiqProductsController {
       await db.query(
         `
         UPDATE products
-        SET quantity = GREATEST(quantity - $3, 0),
+        SET quantity = GREATEST(quantity - $2, 0),
             updated_at = NOW()
-        WHERE user_id = $1 AND id = $2
+        WHERE id = $1
         `,
-        [userId, pid, Math.trunc(qty)],
+        [pid, Math.trunc(qty)],
       );
     }
   }
 
   async applyInventoryFromOrderId(req, orderId) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
+    const userId = Context.getUserId(req);
     if (!userId) return;
 
     const items = await db.query(
       `SELECT oi.sku, oi.product_id, oi.quantity
        FROM order_items oi
-       INNER JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
-       WHERE oi.order_id = $2
+       INNER JOIN orders o ON o.id = oi.order_id
+       WHERE oi.order_id = $1
        ORDER BY oi.id`,
-      [userId, Number(orderId)],
+      [Number(orderId)],
     );
     if (!items.length) return;
 

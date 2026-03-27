@@ -15,12 +15,12 @@ class Context {
   }
 
   /**
-   * Get current tenant user ID (may differ from logged-in user if admin switched)
+   * Get the current tenant owner user ID.
    * @param {Object} req - Express request
-   * @returns {number|null} Tenant user ID
+   * @returns {number|null} Tenant owner user ID
    */
   static getTenantUserId(req) {
-    return req.session?.currentTenantUserId || req.session?.user?.id || null;
+    return req.session?.tenantOwnerUserId || req.session?.user?.id || null;
   }
 
   /**

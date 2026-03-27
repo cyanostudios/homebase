@@ -4,7 +4,7 @@
 
 Enligt **ARCHITECTURE_REFACTOR.md** och **LESSONS_LEARNED.md**:
 
-- **AUTH-databas** (DATABASE_URL): `users`, `sessions`, `tenants`, `user_plugin_access`, `user_settings`. Skapas med `setup-database.js`.
+- **AUTH-databas** (DATABASE_URL): `users`, `sessions`, `tenants`, `tenant_memberships`, `tenant_plugin_access`, `user_settings`. Skapas med `setup-database.js`.
 - **Tenant-data**: Plugin-tabeller (contacts, notes, inspection_projects, osv.) skapas per tenant. **LocalTenantProvider** = schema per tenant (`tenant_1`, `tenant_2`, …). **NeonTenantProvider** = en databas per tenant.
 - **LESSONS_LEARNED**: "För att skapa tenant-tabeller, använd migrations i server/migrations/. Activity log tabellen måste finnas i VARJE tenant-databas (eller schema) … migrationen köras på alla."
 

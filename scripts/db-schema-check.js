@@ -20,15 +20,18 @@ async function main() {
   const one = async (sql) => (await client.query(sql)).rows[0] || null;
 
   const result = {
-    search_path: (await one("show search_path"))?.search_path ?? null,
+    search_path: (await one('show search_path'))?.search_path ?? null,
     current_schema: (await one('select current_schema() as v'))?.v ?? null,
     public_orders: (await one("select to_regclass('public.orders') as v"))?.v ?? null,
     tenant_1_orders: (await one("select to_regclass('tenant_1.orders') as v"))?.v ?? null,
-    tenant_1_channel_error_log: (await one("select to_regclass('tenant_1.channel_error_log') as v"))?.v ?? null,
+    tenant_1_channel_error_log:
+      (await one("select to_regclass('tenant_1.channel_error_log') as v"))?.v ?? null,
   };
 
   // Also show where the app will route tenant connections (sanitized).
-  const tenantRow = await one('select user_id, neon_connection_string from tenants where user_id = 1 limit 1');
+  const tenantRow = await one(
+    'select owner_user_id, neon_connection_string from tenants where owner_user_id = 1 limit 1',
+  );
   const sanitize = (conn) => {
     if (!conn) return null;
     try {
@@ -56,4 +59,3 @@ main().catch((e) => {
   console.error(e?.message || String(e));
   process.exitCode = 1;
 });
-

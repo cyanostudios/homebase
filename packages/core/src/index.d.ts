@@ -82,7 +82,7 @@ export class Context {
   static getUserId(req: Request): number | null;
 
   /**
-   * Get current tenant user ID
+   * Get current tenant owner user ID
    */
   static getTenantUserId(req: Request): number | null;
 

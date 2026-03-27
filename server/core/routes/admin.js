@@ -78,9 +78,9 @@ router.get(
   async (req, res) => {
     try {
       const result = await pool.query(`
-      SELECT u.id, u.email, u.role, t.neon_project_id, t.neon_database_name
+      SELECT u.id, u.email, u.role, t.id AS tenant_id, t.neon_project_id, t.neon_database_name
       FROM public.users u
-      INNER JOIN public.tenants t ON u.id = t.user_id
+      INNER JOIN public.tenants t ON u.id = t.owner_user_id
       WHERE t.neon_connection_string IS NOT NULL
       ORDER BY u.id
     `);
@@ -111,26 +111,33 @@ router.post(
       }
 
       const tenantResult = await pool.query(
-        'SELECT user_id FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
+        `SELECT id, neon_connection_string, neon_database_name, owner_user_id
+         FROM public.tenants
+         WHERE owner_user_id = $1
+         LIMIT 1`,
         [userId],
       );
+      if (!tenantResult.rows.length) return res.status(404).json({ error: 'Tenant not found' });
 
-      if (!tenantResult.rows.length) {
-        return res.status(404).json({ error: 'Tenant not found' });
-      }
-
-      // Update tenant context reference only (no DB credentials in session)
-      req.session.currentTenantUserId = userId;
+      const row = tenantResult.rows[0];
+      req.session.tenantConnectionString = row.neon_connection_string || null;
+      req.session.tenantSchemaName = row.neon_database_name || null;
+      req.session.tenantId = row.id;
+      req.session.tenantRole = 'admin';
+      req.session.tenantOwnerUserId = row.owner_user_id;
 
       const logger = ServiceManager.get('logger');
       logger.info('Admin switched tenant', {
         adminId: req.session.user.id,
-        tenantUserId: userId,
+        tenantOwnerUserId: row.owner_user_id,
+        tenantId: row.id,
       });
 
       res.json({
         message: 'Switched tenant successfully',
-        tenantUserId: userId,
+        tenantOwnerUserId: row.owner_user_id,
+        tenantId: row.id,
+        tenantRole: 'admin',
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');
@@ -163,7 +170,7 @@ router.delete(
 
       // Delete from tenants only (user remains)
       const tenantResult = await pool.query(
-        'DELETE FROM public.tenants WHERE user_id = $1 RETURNING id',
+        'DELETE FROM public.tenants WHERE owner_user_id = $1 RETURNING id',
         [userId],
       );
 
@@ -174,7 +181,7 @@ router.delete(
       const logger = ServiceManager.get('logger');
       logger.info('Admin deleted tenant entry', {
         adminId: req.session.user.id,
-        tenantUserId: userId,
+        tenantOwnerUserId: userId,
         userEmail: userResult.rows[0].email,
       });
 
@@ -206,11 +213,11 @@ router.delete(
     try {
       const { userId } = req.params;
 
-      // Delete from user_plugin_access
-      await pool.query('DELETE FROM public.user_plugin_access WHERE user_id = $1', [userId]);
+      // Delete from tenant memberships (user may be member of someone else's tenant)
+      await pool.query('DELETE FROM public.tenant_memberships WHERE user_id = $1', [userId]);
 
       // Delete from tenants
-      await pool.query('DELETE FROM public.tenants WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM public.tenants WHERE owner_user_id = $1', [userId]);
 
       // Delete from users
       const result = await pool.query('DELETE FROM public.users WHERE id = $1 RETURNING email', [

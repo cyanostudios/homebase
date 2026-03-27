@@ -24,9 +24,10 @@ class MyPlugin {
     this.db = Database.get();
   }
 
-  async getData(userId) {
-    this.logger.info('Fetching data', { userId });
-    return await this.db.query('SELECT * FROM my_table WHERE user_id = $1', [userId]);
+  async getData(req) {
+    this.logger.info('Fetching tenant-scoped data');
+    const db = Database.get(req);
+    return await db.query('SELECT * FROM my_table WHERE category = $1', ['default']);
   }
 }
 ```
@@ -53,7 +54,7 @@ Database query interface with automatic tenant isolation.
 ```javascript
 const db = Database.get(req); // Pass request for tenant context
 
-// Query with automatic user_id filtering
+// Query inside the active tenant context
 const results = await db.query('SELECT * FROM items WHERE category = $1', ['electronics']);
 
 // Transaction support
@@ -114,7 +115,7 @@ Plugins should specify compatible SDK versions in `package.json`:
 1. **Always use SDK interfaces** - Never import from `../../server/core`
 2. **Handle errors gracefully** - SDK methods throw standardized errors
 3. **Log important operations** - Use Logger for debugging and monitoring
-4. **Respect tenant isolation** - Database automatically filters by tenant
+4. **Respect tenant isolation** - Database routes queries to the active tenant context
 5. **Version your plugins** - Specify SDK version compatibility
 
 ## Migration from Direct Imports

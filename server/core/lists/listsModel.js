@@ -6,16 +6,16 @@ const { AppError } = require('../errors/AppError');
 
 const TABLE = 'lists';
 
-function getUserId(req) {
-  const userId = req.session?.user?.id;
-  if (!userId) {
-    throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+function requireTenantId(req) {
+  const tenantId = req.session?.tenantId;
+  if (!tenantId) {
+    throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
   }
-  return userId;
+  return tenantId;
 }
 
 /**
- * Get all lists for the current user in a namespace.
+ * Get all lists for the current tenant in a namespace.
  * @param {object} req - Express request (session, tenant)
  * @param {string} namespace - e.g. 'products' or 'files'
  * @returns {Promise<Array<{ id: string, name: string, namespace: string, createdAt: string, updatedAt: string }>>}
@@ -23,17 +23,17 @@ function getUserId(req) {
 async function getLists(req, namespace) {
   try {
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const ns = String(namespace || '').trim();
     if (!ns) {
       throw new AppError('Namespace is required', 400, AppError.CODES.VALIDATION_ERROR);
     }
     const rows = await db.query(
-      `SELECT id, user_id, namespace, name, created_at, updated_at
+      `SELECT id, namespace, name, created_at, updated_at
        FROM ${TABLE}
-       WHERE user_id = $1 AND namespace = $2
+       WHERE namespace = $1
        ORDER BY name ASC`,
-      [userId, ns],
+      [ns],
     );
     return (rows || []).map((r) => ({
       id: String(r.id),
@@ -59,14 +59,14 @@ async function getLists(req, namespace) {
 async function createList(req, namespace, name) {
   try {
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const ns = String(namespace || '').trim();
     const listName = String(name ?? '').trim();
     if (!ns) throw new AppError('Namespace is required', 400, AppError.CODES.VALIDATION_ERROR);
     if (!listName)
       throw new AppError('List name is required', 400, AppError.CODES.VALIDATION_ERROR);
 
-    // Do not pass user_id: PostgreSQLAdapter.insert() appends it from context
+    // Tenant data is isolated by schema/database, not by user_id.
     const result = await db.insert(TABLE, {
       namespace: ns,
       name: listName,
@@ -95,7 +95,7 @@ async function createList(req, namespace, name) {
 async function renameList(req, namespace, listId, name) {
   try {
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const ns = String(namespace || '').trim();
     const id = String(listId || '').trim();
     const listName = String(name ?? '').trim();
@@ -111,9 +111,9 @@ async function renameList(req, namespace, listId, name) {
     const result = await db.query(
       `UPDATE ${TABLE}
        SET name = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 AND user_id = $3 AND namespace = $4
+       WHERE id = $2 AND namespace = $3
        RETURNING id, name, namespace, created_at, updated_at`,
-      [listName, id, userId, ns],
+      [listName, id, ns],
     );
     if (!result || result.length === 0) {
       throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
@@ -139,7 +139,7 @@ async function renameList(req, namespace, listId, name) {
 async function deleteList(req, namespace, listId) {
   try {
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const ns = String(namespace || '').trim();
     const id = String(listId || '').trim();
     if (!ns || !id)
@@ -151,9 +151,9 @@ async function deleteList(req, namespace, listId) {
 
     const result = await db.query(
       `DELETE FROM ${TABLE}
-       WHERE id = $1 AND user_id = $2 AND namespace = $3
+       WHERE id = $1 AND namespace = $2
        RETURNING id`,
-      [id, userId, ns],
+      [id, ns],
     );
     if (!result || result.length === 0) {
       throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
@@ -177,7 +177,7 @@ async function deleteList(req, namespace, listId) {
  */
 async function findOrCreateListForSelloFolder(req, namespace, folderId, folderName) {
   const db = Database.get(req);
-  const userId = getUserId(req);
+  requireTenantId(req);
   const ns = String(namespace || '').trim();
   const fid = String(folderId ?? '').trim();
   const fname = String(folderName ?? '').trim();
@@ -188,8 +188,8 @@ async function findOrCreateListForSelloFolder(req, namespace, folderId, folderNa
 
   if (fid) {
     const byId = await db.query(
-      `SELECT id, name FROM ${TABLE} WHERE user_id = $1 AND namespace = $2 AND import_folder_id = $3 LIMIT 1`,
-      [userId, ns, fid],
+      `SELECT id, name FROM ${TABLE} WHERE namespace = $1 AND import_folder_id = $2 LIMIT 1`,
+      [ns, fid],
     );
     if (byId && byId.length > 0) {
       return { id: String(byId[0].id), name: byId[0].name ?? '' };
@@ -197,15 +197,15 @@ async function findOrCreateListForSelloFolder(req, namespace, folderId, folderNa
   }
   if (fname) {
     const byName = await db.query(
-      `SELECT id, name, import_folder_id FROM ${TABLE} WHERE user_id = $1 AND namespace = $2 AND name = $3 LIMIT 1`,
-      [userId, ns, fname],
+      `SELECT id, name, import_folder_id FROM ${TABLE} WHERE namespace = $1 AND name = $2 LIMIT 1`,
+      [ns, fname],
     );
     if (byName && byName.length > 0) {
       const row = byName[0];
       if (fid && !row.import_folder_id) {
         await db.query(
-          `UPDATE ${TABLE} SET import_folder_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
-          [fid, row.id, userId],
+          `UPDATE ${TABLE} SET import_folder_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [fid, row.id],
         );
       }
       return { id: String(row.id), name: row.name ?? '' };
@@ -213,9 +213,9 @@ async function findOrCreateListForSelloFolder(req, namespace, folderId, folderNa
   }
   const listName = fname || `Sello mapp ${fid}`;
   const result = await db.query(
-    `INSERT INTO ${TABLE} (user_id, namespace, name, import_folder_id) VALUES ($1, $2, $3, $4)
+    `INSERT INTO ${TABLE} (namespace, name, import_folder_id) VALUES ($1, $2, $3)
      RETURNING id, name`,
-    [userId, ns, listName, fid || null],
+    [ns, listName, fid || null],
   );
   const r = result[0];
   return { id: String(r.id), name: r.name ?? listName };
@@ -227,16 +227,16 @@ async function findOrCreateListForSelloFolder(req, namespace, folderId, folderNa
 async function getListById(req, namespace, listId) {
   try {
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const ns = String(namespace || '').trim();
     const id = String(listId || '').trim();
     if (!ns || !id) return null;
     const rows = await db.query(
       `SELECT id, name, namespace, created_at, updated_at
        FROM ${TABLE}
-       WHERE id = $1 AND user_id = $2 AND namespace = $3
+       WHERE id = $1 AND namespace = $2
        LIMIT 1`,
-      [id, userId, ns],
+      [id, ns],
     );
     if (!rows || rows.length === 0) return null;
     const r = rows[0];
@@ -265,11 +265,11 @@ async function getFileListItems(req, listId) {
     const list = await getListById(req, 'files', listId);
     if (!list) return [];
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const rows = await db.query(
       `SELECT file_id FROM ${FILE_LIST_ITEMS_TABLE}
-       WHERE list_id = $1 AND user_id = $2 ORDER BY created_at ASC`,
-      [listId, userId],
+       WHERE list_id = $1 ORDER BY created_at ASC`,
+      [listId],
     );
     return (rows || []).map((r) => String(r.file_id));
   } catch (error) {
@@ -287,11 +287,11 @@ async function getContactListItems(req, listId) {
     const list = await getListById(req, 'contacts', listId);
     if (!list) return [];
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const rows = await db.query(
       `SELECT contact_id FROM ${CONTACT_LIST_ITEMS_TABLE}
-       WHERE list_id = $1 AND user_id = $2 ORDER BY created_at ASC`,
-      [listId, userId],
+       WHERE list_id = $1 ORDER BY created_at ASC`,
+      [listId],
     );
     return (rows || []).map((r) => String(r.contact_id));
   } catch (error) {
@@ -312,7 +312,7 @@ async function addContactsToList(req, namespace, listId, contactIds) {
       throw new AppError('Namespace must be contacts', 400, AppError.CODES.VALIDATION_ERROR);
 
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const ids = Array.isArray(contactIds) ? contactIds : [contactIds];
     let added = 0;
     for (const contactId of ids) {
@@ -348,12 +348,12 @@ async function removeContactFromList(req, namespace, listId, contactId) {
       throw new AppError('Namespace must be contacts', 400, AppError.CODES.VALIDATION_ERROR);
 
     const db = Database.get(req);
-    const userId = getUserId(req);
+    requireTenantId(req);
     const result = await db.query(
       `DELETE FROM ${CONTACT_LIST_ITEMS_TABLE}
-       WHERE list_id = $1 AND contact_id = $2 AND user_id = $3
+       WHERE list_id = $1 AND contact_id = $2
        RETURNING contact_id`,
-      [listId, contactId, userId],
+      [listId, contactId],
     );
     return { removed: result && result.length > 0 };
   } catch (error) {
@@ -374,5 +374,5 @@ module.exports = {
   getContactListItems,
   addContactsToList,
   removeContactFromList,
-  getUserId,
+  requireTenantId,
 };

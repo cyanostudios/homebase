@@ -1,6 +1,13 @@
 # Varför channel_product_map inte fylls för WooCommerce vid Sello-import
 
-## Diagnostik (kör: `node scripts/debug-sello-woo-map.js 51786284`)
+## Diagnostik (tenant-schema, t.ex. `tenant_1`)
+
+Kör mot rätt `search_path` eller kvalificera tabeller. Exempel för en produkt:
+
+```sql
+SELECT * FROM channel_product_map WHERE product_id::text = '51786284';
+SELECT * FROM channel_instances WHERE channel = 'woocommerce';
+```
 
 ### Resultat
 
@@ -52,5 +59,5 @@ Sello API ger inte WooCommerce product ID i `integrations[integrationId].item_id
 Efter fix:
 
 1. Importera produkt 51786284 från Sello igen (eller kör import för den).
-2. Kör `node scripts/check-channel-map.js 51786284` → ska visa rader för WooCommerce (inst 8, ev. 11) i `channel_product_map` med `external_id` satt.
+2. Kontrollera i databasen att `channel_product_map` har rader för WooCommerce (rätt `channel_instance_id`) med `external_id` satt för produkten.
 3. Ändra lager i UI och bekräfta att lager pushas till WooCommerce.

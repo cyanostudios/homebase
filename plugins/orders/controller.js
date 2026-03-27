@@ -665,16 +665,16 @@ class OrdersController {
 
   async applyInventoryFromOrder(req, orderId, sourceChannel) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
     const items = await db.query(
       `SELECT oi.sku, oi.product_id, oi.quantity
        FROM order_items oi
-       INNER JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
-       WHERE oi.order_id = $2
+       INNER JOIN orders o ON o.id = oi.order_id
+       WHERE oi.order_id = $1
        ORDER BY oi.id`,
-      [userId, Number(orderId)],
+      [Number(orderId)],
     );
     if (!items.length) return;
 
@@ -701,12 +701,12 @@ class OrdersController {
       const updated = await db.query(
         `
         UPDATE products
-        SET quantity = GREATEST(quantity - $3, 0),
+        SET quantity = GREATEST(quantity - $2, 0),
             updated_at = NOW()
-        WHERE user_id = $1 AND id = $2
+        WHERE id = $1
         RETURNING id, sku, quantity
         `,
-        [userId, pid, qty],
+        [pid, qty],
       );
       if (!updated.length) continue;
 
@@ -726,12 +726,12 @@ class OrdersController {
       const updated = await db.query(
         `
         UPDATE products
-        SET quantity = GREATEST(quantity - $3, 0),
+        SET quantity = GREATEST(quantity - $2, 0),
             updated_at = NOW()
-        WHERE user_id = $1 AND sku = $2
+        WHERE sku = $1
         RETURNING id, sku, quantity
         `,
-        [userId, sku, qty],
+        [sku, qty],
       );
       if (!updated.length) continue;
 
@@ -903,8 +903,8 @@ class OrdersController {
 
       // CDON and Fyndiq: for Delivered, require tracking when order meets amount threshold (299 SEK/DKK/NOK, 29.99 EUR) unless forceUpdate.
       if (status === 'delivered' && !forceUpdate) {
-        const userId = req.session?.user?.id;
-        if (!userId) return res.status(401).json({ error: 'User not authenticated' });
+        const tenantId = req.session?.tenantId;
+        if (!tenantId) return res.status(401).json({ error: 'Tenant not resolved' });
 
         const validIds = idsRaw
           .map((id) => {
@@ -919,10 +919,9 @@ class OrdersController {
             `
             SELECT id, order_number, channel, total_amount, currency, shipping_tracking_number
             FROM orders
-            WHERE user_id = $1
-              AND id = ANY($2::int[])
+            WHERE id = ANY($1::int[])
             `,
-            [userId, validIds],
+            [validIds],
           );
 
           const offenders = [];

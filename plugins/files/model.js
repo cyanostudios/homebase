@@ -1,7 +1,7 @@
 // plugins/files/model.js
 // Files model - V3 with @homebase/core SDK
 // Note: Binary upload handled elsewhere, this only manages metadata
-const { Logger, Database, Context } = require('@homebase/core');
+const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class FilesModel {
@@ -18,7 +18,7 @@ class FilesModel {
       const db = Database.get(req);
       const { folderPath } = opts;
 
-      let sql = `SELECT id, user_id, name, size, mime_type, url, folder_path, created_at, updated_at
+      let sql = `SELECT id, name, size, mime_type, url, folder_path, created_at, updated_at
          FROM ${FilesModel.TABLE}`;
       const params = [];
 
@@ -45,11 +45,11 @@ class FilesModel {
       const db = Database.get(req);
 
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, folder_path, created_at, updated_at
+        `SELECT id, name, size, mime_type, url, folder_path, created_at, updated_at
          FROM ${FilesModel.TABLE}
          WHERE id = $1
          LIMIT 1`,
-        [itemId]
+        [itemId],
       );
 
       if (result.length === 0) {
@@ -69,12 +69,12 @@ class FilesModel {
       const db = Database.get(req);
 
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, folder_path, created_at, updated_at
+        `SELECT id, name, size, mime_type, url, folder_path, created_at, updated_at
          FROM ${FilesModel.TABLE}
          WHERE url = $1
          ORDER BY id DESC
          LIMIT 1`,
-        [url]
+        [url],
       );
 
       if (result.length === 0) return null;
@@ -93,11 +93,11 @@ class FilesModel {
       const likeFolder = `%/api/files/raw/%/${escaped}`;
       const likeRoot = `%/api/files/raw/${escaped}`;
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, folder_path, created_at, updated_at
+        `SELECT id, name, size, mime_type, url, folder_path, created_at, updated_at
          FROM ${FilesModel.TABLE}
          WHERE url LIKE $1 ESCAPE '\\' OR url LIKE $2 ESCAPE '\\'
          ORDER BY id DESC LIMIT 1`,
-        [likeFolder, likeRoot]
+        [likeFolder, likeRoot],
       );
       if (result.length === 0) return null;
       return this.transformRow(result[0]);
@@ -122,7 +122,8 @@ class FilesModel {
         url: data?.url ?? null,
       };
       if (Object.prototype.hasOwnProperty.call(data, 'folderPath')) {
-        insertData.folder_path = data.folderPath === '' || data.folderPath == null ? null : data.folderPath;
+        insertData.folder_path =
+          data.folderPath === '' || data.folderPath == null ? null : data.folderPath;
       }
       const result = await db.insert(FilesModel.TABLE, insertData);
 
@@ -164,10 +165,14 @@ class FilesModel {
         updateData.url = data.url ?? null;
       }
       if (Object.prototype.hasOwnProperty.call(data, 'folderPath')) {
-        updateData.folder_path = data.folderPath === '' || data.folderPath == null ? null : data.folderPath;
+        updateData.folder_path =
+          data.folderPath === '' || data.folderPath == null ? null : data.folderPath;
       }
       // Preserve updated_at when caller passes it (e.g. move should not change "Updated" date)
-      if (Object.prototype.hasOwnProperty.call(data, 'updatedAt') || Object.prototype.hasOwnProperty.call(data, 'updated_at')) {
+      if (
+        Object.prototype.hasOwnProperty.call(data, 'updatedAt') ||
+        Object.prototype.hasOwnProperty.call(data, 'updated_at')
+      ) {
         const val = data.updated_at ?? data.updatedAt;
         if (val != null) updateData.updated_at = val;
       }
@@ -234,7 +239,7 @@ class FilesModel {
         `SELECT DISTINCT folder_path FROM ${FilesModel.TABLE}
          WHERE folder_path IS NOT NULL AND folder_path != ''
          ORDER BY folder_path`,
-        []
+        [],
       );
       return rows.map((r) => r.folder_path);
     } catch (error) {
@@ -286,12 +291,11 @@ class FilesModel {
     const listsModel = require('../../server/core/lists/listsModel');
     const list = await listsModel.getListById(req, 'files', listId);
     if (!list) throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
-    const userId = listsModel.getUserId(req);
     const result = await db.query(
       `DELETE FROM file_list_items
-       WHERE list_id = $1 AND file_id = $2 AND user_id = $3
+       WHERE list_id = $1 AND file_id = $2
        RETURNING file_id`,
-      [listId, fileId, userId]
+      [listId, fileId],
     );
     return { removed: result && result.length > 0 };
   }
@@ -299,8 +303,6 @@ class FilesModel {
   async bulkDelete(req, idsTextArray) {
     try {
       const db = Database.get(req);
-      const userId = Context.getUserId(req);
-
       const ids = Array.isArray(idsTextArray)
         ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
         : [];
@@ -311,11 +313,11 @@ class FilesModel {
 
       const sql = `
         DELETE FROM ${FilesModel.TABLE}
-        WHERE id::text = ANY($1::text[]) AND user_id = $2
+        WHERE id::text = ANY($1::text[])
         RETURNING id::text AS id
       `;
 
-      const rows = await db.query(sql, [ids, userId]);
+      const rows = await db.query(sql, [ids]);
 
       Logger.info('Files bulk deleted', { count: rows.length });
       return {

@@ -16,111 +16,17 @@ class PostgreSQLAdapter extends DatabaseService {
    */
   _getContext(req) {
     return {
-      userId: req?.session?.currentTenantUserId || req?.session?.user?.id,
       tenantId: req?.session?.tenantId,
+      tenantSchemaName: req?.session?.tenantSchemaName || null,
       pool: req?.tenantPool || this.pool,
     };
   }
 
   /**
    * Add tenant isolation to SQL query
-   * Automatically adds WHERE user_id = ? clause if not present
+   * Tenant data is isolated by schema/database, not row-level user_id.
    */
-  _addTenantFilter(sql, userId) {
-    if (!userId) {
-      return sql; // No user context, return as-is (for system queries)
-    }
-
-    const upperSql = sql.toUpperCase().trim();
-
-    // Skip if already has user_id filter
-    if (upperSql.includes('USER_ID')) {
-      return sql;
-    }
-
-    // For SELECT queries, add WHERE clause
-    if (upperSql.startsWith('SELECT')) {
-      // Find the position of ORDER BY, GROUP BY, LIMIT, OFFSET (these must come after WHERE)
-      const orderByIndex = upperSql.indexOf(' ORDER BY ');
-      const groupByIndex = upperSql.indexOf(' GROUP BY ');
-      const limitIndex = upperSql.indexOf(' LIMIT ');
-      const offsetIndex = upperSql.indexOf(' OFFSET ');
-
-      // Find the last clause that must come after WHERE
-      const lastClauseIndex = Math.max(
-        orderByIndex === -1 ? -1 : orderByIndex,
-        groupByIndex === -1 ? -1 : groupByIndex,
-        limitIndex === -1 ? -1 : limitIndex,
-        offsetIndex === -1 ? -1 : offsetIndex,
-      );
-
-      const whereIndex = upperSql.indexOf(' WHERE ');
-      if (whereIndex === -1) {
-        // No WHERE clause
-        if (lastClauseIndex === -1) {
-          // No ORDER BY, GROUP BY, LIMIT, OFFSET - just add WHERE at the end
-          return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
-        } else {
-          // Has ORDER BY/GROUP BY/LIMIT/OFFSET - insert WHERE before them
-          const insertPos = sql
-            .toUpperCase()
-            .indexOf(upperSql.substring(lastClauseIndex, lastClauseIndex + 10));
-          const beforeClause = sql.substring(0, insertPos);
-          const afterClause = sql.substring(insertPos);
-          return `${beforeClause} WHERE user_id = $${this._getParamCount(sql) + 1} ${afterClause}`;
-        }
-      } else {
-        // Has WHERE clause, add AND at the end of WHERE clause (before ORDER BY/etc)
-        // Find where to insert: after existing WHERE conditions but before ORDER BY/GROUP BY/LIMIT/OFFSET
-        if (lastClauseIndex === -1) {
-          // No ORDER BY/GROUP BY/LIMIT/OFFSET - add AND at the end
-          const paramNum = this._getParamCount(sql) + 1;
-          // Insert AND user_id = $N at the end, before any semicolon
-          const sqlEnd = sql.length;
-          return `${sql.substring(0, sqlEnd)} AND user_id = $${paramNum}`;
-        } else {
-          // Has ORDER BY/GROUP BY/LIMIT/OFFSET - insert AND before them
-          // Find the exact position in the original SQL (case-sensitive)
-          let insertPos = -1;
-          const orderByPos = sql.toUpperCase().indexOf(' ORDER BY ');
-          const groupByPos = sql.toUpperCase().indexOf(' GROUP BY ');
-          const limitPos = sql.toUpperCase().indexOf(' LIMIT ');
-          const offsetPos = sql.toUpperCase().indexOf(' OFFSET ');
-
-          // Find the earliest clause position
-          const positions = [orderByPos, groupByPos, limitPos, offsetPos].filter((p) => p !== -1);
-          if (positions.length > 0) {
-            insertPos = Math.min(...positions);
-          }
-
-          if (insertPos === -1) {
-            // Fallback: add at the end
-            const paramNum = this._getParamCount(sql) + 1;
-            return `${sql} AND user_id = $${paramNum}`;
-          }
-
-          const beforeClause = sql.substring(0, insertPos).trim();
-          const afterClause = sql.substring(insertPos);
-          const paramNum = this._getParamCount(sql) + 1;
-          return `${beforeClause} AND user_id = $${paramNum} ${afterClause}`;
-        }
-      }
-    }
-
-    // For UPDATE/DELETE, add WHERE clause if not present
-    if (upperSql.startsWith('UPDATE') || upperSql.startsWith('DELETE')) {
-      const whereIndex = upperSql.indexOf('WHERE');
-      if (whereIndex === -1) {
-        // No WHERE clause - this is dangerous, but we'll add user_id filter
-        return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
-      } else {
-        // Check if user_id already in WHERE
-        if (!upperSql.includes('USER_ID')) {
-          return `${sql} AND user_id = $${this._getParamCount(sql) + 1}`;
-        }
-      }
-    }
-
+  _addTenantFilter(sql, _tenantId) {
     return sql;
   }
 
@@ -182,17 +88,17 @@ class PostgreSQLAdapter extends DatabaseService {
     this._validateQuery(sql, params);
 
     const pool = context.pool || this.pool;
-    const userId = context.userId;
+    const tenantId = context.tenantId;
+    const tenantSchemaName = context.tenantSchemaName;
 
     // Add tenant isolation
     let finalSql = sql;
     let finalParams = [...params];
 
-    if (userId) {
-      finalSql = this._addTenantFilter(sql, userId);
+    if (tenantId) {
+      finalSql = this._addTenantFilter(sql, tenantId);
       if (finalSql !== sql) {
-        // Tenant filter was added, append userId to params
-        finalParams = [...params, userId];
+        finalParams = [...params, tenantId];
       }
     }
 
@@ -202,7 +108,7 @@ class PostgreSQLAdapter extends DatabaseService {
       // Log SQL query details without exposing parameter values.
       this.logger?.info('Executing SQL query', {
         sql: finalSql,
-        userId: userId,
+        tenantId: tenantId,
         paramCount: finalParams.length,
       });
 
@@ -214,9 +120,9 @@ class PostgreSQLAdapter extends DatabaseService {
       // the query executes with the intended schema on the same backend connection.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
 
-      if (userId && isLocalProvider) {
-        const schemaName = `tenant_${userId}`;
-        this.logger?.info('Setting search_path for tenant query', { schemaName, userId });
+      if (tenantSchemaName && isLocalProvider) {
+        const schemaName = tenantSchemaName;
+        this.logger?.info('Setting search_path for tenant query', { schemaName, tenantId });
 
         const client = await pool.connect();
         try {
@@ -289,15 +195,14 @@ class PostgreSQLAdapter extends DatabaseService {
 
   async transaction(callback, context = {}) {
     const pool = context.pool || this.pool;
-    const userId = context.userId;
+    const tenantSchemaName = context.tenantSchemaName;
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
-      if (userId && isLocalProvider) {
-        const schemaName = `tenant_${userId}`;
-        await client.query(`SET LOCAL search_path TO ${schemaName}`);
+      if (tenantSchemaName && isLocalProvider) {
+        await client.query(`SET LOCAL search_path TO ${tenantSchemaName}`);
       }
       const result = await callback({
         query: async (sql, params = []) => {
@@ -319,10 +224,11 @@ class PostgreSQLAdapter extends DatabaseService {
 
   async insert(table, data, context = {}) {
     const pool = context.pool || this.pool;
-    const userId = context.userId;
+    const tenantId = context.tenantId;
+    const tenantSchemaName = context.tenantSchemaName;
 
-    if (!userId) {
-      throw new AppError('User context required for insert', 400, AppError.CODES.BAD_REQUEST);
+    if (!tenantId) {
+      throw new AppError('Tenant context required for insert', 400, AppError.CODES.BAD_REQUEST);
     }
 
     const columns = Object.keys(data);
@@ -331,17 +237,17 @@ class PostgreSQLAdapter extends DatabaseService {
     const columnNames = columns.join(', ');
 
     const sql = `
-      INSERT INTO ${table} (${columnNames}, user_id)
-      VALUES (${placeholders}, $${values.length + 1})
+      INSERT INTO ${table} (${columnNames})
+      VALUES (${placeholders})
       RETURNING *
     `;
 
-    const params = [...values, userId];
+    const params = [...values];
 
     // Log INSERT details without exposing parameter values.
     this.logger?.info('Executing INSERT query', {
       sql: sql.trim(),
-      userId: userId,
+      tenantId: tenantId,
       table: table,
       columnCount: columns.length,
       paramCount: params.length,
@@ -354,9 +260,9 @@ class PostgreSQLAdapter extends DatabaseService {
       // For LocalTenantProvider, set search_path to tenant schema only. See query() for rationale.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
       let result;
-      if (userId && isLocalProvider) {
-        const schemaName = `tenant_${userId}`;
-        this.logger?.info('Setting search_path for tenant insert', { schemaName, userId });
+      if (tenantSchemaName && isLocalProvider) {
+        const schemaName = tenantSchemaName;
+        this.logger?.info('Setting search_path for tenant insert', { schemaName, tenantId });
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
@@ -393,7 +299,7 @@ class PostgreSQLAdapter extends DatabaseService {
         table,
         sql: sql.trim(),
         paramCount: params.length,
-        userId: userId,
+        tenantId: tenantId,
         dataKeys: columns,
         errorCode: error.code,
         errorMessage: error.message,
@@ -430,10 +336,11 @@ class PostgreSQLAdapter extends DatabaseService {
 
   async update(table, id, data, context = {}) {
     const pool = context.pool || this.pool;
-    const userId = context.userId;
+    const tenantId = context.tenantId;
+    const tenantSchemaName = context.tenantSchemaName;
 
-    if (!userId) {
-      throw new AppError('User context required for update', 400, AppError.CODES.BAD_REQUEST);
+    if (!tenantId) {
+      throw new AppError('Tenant context required for update', 400, AppError.CODES.BAD_REQUEST);
     }
 
     const columns = Object.keys(data);
@@ -445,19 +352,19 @@ class PostgreSQLAdapter extends DatabaseService {
     const sql = `
       UPDATE ${table}
       SET ${setClause}${updatedAtClause}
-      WHERE id = $${values.length + 1} AND user_id = $${values.length + 2}
+      WHERE id = $${values.length + 1}
       RETURNING *
     `;
 
-    const params = [...values, id, userId];
+    const params = [...values, id];
 
     try {
       // For LocalTenantProvider, set search_path to tenant schema only. See query() for rationale.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
       let result;
-      if (userId && isLocalProvider) {
-        const schemaName = `tenant_${userId}`;
-        this.logger?.info('Setting search_path for tenant update', { schemaName, userId });
+      if (tenantSchemaName && isLocalProvider) {
+        const schemaName = tenantSchemaName;
+        this.logger?.info('Setting search_path for tenant update', { schemaName, tenantId });
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
@@ -495,15 +402,16 @@ class PostgreSQLAdapter extends DatabaseService {
 
   async delete(table, id, context = {}) {
     const pool = context.pool || this.pool;
-    const userId = context.userId;
+    const tenantId = context.tenantId;
+    const tenantSchemaName = context.tenantSchemaName;
 
-    if (!userId) {
-      throw new AppError('User context required for delete', 400, AppError.CODES.BAD_REQUEST);
+    if (!tenantId) {
+      throw new AppError('Tenant context required for delete', 400, AppError.CODES.BAD_REQUEST);
     }
 
     const sql = `
       DELETE FROM ${table}
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1
       RETURNING id
     `;
 
@@ -511,15 +419,15 @@ class PostgreSQLAdapter extends DatabaseService {
       // For LocalTenantProvider, set search_path to tenant schema only. See query() for rationale.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
       let result;
-      if (userId && isLocalProvider) {
-        const schemaName = `tenant_${userId}`;
-        this.logger?.info('Setting search_path for tenant delete', { schemaName, userId });
+      if (tenantSchemaName && isLocalProvider) {
+        const schemaName = tenantSchemaName;
+        this.logger?.info('Setting search_path for tenant delete', { schemaName, tenantId });
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
           try {
             await client.query(`SET LOCAL search_path TO ${schemaName}`);
-            result = await client.query(sql, [id, userId]);
+            result = await client.query(sql, [id]);
             await client.query('COMMIT');
           } catch (inner) {
             try {
@@ -531,7 +439,7 @@ class PostgreSQLAdapter extends DatabaseService {
           client.release();
         }
       } else {
-        result = await pool.query(sql, [id, userId]);
+        result = await pool.query(sql, [id]);
       }
       if (result.rows.length === 0) {
         throw new AppError(`${table} not found`, 404, AppError.CODES.NOT_FOUND);

@@ -69,7 +69,7 @@ Primary goals:
 - Filter contract formalized and enforced.
 - Canonical data contract formalized.
 - Summary kept focused (not a super-endpoint with drilldowns).
-- Cache keys normalized and user-scoped.
+- Cache keys normalized and tenant-scoped.
 
 ### Gaps that were explicitly closed
 
@@ -91,7 +91,7 @@ Primary goals:
 - Drilldown fetches isolated and conditional.
 - Read queries based on canonical `orders` fields.
 - Segment logic based on `customer_first_orders` read model.
-- User+filter cache with short TTL and mutation invalidation.
+- Tenant+filter cache with short TTL and mutation invalidation.
 
 ## Contracts
 

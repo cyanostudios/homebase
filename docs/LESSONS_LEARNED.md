@@ -137,22 +137,22 @@ PostgreSQLAdapter.query() returnerar `result.rows` direkt (en array), inte ett o
 // Database.get(req) använde bara req.session?.user?.id
 const context = {
   pool,
-  userId: req.session?.user?.id, // Saknar currentTenantUserId!
+  userId: req.session?.user?.id, // Saknar tenantOwnerUserId när admin har switchat tenant
 };
 ```
 
 ✅ **What we do instead (that works):**
 
 ```javascript
-// Använd både currentTenantUserId och user.id
+// Använd tenantOwnerUserId eller fallback till user.id
 const context = {
   pool,
-  userId: req.session?.currentTenantUserId || req.session?.user?.id,
+  userId: req.session?.tenantOwnerUserId || req.session?.user?.id,
 };
 ```
 
 💡 **Why (lesson learned):**
-PostgreSQLAdapter.\_getContext() använder `req.session?.currentTenantUserId || req.session?.user?.id`. Database.get(req) måste matcha detta för att userId ska sättas korrekt i contexten som db.update() kräver.
+PostgreSQLAdapter.\_getContext() måste använda samma tenantidentitet som resten av request-contexten. För support/switch-tenant-flöden är det `req.session?.tenantOwnerUserId`, annars fallback till `req.session?.user?.id`.
 
 ---
 
@@ -427,9 +427,9 @@ Försökte skapa plugin-tabeller (invoices, user_files) i AUTH-databasen via set
 
 ```bash
 # AUTH-databas tabeller (DATABASE_URL):
-# - users, sessions, tenants, user_plugin_access, user_settings
+# - users, sessions, tenants, tenant_memberships, tenant_plugin_access, user_settings
 
-# TENANT-databas tabeller (per tenant/user):
+# TENANT-databas tabeller (per tenant):
 # - contacts, notes, tasks, estimates, invoices, user_files
 
 # För att skapa tenant-tabeller, använd migrations i server/migrations/
@@ -843,8 +843,8 @@ const { Logger, Database } = require('@homebase/core');
 **Lösning:** SDK hämtar context från req automatiskt, men req måste ha session. Verifiera att:
 
 1. requireAuth() middleware används på routen
-2. req.session?.currentTenantUserId eller req.session?.user?.id finns
-3. Database.get(req) använder korrekt session-path (currentTenantUserId || user.id)
+2. req.session?.tenantOwnerUserId eller req.session?.user?.id finns
+3. Database.get(req) använder korrekt session-path (tenantOwnerUserId || user.id)
 
 ---
 

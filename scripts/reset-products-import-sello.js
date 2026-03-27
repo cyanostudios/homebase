@@ -16,21 +16,16 @@ const SelloModel = require('../plugins/products/selloModel');
 
 const USER_ID = Number(process.env.PHASE1_PILOT_USER_ID || 1);
 
-const SELLO_IDS =
-  process.env.SELLO_PRODUCT_IDS
-    ? process.env.SELLO_PRODUCT_IDS.split(',')
-        .map((x) => String(x).trim())
-        .filter(Boolean)
-    : process.argv.slice(2).map((x) => String(x).trim()).filter(Boolean);
+const SELLO_IDS = process.env.SELLO_PRODUCT_IDS
+  ? process.env.SELLO_PRODUCT_IDS.split(',')
+      .map((x) => String(x).trim())
+      .filter(Boolean)
+  : process.argv
+      .slice(2)
+      .map((x) => String(x).trim())
+      .filter(Boolean);
 
-const DEFAULT_IDS = [
-  '134584082',
-  '134584083',
-  '134584084',
-  '134584087',
-  '134584130',
-  '134584133',
-];
+const DEFAULT_IDS = ['134584082', '134584083', '134584084', '134584087', '134584130', '134584133'];
 
 const selloIds = SELLO_IDS.length ? SELLO_IDS : DEFAULT_IDS;
 
@@ -53,7 +48,7 @@ async function buildReq() {
   const ServiceManager = require('../server/core/ServiceManager');
   Bootstrap.initializeServices();
   const req = {
-    session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
+    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
     tenantPool: undefined,
     body: {},
     query: {},

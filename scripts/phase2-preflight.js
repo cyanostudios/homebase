@@ -45,7 +45,7 @@ async function buildReq() {
   const ServiceManager = require('../server/core/ServiceManager');
   Bootstrap.initializeServices();
   const req = {
-    session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
+    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
     tenantPool: undefined,
     body: {},
     query: {},
@@ -65,7 +65,9 @@ async function run() {
   const products = allProducts.slice(0, LIMIT);
 
   if (!products.length) {
-    console.log(JSON.stringify({ ok: false, error: 'No products in DB', userId: USER_ID }, null, 2));
+    console.log(
+      JSON.stringify({ ok: false, error: 'No products in DB', userId: USER_ID }, null, 2),
+    );
     process.exit(1);
   }
 

@@ -11,7 +11,11 @@ class MailController {
     try {
       const { to, subject, html, text, attachments, pluginSource, referenceId } = req.body;
 
-      if (!to || (Array.isArray(to) && to.length === 0) || (!Array.isArray(to) && !String(to).trim())) {
+      if (
+        !to ||
+        (Array.isArray(to) && to.length === 0) ||
+        (!Array.isArray(to) && !String(to).trim())
+      ) {
         return res.status(400).json({ error: 'At least one recipient (to) is required' });
       }
       if (!subject || !String(subject).trim()) {
@@ -36,14 +40,15 @@ class MailController {
         }
       }
 
-      // Use per-user settings from plugin if configured, else fallback to global
+      // Use tenant-scoped settings from the plugin if configured, else fallback to global
       const userSettings = await model.getSettings(req, { needsPassword: true });
       let emailService;
       if (userSettings?.provider === 'resend' && userSettings?.resendApiKeyRaw) {
         emailService = new ResendAdapter({
           resend: {
             apiKey: userSettings.resendApiKeyRaw,
-            from: userSettings.resendFromAddress || userSettings.fromAddress || 'onboarding@resend.dev',
+            from:
+              userSettings.resendFromAddress || userSettings.fromAddress || 'onboarding@resend.dev',
           },
         });
       } else if (userSettings?.host) {
@@ -53,9 +58,10 @@ class MailController {
             port: userSettings.port,
             secure: userSettings.secure,
             from: userSettings.fromAddress,
-            auth: (userSettings.authUser && userSettings.authPass)
-              ? { user: userSettings.authUser, pass: userSettings.authPass }
-              : undefined,
+            auth:
+              userSettings.authUser && userSettings.authPass
+                ? { user: userSettings.authUser, pass: userSettings.authPass }
+                : undefined,
           },
         };
         emailService = new SmtpAdapter(smtpConfig);
@@ -86,9 +92,14 @@ class MailController {
       }
       let msg = 'Failed to send email';
       if (error?.code === 'EAUTH' || /535|Incorrect authentication/i.test(error?.message || '')) {
-        msg = 'Felaktiga SMTP-inloggningsuppgifter. Kontrollera användarnamn och lösenord i Mail-inställningar. För Gmail: använd app-lösenord.';
-      } else if (error?.code === 'EENVELOPE' || /530|Authentication Required/i.test(error?.message || '')) {
-        msg = 'Gmail kräver inloggning. Fyll i användarnamn och app-lösenord i Mail-inställningar, eller byt till Resend.';
+        msg =
+          'Felaktiga SMTP-inloggningsuppgifter. Kontrollera användarnamn och lösenord i Mail-inställningar. För Gmail: använd app-lösenord.';
+      } else if (
+        error?.code === 'EENVELOPE' ||
+        /530|Authentication Required/i.test(error?.message || '')
+      ) {
+        msg =
+          'Gmail kräver inloggning. Fyll i användarnamn och app-lösenord i Mail-inställningar, eller byt till Resend.';
       } else if (error?.message) {
         msg = error.message;
       }
@@ -157,11 +168,25 @@ class MailController {
 
   async testSettings(req, res) {
     try {
-      const { testTo, provider, host, port, secure, authUser, authPass, fromAddress, resendApiKey, resendFromAddress, useSaved } = req.body;
+      const {
+        testTo,
+        provider,
+        host,
+        port,
+        secure,
+        authUser,
+        authPass,
+        fromAddress,
+        resendApiKey,
+        resendFromAddress,
+        useSaved,
+      } = req.body;
 
       const to = testTo ? String(testTo).trim() : '';
       if (!to || !to.includes('@')) {
-        return res.status(400).json({ error: 'Ange en giltig e-postadress att skicka testmail till' });
+        return res
+          .status(400)
+          .json({ error: 'Ange en giltig e-postadress att skicka testmail till' });
       }
 
       const requestedProvider = (provider || 'smtp') === 'resend' ? 'resend' : 'smtp';
@@ -169,26 +194,37 @@ class MailController {
       if (useSaved) {
         const userSettings = await model.getSettings(req, { needsPassword: true });
         if (!userSettings) {
-          return res.status(400).json({ error: 'Inga sparade inställningar. Spara först eller fyll i formuläret.' });
+          return res
+            .status(400)
+            .json({ error: 'Inga sparade inställningar. Spara först eller fyll i formuläret.' });
         }
         // Only use saved when it matches the tab (requestedProvider) – avoids SMTP when user is on Resend tab
-        if (userSettings.provider === 'resend' && userSettings.resendApiKeyRaw && requestedProvider === 'resend') {
+        if (
+          userSettings.provider === 'resend' &&
+          userSettings.resendApiKeyRaw &&
+          requestedProvider === 'resend'
+        ) {
           emailService = new ResendAdapter({
             resend: {
               apiKey: userSettings.resendApiKeyRaw,
               from: userSettings.resendFromAddress || 'onboarding@resend.dev',
             },
           });
-        } else if (userSettings.provider === 'smtp' && userSettings.host && requestedProvider === 'smtp') {
+        } else if (
+          userSettings.provider === 'smtp' &&
+          userSettings.host &&
+          requestedProvider === 'smtp'
+        ) {
           emailService = new SmtpAdapter({
             smtp: {
               host: userSettings.host,
               port: userSettings.port,
               secure: userSettings.secure,
               from: userSettings.fromAddress,
-              auth: (userSettings.authUser && userSettings.authPass)
-                ? { user: userSettings.authUser, pass: userSettings.authPass }
-                : undefined,
+              auth:
+                userSettings.authUser && userSettings.authPass
+                  ? { user: userSettings.authUser, pass: userSettings.authPass }
+                  : undefined,
             },
           });
         } else {
@@ -202,7 +238,8 @@ class MailController {
         emailService = new ResendAdapter({
           resend: {
             apiKey: key,
-            from: (resendFromAddress && String(resendFromAddress).trim()) || 'onboarding@resend.dev',
+            from:
+              (resendFromAddress && String(resendFromAddress).trim()) || 'onboarding@resend.dev',
           },
         });
       }
@@ -226,7 +263,8 @@ class MailController {
 
       if (!emailService && requestedProvider === 'resend') {
         return res.status(400).json({
-          error: 'Ange Resend API-nyckel (re_...) i fältet ovan. Kontrollera att du är på Resend-fliken.',
+          error:
+            'Ange Resend API-nyckel (re_...) i fältet ovan. Kontrollera att du är på Resend-fliken.',
         });
       }
 
@@ -245,9 +283,14 @@ class MailController {
       }
       let msg = 'Kunde inte skicka testmail';
       if (error?.code === 'EAUTH' || /535|Incorrect authentication/i.test(error?.message || '')) {
-        msg = 'Felaktiga inloggningsuppgifter. För Gmail: använd ett app-lösenord (myaccount.google.com/apppasswords) om du har tvåstegsverifiering.';
-      } else if (error?.code === 'EENVELOPE' || /530|Authentication Required/i.test(error?.message || '')) {
-        msg = 'Gmail kräver inloggning. Fyll i användarnamn och app-lösenord, eller byt till Resend för enklare konfiguration.';
+        msg =
+          'Felaktiga inloggningsuppgifter. För Gmail: använd ett app-lösenord (myaccount.google.com/apppasswords) om du har tvåstegsverifiering.';
+      } else if (
+        error?.code === 'EENVELOPE' ||
+        /530|Authentication Required/i.test(error?.message || '')
+      ) {
+        msg =
+          'Gmail kräver inloggning. Fyll i användarnamn och app-lösenord, eller byt till Resend för enklare konfiguration.';
       } else if (error?.message) {
         msg = error.message;
       }
@@ -257,7 +300,17 @@ class MailController {
 
   async saveSettings(req, res) {
     try {
-      const { provider, host, port, secure, authUser, authPass, fromAddress, resendApiKey, resendFromAddress } = req.body;
+      const {
+        provider,
+        host,
+        port,
+        secure,
+        authUser,
+        authPass,
+        fromAddress,
+        resendApiKey,
+        resendFromAddress,
+      } = req.body;
       await model.saveSettings(req, {
         provider: provider ?? 'smtp',
         host: host ?? 'smtp.gmail.com',

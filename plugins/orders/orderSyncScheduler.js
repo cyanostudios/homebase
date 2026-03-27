@@ -1,7 +1,8 @@
 // plugins/orders/orderSyncScheduler.js
-// Periodic order sync for all users with orders plugin enabled (same interval as order sync service).
+// Periodic order sync for all tenants with orders plugin enabled.
 
 const { applyTenantContextToRequest } = require('../../server/core/helpers/resolveTenantForUser');
+const TenantContextService = require('../../server/core/services/tenant/TenantContextService');
 const orderSyncService = require('./orderSyncService');
 const orderSyncState = require('./orderSyncState');
 const analyticsCache = require('../analytics/cache');
@@ -21,10 +22,20 @@ let startupTimer = null;
  * @returns {Promise<object>} Express-like req with session + tenant context
  */
 async function createSyntheticReq(mainPool, userId) {
+  const tcs = new TenantContextService(mainPool);
+  const tenantContext = await tcs.getTenantContextByUserId(userId);
+  if (!tenantContext) {
+    throw new Error(`Tenant membership not configured for user ${userId}`);
+  }
+
   const req = {
     session: {
       user: { id: userId },
-      currentTenantUserId: userId,
+      tenantConnectionString: tenantContext.tenantConnectionString || null,
+      tenantSchemaName: tenantContext.tenantSchemaName || null,
+      tenantId: tenantContext.tenantId,
+      tenantRole: tenantContext.tenantRole,
+      tenantOwnerUserId: tenantContext.tenantOwnerUserId,
     },
   };
   await applyTenantContextToRequest(mainPool, req);
@@ -50,21 +61,27 @@ async function runSchedulerForAllUsers() {
     let r;
     try {
       r = await p.query(
-        `SELECT user_id FROM public.user_plugin_access WHERE plugin_name = 'orders' AND enabled = true`,
+        `SELECT t.owner_user_id
+         FROM public.tenant_plugin_access tpa
+         INNER JOIN public.tenants t ON t.id = tpa.tenant_id
+         WHERE tpa.plugin_name = 'orders' AND tpa.enabled = true
+         ORDER BY t.owner_user_id`,
       );
     } catch (firstErr) {
-      // Neon/control-plane or transient pool hiccups can fail a single tick.
-      // Retry once to avoid dropping the whole scheduler run.
       const firstMsg = String(firstErr?.message || firstErr);
-      console.warn('[OrderSyncScheduler] user-list query failed (retrying once):', firstMsg);
+      console.warn('[OrderSyncScheduler] tenant-list query failed (retrying once):', firstMsg);
       await new Promise((resolve) => setTimeout(resolve, USER_LIST_RETRY_DELAY_MS));
       r = await p.query(
-        `SELECT user_id FROM public.user_plugin_access WHERE plugin_name = 'orders' AND enabled = true`,
+        `SELECT t.owner_user_id
+         FROM public.tenant_plugin_access tpa
+         INNER JOIN public.tenants t ON t.id = tpa.tenant_id
+         WHERE tpa.plugin_name = 'orders' AND tpa.enabled = true
+         ORDER BY t.owner_user_id`,
       );
     }
     const rows = r.rows || r;
     for (const row of rows) {
-      const userId = row.user_id;
+      const userId = row.owner_user_id;
       try {
         await runSyncForUser(p, userId);
       } catch (err) {

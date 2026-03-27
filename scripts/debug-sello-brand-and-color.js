@@ -16,7 +16,7 @@ async function run() {
   const ServiceManager = require('../server/core/ServiceManager');
   Bootstrap.initializeServices();
   const req = {
-    session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
+    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
     tenantPool: undefined,
   };
   ServiceManager.initialize(req);
@@ -41,16 +41,20 @@ async function run() {
     console.log(`\n=== ${pid} (single product) ===`);
     console.log('raw has product?', !!raw?.product);
     console.log('brand_id (raw):', raw?.brand_id, '| brand_id (product):', productData?.brand_id);
-    console.log('brand_name (raw):', raw?.brand_name, '| brand_name (product):', productData?.brand_name);
+    console.log(
+      'brand_name (raw):',
+      raw?.brand_name,
+      '| brand_name (product):',
+      productData?.brand_name,
+    );
     console.log('Resolved brand_id:', brandId, '| brand_name:', brandName);
 
     const props = productData?.properties ?? raw?.properties ?? [];
     const colorProps = Array.isArray(props)
-      ? props.filter(
-          (p) =>
-            String(p?.property ?? '')
-              .toLowerCase()
-              .match(/color|färg|colortext|färgtext/),
+      ? props.filter((p) =>
+          String(p?.property ?? '')
+            .toLowerCase()
+            .match(/color|färg|colortext|färgtext/),
         )
       : [];
     console.log('Color-related properties:', colorProps.length);

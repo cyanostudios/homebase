@@ -18,7 +18,8 @@ function ensureDirSync(dir) {
 
 function createFilesRoutes(controller, context) {
   // V3: Get requirePlugin from context.middleware instead of parameter
-  const requirePlugin = context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
+  const requirePlugin =
+    context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name); // auth/enablement guard
 
   // Where files are stored on disk
@@ -32,17 +33,22 @@ function createFilesRoutes(controller, context) {
   // Common safe document/image types
   const ALLOWED_MIME = new Set([
     // images
-    'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml',
+    'image/png',
+    'image/jpeg',
+    'image/gif',
+    'image/webp',
+    'image/svg+xml',
     // docs
     'application/pdf',
-    'text/plain', 'text/csv',
+    'text/plain',
+    'text/csv',
     'application/zip',
     'application/vnd.ms-excel',
     'application/vnd.ms-powerpoint',
     'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',   // .docx
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',        // .xlsx
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation' // .pptx
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
   ]);
   const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'image/svg+xml']);
   const TEXT_LIKE_EXT = new Set(['.txt', '.csv', '.svg']);
@@ -193,94 +199,95 @@ function createFilesRoutes(controller, context) {
   const { body } = require('express-validator');
   const listsRouter = express.Router();
   listsRouter.get('/', gate, (req, res) => controller.getLists(req, res));
-  listsRouter.post('/',
+  listsRouter.post(
+    '/',
     gate,
     csrfProtection,
     commonRules.string('name', 1, 255),
     validateRequest,
-    (req, res) => controller.createList(req, res)
+    (req, res) => controller.createList(req, res),
   );
   listsRouter.get('/:id/files', gate, commonRules.id('id'), validateRequest, (req, res) =>
-    controller.getListFiles(req, res)
+    controller.getListFiles(req, res),
   );
-  listsRouter.post('/:id/files',
+  listsRouter.post(
+    '/:id/files',
     gate,
     csrfProtection,
     commonRules.id('id'),
     [body('fileIds').isArray().withMessage('fileIds must be an array')],
     validateRequest,
-    (req, res) => controller.addFilesToList(req, res)
+    (req, res) => controller.addFilesToList(req, res),
   );
-  listsRouter.delete('/:id/files/:fileId',
+  listsRouter.delete(
+    '/:id/files/:fileId',
     gate,
     csrfProtection,
     commonRules.id('id'),
     [commonRules.id('fileId')],
     validateRequest,
-    (req, res) => controller.removeFileFromList(req, res)
+    (req, res) => controller.removeFileFromList(req, res),
   );
-  listsRouter.put('/:id',
+  listsRouter.put(
+    '/:id',
     gate,
     csrfProtection,
     commonRules.id('id'),
     commonRules.string('name', 1, 255),
     validateRequest,
-    (req, res) => controller.renameList(req, res)
+    (req, res) => controller.renameList(req, res),
   );
-  listsRouter.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
-    controller.deleteList(req, res)
+  listsRouter.delete(
+    '/:id',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.deleteList(req, res),
   );
   router.use('/lists', listsRouter);
 
   // ---- CRUD (metadata) ----
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
-  router.post('/',
+  router.post(
+    '/',
     gate,
     csrfProtection,
     commonRules.string('name', 1, 255),
     commonRules.optionalString('url', 500),
     validateRequest,
-    (req, res) => controller.create(req, res)
+    (req, res) => controller.create(req, res),
   );
 
-  router.put('/:id',
+  router.put(
+    '/:id',
     gate,
     csrfProtection,
     commonRules.id('id'),
     commonRules.string('name', 1, 255).optional(),
     commonRules.optionalString('url', 500),
     validateRequest,
-    (req, res) => controller.update(req, res)
+    (req, res) => controller.update(req, res),
   );
 
   // DELETE /api/files/batch - Bulk delete (MUST be before '/:id' route)
-  router.delete('/batch',
+  router.delete(
+    '/batch',
     gate,
     csrfProtection,
-    [
-      commonRules.array('ids', 500).optional(),
-      commonRules.array('folderPaths', 200).optional(),
-    ],
+    [commonRules.array('ids', 500).optional(), commonRules.array('folderPaths', 200).optional()],
     validateRequest,
-    (req, res) => controller.bulkDelete(req, res)
+    (req, res) => controller.bulkDelete(req, res),
   );
 
-  router.delete('/:id',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    validateRequest,
-    (req, res) => controller.delete(req, res)
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.delete(req, res),
   );
 
   // ---- MULTIPART upload: returns array of created FileItems ----
-  router.post('/upload',
-    gate,
-    uploadLimiter,
-    csrfProtection,
-    runUpload,
-    (req, res) => controller.upload(req, res, { uploadRoot })
+  router.post('/upload', gate, uploadLimiter, csrfProtection, runUpload, (req, res) =>
+    controller.upload(req, res, { uploadRoot }),
   );
 
   // ---- RAW file serving (supports folders: /raw/Mapp A/file.pdf or /raw/file.pdf) ----
@@ -291,22 +298,24 @@ function createFilesRoutes(controller, context) {
 
   // ---- Folders ----
   router.get('/folders', gate, (req, res) => controller.getFolders(req, res));
-  router.post('/folders',
+  router.post(
+    '/folders',
     gate,
     csrfProtection,
     [body('path').optional(), body('name').optional()],
     validateRequest,
-    (req, res) => controller.createFolder(req, res)
+    (req, res) => controller.createFolder(req, res),
   );
 
   // ---- Move file to folder ----
-  router.post('/:id/move',
+  router.post(
+    '/:id/move',
     gate,
     csrfProtection,
     commonRules.id('id'),
     [body('folderPath').optional({ values: 'null' })],
     validateRequest,
-    (req, res) => controller.move(req, res)
+    (req, res) => controller.move(req, res),
   );
 
   // ---- Cloud Storage Integration ----
@@ -317,39 +326,38 @@ function createFilesRoutes(controller, context) {
 
   // GET /api/files/cloud/:service/settings
   router.get('/cloud/:service/settings', gate, (req, res) =>
-    cloudStorageController.getSettings(req, res)
+    cloudStorageController.getSettings(req, res),
   );
 
   // GET /api/files/cloud/:service/auth/start - Start OAuth flow
   router.get('/cloud/:service/auth/start', gate, (req, res) =>
-    cloudStorageController.startAuth(req, res)
+    cloudStorageController.startAuth(req, res),
   );
 
   // GET /api/files/cloud/:service/auth/callback - OAuth callback
   // Note: We check session in controller, but don't use gate here since OAuth provider redirects here
   router.get('/cloud/:service/auth/callback', (req, res) =>
-    cloudStorageController.handleCallback(req, res)
+    cloudStorageController.handleCallback(req, res),
   );
 
   // POST /api/files/cloud/:service/disconnect
-  router.post('/cloud/:service/disconnect',
-    gate,
-    csrfProtection,
-    (req, res) => cloudStorageController.disconnect(req, res)
+  router.post('/cloud/:service/disconnect', gate, csrfProtection, (req, res) =>
+    cloudStorageController.disconnect(req, res),
   );
 
-  // POST /api/files/cloud/:service/credentials - Save OAuth app credentials (per-user)
-  router.post('/cloud/:service/credentials',
+  // POST /api/files/cloud/:service/credentials - Save tenant-scoped OAuth app credentials
+  router.post(
+    '/cloud/:service/credentials',
     gate,
     csrfProtection,
     commonRules.string('clientId', 1, 500),
     commonRules.string('clientSecret', 1, 500),
     validateRequest,
-    (req, res) => cloudStorageController.saveOAuthCredentials(req, res)
+    (req, res) => cloudStorageController.saveOAuthCredentials(req, res),
   );
   // GET /api/files/cloud/:service/embed - Get embed URL for file manager
   router.get('/cloud/:service/embed', gate, (req, res) =>
-    cloudStorageController.getEmbedUrl(req, res)
+    cloudStorageController.getEmbedUrl(req, res),
   );
 
   return router;

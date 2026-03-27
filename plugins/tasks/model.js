@@ -66,11 +66,11 @@ class TaskModel {
     try {
       const db = Database.get(req);
 
-      // Verify user context exists
-      const userId = req.session?.currentTenantUserId || req.session?.user?.id;
-      if (!userId) {
-        Logger.error('User context missing in update request', { taskId, session: req.session });
-        throw new AppError('User context required for update', 401, AppError.CODES.UNAUTHORIZED);
+      // Verify tenant context exists
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
+        Logger.error('Tenant context missing in update request', { taskId, session: req.session });
+        throw new AppError('Tenant context required for update', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       // Verify task exists (ownership check automatic)

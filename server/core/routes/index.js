@@ -54,7 +54,7 @@ function setupCoreRoutes(app, dependencies) {
   // Start category cache scheduler (CDON/Fyndiq/Woo categories, every 4h)
   startCategoryCacheScheduler(pool);
 
-  // Order sync for all users with orders plugin (every 15 min, same as SYNC_INTERVAL_MINUTES)
+  // Order sync for all tenants with orders plugin (every 15 min, same as SYNC_INTERVAL_MINUTES)
   startOrderSyncScheduler(pool);
 }
 

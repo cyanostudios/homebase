@@ -5,32 +5,20 @@ const ServiceManager = require('../ServiceManager');
 
 /**
  * Apply Neon tenant pool or local (schema) context and initialize ServiceManager for this request.
- * @param {import('pg').Pool} mainPool - Auth DB pool (tenants table, user_plugin_access, …)
- * @param {object} req - Express-like request; must have session.user.id and session.currentTenantUserId set
+ * @param {import('pg').Pool} mainPool - Main DB pool (tenants/memberships, etc.)
+ * @param {object} req - Express-like request with canonical tenant session fields already set
  */
 async function applyTenantContextToRequest(mainPool, req) {
-  const tenantUserId = req.session?.currentTenantUserId;
-
   if (process.env.TENANT_PROVIDER === 'neon') {
-    if (tenantUserId) {
+    const conn = req.session?.tenantConnectionString;
+    if (conn) {
       const connectionPool = ServiceManager.get('connectionPool');
-      try {
-        const r = await mainPool.query(
-          'SELECT neon_connection_string FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
-          [tenantUserId],
-        );
-        if (r.rows?.length && r.rows[0].neon_connection_string) {
-          req.tenantPool = connectionPool.getTenantPool(r.rows[0].neon_connection_string);
-        } else {
-          req.tenantPool = undefined;
-        }
-      } catch {
-        req.tenantPool = undefined;
-      }
+      req.tenantPool = connectionPool.getTenantPool(conn);
     } else {
       req.tenantPool = undefined;
     }
   } else {
+    // local: schema-per-tenant uses per-query SET LOCAL search_path.
     req.tenantPool = undefined;
   }
 

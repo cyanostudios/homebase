@@ -1,5 +1,5 @@
 -- 012-cdon.sql
--- CDON connector settings (per-user)
+-- CDON connector settings (legacy user_id-scoped at creation time)
 
 CREATE TABLE IF NOT EXISTS cdon_settings (
   id SERIAL PRIMARY KEY,

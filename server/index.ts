@@ -205,30 +205,18 @@ app.use(express.urlencoded({ extended: true, limit: URL_ENCODED_LIMIT }));
 
 // Tenant Pool Middleware
 //
-// - TENANT_PROVIDER=neon: database-per-tenant → req.tenantPool is resolved server-side from tenant user id.
+// - TENANT_PROVIDER=neon: database-per-tenant → req.tenantPool is resolved server-side from session tenant context.
 // - TENANT_PROVIDER=local: schema-per-tenant in ONE database (often Neon Postgres via pooler).
 //   IMPORTANT: Neon pooler does NOT support setting search_path via startup "options".
 //   For local provider we therefore rely on PostgreSQLAdapter's per-query `SET search_path TO tenant_<userId>`
 //   and DO NOT create a separate tenant pool based on a connection string with search_path options.
 app.use(async (req: Request, res: Response, next: NextFunction) => {
-  const tenantUserId = req.session?.currentTenantUserId;
-
   if (process.env.TENANT_PROVIDER === 'neon') {
-    if (tenantUserId) {
+    // Canonical: tenant connection is stored in session at login/switch-tenant.
+    const conn = req.session?.tenantConnectionString;
+    if (conn) {
       const connectionPool = ServiceManager.get('connectionPool');
-      try {
-        const r = await pool.query(
-          'SELECT neon_connection_string FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
-          [tenantUserId],
-        );
-        if (r.rows?.length && r.rows[0].neon_connection_string) {
-          req.tenantPool = connectionPool.getTenantPool(r.rows[0].neon_connection_string);
-        } else {
-          req.tenantPool = undefined;
-        }
-      } catch {
-        req.tenantPool = undefined;
-      }
+      req.tenantPool = connectionPool.getTenantPool(conn);
     } else {
       req.tenantPool = undefined;
     }
@@ -273,11 +261,15 @@ function requirePlugin(pluginName: string) {
     if (req.session.user.role === 'superuser') {
       return next();
     }
+    const tenantId = req.session.tenantId;
+    if (!tenantId) {
+      return res.status(403).json({ error: 'No tenant context' });
+    }
     const result = await pool.query(
-      'SELECT enabled FROM public.user_plugin_access WHERE user_id = $1 AND plugin_name = $2',
-      [req.session.user.id, pluginName],
+      'SELECT 1 FROM public.tenant_plugin_access WHERE tenant_id = $1 AND plugin_name = $2 AND enabled = true',
+      [tenantId, pluginName],
     );
-    if (!result.rows.length || !result.rows[0].enabled) {
+    if (!result.rows.length) {
       return res.status(403).json({ error: `Access denied to ${pluginName} plugin` });
     }
     next();

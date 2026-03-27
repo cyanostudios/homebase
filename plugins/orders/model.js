@@ -224,18 +224,26 @@ class OrdersModel {
     return chunks;
   }
 
-  async allocateOrderNumbers(tx, userId, count) {
+  async allocateOrderNumbers(tx, _tenantId, count) {
     if (!count) return [];
-    const res = await tx.query(
-      `
-      INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (user_id, next_number)
-      VALUES ($1, $2)
-      ON CONFLICT (user_id) DO UPDATE
-      SET next_number = ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}.next_number + $2
-      RETURNING next_number
-      `,
-      [userId, count],
+    const existing = await tx.query(
+      `SELECT id, next_number FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} ORDER BY id ASC LIMIT 1`,
+      [],
     );
+    const res = existing.length
+      ? await tx.query(
+          `UPDATE ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}
+           SET next_number = next_number + $1
+           WHERE id = $2
+           RETURNING next_number`,
+          [count, existing[0].id],
+        )
+      : await tx.query(
+          `INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (next_number)
+           VALUES ($1)
+           RETURNING next_number`,
+          [count],
+        );
     const latest = Number(res[0]?.next_number ?? count);
     const first = latest - count + 1;
     return Array.from({ length: count }, (_, idx) => first + idx);
@@ -274,8 +282,8 @@ class OrdersModel {
 
   async loadProductIdsByChannelExternalId(req, channel, externalIds, instanceId = null) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId || !Array.isArray(externalIds) || externalIds.length === 0) return new Map();
+    const tenantId = req.session?.tenantId;
+    if (!tenantId || !Array.isArray(externalIds) || externalIds.length === 0) return new Map();
     const ch = String(channel || '')
       .trim()
       .toLowerCase();
@@ -287,11 +295,10 @@ class OrdersModel {
     const rows = await db.query(
       `SELECT external_id, product_id
        FROM channel_product_map
-       WHERE user_id = $1
-         AND channel = $2
-         AND (channel_instance_id IS NOT DISTINCT FROM $3)
-         AND external_id = ANY($4::text[])`,
-      [userId, ch, instanceId != null ? Number(instanceId) : null, ids],
+       WHERE channel = $1
+         AND (channel_instance_id IS NOT DISTINCT FROM $2)
+         AND external_id = ANY($3::text[])`,
+      [ch, instanceId != null ? Number(instanceId) : null, ids],
     );
     return new Map(
       rows
@@ -302,8 +309,8 @@ class OrdersModel {
 
   async loadWooProductIdsByExternalId(req, instanceId, externalIds) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId || !Array.isArray(externalIds) || externalIds.length === 0) return new Map();
+    const tenantId = req.session?.tenantId;
+    if (!tenantId || !Array.isArray(externalIds) || externalIds.length === 0) return new Map();
     const ids = Array.from(
       new Set(externalIds.map((id) => String(id || '').trim()).filter(Boolean)),
     );
@@ -311,11 +318,10 @@ class OrdersModel {
     const rows = await db.query(
       `SELECT external_id, product_id
        FROM channel_product_map
-       WHERE user_id = $1
-         AND channel = 'woocommerce'
-         AND channel_instance_id = $2
-         AND external_id = ANY($3::text[])`,
-      [userId, Number(instanceId), ids],
+       WHERE channel = 'woocommerce'
+         AND channel_instance_id = $1
+         AND external_id = ANY($2::text[])`,
+      [Number(instanceId), ids],
     );
     return new Map(
       rows
@@ -327,8 +333,8 @@ class OrdersModel {
   async ingestBatch(req, orders) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const prepared = Array.isArray(orders)
         ? orders.map((order) => this.normalizeOrderForStorage(order))
@@ -364,11 +370,10 @@ class OrdersModel {
                     shipping_address, billing_address, customer, raw, channel_label,
                     channel_market_norm, currency_norm, customer_identifier_norm, sync_fingerprint
              FROM ${OrdersModel.ORDERS_TABLE}
-             WHERE user_id = $1
-               AND channel = $2
-               AND (channel_instance_id IS NOT DISTINCT FROM $3)
-               AND channel_order_id = ANY($4::text[])`,
-            [userId, channel, channelInstanceId, channelOrderIds],
+             WHERE channel = $1
+               AND (channel_instance_id IS NOT DISTINCT FROM $2)
+               AND channel_order_id = ANY($3::text[])`,
+            [channel, channelInstanceId, channelOrderIds],
           );
           for (const row of rows) {
             existingByKey.set(`${groupKey}::${String(row.channel_order_id)}`, row);
@@ -400,7 +405,7 @@ class OrdersModel {
           updates.push({ index, existing, merged, nextFingerprint });
         });
 
-        const allocatedNumbers = await this.allocateOrderNumbers(tx, userId, creates.length);
+        const allocatedNumbers = await this.allocateOrderNumbers(tx, tenantId, creates.length);
         creates.forEach((entry, idx) => {
           entry.orderNumber = allocatedNumbers[idx];
           entry.fingerprint = this.buildPreparedFingerprint(entry.item);
@@ -430,9 +435,8 @@ class OrdersModel {
                customer_identifier_norm = $14,
                sync_fingerprint = $15,
                updated_at = NOW()
-             WHERE user_id = $1 AND id = $2`,
+             WHERE id = $1`,
             [
-              userId,
               Number(existing.id),
               merged.platformOrderNumber,
               merged.totalAmount,
@@ -464,7 +468,7 @@ class OrdersModel {
             const createRes = await tx.query(
               `
               INSERT INTO ${OrdersModel.ORDERS_TABLE} (
-                user_id, channel, channel_order_id, channel_instance_id, channel_label, platform_order_number,
+                channel, channel_order_id, channel_instance_id, channel_label, platform_order_number,
                 order_number, placed_at, total_amount, currency, status, shipping_address, billing_address,
                 customer, raw, channel_market_norm, currency_norm, customer_identifier_norm, sync_fingerprint,
                 created_at, updated_at
@@ -478,7 +482,6 @@ class OrdersModel {
               RETURNING id
               `,
               [
-                userId,
                 item.channel,
                 item.channelOrderId,
                 item.channelInstanceId,
@@ -530,9 +533,9 @@ class OrdersModel {
             if (!isDuplicate) throw err;
             const recheck = await tx.query(
               `SELECT id FROM ${OrdersModel.ORDERS_TABLE}
-               WHERE user_id = $1 AND channel = $2 AND (channel_instance_id IS NOT DISTINCT FROM $4) AND channel_order_id = $3
+               WHERE channel = $1 AND (channel_instance_id IS NOT DISTINCT FROM $3) AND channel_order_id = $2
                LIMIT 1`,
-              [userId, item.channel, item.channelOrderId, item.channelInstanceId],
+              [item.channel, item.channelOrderId, item.channelInstanceId],
             );
             if (!recheck.length) throw err;
             results[index] = {
@@ -568,18 +571,20 @@ class OrdersModel {
     }
   }
 
-  async upsertCustomerFirstOrder(db, { userId, orderId, placedAt, customerIdentifierNorm }) {
+  async upsertCustomerFirstOrder(
+    db,
+    { userId: _tenantId, orderId, placedAt, customerIdentifierNorm },
+  ) {
     if (!customerIdentifierNorm) return;
     await db.query(
       `
       INSERT INTO ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE} (
-        user_id,
         customer_identifier_norm,
         first_order_id,
         first_order_at
       )
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (user_id, customer_identifier_norm) DO UPDATE
+      VALUES ($1, $2, $3)
+      ON CONFLICT (customer_identifier_norm) DO UPDATE
       SET
         first_order_id = CASE
           WHEN EXCLUDED.first_order_at IS NULL THEN ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_id
@@ -599,7 +604,7 @@ class OrdersModel {
         END,
         updated_at = NOW()
       `,
-      [userId, customerIdentifierNorm, orderId, placedAt],
+      [customerIdentifierNorm, orderId, placedAt],
     );
   }
 
@@ -653,11 +658,11 @@ class OrdersModel {
   ) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const clauses = ['user_id = $1'];
-      const params = [userId];
+      const clauses = [];
+      const params = [];
 
       if (status) {
         if (status === 'delivered') {
@@ -734,7 +739,6 @@ class OrdersModel {
       const dataSql = `
         SELECT
           id,
-          user_id,
           channel,
           channel_order_id,
           channel_instance_id,
@@ -775,25 +779,24 @@ class OrdersModel {
   async getById(req, id) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const orderRes = await db.query(
-        `SELECT * FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND id = $2 LIMIT 1`,
-        [userId, Number(id)],
+        `SELECT * FROM ${OrdersModel.ORDERS_TABLE} WHERE id = $1 LIMIT 1`,
+        [Number(id)],
       );
       if (!orderRes.length) throw new AppError('Order not found', 404, AppError.CODES.NOT_FOUND);
 
-      // order_items has no user_id; filter via JOIN so adapter doesn't inject user_id
       // Join products to get sku for display (SKU column). Product-ID comes from order_items.product_id only.
       const itemsRes = await db.query(
         `SELECT oi.*, p.sku AS product_sku
          FROM ${OrdersModel.ITEMS_TABLE} oi
-         INNER JOIN ${OrdersModel.ORDERS_TABLE} o ON o.id = oi.order_id AND o.user_id = $1
-         LEFT JOIN products p ON p.user_id = o.user_id AND p.id = oi.product_id
-         WHERE oi.order_id = $2
+         INNER JOIN ${OrdersModel.ORDERS_TABLE} o ON o.id = oi.order_id
+         LEFT JOIN products p ON p.id = oi.product_id
+         WHERE oi.order_id = $1
          ORDER BY oi.id`,
-        [userId, Number(id)],
+        [Number(id)],
       );
 
       return {
@@ -810,22 +813,21 @@ class OrdersModel {
   async updateStatus(req, id, { status, carrier, trackingNumber } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const res = await db.query(
         `
         UPDATE ${OrdersModel.ORDERS_TABLE}
         SET
-          status = COALESCE($3, status),
-          shipping_carrier = COALESCE($4, shipping_carrier),
-          shipping_tracking_number = COALESCE($5, shipping_tracking_number),
+          status = COALESCE($2, status),
+          shipping_carrier = COALESCE($3, shipping_carrier),
+          shipping_tracking_number = COALESCE($4, shipping_tracking_number),
           updated_at = NOW()
-        WHERE user_id = $1 AND id = $2
+        WHERE id = $1
         RETURNING *
         `,
         [
-          userId,
           Number(id),
           status ? String(status) : null,
           carrier ? String(carrier) : null,
@@ -848,8 +850,8 @@ class OrdersModel {
   async batchUpdateStatus(req, ids, { status, carrier, trackingNumber } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       if (!Array.isArray(ids) || ids.length === 0) {
         return { updated: 0, updatedIds: [] };
@@ -880,15 +882,14 @@ class OrdersModel {
         `
         UPDATE ${OrdersModel.ORDERS_TABLE}
         SET
-          status = COALESCE($3, status),
-          shipping_carrier = COALESCE($4, shipping_carrier),
-          shipping_tracking_number = COALESCE($5, shipping_tracking_number),
+          status = COALESCE($2, status),
+          shipping_carrier = COALESCE($3, shipping_carrier),
+          shipping_tracking_number = COALESCE($4, shipping_tracking_number),
           updated_at = NOW()
-        WHERE user_id = $1 AND id = ANY($2::int[])
+        WHERE id = ANY($1::int[])
         RETURNING id
         `,
         [
-          userId,
           validIds,
           status ? String(status) : null,
           carrier ? String(carrier) : null,
@@ -916,22 +917,35 @@ class OrdersModel {
   async allocateNextOrderNumber(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const res = await db.query(
-        `
-        INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (user_id, next_number)
-        VALUES ($1, 1)
-        ON CONFLICT (user_id) DO UPDATE
-        SET next_number = order_number_counter.next_number + 1
-        RETURNING next_number
-        `,
-        [userId],
+        `SELECT id, next_number FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} ORDER BY id ASC LIMIT 1`,
+        [],
       );
-      if (!res.length)
+      let row;
+      if (res.length) {
+        const updated = await db.query(
+          `UPDATE ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}
+           SET next_number = next_number + 1
+           WHERE id = $1
+           RETURNING next_number`,
+          [res[0].id],
+        );
+        row = updated[0];
+      } else {
+        const inserted = await db.query(
+          `INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (next_number)
+           VALUES (1)
+           RETURNING next_number`,
+          [],
+        );
+        row = inserted[0];
+      }
+      if (!row)
         throw new AppError('Failed to allocate order number', 500, AppError.CODES.DATABASE_ERROR);
-      return Number(res[0].next_number);
+      return Number(row.next_number);
     } catch (error) {
       Logger.error('Failed to allocate order number', error);
       if (error instanceof AppError) throw error;
@@ -958,40 +972,35 @@ class OrdersModel {
   async deleteAll(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       // Count in current schema first (search_path = tenant_X, public)
       const countRes = await db.query(
-        `SELECT COUNT(*)::int AS count FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`,
-        [userId],
+        `SELECT COUNT(*)::int AS count FROM ${OrdersModel.ORDERS_TABLE}`,
+        [],
       );
       const deletedCount = countRes[0]?.count || 0;
 
       // --- Current schema (tenant or public depending on search_path) ---
       await db.query(
         `DELETE FROM ${OrdersModel.ITEMS_TABLE}
-         WHERE order_id IN (SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1)`,
-        [userId],
+         WHERE order_id IN (SELECT id FROM ${OrdersModel.ORDERS_TABLE})`,
+        [],
       );
-      await db.query(`DELETE FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`, [userId]);
-      await db.query(`DELETE FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} WHERE user_id = $1`, [
-        userId,
-      ]);
+      await db.query(`DELETE FROM ${OrdersModel.ORDERS_TABLE}`, []);
+      await db.query(`DELETE FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}`, []);
 
       // --- Public schema: clear any leftover order data (e.g. after migration public → tenant) ---
       await db.query(
         `DELETE FROM public.${OrdersModel.ITEMS_TABLE}
-         WHERE order_id IN (SELECT id FROM public.${OrdersModel.ORDERS_TABLE} WHERE user_id = $1)`,
-        [userId],
+         WHERE order_id IN (SELECT id FROM public.${OrdersModel.ORDERS_TABLE})`,
+        [],
       );
-      await db.query(`DELETE FROM public.${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`, [userId]);
-      await db.query(
-        `DELETE FROM public.${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} WHERE user_id = $1`,
-        [userId],
-      );
+      await db.query(`DELETE FROM public.${OrdersModel.ORDERS_TABLE}`, []);
+      await db.query(`DELETE FROM public.${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}`, []);
 
-      Logger.info('All orders deleted (tenant + public)', { userId, deletedCount });
+      Logger.info('All orders deleted (tenant + public)', { deletedCount });
       return { deletedCount };
     } catch (error) {
       Logger.error('Failed to delete all orders', error);
@@ -1008,8 +1017,8 @@ class OrdersModel {
   async deleteByIds(req, ids) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const idList = ids
         .map((id) => (id != null && Number.isFinite(Number(id)) ? Number(id) : null))
@@ -1018,16 +1027,16 @@ class OrdersModel {
 
       await db.query(
         `DELETE FROM ${OrdersModel.ITEMS_TABLE}
-         WHERE order_id IN (SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND id = ANY($2))`,
-        [userId, idList],
+         WHERE order_id IN (SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE id = ANY($1))`,
+        [idList],
       );
       const del = await db.query(
-        `DELETE FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND id = ANY($2) RETURNING id`,
-        [userId, idList],
+        `DELETE FROM ${OrdersModel.ORDERS_TABLE} WHERE id = ANY($1) RETURNING id`,
+        [idList],
       );
       const deletedCount = del.length;
       if (deletedCount > 0) {
-        Logger.info('Orders deleted by ids', { userId, deletedCount, ids: idList });
+        Logger.info('Orders deleted by ids', { deletedCount, ids: idList });
       }
       return { deletedCount };
     } catch (error) {
@@ -1054,51 +1063,47 @@ class OrdersModel {
   async renumberOrderNumbersByPlacedAt(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
+      // Tenant schema uses ux_orders_order_number on (order_number) only (see migration 083).
+      // Legacy name was ux_orders_user_order_number — drop both so renumber does not hit unique
+      // constraint mid-update (PostgreSQL checks per row; swaps collide if index still exists).
       await db.query('DROP INDEX IF EXISTS ux_orders_user_order_number');
+      await db.query('DROP INDEX IF EXISTS ux_orders_order_number');
       await db.query(
         `
         WITH ranked AS (
-          SELECT id, user_id,
-                 ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY placed_at ASC NULLS LAST, id ASC) AS rn
+          SELECT id,
+                 ROW_NUMBER() OVER (ORDER BY placed_at ASC NULLS LAST, id ASC) AS rn
           FROM ${OrdersModel.ORDERS_TABLE}
-          WHERE user_id = $1
         )
         UPDATE ${OrdersModel.ORDERS_TABLE} o
         SET order_number = r.rn
         FROM ranked r
-        WHERE o.id = r.id AND o.user_id = r.user_id AND o.user_id = $1
+        WHERE o.id = r.id
         `,
-        [userId],
+        [],
       );
       await db.query(
-        `CREATE UNIQUE INDEX IF NOT EXISTS ux_orders_user_order_number ON ${OrdersModel.ORDERS_TABLE}(user_id, order_number)`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS ux_orders_order_number ON ${OrdersModel.ORDERS_TABLE}(order_number)`,
       );
+      await db.query(`DELETE FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}`, []);
       await db.query(
         `
-        INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (user_id, next_number)
-        SELECT $1, COALESCE(MAX(order_number), 0) + 1
+        INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (next_number)
+        SELECT COALESCE(MAX(order_number), 0) + 1
         FROM ${OrdersModel.ORDERS_TABLE}
-        WHERE user_id = $1
-        GROUP BY user_id
-        ON CONFLICT (user_id) DO UPDATE
-        SET next_number = (
-          SELECT COALESCE(MAX(order_number), 0) + 1
-          FROM ${OrdersModel.ORDERS_TABLE}
-          WHERE user_id = $1
-        )
         `,
-        [userId],
+        [],
       );
 
       const countRes = await db.query(
-        `SELECT COUNT(*)::int AS count FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`,
-        [userId],
+        `SELECT COUNT(*)::int AS count FROM ${OrdersModel.ORDERS_TABLE}`,
+        [],
       );
       const count = countRes[0]?.count ?? 0;
-      Logger.info('Orders renumbered by placed_at', { userId, count });
+      Logger.info('Orders renumbered by placed_at', { count });
       return { renumbered: count };
     } catch (error) {
       Logger.error('Failed to renumber order numbers', error);

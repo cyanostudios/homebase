@@ -126,7 +126,7 @@ export function TopBar({
   detailPanelTitle,
   onDetailPanelClose,
 }: TopBarProps) {
-  const { user, currentTenantUserId, logout, getSettings } = useApp();
+  const { user, activeTenantId, logout, getSettings } = useApp();
   const { theme, toggleTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
   const [openWidgetId, setOpenWidgetId] = useState<string | null>(null);
@@ -448,7 +448,7 @@ export function TopBar({
                         <DropdownMenuItem
                           key={tenant.id}
                           onClick={() => switchTenant(tenant.id)}
-                          className={currentTenantUserId === tenant.id ? 'bg-accent' : undefined}
+                          className={activeTenantId === tenant.id ? 'bg-accent' : undefined}
                         >
                           <span className="truncate">{tenant.email}</span>
                         </DropdownMenuItem>

@@ -1,5 +1,5 @@
 /**
- * Shared send logic using per-user mail settings (Resend or SMTP).
+ * Shared send logic using tenant-scoped mail settings (Resend or SMTP).
  * Use this from other plugins (e.g. inspection) instead of ServiceManager.get('email').
  */
 const ServiceManager = require('../../server/core/ServiceManager');
@@ -29,9 +29,10 @@ async function getEmailServiceForUser(req) {
         port: userSettings.port,
         secure: userSettings.secure,
         from: userSettings.fromAddress,
-        auth: (userSettings.authUser && userSettings.authPass)
-          ? { user: userSettings.authUser, pass: userSettings.authPass }
-          : undefined,
+        auth:
+          userSettings.authUser && userSettings.authPass
+            ? { user: userSettings.authUser, pass: userSettings.authPass }
+            : undefined,
       },
     });
   }
@@ -45,8 +46,8 @@ async function getEmailServiceForUser(req) {
  * @param {object} logOpts - { pluginSource?, referenceId? } for mail_log
  */
 async function sendWithUserSettings(req, payload, logOpts = {}) {
-  const toRecipients = Array.isArray(payload.to) ? payload.to : (payload.to ? [payload.to] : []);
-  const bccRecipients = Array.isArray(payload.bcc) ? payload.bcc : (payload.bcc ? [payload.bcc] : []);
+  const toRecipients = Array.isArray(payload.to) ? payload.to : payload.to ? [payload.to] : [];
+  const bccRecipients = Array.isArray(payload.bcc) ? payload.bcc : payload.bcc ? [payload.bcc] : [];
 
   const normalizedTo = toRecipients.map((r) => String(r).trim()).filter(Boolean);
   const normalizedBcc = bccRecipients.map((r) => String(r).trim()).filter(Boolean);

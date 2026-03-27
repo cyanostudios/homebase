@@ -25,7 +25,6 @@ const {
 const LANGUAGE_TO_MARKET = { 'sv-SE': 'SE', 'da-DK': 'DK', 'fi-FI': 'FI', 'nb-NO': 'NO' };
 const DEFAULT_CATEGORY_LANGUAGE = 'sv-SE';
 const REQUIRED_TENANT_TABLES = [
-  'user_settings',
   'cdon_settings',
   'fyndiq_settings',
   'channel_instances',
@@ -49,50 +48,43 @@ function tableRef(schemaName, tableName) {
 async function getTenants(mainPool) {
   const tenantProvider = process.env.TENANT_PROVIDER || 'neon';
   if (tenantProvider === 'local') {
-    const r = await mainPool.query('SELECT id AS user_id, email FROM public.users ORDER BY id');
+    // In schema-per-tenant mode, one schema exists per tenant owner.
+    const r = await mainPool.query(`
+      SELECT t.owner_user_id, u.email
+      FROM public.tenants t
+      INNER JOIN public.users u ON u.id = t.owner_user_id
+      ORDER BY t.owner_user_id
+    `);
     const base = process.env.DATABASE_URL;
     return r.rows.map((row) => ({
-      user_id: row.user_id,
+      owner_user_id: row.owner_user_id,
       email: row.email,
       connection_string: base,
-      schema_name: `tenant_${row.user_id}`,
+      schema_name: `tenant_${row.owner_user_id}`,
     }));
   }
   const r = await mainPool.query(`
-    SELECT t.user_id, t.neon_connection_string AS connection_string, u.email
+    SELECT t.owner_user_id, t.neon_connection_string AS connection_string, u.email
     FROM public.tenants t
-    INNER JOIN public.users u ON t.user_id = u.id
+    INNER JOIN public.users u ON t.owner_user_id = u.id
     WHERE t.neon_connection_string IS NOT NULL
-    ORDER BY t.user_id
+    ORDER BY t.owner_user_id
   `);
   return r.rows.map((row) => ({ ...row, schema_name: null }));
 }
 
-async function upsertCategoryCache(client, schemaName, cacheKey, userId, payload) {
+async function upsertCategoryCache(client, schemaName, cacheKey, payload) {
   const fetchedAt = new Date();
   const categoryCacheTable = tableRef(schemaName, 'category_cache');
-  if (userId == null) {
-    const up = await client.query(
-      `UPDATE ${categoryCacheTable} SET payload = $2, fetched_at = $3 WHERE cache_key = $1 AND user_id IS NULL`,
+  const up = await client.query(
+    `UPDATE ${categoryCacheTable} SET payload = $2, fetched_at = $3 WHERE cache_key = $1`,
+    [cacheKey, JSON.stringify(payload), fetchedAt],
+  );
+  if (up.rowCount === 0) {
+    await client.query(
+      `INSERT INTO ${categoryCacheTable} (cache_key, payload, fetched_at) VALUES ($1, $2, $3)`,
       [cacheKey, JSON.stringify(payload), fetchedAt],
     );
-    if (up.rowCount === 0) {
-      await client.query(
-        `INSERT INTO ${categoryCacheTable} (cache_key, user_id, payload, fetched_at) VALUES ($1, NULL, $2, $3)`,
-        [cacheKey, JSON.stringify(payload), fetchedAt],
-      );
-    }
-  } else {
-    const up = await client.query(
-      `UPDATE ${categoryCacheTable} SET payload = $2, fetched_at = $3 WHERE cache_key = $1 AND user_id = $4`,
-      [cacheKey, JSON.stringify(payload), fetchedAt, userId],
-    );
-    if (up.rowCount === 0) {
-      await client.query(
-        `INSERT INTO ${categoryCacheTable} (cache_key, user_id, payload, fetched_at) VALUES ($1, $2, $3, $4)`,
-        [cacheKey, userId, JSON.stringify(payload), fetchedAt],
-      );
-    }
   }
 }
 
@@ -130,6 +122,7 @@ async function runJobForTenant(connectionString, tenantInfo) {
 
   try {
     const schemaName = tenantInfo.schemaName || null;
+    const ownerUserId = tenantInfo.owner_user_id;
 
     const missingTables = await tenantSchemaHasRequiredTables(client, schemaName);
     if (missingTables.length > 0) {
@@ -139,12 +132,11 @@ async function runJobForTenant(connectionString, tenantInfo) {
       return;
     }
 
-    const userId = tenantInfo.user_id;
     let categoryLanguage = DEFAULT_CATEGORY_LANGUAGE;
     try {
       const settingsRes = await client.query(
-        `SELECT settings FROM ${tableRef(schemaName, 'user_settings')} WHERE user_id = $1 AND category = 'products' LIMIT 1`,
-        [userId],
+        `SELECT settings FROM public.user_settings WHERE user_id = $1 AND category = 'products' LIMIT 1`,
+        [ownerUserId],
       );
       const settings = settingsRes?.rows?.[0]?.settings;
       if (settings && typeof settings === 'object' && settings.categoryLanguage) {
@@ -161,8 +153,7 @@ async function runJobForTenant(connectionString, tenantInfo) {
     const marketLower = market.toLowerCase();
 
     const cdonSettingsRes = await client.query(
-      `SELECT api_key, api_secret FROM ${tableRef(schemaName, 'cdon_settings')} WHERE user_id = $1 LIMIT 1`,
-      [userId],
+      `SELECT api_key, api_secret FROM ${tableRef(schemaName, 'cdon_settings')} LIMIT 1`,
     );
     const cdonSettings = cdonSettingsRes?.rows?.[0];
     const cdonApiKey = cdonSettings?.api_key ? CredentialsCrypto.decrypt(cdonSettings.api_key) : '';
@@ -178,7 +169,7 @@ async function runJobForTenant(connectionString, tenantInfo) {
           cdonApiKey,
           cdonApiSecret,
         );
-        await upsertCategoryCache(client, schemaName, cdonCacheKey, null, items);
+        await upsertCategoryCache(client, schemaName, cdonCacheKey, items);
       } catch (err) {
         const msg = err?.message ?? err?.stack ?? String(err);
         console.warn(`   [${tenantInfo.email}] CDON ${cdonCacheKey}: ${msg}`);
@@ -186,8 +177,7 @@ async function runJobForTenant(connectionString, tenantInfo) {
     }
 
     const fyndiqSettingsRes = await client.query(
-      `SELECT api_key, api_secret FROM ${tableRef(schemaName, 'fyndiq_settings')} WHERE user_id = $1 LIMIT 1`,
-      [userId],
+      `SELECT api_key, api_secret FROM ${tableRef(schemaName, 'fyndiq_settings')} LIMIT 1`,
     );
     const fyndiqSettings = fyndiqSettingsRes?.rows?.[0];
     const fyndiqApiKey = fyndiqSettings?.api_key
@@ -205,7 +195,7 @@ async function runJobForTenant(connectionString, tenantInfo) {
           fyndiqApiKey,
           fyndiqApiSecret,
         );
-        await upsertCategoryCache(client, schemaName, fyndiqCacheKey, null, items);
+        await upsertCategoryCache(client, schemaName, fyndiqCacheKey, items);
       } catch (err) {
         const msg = err?.message ?? err?.stack ?? String(err);
         console.warn(`   [${tenantInfo.email}] Fyndiq ${fyndiqCacheKey}: ${msg}`);
@@ -213,7 +203,7 @@ async function runJobForTenant(connectionString, tenantInfo) {
     }
 
     const instancesRes = await client.query(`
-      SELECT id, user_id, channel, instance_key, market, credentials
+      SELECT id, channel, instance_key, market, credentials
       FROM ${tableRef(schemaName, 'channel_instances')}
       WHERE channel IN ('cdon', 'fyndiq', 'woocommerce') AND enabled = true
     `);
@@ -234,7 +224,7 @@ async function runJobForTenant(connectionString, tenantInfo) {
         try {
           const items = await fetchWooCategories(credentials, 200);
           const cacheKey = `woo:${instId}`;
-          await upsertCategoryCache(client, schemaName, cacheKey, inst.user_id, items);
+          await upsertCategoryCache(client, schemaName, cacheKey, items);
         } catch (err) {
           console.warn(`   [${tenantInfo.email}] Woo ${instId}: ${err.message}`);
         }
@@ -264,7 +254,7 @@ async function main() {
       const label = tenant.schema_name ? `${tenant.email} (${tenant.schema_name})` : tenant.email;
       console.log(`  Tenant: ${label}`);
       await runJobForTenant(tenant.connection_string, {
-        user_id: tenant.user_id,
+        owner_user_id: tenant.owner_user_id,
         email: tenant.email,
         schemaName: tenant.schema_name,
       });

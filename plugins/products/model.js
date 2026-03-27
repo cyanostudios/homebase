@@ -13,16 +13,15 @@ class ProductModel {
   async getAll(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const sql = `
         SELECT
           p.id,
-          p.user_id,
           p.sku,
           p.mpn,
           p.title,
@@ -80,12 +79,11 @@ class ProductModel {
         LEFT JOIN brands b ON b.id = p.brand_id
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
-        LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id
         LEFT JOIN lists l ON l.id = pli.list_id
-        WHERE p.user_id = $1
         ORDER BY p.id
       `;
-      const result = await db.query(sql, [userId]);
+      const result = await db.query(sql, []);
       return result.map((row) => this.transformRow(row));
     } catch (error) {
       Logger.error('Failed to fetch products', error);
@@ -109,9 +107,9 @@ class ProductModel {
   async list(req, options = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const limit = options.limit;
@@ -132,13 +130,13 @@ class ProductModel {
       };
       const orderCol = sortMap[sortKey] || 'p.id';
 
-      const clauses = ['p.user_id = $1'];
-      const params = [userId];
+      const clauses = [];
+      const params = [];
 
       if (listMode === 'main') {
         clauses.push(`NOT EXISTS (
           SELECT 1 FROM product_list_items pli
-          WHERE pli.product_id = p.id AND pli.user_id = $1
+          WHERE pli.product_id = p.id
         )`);
       } else if (listMode && listMode !== 'all') {
         const listId = parseInt(listMode, 10);
@@ -149,7 +147,7 @@ class ProductModel {
         const listParamIdx = params.length;
         clauses.push(`EXISTS (
           SELECT 1 FROM product_list_items pli
-          WHERE pli.product_id = p.id AND pli.user_id = $1 AND pli.list_id = $${listParamIdx}
+          WHERE pli.product_id = p.id AND pli.list_id = $${listParamIdx}
         )`);
       }
 
@@ -173,13 +171,12 @@ class ProductModel {
       const countSql = `
         SELECT COUNT(*)::int AS total
         FROM ${ProductModel.TABLE} p
-        WHERE ${clauses.join(' AND ')}
+        ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
       `;
 
       const dataSql = `
         SELECT
           p.id,
-          p.user_id,
           p.sku,
           p.mpn,
           p.title,
@@ -237,9 +234,9 @@ class ProductModel {
         LEFT JOIN brands b ON b.id = p.brand_id
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
-        LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id
         LEFT JOIN lists l ON l.id = pli.list_id
-        WHERE ${clauses.join(' AND ')}
+        ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
         ORDER BY ${orderCol} ${orderSql}, p.id ASC
         LIMIT $${limitIdx}
         OFFSET $${offsetIdx}
@@ -265,12 +262,12 @@ class ProductModel {
   async countForUser(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
-      const sql = `SELECT COUNT(*)::int AS c FROM ${ProductModel.TABLE} WHERE user_id = $1`;
-      const rows = await db.query(sql, [userId]);
+      const sql = `SELECT COUNT(*)::int AS c FROM ${ProductModel.TABLE}`;
+      const rows = await db.query(sql, []);
       const n = rows?.[0]?.c;
       return Number.isFinite(Number(n)) ? Number(n) : 0;
     } catch (error) {
@@ -285,14 +282,13 @@ class ProductModel {
   async getById(req, productId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       const id = parseInt(String(productId), 10);
       if (!Number.isFinite(id)) return null;
       const sql = `
         SELECT
           p.id,
-          p.user_id,
           p.sku,
           p.mpn,
           p.title,
@@ -350,12 +346,12 @@ class ProductModel {
         LEFT JOIN brands b ON b.id = p.brand_id
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
-        LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id
         LEFT JOIN lists l ON l.id = pli.list_id
-        WHERE p.user_id = $1 AND p.id = $2
+        WHERE p.id = $1
         LIMIT 1
       `;
-      const result = await db.query(sql, [userId, id]);
+      const result = await db.query(sql, [id]);
       return result[0] ? this.transformRow(result[0]) : null;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -367,10 +363,10 @@ class ProductModel {
   async getBySku(req, sku) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const cleanSku = String(sku || '').trim();
@@ -379,7 +375,6 @@ class ProductModel {
       const sql = `
         SELECT
           p.id,
-          p.user_id,
           p.sku,
           p.mpn,
           p.title,
@@ -437,13 +432,12 @@ class ProductModel {
         LEFT JOIN brands b ON b.id = p.brand_id
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
-        LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id
         LEFT JOIN lists l ON l.id = pli.list_id
-        WHERE p.user_id = $1
-          AND p.sku = $2
+        WHERE p.sku = $1
         LIMIT 1
       `;
-      const result = await db.query(sql, [userId, cleanSku]);
+      const result = await db.query(sql, [cleanSku]);
       return result[0] ? this.transformRow(result[0]) : null;
     } catch (error) {
       Logger.error('Failed to fetch product by SKU', error);
@@ -457,10 +451,10 @@ class ProductModel {
   async create(req, productData) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const d = this.normalizeInput(productData);
@@ -474,7 +468,6 @@ class ProductModel {
           ? `
         INSERT INTO ${ProductModel.TABLE} (
           id,
-          user_id,
           sku,
           mpn,
           title,
@@ -524,13 +517,12 @@ class ProductModel {
         VALUES (
           $1,
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
-          $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
-          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
-          $43, $44, $45, $46, $47
+          $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
+          $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
+          $42, $43, $44, $45, $46
         )
         RETURNING
           id,
-          user_id,
           sku,
           mpn,
           title,
@@ -575,7 +567,6 @@ class ProductModel {
       `
           : `
         INSERT INTO ${ProductModel.TABLE} (
-          user_id,
           sku,
           mpn,
           title,
@@ -624,13 +615,12 @@ class ProductModel {
         VALUES (
           $1,
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
-          $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
-          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
-          $43, $44, $45, $46
+          $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
+          $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
+          $42, $43, $44, $45
         )
         RETURNING
           id,
-          user_id,
           sku,
           mpn,
           title,
@@ -675,7 +665,6 @@ class ProductModel {
       `;
 
       const baseParams = [
-        userId,
         d.sku,
         d.mpn,
         d.title,
@@ -721,7 +710,8 @@ class ProductModel {
         d.quantitySold ?? null,
         d.lastSoldAt ?? null,
       ];
-      const params = explicitId != null ? [explicitId, ...baseParams, null] : baseParams;
+      const params =
+        explicitId != null ? [explicitId, ...baseParams, null] : [null, ...baseParams].slice(1);
 
       const result = await db.query(sql, params);
       Logger.info('Product created', { productId: result[0].id });
@@ -745,10 +735,10 @@ class ProductModel {
   async update(req, productId, productData) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const d = this.normalizeInput(productData);
@@ -811,11 +801,9 @@ class ProductModel {
           quantity_sold     = COALESCE($43, p.quantity_sold),
           last_sold_at      = COALESCE($44, p.last_sold_at),
           updated_at     = CURRENT_TIMESTAMP
-        WHERE p.user_id = $45
-          AND p.id::text = $46
+        WHERE p.id::text = $45
         RETURNING
           id,
-          user_id,
           sku,
           mpn,
           title,
@@ -904,7 +892,6 @@ class ProductModel {
         d.sourceCreatedAt ?? null,
         d.quantitySold ?? null,
         d.lastSoldAt ?? null,
-        userId,
         String(productId),
       ];
 
@@ -932,10 +919,10 @@ class ProductModel {
   async getProductStats(req, productId, range = '30d') {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const pid = String(productId).trim();
@@ -943,8 +930,8 @@ class ProductModel {
 
       // Verify product belongs to user
       const prodCheck = await db.query(
-        `SELECT id FROM ${ProductModel.TABLE} WHERE user_id = $1 AND id::text = $2 LIMIT 1`,
-        [userId, pid],
+        `SELECT id FROM ${ProductModel.TABLE} WHERE id::text = $1 LIMIT 1`,
+        [pid],
       );
       if (!prodCheck.length) {
         throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
@@ -963,47 +950,47 @@ class ProductModel {
 
       const productIdCondition = isNumId
         ? 'oi.product_id = $2::int'
-        : '(oi.product_id::text = $2 OR oi.sku IN (SELECT sku FROM products WHERE user_id = $1 AND id::text = $2 LIMIT 1))';
+        : '(oi.product_id::text = $1 OR oi.sku IN (SELECT sku FROM products WHERE id::text = $1 LIMIT 1))';
 
       const soldSql = `
         SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold_count
         FROM order_items oi
-        JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
-        WHERE (oi.product_id::text = $2 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE user_id = $1 AND id::text = $2 LIMIT 1)))
+        JOIN orders o ON o.id = oi.order_id
+        WHERE (oi.product_id::text = $1 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE id::text = $1 LIMIT 1)))
         ${dateFilter}
       `;
-      const soldRes = await db.query(soldSql, [userId, pid]);
+      const soldRes = await db.query(soldSql, [pid]);
       const soldCount = Number(soldRes[0]?.sold_count) || 0;
 
       const bestChannelSql = `
         SELECT o.channel, SUM(oi.quantity)::int AS qty
         FROM order_items oi
-        JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
-        WHERE (oi.product_id::text = $2 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE user_id = $1 AND id::text = $2 LIMIT 1)))
+        JOIN orders o ON o.id = oi.order_id
+        WHERE (oi.product_id::text = $1 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE id::text = $1 LIMIT 1)))
         ${dateFilter}
         GROUP BY o.channel
         ORDER BY qty DESC
         LIMIT 1
       `;
-      const bestRes = await db.query(bestChannelSql, [userId, pid]);
+      const bestRes = await db.query(bestChannelSql, [pid]);
       const bestChannel = bestRes[0]?.channel || null;
 
       const targetsRes = await db.query(
-        `SELECT COUNT(*)::int AS c FROM channel_product_map WHERE user_id = $1 AND product_id = $2 AND (enabled = TRUE OR external_id IS NOT NULL)`,
-        [userId, pid],
+        `SELECT COUNT(*)::int AS c FROM channel_product_map WHERE product_id = $1 AND (enabled = TRUE OR external_id IS NOT NULL)`,
+        [pid],
       );
       const activeTargetsCount = Number(targetsRes[0]?.c) || 0;
 
       const timelineSql = `
         SELECT o.channel, o.channel_order_id, oi.quantity, o.placed_at
         FROM order_items oi
-        JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
-        WHERE (oi.product_id::text = $2 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE user_id = $1 AND id::text = $2 LIMIT 1)))
+        JOIN orders o ON o.id = oi.order_id
+        WHERE (oi.product_id::text = $1 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE id::text = $1 LIMIT 1)))
         ${dateFilter}
         ORDER BY o.placed_at DESC NULLS LAST
         LIMIT 50
       `;
-      const timelineRows = await db.query(timelineSql, [userId, pid]);
+      const timelineRows = await db.query(timelineSql, [pid]);
       const timeline = (timelineRows || []).map((r) => ({
         type: 'sale',
         channel: r.channel,
@@ -1028,27 +1015,25 @@ class ProductModel {
   async delete(req, productId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const sql = `
         DELETE FROM ${ProductModel.TABLE}
-        WHERE user_id = $1
-          AND id::text = $2
+        WHERE id::text = $1
         RETURNING id::text AS id
       `;
-      const result = await db.query(sql, [userId, String(productId)]);
+      const result = await db.query(sql, [String(productId)]);
       if (!result.length) {
         throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
       }
 
       // Cleanup dependent channel mappings (avoid orphan rows)
       try {
-        await db.query(`DELETE FROM channel_product_map WHERE user_id = $1 AND product_id = $2`, [
-          userId,
+        await db.query(`DELETE FROM channel_product_map WHERE product_id = $1`, [
           String(productId),
         ]);
       } catch (_err) {
@@ -1071,10 +1056,10 @@ class ProductModel {
   async bulkDelete(req, idsTextArray) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const ids = Array.isArray(idsTextArray)
@@ -1087,21 +1072,19 @@ class ProductModel {
 
       const sql = `
         DELETE FROM ${ProductModel.TABLE}
-        WHERE user_id = $1
-          AND id::text = ANY($2::text[])
+        WHERE id::text = ANY($1::text[])
         RETURNING id::text AS id
       `;
 
-      const rows = await db.query(sql, [userId, ids]);
+      const rows = await db.query(sql, [ids]);
 
       // Cleanup dependent channel mappings for deleted products
       if (rows.length) {
         try {
           const deletedIds = rows.map((r) => r.id);
-          await db.query(
-            `DELETE FROM channel_product_map WHERE user_id = $1 AND product_id = ANY($2::text[])`,
-            [userId, deletedIds],
-          );
+          await db.query(`DELETE FROM channel_product_map WHERE product_id = ANY($1::text[])`, [
+            deletedIds,
+          ]);
         } catch (_err) {
           void _err;
         }
@@ -1125,10 +1108,10 @@ class ProductModel {
   async batchUpdate(req, idsTextArray, updates = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
+      const tenantId = req.session?.tenantId;
 
-      if (!userId) {
-        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const ids = Array.isArray(idsTextArray)
@@ -1168,11 +1151,11 @@ class ProductModel {
         return { updatedCount: 0, updatedIds: [] };
       }
       setParts.push('updated_at = CURRENT_TIMESTAMP');
-      params.push(userId, ids);
+      params.push(ids);
       const sql = `
         UPDATE ${ProductModel.TABLE}
         SET ${setParts.join(', ')}
-        WHERE user_id = $${idx} AND id::text = ANY($${idx + 1}::text[])
+        WHERE id::text = ANY($${idx}::text[])
         RETURNING id::text AS id
       `;
       const rows = await db.query(sql, params);
@@ -1228,8 +1211,8 @@ class ProductModel {
   ) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const selloIdVal = String(selloId ?? '').trim();
       if (!selloIdVal)
@@ -1399,8 +1382,8 @@ class ProductModel {
   async updateProductGroupRelation(req, productId, { parentProductId, groupVariationType }) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       const id = parseInt(String(productId), 10);
       if (!Number.isFinite(id)) return;
       const parentId =
@@ -1415,8 +1398,8 @@ class ProductModel {
       await db.query(
         `UPDATE ${ProductModel.TABLE}
          SET parent_product_id = $1, group_variation_type = $2, updated_at = CURRENT_TIMESTAMP
-         WHERE user_id = $3 AND id = $4`,
-        [Number.isFinite(parentId) ? parentId : null, type, userId, id],
+         WHERE id = $3`,
+        [Number.isFinite(parentId) ? parentId : null, type, id],
       );
     } catch (error) {
       Logger.error('Failed to update product group relation', error);
@@ -1439,8 +1422,8 @@ class ProductModel {
   async setProductGroup(req, productIds, groupVariationType, mainProductId = null) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       const type =
         groupVariationType &&
         ['color', 'size', 'model'].includes(String(groupVariationType).toLowerCase())
@@ -1478,8 +1461,8 @@ class ProductModel {
       await db.query(
         `UPDATE ${ProductModel.TABLE}
          SET group_id = $1, parent_product_id = CASE WHEN id = $2 THEN NULL ELSE $2 END, group_variation_type = $3, updated_at = CURRENT_TIMESTAMP
-         WHERE user_id = $4 AND id = ANY($5::int[])`,
-        [groupIdStr, mainId, type, userId, ids],
+         WHERE id = ANY($4::int[])`,
+        [groupIdStr, mainId, type, ids],
       );
       Logger.info('Products grouped', { count: ids.length, mainId, type });
       return { updatedCount: ids.length, mainProductId: mainId, groupVariationType: type };
@@ -1759,8 +1742,8 @@ class ProductModel {
 
   async setProductList(req, productId, listId) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
     const product = await this.getById(req, productId);
     if (!product) throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
@@ -1772,10 +1755,7 @@ class ProductModel {
       return product;
     }
 
-    await db.query(`DELETE FROM product_list_items WHERE user_id = $1 AND product_id = $2`, [
-      userId,
-      productId,
-    ]);
+    await db.query(`DELETE FROM product_list_items WHERE product_id = $1`, [productId]);
     if (normalizedNextListId !== null) {
       await db.insert('product_list_items', {
         list_id: parseInt(normalizedNextListId, 10),

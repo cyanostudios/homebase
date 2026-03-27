@@ -1,5 +1,5 @@
 // plugins/fyndiq-products/model.js
-// Skeleton connector model: per-user settings + channel map helpers.
+// Skeleton connector model: tenant-scoped settings + channel map helpers.
 //
 // Uses @homebase/core SDK for database access with automatic tenant isolation
 
@@ -15,13 +15,10 @@ class FyndiqProductsModel {
   async getSettings(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
-      const res = await db.query(
-        `SELECT * FROM ${FyndiqProductsModel.SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
-        [userId],
-      );
+      const res = await db.query(`SELECT * FROM ${FyndiqProductsModel.SETTINGS_TABLE} LIMIT 1`, []);
       return res.length ? this.transformSettingsRow(res[0]) : null;
     } catch (error) {
       Logger.error('Failed to get Fyndiq settings', error);
@@ -33,32 +30,37 @@ class FyndiqProductsModel {
   async upsertSettings(req, data) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const apiKey = String(data.apiKey || '').trim();
       const apiSecret = String(data.apiSecret || '').trim();
       const connected = Boolean(apiKey && apiSecret);
 
-      const sql = `
-        INSERT INTO ${FyndiqProductsModel.SETTINGS_TABLE} (
-          user_id, api_key, api_secret, connected, created_at, updated_at
-        ) VALUES (
-          $1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (user_id) DO UPDATE SET
-          api_key = EXCLUDED.api_key,
-          api_secret = EXCLUDED.api_secret,
-          connected = EXCLUDED.connected,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING *
-      `;
-      const res = await db.query(sql, [
-        userId,
+      const existing = await db.query(
+        `SELECT id FROM ${FyndiqProductsModel.SETTINGS_TABLE} ORDER BY id ASC LIMIT 1`,
+        [],
+      );
+      const values = [
         apiKey ? CredentialsCrypto.encrypt(apiKey) : null,
         apiSecret ? CredentialsCrypto.encrypt(apiSecret) : null,
         connected,
-      ]);
+      ];
+      const res = existing.length
+        ? await db.query(
+            `UPDATE ${FyndiqProductsModel.SETTINGS_TABLE}
+             SET api_key = $1, api_secret = $2, connected = $3, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $4
+             RETURNING *`,
+            [...values, existing[0].id],
+          )
+        : await db.query(
+            `INSERT INTO ${FyndiqProductsModel.SETTINGS_TABLE} (
+               api_key, api_secret, connected, created_at, updated_at
+             ) VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             RETURNING *`,
+            values,
+          );
       return this.transformSettingsRow(res[0]);
     } catch (error) {
       Logger.error('Failed to save Fyndiq settings', error);
@@ -83,16 +85,16 @@ class FyndiqProductsModel {
   async upsertChannelMap(req, { productId, channel, enabled, externalId, status, error }) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const sql = `
         INSERT INTO ${FyndiqProductsModel.CHANNEL_MAP_TABLE} (
-          user_id, product_id, channel, channel_instance_id, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
+          product_id, channel, channel_instance_id, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
         ) VALUES (
-          $1,       $2,         $3,      NULL,                $4,      $5,          CURRENT_TIMESTAMP, $6,              $7,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          $1,       $2,         NULL,    $3,                 $4,      CURRENT_TIMESTAMP, $5,              $6,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
-        ON CONFLICT (user_id, product_id, channel, channel_instance_id) DO UPDATE SET
+        ON CONFLICT (product_id, channel, channel_instance_id) DO UPDATE SET
           enabled = EXCLUDED.enabled,
           external_id = EXCLUDED.external_id,
           last_synced_at = CURRENT_TIMESTAMP,
@@ -101,7 +103,6 @@ class FyndiqProductsModel {
           updated_at = CURRENT_TIMESTAMP
       `;
       await db.query(sql, [
-        userId,
         String(productId),
         String(channel),
         !!enabled,
@@ -120,15 +121,15 @@ class FyndiqProductsModel {
     try {
       const db = Database.get(req);
       const pool = db.getPool();
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
 
       const rawQuery = async (sql, params = []) => {
         const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
         if (isLocalProvider) {
           const client = await pool.connect();
           try {
-            const schemaName = `tenant_${req.session?.currentTenantUserId || userId}`;
+            const schemaName = req.session?.tenantSchemaName;
             if (!/^tenant_\d+$/.test(schemaName)) {
               throw new AppError('Invalid tenant schema', 500, AppError.CODES.DATABASE_ERROR);
             }
@@ -171,10 +172,6 @@ class FyndiqProductsModel {
       const insertCols = [];
       const values = [];
 
-      if (cols.has('user_id')) {
-        insertCols.push('user_id');
-        values.push(userId);
-      }
       insertCols.push('channel');
       values.push(String(channel));
 

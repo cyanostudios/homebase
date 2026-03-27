@@ -397,7 +397,7 @@ Backend
 ✅ Use ServiceManager for ALL infrastructure
 ✅ Use logger instead of console.log
 ✅ Throw standardized AppError
-✅ No manual tenant filtering
+✅ No manual tenant scoping in SQL
 ✅ Validate all user input
 ✅ Audit log sensitive operations
 

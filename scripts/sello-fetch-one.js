@@ -16,7 +16,7 @@ async function run() {
   Bootstrap.initializeServices();
   const ServiceManager = require('../server/core/ServiceManager');
   const req = {
-    session: { user: { id: 1 }, currentTenantUserId: 1 },
+    session: { user: { id: 1 }, tenantOwnerUserId: 1 },
     tenantPool: undefined,
   };
   ServiceManager.initialize(req);
@@ -33,8 +33,12 @@ async function run() {
     if (raw.images[0]) console.log('raw.images[0]:', JSON.stringify(raw.images[0], null, 2));
   }
   if (raw?.product != null) {
-    console.log('raw.product exists. raw.product.images type:', Array.isArray(raw.product?.images) ? 'array' : typeof raw.product?.images);
-    if (raw.product?.images?.[0]) console.log('raw.product.images[0]:', JSON.stringify(raw.product.images[0], null, 2));
+    console.log(
+      'raw.product exists. raw.product.images type:',
+      Array.isArray(raw.product?.images) ? 'array' : typeof raw.product?.images,
+    );
+    if (raw.product?.images?.[0])
+      console.log('raw.product.images[0]:', JSON.stringify(raw.product.images[0], null, 2));
   }
   process.exit(0);
 }

@@ -22,7 +22,9 @@ const idsFromEnv = (process.env.SGET || '')
 const selloProductIds = idsFromArgs.length ? idsFromArgs : idsFromEnv;
 
 if (!selloProductIds.length) {
-  console.error('Ange Sello-produkt-ID:n:\n  npm run sget -- 109512000 124732609\n  SGET=109512000,124732609 node scripts/sget.js');
+  console.error(
+    'Ange Sello-produkt-ID:n:\n  npm run sget -- 109512000 124732609\n  SGET=109512000,124732609 node scripts/sget.js',
+  );
   process.exit(1);
 }
 
@@ -45,7 +47,7 @@ async function run() {
   const ServiceManager = require('../server/core/ServiceManager');
   Bootstrap.initializeServices();
   const req = {
-    session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
+    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
     tenantPool: undefined,
     body: { selloProductIds },
     query: {},

@@ -470,7 +470,7 @@ Backend Model
 Use ServiceManager for all infrastructure
 Use logger instead of console.log
 Throw standardized AppError
-No manual tenant filtering (automatic)
+No manual tenant scoping in SQL (routing is automatic)
 Audit log sensitive operations
 
 Frontend
@@ -552,36 +552,36 @@ const database = ServiceManager.get('database');
 const results = await database.query('SELECT \* FROM items', []);
 // Tenant filtering automatic
 ❌ Setting panelMode to 'view' Without a View Component
-⚠️ CRITICAL: If your plugin does NOT have a View component in the plugin registry, 
-DO NOT set panelMode to 'view' after saving. The system will fall back to the List 
+⚠️ CRITICAL: If your plugin does NOT have a View component in the plugin registry,
+DO NOT set panelMode to 'view' after saving. The system will fall back to the List
 component, which can cause confusing behavior where the wrong panel opens.
 
 // WRONG - Plugin without View component
 const saveMyPlugin = async (itemData: any): Promise<boolean> => {
-  // ... save logic ...
-  setPanelMode('view'); // ❌ This will show List component instead!
-  return true;
+// ... save logic ...
+setPanelMode('view'); // ❌ This will show List component instead!
+return true;
 };
 
 // CORRECT - Close panel instead if no View component
 const saveMyPlugin = async (itemData: any): Promise<boolean> => {
-  // ... save logic ...
-  if (currentMyPluginItem) {
-    // Updated existing item - close panel (no View component available)
-    closeMyPluginPanel();
-  } else {
-    // Created new item - close panel
-    closeMyPluginPanel();
-  }
-  return true;
+// ... save logic ...
+if (currentMyPluginItem) {
+// Updated existing item - close panel (no View component available)
+closeMyPluginPanel();
+} else {
+// Created new item - close panel
+closeMyPluginPanel();
+}
+return true;
 };
 
 // CORRECT - Only use 'view' mode if View component exists
 // In pluginRegistry.ts:
 components: {
-  List: MyPluginList,
-  Form: MyPluginForm,
-  View: MyPluginView, // ✅ View component exists
+List: MyPluginList,
+Form: MyPluginForm,
+View: MyPluginView, // ✅ View component exists
 }
 
 // Then in save function:

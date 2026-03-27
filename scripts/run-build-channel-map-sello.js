@@ -35,7 +35,7 @@ async function run() {
   Bootstrap.initializeServices();
   const model = new ProductModel();
   const req = {
-    session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
+    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
     tenantPool: undefined,
     body: {},
     query: {},

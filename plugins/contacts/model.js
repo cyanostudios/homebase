@@ -213,8 +213,8 @@ class ContactModel {
     try {
       const db = Database.get(req);
 
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
-      if (!userId) {
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
         throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
       }
 
@@ -246,14 +246,14 @@ class ContactModel {
   async deleteTimeEntry(req, contactId, entryId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
-      if (!userId) {
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
         throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
       }
 
       const rows = await db.query(
-        'DELETE FROM contact_time_entries WHERE id = $1 AND contact_id = $2 AND user_id = $3 RETURNING id',
-        [entryId, contactId, userId],
+        'DELETE FROM contact_time_entries WHERE id = $1 AND contact_id = $2 RETURNING id',
+        [entryId, contactId],
       );
 
       if (!rows || rows.length === 0) {
