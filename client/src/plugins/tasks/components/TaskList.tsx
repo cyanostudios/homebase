@@ -41,6 +41,14 @@ import { TaskSettingsView } from './TaskSettingsView';
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+const TASKS_VIEW_MODE_STORAGE_KEY = 'tasks:viewMode';
+
+function getInitialViewMode(): ViewMode {
+  if (typeof window === 'undefined') {
+    return 'list';
+  }
+  return window.sessionStorage.getItem(TASKS_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
+}
 
 const TASKS_SETTINGS_KEY = 'tasks';
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
@@ -71,7 +79,7 @@ export const TaskList: React.FC = () => {
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewModeState] = useState<ViewMode>('list');
+  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +88,11 @@ export const TaskList: React.FC = () => {
         if (cancelled) {
           return;
         }
-        setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+        const nextMode: ViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
+        setViewModeState(nextMode);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(TASKS_VIEW_MODE_STORAGE_KEY, nextMode);
+        }
       })
       .catch(() => {});
     return () => {
@@ -91,6 +103,9 @@ export const TaskList: React.FC = () => {
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       setViewModeState(mode);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(TASKS_VIEW_MODE_STORAGE_KEY, mode);
+      }
       updateSettings(TASKS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
     },
     [updateSettings],
@@ -338,7 +353,7 @@ export const TaskList: React.FC = () => {
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t('tasks.searchPlaceholder')}
+              placeholder={t('tasks.searchPlaceholder', { count: tasks.length })}
               className="h-9 bg-background pl-9 text-xs"
             />
           </div>
@@ -415,7 +430,7 @@ export const TaskList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {sortedTasks.map((task) => {
                 const taskIsSelected = isSelected(task.id);
                 const assignedContacts = getAssignedContacts(task);
@@ -423,7 +438,7 @@ export const TaskList: React.FC = () => {
                   <Card
                     key={task.id}
                     className={cn(
-                      'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent bg-gray-50 dark:bg-gray-900/40',
+                      'relative p-5 cursor-pointer transition-all flex flex-col min-h-[160px] border border-border/70 bg-card shadow-sm',
                       taskIsSelected
                         ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
                         : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
@@ -441,38 +456,41 @@ export const TaskList: React.FC = () => {
                     role="button"
                     aria-label={`Open task ${task.title}`}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={taskIsSelected}
-                          onChange={() => toggleTaskSelected(task.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="cursor-pointer h-4 w-4"
-                          aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
-                        />
-                        <h3 className="font-semibold text-base line-clamp-1">{task.title}</h3>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <input
+                        type="checkbox"
+                        checked={taskIsSelected}
+                        onChange={() => toggleTaskSelected(task.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer h-4 w-4"
+                        aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+                      />
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Badge className={TASK_STATUS_COLORS[task.status]}>
+                          {formatStatusForDisplay(task.status)}
+                        </Badge>
+                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                      <Badge className={TASK_STATUS_COLORS[task.status]}>
-                        {formatStatusForDisplay(task.status)}
-                      </Badge>
-                      <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
-                    </div>
-                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
-                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                    <h3 className="mb-3 line-clamp-1 text-base font-semibold">{task.title}</h3>
+                    <div className="border-t pt-3">
+                      <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                        {assignedContacts.length > 0 && (
+                          <div className="plugin-contacts truncate font-medium text-plugin">
+                            Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
+                          </div>
+                        )}
                         {task.dueDate && (
                           <div className={formatDueDate(task.dueDate)?.className || ''}>
                             {formatDueDate(task.dueDate)?.text}
                           </div>
                         )}
-                        {assignedContacts.length > 0 && (
-                          <div className="plugin-contacts text-plugin font-medium truncate">
-                            Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
-                          </div>
-                        )}
-                        <div>Updated {new Date(task.updatedAt).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                    <div className="mt-auto border-t pt-4">
+                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                        <div>Updated: {new Date(task.updatedAt).toLocaleDateString()}</div>
+                        <div>Created: {new Date(task.createdAt).toLocaleDateString()}</div>
                       </div>
                     </div>
                   </Card>

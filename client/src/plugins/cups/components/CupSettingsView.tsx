@@ -1,4 +1,4 @@
-import { FileUp, Globe, Loader2, Plus, Trash2, X } from 'lucide-react';
+import { Check, FileUp, Globe, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -25,6 +25,8 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
     sources,
     fetchSources,
     createSource,
+    uploadSourceFile,
+    updateSource,
     deleteSource,
     scrapeSource,
     scrapeFile,
@@ -33,10 +35,13 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
 
   const [newUrl, setNewUrl] = useState('');
   const [newLabel, setNewLabel] = useState('');
+  const [newSourceType, setNewSourceType] = useState<'url' | 'file'>('url');
+  const [newSourceFile, setNewSourceFile] = useState<File | null>(null);
   const [adding, setAdding] = useState(false);
   const [addSourceError, setAddSourceError] = useState<string | null>(null);
   const [deletePendingId, setDeletePendingId] = useState<string | null>(null);
   const [scrapeResult, setScrapeResult] = useState<Record<string, string>>({});
+  const addSourceFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
 
@@ -44,16 +49,29 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
     fetchSources();
   }, [fetchSources]);
 
-  const handleAddUrl = async () => {
-    if (!newUrl.trim()) {
+  const handleAddSource = async () => {
+    if (newSourceType === 'url' && !newUrl.trim()) {
+      return;
+    }
+    if (newSourceType === 'file' && !newSourceFile) {
       return;
     }
     setAddSourceError(null);
     setAdding(true);
     try {
-      await createSource({ type: 'url', url: newUrl.trim(), label: newLabel.trim() || undefined });
+      const created = await createSource({
+        type: newSourceType,
+        url: newSourceType === 'url' ? newUrl.trim() : undefined,
+        label:
+          newLabel.trim() ||
+          (newSourceType === 'file' && newSourceFile ? newSourceFile.name : undefined),
+      });
+      if (newSourceType === 'file' && newSourceFile) {
+        await uploadSourceFile(created.id, newSourceFile);
+      }
       setNewUrl('');
       setNewLabel('');
+      setNewSourceFile(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t('cups.addSourceFailed');
       setAddSourceError(message);
@@ -62,17 +80,22 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
     }
   };
 
-  const handleScrape = async (id: string) => {
+  const handleScrape = async (source: CupSource) => {
+    if (source.type === 'file' && !source.filename) {
+      handleFileSelect(source.id);
+      return;
+    }
     try {
-      const result = await scrapeSource(id);
-      setScrapeResult((prev) => ({
-        ...prev,
-        [id]: t('cups.scrapeSuccess', { count: result.inserted }),
-      }));
+      const result = await scrapeSource(source.id);
+      const msg =
+        result.skipped > 0
+          ? t('cups.scrapeSuccessWithSkipped', { count: result.inserted, skipped: result.skipped })
+          : t('cups.scrapeSuccess', { count: result.inserted });
+      setScrapeResult((prev) => ({ ...prev, [source.id]: msg }));
     } catch (err: any) {
       setScrapeResult((prev) => ({
         ...prev,
-        [id]: `${t('cups.scrapeError')}: ${err.message}`,
+        [source.id]: `${t('cups.scrapeError')}: ${err.message}`,
       }));
     }
   };
@@ -89,10 +112,11 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
     }
     try {
       const result = await scrapeFile(uploadTargetId, file);
-      setScrapeResult((prev) => ({
-        ...prev,
-        [uploadTargetId]: t('cups.scrapeSuccess', { count: result.inserted }),
-      }));
+      const msg =
+        result.skipped > 0
+          ? t('cups.scrapeSuccessWithSkipped', { count: result.inserted, skipped: result.skipped })
+          : t('cups.scrapeSuccess', { count: result.inserted });
+      setScrapeResult((prev) => ({ ...prev, [uploadTargetId]: msg }));
     } catch (err: any) {
       setScrapeResult((prev) => ({
         ...prev,
@@ -104,6 +128,10 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  const handleAddSourceFilePick = () => {
+    addSourceFileInputRef.current?.click();
   };
 
   return (
@@ -141,8 +169,48 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
                   setAddSourceError(null);
                 }}
                 placeholder="https://distrikt.svenskfotboll.se/cuper"
-                onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddSource()}
+                disabled={newSourceType !== 'url'}
               />
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-start">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs font-medium text-muted-foreground">Source type</Label>
+                <select
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={newSourceType}
+                  onChange={(e) => setNewSourceType(e.target.value as 'url' | 'file')}
+                >
+                  <option value="url">URL</option>
+                  <option value="file">File</option>
+                </select>
+              </div>
+              {newSourceType === 'file' && (
+                <div className="flex flex-col gap-1 md:pt-5">
+                  <div className="flex h-9 items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      icon={FileUp}
+                      className="h-9 px-2 text-xs font-normal shadow-none"
+                      onClick={handleAddSourceFilePick}
+                    >
+                      {newSourceFile ? 'Change file' : t('cups.uploadFile')}
+                    </Button>
+                    {newSourceFile && (
+                      <span className="truncate text-xs text-muted-foreground">{newSourceFile.name}</span>
+                    )}
+                  </div>
+                  <input
+                    ref={addSourceFileInputRef}
+                    type="file"
+                    accept=".html,.htm,.txt,.csv,.pdf,text/html,text/plain,text/csv,application/pdf"
+                    className="hidden"
+                    onChange={(e) => setNewSourceFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-1">
               <Label className="text-xs font-medium text-muted-foreground">
@@ -156,7 +224,7 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
                   setAddSourceError(null);
                 }}
                 placeholder={t('cups.sourceLabelPlaceholder')}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddSource()}
               />
             </div>
             {addSourceError && (
@@ -169,8 +237,12 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
                 size="sm"
                 icon={Plus}
                 className="h-9 px-3 text-xs"
-                onClick={handleAddUrl}
-                disabled={adding || !newUrl.trim()}
+                onClick={handleAddSource}
+                disabled={
+                  adding ||
+                  (newSourceType === 'url' && !newUrl.trim()) ||
+                  (newSourceType === 'file' && !newSourceFile)
+                }
               >
                 {t('cups.addSource')}
               </Button>
@@ -190,8 +262,8 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
                   source={source}
                   isScraping={scrapingSourceId === source.id}
                   result={scrapeResult[source.id]}
-                  onScrape={() => handleScrape(source.id)}
-                  onUpload={() => handleFileSelect(source.id)}
+                  onRename={(label) => updateSource(source.id, { label })}
+                  onScrape={() => handleScrape(source)}
                   onDelete={() => setDeletePendingId(source.id)}
                 />
               ))}
@@ -210,7 +282,7 @@ export function CupSettingsView({ onBack }: CupSettingsViewProps) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".html,.htm,.txt,.csv,text/html,text/plain,text/csv"
+        accept=".html,.htm,.txt,.csv,.pdf,text/html,text/plain,text/csv,application/pdf"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -238,18 +310,62 @@ interface SourceRowProps {
   source: CupSource;
   isScraping: boolean;
   result?: string;
+  onRename: (label: string) => Promise<unknown>;
   onScrape: () => void;
-  onUpload: () => void;
   onDelete: () => void;
 }
 
-function SourceRow({ source, isScraping, result, onScrape, onUpload, onDelete }: SourceRowProps) {
+function SourceRow({ source, isScraping, result, onRename, onScrape, onDelete }: SourceRowProps) {
   const { t } = useTranslation();
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [labelDraft, setLabelDraft] = useState(source.label || '');
+  const [isSavingLabel, setIsSavingLabel] = useState(false);
+
+  useEffect(() => {
+    setLabelDraft(source.label || '');
+  }, [source.label]);
+
+  const handleSaveLabel = async () => {
+    setIsSavingLabel(true);
+    try {
+      await onRename(labelDraft.trim());
+      setIsEditingLabel(false);
+    } finally {
+      setIsSavingLabel(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {source.label && <span className="truncate text-sm font-medium">{source.label}</span>}
+          {isEditingLabel ? (
+            <div className="flex items-center gap-1">
+              <Input
+                value={labelDraft}
+                onChange={(e) => setLabelDraft(e.target.value)}
+                className="h-8 bg-background text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    void handleSaveLabel();
+                  }
+                }}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={isSavingLabel ? Loader2 : Check}
+                className={cn('h-8 px-2 text-xs', isSavingLabel && '[&_svg]:animate-spin')}
+                onClick={() => void handleSaveLabel()}
+                disabled={isSavingLabel}
+                title={t('common.save')}
+              >
+                {t('common.save')}
+              </Button>
+            </div>
+          ) : (
+            source.label && <span className="truncate text-sm font-medium">{source.label}</span>
+          )}
           {source.url && (
             <a
               href={source.url}
@@ -259,6 +375,11 @@ function SourceRow({ source, isScraping, result, onScrape, onUpload, onDelete }:
             >
               {source.url}
             </a>
+          )}
+          {!source.url && source.type === 'file' && (
+            <span className="truncate text-xs text-muted-foreground">
+              {source.filename || t('cups.uploadFile')}
+            </span>
           )}
           {source.last_scraped_at && (
             <span className="text-xs text-muted-foreground">
@@ -284,13 +405,13 @@ function SourceRow({ source, isScraping, result, onScrape, onUpload, onDelete }:
           <Button
             variant="ghost"
             size="sm"
-            icon={FileUp}
+            icon={Pencil}
             className="h-9 px-3 text-xs"
-            onClick={onUpload}
-            disabled={isScraping}
-            title={t('cups.uploadFile')}
+            onClick={() => setIsEditingLabel(true)}
+            disabled={isScraping || isEditingLabel}
+            title="Rename"
           >
-            {t('cups.uploadFile')}
+            Rename
           </Button>
           <Button
             variant="ghost"

@@ -37,6 +37,7 @@
     "capacity": "Kapacitet",
     "location": "Plats",
     "time": "Tid",
+    "created": "Skapad",
     "updated": "Uppdaterad",
     "notifications": "Notifieringar",
     "contacts": "Kontakter",
@@ -104,7 +105,7 @@
     "newSlot": "Ny slot",
     "editSlot": "Redigera slot",
     "slot": "Slot",
-    "searchPlaceholder": "Sök på namn, plats eller tid...",
+    "searchPlaceholder": "Sök {{count}} slots...",
     "noSlotsMatch": "Inga slots matchar sökningen.",
     "noSlotsYet": "Inga slots än. Klicka \"Lägg till slot\" för att lägga till.",
     "sectionTitle": "Slot",
@@ -184,7 +185,7 @@
     "settingsMatches": "Inställningar - Matcher",
     "subtitleEdit": "Uppdatera matchinformation",
     "subtitleCreate": "Ange nya matchdetaljer",
-    "searchPlaceholder": "Sök på lag, plats, sport eller tid...",
+    "searchPlaceholder": "Sök {{count}} matcher...",
     "quickActions": "Snabbåtgärder",
     "information": "Information",
     "matchNumber": "Editernr",
@@ -298,7 +299,7 @@
     "deleteConfirmNamed": "Är du säker på att du vill ta bort \"{{name}}\"?"
   },
   "contacts": {
-    "searchPlaceholder": "Sök kontakter...",
+    "searchPlaceholder": "Sök {{count}} kontakter...",
     "noMatch": "Inga kontakter matchar sökningen.",
     "noYet": "Inga kontakter än. Klicka \"Lägg till kontakt\" för att komma igång.",
     "addContact": "Lägg till kontakt",
@@ -330,7 +331,7 @@
     "discardTagsMessage": "Du har osparade ändringar i taggar. Vill du kasta dem?"
   },
   "tasks": {
-    "searchPlaceholder": "Sök uppgifter...",
+    "searchPlaceholder": "Sök {{count}} uppgifter...",
     "noMatch": "Inga uppgifter matchar sökningen.",
     "noYet": "Inga uppgifter än. Klicka \"Lägg till uppgift\" för att komma igång.",
     "addTask": "Lägg till uppgift",
@@ -352,7 +353,7 @@
     "removeAssignee": "Ta bort ansvarig"
   },
   "notes": {
-    "searchPlaceholder": "Sök anteckningar...",
+    "searchPlaceholder": "Sök {{count}} anteckningar...",
     "noMatch": "Inga anteckningar matchar sökningen.",
     "noYet": "Inga anteckningar än. Klicka \"Lägg till anteckning\" för att komma igång.",
     "addNote": "Lägg till anteckning",
@@ -539,7 +540,7 @@
     "newCup": "Ny cup",
     "editCup": "Redigera cup",
     "create": "Skapa cup",
-    "search": "Sök cuper...",
+    "search": "Sök {{count}} cuper...",
     "empty": "Inga cuper ännu. Lägg till en källa i Inställningar och skrapa den.",
     "noResults": "Inga cuper matchar din sökning.",
     "name": "Namn",
@@ -578,14 +579,16 @@
     "sourceLabel": "Etikett (valfritt)",
     "sourceLabelPlaceholder": "t.ex. Stockholms FF cuper",
     "scrapeNow": "Skrapa",
-    "uploadFile": "Ladda upp HTML",
+    "uploadFile": "Ladda upp fil",
     "lastScraped": "Senast skrapad",
     "scrapeSuccess": "{{count}} cuper importerade",
+    "scrapeSuccessWithSkipped": "{{count}} nya, {{skipped}} fanns redan",
     "scrapeError": "Skrapning misslyckades",
     "deleteSourceTitle": "Ta bort källa",
     "deleteSourceMessage": "Är du säker på att du vill ta bort denna källa? Importerade cuper behålls.",
     "information": "Information",
-    "quickActions": "Snabbåtgärder"
+    "quickActions": "Snabbåtgärder",
+    "sanctioned": "Sanktionerad"
   },
   "app": {
     "createTaskFromNote": "Skapa uppgift från anteckning",

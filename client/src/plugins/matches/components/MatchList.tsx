@@ -28,6 +28,14 @@ const MATCHES_SETTINGS_KEY = 'matches';
 type ViewMode = 'grid' | 'list';
 type SortField = 'start_time' | 'home_team' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
+const MATCHES_VIEW_MODE_STORAGE_KEY = 'matches:viewMode';
+
+function getInitialViewMode(): ViewMode {
+  if (typeof window === 'undefined') {
+    return 'list';
+  }
+  return window.sessionStorage.getItem(MATCHES_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
+}
 
 export function MatchList() {
   const { t } = useTranslation();
@@ -53,7 +61,7 @@ export function MatchList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('start_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewModeState] = useState<ViewMode>('list');
+  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -63,7 +71,11 @@ export function MatchList() {
     getSettings(MATCHES_SETTINGS_KEY)
       .then((settings: { viewMode?: ViewMode }) => {
         if (!cancelled) {
-          setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+          const nextMode: ViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
+          setViewModeState(nextMode);
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(MATCHES_VIEW_MODE_STORAGE_KEY, nextMode);
+          }
         }
       })
       .catch(() => {});
@@ -75,6 +87,9 @@ export function MatchList() {
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       setViewModeState(mode);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(MATCHES_VIEW_MODE_STORAGE_KEY, mode);
+      }
       updateSettings(MATCHES_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
     },
     [updateSettings],
@@ -192,7 +207,7 @@ export function MatchList() {
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t('matches.searchPlaceholder')}
+              placeholder={t('matches.searchPlaceholder', { count: matches.length })}
               className="h-9 bg-background pl-9 text-xs"
             />
           </div>
@@ -270,14 +285,14 @@ export function MatchList() {
               : 'No matches yet. Click "Add match" to add one.'}
           </Card>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredAndSorted.map((match) => {
               const selected = isSelected(match.id);
               return (
                 <Card
                   key={match.id}
                   className={cn(
-                    'relative p-5 cursor-pointer transition-all flex flex-col min-h-[140px] border-transparent bg-gray-50 dark:bg-gray-900/40',
+                    'relative p-5 cursor-pointer transition-all flex flex-col min-h-[140px] border border-border/70 bg-card shadow-sm',
                     selected
                       ? 'plugin-matches bg-plugin-subtle ring-1 border-plugin-subtle'
                       : 'hover:border-plugin-subtle hover:plugin-matches hover:shadow-md',
@@ -295,7 +310,7 @@ export function MatchList() {
                   role="button"
                   aria-label={`Open ${match.home_team} – ${match.away_team}`}
                 >
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="mb-3 flex items-center justify-between gap-2">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -304,22 +319,29 @@ export function MatchList() {
                       className="cursor-pointer h-4 w-4"
                       aria-label={selected ? 'Deselect' : 'Select'}
                     />
+                    <span className="text-[10px] text-muted-foreground">
+                      {match.sport_type}
+                      {match.format ? ` · ${match.format}` : ''}
+                    </span>
                   </div>
-                  <h3 className="font-semibold text-sm">
+                  <h3 className="text-sm font-semibold">
                     {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
                   </h3>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {match.home_team} – {match.away_team} · {match.sport_type}
-                    {match.format ? ` · ${match.format}` : ''}
-                    {match.total_minutes !== null && match.total_minutes !== undefined
-                      ? ` · ${match.total_minutes} min`
-                      : ''}
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {match.home_team} – {match.away_team}
                   </div>
-                  {match.location && (
-                    <div className="text-xs text-muted-foreground truncate">{match.location}</div>
-                  )}
-                  <div className="text-[10px] text-muted-foreground mt-auto pt-2">
-                    {formatDateTime(match.start_time)}
+                  {match.location && <div className="truncate text-xs text-muted-foreground">{match.location}</div>}
+                  <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+                    <div>{formatDateTime(match.start_time)}</div>
+                    {match.total_minutes !== null && match.total_minutes !== undefined && (
+                      <div>{match.total_minutes} min</div>
+                    )}
+                  </div>
+                  <div className="mt-auto border-t pt-4">
+                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                      <div>Updated: {new Date(match.updated_at).toLocaleDateString('sv-SE')}</div>
+                      <div>Created: {new Date(match.created_at).toLocaleDateString('sv-SE')}</div>
+                    </div>
                   </div>
                 </Card>
               );

@@ -9,6 +9,7 @@ import {
   Search,
   Settings,
   Trash2,
+  X,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,6 +43,14 @@ const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+const NOTES_VIEW_MODE_STORAGE_KEY = 'notes:viewMode';
+
+function getInitialViewMode(): ViewMode {
+  if (typeof window === 'undefined') {
+    return 'list';
+  }
+  return window.sessionStorage.getItem(NOTES_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
+}
 
 function stripHtml(html: string): string {
   if (!html) {
@@ -78,7 +87,7 @@ export const NoteList: React.FC = () => {
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewModeState] = useState<ViewMode>('list');
+  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
   const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('view');
 
   useEffect(() => {
@@ -88,7 +97,11 @@ export const NoteList: React.FC = () => {
         if (cancelled) {
           return;
         }
-        setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+        const nextMode: ViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
+        setViewModeState(nextMode);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(NOTES_VIEW_MODE_STORAGE_KEY, nextMode);
+        }
       })
       .catch(() => {});
     return () => {
@@ -99,6 +112,9 @@ export const NoteList: React.FC = () => {
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       setViewModeState(mode);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(NOTES_VIEW_MODE_STORAGE_KEY, mode);
+      }
       updateSettings(NOTES_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
     },
     [updateSettings],
@@ -285,7 +301,7 @@ export const NoteList: React.FC = () => {
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('notes.searchPlaceholder')}
+              placeholder={t('notes.searchPlaceholder', { count: notes.length })}
               className="h-9 bg-background pl-9 text-xs"
             />
           </div>
@@ -390,37 +406,36 @@ export const NoteList: React.FC = () => {
                   role="button"
                   aria-label={`Open note ${note.title}`}
                 >
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={noteIsSelected}
-                        onChange={() => toggleNoteSelected(note.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={
-                          noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
-                        }
-                      />
-                      <h3 className="line-clamp-1 text-base font-semibold">{note.title}</h3>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <input
+                      type="checkbox"
+                      checked={noteIsSelected}
+                      onChange={() => toggleNoteSelected(note.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-4 w-4 cursor-pointer"
+                      aria-label={noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')}
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      {note.mentions?.length ?? 0} {String(t('notes.mentions')).toLowerCase()}
+                    </span>
+                  </div>
+                  <h3 className="mb-3 line-clamp-1 text-base font-semibold">{note.title}</h3>
+                  <div className="border-t pt-3">
+                    <p className="line-clamp-3 text-xs text-muted-foreground">
+                      {truncateContent(note.content, 150)}
+                    </p>
+                    <div className="mt-3 text-[10px] text-muted-foreground">
+                      {note.mentions && note.mentions.length > 0 ? (
+                        <span className="font-medium plugin-contacts text-plugin">
+                          @{note.mentions[0].contactName}
+                          {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
+                        </span>
+                      ) : (
+                        <span>{t('notes.noMentions')}</span>
+                      )}
                     </div>
                   </div>
-                  <p className="mb-4 line-clamp-3 flex-1 text-sm text-muted-foreground">
-                    {truncateContent(note.content, 150)}
-                  </p>
-                  <div className="mt-auto flex flex-col gap-2 border-t pt-3">
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        {note.mentions && note.mentions.length > 0 ? (
-                          <span className="font-medium plugin-contacts text-plugin">
-                            @{note.mentions[0].contactName}
-                            {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
-                          </span>
-                        ) : (
-                          <span>{t('notes.noMentions')}</span>
-                        )}
-                      </div>
-                    </div>
+                  <div className="mt-auto border-t pt-4">
                     <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
                       <div>
                         {t('common.updated')}: {new Date(note.updatedAt).toLocaleDateString()}

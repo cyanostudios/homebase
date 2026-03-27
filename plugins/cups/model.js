@@ -4,6 +4,34 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 class CupsModel {
   // ─── CUPS ───────────────────────────────────────────────────────────────────
+  constructor() {
+    this._cupsColumnSupportCache = null;
+  }
+
+  async _getCupsColumnSupport(req) {
+    if (this._cupsColumnSupportCache) {
+      return this._cupsColumnSupportCache;
+    }
+    try {
+      const db = Database.get(req);
+      const rows = await db.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_name = 'cups'`,
+        [],
+      );
+      const names = new Set((rows || []).map((r) => String(r.column_name || '').toLowerCase()));
+      this._cupsColumnSupportCache = {
+        visible: names.has('visible'),
+        sanctioned: names.has('sanctioned'),
+      };
+      return this._cupsColumnSupportCache;
+    } catch {
+      // Safe default for modern schema; if not present, insert/update path still handles app flow.
+      this._cupsColumnSupportCache = { visible: true, sanctioned: true };
+      return this._cupsColumnSupportCache;
+    }
+  }
 
   async getAll(req) {
     try {
@@ -37,7 +65,8 @@ class CupsModel {
   async create(req, data) {
     try {
       const db = Database.get(req);
-      const result = await db.insert('cups', this._prepareCupData(data));
+      const columns = await this._getCupsColumnSupport(req);
+      const result = await db.insert('cups', this._prepareCupData(data, { columns }));
       Logger.info('Cup created', { cupId: result.id });
       return this.transformCupRow(result);
     } catch (error) {
@@ -50,7 +79,12 @@ class CupsModel {
   async update(req, id, data) {
     try {
       const db = Database.get(req);
-      const result = await db.update('cups', id, this._prepareCupData(data));
+      const columns = await this._getCupsColumnSupport(req);
+      const result = await db.update(
+        'cups',
+        id,
+        this._prepareCupData(data, { partial: true, columns }),
+      );
       Logger.info('Cup updated', { cupId: id });
       return this.transformCupRow(result);
     } catch (error) {
@@ -121,6 +155,7 @@ class CupsModel {
       const db = Database.get(req);
       const payload = {};
       if ('label' in data) payload.label = data.label?.trim() || null;
+      if ('filename' in data) payload.filename = data.filename?.trim() || null;
       if ('enabled' in data) payload.enabled = Boolean(data.enabled);
       if ('last_scraped_at' in data) payload.last_scraped_at = data.last_scraped_at;
       if ('last_result' in data) payload.last_result = data.last_result;
@@ -148,36 +183,90 @@ class CupsModel {
 
   async insertScrapedCups(req, cups, sourceId) {
     const db = Database.get(req);
+    const userId = req.session?.currentTenantUserId || req.session?.user?.id;
+    const columns = await this._getCupsColumnSupport(req);
     const inserted = [];
+    let skipped = 0;
+
     for (const cup of cups) {
       try {
-        const row = await db.insert('cups', this._prepareCupData({ ...cup, source_id: sourceId }));
-        inserted.push(this.transformCupRow(row));
+        const data = this._prepareCupData({ ...cup, source_id: sourceId }, { columns });
+        const cols = Object.keys(data);
+        const vals = Object.values(data);
+        const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+        const colNames = cols.join(', ');
+        const sql = `
+          INSERT INTO cups (${colNames}, user_id)
+          VALUES (${placeholders}, $${vals.length + 1})
+          ON CONFLICT ON CONSTRAINT cups_source_id_name_unique DO NOTHING
+          RETURNING *
+        `;
+        const rows = await db.query(sql, [...vals, userId]);
+        if (rows && rows.length > 0) {
+          inserted.push(this.transformCupRow(rows[0]));
+        } else {
+          skipped += 1;
+        }
       } catch (err) {
         Logger.warn('Failed to insert scraped cup', { name: cup.name, error: err.message });
       }
     }
-    return inserted;
+    return { inserted, skipped };
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  _prepareCupData(data) {
-    return {
-      name: (data.name || '').toString().trim().slice(0, 500) || 'Unnamed Cup',
-      organizer: data.organizer?.toString().trim().slice(0, 255) || null,
-      region: data.region?.toString().trim().slice(0, 255) || null,
-      location: data.location?.toString().trim().slice(0, 255) || null,
-      sport_type: data.sport_type?.toString().trim().slice(0, 100) || 'football',
-      start_date: data.start_date || null,
-      end_date: data.end_date || null,
-      age_groups: data.age_groups?.toString().trim() || null,
-      registration_url: data.registration_url?.toString().trim().slice(0, 1000) || null,
-      source_url: data.source_url?.toString().trim().slice(0, 1000) || null,
-      source_id: data.source_id ? parseInt(data.source_id, 10) : null,
-      raw_snippet: data.raw_snippet?.toString().trim() || null,
-      scraped_at: data.scraped_at || null,
-    };
+  _prepareCupData(data, options = { partial: false, columns: { visible: true, sanctioned: true } }) {
+    const partial = Boolean(options.partial);
+    const columns = options.columns || { visible: true, sanctioned: true };
+    const has = (key) => Object.prototype.hasOwnProperty.call(data, key);
+    const payload = {};
+    if (!partial || has('name')) {
+      payload.name = (data.name || '').toString().trim().slice(0, 500) || 'Unnamed Cup';
+    }
+    if (!partial || has('organizer')) {
+      payload.organizer = data.organizer?.toString().trim().slice(0, 255) || null;
+    }
+    if (!partial || has('region')) {
+      payload.region = data.region?.toString().trim().slice(0, 255) || null;
+    }
+    if (!partial || has('location')) {
+      payload.location = data.location?.toString().trim().slice(0, 255) || null;
+    }
+    if (!partial || has('sport_type')) {
+      payload.sport_type = data.sport_type?.toString().trim().slice(0, 100) || 'football';
+    }
+    if (!partial || has('start_date')) {
+      payload.start_date = data.start_date || null;
+    }
+    if (!partial || has('end_date')) {
+      payload.end_date = data.end_date || null;
+    }
+    if (!partial || has('age_groups')) {
+      payload.age_groups = data.age_groups?.toString().trim() || null;
+    }
+    if (!partial || has('registration_url')) {
+      payload.registration_url = data.registration_url?.toString().trim().slice(0, 1000) || null;
+    }
+    if (!partial || has('source_url')) {
+      payload.source_url = data.source_url?.toString().trim().slice(0, 1000) || null;
+    }
+    if (!partial || has('source_id')) {
+      payload.source_id = data.source_id ? parseInt(data.source_id, 10) : null;
+    }
+    if (!partial || has('raw_snippet')) {
+      payload.raw_snippet = data.raw_snippet?.toString().trim() || null;
+    }
+    if (!partial || has('scraped_at')) {
+      payload.scraped_at = data.scraped_at || null;
+    }
+    if ((!partial || has('visible')) && columns.visible) {
+      payload.visible = data.visible !== false;
+    }
+    if ((!partial || has('sanctioned')) && columns.sanctioned) {
+      payload.sanctioned = data.sanctioned === true;
+    }
+    return payload;
   }
 
   transformCupRow(row) {
@@ -196,6 +285,8 @@ class CupsModel {
       source_id: row.source_id ? String(row.source_id) : null,
       raw_snippet: row.raw_snippet || null,
       scraped_at: row.scraped_at || null,
+      visible: row.visible !== false,
+      sanctioned: row.sanctioned === true,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

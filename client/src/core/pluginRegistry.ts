@@ -68,6 +68,7 @@ import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 // Estimates
 import { CupForm } from '@/plugins/cups/components/CupForm';
 import { CupList } from '@/plugins/cups/components/CupList';
+import { CupsDashboardWidget } from '@/plugins/cups/components/CupsDashboardWidget';
 import { CupView } from '@/plugins/cups/components/CupView';
 import { CupsProvider } from '@/plugins/cups/context/CupsContext';
 import { useCups } from '@/plugins/cups/hooks/useCupsPlugin';
@@ -93,12 +94,14 @@ import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
 import { invoicesNavigation } from '@/plugins/invoices/navigation';
 // Notes
+import { MailDashboardWidget } from '@/plugins/mail/components/MailDashboardWidget';
 import { MailList } from '@/plugins/mail/components/MailList';
 import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
 import { MailProvider } from '@/plugins/mail/context/MailContext';
 import { useMail } from '@/plugins/mail/hooks/useMail';
 import { MatchForm } from '@/plugins/matches/components/MatchForm';
 import { MatchList } from '@/plugins/matches/components/MatchList';
+import { MatchesDashboardWidget } from '@/plugins/matches/components/MatchesDashboardWidget';
 import { MatchView } from '@/plugins/matches/components/MatchView';
 import { MatchProvider } from '@/plugins/matches/context/MatchContext';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
@@ -109,6 +112,7 @@ import { NoteView } from '@/plugins/notes/components/NoteView';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { PulseList } from '@/plugins/pulses/components/PulseList';
+import { PulsesDashboardWidget } from '@/plugins/pulses/components/PulsesDashboardWidget';
 import { PulseSettingsForm } from '@/plugins/pulses/components/PulseSettingsForm';
 import { PulseProvider } from '@/plugins/pulses/context/PulseContext';
 import { usePulses } from '@/plugins/pulses/hooks/usePulses';
@@ -118,6 +122,7 @@ import { SettingsList } from '@/plugins/settings/components/SettingsList';
 import { SettingsProvider } from '@/plugins/settings/context/SettingsContext';
 import { useSettings } from '@/plugins/settings/hooks/useSettings';
 import { SlotForm } from '@/plugins/slots/components/SlotForm';
+import { SlotsDashboardWidget } from '@/plugins/slots/components/SlotsDashboardWidget';
 import { SlotsList } from '@/plugins/slots/components/SlotsList';
 import { SlotView } from '@/plugins/slots/components/SlotView';
 import { SlotsProvider } from '@/plugins/slots/context/SlotsContext';
@@ -259,6 +264,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Trophy,
       order: 4,
     },
+    dashboardWidget: MatchesDashboardWidget,
     displayPrefix: 'MAT',
   },
   {
@@ -277,6 +283,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Award,
       order: 6,
     },
+    dashboardWidget: CupsDashboardWidget,
     displayPrefix: 'CUP',
   },
   {
@@ -295,6 +302,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Store,
       order: 5,
     },
+    dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
   },
   {
@@ -312,6 +320,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Mail,
       order: 1,
     },
+    dashboardWidget: MailDashboardWidget,
     displayPrefix: 'MAIL',
   },
   {
@@ -329,6 +338,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Bell,
       order: 2,
     },
+    dashboardWidget: PulsesDashboardWidget,
     displayPrefix: 'PULSE',
   },
   {

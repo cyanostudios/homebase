@@ -13,6 +13,8 @@ export interface Cup {
   source_id: string | null;
   raw_snippet: string | null;
   scraped_at: string | null;
+  visible: boolean;
+  sanctioned: boolean;
   created_at: string;
   updated_at: string;
 }

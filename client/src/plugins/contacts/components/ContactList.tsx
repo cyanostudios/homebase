@@ -47,6 +47,14 @@ import { ContactSettingsView } from './ContactSettingsView';
 type SortField = 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+const CONTACTS_VIEW_MODE_STORAGE_KEY = 'contacts:viewMode';
+
+function getInitialViewMode(): ViewMode {
+  if (typeof window === 'undefined') {
+    return 'list';
+  }
+  return window.sessionStorage.getItem(CONTACTS_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
+}
 
 const CONTACTS_SETTINGS_KEY = 'contacts';
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
@@ -83,7 +91,7 @@ export const ContactList: React.FC = () => {
 
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [viewMode, setViewModeState] = useState<ViewMode>('list');
+  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,7 +100,11 @@ export const ContactList: React.FC = () => {
         if (cancelled) {
           return;
         }
-        setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+        const nextMode: ViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
+        setViewModeState(nextMode);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(CONTACTS_VIEW_MODE_STORAGE_KEY, nextMode);
+        }
       })
       .catch(() => {});
     return () => {
@@ -103,6 +115,9 @@ export const ContactList: React.FC = () => {
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       setViewModeState(mode);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(CONTACTS_VIEW_MODE_STORAGE_KEY, mode);
+      }
       updateSettings(CONTACTS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
     },
     [updateSettings],
@@ -306,7 +321,7 @@ export const ContactList: React.FC = () => {
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t('contacts.searchPlaceholder')}
+              placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
               className="h-9 bg-background pl-9 text-xs"
             />
           </div>
@@ -420,14 +435,14 @@ export const ContactList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {sortedContacts.map((contact) => {
                 const contactIsSelected = isSelected(contact.id);
                 return (
                   <Card
                     key={contact.id}
                     className={cn(
-                      'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent bg-gray-50 dark:bg-gray-900/40',
+                      'relative p-5 cursor-pointer transition-all flex flex-col min-h-[160px] border border-border/70 bg-card shadow-sm',
                       contactIsSelected
                         ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
                         : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
@@ -445,47 +460,52 @@ export const ContactList: React.FC = () => {
                     role="button"
                     aria-label={`Open contact ${contact.companyName}`}
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <input
+                        type="checkbox"
+                        checked={contactIsSelected}
+                        onChange={() => toggleContactSelected(contact.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer h-4 w-4"
+                        aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                      />
                       <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={contactIsSelected}
-                          onChange={() => toggleContactSelected(contact.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="cursor-pointer h-4 w-4"
-                          aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
-                        />
                         <span className="font-mono text-[10px] text-muted-foreground">
                           {formatDisplayNumber('contacts', contact.id)}
                         </span>
+                        <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
+                          {contact.contactType === 'company' ? 'Company' : 'Private'}
+                        </Badge>
                       </div>
-                      <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
-                        {contact.contactType === 'company' ? 'Company' : 'Private'}
-                      </Badge>
                     </div>
-                    <h3 className="font-semibold text-base mb-1 line-clamp-1">
-                      {contact.companyName}
-                    </h3>
-                    <div className="text-xs text-muted-foreground mb-4">
-                      {contact.contactType === 'company' && contact.organizationNumber && (
-                        <span>Org: {contact.organizationNumber}</span>
-                      )}
-                      {contact.contactType === 'private' && contact.personalNumber && (
-                        <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
-                      <div className="flex items-center gap-2 text-xs">
-                        <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                        <span className="truncate">{contact.email}</span>
+                    <h3 className="mb-2 line-clamp-1 text-base font-semibold">{contact.companyName}</h3>
+                    {(contact.organizationNumber || contact.personalNumber) && (
+                      <div className="mb-3 text-xs text-muted-foreground">
+                        {contact.contactType === 'company' && contact.organizationNumber && (
+                          <span>Org: {contact.organizationNumber}</span>
+                        )}
+                        {contact.contactType === 'private' && contact.personalNumber && (
+                          <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
+                        )}
                       </div>
-                      {contact.phone && (
+                    )}
+                    <div className="border-t pt-3">
+                      <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 text-xs">
-                          <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                          <span>{contact.phone}</span>
+                          <Mail className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                          <span className="truncate">{contact.email}</span>
                         </div>
-                      )}
-                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground mt-1 pt-2 border-t border-dashed">
+                        {contact.phone && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <Phone className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                            <span>{contact.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-auto border-t pt-4">
+                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                        <div>Updated: {new Date(contact.updatedAt).toLocaleDateString()}</div>
                         <div>Created: {new Date(contact.createdAt).toLocaleDateString()}</div>
                       </div>
                     </div>

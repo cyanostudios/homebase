@@ -1,12 +1,12 @@
 import {
   ArrowDown,
   ArrowUp,
-  Award,
   Grid3x3,
   List,
   Plus,
   Search,
   Settings,
+  SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
 import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
@@ -28,15 +28,44 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { cn } from '@/lib/utils';
 
 import { useCups } from '../context/CupsContext';
+import { cleanCupName } from '../utils/cupName';
 
+import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import { CupSettingsView } from './CupSettingsView';
 
-type SortField = 'name' | 'start_date' | 'region' | 'organizer';
+type SortField = 'name' | 'start_date' | 'region';
 type SortOrder = 'asc' | 'desc';
 
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
+const CUPS_VIEW_MODE_STORAGE_KEY = 'cups:viewMode';
+
+function getInitialViewMode(): 'grid' | 'list' {
+  if (typeof window === 'undefined') {
+    return 'list';
+  }
+  return window.sessionStorage.getItem(CUPS_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
+}
 
 export function CupList() {
+  const sourceLabel = useCallback((sourceUrl: string | null) => {
+    if (!sourceUrl) {
+      return '—';
+    }
+    if (sourceUrl.startsWith('file://')) {
+      const filename = sourceUrl
+        .replace(/^file:\/\//, '')
+        .split('/')
+        .pop();
+      return filename || sourceUrl;
+    }
+    try {
+      const url = new URL(sourceUrl);
+      return url.hostname.replace(/^www\./, '') || sourceUrl;
+    } catch {
+      return sourceUrl;
+    }
+  }, []);
+
   const { t } = useTranslation();
   const {
     cups,
@@ -46,6 +75,7 @@ export function CupList() {
     openCupSettings,
     closeCupSettingsView,
     deleteCup,
+    refreshCups,
     selectedCupIds,
     toggleCupSelected,
     selectAllCups,
@@ -58,9 +88,29 @@ export function CupList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('start_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewModeState] = useState<'grid' | 'list'>(getInitialViewMode);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkPropertiesDialog, setShowBulkPropertiesDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const setViewMode = useCallback((mode: 'grid' | 'list') => {
+    setViewModeState(mode);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(CUPS_VIEW_MODE_STORAGE_KEY, mode);
+    }
+  }, []);
+
+  const cupHasStructuredFields = useCallback(
+    (cup: (typeof cups)[number]) =>
+      Boolean(
+        cup.start_date ||
+          cup.end_date ||
+          cup.region ||
+          cup.location ||
+          cup.organizer ||
+          cup.age_groups,
+      ),
+    [],
+  );
 
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
@@ -93,10 +143,6 @@ export function CupList() {
         case 'region':
           aVal = (a.region ?? '').toLowerCase();
           bVal = (b.region ?? '').toLowerCase();
-          break;
-        case 'organizer':
-          aVal = (a.organizer ?? '').toLowerCase();
-          bVal = (b.organizer ?? '').toLowerCase();
           break;
         default:
           aVal = '';
@@ -144,6 +190,10 @@ export function CupList() {
       setDeleting(false);
     }
   }, [deleteCup, selectedCupIds]);
+  const selectedCups = useMemo(
+    () => cups.filter((c) => selectedCupIds.includes(c.id)),
+    [cups, selectedCupIds],
+  );
 
   const sortIcon = (field: SortField) => {
     if (sortField !== field) {
@@ -188,7 +238,7 @@ export function CupList() {
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('cups.search')}
+              placeholder={t('cups.search', { count: cups.length })}
               className="h-9 bg-background pl-9 text-xs"
             />
           </div>
@@ -242,6 +292,11 @@ export function CupList() {
             onClearSelection={clearCupSelection}
             actions={[
               {
+                label: t('slots.properties'),
+                icon: SlidersHorizontal,
+                onClick: () => setShowBulkPropertiesDialog(true),
+              },
+              {
                 label: t('common.delete'),
                 icon: Trash2,
                 onClick: () => setShowBulkDeleteModal(true),
@@ -279,7 +334,7 @@ export function CupList() {
                   }}
                   role="button"
                 >
-                  <div className="mb-2 flex items-start justify-between">
+                  <div className="mb-3 flex items-center justify-between gap-2">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -288,15 +343,29 @@ export function CupList() {
                       className="h-4 w-4 cursor-pointer"
                       aria-label={selected ? t('common.deselect') : t('common.select')}
                     />
+                    {cup.raw_snippet && !cupHasStructuredFields(cup) && (
+                      <span className="inline-flex rounded-md border border-border/60 bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Raw
+                      </span>
+                    )}
                   </div>
-                  <h3 className="text-sm font-semibold">{cup.name}</h3>
-                  {cup.region && (
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{cup.region}</p>
-                  )}
-                  <div className="mt-2 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                    {cup.start_date && <span>{cup.start_date}</span>}
-                    {cup.organizer && <span>{cup.organizer}</span>}
-                    {cup.age_groups && <span>{cup.age_groups}</span>}
+                  <h3 className="text-sm font-semibold">{cleanCupName(cup.name)}</h3>
+                  {cup.region && <p className="mt-0.5 truncate text-xs text-muted-foreground">{cup.region}</p>}
+                  <div className="mt-3 border-t pt-3">
+                    {cup.raw_snippet && (
+                      <p className="line-clamp-2 text-[11px] text-muted-foreground/90">{cup.raw_snippet}</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                      {cup.start_date && <span>{cup.start_date}</span>}
+                      {cup.organizer && <span>{cup.organizer}</span>}
+                      {cup.age_groups && <span>{cup.age_groups}</span>}
+                    </div>
+                  </div>
+                  <div className="mt-auto border-t pt-4">
+                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                      <div>Updated: {new Date(cup.updated_at).toLocaleDateString('sv-SE')}</div>
+                      <div>Created: {new Date(cup.created_at).toLocaleDateString('sv-SE')}</div>
+                    </div>
                   </div>
                 </Card>
               );
@@ -347,15 +416,8 @@ export function CupList() {
                       {sortIcon('start_date')}
                     </div>
                   </TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
-                    onClick={() => handleSortClick('organizer')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{t('cups.organizer')}</span>
-                      {sortIcon('organizer')}
-                    </div>
-                  </TableHead>
+                  <TableHead>{t('common.visible')}</TableHead>
+                  <TableHead>{t('cups.source')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -386,8 +448,12 @@ export function CupList() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Award className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="font-medium">{cup.name}</span>
+                        <span className="font-medium">{cleanCupName(cup.name)}</span>
+                        {cup.raw_snippet && !cupHasStructuredFields(cup) && (
+                          <span className="inline-flex rounded-md border border-border/60 bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Raw
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -397,7 +463,10 @@ export function CupList() {
                       {cup.start_date ?? '—'}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {cup.organizer ?? '—'}
+                      {cup.visible ? t('common.yes') : t('common.no')}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {sourceLabel(cup.source_url)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -414,6 +483,15 @@ export function CupList() {
         itemCount={selectedCount}
         itemLabel="cups"
         isLoading={deleting}
+      />
+      <BulkPropertiesDialog
+        isOpen={showBulkPropertiesDialog}
+        onClose={() => setShowBulkPropertiesDialog(false)}
+        selectedCups={selectedCups}
+        onSuccess={async () => {
+          await refreshCups();
+          clearCupSelection();
+        }}
       />
     </div>
   );

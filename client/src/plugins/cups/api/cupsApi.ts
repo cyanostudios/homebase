@@ -16,6 +16,8 @@ function rowToCup(row: Record<string, unknown>): Cup {
     source_id: row.source_id !== null ? String(row.source_id) : null,
     raw_snippet: (row.raw_snippet as string) ?? null,
     scraped_at: (row.scraped_at as string) ?? null,
+    visible: row.visible !== false,
+    sanctioned: row.sanctioned === true,
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
   };
@@ -121,16 +123,32 @@ class CupsApi {
     await this.request(`/cups/settings/sources/${id}`, { method: 'DELETE' });
   }
 
+  async uploadSourceFile(id: string, file: File): Promise<CupSource> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`/api/cups/settings/sources/${id}/upload-file`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Network error' }));
+      throw new Error(error.error || 'Upload failed');
+    }
+    const row = await response.json();
+    return rowToSource(row);
+  }
+
   // ─── SCRAPE ─────────────────────────────────────────────────────────────────
 
-  async scrapeSource(id: string): Promise<{ ok: boolean; found: number; inserted: number }> {
+  async scrapeSource(id: string): Promise<{ ok: boolean; found: number; inserted: number; skipped: number }> {
     return this.request(`/cups/settings/sources/${id}/scrape`, { method: 'POST' });
   }
 
   async scrapeFile(
     id: string,
     file: File,
-  ): Promise<{ ok: boolean; found: number; inserted: number }> {
+  ): Promise<{ ok: boolean; found: number; inserted: number; skipped: number }> {
     const formData = new FormData();
     formData.append('file', file);
     const response = await fetch(`/api/cups/settings/sources/${id}/scrape-file`, {

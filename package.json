@@ -39,6 +39,9 @@
     "migrate:slot-bookings": "node scripts/run-slot-bookings-migration.js",
     "migrate:slots-description-name-address": "node scripts/run-slots-description-name-address-migration.js",
     "migrate:slots-category": "node scripts/run-slots-category-migration.js",
+    "migrate:cups-visible": "node scripts/run-cups-visible-migration.js",
+    "migrate:cups-sanctioned": "node scripts/run-cups-sanctioned-migration.js",
+    "migrate:cups-unique": "node scripts/run-cups-unique-migration.js",
     "twilio": "npm install twilio"
   },
   "dependencies": {
@@ -118,6 +121,7 @@
     "openid-client": "^6.5.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "pdf-parse": "^1.1.1",
     "pg": "^8.16.3",
     "puppeteer": "^24.15.0",
     "react": "^18.3.1",

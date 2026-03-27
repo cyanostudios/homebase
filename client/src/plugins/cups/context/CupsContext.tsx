@@ -16,6 +16,7 @@ import { useItemUrl } from '@/core/hooks/useItemUrl';
 
 import { cupsApi } from '../api/cupsApi';
 import { Cup, CupSource } from '../types/cup';
+import { cleanCupName } from '../utils/cupName';
 
 interface CupsContextType {
   isCupPanelOpen: boolean;
@@ -37,10 +38,13 @@ interface CupsContextType {
   deleteCup: (id: string) => Promise<void>;
 
   fetchSources: () => Promise<void>;
-  createSource: (data: { type: 'url' | 'file'; url?: string; label?: string }) => Promise<void>;
+  createSource: (data: { type: 'url' | 'file'; url?: string; label?: string }) => Promise<CupSource>;
+  uploadSourceFile: (id: string, file: File) => Promise<CupSource>;
+  updateSource: (id: string, data: Partial<CupSource>) => Promise<CupSource>;
   deleteSource: (id: string) => Promise<void>;
-  scrapeSource: (id: string) => Promise<{ inserted: number }>;
-  scrapeFile: (id: string, file: File) => Promise<{ inserted: number }>;
+  scrapeSource: (id: string) => Promise<{ inserted: number; skipped: number }>;
+  scrapeFile: (id: string, file: File) => Promise<{ inserted: number; skipped: number }>;
+  refreshCups: () => Promise<void>;
 
   selectedCupIds: string[];
   toggleCupSelected: (id: string) => void;
@@ -54,6 +58,12 @@ interface CupsContextType {
   recentlyDuplicatedCupId: string | null;
   setRecentlyDuplicatedCupId: (id: string | null) => void;
   scrapingSourceId: string | null;
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const CupsContext = createContext<CupsContextType | null>(null);
@@ -99,6 +109,9 @@ export function CupsProvider({
       console.error('Failed to fetch cups', err);
     }
   }, []);
+  const refreshCups = useCallback(async () => {
+    await fetchCups();
+  }, [fetchCups]);
 
   useEffect(() => {
     fetchCups();
@@ -156,6 +169,31 @@ export function CupsProvider({
     setPanelMode('view');
     setIsCupPanelOpen(true);
   }, []);
+
+  const currentItemIndex = currentCup ? cups.findIndex((c) => c.id === currentCup.id) : -1;
+  const totalItems = cups.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
+    const prev = cups[currentItemIndex - 1];
+    if (prev) {
+      openCupForView(prev);
+    }
+  }, [hasPrevItem, currentItemIndex, cups, openCupForView]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= cups.length - 1) {
+      return;
+    }
+    const next = cups[currentItemIndex + 1];
+    if (next) {
+      openCupForView(next);
+    }
+  }, [hasNextItem, currentItemIndex, cups, openCupForView]);
 
   const openCupSettings = useCallback(() => {
     setCupsContentView('settings');
@@ -219,9 +257,22 @@ export function CupsProvider({
     async (data: { type: 'url' | 'file'; url?: string; label?: string }) => {
       const source = await cupsApi.createSource(data);
       setSources((prev) => [...prev, source]);
+      return source;
     },
     [],
   );
+
+  const uploadSourceFile = useCallback(async (id: string, file: File) => {
+    const updated = await cupsApi.uploadSourceFile(id, file);
+    setSources((prev) => prev.map((s) => (s.id === id ? updated : s)));
+    return updated;
+  }, []);
+
+  const updateSource = useCallback(async (id: string, data: Partial<CupSource>) => {
+    const updated = await cupsApi.updateSource(id, data);
+    setSources((prev) => prev.map((s) => (s.id === id ? updated : s)));
+    return updated;
+  }, []);
 
   const deleteSource = useCallback(async (id: string) => {
     await cupsApi.deleteSource(id);
@@ -245,7 +296,7 @@ export function CupsProvider({
           ),
         );
         await fetchCups();
-        return { inserted: result.inserted };
+        return { inserted: result.inserted, skipped: result.skipped ?? 0 };
       } finally {
         setScrapingSourceId(null);
       }
@@ -269,13 +320,14 @@ export function CupsProvider({
               : s,
           ),
         );
+        await fetchSources();
         await fetchCups();
-        return { inserted: result.inserted };
+        return { inserted: result.inserted, skipped: result.skipped ?? 0 };
       } finally {
         setScrapingSourceId(null);
       }
     },
-    [fetchCups],
+    [fetchCups, fetchSources],
   );
 
   // ─── UI helpers ───────────────────────────────────────────────────────────
@@ -290,9 +342,9 @@ export function CupsProvider({
       return t('cups.newCup');
     }
     if (panelMode === 'edit') {
-      return currentCup?.name ?? t('cups.editCup');
+      return cleanCupName(currentCup?.name) || t('cups.editCup');
     }
-    return currentCup?.name ?? t('cups.cup');
+    return cleanCupName(currentCup?.name) || t('cups.cup');
   }, [panelMode, currentCup, t]);
 
   return (
@@ -314,9 +366,12 @@ export function CupsProvider({
         deleteCup,
         fetchSources,
         createSource,
+        uploadSourceFile,
+        updateSource,
         deleteSource,
         scrapeSource,
         scrapeFile,
+        refreshCups,
         selectedCupIds,
         toggleCupSelected,
         selectAllCups,
@@ -328,6 +383,12 @@ export function CupsProvider({
         recentlyDuplicatedCupId,
         setRecentlyDuplicatedCupId,
         scrapingSourceId,
+        navigateToPrevItem,
+        navigateToNextItem,
+        hasPrevItem,
+        hasNextItem,
+        currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+        totalItems,
       }}
     >
       {children}

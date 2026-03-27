@@ -37,6 +37,7 @@
     "capacity": "Capacity",
     "location": "Location",
     "time": "Time",
+    "created": "Created",
     "updated": "Updated",
     "notifications": "Notifications",
     "contacts": "Contacts",
@@ -104,7 +105,7 @@
     "newSlot": "New slot",
     "editSlot": "Edit slot",
     "slot": "Slot",
-    "searchPlaceholder": "Search by name, location or time...",
+    "searchPlaceholder": "Search {{count}} slots...",
     "noSlotsMatch": "No slots match your search.",
     "noSlotsYet": "No slots yet. Click \"Add Slot\" to add one.",
     "sectionTitle": "Slot",
@@ -184,7 +185,7 @@
     "settingsMatches": "Settings - Matches",
     "subtitleEdit": "Update match information",
     "subtitleCreate": "Enter new match details",
-    "searchPlaceholder": "Search by teams, location, sport, or time...",
+    "searchPlaceholder": "Search {{count}} matches...",
     "quickActions": "Quick actions",
     "information": "Information",
     "matchNumber": "Match #",
@@ -298,7 +299,7 @@
     "deleteConfirmNamed": "Are you sure you want to delete \"{{name}}\"?"
   },
   "contacts": {
-    "searchPlaceholder": "Search contacts...",
+    "searchPlaceholder": "Search {{count}} contacts...",
     "noMatch": "No contacts found matching your search.",
     "noYet": "No contacts yet. Click \"Add Contact\" to get started.",
     "addContact": "Add Contact",
@@ -330,7 +331,7 @@
     "discardTagsMessage": "You have unsaved changes to tags. Do you want to discard them?"
   },
   "tasks": {
-    "searchPlaceholder": "Search tasks...",
+    "searchPlaceholder": "Search {{count}} tasks...",
     "noMatch": "No tasks found matching your search.",
     "noYet": "No tasks yet. Click \"Add Task\" to get started.",
     "addTask": "Add Task",
@@ -352,7 +353,7 @@
     "removeAssignee": "Remove assignee"
   },
   "notes": {
-    "searchPlaceholder": "Search notes...",
+    "searchPlaceholder": "Search {{count}} notes...",
     "noMatch": "No notes found matching your search.",
     "noYet": "No notes yet. Click \"Add Note\" to get started.",
     "addNote": "Add Note",
@@ -546,7 +547,7 @@
     "newCup": "New Cup",
     "editCup": "Edit Cup",
     "create": "Create Cup",
-    "search": "Search cups...",
+    "search": "Search {{count}} cups...",
     "empty": "No cups yet. Add a source in Settings and scrape it.",
     "noResults": "No cups match your search.",
     "name": "Name",
@@ -585,13 +586,15 @@
     "sourceLabel": "Label (optional)",
     "sourceLabelPlaceholder": "e.g. Stockholms FF cups",
     "scrapeNow": "Scrape",
-    "uploadFile": "Upload HTML",
+    "uploadFile": "Upload file",
     "lastScraped": "Last scraped",
     "scrapeSuccess": "{{count}} cups imported",
+    "scrapeSuccessWithSkipped": "{{count}} new, {{skipped}} already existed",
     "scrapeError": "Scrape failed",
     "deleteSourceTitle": "Remove source",
     "deleteSourceMessage": "Are you sure you want to remove this source? Imported cups will remain.",
     "information": "Information",
-    "quickActions": "Quick actions"
+    "quickActions": "Quick actions",
+    "sanctioned": "Sanctioned"
   }
 }

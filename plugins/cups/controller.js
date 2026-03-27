@@ -2,10 +2,88 @@
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const { scrapeUrl, scrapeHtml } = require('./scraper');
+const fs = require('fs');
+const path = require('path');
+
+const uploadRoot = path.join(process.cwd(), 'server', 'uploads', 'cups-scrape');
+
+function ensureDirSync(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
 
 class CupsController {
   constructor(model) {
     this.model = model;
+  }
+
+  _normalizePdfText(text) {
+    return String(text || '')
+      .replace(/\r/g, '\n')
+      .replace(/-\n(?=\p{L})/gu, '') // repair hyphenated line-break words
+      .replace(/\u00a0/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  _sanitizeFilename(name) {
+    return String(name || 'source-file')
+      .replace(/[^a-zA-Z0-9._-]/g, '-')
+      .replace(/-+/g, '-')
+      .slice(-220);
+  }
+
+  _resolveStoredFilePath(filename) {
+    const safeName = path.basename(String(filename || ''));
+    if (!safeName) return null;
+    return path.join(uploadRoot, safeName);
+  }
+
+  async _scrapeCupsFromFilePath(filePath, displayName) {
+    const lowerName = String(displayName || path.basename(filePath)).toLowerCase();
+    const isPdf = lowerName.endsWith('.pdf');
+    if (isPdf) {
+      const pdfParse = require('pdf-parse');
+      const fileBuffer = fs.readFileSync(filePath);
+      const parsed = await pdfParse(fileBuffer);
+      const text = this._normalizePdfText(parsed?.text || '');
+      const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const pseudoHtml = `<main><h1>${displayName || path.basename(filePath)}</h1><article><pre>${escaped}</pre></article></main>`;
+      return scrapeHtml(pseudoHtml, displayName || path.basename(filePath));
+    }
+    const html = fs.readFileSync(filePath, 'utf8');
+    return scrapeHtml(html, displayName || path.basename(filePath));
+  }
+
+  async _storeSourceFile(req, sourceId, file) {
+    const sources = await this.model.getAllSources(req);
+    const source = sources.find((s) => String(s.id) === String(sourceId));
+    if (!source) {
+      throw new AppError('Source not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    if (source.type !== 'file') {
+      throw new AppError('Source is not a file source', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    if (source.filename) {
+      const previousPath = this._resolveStoredFilePath(source.filename);
+      if (previousPath && fs.existsSync(previousPath)) {
+        fs.unlink(previousPath, () => {});
+      }
+    }
+
+    ensureDirSync(uploadRoot);
+    const originalBase = path.basename(file.originalname || 'upload-file');
+    const storedName = `source-${sourceId}-${Date.now()}-${this._sanitizeFilename(originalBase)}`;
+    const storedPath = path.join(uploadRoot, storedName);
+    fs.copyFileSync(file.path, storedPath);
+
+    const updated = await this.model.updateSource(req, sourceId, {
+      filename: storedName,
+      last_result: 'File uploaded',
+    });
+    return { source: updated, storedPath, displayName: file.originalname || storedName };
   }
 
   // ─── CUPS ────────────────────────────────────────────────────────────────────
@@ -135,6 +213,14 @@ class CupsController {
 
   async deleteSource(req, res) {
     try {
+      const sources = await this.model.getAllSources(req);
+      const source = sources.find((s) => String(s.id) === String(req.params.id));
+      if (source?.filename) {
+        const storedFilePath = this._resolveStoredFilePath(source.filename);
+        if (storedFilePath && fs.existsSync(storedFilePath)) {
+          fs.unlink(storedFilePath, () => {});
+        }
+      }
       await this.model.deleteSource(req, req.params.id);
       res.json({ message: 'Source deleted successfully' });
     } catch (error) {
@@ -167,15 +253,23 @@ class CupsController {
         }
         cups = await scrapeUrl(source.url);
       } else {
-        return res.status(400).json({ error: 'Use the /scrape-file endpoint for file sources' });
+        const storedFilePath = this._resolveStoredFilePath(source.filename);
+        if (!storedFilePath || !fs.existsSync(storedFilePath)) {
+          return res.status(400).json({ error: 'No uploaded file found for this source' });
+        }
+        cups = await this._scrapeCupsFromFilePath(storedFilePath, source.filename);
       }
 
-      const inserted = await this.model.insertScrapedCups(req, cups, parseInt(id, 10));
+      const { inserted, skipped } = await this.model.insertScrapedCups(req, cups, parseInt(id, 10));
+      const resultLabel =
+        skipped > 0
+          ? `${inserted.length} new, ${skipped} already existed`
+          : `${inserted.length} cups found`;
       await this.model.updateSource(req, id, {
         last_scraped_at: new Date().toISOString(),
-        last_result: `${inserted.length} cups found`,
+        last_result: resultLabel,
       });
-      return res.json({ ok: true, found: cups.length, inserted: inserted.length });
+      return res.json({ ok: true, found: cups.length, inserted: inserted.length, skipped });
     } catch (error) {
       Logger.error('Scrape source failed', error, { sourceId: id });
       await this.model
@@ -194,24 +288,44 @@ class CupsController {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    const fs = require('fs');
-    const path = require('path');
     const filePath = req.file.path;
 
     try {
-      const html = fs.readFileSync(filePath, 'utf8');
-      const cups = scrapeHtml(html, req.file.originalname || path.basename(filePath));
-      const inserted = await this.model.insertScrapedCups(req, cups, parseInt(id, 10));
+      const { source, storedPath, displayName } = await this._storeSourceFile(req, id, req.file);
+      const cups = await this._scrapeCupsFromFilePath(storedPath, displayName);
+      const { inserted, skipped } = await this.model.insertScrapedCups(req, cups, parseInt(id, 10));
+      const resultLabel =
+        skipped > 0
+          ? `${inserted.length} new, ${skipped} already existed`
+          : `${inserted.length} cups from file`;
       await this.model.updateSource(req, id, {
+        filename: source.filename,
         last_scraped_at: new Date().toISOString(),
-        last_result: `${inserted.length} cups from file`,
+        last_result: resultLabel,
       });
-      return res.json({ ok: true, found: cups.length, inserted: inserted.length });
+      return res.json({ ok: true, found: cups.length, inserted: inserted.length, skipped });
     } catch (error) {
       Logger.error('Scrape file failed', error, { sourceId: id });
       return res.status(500).json({ error: 'File parse failed', message: error.message });
     } finally {
       fs.unlink(filePath, () => {});
+    }
+  }
+
+  async uploadSourceFile(req, res) {
+    const { id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    try {
+      const { source } = await this._storeSourceFile(req, id, req.file);
+      return res.json(source);
+    } catch (error) {
+      Logger.error('Upload source file failed', error, { sourceId: id });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'File upload failed', message: error.message });
+    } finally {
+      fs.unlink(req.file.path, () => {});
     }
   }
 }

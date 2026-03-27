@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const config = require('./plugin.config');
-const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { commonRules, validateRequest, body } = require('../../server/core/middleware/validation');
 
 function ensureDirSync(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -24,11 +24,19 @@ function createCupsRoutes(controller, context) {
     dest: uploadRoot,
     limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
     fileFilter(_req, file, cb) {
-      const allowed = ['text/html', 'text/plain', 'text/csv'];
-      if (allowed.includes(file.mimetype) || file.originalname.endsWith('.html')) {
+      const allowed = ['text/html', 'text/plain', 'text/csv', 'application/pdf'];
+      const lower = (file.originalname || '').toLowerCase();
+      if (
+        allowed.includes(file.mimetype) ||
+        lower.endsWith('.html') ||
+        lower.endsWith('.htm') ||
+        lower.endsWith('.txt') ||
+        lower.endsWith('.csv') ||
+        lower.endsWith('.pdf')
+      ) {
         cb(null, true);
       } else {
-        cb(new Error('Only HTML/text files are allowed for scraping'));
+        cb(new Error('Only HTML/text/CSV/PDF files are allowed for scraping'));
       }
     },
   });
@@ -68,6 +76,15 @@ function createCupsRoutes(controller, context) {
   );
 
   router.post(
+    '/settings/sources/:id/upload-file',
+    gate,
+    commonRules.id('id'),
+    validateRequest,
+    upload.single('file'),
+    (req, res) => controller.uploadSourceFile(req, res),
+  );
+
+  router.post(
     '/settings/sources/:id/scrape-file',
     gate,
     commonRules.id('id'),
@@ -101,6 +118,8 @@ function createCupsRoutes(controller, context) {
     commonRules.optionalUrl('registration_url', 1000),
     commonRules.optionalUrl('source_url', 1000),
     commonRules.optionalString('raw_snippet', 200000),
+    body('visible').optional().isBoolean().toBoolean(),
+    body('sanctioned').optional().isBoolean().toBoolean(),
     validateRequest,
     (req, res) => controller.create(req, res),
   );
@@ -124,6 +143,8 @@ function createCupsRoutes(controller, context) {
     commonRules.optionalUrl('registration_url', 1000),
     commonRules.optionalUrl('source_url', 1000),
     commonRules.optionalString('raw_snippet', 200000),
+    body('visible').optional().isBoolean().toBoolean(),
+    body('sanctioned').optional().isBoolean().toBoolean(),
     validateRequest,
     (req, res) => controller.update(req, res),
   );

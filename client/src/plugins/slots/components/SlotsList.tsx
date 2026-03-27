@@ -59,6 +59,14 @@ import { SlotsSettingsView } from './SlotsSettingsView';
 type SortField = 'name' | 'slot_time' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
+const SLOTS_VIEW_MODE_STORAGE_KEY = 'slots:viewMode';
+
+function getInitialViewMode(): SlotsViewMode {
+  if (typeof window === 'undefined') {
+    return 'list';
+  }
+  return window.sessionStorage.getItem(SLOTS_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
+}
 
 export function SlotsList() {
   const { t } = useTranslation();
@@ -89,7 +97,7 @@ export function SlotsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('slot_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [viewMode, setViewModeState] = useState<SlotsViewMode>('list');
+  const [viewMode, setViewModeState] = useState<SlotsViewMode>(getInitialViewMode);
   const [settingsCategory, setSettingsCategory] = useState<'view' | 'categories'>('view');
 
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -112,7 +120,11 @@ export function SlotsList() {
     getSettings(SLOTS_SETTINGS_KEY)
       .then((settings: { viewMode?: SlotsViewMode }) => {
         if (!cancelled) {
-          setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+          const nextMode: SlotsViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
+          setViewModeState(nextMode);
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(SLOTS_VIEW_MODE_STORAGE_KEY, nextMode);
+          }
         }
       })
       .catch(() => {});
@@ -124,6 +136,9 @@ export function SlotsList() {
   const setViewMode = useCallback(
     (mode: SlotsViewMode) => {
       setViewModeState(mode);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(SLOTS_VIEW_MODE_STORAGE_KEY, mode);
+      }
       updateSettings(SLOTS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
     },
     [updateSettings],
@@ -345,7 +360,7 @@ export function SlotsList() {
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t('slots.searchPlaceholder')}
+              placeholder={t('slots.searchPlaceholder', { count: slots.length })}
               className="h-9 bg-background pl-9 text-xs"
             />
           </div>
@@ -461,7 +476,7 @@ export function SlotsList() {
                   }}
                   role="button"
                 >
-                  <div className="mb-2 flex items-start justify-between">
+                  <div className="mb-3 flex items-center justify-between gap-2">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -470,20 +485,17 @@ export function SlotsList() {
                       className="h-4 w-4 cursor-pointer"
                       aria-label={selected ? t('common.deselect') : t('common.select')}
                     />
-                  </div>
-                  <h3 className="text-sm font-semibold">{slot.location || '—'}</h3>
-                  {slot.category?.trim() && (
-                    <div className="mt-1">
+                    {slot.category?.trim() && (
                       <Badge variant="secondary" className="h-5 px-2 text-[10px]">
                         {slot.category.trim()}
                       </Badge>
-                    </div>
-                  )}
-                  <div className="mt-1 text-xs text-muted-foreground">
+                    )}
+                  </div>
+                  <h3 className="text-sm font-semibold">{slot.location || '—'}</h3>
+                  <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
                     <span
                       className={cn(
-                        isSlotTimePast(slot.slot_time) &&
-                          'font-medium text-red-600 dark:text-red-400',
+                        isSlotTimePast(slot.slot_time) && 'font-medium text-red-600 dark:text-red-400',
                       )}
                     >
                       {formatDateTime(slot.slot_time)}
@@ -494,6 +506,12 @@ export function SlotsList() {
                       capacity={slot.capacity}
                       assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
                     />
+                  </div>
+                  <div className="mt-auto border-t pt-4">
+                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                      <div>Updated: {new Date(slot.updated_at).toLocaleDateString('sv-SE')}</div>
+                      <div>Created: {new Date(slot.created_at).toLocaleDateString('sv-SE')}</div>
+                    </div>
                   </div>
                 </Card>
               );
