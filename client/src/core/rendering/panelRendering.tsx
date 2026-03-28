@@ -28,7 +28,17 @@ export const createPanelRenderers = (
       // Also pass generic 'item' prop for plugins that might use it
       const finalProps = { ...props, item: currentItem };
 
-      return <ViewComponent {...finalProps} />;
+      const ingestRunImport =
+        currentPlugin.name === 'ingest' &&
+        typeof currentPluginContext?.runIngestImport === 'function'
+          ? {
+              runIngestImport: currentPluginContext.runIngestImport as (
+                id: string,
+              ) => Promise<void>,
+            }
+          : {};
+
+      return <ViewComponent {...finalProps} {...ingestRunImport} />;
     } else {
       // DYNAMIC: Generate form props based on plugin name using helper
       const singularCapName = getSingularCap(currentPlugin.name);
