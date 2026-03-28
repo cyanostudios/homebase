@@ -187,6 +187,10 @@ function useIngestContextValue(
           errors.push({ field: 'sourceUrl', message: t('ingest.errors.urlInvalid') });
         }
       }
+      const fm = data.fetchMethod;
+      if (typeof fm === 'string' && fm !== '' && fm !== 'generic_http' && fm !== 'browser_fetch') {
+        errors.push({ field: 'fetchMethod', message: t('ingest.errors.fetchMethodInvalid') });
+      }
       return errors;
     },
     [t],
@@ -205,7 +209,7 @@ function useIngestContextValue(
           name: String(data.name).trim(),
           sourceUrl: String(data.sourceUrl).trim(),
           sourceType: data.sourceType || 'other',
-          fetchMethod: 'generic_http',
+          fetchMethod: data.fetchMethod === 'browser_fetch' ? 'browser_fetch' : 'generic_http',
           isActive: data.isActive !== false,
           notes: data.notes ? String(data.notes) : null,
         };

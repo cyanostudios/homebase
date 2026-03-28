@@ -272,8 +272,9 @@ Definitions:
   - `json`
   - `xml`
   - `other`
-- `fetch_method`: v1 default should be a simple string such as:
-  - `generic_http`
+- `fetch_method`: allowed values (stored per source):
+  - `generic_http` — direct HTTP (axios), default
+  - `browser_fetch` — headless Chromium via Puppeteer; requires `INGEST_BROWSER_FETCH=1` on the server
 - `is_active`: boolean
 - `notes`: optional internal notes
 - `last_fetched_at`: timestamp of last import attempt
@@ -300,10 +301,12 @@ Recommended fields:
 - `raw_excerpt`
 - `error_message`
 - `created_at`
+- `fetch_method` (per-run strategy; nullable on legacy DBs until migration `057-ingest-runs-fetch-method.sql`)
 
 Definitions:
 
 - `source_id`: FK to `ingest_sources`
+- `fetch_method`: which strategy ran for this attempt (`generic_http` or `browser_fetch`), independent of the source’s current setting
 - `status`: `success` or `failed`
 - `started_at`: when fetch started
 - `completed_at`: when finished
@@ -431,8 +434,13 @@ This file is critical.
 
 Responsibility:
 
-- fetch a URL
-- return a normalized fetch result object
+- dispatch by `fetchMethod` to the correct strategy
+- return a normalized fetch result object (same shape for all strategies)
+
+Strategies:
+
+- **`generic_http`** — implemented in this file (axios). Behavior and limits unchanged; not shared with browser fetch.
+- **`browser_fetch`** — implemented in `services/fetchSourceBrowserFetch.js` (Puppeteer). Separate code path; no domain parsing.
 
 Input:
 
@@ -470,7 +478,7 @@ On failure:
 Rules:
 
 - do not over-engineer
-- use one generic fetch strategy in v1
+- keep `generic_http` logic isolated from `browser_fetch`
 - cap excerpt length
 - sanitize obvious null/empty cases
 - do not implement site-specific parsing
@@ -483,7 +491,7 @@ Responsibilities:
 
 1. load source by id
 2. create run record as started
-3. call `fetchSource`
+3. call `fetchSource` (pass resolved `fetchMethod`; persist same value on the run row)
 4. update run record with success/failure
 5. update source last fetch fields
 6. return run result
@@ -679,6 +687,7 @@ Allowed source types in v1:
 Allowed fetch methods in v1:
 
 - `generic_http`
+- `browser_fetch` (optional; server must enable via `INGEST_BROWSER_FETCH=1`)
 
 Do not add special parser keys yet.
 

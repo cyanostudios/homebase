@@ -8,9 +8,14 @@ const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
 const SOURCE_TYPES = ['html', 'pdf', 'json', 'xml', 'other'];
+const FETCH_METHODS = ['generic_http', 'browser_fetch'];
 const sourceTypeRule = body('sourceType')
   .isIn(SOURCE_TYPES)
   .withMessage(`sourceType must be one of: ${SOURCE_TYPES.join(', ')}`);
+const fetchMethodRule = body('fetchMethod')
+  .optional({ values: 'falsy' })
+  .isIn(FETCH_METHODS)
+  .withMessage(`fetchMethod must be one of: ${FETCH_METHODS.join(', ')}`);
 
 function createIngestRoutes(controller, context) {
   const requirePlugin =
@@ -40,10 +45,7 @@ function createIngestRoutes(controller, context) {
         }
       }),
     sourceTypeRule,
-    body('fetchMethod')
-      .optional({ values: 'falsy' })
-      .isIn(['generic_http'])
-      .withMessage('fetchMethod must be generic_http'),
+    fetchMethodRule,
     body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
     body('notes')
       .optional({ values: 'falsy' })
@@ -98,10 +100,7 @@ function createIngestRoutes(controller, context) {
         }
       }),
     sourceTypeRule,
-    body('fetchMethod')
-      .optional({ values: 'falsy' })
-      .isIn(['generic_http'])
-      .withMessage('fetchMethod must be generic_http'),
+    fetchMethodRule,
     body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
     body('notes')
       .optional({ values: 'falsy' })

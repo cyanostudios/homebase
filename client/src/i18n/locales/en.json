@@ -441,7 +441,10 @@
     "colActive": "Active",
     "latestExcerptTitle": "Latest fetch excerpt",
     "fetchMethod": "Fetch method",
-    "fetchMethodHint": "v1 uses a single generic HTTP fetch only.",
+    "fetchMethodGeneric": "Generic HTTP",
+    "fetchMethodBrowser": "Browser (headless)",
+    "fetchMethodHint": "generic_http: direct HTTP request. browser_fetch: Chromium via Puppeteer (server must set INGEST_BROWSER_FETCH=1).",
+    "runFetchMethod": "Method",
     "newSource": "New source",
     "editSource": "Edit source",
     "subtitleNew": "New ingest source",
@@ -475,6 +478,7 @@
       "nameRequired": "Name is required",
       "urlRequired": "URL is required",
       "urlInvalid": "Enter a valid URL",
+      "fetchMethodInvalid": "Choose a valid fetch method",
       "saveFailed": "Could not save source"
     }
   },

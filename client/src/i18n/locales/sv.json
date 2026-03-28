@@ -441,7 +441,10 @@
     "colActive": "Aktiv",
     "latestExcerptTitle": "Senaste hämtade utdrag",
     "fetchMethod": "Hämtningsmetod",
-    "fetchMethodHint": "v1 använder en enkel generisk HTTP-hämtning.",
+    "fetchMethodGeneric": "Generisk HTTP",
+    "fetchMethodBrowser": "Webbläsare (headless)",
+    "fetchMethodHint": "generic_http: direkt HTTP-anrop. browser_fetch: Chromium via Puppeteer (servern måste sätta INGEST_BROWSER_FETCH=1).",
+    "runFetchMethod": "Metod",
     "newSource": "Ny källa",
     "editSource": "Redigera källa",
     "subtitleNew": "Ny ingest-källa",
@@ -475,6 +478,7 @@
       "nameRequired": "Namn krävs",
       "urlRequired": "URL krävs",
       "urlInvalid": "Ange en giltig URL",
+      "fetchMethodInvalid": "Välj en giltig hämtningsmetod",
       "saveFailed": "Kunde inte spara källan"
     }
   },

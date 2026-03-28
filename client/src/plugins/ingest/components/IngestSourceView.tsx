@@ -214,6 +214,14 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                       <span className="font-medium">{source.sourceType}</span>
                     </div>
                     <div className="flex justify-between items-center gap-3">
+                      <span className="text-muted-foreground shrink-0">
+                        {t('ingest.fetchMethod')}
+                      </span>
+                      <span className="font-mono font-medium text-right truncate">
+                        {source.fetchMethod}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center gap-3">
                       <span className="text-muted-foreground shrink-0">{t('ingest.active')}</span>
                       <span className="font-medium">
                         {source.isActive ? t('common.yes') : t('common.no')}
@@ -311,8 +319,9 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                     className="p-4 sm:p-6"
                   >
                     <p className="text-xs text-muted-foreground mb-2">
-                      {new Date(latestRunForExcerpt.startedAt).toLocaleString()} · HTTP{' '}
-                      {latestRunForExcerpt.httpStatus ?? '—'}
+                      {new Date(latestRunForExcerpt.startedAt).toLocaleString()} ·{' '}
+                      <span className="font-mono">{latestRunForExcerpt.fetchMethod ?? '—'}</span> ·
+                      HTTP {latestRunForExcerpt.httpStatus ?? '—'}
                     </p>
                     <pre className="text-xs font-mono whitespace-pre-wrap break-words rounded-md bg-muted/50 p-3 max-h-64 overflow-y-auto border border-border/60">
                       {latestRunForExcerpt.errorMessage || latestRunForExcerpt.rawExcerpt}
@@ -337,6 +346,9 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                     <TableHeader>
                       <TableRow>
                         <TableHead>{t('ingest.runStarted')}</TableHead>
+                        <TableHead className="hidden sm:table-cell">
+                          {t('ingest.runFetchMethod')}
+                        </TableHead>
                         <TableHead>{t('ingest.runStatus')}</TableHead>
                         <TableHead className="hidden sm:table-cell">HTTP</TableHead>
                         <TableHead className="hidden md:table-cell">
@@ -349,6 +361,9 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                         <TableRow key={run.id}>
                           <TableCell className="text-xs whitespace-nowrap">
                             {new Date(run.startedAt).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="hidden font-mono text-xs sm:table-cell">
+                            {run.fetchMethod ?? '—'}
                           </TableCell>
                           <TableCell className="text-xs">{run.status}</TableCell>
                           <TableCell className="hidden text-xs sm:table-cell">

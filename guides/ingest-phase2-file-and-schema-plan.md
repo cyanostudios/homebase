@@ -81,7 +81,7 @@ Output of **Phase 2** from `ingest-plugin-implementation-guide.md`. No applicati
 | `name`              | VARCHAR(255) NOT NULL                  |                                                    |
 | `source_url`        | VARCHAR(2000) NOT NULL                 |                                                    |
 | `source_type`       | VARCHAR(20) NOT NULL                   | `html`, `pdf`, `json`, `xml`, `other`              |
-| `fetch_method`      | VARCHAR(50) NOT NULL                   | v1: `generic_http`                                 |
+| `fetch_method`      | VARCHAR(50) NOT NULL                   | `generic_http` (default) or `browser_fetch`        |
 | `is_active`         | BOOLEAN NOT NULL DEFAULT true          |                                                    |
 | `notes`             | TEXT                                   | nullable                                           |
 | `last_fetched_at`   | TIMESTAMP                              | nullable                                           |
@@ -108,6 +108,8 @@ Indexes: `(user_id)`, optional `(user_id, updated_at DESC)`.
 | `raw_excerpt`    | TEXT                                                         | **capped in app** (e.g. 8–32 KiB chars)—do not store full bodies |
 | `error_message`  | TEXT                                                         | nullable                                                         |
 | `created_at`     | TIMESTAMP NOT NULL DEFAULT NOW()                             |                                                                  |
+| `fetch_method`   | VARCHAR(50)                                                  | nullable on legacy rows; set per run (`057` migration)           |
+| `updated_at`     | TIMESTAMP                                                    | added in `056` for ORM updates                                   |
 
 Indexes: `(source_id)`, `(source_id, started_at DESC)` for history.
 

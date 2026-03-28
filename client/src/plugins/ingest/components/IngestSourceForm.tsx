@@ -22,7 +22,7 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { useIngest } from '../hooks/useIngest';
-import type { IngestSource, IngestSourceType } from '../types/ingest';
+import type { IngestFetchMethod, IngestSource, IngestSourceType } from '../types/ingest';
 
 const CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 const PANEL_MAX_WIDTH = 'max-w-[720px]';
@@ -33,6 +33,10 @@ function normalizeSourceType(t: string | undefined): IngestSourceType {
     return t as IngestSourceType;
   }
   return 'other';
+}
+
+function normalizeFetchMethod(m: string | undefined): IngestFetchMethod {
+  return m === 'browser_fetch' ? 'browser_fetch' : 'generic_http';
 }
 
 interface IngestSourceFormProps {
@@ -67,6 +71,7 @@ export const IngestSourceForm: React.FC<IngestSourceFormProps> = ({
     name: '',
     sourceUrl: '',
     sourceType: 'other' as IngestSourceType,
+    fetchMethod: 'generic_http' as IngestFetchMethod,
     isActive: true,
     notes: '',
   });
@@ -84,6 +89,7 @@ export const IngestSourceForm: React.FC<IngestSourceFormProps> = ({
       name: '',
       sourceUrl: '',
       sourceType: 'other',
+      fetchMethod: 'generic_http',
       isActive: true,
       notes: '',
     });
@@ -96,6 +102,7 @@ export const IngestSourceForm: React.FC<IngestSourceFormProps> = ({
         name: currentIngest.name || '',
         sourceUrl: currentIngest.sourceUrl || '',
         sourceType: normalizeSourceType(currentIngest.sourceType),
+        fetchMethod: normalizeFetchMethod(currentIngest.fetchMethod),
         isActive: currentIngest.isActive !== false,
         notes: currentIngest.notes || '',
       });
@@ -236,13 +243,26 @@ export const IngestSourceForm: React.FC<IngestSourceFormProps> = ({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="ingest-fetch-method">{t('ingest.fetchMethod')}</Label>
-                  <Input
-                    id="ingest-fetch-method"
-                    readOnly
-                    value="generic_http"
-                    className="mt-1 font-mono text-sm bg-muted/50"
-                  />
+                  <Label>{t('ingest.fetchMethod')}</Label>
+                  <Select
+                    value={formData.fetchMethod}
+                    onValueChange={(v) => updateField('fetchMethod', v as IngestFetchMethod)}
+                  >
+                    <SelectTrigger id="ingest-fetch-method" className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="generic_http">{t('ingest.fetchMethodGeneric')}</SelectItem>
+                      <SelectItem value="browser_fetch">
+                        {t('ingest.fetchMethodBrowser')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {getFieldError('fetchMethod') && (
+                    <p className="text-xs text-destructive mt-1">
+                      {getFieldError('fetchMethod')?.message}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {t('ingest.fetchMethodHint')}
                   </p>

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/run-ingest-tenant-migrations.js
-// Run 054-ingest-sources-and-runs.sql and 056-ingest-runs-updated-at-and-rss-cleanup.sql on all tenant DBs.
+// Run ingest tenant migrations (054, 056, 057) on all tenant DBs.
 
 const { Pool } = require('pg');
 const fs = require('fs');
@@ -13,6 +13,7 @@ dotenv.config({ path: '.env' });
 const MIGRATION_FILES = [
   path.join(__dirname, '../server/migrations/054-ingest-sources-and-runs.sql'),
   path.join(__dirname, '../server/migrations/056-ingest-runs-updated-at-and-rss-cleanup.sql'),
+  path.join(__dirname, '../server/migrations/057-ingest-runs-fetch-method.sql'),
 ];
 
 async function runMigrationsOnTenant(connectionString, tenantInfo) {

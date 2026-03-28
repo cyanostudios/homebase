@@ -1,6 +1,7 @@
 // plugins/ingest/services/fetchSource.js
-// Generic HTTP fetch for ingest (guide §9). No site-specific parsing.
+// Fetch strategies for ingest: generic_http (axios) and browser_fetch (separate module). No site-specific parsing.
 const axios = require('axios');
+const { fetchSourceBrowserFetch } = require('./fetchSourceBrowserFetch');
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_EXCERPT = 8000;
@@ -13,49 +14,10 @@ const MAX_EXCERPT = 8000;
  */
 
 /**
- * Normalized result (guide output shape).
- * @returns {Promise<{
- *   ok: boolean,
- *   status: number|null,
- *   contentType: string|null,
- *   contentLength: number|null,
- *   bodyText: string|null,
- *   excerpt: string|null,
- *   finalUrl: string|null,
- *   errorMessage: string|null
- * }>}
+ * Unchanged generic HTTP implementation (axios) — only path for fetchMethod generic_http / default.
+ * @param {string} sourceUrl
  */
-async function fetchSource(input) {
-  const sourceUrl = typeof input === 'string' ? input : input?.sourceUrl;
-  if (!sourceUrl || typeof sourceUrl !== 'string') {
-    return {
-      ok: false,
-      status: null,
-      contentType: null,
-      contentLength: null,
-      bodyText: null,
-      excerpt: null,
-      finalUrl: null,
-      errorMessage: 'Missing source URL',
-    };
-  }
-
-  try {
-    // eslint-disable-next-line no-new
-    new URL(sourceUrl);
-  } catch {
-    return {
-      ok: false,
-      status: null,
-      contentType: null,
-      contentLength: null,
-      bodyText: null,
-      excerpt: null,
-      finalUrl: null,
-      errorMessage: 'Invalid URL',
-    };
-  }
-
+async function fetchSourceGenericHttp(sourceUrl) {
   try {
     const res = await axios.get(sourceUrl, {
       timeout: 30000,
@@ -124,6 +86,62 @@ async function fetchSource(input) {
       errorMessage: msg,
     };
   }
+}
+
+/**
+ * Normalized result (guide output shape).
+ * @returns {Promise<{
+ *   ok: boolean,
+ *   status: number|null,
+ *   contentType: string|null,
+ *   contentLength: number|null,
+ *   bodyText: string|null,
+ *   excerpt: string|null,
+ *   finalUrl: string|null,
+ *   errorMessage: string|null
+ * }>}
+ */
+async function fetchSource(input) {
+  const sourceUrl = typeof input === 'string' ? input : input?.sourceUrl;
+  if (!sourceUrl || typeof sourceUrl !== 'string') {
+    return {
+      ok: false,
+      status: null,
+      contentType: null,
+      contentLength: null,
+      bodyText: null,
+      excerpt: null,
+      finalUrl: null,
+      errorMessage: 'Missing source URL',
+    };
+  }
+
+  try {
+    // eslint-disable-next-line no-new
+    new URL(sourceUrl);
+  } catch {
+    return {
+      ok: false,
+      status: null,
+      contentType: null,
+      contentLength: null,
+      bodyText: null,
+      excerpt: null,
+      finalUrl: null,
+      errorMessage: 'Invalid URL',
+    };
+  }
+
+  const fetchMethodRaw =
+    typeof input === 'object' && input && typeof input.fetchMethod === 'string'
+      ? input.fetchMethod.trim()
+      : 'generic_http';
+
+  if (fetchMethodRaw === 'browser_fetch') {
+    return fetchSourceBrowserFetch(sourceUrl);
+  }
+
+  return fetchSourceGenericHttp(sourceUrl);
 }
 
 /** @param {string} url */

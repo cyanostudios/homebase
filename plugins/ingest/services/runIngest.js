@@ -25,6 +25,9 @@ async function runIngest(model, req, sourceId) {
   }
 
   const startedAt = new Date();
+  const resolvedFetchMethod =
+    source.fetchMethod === 'browser_fetch' ? 'browser_fetch' : 'generic_http';
+
   const run = await model.createRun(req, {
     sourceId: id,
     status: 'running',
@@ -35,6 +38,7 @@ async function runIngest(model, req, sourceId) {
     contentLength: null,
     rawExcerpt: null,
     errorMessage: null,
+    fetchMethod: resolvedFetchMethod,
   });
 
   let fetchResult;
@@ -44,7 +48,7 @@ async function runIngest(model, req, sourceId) {
     fetchResult = await fetchSource({
       sourceUrl: source.sourceUrl,
       sourceType: st,
-      fetchMethod: source.fetchMethod || 'generic_http',
+      fetchMethod: resolvedFetchMethod,
     });
   } catch (e) {
     fetchResult = {

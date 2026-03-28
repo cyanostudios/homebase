@@ -9,7 +9,7 @@ export type PanelMode = 'create' | 'edit' | 'view';
 /** Allowed source types — guide §11. */
 export type IngestSourceType = 'html' | 'pdf' | 'json' | 'xml' | 'other';
 
-export type IngestFetchMethod = 'generic_http';
+export type IngestFetchMethod = 'generic_http' | 'browser_fetch';
 export type IngestFetchStatus = 'never' | 'success' | 'failed';
 
 export interface IngestSource {
@@ -43,6 +43,8 @@ export interface IngestRun {
   status: 'running' | 'success' | 'failed';
   startedAt: string;
   completedAt: string | null;
+  /** Which strategy ran (null for runs recorded before this column existed). */
+  fetchMethod: IngestFetchMethod | null;
   httpStatus: number | null;
   contentType: string | null;
   contentLength: number | null;
