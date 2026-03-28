@@ -23,6 +23,9 @@ vite.config.ts.*
 .env.production
 .env.development
 
+# Ingest browser_fetch — Puppeteer-managed Chromium (npm run puppeteer:install-chrome)
+.cache/puppeteer/
+
 # Optional extras
 coverage
 tools/codex-runner/tmp-codex-*

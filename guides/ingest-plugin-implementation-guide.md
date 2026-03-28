@@ -274,7 +274,7 @@ Definitions:
   - `other`
 - `fetch_method`: allowed values (stored per source):
   - `generic_http` — direct HTTP (axios), default
-  - `browser_fetch` — headless Chromium via Puppeteer; requires `INGEST_BROWSER_FETCH=1` on the server
+  - `browser_fetch` — headless Chromium via Puppeteer; requires `INGEST_BROWSER_FETCH=1`, and a one-time `npm run puppeteer:install-chrome` (Chromium is stored under `.cache/puppeteer`; the API sets `PUPPETEER_CACHE_DIR` to match)
 - `is_active`: boolean
 - `notes`: optional internal notes
 - `last_fetched_at`: timestamp of last import attempt

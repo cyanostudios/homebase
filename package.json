@@ -42,6 +42,7 @@
     "migrate:remove-cups-plugin-access": "node scripts/run-remove-cups-plugin-access-migration.js",
     "migrate:ingest-plugin-access": "node scripts/run-grant-ingest-plugin-access-migration.js",
     "migrate:ingest-tenants": "node scripts/run-ingest-tenant-migrations.js",
+    "puppeteer:install-chrome": "cross-env PUPPETEER_CACHE_DIR=.cache/puppeteer puppeteer browsers install chrome",
     "twilio": "npm install twilio"
   },
   "dependencies": {

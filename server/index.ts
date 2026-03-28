@@ -17,6 +17,11 @@ const projectRoot = path.join(__dirname, '..');
 require('dotenv').config({ path: path.join(projectRoot, '.env') });
 require('dotenv').config({ path: path.join(projectRoot, '.env.local') });
 
+// Puppeteer (ingest browser_fetch): stable cache dir so Chromium is not resolved under sandboxed TMP.
+if (!process.env.PUPPETEER_CACHE_DIR) {
+  process.env.PUPPETEER_CACHE_DIR = path.join(projectRoot, '.cache', 'puppeteer');
+}
+
 const PluginLoader = require('../plugin-loader');
 
 // Core infrastructure

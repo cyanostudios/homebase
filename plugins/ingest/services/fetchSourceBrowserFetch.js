@@ -93,6 +93,9 @@ async function fetchSourceBrowserFetch(sourceUrl) {
     };
   } catch (err) {
     const msg = err && err.message ? String(err.message) : 'Browser fetch failed';
+    const chromeHint = /Chrome|Chromium|executable|browsers install/i.test(msg)
+      ? ' From the repository root run: npm run puppeteer:install-chrome (uses .cache/puppeteer).'
+      : '';
     return {
       ok: false,
       status: null,
@@ -101,7 +104,7 @@ async function fetchSourceBrowserFetch(sourceUrl) {
       bodyText: null,
       excerpt: null,
       finalUrl: null,
-      errorMessage: `browser_fetch failed: ${msg}. Try generic_http or fix the server environment (Chromium, memory, network).`,
+      errorMessage: `browser_fetch failed: ${msg}.${chromeHint} Or use generic_http.`,
     };
   } finally {
     if (browser) {
