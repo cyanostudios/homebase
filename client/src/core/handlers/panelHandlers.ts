@@ -1,9 +1,12 @@
 // client/src/core/handlers/panelHandlers.ts
+// Resolves save/close/open via naming conventions. See docs/PLUGIN_RUNTIME_CONVENTIONS.md.
 
 import { PLUGIN_REGISTRY, type PluginRegistryEntry } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 
 const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+
+const isDev = import.meta.env.DEV;
 
 // Utility function to find plugin functions dynamically
 function findPluginFunction(context: any, action: string, pluginName?: string): any {
@@ -46,7 +49,16 @@ export const createPanelHandlers = (
     if (currentPluginContext && currentPlugin) {
       // DYNAMIC: Find save function automatically
       const saveFunction = findPluginFunction(currentPluginContext, 'save', currentPlugin.name);
-      return saveFunction ? await saveFunction(data) : false;
+      if (saveFunction) {
+        return await saveFunction(data);
+      }
+      if (isDev) {
+        const cap = getSingularCap(currentPlugin.name);
+        console.warn(
+          `[panelHandlers] Missing save${cap} on context for plugin "${currentPlugin.name}". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+        );
+      }
+      return false;
     }
     return false;
   };
@@ -66,6 +78,11 @@ export const createPanelHandlers = (
         openForViewFunction(currentItem);
       } else if (closeFunction) {
         closeFunction();
+      } else if (isDev && currentPlugin) {
+        const cap = getSingularCap(currentPlugin.name);
+        console.warn(
+          `[panelHandlers] Cancel in panel: no open${cap}ForView or close${cap}Panel for plugin "${currentPlugin.name}". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+        );
       }
     }
   };
@@ -82,6 +99,10 @@ export const createPanelHandlers = (
       (window as any)[`submit${cap}Form`] ?? (window as any)[`submit${singularCap}Form`];
     if (submitFunction) {
       submitFunction();
+    } else if (isDev && currentPlugin.name !== 'settings') {
+      console.warn(
+        `[panelHandlers] Header Save: no window.submit*Form registered for plugin "${currentPlugin.name}" (tried submit${cap}Form / submit${singularCap}Form). See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+      );
     }
   };
 
@@ -101,6 +122,10 @@ export const createPanelHandlers = (
       (window as any)[`cancel${cap}Form`] ?? (window as any)[`cancel${singularCap}Form`];
     if (cancelFunction) {
       cancelFunction();
+    } else if (isDev && currentPlugin.name !== 'settings') {
+      console.warn(
+        `[panelHandlers] Header Cancel: no window.cancel*Form registered for plugin "${currentPlugin.name}" (tried cancel${cap}Form / cancel${singularCap}Form). See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+      );
     }
   };
 
@@ -116,6 +141,11 @@ export const createPanelHandlers = (
           );
           if (closeFunction) {
             closeFunction();
+          } else if (isDev && currentPlugin) {
+            const cap = getSingularCap(currentPlugin.name);
+            console.warn(
+              `[panelHandlers] View close: missing close${cap}Panel on context for plugin "${currentPlugin.name}". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+            );
           }
         }
       };

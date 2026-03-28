@@ -1,5 +1,7 @@
 // client/src/core/pluginSingular.ts
 // Shared singular form for plugin names (e.g. matches -> match) so core and plugins stay in sync.
+// Plugin authors: choose `name` in pluginRegistry so singularization matches your context API
+// (`current{SingularCap}`, `open{SingularCap}ForView`, …). See docs/PLUGIN_RUNTIME_CONVENTIONS.md.
 
 const IRREGULAR: Record<string, string> = { matches: 'match', slots: 'slot' };
 const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());

@@ -37,6 +37,14 @@ export interface DashboardWidgetProps {
   onOpenPlugin: () => void;
 }
 
+/**
+ * Frontend plugin registration. Naming on the **hook return value** must follow
+ * docs/PLUGIN_RUNTIME_CONVENTIONS.md (e.g. `is{Entity}PanelOpen`, `current{Entity}`, `save{Entity}`).
+ *
+ * - **panelKey**: boolean on context, e.g. `isContactPanelOpen`.
+ * - **Provider**: wraps app; receives auth + `onCloseOtherPanels`.
+ * - **components.List | Form | View**: main page, panel form, panel detail view.
+ */
 export interface PluginRegistryEntry {
   name: string;
   Provider: React.ComponentType<{

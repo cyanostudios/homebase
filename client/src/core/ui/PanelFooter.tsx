@@ -1,3 +1,8 @@
+/**
+ * Detail panel footer: **settings** (core Settings plugin) shows Save + Close; **settings** mode on
+ * other plugins shows Close only (form saves inline). **view** / **create** / **edit** return null
+ * because forms provide their own actions. See guides/core-architecture-review-for-cursor.md.
+ */
 import { Check, X } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';

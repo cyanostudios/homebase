@@ -87,6 +87,9 @@ class PluginLoader {
     // Load plugin
     const initializePlugin = require(pluginPath);
 
+    // TODO(legacy-plugins): Track milestone to remove (pool, requirePlugin) init and migrate all
+    // backend plugins to (context) only. See guides/core-architecture-review-for-cursor.md.
+
     // Support both old signature (pool, requirePlugin) and new (context)
     let plugin;
     if (initializePlugin.length === 1) {

@@ -21,6 +21,14 @@ export const createPanelRenderers = (
     const FormComponent = currentPlugin.components.Form;
 
     if (currentMode === 'view') {
+      if (typeof ViewComponent !== 'function') {
+        if (import.meta.env.DEV) {
+          console.warn(
+            `[panelRendering] Plugin "${currentPlugin.name}" has no View component in registry but panel mode is "view". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+          );
+        }
+        return null;
+      }
       // DYNAMIC: Generate props based on plugin name automatically using helper
       const singularName = getSingular(currentPlugin.name);
       const props = { [singularName]: currentItem };
@@ -39,23 +47,32 @@ export const createPanelRenderers = (
           : {};
 
       return <ViewComponent {...finalProps} {...ingestRunImport} />;
-    } else {
-      // DYNAMIC: Generate form props based on plugin name using helper
-      const singularCapName = getSingularCap(currentPlugin.name);
-      const currentItemProp = `current${singularCapName}`;
-
-      const formProps = {
-        [currentItemProp]: currentItem,
-        currentItem: currentItem, // Fallback generic prop
-        onSave: handleSave,
-        onCancel: handleCancel,
-        ...(typeof currentPluginContext?.saveSlots === 'function'
-          ? { onSaveSlots: currentPluginContext.saveSlots }
-          : {}),
-      };
-
-      return <FormComponent {...formProps} />;
     }
+
+    if (typeof FormComponent !== 'function') {
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[panelRendering] Plugin "${currentPlugin.name}" has no Form component in registry but panel mode is "${currentMode}". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+        );
+      }
+      return null;
+    }
+
+    // DYNAMIC: Generate form props based on plugin name using helper
+    const singularCapName = getSingularCap(currentPlugin.name);
+    const currentItemProp = `current${singularCapName}`;
+
+    const formProps = {
+      [currentItemProp]: currentItem,
+      currentItem: currentItem, // Fallback generic prop
+      onSave: handleSave,
+      onCancel: handleCancel,
+      ...(typeof currentPluginContext?.saveSlots === 'function'
+        ? { onSaveSlots: currentPluginContext.saveSlots }
+        : {}),
+    };
+
+    return <FormComponent {...formProps} />;
   };
 
   const renderCurrentPage = (currentPage: string, PLUGIN_REGISTRY: any[]) => {
@@ -65,6 +82,14 @@ export const createPanelRenderers = (
     }
 
     const ListComponent = plugin.components.List;
+    if (typeof ListComponent !== 'function') {
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[panelRendering] Plugin "${plugin.name}" has no List component in registry. See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+        );
+      }
+      return <div>Plugin list not configured</div>;
+    }
     return <ListComponent />;
   };
 

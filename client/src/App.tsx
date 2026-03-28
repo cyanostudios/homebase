@@ -7,25 +7,32 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import { Check, Edit, Home, Plus, Settings, X } from 'lucide-react';
+import { Home, Settings } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
+import { resolvePrimaryAction } from '@/core/actions/resolvePrimaryAction';
 import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider, useApp } from '@/core/api/AppContext';
+import {
+  buildDuplicateDialogOnConfirm,
+  buildMatchToSlotOnConfirm,
+  buildNoteToTaskOnConfirm,
+  getDuplicateDialogConfirmOnly,
+  getDuplicateDialogDefaultName,
+  getDuplicateDialogNameLabel,
+} from '@/core/app/crossPluginDialogHandlers';
+import { renderDetailPanelHeaderRight } from '@/core/app/detailPanelHeaderRight';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import { navPageToPath, pathToNavPage } from '@/core/routing/routeMap';
-import type { ExecuteDuplicateResult } from '@/core/types/pluginContract';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
-import { ItemNavigation } from '@/core/ui/ItemNavigation';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
@@ -37,7 +44,6 @@ import {
   useGlobalNavigationGuard,
 } from '@/hooks/useGlobalNavigationGuard';
 import { PublicEstimateView } from '@/plugins/estimates/components/PublicEstimateView';
-import { slotsApi } from '@/plugins/slots/api/slotsApi';
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes
 function PluginProviders({ children }: { children: React.ReactNode }) {
@@ -399,100 +405,11 @@ function AppContent() {
     return sub?.icon || currentPagePlugin.navigation.icon;
   }, [currentPage, currentPagePlugin]);
 
-  const primaryAction = useMemo(() => {
-    if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
-      return null;
-    }
-    if (
-      currentPagePlugin.name === 'slots' ||
-      currentPagePlugin.name === 'notes' ||
-      currentPagePlugin.name === 'ingest'
-    ) {
-      return null;
-    }
-
-    const context = pluginContexts.find(
-      ({ plugin }) => plugin.name === currentPagePlugin.name,
-    )?.context;
-    if (!context) {
-      return null;
-    }
-
-    // Full-page settings: these plugins use their own header/toolbar — never show ContentHeader "Add".
-    type ListOrSettings = 'list' | 'settings' | undefined;
-    const inSettings =
-      (currentPagePlugin.name === 'contacts' &&
-        (context.contactsContentView as ListOrSettings) === 'settings') ||
-      (currentPagePlugin.name === 'tasks' &&
-        (context.tasksContentView as ListOrSettings) === 'settings') ||
-      (currentPagePlugin.name === 'matches' &&
-        (context.matchesContentView as ListOrSettings) === 'settings') ||
-      (currentPagePlugin.name === 'mail' &&
-        (context.mailContentView as ListOrSettings) === 'settings') ||
-      (currentPagePlugin.name === 'pulses' &&
-        (context.pulsesContentView as ListOrSettings) === 'settings');
-    if (inSettings) {
-      return null;
-    }
-
-    const estimatesContentView = context.estimatesContentView as 'list' | 'settings' | undefined;
-    const closeEstimateSettingsView = context.closeEstimateSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'estimates' &&
-      estimatesContentView === 'settings' &&
-      typeof closeEstimateSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeEstimateSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
-    const filesContentView = context.filesContentView as 'list' | 'settings' | undefined;
-    const closeFileSettingsView = context.closeFileSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'files' &&
-      filesContentView === 'settings' &&
-      typeof closeFileSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeFileSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
-    if (
-      (currentPagePlugin.name === 'contacts' &&
-        (context.contactsContentView as string | undefined) === 'list') ||
-      (currentPagePlugin.name === 'tasks' &&
-        (context.tasksContentView as string | undefined) === 'list') ||
-      (currentPagePlugin.name === 'matches' &&
-        (context.matchesContentView as string | undefined) === 'list') ||
-      (currentPagePlugin.name === 'mail' &&
-        (context.mailContentView as string | undefined) === 'list') ||
-      (currentPagePlugin.name === 'pulses' &&
-        (context.pulsesContentView as string | undefined) === 'list')
-    ) {
-      return null;
-    }
-
-    const capName = getSingularCap(currentPagePlugin.name);
-    const fnName = `open${capName}Panel`;
-    const openPanel = context[fnName as keyof typeof context];
-
-    if (typeof openPanel !== 'function') {
-      return null;
-    }
-
-    const singularLabel = getSingularCap(currentPagePlugin.name);
-    return {
-      label: `Add ${singularLabel}`,
-      icon: Plus,
-      onClick: () => attemptNavigation(() => (openPanel as (item: any) => void)(null)),
-    };
-  }, [currentPage, currentPagePlugin, pluginContexts, attemptNavigation, t]);
+  const primaryAction = useMemo(
+    () =>
+      resolvePrimaryAction(currentPage, currentPagePlugin, pluginContexts, attemptNavigation, t),
+    [currentPage, currentPagePlugin, pluginContexts, attemptNavigation, t],
+  );
 
   if (isLoading) {
     return (
@@ -557,137 +474,19 @@ function AppContent() {
       currentPlugin?.name === 'matches')
       ? currentPluginContext.getCloseHandler(baseDetailPanelClose)
       : baseDetailPanelClose;
-  const hasBlockingErrors = validationErrors.some(
-    (e: any) => !String(e?.message || '').includes('Warning'),
-  );
   const useHeaderActionButtons =
     currentMode === 'view' || currentMode === 'edit' || currentMode === 'create';
-  const pluginName = currentPlugin?.name;
-  const hasViewQuickUpdate =
-    currentMode === 'view' &&
-    ((Boolean(
-      (pluginName === 'tasks' ||
-        pluginName === 'estimates' ||
-        pluginName === 'slots' ||
-        pluginName === 'matches') &&
-        typeof (currentPluginContext as any)?.hasQuickEditChanges === 'boolean' &&
-        (currentPluginContext as any).hasQuickEditChanges,
-    ) ||
-      Boolean(
-        pluginName === 'contacts' &&
-          typeof (currentPluginContext as any)?.hasTagsChanges === 'boolean' &&
-          (currentPluginContext as any).hasTagsChanges,
-      )) as boolean);
 
-  const detailPanelHeaderRight =
-    currentMode === 'view' && currentPluginContext && currentItem ? (
-      <div className="flex items-center gap-1">
-        {typeof currentPluginContext.navigateToPrevItem === 'function' &&
-          typeof currentPluginContext.navigateToNextItem === 'function' &&
-          currentPluginContext.totalItems > 1 &&
-          React.createElement(ItemNavigation, {
-            onPrev: currentPluginContext.navigateToPrevItem,
-            onNext: currentPluginContext.navigateToNextItem,
-            hasPrev: currentPluginContext.hasPrevItem,
-            hasNext: currentPluginContext.hasNextItem,
-            label: `${currentPluginContext.currentItemIndex} / ${currentPluginContext.totalItems}`,
-          })}
-        {hasViewQuickUpdate ? (
-          <Button
-            type="button"
-            onClick={() => {
-              if (
-                pluginName === 'tasks' ||
-                pluginName === 'estimates' ||
-                pluginName === 'slots' ||
-                pluginName === 'matches'
-              ) {
-                (currentPluginContext as any)?.onApplyQuickEdit?.();
-                return;
-              }
-              if (pluginName === 'contacts') {
-                (currentPluginContext as any)?.onApplyTagsEdit?.();
-              }
-            }}
-            variant="primary"
-            size="sm"
-            icon={Check}
-            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-          >
-            {t('common.update')}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={handlers.handleEditItem}
-            variant="primary"
-            size="sm"
-            icon={Edit}
-            className="h-9 text-xs px-3"
-          >
-            {t('common.edit')}
-          </Button>
-        )}
-        <Button
-          type="button"
-          onClick={onDetailPanelClose}
-          variant="secondary"
-          size="sm"
-          icon={X}
-          className="h-9 text-xs px-3"
-        >
-          {t('common.close')}
-        </Button>
-      </div>
-    ) : currentMode === 'edit' ? (
-      <div className="flex items-center gap-1">
-        <Button
-          type="button"
-          onClick={handlers.handleCancelClick}
-          variant="secondary"
-          size="sm"
-          icon={X}
-          className="h-9 text-xs px-3"
-        >
-          {t('common.close')}
-        </Button>
-        <Button
-          type="button"
-          onClick={handlers.handleSaveClick}
-          variant="primary"
-          size="sm"
-          icon={Check}
-          disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
-          className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-        >
-          {currentPluginContext?.isSaving ? t('common.saving') : t('common.update')}
-        </Button>
-      </div>
-    ) : currentMode === 'create' ? (
-      <div className="flex items-center gap-1">
-        <Button
-          type="button"
-          onClick={handlers.handleCancelClick}
-          variant="secondary"
-          size="sm"
-          icon={X}
-          className="h-9 text-xs px-3"
-        >
-          {t('common.close')}
-        </Button>
-        <Button
-          type="button"
-          onClick={handlers.handleSaveClick}
-          variant="primary"
-          size="sm"
-          icon={Check}
-          disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
-          className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-        >
-          {currentPluginContext?.isSaving ? t('common.saving') : t('common.save')}
-        </Button>
-      </div>
-    ) : undefined;
+  const detailPanelHeaderRight = renderDetailPanelHeaderRight({
+    currentMode,
+    currentPlugin,
+    currentPluginContext,
+    currentItem,
+    validationErrors,
+    onDetailPanelClose,
+    handlers,
+    t,
+  });
 
   return (
     <>
@@ -742,103 +541,24 @@ function AppContent() {
       {/* Duplicate Dialog – plugin getDuplicateConfig/executeDuplicate or naming-convention for estimates/invoices */}
       <DuplicateDialog
         isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          if (!currentPluginContext || !currentItem) {
-            setShowDuplicateDialog(false);
-            return;
-          }
-          const executeDuplicate = currentPluginContext.executeDuplicate;
-          if (typeof executeDuplicate === 'function') {
-            executeDuplicate(currentItem, newName)
-              .then(({ closePanel, highlightId }: ExecuteDuplicateResult) => {
-                closePanel();
-                if (highlightId !== null && highlightId !== undefined) {
-                  if (typeof currentPluginContext.setRecentlyDuplicatedNoteId === 'function') {
-                    currentPluginContext.setRecentlyDuplicatedNoteId(highlightId);
-                  }
-                  if (typeof currentPluginContext.setRecentlyDuplicatedTaskId === 'function') {
-                    currentPluginContext.setRecentlyDuplicatedTaskId(highlightId);
-                  }
-                  if (typeof currentPluginContext.setRecentlyDuplicatedEstimateId === 'function') {
-                    currentPluginContext.setRecentlyDuplicatedEstimateId(highlightId);
-                  }
-                  if (typeof currentPluginContext.setRecentlyDuplicatedMatchId === 'function') {
-                    currentPluginContext.setRecentlyDuplicatedMatchId(highlightId);
-                  }
-                  if (typeof currentPluginContext.setRecentlyDuplicatedSlotId === 'function') {
-                    currentPluginContext.setRecentlyDuplicatedSlotId(highlightId);
-                  }
-                }
-                setShowDuplicateDialog(false);
-              })
-              .catch((err: unknown) => {
-                setShowDuplicateDialog(false);
-                alert(
-                  (err as { message?: string; error?: string })?.message ??
-                    (err as { message?: string; error?: string })?.error ??
-                    'Failed to duplicate.',
-                );
-              });
-            return;
-          }
-          // Other plugins (estimates, invoices, etc.) by naming convention
-          const itemCopy = { ...currentItem };
-          delete itemCopy.id;
-          delete itemCopy.createdAt;
-          delete itemCopy.updatedAt;
-          if (currentPlugin) {
-            const capName = getSingularCap(currentPlugin.name);
-            const createFnName = `create${capName}`;
-            const closeFnName = `close${capName}Panel`;
-            const createFn = currentPluginContext[createFnName];
-            const closeFn = currentPluginContext[closeFnName];
-            if (createFn && closeFn) {
-              createFn(itemCopy)
-                .then(() => {
-                  closeFn();
-                  setShowDuplicateDialog(false);
-                })
-                .catch((err: unknown) => {
-                  setShowDuplicateDialog(false);
-                  alert(
-                    (err as { message?: string; error?: string })?.message ??
-                      (err as { message?: string; error?: string })?.error ??
-                      'Failed to duplicate.',
-                  );
-                });
-            } else {
-              console.warn(`Create or close function not found for plugin: ${currentPlugin.name}`);
-              setShowDuplicateDialog(false);
-            }
-          } else {
-            setShowDuplicateDialog(false);
-          }
-        }}
+        onConfirm={buildDuplicateDialogOnConfirm({
+          currentPluginContext,
+          currentItem,
+          currentPlugin,
+          setShowDuplicateDialog,
+        })}
         onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={(() => {
-          const config = currentPluginContext?.getDuplicateConfig?.(currentItem);
-          if (config) {
-            return config.defaultName;
-          }
-          if (currentItem && currentPlugin && currentPlugin.name !== 'contacts') {
-            return '';
-          }
-          return '';
-        })()}
-        nameLabel={(() => {
-          const config = currentPluginContext?.getDuplicateConfig?.(currentItem);
-          if (config) {
-            return config.nameLabel;
-          }
-          return 'Name';
-        })()}
-        confirmOnly={(() => {
-          const config = currentPluginContext?.getDuplicateConfig?.(currentItem);
-          if (config && config.confirmOnly !== undefined) {
-            return config.confirmOnly;
-          }
-          return currentPlugin?.name === 'estimates' || currentPlugin?.name === 'invoices';
-        })()}
+        defaultName={getDuplicateDialogDefaultName(
+          currentPluginContext,
+          currentItem,
+          currentPlugin,
+        )}
+        nameLabel={getDuplicateDialogNameLabel(currentPluginContext, currentItem)}
+        confirmOnly={getDuplicateDialogConfirmOnly(
+          currentPluginContext,
+          currentItem,
+          currentPlugin,
+        )}
       />
 
       {/* Create task from note – cross-plugin infrastructure (notes → tasks); kept in App by design */}
@@ -848,58 +568,14 @@ function AppContent() {
         nameLabel={t('app.taskTitle')}
         confirmText={t('app.create')}
         defaultName={noteForTask?.title ?? ''}
-        onConfirm={(newName) => {
-          if (!noteForTask) {
-            setShowToTaskDialog(false);
-            setNoteForTask(null);
-            return;
-          }
-          const taskEntry = pluginContexts.find(({ plugin }) => plugin.name === 'tasks');
-          const noteEntry = pluginContexts.find(({ plugin }) => plugin.name === 'notes');
-          const taskContext = taskEntry?.context;
-          const noteContext = noteEntry?.context;
-          const createTask = taskContext?.createTask;
-          const closeNotePanel = noteContext?.closeNotePanel;
-          const setRecentlyDuplicatedTaskId = taskContext?.setRecentlyDuplicatedTaskId;
-          if (typeof createTask !== 'function' || typeof closeNotePanel !== 'function') {
-            setShowToTaskDialog(false);
-            setNoteForTask(null);
-            return;
-          }
-          const payload = {
-            title: newName.trim() || 'Untitled',
-            content: noteForTask.content ?? '',
-            mentions: noteForTask.mentions ?? [],
-            status: 'not started',
-            priority: 'Medium',
-            dueDate: null,
-            assignedTo: null,
-            createdFromNote: noteForTask.id,
-          };
-          createTask(payload)
-            .then((newTask: { id?: string | number } | undefined) => {
-              closeNotePanel();
-              attemptNavigation(() => navigate('/tasks'));
-              if (
-                newTask?.id !== undefined &&
-                newTask?.id !== null &&
-                typeof setRecentlyDuplicatedTaskId === 'function'
-              ) {
-                setRecentlyDuplicatedTaskId(String(newTask.id));
-              }
-              setShowToTaskDialog(false);
-              setNoteForTask(null);
-            })
-            .catch((err: unknown) => {
-              setShowToTaskDialog(false);
-              setNoteForTask(null);
-              alert(
-                (err as { message?: string; error?: string })?.message ??
-                  (err as { message?: string; error?: string })?.error ??
-                  'Failed to create task from note.',
-              );
-            });
-        }}
+        onConfirm={buildNoteToTaskOnConfirm({
+          noteForTask,
+          pluginContexts,
+          setShowToTaskDialog,
+          setNoteForTask,
+          attemptNavigation,
+          navigate,
+        })}
         onCancel={() => {
           setShowToTaskDialog(false);
           setNoteForTask(null);
@@ -914,53 +590,14 @@ function AppContent() {
         confirmText={t('app.createSlot')}
         defaultName=""
         confirmOnly={true}
-        onConfirm={() => {
-          if (!matchForSlot) {
-            setShowToSlotDialog(false);
-            setMatchForSlot(null);
-            return;
-          }
-          const matchEntry = pluginContexts.find(({ plugin }) => plugin.name === 'matches');
-          const slotsEntry = pluginContexts.find(({ plugin }) => plugin.name === 'slots');
-          const matchContext = matchEntry?.context;
-          const slotsContext = slotsEntry?.context;
-          const closeMatchPanel = matchContext?.closeMatchPanel;
-          const setRecentlyDuplicatedSlotId = slotsContext?.setRecentlyDuplicatedSlotId;
-          const locationStr = `${matchForSlot.home_team} – ${matchForSlot.away_team}${matchForSlot.location ? ` · ${matchForSlot.location}` : ''}`;
-          slotsApi
-            .createSlot({
-              location: locationStr,
-              slot_time: matchForSlot.start_time,
-              capacity: 1,
-              visible: true,
-              notifications_enabled: true,
-              match_id: matchForSlot.id,
-            })
-            .then(async (newSlot) => {
-              if (typeof closeMatchPanel === 'function') {
-                closeMatchPanel();
-              }
-              const refreshSlots = slotsContext?.refreshSlots;
-              if (typeof refreshSlots === 'function') {
-                await refreshSlots();
-              }
-              attemptNavigation(() => navigate('/slots'));
-              if (newSlot?.id !== undefined && typeof setRecentlyDuplicatedSlotId === 'function') {
-                setRecentlyDuplicatedSlotId(String(newSlot.id));
-              }
-              setShowToSlotDialog(false);
-              setMatchForSlot(null);
-            })
-            .catch((err: unknown) => {
-              setShowToSlotDialog(false);
-              setMatchForSlot(null);
-              alert(
-                (err as { message?: string; error?: string })?.message ??
-                  (err as { message?: string; error?: string })?.error ??
-                  'Failed to create slot from match.',
-              );
-            });
-        }}
+        onConfirm={buildMatchToSlotOnConfirm({
+          matchForSlot,
+          pluginContexts,
+          setShowToSlotDialog,
+          setMatchForSlot,
+          attemptNavigation,
+          navigate,
+        })}
         onCancel={() => {
           setShowToSlotDialog(false);
           setMatchForSlot(null);

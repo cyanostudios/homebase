@@ -5,7 +5,7 @@
  * It provides authentication, cross-plugin data, and panel coordination.
  *
  * 🚨 BEFORE MAKING ANY CHANGES:
- * 1. Read docs/LESSONS_LEARNED.md and docs/PLUGIN_ARCHITECTURE_V3.md
+ * 1. Read docs/LESSONS_LEARNED.md, docs/PLUGIN_ARCHITECTURE_V3.md, docs/PLUGIN_RUNTIME_CONVENTIONS.md
  * 2. Understand that changes here affect ALL plugins
  * 3. Test thoroughly with all existing plugins (contacts, notes, estimates, tasks, invoices, files)
  * 4. Verify cross-plugin features still work (@mentions, references)
@@ -101,6 +101,7 @@ interface AppContextType {
   /** Open "Create slot from match" dialog (set by App so match detail footer can trigger it). */
   openToSlotDialog:
     | ((match: {
+        id: string;
         home_team: string;
         away_team: string;
         location?: string | null;
@@ -110,6 +111,7 @@ interface AppContextType {
   registerOpenToSlotDialog: (
     fn:
       | ((match: {
+          id: string;
           home_team: string;
           away_team: string;
           location?: string | null;
@@ -612,6 +614,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, [isAuthenticated]);
 
+  /**
+   * AppContext scope (guardrail): keep **global**, **cross-plugin**, or **shell** concerns here.
+   * Prefer plugin modules or small helpers for plugin-specific behavior; do not use this as a
+   * default dumping ground. See guides/core-architecture-review-for-cursor.md.
+   */
   return (
     <AppContext.Provider
       value={{

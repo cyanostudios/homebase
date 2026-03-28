@@ -4,8 +4,12 @@ import React from 'react';
 
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
-// Reduced PLUGIN_CONFIGS - only for plugins not yet migrated
-const PLUGIN_CONFIGS: Record<string, any> = {
+/**
+ * Legacy panel title/subtitle for the `import` plugin only.
+ * Do not add new plugins here — use `pluginContext.getPanelTitle` / `getPanelSubtitle` instead.
+ * @see docs/PLUGIN_RUNTIME_CONVENTIONS.md
+ */
+const LEGACY_IMPORT_PLUGIN_CONFIG: Record<string, any> = {
   import: {
     icon: Upload,
     getTitle: (item: any) => ({
@@ -37,6 +41,9 @@ const PLUGIN_CONFIGS: Record<string, any> = {
     },
   },
 };
+
+/** @deprecated Use context-driven titles; only `import` remains in legacy map. */
+const PLUGIN_CONFIGS = LEGACY_IMPORT_PLUGIN_CONFIG;
 
 type TFunction = (key: string, options?: any) => string;
 
@@ -166,7 +173,7 @@ export const createPanelTitles = (
       return pluginContext.getPanelSubtitle(currentMode, currentItem);
     }
 
-    // Legacy PLUGIN_CONFIGS (e.g. import)
+    // Legacy: import-only (LEGACY_IMPORT_PLUGIN_CONFIG)
     if (currentMode === 'view' && currentItem) {
       const cfg = PLUGIN_CONFIGS[currentPlugin.name];
       if (cfg?.getSubtitle) {
