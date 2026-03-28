@@ -16,9 +16,8 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
 ## Plugin Contract v2 (official)
 
 - Panel modes are standardized: `'create' | 'edit' | 'view' | 'settings'`.
-- Form submit/cancel in panel mode are header-driven through:
-  - `window.submit<Plugins>Form`
-  - `window.cancel<Plugins>Form`
+- **Create/edit:** The `*Form` component owns **inline Save/Cancel** buttons. `PanelFooter` does not render form actions for those modes.
+- **Settings:** Only `*SettingsForm` registers `window.submit<Plugins>Form` / `window.cancel<Plugins>Form` for `PanelFooter` integration (settings mode).
 - Each plugin must expose `Form` in `components` inside `client/src/core/pluginRegistry.ts`.
 - Detail view must follow shared shell patterns:
   - `DetailLayout` main + sidebar

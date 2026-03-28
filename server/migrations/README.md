@@ -1,5 +1,20 @@
 # Migrations
 
+## 052 / 053 – Borttagning av cups-plugin (teardown)
+
+- **`052-drop-cups-tables.sql`** — `DROP TABLE` för `cups` och `cup_sources` på **tenant-/data-databaser** där cups-tabellerna fanns. Körs som övriga tenant-migrationer (lokalt schema-per-tenant: filtreras som vanligt; se `LocalTenantProvider`).
+- **`053-remove-cups-plugin-access.sql`** — markerad **`MAIN_DB_ONLY`**; körs **inte** i per-tenant-schema-migrationer. Tar bort rader med `plugin_name = 'cups'` från `user_plugin_access` och `tenant_plugin_access` när tabellerna finns (säker `DO $$ ... IF EXISTS`-block).
+
+**Huvuddatabasen (plugin-access):**
+
+```bash
+npm run migrate:remove-cups-plugin-access
+```
+
+Sätt `DATABASE_URL` till huvudapplikationens databas. Historiska filer `045`–`051` lämnas i repot för redan körda miljöer; `052`/`053` är framåtriktad städning.
+
+---
+
 ## 033-pulses-plugin.sql
 
 Skapar tabellerna `pulse_settings` och `pulse_log` för Pulse (SMS)-pluginet.

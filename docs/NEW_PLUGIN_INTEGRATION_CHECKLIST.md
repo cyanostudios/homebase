@@ -27,11 +27,9 @@ Use this checklist when creating a new plugin from `templates/plugin-frontend-te
   - `current<Plugin>`
   - `panelMode: 'create' | 'edit' | 'view' | 'settings'`
   - `save<Plugin>()`, `close<Plugin>Panel()`
-- Form registers panel-header callbacks:
-  - `window.submit<Plugins>Form`
-  - `window.cancel<Plugins>Form`
-  - Optional singular aliases for compatibility
-- View uses detail layout with quick actions and metadata sidebar.
+- **Create/edit `*Form.tsx`:** Inline **Save/Cancel** in the form body. Do **not** register `window.submit*Form` / `window.cancel*Form` for create/edit (see `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12).
+- **Settings `*SettingsForm.tsx` (if any):** Register `window.submit<Plugins>Form` / `window.cancel<Plugins>Form` so `PanelFooter` Save/Cancel work in `panelMode === 'settings'` (see `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §7).
+- View uses `DetailLayout` with quick actions, export (if applicable), information sidebar, and **`DetailActivityLog`** when the plugin uses standard `/api/<plugin>/:id` activity middleware (same pattern as contacts, notes, tasks, slots, matches).
 
 ## 4) i18n and UX parity
 

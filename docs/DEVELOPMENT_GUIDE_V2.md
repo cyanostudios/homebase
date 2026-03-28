@@ -598,7 +598,7 @@ git commit -m "feat: add new feature"
 git push
 ```
 
-💡 **Lärdom:** Projektet använder **husky pre-commit hooks** med **lint-staged** som automatiskt kör ESLint och Prettier på staged filer före varje commit. Om ESLint hittar fel (warnings eller errors) stoppas commit-processen. **Kör alltid `npm run lint` eller `npx lint-staged` INNAN du committar**, fixa alla fel, och committa igen.
+💡 **Lärdom:** Projektet använder **husky pre-commit hooks** med **lint-staged** som automatiskt kör ESLint och Prettier på staged filer före varje commit. Om ESLint hittar fel (warnings eller errors) stoppas commit-processen. **Kör alltid `npm run lint` eller `npx lint-staged` INNAN du committar**, fixa alla fel, och committa igen. I `package.json` använder lint-staged `eslint --fix --max-warnings=0 --no-warn-ignored` så att filer som medvetet ignoreras i ESLint-konfigurationen (t.ex. vissa deklarationsfiler) inte ska faila commit med en “ignored file”-varning.
 
 ---
 

@@ -3,8 +3,8 @@
 **Revolutionary plugin-based business application with zero-conflict development.**
 
 [![Status](https://img.shields.io/badge/Status-Development-green)](https://github.com/homebase/homebase)
-[![Architecture](https://img.shields.io/badge/Architecture-Modular%20Contexts-blue)](./docs/PLUGIN_GUIDE_V3.md)
-[![Performance](https://img.shields.io/badge/Performance-90%25%20Fewer%20Rerenders-brightgreen)](./docs/PLUGIN_OVERVIEW.md)
+[![Architecture](https://img.shields.io/badge/Architecture-Modular%20Contexts-blue)](./docs/PLUGIN_ARCHITECTURE_V3.md)
+[![Docs](https://img.shields.io/badge/Docs-docs%2FREADME-blue)](./docs/README.md)
 
 ---
 
@@ -92,7 +92,7 @@ npm run dev:ui    # Frontend (port 3001)
 
 ```bash
 mkdir -p plugins/my-plugin
-# Copy templates from docs/PLUGIN_GUIDE_V3.md
+# Follow docs/PLUGIN_DEVELOPMENT_STANDARDS_V2.md and templates under templates/
 ```
 
 2. **Frontend Plugin**
@@ -176,7 +176,7 @@ curl http://localhost:3002/api/plugins    # List loaded plugins
 - **Terminal 1:** Frontend development
 - **Terminal 2:** Backend with plugin system
 - **Terminal 3:** Commands and testing
-- **Follow:** [docs/PLUGIN_GUIDE_V3.md](./docs/PLUGIN_GUIDE_V3.md) for all plugin development
+- **Follow:** [docs/PLUGIN_DEVELOPMENT_STANDARDS_V2.md](./docs/PLUGIN_DEVELOPMENT_STANDARDS_V2.md) and [docs/PLUGIN_ARCHITECTURE_V3.md](./docs/PLUGIN_ARCHITECTURE_V3.md) for plugin development
 
 ### Code Standards
 
@@ -204,7 +204,7 @@ curl http://localhost:3002/api/plugins    # List loaded plugins
 ### Development Support
 
 - **Documentation:** [docs/README.md](./docs/README.md)
-- **Plugin Guide:** [docs/PLUGIN_GUIDE_V3.md](./docs/PLUGIN_GUIDE_V3.md)
+- **Plugin standards:** [docs/PLUGIN_DEVELOPMENT_STANDARDS_V2.md](./docs/PLUGIN_DEVELOPMENT_STANDARDS_V2.md)
 - **Local Frontend:** http://localhost:3001
 - **Local Backend:** http://localhost:3002
 
@@ -220,5 +220,5 @@ curl http://localhost:3002/api/plugins    # List loaded plugins
 **Status:** ✅ Complete Modular Architecture + Development Ready  
 **Development Time:** 15-25 minutes per plugin with templates  
 **Performance:** Enterprise-grade with proven optimization  
-**Last Updated:** August 2025  
+**Last Updated:** March 2026  
 **Built with ❤️ by the development team**

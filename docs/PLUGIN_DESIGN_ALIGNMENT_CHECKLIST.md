@@ -466,7 +466,7 @@ Sidebar ska innehålla, i denna ordning:
 2. `ExportOptionsCard` (om pluginet stöder export)
 3. Relaterade entiteter (mentions, assignees osv.)
 4. `Information`-kortet (System ID, Created, Updated)
-5. `DetailActivityLog` (om pluginet loggar aktivitet)
+5. `DetailActivityLog` — **obligatoriskt** för vanliga CRUD-plugins vars API loggas via `activityLogMiddleware` (`entityType` = singular av plugin-namn, t.ex. `contact`, `note`, `task`). Referens: `ContactView`, `NoteView`, `TaskView`, `SlotView`, `MatchView`. Använd `limit={30}`, `showClearButton` och `refreshKey` från `updatedAt`/id som i referenserna.
 
 Properties ska **inte** ligga i sidebar. Sidebar är för metadata, actions och relationer.
 
@@ -518,6 +518,7 @@ Varje plugin behöver dessa nycklar i **både** `en.json` och `sv.json`:
   "exportOptions": "Export options",
   "title": "Title",
   "information": "Information",
+  "activity": "Activity",
   "myPluginContent": "...",
   "deleteConfirmThis": "...",
   "deleteConfirmNamed": "..."
@@ -531,6 +532,7 @@ Varje plugin behöver dessa nycklar i **både** `en.json` och `sv.json`:
 - [ ] `myPlugin.title` finns (används i `DuplicateDialog` nameLabel)
 - [ ] `myPlugin.quickActions` finns
 - [ ] `myPlugin.exportOptions` finns
+- [ ] `myPlugin.activity` finns om vyn använder `DetailActivityLog`
 - [ ] Alla nycklar finns i **BÅDA** `en.json` och `sv.json`
 
 ---

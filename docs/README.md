@@ -14,6 +14,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 ## Canonical dokument (hålls uppdaterade)
 
 - **Changelog / historik:** `CHANGELOG.md`
+- **SQL-migrationer (körguider, inkl. cups-teardown 052/053):** `../server/migrations/README.md`
 - **Core services (Adapter pattern):** `CORE_SERVICES_ARCHITECTURE.md`
 - **Core-arkitektur (översikt + TopBar widgets):** `CORE_ARCHITECTURE_V2.md` _(översikt – uppdateras vid stora layout/flow-ändringar)_
 - **Plugin-arkitektur (V3):** `PLUGIN_ARCHITECTURE_V3.md`

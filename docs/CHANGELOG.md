@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-03 – Cups-plugin borttaget, aktivitetslogg i vy, DB-teardown
+
+- **Cups borttaget (hela stacken):** Klient (`client/src/plugins/cups`), backend (`plugins/cups`), registrering i `pluginRegistry.ts`, `App.tsx`, `routeMap.ts`, `Sidebar` (`NavPage`), `DetailSection` (`iconPlugin`), i18n, temavariabler (`index.css`), `cheerio`-beroende och cups-specifika npm-scripts under `scripts/`.
+- **Databas:** `052-drop-cups-tables.sql` tar bort tabellerna `cups` och `cup_sources` på tenant-/data-DB. `053-remove-cups-plugin-access.sql` (markerad `MAIN_DB_ONLY`) tar bort `plugin_name = 'cups'` från `user_plugin_access` / `tenant_plugin_access` på huvuddatabasen; kör via `npm run migrate:remove-cups-plugin-access` mot rätt `DATABASE_URL`.
+- **Aktivitet i detaljvy:** `DetailActivityLog` i sidopanelen för **vy-läge** i `ContactView`, `TaskView` och `NoteView` (samma mönster som slots/matcher). Nycklar `contacts.activity` och `tasks.activity` i `en.json` / `sv.json`.
+- **Polyfill-kommentar:** `server/core/polyfills/nodeWebGlobals.js` beskriver generellt undici/`File` på Node 18 (inte cups-specifikt).
+- **lint-staged:** ESLint anropas med `--no-warn-ignored` så ignorerade filer (t.ex. vissa `.d.ts`) inte failar pre-commit med varningar.
+
+---
+
 ## 2026-03 – Matches streamline: optional format, dialogs och duplikering
 
 - **Format frivilligt (end-to-end):**
