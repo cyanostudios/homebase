@@ -4,6 +4,15 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-03 – Ingest-plugin (källor, hämtning, delad backend)
+
+- **Nytt plugin `ingest`:** Källor med URL, typer enligt guide (`html`, `pdf`, `json`, `xml`, `other`), manuell hämtning, körhistorik med utdrag, CSRF på muterande API-rutter, återanvändbar **`ingestService`** (`runSourceById`, `fetchSourceFromRecord`, `getLatestSourceContent`) exporterad från plugin-init.
+- **Databas (tenant):** `054-ingest-sources-and-runs.sql`, därefter `056-ingest-runs-updated-at-and-rss-cleanup.sql` (`updated_at` på `ingest_runs`, legacy `rss` → `other`).
+- **Huvud-DB:** `055-grant-ingest-plugin-access.sql` via `npm run migrate:ingest-plugin-access`.
+- **Frontend:** `IngestSourceList` / `IngestSourceForm` / `IngestSourceView`, kontext-alias enligt guide (`saveIngestSource`, `runIngestSource`, m.fl.).
+
+---
+
 ## 2026-03 – Cups-plugin borttaget, aktivitetslogg i vy, DB-teardown
 
 - **Cups borttaget (hela stacken):** Klient (`client/src/plugins/cups`), backend (`plugins/cups`), registrering i `pluginRegistry.ts`, `App.tsx`, `routeMap.ts`, `Sidebar` (`NavPage`), `DetailSection` (`iconPlugin`), i18n, temavariabler (`index.css`), `cheerio`-beroende och cups-specifika npm-scripts under `scripts/`.

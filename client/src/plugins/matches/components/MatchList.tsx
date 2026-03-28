@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Grid3x3, List, Plus, Search, Settings, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Grid3x3, List, Plus, Search, Settings, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { useMatches } from '../hooks/useMatches';
 import type { Match } from '../types/match';
 
-import { MatchSettingsView } from './MatchSettingsView';
+import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
 
 const MATCHES_SETTINGS_KEY = 'matches';
 type ViewMode = 'grid' | 'list';
@@ -45,6 +45,7 @@ export function MatchList() {
     openMatchPanel,
     openMatchForView,
     openMatchSettings,
+    closeMatchSettingsView,
     deleteMatch: _deleteMatch,
     deleteMatches,
     selectedMatchIds,
@@ -62,6 +63,7 @@ export function MatchList() {
   const [sortField, setSortField] = useState<SortField>('start_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('view');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -192,7 +194,29 @@ export function MatchList() {
     s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
   if (matchesContentView === 'settings') {
-    return <MatchSettingsView />;
+    return (
+      <div className="plugin-matches min-h-full bg-background">
+        <div className="px-6 py-4">
+          <MatchSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            renderCategoryButtonsInline
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeMatchSettingsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -330,7 +354,9 @@ export function MatchList() {
                   <div className="mt-1 text-xs text-muted-foreground">
                     {match.home_team} – {match.away_team}
                   </div>
-                  {match.location && <div className="truncate text-xs text-muted-foreground">{match.location}</div>}
+                  {match.location && (
+                    <div className="truncate text-xs text-muted-foreground">{match.location}</div>
+                  )}
                   <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
                     <div>{formatDateTime(match.start_time)}</div>
                     {match.total_minutes !== null && match.total_minutes !== undefined && (

@@ -49,5 +49,7 @@ declare global {
     cancelPulsesForm?: () => void;
     submitPulseForm?: () => void;
     cancelPulseForm?: () => void;
+    submitIngestForm?: () => void;
+    cancelIngestForm?: () => void;
   }
 }

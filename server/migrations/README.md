@@ -1,5 +1,21 @@
 # Migrations
 
+## 054 / 055 / 056 – Ingest-plugin
+
+- **`054-ingest-sources-and-runs.sql`** — tabeller `ingest_sources` och `ingest_runs` på **tenant-/data-databaser**. Körs som vanliga tenant-migrationer.
+- **`055-grant-ingest-plugin-access.sql`** — markerad **`MAIN_DB_ONLY`**; körs **inte** i per-tenant-schema. Lägger till `plugin_name = 'ingest'` i `tenant_plugin_access` (alla tenants) och i `user_plugin_access` för varje tenantägare (`COALESCE(owner_user_id, user_id)`). Idempotent (`ON CONFLICT DO NOTHING`).
+- **`056-ingest-runs-updated-at-and-rss-cleanup.sql`** — tenant-DB: kolumn `updated_at` på `ingest_runs` (krävs för `db.update()` vid körningsuppdateringar); `source_type = 'rss'` mappas till `'other'`.
+
+**Huvuddatabasen (plugin-access för ingest):**
+
+```bash
+npm run migrate:ingest-plugin-access
+```
+
+Sätt `DATABASE_URL` till huvudapplikationens databas (samma som för `migrate:remove-cups-plugin-access`).
+
+---
+
 ## 052 / 053 – Borttagning av cups-plugin (teardown)
 
 - **`052-drop-cups-tables.sql`** — `DROP TABLE` för `cups` och `cup_sources` på **tenant-/data-databaser** där cups-tabellerna fanns. Körs som övriga tenant-migrationer (lokalt schema-per-tenant: filtreras som vanligt; se `LocalTenantProvider`).

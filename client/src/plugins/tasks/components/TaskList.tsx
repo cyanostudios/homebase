@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   Settings,
+  X,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -36,7 +37,7 @@ import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
 import { getTasksExportConfig } from '../utils/taskExportConfig';
 
-import { TaskSettingsView } from './TaskSettingsView';
+import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
 
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
@@ -61,6 +62,7 @@ export const TaskList: React.FC = () => {
     openTaskForView,
     openTaskPanel,
     openTaskSettings,
+    closeTaskSettingsView,
     deleteTasks,
     selectedTaskIds,
     toggleTaskSelected,
@@ -80,6 +82,7 @@ export const TaskList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('view');
 
   useEffect(() => {
     let cancelled = false;
@@ -338,7 +341,29 @@ export const TaskList: React.FC = () => {
   };
 
   if (tasksContentView === 'settings') {
-    return <TaskSettingsView />;
+    return (
+      <div className="plugin-tasks min-h-full bg-background">
+        <div className="px-6 py-4">
+          <TaskSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            renderCategoryButtonsInline
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeTaskSettingsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -469,7 +494,9 @@ export const TaskList: React.FC = () => {
                         <Badge className={TASK_STATUS_COLORS[task.status]}>
                           {formatStatusForDisplay(task.status)}
                         </Badge>
-                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
+                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
+                          {task.priority}
+                        </Badge>
                       </div>
                     </div>
                     <h3 className="mb-3 line-clamp-1 text-base font-semibold">{task.title}</h3>

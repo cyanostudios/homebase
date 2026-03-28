@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Settings,
+  X,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,7 +43,7 @@ import { useContacts } from '../hooks/useContacts';
 import { CONTACT_TYPE_COLORS } from '../types/contacts';
 import { contactExportConfig } from '../utils/contactExportConfig';
 
-import { ContactSettingsView } from './ContactSettingsView';
+import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
 
 type SortField = 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
@@ -67,6 +68,7 @@ export const ContactList: React.FC = () => {
     openContactForView,
     openContactPanel,
     openContactSettings,
+    closeContactSettingsView,
     deleteContacts,
     selectedContactIds,
     toggleContactSelected,
@@ -92,6 +94,7 @@ export const ContactList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('view');
 
   useEffect(() => {
     let cancelled = false;
@@ -306,7 +309,29 @@ export const ContactList: React.FC = () => {
 
   // Full-page settings view (like Core Settings) instead of list
   if (contactsContentView === 'settings') {
-    return <ContactSettingsView />;
+    return (
+      <div className="plugin-contacts min-h-full bg-background">
+        <div className="px-6 py-4">
+          <ContactSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            renderCategoryButtonsInline
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeContactSettingsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -478,7 +503,9 @@ export const ContactList: React.FC = () => {
                         </Badge>
                       </div>
                     </div>
-                    <h3 className="mb-2 line-clamp-1 text-base font-semibold">{contact.companyName}</h3>
+                    <h3 className="mb-2 line-clamp-1 text-base font-semibold">
+                      {contact.companyName}
+                    </h3>
                     {(contact.organizationNumber || contact.personalNumber) && (
                       <div className="mb-3 text-xs text-muted-foreground">
                         {contact.contactType === 'company' && contact.organizationNumber && (

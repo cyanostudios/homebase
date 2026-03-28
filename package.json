@@ -40,6 +40,8 @@
     "migrate:slots-description-name-address": "node scripts/run-slots-description-name-address-migration.js",
     "migrate:slots-category": "node scripts/run-slots-category-migration.js",
     "migrate:remove-cups-plugin-access": "node scripts/run-remove-cups-plugin-access-migration.js",
+    "migrate:ingest-plugin-access": "node scripts/run-grant-ingest-plugin-access-migration.js",
+    "migrate:ingest-tenants": "node scripts/run-ingest-tenant-migrations.js",
     "twilio": "npm install twilio"
   },
   "dependencies": {

@@ -254,6 +254,7 @@ function AppContent() {
     slots: (i: any) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
     mail: 'id',
     pulses: 'id',
+    ingest: 'name',
   };
 
   // URL → panel sync: back/forward button support.
@@ -338,11 +339,14 @@ function AppContent() {
 
   const contentTitle = useMemo(() => {
     if (
+      currentPage === 'mail' ||
+      currentPage === 'pulses' ||
       currentPage === 'slots' ||
       currentPage === 'notes' ||
       currentPage === 'contacts' ||
       currentPage === 'tasks' ||
-      currentPage === 'matches'
+      currentPage === 'matches' ||
+      currentPage === 'ingest'
     ) {
       return '';
     }
@@ -366,11 +370,14 @@ function AppContent() {
 
   const contentIcon = useMemo(() => {
     if (
+      currentPage === 'mail' ||
+      currentPage === 'pulses' ||
       currentPage === 'slots' ||
       currentPage === 'notes' ||
       currentPage === 'contacts' ||
       currentPage === 'tasks' ||
-      currentPage === 'matches'
+      currentPage === 'matches' ||
+      currentPage === 'ingest'
     ) {
       return undefined;
     }
@@ -396,7 +403,11 @@ function AppContent() {
     if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
       return null;
     }
-    if (currentPagePlugin.name === 'slots' || currentPagePlugin.name === 'notes') {
+    if (
+      currentPagePlugin.name === 'slots' ||
+      currentPagePlugin.name === 'notes' ||
+      currentPagePlugin.name === 'ingest'
+    ) {
       return null;
     }
 
@@ -407,62 +418,23 @@ function AppContent() {
       return null;
     }
 
-    const contactsContentView = context.contactsContentView as 'list' | 'settings' | undefined;
-    const closeContactSettingsView = context.closeContactSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'contacts' &&
-      contactsContentView === 'settings' &&
-      typeof closeContactSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeContactSettingsView,
-        variant: 'secondary' as const,
-      };
+    // Full-page settings: these plugins use their own header/toolbar — never show ContentHeader "Add".
+    type ListOrSettings = 'list' | 'settings' | undefined;
+    const inSettings =
+      (currentPagePlugin.name === 'contacts' &&
+        (context.contactsContentView as ListOrSettings) === 'settings') ||
+      (currentPagePlugin.name === 'tasks' &&
+        (context.tasksContentView as ListOrSettings) === 'settings') ||
+      (currentPagePlugin.name === 'matches' &&
+        (context.matchesContentView as ListOrSettings) === 'settings') ||
+      (currentPagePlugin.name === 'mail' &&
+        (context.mailContentView as ListOrSettings) === 'settings') ||
+      (currentPagePlugin.name === 'pulses' &&
+        (context.pulsesContentView as ListOrSettings) === 'settings');
+    if (inSettings) {
+      return null;
     }
-    const tasksContentView = context.tasksContentView as 'list' | 'settings' | undefined;
-    const closeTaskSettingsView = context.closeTaskSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'tasks' &&
-      tasksContentView === 'settings' &&
-      typeof closeTaskSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeTaskSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
-    const slotsContentView = context.slotsContentView as 'list' | 'settings' | undefined;
-    const closeSlotSettingsView = context.closeSlotSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'slots' &&
-      slotsContentView === 'settings' &&
-      typeof closeSlotSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeSlotSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
-    const matchesContentView = context.matchesContentView as 'list' | 'settings' | undefined;
-    const closeMatchSettingsView = context.closeMatchSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'matches' &&
-      matchesContentView === 'settings' &&
-      typeof closeMatchSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeMatchSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
+
     const estimatesContentView = context.estimatesContentView as 'list' | 'settings' | undefined;
     const closeEstimateSettingsView = context.closeEstimateSettingsView as (() => void) | undefined;
     if (
@@ -491,42 +463,17 @@ function AppContent() {
         variant: 'secondary' as const,
       };
     }
-    const mailContentView = context.mailContentView as 'list' | 'settings' | undefined;
-    const closeMailSettingsView = context.closeMailSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'mail' &&
-      mailContentView === 'settings' &&
-      typeof closeMailSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeMailSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
-    const pulsesContentView = context.pulsesContentView as 'list' | 'settings' | undefined;
-    const closePulseSettingsView = context.closePulseSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'pulses' &&
-      pulsesContentView === 'settings' &&
-      typeof closePulseSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closePulseSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
-
     if (
       (currentPagePlugin.name === 'contacts' &&
         (context.contactsContentView as string | undefined) === 'list') ||
       (currentPagePlugin.name === 'tasks' &&
         (context.tasksContentView as string | undefined) === 'list') ||
       (currentPagePlugin.name === 'matches' &&
-        (context.matchesContentView as string | undefined) === 'list')
+        (context.matchesContentView as string | undefined) === 'list') ||
+      (currentPagePlugin.name === 'mail' &&
+        (context.mailContentView as string | undefined) === 'list') ||
+      (currentPagePlugin.name === 'pulses' &&
+        (context.pulsesContentView as string | undefined) === 'list')
     ) {
       return null;
     }
@@ -767,7 +714,10 @@ function AppContent() {
           currentPage === 'notes' ||
           currentPage === 'contacts' ||
           currentPage === 'tasks' ||
-          currentPage === 'matches'
+          currentPage === 'matches' ||
+          currentPage === 'ingest' ||
+          currentPage === 'mail' ||
+          currentPage === 'pulses'
         }
       >
         {currentPage === 'dashboard' ? (

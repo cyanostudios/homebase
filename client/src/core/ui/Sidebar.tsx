@@ -30,6 +30,7 @@ export type NavPage =
   | 'matches'
   | 'slots'
   | 'files'
+  | 'ingest'
   | 'mail'
   | 'pulses'
   | 'settings';

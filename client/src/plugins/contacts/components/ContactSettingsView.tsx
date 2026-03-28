@@ -1,7 +1,7 @@
 // Contacts settings as full-page content (like Core Settings and Notes): tab row + card + footer.
 
 import { Check, LayoutGrid, List, Plus, Tag, Upload, X } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -31,26 +31,43 @@ const getContactImportSchema = (): ImportSchema => ({
   ],
 });
 
-interface ContactSettingsCategory {
-  id: string;
+export type ContactSettingsCategory = 'view' | 'tags' | 'import';
+
+interface ContactSettingsCategoryDef {
+  id: ContactSettingsCategory;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const getContactSettingsCategories = (t: (key: string) => string): ContactSettingsCategory[] => [
+const getContactSettingsCategories = (t: (key: string) => string): ContactSettingsCategoryDef[] => [
   { id: 'view', label: 'View', icon: LayoutGrid },
   { id: 'tags', label: 'Tags', icon: Tag },
   { id: 'import', label: t('contacts.import'), icon: Upload },
 ];
 
-export function ContactSettingsView() {
+interface ContactSettingsViewProps {
+  selectedCategory?: ContactSettingsCategory;
+  onSelectedCategoryChange?: (category: ContactSettingsCategory) => void;
+  renderCategoryButtonsInline?: boolean;
+  inlineTrailing?: React.ReactNode;
+}
+
+export function ContactSettingsView({
+  selectedCategory,
+  onSelectedCategoryChange,
+  renderCategoryButtonsInline = false,
+  inlineTrailing,
+}: ContactSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { setHeaderTrailing } = useContentLayout();
   const { getSettings, updateSettings } = useApp();
   const { importContacts } = useContacts();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('view');
+  const [internalCategory, setInternalCategory] = useState<ContactSettingsCategory>('view');
+  const activeCategory = selectedCategory ?? internalCategory;
+  const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
+
   const [viewMode, setViewMode] = useState<ContactViewMode>('grid');
   const [initialViewMode, setInitialViewMode] = useState<ContactViewMode>('grid');
   const [tags, setTags] = useState<string[]>([]);
@@ -59,17 +76,17 @@ export function ContactSettingsView() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    setHeaderTrailing(
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+  const categoryButtons = useMemo(
+    () => (
+      <div className="flex items-center gap-1">
         {getContactSettingsCategories(t).map((category) => {
           const Icon = category.icon;
-          const isActive = selectedCategory === category.id;
+          const isActive = activeCategory === category.id;
           return (
             <Button
               key={category.id}
               variant="ghost"
-              onClick={() => !isActive && setSelectedCategory(category.id)}
+              onClick={() => !isActive && setActiveCategory(category.id)}
               className={cn(
                 'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
                 'flex items-center gap-1.5 sm:gap-2',
@@ -83,10 +100,19 @@ export function ContactSettingsView() {
             </Button>
           );
         })}
-      </div>,
-    );
+      </div>
+    ),
+    [activeCategory, setActiveCategory, t],
+  );
+
+  useEffect(() => {
+    if (renderCategoryButtonsInline) {
+      setHeaderTrailing(null);
+      return;
+    }
+    setHeaderTrailing(categoryButtons);
     return () => setHeaderTrailing(null);
-  }, [setHeaderTrailing, selectedCategory, t]);
+  }, [setHeaderTrailing, renderCategoryButtonsInline, categoryButtons]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,8 +126,8 @@ export function ContactSettingsView() {
         setInitialViewMode(loadedView);
         const loadedTags = Array.isArray(settings?.tags)
           ? settings.tags
-              .filter((t: unknown) => typeof t === 'string')
-              .map((t: string) => t.trim())
+              .filter((tag: unknown) => typeof tag === 'string')
+              .map((tag: string) => tag.trim())
               .filter(Boolean)
           : [];
         setTags(loadedTags);
@@ -119,7 +145,7 @@ export function ContactSettingsView() {
   }, [getSettings]);
 
   const tagsEqual =
-    tags.length === initialTags.length && tags.every((t, i) => t === initialTags[i]);
+    tags.length === initialTags.length && tags.every((tag, i) => tag === initialTags[i]);
   const isDirty = viewMode !== initialViewMode || !tagsEqual;
 
   const handleSave = useCallback(async () => {
@@ -150,7 +176,7 @@ export function ContactSettingsView() {
   }, [newTag, tags]);
 
   const removeTag = useCallback((tag: string) => {
-    setTags((prev) => prev.filter((t) => t !== tag));
+    setTags((prev) => prev.filter((x) => x !== tag));
   }, []);
 
   if (isLoading) {
@@ -166,15 +192,30 @@ export function ContactSettingsView() {
     { id: 'list', label: 'List', icon: List },
   ];
 
+  const settingsTitle = t('contacts.settingsContacts');
+
   return (
     <div className="space-y-4">
-      <Card
-        padding="md"
-        className="overflow-hidden border border-border/60 bg-background/50 shadow-sm"
-      >
-        {selectedCategory === 'view' && (
+      {renderCategoryButtonsInline ? (
+        <div className="flex flex-shrink-0 items-center justify-between">
+          <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+            <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+              {settingsTitle}
+            </h2>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            {categoryButtons}
+            {inlineTrailing}
+          </div>
+        </div>
+      ) : (
+        <h2 className="text-lg font-semibold tracking-tight">{settingsTitle}</h2>
+      )}
+
+      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+        {activeCategory === 'view' && (
           <DetailSection title="Default view" className="pt-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               {viewModes.map((mode) => {
                 const ModeIcon = mode.icon;
                 const isActive = viewMode === mode.id;
@@ -197,13 +238,13 @@ export function ContactSettingsView() {
                 );
               })}
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="mt-2 text-sm text-muted-foreground">
               Contacts will be displayed in the selected layout by default.
             </p>
           </DetailSection>
         )}
 
-        {selectedCategory === 'tags' && (
+        {activeCategory === 'tags' && (
           <DetailSection title="Tags" className="pt-0">
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
@@ -259,9 +300,9 @@ export function ContactSettingsView() {
           </DetailSection>
         )}
 
-        {selectedCategory === 'import' && (
+        {activeCategory === 'import' && (
           <DetailSection title={t('contacts.import')} className="pt-0">
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="mb-4 text-sm text-muted-foreground">
               {t('contacts.importDescription') ||
                 'Import contacts from a CSV file. Columns: Name, Type, Email, Phone, Notes.'}
             </p>

@@ -86,6 +86,8 @@
     /* Teal */
     --plugin-slots: 250 60% 58%;
     /* Indigo */
+    --plugin-ingest: 24 95% 53%;
+    /* Orange */
   }
 
   .dark {
@@ -138,6 +140,7 @@
     --plugin-mail: 346 84% 61%;
     --plugin-matches: 173 80% 40%;
     --plugin-slots: 250 60% 58%;
+    --plugin-ingest: 24 95% 53%;
   }
 
   * {
@@ -202,6 +205,10 @@
 
   .plugin-slots {
     --plugin-color: var(--plugin-slots);
+  }
+
+  .plugin-ingest {
+    --plugin-color: var(--plugin-ingest);
   }
 
   /* Utility classes using the assigned variable */

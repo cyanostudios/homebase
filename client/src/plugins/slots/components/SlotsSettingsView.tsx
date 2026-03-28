@@ -123,7 +123,7 @@ export function SlotsSettingsView({
         <div className="flex flex-shrink-0 items-center justify-between">
           <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
             <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-              Slots - Settings
+              {t('slots.settingsSlots')}
             </h2>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
@@ -132,7 +132,7 @@ export function SlotsSettingsView({
           </div>
         </div>
       ) : (
-        <h2 className="text-lg font-semibold tracking-tight">Slots - Settings</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t('slots.settingsSlots')}</h2>
       )}
       <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
         {activeCategory === 'view' && (

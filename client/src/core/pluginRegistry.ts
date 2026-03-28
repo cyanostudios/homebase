@@ -8,6 +8,7 @@ import {
   Mail,
   Store,
   Trophy,
+  Download,
   LucideIcon,
 } from 'lucide-react';
 import React from 'react';
@@ -78,6 +79,12 @@ import { FilesDashboardWidget } from '@/plugins/files/components/FilesDashboardW
 import { FileView } from '@/plugins/files/components/FileView';
 import { FilesProvider } from '@/plugins/files/context/FilesContext';
 import { useFiles } from '@/plugins/files/hooks/useFiles';
+// Ingest
+import { IngestSourceForm } from '@/plugins/ingest/components/IngestSourceForm';
+import { IngestSourceList } from '@/plugins/ingest/components/IngestSourceList';
+import { IngestSourceView } from '@/plugins/ingest/components/IngestSourceView';
+import { IngestProvider } from '@/plugins/ingest/context/IngestContext';
+import { useIngest } from '@/plugins/ingest/hooks/useIngest';
 // Invoices
 import { InvoicesDashboardWidget } from '@/plugins/invoices/components/InvoicesDashboardWidget';
 import { InvoicesForm } from '@/plugins/invoices/components/InvoicesForm';
@@ -274,6 +281,24 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
+  },
+  {
+    name: 'ingest',
+    Provider: IngestProvider,
+    hook: useIngest,
+    panelKey: 'isIngestPanelOpen',
+    components: {
+      List: IngestSourceList,
+      Form: IngestSourceForm,
+      View: IngestSourceView,
+    },
+    navigation: {
+      category: 'Tools',
+      label: 'Ingest',
+      icon: Download,
+      order: 3,
+    },
+    displayPrefix: 'ING',
   },
   {
     name: 'mail',

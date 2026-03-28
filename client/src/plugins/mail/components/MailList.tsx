@@ -1,11 +1,12 @@
 import { format } from 'date-fns';
-import { Mail, Settings, RefreshCw, Trash2 } from 'lucide-react';
-import React, { useState, useEffect, useMemo } from 'react';
+import { RefreshCw, Search, Settings, Trash2, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -16,8 +17,6 @@ import {
 } from '@/components/ui/table';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
-import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { cn } from '@/lib/utils';
 
 import { useMail } from '../hooks/useMail';
@@ -33,28 +32,31 @@ export const MailList: React.FC = () => {
     loading,
     loadHistory,
     openMailsSettings,
+    closeMailSettingsView,
     mailContentView,
     selectedIds,
     selectedCount,
     isSelected,
     toggleSelected,
     clearSelection,
+    replaceSelectedIds,
     deleteHistory,
   } = useMail();
-  const { setHeaderTrailing, setHeaderTitleSuffix } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [pluginFilter, setPluginFilter] = useState<string>('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
-  const filtered = mailHistory.filter((entry) => {
-    const matchSearch =
-      !searchTerm ||
-      entry.to.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.subject.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchPlugin = !pluginFilter || entry.pluginSource === pluginFilter;
-    return matchSearch && matchPlugin;
-  });
+  const filtered = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return mailHistory.filter((entry) => {
+      const matchSearch =
+        !q || entry.to.toLowerCase().includes(q) || entry.subject.toLowerCase().includes(q);
+      const matchPlugin = !pluginFilter || entry.pluginSource === pluginFilter;
+      return matchSearch && matchPlugin;
+    });
+  }, [mailHistory, searchTerm, pluginFilter]);
 
   const pluginSources = useMemo(
     () =>
@@ -78,89 +80,33 @@ export const MailList: React.FC = () => {
     return { label: provider === 'resend' ? 'Resend' : 'SMTP', isOk: false };
   }, [settings, t]);
 
-  useEffect(() => {
-    if (mailContentView !== 'list') {
-      setHeaderTitleSuffix(null);
-      return () => setHeaderTitleSuffix(null);
-    }
-    setHeaderTitleSuffix(
-      <Badge
-        variant="outline"
-        className={cn(
-          'font-medium text-[10px]',
-          statusBadge.isOk
-            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800'
-            : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800',
-        )}
-      >
-        {statusBadge.label}
-      </Badge>,
-    );
-    return () => setHeaderTitleSuffix(null);
-  }, [mailContentView, statusBadge, setHeaderTitleSuffix]);
+  const visibleIds = useMemo(() => filtered.map((e) => e.id), [filtered]);
+
+  const allVisibleSelected = useMemo(
+    () => visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id)),
+    [visibleIds, selectedIds],
+  );
+
+  const someVisibleSelected = useMemo(
+    () => visibleIds.some((id) => selectedIds.includes(id)),
+    [visibleIds, selectedIds],
+  );
 
   useEffect(() => {
-    if (mailContentView !== 'list') {
-      setHeaderTrailing(null);
-      return () => setHeaderTrailing(null);
+    if (!headerCheckboxRef.current) {
+      return;
     }
-    setHeaderTrailing(
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t('mail.searchPlaceholder')}
-        rightActions={
-          <div className="flex items-center gap-2">
-            {pluginSources.length > 0 && (
-              <select
-                value={pluginFilter}
-                onChange={(e) => setPluginFilter(e.target.value)}
-                className="h-7 rounded-md border border-input bg-background px-2 py-1 text-[10px]"
-              >
-                <option value="">{t('mail.allPlugins')}</option>
-                {pluginSources.map((ps: string) => (
-                  <option key={ps} value={ps}>
-                    {ps}
-                  </option>
-                ))}
-              </select>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              onClick={() => openMailsSettings()}
-              title={t('common.settings')}
-              className="h-9 text-xs px-3"
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={RefreshCw}
-              onClick={() => loadHistory()}
-              disabled={loading}
-              className={cn('h-9 text-xs px-3', loading && '[&>svg]:animate-spin')}
-            >
-              {t('mail.refresh')}
-            </Button>
-          </div>
-        }
-      />,
-    );
-    return () => setHeaderTrailing(null);
-  }, [
-    searchTerm,
-    pluginFilter,
-    pluginSources,
-    loading,
-    setHeaderTrailing,
-    loadHistory,
-    openMailsSettings,
-    mailContentView,
-    t,
-  ]);
+    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
+  }, [allVisibleSelected, someVisibleSelected]);
+
+  const onToggleAllVisible = useCallback(() => {
+    const visibleSet = new Set(visibleIds);
+    if (allVisibleSelected) {
+      replaceSelectedIds(selectedIds.filter((id) => !visibleSet.has(id)));
+    } else {
+      replaceSelectedIds(Array.from(new Set([...selectedIds, ...visibleIds])));
+    }
+  }, [allVisibleSelected, visibleIds, selectedIds, replaceSelectedIds]);
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) {
@@ -177,141 +123,221 @@ export const MailList: React.FC = () => {
     }
   };
 
-  const allFilteredSelected =
-    filtered.length > 0 && filtered.every((e) => selectedIds.includes(e.id));
-
-  const handleSelectAllFiltered = () => {
-    if (allFilteredSelected) {
-      clearSelection();
-    } else {
-      filtered.forEach((e) => {
-        if (!selectedIds.includes(e.id)) {
-          toggleSelected(e.id);
-        }
-      });
-    }
-  };
-
   if (mailContentView === 'settings') {
-    return <MailSettingsView />;
+    return (
+      <div className="plugin-mail min-h-full bg-background">
+        <div className="px-6 py-4">
+          <div className="space-y-4">
+            <div className="flex flex-shrink-0 items-center justify-between">
+              <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+                {t('mail.settingsTitle')}
+              </h2>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeMailSettingsView}
+              >
+                {t('common.close')}
+              </Button>
+            </div>
+            <MailSettingsView />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <BulkActionBar
-        selectedCount={selectedCount}
-        onClearSelection={clearSelection}
-        actions={[
-          {
-            label: t('common.delete'),
-            icon: Trash2,
-            onClick: () => setShowBulkDeleteModal(true),
-            variant: 'destructive',
-          },
-        ]}
-      />
-      <Card className="shadow-none plugin-mail">
-        <div className="p-4 border-b border-border flex items-center gap-2">
-          <Mail className="h-5 w-5 text-plugin" />
-          <span className="font-medium text-sm">{t('mail.historyTitle')}</span>
+    <div className="plugin-mail min-h-full bg-background">
+      <div className="flex flex-shrink-0 flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mr-0 flex min-w-0 flex-1 flex-col gap-3 sm:mr-4 sm:flex-row sm:items-center">
+          <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
+            {t('nav.mail')}
+          </h2>
+          <div className="relative w-full max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t('mail.searchPlaceholder')}
+              className="h-9 bg-background pl-9 text-xs"
+            />
+          </div>
+        </div>
+        <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
           <Badge
             variant="secondary"
-            className="bg-secondary/50 text-secondary-foreground border-transparent font-medium text-[10px]"
+            className="border-transparent bg-secondary/50 font-medium text-[10px] text-secondary-foreground"
           >
             {totalCount} {t('mail.total')}
           </Badge>
+          <Badge
+            variant="outline"
+            className={cn(
+              'font-medium text-[10px]',
+              statusBadge.isOk
+                ? 'border-green-200 bg-green-100 text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300'
+                : 'border-red-200 bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300',
+            )}
+          >
+            {statusBadge.label}
+          </Badge>
+          {pluginSources.length > 0 && (
+            <select
+              value={pluginFilter}
+              onChange={(e) => setPluginFilter(e.target.value)}
+              className="h-9 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
+            >
+              <option value="">{t('mail.allPlugins')}</option>
+              {pluginSources.map((ps: string) => (
+                <option key={ps} value={ps}>
+                  {ps}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Settings}
+            onClick={() => openMailsSettings()}
+            title={t('common.settings')}
+            className="h-9 px-3 text-xs"
+          >
+            {t('common.settings')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={RefreshCw}
+            onClick={() => loadHistory()}
+            disabled={loading}
+            className={cn('h-9 px-3 text-xs', loading && '[&>svg]:animate-spin')}
+          >
+            {t('mail.refresh')}
+          </Button>
         </div>
-        {loading && mailHistory.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">{t('common.loading')}</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">
-            {t('mail.emptyHistory')}
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 cursor-pointer"
-                    checked={allFilteredSelected}
-                    onChange={handleSelectAllFiltered}
-                  />
-                </TableHead>
-                <TableHead>{t('mail.date')}</TableHead>
-                <TableHead>{t('mail.to')}</TableHead>
-                <TableHead>{t('mail.subject')}</TableHead>
-                <TableHead>{t('mail.source')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((entry) => (
-                <TableRow
-                  key={entry.id}
-                  className={cn(
-                    'hover:bg-muted/50 plugin-mail hover:bg-plugin-subtle/50 transition-colors',
-                    isSelected(entry.id) && 'bg-blue-50 dark:bg-blue-950/30',
-                  )}
-                >
-                  <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+      </div>
+
+      <div className="space-y-4 px-6 pb-6">
+        {selectedCount > 0 && (
+          <BulkActionBar
+            selectedCount={selectedCount}
+            onClearSelection={clearSelection}
+            actions={[
+              {
+                label: t('common.delete'),
+                icon: Trash2,
+                onClick: () => setShowBulkDeleteModal(true),
+                variant: 'destructive',
+              },
+            ]}
+          />
+        )}
+
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          itemCount={selectedCount}
+          itemLabel="mail"
+          isLoading={deleting}
+        />
+
+        <Card className="shadow-none plugin-mail">
+          {loading && mailHistory.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              {t('common.loading')}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              {t('mail.emptyHistory')}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
                     <input
+                      ref={headerCheckboxRef}
                       type="checkbox"
                       className="h-4 w-4 cursor-pointer"
-                      checked={isSelected(entry.id)}
-                      onChange={() => toggleSelected(entry.id)}
+                      aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                      checked={allVisibleSelected}
+                      onChange={onToggleAllVisible}
                     />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate font-medium" title={entry.to}>
-                    {entry.to}
-                  </TableCell>
-                  <TableCell className="max-w-[280px] truncate text-sm" title={entry.subject}>
-                    {entry.subject || '—'}
-                  </TableCell>
-                  <TableCell>
-                    {entry.pluginSource ? (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'capitalize font-medium text-[10px]',
-                          entry.pluginSource === 'notes' &&
-                            'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'contacts' &&
-                            'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'tasks' &&
-                            'plugin-tasks bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'estimates' &&
-                            'plugin-estimates bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'invoices' &&
-                            'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'files' &&
-                            'plugin-files bg-plugin-subtle text-plugin border-plugin-subtle',
-                        )}
-                      >
-                        {entry.pluginSource}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
+                  </TableHead>
+                  <TableHead>{t('mail.date')}</TableHead>
+                  <TableHead>{t('mail.to')}</TableHead>
+                  <TableHead>{t('mail.subject')}</TableHead>
+                  <TableHead>{t('mail.source')}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
-
-      <BulkDeleteModal
-        isOpen={showBulkDeleteModal}
-        onClose={() => setShowBulkDeleteModal(false)}
-        onConfirm={handleBulkDelete}
-        selectedCount={selectedCount}
-        itemLabel={t('mail.historyTitle')}
-        isDeleting={deleting}
-      />
+              </TableHeader>
+              <TableBody>
+                {filtered.map((entry) => (
+                  <TableRow
+                    key={entry.id}
+                    className={cn(
+                      'transition-colors hover:bg-muted/50',
+                      isSelected(entry.id) && 'bg-plugin-subtle',
+                    )}
+                  >
+                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer"
+                        checked={isSelected(entry.id)}
+                        onChange={() => toggleSelected(entry.id)}
+                        aria-label={isSelected(entry.id) ? 'Deselect row' : 'Select row'}
+                      />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate font-medium" title={entry.to}>
+                      {entry.to}
+                    </TableCell>
+                    <TableCell className="max-w-[280px] truncate text-sm" title={entry.subject}>
+                      {entry.subject || '—'}
+                    </TableCell>
+                    <TableCell>
+                      {entry.pluginSource ? (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[10px] font-medium capitalize',
+                            entry.pluginSource === 'notes' &&
+                              'plugin-notes border-plugin-subtle bg-plugin-subtle text-plugin',
+                            entry.pluginSource === 'contacts' &&
+                              'plugin-contacts border-plugin-subtle bg-plugin-subtle text-plugin',
+                            entry.pluginSource === 'tasks' &&
+                              'plugin-tasks border-plugin-subtle bg-plugin-subtle text-plugin',
+                            entry.pluginSource === 'estimates' &&
+                              'plugin-estimates border-plugin-subtle bg-plugin-subtle text-plugin',
+                            entry.pluginSource === 'invoices' &&
+                              'plugin-invoices border-plugin-subtle bg-plugin-subtle text-plugin',
+                            entry.pluginSource === 'files' &&
+                              'plugin-files border-plugin-subtle bg-plugin-subtle text-plugin',
+                            entry.pluginSource === 'ingest' &&
+                              'plugin-ingest border-plugin-subtle bg-plugin-subtle text-plugin',
+                          )}
+                        >
+                          {entry.pluginSource}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
+      </div>
     </div>
   );
 };

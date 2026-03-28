@@ -51,6 +51,7 @@ interface PulseContextType {
   toggleSelected: (id: string) => void;
   selectAll: () => void;
   clearSelection: () => void;
+  replaceSelectedIds: (ids: string[]) => void;
   deleteHistory: (ids: string[]) => Promise<void>;
 }
 
@@ -228,6 +229,10 @@ export function PulseProvider({
     setSelectedIds([]);
   }, []);
 
+  const replaceSelectedIds = useCallback((ids: string[]) => {
+    setSelectedIds(ids);
+  }, []);
+
   const deleteHistory = useCallback(
     async (ids: string[]) => {
       if (!isAuthenticated || ids.length === 0) {
@@ -273,6 +278,7 @@ export function PulseProvider({
     toggleSelected,
     selectAll,
     clearSelection,
+    replaceSelectedIds,
     deleteHistory,
   };
 

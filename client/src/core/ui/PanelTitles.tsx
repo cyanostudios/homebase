@@ -123,9 +123,15 @@ export const createPanelTitles = (
     }
 
     // Non-view modes: Edit/Create/Settings by plugin name (translated)
+    const navLabelKey =
+      currentPlugin.name === 'ingest'
+        ? 'ingest'
+        : currentPlugin.name.endsWith('s')
+          ? currentPlugin.name.slice(0, -1)
+          : currentPlugin.name;
     const itemLabel = t
-      ? t(`nav.${currentPlugin.name.slice(0, -1)}`)
-      : currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1);
+      ? t(`nav.${navLabelKey}` as 'nav.slots')
+      : currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1);
     if (t) {
       switch (currentMode) {
         case 'edit':

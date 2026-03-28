@@ -1,7 +1,7 @@
 // Matches settings as full-page content (like Core Settings): tab row + card + footer.
 
 import { Check, LayoutGrid, List } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -15,30 +15,47 @@ const MATCHES_SETTINGS_KEY = 'matches';
 
 type MatchViewMode = 'grid' | 'list';
 
-const matchSettingsCategories = [{ id: 'view', label: 'View', icon: LayoutGrid }];
+export type MatchSettingsCategory = 'view';
 
-export function MatchSettingsView() {
+const matchSettingsCategories = [{ id: 'view' as const, label: 'View', icon: LayoutGrid }];
+
+interface MatchSettingsViewProps {
+  selectedCategory?: MatchSettingsCategory;
+  onSelectedCategoryChange?: (category: MatchSettingsCategory) => void;
+  renderCategoryButtonsInline?: boolean;
+  inlineTrailing?: React.ReactNode;
+}
+
+export function MatchSettingsView({
+  selectedCategory,
+  onSelectedCategoryChange,
+  renderCategoryButtonsInline = false,
+  inlineTrailing,
+}: MatchSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { setHeaderTrailing } = useContentLayout();
   const { getSettings, updateSettings } = useApp();
 
-  const [selectedCategory, setSelectedCategory] = useState(matchSettingsCategories[0].id);
+  const [internalCategory, setInternalCategory] = useState<MatchSettingsCategory>('view');
+  const activeCategory = selectedCategory ?? internalCategory;
+  const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
+
   const [viewMode, setViewMode] = useState<MatchViewMode>('list');
   const [initialViewMode, setInitialViewMode] = useState<MatchViewMode>('list');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    setHeaderTrailing(
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+  const categoryButtons = useMemo(
+    () => (
+      <div className="flex items-center gap-1">
         {matchSettingsCategories.map((category) => {
           const Icon = category.icon;
-          const isActive = selectedCategory === category.id;
+          const isActive = activeCategory === category.id;
           return (
             <Button
               key={category.id}
               variant="ghost"
-              onClick={() => !isActive && setSelectedCategory(category.id)}
+              onClick={() => !isActive && setActiveCategory(category.id)}
               className={cn(
                 'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
                 'flex items-center gap-1.5 sm:gap-2',
@@ -52,10 +69,19 @@ export function MatchSettingsView() {
             </Button>
           );
         })}
-      </div>,
-    );
+      </div>
+    ),
+    [activeCategory, setActiveCategory],
+  );
+
+  useEffect(() => {
+    if (renderCategoryButtonsInline) {
+      setHeaderTrailing(null);
+      return;
+    }
+    setHeaderTrailing(categoryButtons);
     return () => setHeaderTrailing(null);
-  }, [setHeaderTrailing, selectedCategory]);
+  }, [setHeaderTrailing, renderCategoryButtonsInline, categoryButtons]);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,13 +134,26 @@ export function MatchSettingsView() {
 
   return (
     <div className="space-y-4">
-      <Card
-        padding="md"
-        className="overflow-hidden border border-border/60 bg-background/50 shadow-sm"
-      >
-        {selectedCategory === 'view' && (
+      {renderCategoryButtonsInline ? (
+        <div className="flex flex-shrink-0 items-center justify-between">
+          <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+            <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+              {t('matches.settingsMatches')}
+            </h2>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            {categoryButtons}
+            {inlineTrailing}
+          </div>
+        </div>
+      ) : (
+        <h2 className="text-lg font-semibold tracking-tight">{t('matches.settingsMatches')}</h2>
+      )}
+
+      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+        {activeCategory === 'view' && (
           <DetailSection title="Default view" className="pt-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               {viewModes.map((mode) => {
                 const ModeIcon = mode.icon;
                 const isActive = viewMode === mode.id;
@@ -137,7 +176,7 @@ export function MatchSettingsView() {
                 );
               })}
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="mt-2 text-sm text-muted-foreground">
               Matches will be displayed in the selected layout by default.
             </p>
           </DetailSection>

@@ -240,7 +240,7 @@ export function NotesSettingsView({
             size="sm"
             icon={Check}
             disabled={isSaving}
-            className="h-9 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
+            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
           >
             {isSaving ? t('common.saving') : t('common.save')}
           </Button>

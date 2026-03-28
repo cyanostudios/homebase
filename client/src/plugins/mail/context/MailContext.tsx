@@ -61,6 +61,8 @@ interface MailContextType {
   toggleSelected: (id: string) => void;
   selectAll: () => void;
   clearSelection: () => void;
+  /** Replace selection (e.g. select-all-visible / union with filter). */
+  replaceSelectedIds: (ids: string[]) => void;
   deleteHistory: (ids: string[]) => Promise<void>;
 }
 
@@ -275,6 +277,10 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setSelectedIds([]);
   }, []);
 
+  const replaceSelectedIds = useCallback((ids: string[]) => {
+    setSelectedIds(ids);
+  }, []);
+
   const deleteHistory = useCallback(
     async (ids: string[]) => {
       if (!isAuthenticated || ids.length === 0) {
@@ -316,6 +322,7 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     toggleSelected,
     selectAll,
     clearSelection,
+    replaceSelectedIds,
     deleteHistory,
   };
 
