@@ -12,9 +12,10 @@ const session = require('express-session');
 const helmet = require('helmet');
 const { Pool } = require('pg');
 
-// Load .env first, then .env.local so both work and local overrides
-require('dotenv').config();
-require('dotenv').config({ path: '.env.local' });
+// Load from project root (not process.cwd — tools may start the API from another directory)
+const projectRoot = path.join(__dirname, '..');
+require('dotenv').config({ path: path.join(projectRoot, '.env') });
+require('dotenv').config({ path: path.join(projectRoot, '.env.local') });
 
 const PluginLoader = require('../plugin-loader');
 
