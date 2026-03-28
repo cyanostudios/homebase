@@ -13,8 +13,7 @@ export type DetailSectionIconPlugin =
   | 'invoices'
   | 'files'
   | 'slots'
-  | 'matches'
-  | 'cups';
+  | 'matches';
 
 interface DetailSectionProps {
   title: string | React.ReactNode;

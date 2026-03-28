@@ -8,7 +8,6 @@ import {
   Mail,
   Store,
   Trophy,
-  Award,
   LucideIcon,
 } from 'lucide-react';
 import React from 'react';
@@ -66,12 +65,6 @@ import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 // Estimates
-import { CupForm } from '@/plugins/cups/components/CupForm';
-import { CupList } from '@/plugins/cups/components/CupList';
-import { CupsDashboardWidget } from '@/plugins/cups/components/CupsDashboardWidget';
-import { CupView } from '@/plugins/cups/components/CupView';
-import { CupsProvider } from '@/plugins/cups/context/CupsContext';
-import { useCups } from '@/plugins/cups/hooks/useCupsPlugin';
 import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
 import { EstimateList } from '@/plugins/estimates/components/EstimateList';
 import { EstimatesDashboardWidget } from '@/plugins/estimates/components/EstimatesDashboardWidget';
@@ -99,9 +92,9 @@ import { MailList } from '@/plugins/mail/components/MailList';
 import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
 import { MailProvider } from '@/plugins/mail/context/MailContext';
 import { useMail } from '@/plugins/mail/hooks/useMail';
+import { MatchesDashboardWidget } from '@/plugins/matches/components/MatchesDashboardWidget';
 import { MatchForm } from '@/plugins/matches/components/MatchForm';
 import { MatchList } from '@/plugins/matches/components/MatchList';
-import { MatchesDashboardWidget } from '@/plugins/matches/components/MatchesDashboardWidget';
 import { MatchView } from '@/plugins/matches/components/MatchView';
 import { MatchProvider } from '@/plugins/matches/context/MatchContext';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
@@ -133,10 +126,6 @@ import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardW
 import { TaskView } from '@/plugins/tasks/components/TaskView';
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
-// Cups
-// Matches
-// Mail
-// Settings (always-on)
 
 export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {
@@ -266,25 +255,6 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: MatchesDashboardWidget,
     displayPrefix: 'MAT',
-  },
-  {
-    name: 'cups',
-    Provider: CupsProvider as any,
-    hook: useCups,
-    panelKey: 'isCupPanelOpen',
-    components: {
-      List: CupList,
-      Form: CupForm,
-      View: CupView,
-    },
-    navigation: {
-      category: 'Main',
-      label: 'Cups',
-      icon: Award,
-      order: 6,
-    },
-    dashboardWidget: CupsDashboardWidget,
-    displayPrefix: 'CUP',
   },
   {
     name: 'slots',

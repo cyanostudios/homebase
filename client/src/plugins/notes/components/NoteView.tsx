@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
@@ -390,6 +391,15 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                   </div>
                 </DetailSection>
               </Card>
+
+              <DetailActivityLog
+                entityType="note"
+                entityId={note.id}
+                limit={30}
+                title={t('notes.activity')}
+                showClearButton
+                refreshKey={String(note.updatedAt ?? note.id)}
+              />
             </div>
           }
         >

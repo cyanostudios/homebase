@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
@@ -437,6 +438,15 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                 </div>
               </DetailSection>
             </Card>
+
+            <DetailActivityLog
+              entityType="task"
+              entityId={task.id}
+              limit={30}
+              title={t('tasks.activity')}
+              showClearButton
+              refreshKey={String(task.updatedAt ?? task.id)}
+            />
           </div>
         }
       >

@@ -41,10 +41,6 @@ declare global {
     cancelFileForm?: () => void;
     submitMailForm?: () => void;
     cancelMailForm?: () => void;
-    submitCupsForm?: () => void;
-    cancelCupsForm?: () => void;
-    submitCupForm?: () => void;
-    cancelCupForm?: () => void;
     // Settings plugin itself
     submitSettingsForm?: () => void;
     cancelSettingsForm?: () => void;

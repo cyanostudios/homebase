@@ -1,6 +1,6 @@
 /**
- * Cheerio (used by plugins/cups scraper) pulls undici, which expects `globalThis.File`
- * (standard in Node 20+). On Node 18 the cups plugin would fail to load → /api/cups 404.
+ * Some HTTP/HTML stacks pull undici, which expects `globalThis.File` (standard in Node 20+).
+ * On Node 18, polyfill File when missing so those code paths can load.
  */
 function applyNodeWebGlobalsPolyfill() {
   if (typeof globalThis.File !== 'undefined') {

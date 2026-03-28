@@ -25,6 +25,7 @@ import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
@@ -538,6 +539,15 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                 </div>
               </DetailSection>
             </Card>
+
+            <DetailActivityLog
+              entityType="contact"
+              entityId={contact.id}
+              limit={30}
+              title={t('contacts.activity')}
+              showClearButton
+              refreshKey={String(contact.updatedAt ?? contact.id)}
+            />
           </div>
         }
       >

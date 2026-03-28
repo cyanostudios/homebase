@@ -340,7 +340,6 @@ function AppContent() {
     if (
       currentPage === 'slots' ||
       currentPage === 'notes' ||
-      currentPage === 'cups' ||
       currentPage === 'contacts' ||
       currentPage === 'tasks' ||
       currentPage === 'matches'
@@ -369,7 +368,6 @@ function AppContent() {
     if (
       currentPage === 'slots' ||
       currentPage === 'notes' ||
-      currentPage === 'cups' ||
       currentPage === 'contacts' ||
       currentPage === 'tasks' ||
       currentPage === 'matches'
@@ -398,11 +396,7 @@ function AppContent() {
     if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
       return null;
     }
-    if (
-      currentPagePlugin.name === 'slots' ||
-      currentPagePlugin.name === 'notes' ||
-      currentPagePlugin.name === 'cups'
-    ) {
+    if (currentPagePlugin.name === 'slots' || currentPagePlugin.name === 'notes') {
       return null;
     }
 
@@ -452,20 +446,6 @@ function AppContent() {
         label: t('common.close'),
         icon: X,
         onClick: closeSlotSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
-    const cupsContentView = context.cupsContentView as 'list' | 'settings' | undefined;
-    const closeCupSettingsView = context.closeCupSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'cups' &&
-      cupsContentView === 'settings' &&
-      typeof closeCupSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeCupSettingsView,
         variant: 'secondary' as const,
       };
     }
@@ -785,7 +765,6 @@ function AppContent() {
         contentFlush={
           currentPage === 'slots' ||
           currentPage === 'notes' ||
-          currentPage === 'cups' ||
           currentPage === 'contacts' ||
           currentPage === 'tasks' ||
           currentPage === 'matches'
