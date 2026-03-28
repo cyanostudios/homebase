@@ -3,6 +3,8 @@
 export type ValidationError = {
   field: string;
   message: string;
+  /** T.ex. serverns CONFLICT vid optimistic locking. */
+  code?: string;
 };
 
 export type ProductSyncChannel = 'woocommerce' | 'cdon' | 'fyndiq';

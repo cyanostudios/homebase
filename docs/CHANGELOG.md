@@ -4,6 +4,36 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-29 – Homebase v3.2.2: batch-synk (async jobb), Synkstatus, `expectedUpdatedAt`
+
+**Release:** npm-version **3.2.2**, branch **Homebase-V3.2.2**.
+
+**Revertpunkt (före batch-redigering / batch-synk-jobb):** Sista commit **utan** denna implementation är **`3b80fe0`** (_Produkter: status till salu/pausad, migration 085, batch max 250; orders counter & Woo-status_). Vill du tillbaka till läget innan batch-redigeringen och tillhörande jobb/köer: `git checkout 3b80fe0` eller skapa en branch därifrån (`git switch -c backup-pre-batch-edit 3b80fe0`).
+
+### Async batch & kanaler
+
+- **PATCH `/api/products/batch`** och **POST `/api/products/batch/sync-job`** skapar nu ett **jobb** (svar **202** med `jobId`). Worker skriver **DB per produkt** (radlås vid batch-patch), därefter **kanaler** (CDON quantity i bulk om 50, Fyndiq bulk om 200, Woo sekventiellt i jobbet). **GET `/api/products/batch/sync-jobs`** och **GET `.../sync-jobs/:jobId`** för status/historik (max **50** jobb per tenant, äldsta rensas vid insert).
+- **Migration `086-product-batch-sync-jobs.sql`:** tabell `product_batch_sync_jobs`.
+- **Mutex:** ett aktivt batch-jobb per tenant tills kanalfasen är klar; **409** `SYNC_ALREADY_IN_PROGRESS` / `PRODUCT_IMPORT_IN_PROGRESS` vid import.
+- **plugins/products/stockPushQueue.js:** batch-lagerpush köas före order-lagerpush.
+- **plugins/orders/controller.js:** quantity-uppdatering med **lock_timeout** + backoff; misslyckade lås loggas som snabb jobb-rad (`order_stock`) för Synkstatus.
+
+### UI
+
+- **Synkstatus** under Kanaler: **client/src/plugins/channels/components/BatchSyncStatusModal.tsx** (+ knapp i `ChannelsList`).
+- **Single save:** klient skickar **`expectedUpdatedAt`**; server **`UPDATE … WHERE updated_at = ?`** → **409 CONFLICT** vid konflikt.
+- **Batch-redigering i produktpanelen:** obligatorisk **förhandsgranskning** (modal) före spara; **dirty-only** mot inläst snapshot för alla fält som serverns batch-patch stöder (bl.a. status, texter, pris/lager, media-listor, detaljer, `channelSpecific`). Död **mini-batch-modal** i `ProductList` bort; knappen **Batch-redigera…** med tydligare hjälptext.
+
+### WooCommerce lagerpush
+
+- **`syncStock`:** vid **429** eller **5xx** upp till **5** försök med **Retry-After** eller exponentiell backoff (max 60s / 120s vid header).
+
+### Tester
+
+- `server/__tests__/stockPushQueue.test.js` – ordning batch före order i kön.
+
+---
+
 ## 2026-03-28 – Produkter: status till salu/pausad, batch 250, orders counter & Woo-mappning
 
 ### Produktstatus

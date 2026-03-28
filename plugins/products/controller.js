@@ -26,6 +26,12 @@ const FyndiqProductsModel = require('../fyndiq-products/model');
 
 const LANGUAGE_TO_MARKET = { 'sv-SE': 'SE', 'da-DK': 'DK', 'fi-FI': 'FI', 'nb-NO': 'NO' };
 
+const stockPushQueue = require('./stockPushQueue');
+const batchSyncMutex = require('./batchSyncMutex');
+const productImportLock = require('./productImportLock');
+const batchSyncStarterQueue = require('./batchSyncStarterQueue');
+const { runBatchSyncJob } = require('./batchSyncJobRunner');
+
 const IMPORT_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 const IMPORT_MAX_ROWS = 5000;
 /** Max ids per PATCH/DELETE batch (aligned with catalog list page size cap). */
@@ -666,11 +672,30 @@ class ProductController {
 
   /**
    * Push product quantity to all enabled channels (Woo, CDON, Fyndiq).
-   * Called from batchUpdate (quantity change) and from Orders (order events).
-   * @param {object} req - request with session
-   * @param {{ productId: string, sku: string, quantity: number, sourceChannel: string|null }} opts - sourceChannel: skip this channel (e.g. 'woocommerce' when order came from Woo)
+   * @param {object} req
+   * @param {{ productId: string, sku: string, quantity: number, sourceChannel: string|null, queueRole?: 'batch'|'order', skipQueue?: boolean }} opts
    */
-  async pushStockToChannels(req, { productId, sku, quantity, sourceChannel }) {
+  async pushStockToChannels(
+    req,
+    { productId, sku, quantity, sourceChannel, queueRole, skipQueue },
+  ) {
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+    const role = queueRole === 'batch' ? 'batch' : 'order';
+    const run = async () => {
+      await this._pushStockToChannelsCore(req, { productId, sku, quantity, sourceChannel });
+    };
+    if (skipQueue) {
+      return run();
+    }
+    if (role === 'batch') {
+      return stockPushQueue.enqueueBatch(tenantId, run);
+    }
+    return stockPushQueue.enqueueOrder(tenantId, run);
+  }
+
+  async _pushStockToChannelsCore(req, { productId, sku, quantity, sourceChannel }) {
     const db = Database.get(req);
     const tenantId = req.session?.tenantId;
     if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
@@ -815,6 +840,62 @@ class ProductController {
         }
       }
     }
+  }
+
+  /**
+   * Resolve channel rows for stock push (same rules as _pushStockToChannelsCore).
+   * @returns {Promise<Array<{ channel: string, external_id: any, channel_instance_id: any }>>}
+   */
+  async resolveStockChannelRows(req, productId) {
+    const db = Database.get(req);
+    const pid = String(productId ?? '').trim();
+    if (!pid) return [];
+
+    const mapRows = await db.query(
+      `SELECT channel, enabled, external_id, channel_instance_id
+       FROM channel_product_map
+       WHERE product_id::text = $1
+         AND (enabled = TRUE OR external_id IS NOT NULL)`,
+      [pid],
+    );
+    const overrideRows = await db.query(
+      `SELECT o.channel, o.active AS enabled, m.external_id, o.channel_instance_id
+       FROM channel_product_overrides o
+       INNER JOIN channel_product_map m
+         ON m.product_id::text = o.product_id::text
+         AND m.channel = o.channel
+         AND (m.channel_instance_id IS NOT DISTINCT FROM o.channel_instance_id)
+       WHERE o.product_id::text = $1
+         AND o.active = TRUE
+         AND o.channel_instance_id IS NOT NULL
+         AND m.external_id IS NOT NULL`,
+      [pid],
+    );
+    const seen = new Set();
+    const rows = [];
+    for (const r of [...mapRows, ...overrideRows]) {
+      const ch = String(r.channel || '')
+        .trim()
+        .toLowerCase();
+      if (!ch) continue;
+      const isUniversalStock = ch === 'cdon' || ch === 'fyndiq';
+      const key = isUniversalStock ? `${ch}:` : `${ch}:${r.channel_instance_id ?? ''}`;
+      if (seen.has(key)) {
+        if (isUniversalStock && r.channel_instance_id == null) {
+          const idx = rows.findIndex(
+            (x) =>
+              String(x.channel || '')
+                .trim()
+                .toLowerCase() === ch,
+          );
+          if (idx >= 0 && rows[idx].channel_instance_id != null) rows[idx] = r;
+        }
+        continue;
+      }
+      seen.add(key);
+      rows.push(r);
+    }
+    return rows;
   }
 
   async getSelloSettings(req, res) {
@@ -1316,13 +1397,29 @@ class ProductController {
     }
   }
 
-  // ---- Batch update ----
-  // PATCH /api/products/batch
-  // body: { ids: string[], updates: { priceAmount?: number, quantity?: number, status?: string, vatRate?: number, currency?: string } }
+  // ---- Batch sync job (async) ----
+  // PATCH /api/products/batch — body { ids, updates } eller { ids, changes }
   async batchUpdate(req, res) {
+    return this.startBatchSyncJob(req, res);
+  }
+
+  async startBatchSyncJob(req, res) {
     try {
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
+        return res.status(401).json({ error: 'Tenant not resolved', code: 'UNAUTHORIZED' });
+      }
+      const busyId = batchSyncMutex.getActiveJobId(tenantId);
+      if (busyId) {
+        return res.status(409).json({
+          error: 'Sync already in progress',
+          code: 'SYNC_ALREADY_IN_PROGRESS',
+          jobId: busyId,
+        });
+      }
+
       const idsRaw = req.body?.ids;
-      const updates = req.body?.updates || {};
+      const changes = req.body?.changes ?? req.body?.updates ?? {};
       if (!Array.isArray(idsRaw)) {
         return res
           .status(400)
@@ -1331,7 +1428,7 @@ class ProductController {
 
       const ids = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
       if (!ids.length) {
-        return res.json({ ok: true, updatedCount: 0, updatedIds: [] });
+        return res.status(202).json({ ok: true, jobId: null, accepted: true, message: 'noop' });
       }
       if (ids.length > PRODUCTS_BATCH_MAX_IDS) {
         return res.status(400).json({
@@ -1339,57 +1436,118 @@ class ProductController {
           code: 'VALIDATION_ERROR',
         });
       }
-
-      const result = await this.model.batchUpdate(req, ids, updates);
-      const quantity = updates.quantity;
-      if (
-        quantity !== undefined &&
-        quantity !== null &&
-        Number.isInteger(Number(quantity)) &&
-        Number(quantity) >= 0 &&
-        ids.length > 0
-      ) {
-        const db = Database.get(req);
-        const tenantId = req.session?.tenantId;
-        if (tenantId) {
-          db.query(`SELECT id::text AS id, sku FROM products WHERE id::text = ANY($1::text[])`, [
-            ids,
-          ])
-            .then((rows) => {
-              const qty = Math.max(0, Number(quantity));
-              for (const r of rows) {
-                const productId = r.id;
-                const sku = r.sku != null ? String(r.sku).trim() : '';
-                this.pushStockToChannels(req, {
-                  productId,
-                  sku,
-                  quantity: qty,
-                  sourceChannel: null,
-                }).catch((pushErr) => {
-                  Logger.warn('Push stock after batch update failed', pushErr, {
-                    userId: Context.getUserId(req),
-                    productId,
-                  });
-                });
-              }
-            })
-            .catch((err) => {
-              Logger.warn('Push stock: failed to fetch products for channel sync', err, {
-                userId: Context.getUserId(req),
-                productCount: ids.length,
-              });
-            });
-        }
+      if (!changes || typeof changes !== 'object' || Array.isArray(changes)) {
+        return res.status(400).json({
+          error: 'changes (or updates) must be an object',
+          code: 'VALIDATION_ERROR',
+        });
       }
-      return res.json({
+
+      const chMeta = changes.__batchChannel;
+      const patchKeys = Object.keys(changes).filter((k) => k !== '__batchChannel');
+      const hasChannelTargets =
+        chMeta &&
+        typeof chMeta === 'object' &&
+        Array.isArray(chMeta.channelTargets) &&
+        chMeta.channelTargets.length > 0;
+      const hasChannelOverrides =
+        chMeta &&
+        typeof chMeta === 'object' &&
+        Array.isArray(chMeta.channelOverridesToSave) &&
+        chMeta.channelOverridesToSave.length > 0;
+      if (patchKeys.length === 0 && !hasChannelTargets && !hasChannelOverrides) {
+        return res.status(400).json({
+          error: 'Inga ändringar att spara (varken produktfält eller kanaler).',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const userId = Context.getUserId(req);
+      const jobRow = await this.model.insertProductBatchSyncJob(req, {
+        productIds: ids,
+        changes,
+        userId,
+        triggerSource: 'batch',
+      });
+      const jobId = String(jobRow.id);
+
+      const importQueued = productImportLock.isActive(tenantId);
+
+      const starter = () => {
+        if (!batchSyncMutex.acquire(tenantId, jobId)) {
+          void this.model.deleteProductBatchSyncJob(req, jobId);
+          Logger.warn('Batch job dropped: mutex race', { tenantId, jobId });
+          return;
+        }
+        setImmediate(() => {
+          runBatchSyncJob(this, req, jobId).catch((err) => {
+            Logger.error('Batch sync job runner failed', err, { jobId });
+            batchSyncMutex.releaseIfMatches(tenantId, jobId);
+            batchSyncStarterQueue.onBatchFinished(tenantId);
+          });
+        });
+      };
+
+      batchSyncStarterQueue.enqueue(tenantId, starter);
+
+      return res.status(202).json({
         ok: true,
-        updatedCount: result.updatedCount ?? 0,
-        updatedIds: result.updatedIds ?? [],
+        jobId,
+        accepted: true,
+        totalProducts: ids.length,
+        queuedAfterImport: importQueued,
       });
     } catch (error) {
-      Logger.error('Batch update products error', error, { userId: Context.getUserId(req) });
+      Logger.error('Start batch sync job error', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      return res.status(500).json({ error: 'Failed to batch update products' });
+      return res.status(500).json({ error: 'Failed to start batch sync job' });
+    }
+  }
+
+  formatBatchSyncJobRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      status: row.status,
+      totalProducts: row.total_products,
+      processedDb: row.processed_db,
+      processedChannels: row.processed_channels,
+      productIds: row.product_ids,
+      changes: row.changes,
+      errors: row.errors,
+      createdByUserId: row.created_by_user_id,
+      triggerSource: row.trigger_source,
+      createdAt: row.created_at,
+      completedAt: row.completed_at,
+    };
+  }
+
+  async listBatchSyncJobs(req, res) {
+    try {
+      const rows = await this.model.listProductBatchSyncJobs(req, 50);
+      return res.json({ jobs: rows.map((r) => this.formatBatchSyncJobRow(r)) });
+    } catch (error) {
+      Logger.error('List batch sync jobs error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to list batch sync jobs' });
+    }
+  }
+
+  async getBatchSyncJob(req, res) {
+    try {
+      const jobId = String(req.params?.jobId || '').trim();
+      if (!jobId) {
+        return res.status(400).json({ error: 'jobId required', code: 'VALIDATION_ERROR' });
+      }
+      const row = await this.model.getProductBatchSyncJob(req, jobId);
+      if (!row) {
+        return res.status(404).json({ error: 'Job not found', code: 'NOT_FOUND' });
+      }
+      return res.json({ job: this.formatBatchSyncJobRow(row) });
+    } catch (error) {
+      Logger.error('Get batch sync job error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to fetch batch sync job' });
     }
   }
 
@@ -1481,6 +1639,7 @@ class ProductController {
   // fields: mode = 'update-only' | 'create-only' | 'upsert'
   // file: file
   async import(req, res) {
+    let tenantIdForImportLock = null;
     try {
       const modeRaw = String(req.body?.mode || 'upsert')
         .trim()
@@ -1526,6 +1685,11 @@ class ProductController {
         return res
           .status(400)
           .json({ error: `Too many rows (max ${IMPORT_MAX_ROWS})`, code: 'VALIDATION_ERROR' });
+      }
+
+      tenantIdForImportLock = req.session?.tenantId || null;
+      if (tenantIdForImportLock) {
+        productImportLock.begin(tenantIdForImportLock);
       }
 
       const result = {
@@ -1775,6 +1939,10 @@ class ProductController {
         return res.status(error.statusCode).json(error.toJSON());
       }
       return res.status(500).json({ error: 'Failed to import products' });
+    } finally {
+      if (tenantIdForImportLock) {
+        productImportLock.end(tenantIdForImportLock);
+      }
     }
   }
 

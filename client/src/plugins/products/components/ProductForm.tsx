@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -887,6 +893,156 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return JSON.stringify(normalize(value));
   };
 
+  /** Dirty-only keys accepted by server `buildBatchPatchColumns` (batch job). Empty string = no column update. */
+  const collectBatchPatchChanges = (init: FormData, fd: FormData): Record<string, unknown> => {
+    const changes: Record<string, unknown> = {};
+    const optNum = (v: number | '') => (v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+
+    if (fd.status !== init.status) {
+      changes.status = fd.status;
+    }
+
+    const titleI = (init.title || '').trim();
+    const titleF = (fd.title || '').trim();
+    if (titleF !== titleI && titleF) {
+      changes.title = titleF;
+    }
+
+    const descI = (init.description || '').trim();
+    const descF = (fd.description || '').trim();
+    if (descF !== descI && descF) {
+      changes.description = descF;
+    }
+
+    const p0 = optNum(init.priceAmount);
+    const p1 = optNum(fd.priceAmount);
+    if (p1 !== null && p1 !== p0) {
+      changes.priceAmount = p1;
+    }
+    const q0 = optNum(init.quantity);
+    const q1 = optNum(fd.quantity);
+    if (q1 !== null && q1 !== q0) {
+      changes.quantity = Math.max(0, Math.trunc(q1));
+    }
+    const v0 = optNum(init.vatRate);
+    const v1 = optNum(fd.vatRate);
+    if (v1 !== null && v1 !== v0) {
+      changes.vatRate = v1;
+    }
+
+    const c0 = (init.currency || '').trim().toUpperCase();
+    const c1 = (fd.currency || '').trim().toUpperCase();
+    if (c1 && c1 !== c0) {
+      changes.currency = c1;
+    }
+
+    const miI = (init.mainImage || '').trim();
+    const miF = (fd.mainImage || '').trim();
+    if (miF !== miI && miF) {
+      changes.mainImage = miF;
+    }
+
+    if (stableStringify(fd.images) !== stableStringify(init.images)) {
+      changes.images = [...fd.images];
+    }
+    if (stableStringify(fd.categories) !== stableStringify(init.categories)) {
+      changes.categories = [...fd.categories];
+    }
+
+    const bumpOptTrim = (patchKey: string, i: string, f: string, maxLen?: number) => {
+      if (f === i) {
+        return;
+      }
+      if (!f) {
+        return;
+      }
+      changes[patchKey] = maxLen != null ? f.slice(0, maxLen) : f;
+    };
+
+    bumpOptTrim('brand', (init.brand || '').trim(), (fd.brand || '').trim());
+    bumpOptTrim('mpn', (init.mpn || '').trim(), (fd.mpn || '').trim());
+    bumpOptTrim('ean', (init.ean || '').trim(), (fd.ean || '').trim());
+    bumpOptTrim('gtin', (init.gtin || '').trim(), (fd.gtin || '').trim());
+    bumpOptTrim('knNumber', (init.knNumber || '').trim(), (fd.knNumber || '').trim());
+    bumpOptTrim('lagerplats', (init.lagerplats || '').trim(), (fd.lagerplats || '').trim(), 100);
+    bumpOptTrim('groupId', (init.groupId || '').trim(), (fd.groupId || '').trim(), 100);
+    bumpOptTrim('volumeUnit', (init.volumeUnit || '').trim(), (fd.volumeUnit || '').trim(), 20);
+    bumpOptTrim('notes', (init.notes || '').trim(), (fd.notes || '').trim());
+    bumpOptTrim('privateName', (init.privateName || '').trim(), (fd.privateName || '').trim());
+    bumpOptTrim('color', (init.color || '').trim(), (fd.color || '').trim(), 100);
+    bumpOptTrim('colorText', (init.colorText || '').trim(), (fd.colorText || '').trim(), 255);
+    bumpOptTrim('size', (init.size || '').trim(), (fd.size || '').trim(), 50);
+    bumpOptTrim('sizeText', (init.sizeText || '').trim(), (fd.sizeText || '').trim(), 255);
+    bumpOptTrim('pattern', (init.pattern || '').trim(), (fd.pattern || '').trim(), 100);
+    bumpOptTrim('material', (init.material || '').trim(), (fd.material || '').trim(), 255);
+    bumpOptTrim('patternText', (init.patternText || '').trim(), (fd.patternText || '').trim(), 255);
+    bumpOptTrim('model', (init.model || '').trim(), (fd.model || '').trim(), 255);
+
+    const idStrField = (key: keyof FormData, outKey: string) => {
+      const i = String(init[key] ?? '').trim();
+      const f = String(fd[key] ?? '').trim();
+      if (f === i) {
+        return;
+      }
+      if (!f) {
+        return;
+      }
+      const n = Number(f);
+      if (Number.isFinite(n)) {
+        changes[outKey] = n;
+      }
+    };
+    idStrField('brandId', 'brandId');
+    idStrField('supplierId', 'supplierId');
+    idStrField('manufacturerId', 'manufacturerId');
+
+    const pp0 = optNum(init.purchasePrice);
+    const pp1 = optNum(fd.purchasePrice);
+    if (pp1 !== null && pp1 !== pp0) {
+      changes.purchasePrice = pp1;
+    }
+
+    if (fd.condition !== init.condition) {
+      changes.condition = fd.condition;
+    }
+
+    const vol0 = optNum(init.volume);
+    const vol1 = optNum(fd.volume);
+    if (vol1 !== null && vol1 !== vol0) {
+      changes.volume = vol1;
+    }
+
+    const w0 = optNum(init.weight);
+    const w1 = optNum(fd.weight);
+    if (w1 !== null && w1 !== w0) {
+      changes.weight = w1;
+    }
+    for (const dim of ['lengthCm', 'widthCm', 'heightCm', 'depthCm'] as const) {
+      const a = optNum(init[dim]);
+      const b = optNum(fd[dim]);
+      if (b !== null && b !== a) {
+        changes[dim] = b;
+      }
+    }
+
+    if (
+      stableStringify(fd.channelSpecific ?? null) !== stableStringify(init.channelSpecific ?? null)
+    ) {
+      if (
+        fd.channelSpecific &&
+        typeof fd.channelSpecific === 'object' &&
+        !Array.isArray(fd.channelSpecific)
+      ) {
+        changes.channelSpecific = JSON.parse(JSON.stringify(fd.channelSpecific)) as Record<
+          string,
+          unknown
+        >;
+      }
+    }
+
+    return changes;
+  };
+
   const pickSnapshot = (source: FormData, keys: Array<keyof FormData>) =>
     keys.reduce<Record<string, unknown>>((acc, key) => {
       acc[String(key)] = source[key] ?? null;
@@ -929,6 +1085,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [activeTab, setActiveTab] = useState<
     'kanaler' | 'produkt' | 'texter' | 'media' | 'priser' | 'kategori' | 'detaljer' | 'statistik'
   >('kanaler');
+  const [batchPreviewOpen, setBatchPreviewOpen] = useState(false);
+  const [batchPreviewLines, setBatchPreviewLines] = useState<string[]>([]);
+  const [batchPendingChanges, setBatchPendingChanges] = useState<Record<string, unknown> | null>(
+    null,
+  );
   // If true: MPN mirrors SKU automatically (until user overrides MPN)
   const [isMpnAuto, setIsMpnAuto] = useState(true);
   const [isGtinAuto, setIsGtinAuto] = useState(true);
@@ -1003,14 +1164,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   };
 
   // Load channel instances (for both new and existing products) and, when product exists, current targets + overrides.
+  // Batch: only instances (available stores); never getProductTargets/getOverrides for any selected id — Kanaler starts empty.
   // Use context cache so we don’t refetch when switching tabs (cache survives form remount).
   useEffect(() => {
-    if (isBatchMode) {
+    if (isBatchMode && batchProductIds.length === 0) {
       return;
     }
-    const productKey = currentProduct?.id ?? 'new';
+    const productKey = isBatchMode
+      ? `batch:${batchProductIds.join(',')}`
+      : (currentProduct?.id ?? 'new');
     const cached = getChannelDataCache(productKey);
-    if (cached) {
+    if (cached && !isBatchMode) {
       const cachedAllInstances = cached.instances as ChannelInstance[];
       const cachedEnabledInstances = cachedAllInstances.filter((i) => i.enabled !== false);
       setChannelOverrides(cached.overrides);
@@ -1087,12 +1251,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         setChannelInstances(insts);
         setChannelInstancesAll(instsAll);
 
+        if (isBatchMode) {
+          setChannelOverrides([]);
+          setChannelOverridesLoaded(true);
+          initialSelectedTargetKeysRef.current = new Set();
+          const priceInitBatch: Record<string, { priceAmount: string; salePrice: string }> = {};
+          for (const inst of insts) {
+            priceInitBatch[String(inst.id)] = { priceAmount: '', salePrice: '' };
+          }
+          initialChannelPriceOverridesRef.current = JSON.parse(
+            JSON.stringify(priceInitBatch),
+          ) as Record<string, { priceAmount: string; salePrice: string }>;
+          setChannelPriceOverrides(priceInitBatch);
+          setCurrentTargetKeys(new Set());
+          setSelectedTargetKeys(new Set());
+          setChannelDataCache(productKey, { instances: instsAll, overrides: [], targetKeys: [] });
+          setChannelTargetsLoading(false);
+          return;
+        }
+
         if (!currentProduct?.id) {
           setChannelOverrides([]);
           setChannelOverridesLoaded(true);
           initialSelectedTargetKeysRef.current = new Set();
           initialChannelPriceOverridesRef.current = {};
           setCurrentTargetKeys(new Set());
+          setSelectedTargetKeys(new Set());
           setChannelDataCache('new', { instances: instsAll, overrides: [], targetKeys: [] });
           setChannelTargetsLoading(false);
           return;
@@ -1126,7 +1310,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         initialSelectedTargetKeysRef.current = new Set(keyList);
         setCurrentTargetKeys(keys);
         setSelectedTargetKeys(keys);
-        setChannelDataCache(String(currentProduct.id), {
+        setChannelDataCache(String(productKey), {
           instances: instsAll,
           overrides: ovs,
           targetKeys: keyList,
@@ -1140,9 +1324,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           initialSelectedTargetKeysRef.current = new Set();
           initialChannelPriceOverridesRef.current = {};
           setCurrentTargetKeys(new Set());
-          if (currentProduct?.id) {
-            setSelectedTargetKeys(new Set());
-          }
+          setSelectedTargetKeys(new Set());
         }
         console.error('Failed to load channel targets', err);
       } finally {
@@ -1157,7 +1339,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     // Intentionally omit getChannelDataCache/setChannelDataCache: when they change (e.g. new ref on context re-render),
     // we must not re-run and overwrite selectedTargetKeys with stale cached targetKeys, or the user's Kanaler
     // checkbox changes (e.g. Fyndiq DK) are lost before Save.
-  }, [currentProduct?.id, isBatchMode]);
+  }, [currentProduct?.id, isBatchMode, batchProductIds]);
 
   // Run validation for footer (price warning etc.) when form state changes.
   // Skip during submit so the footer doesn't flicker between Ignore and Save.
@@ -2119,53 +2301,131 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     clearValidationErrors();
 
     if (isBatchMode) {
-      const updates: {
-        priceAmount?: number;
-        quantity?: number;
-        status?: string;
-        vatRate?: number;
-        currency?: string;
-      } = {};
-      if (
-        formData.priceAmount !== '' &&
-        formData.priceAmount != null &&
-        Number.isFinite(Number(formData.priceAmount))
-      ) {
-        updates.priceAmount = Number(formData.priceAmount);
+      const saveInstances = channelInstancesAll.length > 0 ? channelInstancesAll : channelInstances;
+      const enabledInstances = saveInstances.filter((i) => i.enabled !== false);
+      const enabledKeys = new Set(
+        enabledInstances.map((i) => targetKey(String(i.channel).toLowerCase(), String(i.id))),
+      );
+      const normalizeKey = (k: string) => {
+        const colonIdx = k.indexOf(':');
+        const ch = colonIdx >= 0 ? k.slice(0, colonIdx).toLowerCase() : k.toLowerCase();
+        const id = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
+        return id ? targetKey(ch, id) : ch;
+      };
+      const effectiveSelectedKeys = Array.from(selectedTargetKeys)
+        .map(normalizeKey)
+        .filter((k) => enabledKeys.has(k));
+      const channelTargets = effectiveSelectedKeys.map((k) => {
+        const colonIdx = k.indexOf(':');
+        const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
+        const instId = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
+        return {
+          channel: ch,
+          channelInstanceId: instId && Number.isFinite(Number(instId)) ? Number(instId) : null,
+        };
+      });
+      const channelTargetsWithMarket = effectiveSelectedKeys
+        .map((k) => {
+          const colonIdx = k.indexOf(':');
+          const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
+          const instIdStr = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
+          const inst = saveInstances.find(
+            (i) =>
+              String(i.channel).toLowerCase() === ch.toLowerCase() && String(i.id) === instIdStr,
+          );
+          const marketRaw = inst?.market?.trim();
+          if (!marketRaw) {
+            return null;
+          }
+          const market = marketRaw.toLowerCase().slice(0, 2);
+          if (!['se', 'dk', 'fi', 'no'].includes(market)) {
+            return null;
+          }
+          return {
+            channel: ch,
+            channelInstanceId:
+              instIdStr && Number.isFinite(Number(instIdStr)) ? Number(instIdStr) : null,
+            market,
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x != null);
+      const channelOverridesToSave = buildOverrideRows(
+        saveInstances,
+        effectiveSelectedKeys,
+        formData.channelCategories,
+        channelPriceOverrides,
+      )
+        .filter((row) => row.active)
+        .map((row) => ({
+          channelInstanceId: row.channelInstanceId,
+          active: row.active,
+          category: row.category,
+          priceAmount: row.priceAmount != null ? Number(row.priceAmount) : null,
+          salePrice: row.salePrice != null ? Number(row.salePrice) : undefined,
+          originalPrice: row.originalPrice != null ? Number(row.originalPrice) : undefined,
+        }));
+
+      const patchOnly = collectBatchPatchChanges(initialFormStateRef.current, formData);
+      const changes: Record<string, unknown> = { ...patchOnly };
+      const hasChannelPayload =
+        channelTargets.length > 0 ||
+        channelOverridesToSave.some(
+          (o) =>
+            o.category != null ||
+            o.priceAmount != null ||
+            o.salePrice != null ||
+            o.originalPrice != null,
+        );
+      if (hasChannelPayload) {
+        changes.__batchChannel = {
+          channelTargets,
+          channelTargetsWithMarket,
+          channelOverridesToSave,
+        };
       }
-      if (
-        formData.quantity !== '' &&
-        formData.quantity != null &&
-        Number.isFinite(Number(formData.quantity))
-      ) {
-        updates.quantity = Math.max(0, Math.trunc(Number(formData.quantity)));
-      }
-      if (
-        formData.vatRate !== '' &&
-        formData.vatRate != null &&
-        Number.isFinite(Number(formData.vatRate))
-      ) {
-        updates.vatRate = Number(formData.vatRate);
-      }
-      if (formData.currency?.trim()) {
-        updates.currency = formData.currency.trim().toUpperCase();
-      }
-      if (Object.keys(updates).length === 0) {
+      if (Object.keys(patchOnly).length === 0 && !hasChannelPayload) {
         return;
       }
-      submittingGuardRef.current = true;
-      setIsSubmitting(true);
-      try {
-        await batchUpdateProducts(batchProductIds, updates);
-        markClean();
-        closeProductPanel();
-      } catch (err) {
-        console.error('Batch update failed', err);
-      } finally {
-        submittingGuardRef.current = false;
-        setIsSubmitting(false);
-        setProductFormSaving?.(false);
+
+      const lines: string[] = [];
+      for (const [k, v] of Object.entries(patchOnly)) {
+        const shown = typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v);
+        lines.push(`${k} → ${shown}`);
       }
+      if (changes.__batchChannel) {
+        const bc = changes.__batchChannel as {
+          channelTargets?: unknown[];
+          channelOverridesToSave?: Array<{
+            category?: unknown;
+            priceAmount?: number | null;
+            salePrice?: number;
+            originalPrice?: number;
+          }>;
+        };
+        lines.push(`kanaler → ${bc.channelTargets?.length ?? 0} aktiverade mål`);
+        const ovs = bc.channelOverridesToSave ?? [];
+        if (ovs.length > 0) {
+          const rowHasPrice = (o: (typeof ovs)[number]) =>
+            o.priceAmount != null || o.salePrice != null || o.originalPrice != null;
+          const rowHasCategory = (o: (typeof ovs)[number]) =>
+            o.category != null && String(o.category).trim() !== '';
+          const nPrice = ovs.filter(rowHasPrice).length;
+          const nCat = ovs.filter(rowHasCategory).length;
+          const nActivationOnly = ovs.filter((o) => !rowHasPrice(o) && !rowHasCategory(o)).length;
+          if (nPrice > 0) {
+            lines.push(`Kanalpris: ${nPrice} butik(er)`);
+          }
+          if (nCat > 0) {
+            lines.push(`Kanalkategori: ${nCat} butik(er)`);
+          }
+          if (nActivationOnly > 0) {
+            lines.push(`Aktiverad butiksrad utan pris/kategori här: ${nActivationOnly}`);
+          }
+        }
+      }
+      setBatchPendingChanges(changes);
+      setBatchPreviewLines(lines);
+      setBatchPreviewOpen(true);
       return;
     }
 
@@ -2432,6 +2692,42 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     classifySaveChangeSet,
     channelPriceOverrides,
     lastFxObservedAt,
+    selectedTargetKeys,
+    channelInstances,
+    channelInstancesAll,
+    buildOverrideRows,
+  ]);
+
+  const commitBatchSave = useCallback(async () => {
+    const changes = batchPendingChanges;
+    if (!changes || batchProductIds.length === 0) {
+      setBatchPreviewOpen(false);
+      setBatchPendingChanges(null);
+      return;
+    }
+    submittingGuardRef.current = true;
+    setIsSubmitting(true);
+    setProductFormSaving?.(true);
+    try {
+      await batchUpdateProducts(batchProductIds, changes);
+      markClean();
+      setBatchPreviewOpen(false);
+      setBatchPendingChanges(null);
+      closeProductPanel();
+    } catch (err) {
+      console.error('Batch update failed', err);
+    } finally {
+      submittingGuardRef.current = false;
+      setIsSubmitting(false);
+      setProductFormSaving?.(false);
+    }
+  }, [
+    batchPendingChanges,
+    batchProductIds,
+    batchUpdateProducts,
+    markClean,
+    closeProductPanel,
+    setProductFormSaving,
   ]);
 
   // Listen for submit/cancel events from panel footer (cancelProductForm fires after user already confirmed in global nav guard, so close directly)
@@ -2531,20 +2827,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           handleSubmit();
         }}
       >
-        {isBatchMode && (
-          <Card padding="sm" className="shadow-none px-0 bg-amber-50 border-amber-200">
-            <p className="text-sm text-amber-800">
-              Batch edit: only the fields you fill in (price, quantity, VAT, currency) will be
-              applied to the {batchProductIds.length} selected products. Leave a field empty to keep
-              current values.
-            </p>
-          </Card>
-        )}
-
-        {/* Tab bar (only for single product edit/create) */}
-        {!isBatchMode && (
-          <div className="flex gap-1 border-b border-gray-200 pb-0">
-            {[
+        <div className="flex gap-1 border-b border-gray-200 pb-0">
+          {(
+            [
               { id: 'kanaler' as const, label: 'Kanaler' },
               { id: 'produkt' as const, label: 'Produkt' },
               { id: 'texter' as const, label: 'Texter' },
@@ -2553,7 +2838,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               { id: 'kategori' as const, label: 'Kategori' },
               { id: 'detaljer' as const, label: 'Detaljer' },
               { id: 'statistik' as const, label: 'Statistik' },
-            ].map((t) => (
+            ] as const
+          )
+            .filter((t) => !isBatchMode || t.id !== 'statistik')
+            .map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -2567,12 +2855,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 {t.label}
               </button>
             ))}
-          </div>
-        )}
+        </div>
 
         {/* Validation Summary */}
         {hasBlockingErrors && !isBatchMode && (
-          <Card padding="sm" className="shadow-none px-0">
+          <Card
+            padding="sm"
+            className="shadow-none px-0 sticky top-0 z-[5] bg-background/95 backdrop-blur-sm pb-2"
+          >
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <h3 className="text-sm font-medium text-red-800">Cannot save product</h3>
               <ul className="mt-2 list-disc list-inside text-sm text-red-700">
@@ -2586,74 +2876,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </Card>
         )}
 
-        {/* Batch mode: only batch-relevant fields */}
-        {isBatchMode && (
-          <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3">
-              Batch Edit
-            </Heading>
-            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-              <div>
-                <Label htmlFor="batch-priceAmount" className="mb-1">
-                  Price
-                </Label>
-                <Input
-                  id="batch-priceAmount"
-                  inputMode="decimal"
-                  type="text"
-                  value={String(formData.priceAmount)}
-                  onChange={(e) => updateNumber('priceAmount', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div>
-                <Label htmlFor="batch-currency" className="mb-1">
-                  Currency
-                </Label>
-                <NativeSelect
-                  id="batch-currency"
-                  value={formData.currency}
-                  onChange={(e) => updateField('currency', e.target.value)}
-                >
-                  <option value="SEK">SEK</option>
-                  <option value="EUR">EUR</option>
-                  <option value="USD">USD</option>
-                  <option value="NOK">NOK</option>
-                  <option value="DKK">DKK</option>
-                </NativeSelect>
-              </div>
-              <div>
-                <Label htmlFor="batch-vatRate" className="mb-1">
-                  VAT rate (%)
-                </Label>
-                <Input
-                  id="batch-vatRate"
-                  inputMode="decimal"
-                  type="text"
-                  value={String(formData.vatRate)}
-                  onChange={(e) => updateNumber('vatRate', e.target.value)}
-                  placeholder="25"
-                />
-              </div>
-              <div>
-                <Label htmlFor="batch-quantity" className="mb-1">
-                  Quantity
-                </Label>
-                <Input
-                  id="batch-quantity"
-                  inputMode="numeric"
-                  type="text"
-                  value={String(formData.quantity)}
-                  onChange={(e) => updateNumber('quantity', e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-          </Card>
-        )}
-
         {/* Tab: Produkt */}
-        {!isBatchMode && activeTab === 'produkt' && (
+        {activeTab === 'produkt' && (
           <>
             <Card padding="sm" className="shadow-none px-0">
               <Heading level={3} className="mb-3">
@@ -2904,7 +3128,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         )}
 
         {/* Tab: Texter (per-market title/description + SEO/bulletpoints) */}
-        {!isBatchMode && activeTab === 'texter' && (
+        {activeTab === 'texter' && (
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3">
               Texter per marknad
@@ -3062,7 +3286,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         )}
 
         {/* Tab: Media — 11 slots: 1 main + 10 extra */}
-        {!isBatchMode && activeTab === 'media' && (
+        {activeTab === 'media' && (
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3">
               Bilder
@@ -3198,7 +3422,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         )}
 
         {/* Tab: Kanaler */}
-        {!isBatchMode && activeTab === 'kanaler' && (
+        {activeTab === 'kanaler' && (
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3">
               Kanaler
@@ -3319,7 +3543,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         )}
 
         {/* Tab: Priser — Baspris + en rad per butik/marknad med Pris per butik, Reapris/Originalpris */}
-        {!isBatchMode && activeTab === 'priser' && (
+        {activeTab === 'priser' && (
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3">
               Priser
@@ -3567,7 +3791,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         )}
 
         {/* Tab: Kategorier — per-channel dropdowns from CDON, Fyndiq, WooCommerce APIs */}
-        {!isBatchMode && activeTab === 'kategori' && (
+        {activeTab === 'kategori' && (
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3">
               Kategorier
@@ -3892,7 +4116,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         )}
 
         {/* Tab: Detaljer */}
-        {!isBatchMode && activeTab === 'detaljer' && (
+        {activeTab === 'detaljer' && (
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3">
               Detaljer
@@ -4577,6 +4801,50 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </Card>
         )}
       </form>
+
+      <Dialog
+        open={batchPreviewOpen}
+        onOpenChange={(o) => {
+          if (!o) {
+            setBatchPreviewOpen(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Förhandsgranskning – batch</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Nedan visas bara det du ändrat (oförändrade fält skickas inte). Samma ändringar
+            tillämpas på samtliga {batchProductIds.length} markerade produkter. På Kanaler gäller
+            endast de butiker du kryssat för — övriga butiker i listan påverkas inte.
+          </p>
+          <ul className="mt-2 max-h-64 overflow-y-auto rounded border bg-muted/40 p-3 text-sm font-mono space-y-1">
+            {batchPreviewLines.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setBatchPreviewOpen(false);
+                setBatchPendingChanges(null);
+              }}
+            >
+              Avbryt
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void commitBatchSave()}
+              disabled={isCurrentlySubmitting}
+            >
+              Bekräfta och spara
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={cdonDiagnoseResult != null}

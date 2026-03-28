@@ -42,21 +42,18 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   isSubmitting = false,
   showEditButton = true,
 }) => {
-  const isWarningMessage = (msg: string) =>
-    /warning/i.test(msg) || /varning/i.test(msg);
+  const isWarningMessage = (msg: string) => /warning/i.test(msg) || /varning/i.test(msg);
   const hasBlockingErrors = validationErrors.some(
     (e: any) => !isWarningMessage(String(e?.message || '')),
   );
   const hasPriceWarning =
     currentPlugin?.name === 'products' &&
     validationErrors.some(
-      (e: any) =>
-        e?.field === 'priceAmount' && /effektivt pris/i.test(String(e?.message || '')),
+      (e: any) => e?.field === 'priceAmount' && /effektivt pris/i.test(String(e?.message || '')),
     );
   const priceWarningMessage = hasPriceWarning
     ? validationErrors.find(
-        (e: any) =>
-          e?.field === 'priceAmount' && /effektivt pris/i.test(String(e?.message || '')),
+        (e: any) => e?.field === 'priceAmount' && /effektivt pris/i.test(String(e?.message || '')),
       )?.message
     : null;
 
@@ -214,11 +211,37 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   const saveBlocked = hasBlockingErrors || isSubmitting;
   const showIgnoreButton = hasPriceWarning && onIgnorePriceWarning;
 
+  const otherBlockingErrors = validationErrors.filter((e: any) => {
+    const msg = String(e?.message || '');
+    if (isWarningMessage(msg)) {
+      return false;
+    }
+    if (e?.field === 'priceAmount' && /effektivt pris/i.test(msg)) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <div className="flex flex-col gap-2 w-full">
       {hasPriceWarning && priceWarningMessage && (
         <div className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 text-sm">
           {priceWarningMessage}
+        </div>
+      )}
+      {otherBlockingErrors.length > 0 && (
+        <div
+          role="alert"
+          className="text-red-900 bg-red-50 border border-red-200 rounded px-3 py-2 text-sm space-y-2"
+        >
+          <p className="font-medium">Sparningen misslyckades</p>
+          <ul className="list-disc list-inside space-y-1">
+            {otherBlockingErrors.map((e: any) => (
+              <li key={`${String(e?.field ?? 'err')}:${String(e?.message ?? '')}`}>
+                {String(e?.message || '')}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <div className="flex justify-end space-x-2">

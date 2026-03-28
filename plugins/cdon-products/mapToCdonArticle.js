@@ -78,20 +78,24 @@ function normalizeCategory(value) {
   return leaf && leaf.length <= 10 ? leaf : s.slice(0, 10);
 }
 
+const CDON_MARKETS_LC = ['se', 'dk', 'fi', 'no'];
+
+/** Every active market from overrides only; no guessing. */
+function deriveCdonMarketsUpper(overridesByMarket) {
+  return CDON_MARKETS_LC.filter((m) => {
+    const ov = overridesByMarket && overridesByMarket[m];
+    return ov && ov.active === true;
+  }).map((x) => String(x).toUpperCase());
+}
+
 /**
  * Build one CDON article payload for POST/PUT v2/articles/bulk.
  * @param {Object} product - Base product: id, sku, mpn, title, description, status, quantity, priceAmount, currency, vatRate, mainImage, images, categories, brand, gtin, channelSpecific?.cdon
  * @param {Object} overridesByMarket - Per-market overrides: { se?: { priceAmount, currency, vatRate, category }, ... } (keys lower case)
  * @param {string} defaultLanguage - Default language e.g. 'sv-SE'
- * @param {string[]} marketsFilter - e.g. ['se','dk','fi','no']
  * @returns {Object|null} CDON article object or null if required fields missing
  */
-function mapProductToCdonArticle(
-  product,
-  overridesByMarket,
-  defaultLanguage,
-  marketsFilter = ['se', 'dk', 'fi', 'no'],
-) {
+function mapProductToCdonArticle(product, overridesByMarket, defaultLanguage) {
   const sku = product?.id != null ? String(product.id).trim() : '';
   const title = htmlToPlainText(product?.title != null ? String(product.title).trim() : '');
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
@@ -110,7 +114,8 @@ function mapProductToCdonArticle(
     product?.channelSpecific?.cdon && typeof product.channelSpecific.cdon === 'object'
       ? product.channelSpecific.cdon
       : {};
-  const markets = (marketsFilter || ['se', 'dk', 'fi', 'no']).map((m) => String(m).toUpperCase());
+  const markets = deriveCdonMarketsUpper(overridesByMarket);
+  if (!markets.length) return null;
 
   // Title: per language from textsExtended (per marknad) + textsStandard, else products.title. UI sätter bara textsExtended per land, ingen kanalspecifik titel.
   const textsExtended = product?.channelSpecific?.textsExtended;
@@ -417,12 +422,7 @@ function mapProductToCdonArticle(
   return payload;
 }
 
-function getCdonArticleInputIssues(
-  product,
-  overridesByMarket,
-  defaultLanguage,
-  marketsFilter = ['se', 'dk', 'fi', 'no'],
-) {
+function getCdonArticleInputIssues(product, overridesByMarket, defaultLanguage) {
   const issues = [];
   const sku = product?.id != null ? String(product.id).trim() : '';
   const title = htmlToPlainText(product?.title != null ? String(product.title).trim() : '');
@@ -438,7 +438,9 @@ function getCdonArticleInputIssues(
   else if (!isValidUrl(mainImage)) issues.push('invalid_main_image_url');
   if (quantity == null || quantity < 0) issues.push('invalid_quantity');
 
-  const markets = (marketsFilter || ['se', 'dk', 'fi', 'no']).map((m) => String(m).toUpperCase());
+  const markets = deriveCdonMarketsUpper(overridesByMarket);
+  if (!markets.length) issues.push('no_active_markets');
+
   const textsExtended = product?.channelSpecific?.textsExtended;
   const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
     String(product?.channelSpecific?.textsStandard || '').toLowerCase(),

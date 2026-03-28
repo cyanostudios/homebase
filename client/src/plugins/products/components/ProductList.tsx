@@ -274,19 +274,6 @@ export const ProductList: React.FC = () => {
     platform?: { ok: boolean; deleted: number };
   } | null>(null);
 
-  // Batch-edit modal state
-  const [showBatchEditModal, setShowBatchEditModal] = useState(false);
-  const [batchEditUpdates, setBatchEditUpdates] = useState<{
-    priceAmount?: string;
-    quantity?: string;
-    vatRate?: string;
-    currency?: string;
-  }>({});
-  const [batchEditApplying, setBatchEditApplying] = useState(false);
-  const [lastBatchEditResult, setLastBatchEditResult] = useState<{ updatedCount: number } | null>(
-    null,
-  );
-
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupVariationType, setGroupVariationType] = useState<'color' | 'size' | 'model'>('color');
   const [groupMainProductId, setGroupMainProductId] = useState<string>('');
@@ -705,15 +692,17 @@ export const ProductList: React.FC = () => {
                 Synka om
               </button>
 
-              {/* Batch Edit… — opens same product form in batch mode (only filled fields applied) */}
+              {/* Batch: samma produktform som vid enstaka redigering; dirty-only; förhandsgranskning; jobb DB→kanaler */}
               <button
+                type="button"
+                title="Öppnar produktpanelen. Endast ändrade fält och ikryssade kanalbutiker skrivs till alla markerade produkter. Efter förhandsgranskning köas synk (Homebase sedan Woo/CDON/Fyndiq); följ Synkstatus under Kanaler."
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-amber-600 text-amber-700 hover:bg-amber-50 text-sm"
                 onClick={() =>
                   attemptNavigation(() => openProductPanelForBatch(selectedProductIds))
                 }
               >
                 <Pencil className="w-4 h-4 mr-1" />
-                Batch Edit…
+                Batch-redigera…
               </button>
 
               {/* Group… — set variant group (color/size/model) + parent */}
@@ -1746,173 +1735,6 @@ export const ProductList: React.FC = () => {
                   onClick={runImportFlow}
                 >
                   {importing ? 'Importing…' : 'Import'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Batch Edit modal */}
-      {showBatchEditModal && (
-        <div className="fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowBatchEditModal(false)}
-          />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
-            <div className="bg-white rounded-xl shadow-xl border">
-              <div className="p-4 border-b">
-                <h3 className="mb-0 text-lg font-semibold">Batch Edit</h3>
-                <div className="text-xs text-gray-500">
-                  {selectedProductIds.length} products selected. Set only the fields you want to
-                  change.
-                </div>
-              </div>
-              <div className="p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium">Price</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="Leave empty to skip"
-                      value={batchEditUpdates.priceAmount ?? ''}
-                      onChange={(e) =>
-                        setBatchEditUpdates((u) => ({ ...u, priceAmount: e.target.value }))
-                      }
-                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Quantity</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Leave empty to skip"
-                      value={batchEditUpdates.quantity ?? ''}
-                      onChange={(e) =>
-                        setBatchEditUpdates((u) => ({ ...u, quantity: e.target.value }))
-                      }
-                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">VAT rate (%)</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="Leave empty to skip"
-                      value={batchEditUpdates.vatRate ?? ''}
-                      onChange={(e) =>
-                        setBatchEditUpdates((u) => ({ ...u, vatRate: e.target.value }))
-                      }
-                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Currency</label>
-                    <select
-                      value={batchEditUpdates.currency ?? ''}
-                      onChange={(e) =>
-                        setBatchEditUpdates((u) => ({
-                          ...u,
-                          currency: e.target.value || undefined,
-                        }))
-                      }
-                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="">— No change —</option>
-                      <option value="SEK">SEK</option>
-                      <option value="EUR">EUR</option>
-                      <option value="USD">USD</option>
-                      <option value="NOK">NOK</option>
-                      <option value="DKK">DKK</option>
-                    </select>
-                  </div>
-                </div>
-                {lastBatchEditResult !== null && lastBatchEditResult !== undefined && (
-                  <div className="rounded-md border border-green-200 bg-green-50 text-green-800 p-2 text-sm">
-                    Updated {lastBatchEditResult.updatedCount} product(s).
-                  </div>
-                )}
-              </div>
-              <div className="p-4 border-t flex items-center justify-end gap-2">
-                <button
-                  className="px-3 py-1.5 rounded-md border text-sm"
-                  onClick={() => setShowBatchEditModal(false)}
-                  disabled={batchEditApplying}
-                >
-                  Close
-                </button>
-                <button
-                  className="px-3 py-1.5 rounded-md bg-amber-600 text-white text-sm disabled:opacity-50"
-                  disabled={
-                    batchEditApplying ||
-                    selectedProductIds.length === 0 ||
-                    (!batchEditUpdates.priceAmount &&
-                      !batchEditUpdates.quantity &&
-                      !batchEditUpdates.vatRate &&
-                      !batchEditUpdates.currency)
-                  }
-                  onClick={async () => {
-                    const updates: {
-                      priceAmount?: number;
-                      quantity?: number;
-                      vatRate?: number;
-                      currency?: string;
-                    } = {};
-                    if (
-                      batchEditUpdates.priceAmount !== null &&
-                      batchEditUpdates.priceAmount !== undefined &&
-                      batchEditUpdates.priceAmount !== ''
-                    ) {
-                      const n = Number(batchEditUpdates.priceAmount.replace(',', '.'));
-                      if (Number.isFinite(n)) {
-                        updates.priceAmount = n;
-                      }
-                    }
-                    if (
-                      batchEditUpdates.quantity !== null &&
-                      batchEditUpdates.quantity !== undefined &&
-                      batchEditUpdates.quantity !== ''
-                    ) {
-                      const n = Number(batchEditUpdates.quantity);
-                      if (Number.isFinite(n) && n >= 0) {
-                        updates.quantity = Math.trunc(n);
-                      }
-                    }
-                    if (
-                      batchEditUpdates.vatRate !== null &&
-                      batchEditUpdates.vatRate !== undefined &&
-                      batchEditUpdates.vatRate !== ''
-                    ) {
-                      const n = Number(batchEditUpdates.vatRate.replace(',', '.'));
-                      if (Number.isFinite(n)) {
-                        updates.vatRate = n;
-                      }
-                    }
-                    if (batchEditUpdates.currency) {
-                      updates.currency = batchEditUpdates.currency;
-                    }
-                    if (Object.keys(updates).length === 0) {
-                      return;
-                    }
-                    setBatchEditApplying(true);
-                    try {
-                      const result = await batchUpdateProducts(selectedProductIds, updates);
-                      setLastBatchEditResult({ updatedCount: result.updatedCount });
-                    } catch (err: any) {
-                      console.error('Batch edit failed', err);
-                      setLastBatchEditResult({ updatedCount: 0 });
-                    } finally {
-                      setBatchEditApplying(false);
-                    }
-                  }}
-                >
-                  {batchEditApplying
-                    ? 'Applying…'
-                    : `Apply to ${selectedProductIds.length} products`}
                 </button>
               </div>
             </div>

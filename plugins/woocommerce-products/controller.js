@@ -1562,18 +1562,35 @@ class WooCommerceController {
     const url = isVariation
       ? `${base}/wp-json/wc/v3/products/${parentId}/variations/${wooId}`
       : `${base}/wp-json/wc/v3/products/${wooId}`;
-    const resp = await this.fetchWithWooAuth(
-      url,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manage_stock: true, stock_quantity: Number(quantity) }),
-      },
-      wooSettings,
-    );
+    const putInit = {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manage_stock: true, stock_quantity: Number(quantity) }),
+    };
+    const maxAttempts = 5;
+    let resp = null;
+    let lastErrorBody = '';
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      resp = await this.fetchWithWooAuth(url, putInit, wooSettings);
+      if (resp.ok) {
+        break;
+      }
+      const retryable = resp.status === 429 || resp.status >= 500;
+      lastErrorBody = await resp.text().catch(() => '');
+      if (!retryable || attempt === maxAttempts - 1) {
+        break;
+      }
+      const retryAfterRaw = resp.headers?.get?.('retry-after');
+      const retryAfterSec = Number(retryAfterRaw);
+      const backoffMs =
+        Number.isFinite(retryAfterSec) && retryAfterSec > 0
+          ? Math.min(120000, retryAfterSec * 1000)
+          : Math.min(60000, 1000 * 2 ** attempt);
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
 
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
+      const text = lastErrorBody || (await resp.text().catch(() => ''));
       await this.model.upsertChannelMap(req, {
         productId,
         channel: 'woocommerce',

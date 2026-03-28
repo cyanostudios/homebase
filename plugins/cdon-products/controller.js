@@ -1000,8 +1000,7 @@ class CdonProductsController {
         for (const r of mapRows) {
           const pid = String(r.product_id);
           const market = r.market != null ? String(r.market).trim().toLowerCase() : null;
-          if (!market || !['se', 'dk', 'fi', 'no'].includes(market)) continue;
-          if (!marketsFilter.includes(market)) continue;
+          if (!market || !allowedMarkets.includes(market)) continue;
           if (!overridesByProductId.has(pid)) overridesByProductId.set(pid, {});
           const perMarket = overridesByProductId.get(pid);
           if (!perMarket[market]) {
@@ -1064,7 +1063,7 @@ class CdonProductsController {
         const raw = rawProducts.find((r) => String(r?.id) === p.productId) || p;
         const overrides = overridesByProductId.get(String(p.productId)) || {};
         const hasActiveTarget = Object.entries(overrides).some(([market, data]) => {
-          if (!marketsFilter.includes(String(market).toLowerCase())) return false;
+          if (!allowedMarkets.includes(String(market).toLowerCase())) return false;
           return data && data.active === true;
         });
         if (!hasActiveTarget) {
@@ -1086,7 +1085,7 @@ class CdonProductsController {
           });
           continue;
         }
-        const article = mapProductToCdonArticle(raw, overrides, defaultLanguage, marketsFilter);
+        const article = mapProductToCdonArticle(raw, overrides, defaultLanguage);
         if (article) {
           const payloadCheck = validateCdonArticlePayload(article);
           if (!payloadCheck.ok) {
@@ -1153,7 +1152,7 @@ class CdonProductsController {
             createMeta.push({ productId: p.productId, sku: article.sku });
           }
         } else {
-          const issues = getCdonArticleInputIssues(raw, overrides, defaultLanguage, marketsFilter);
+          const issues = getCdonArticleInputIssues(raw, overrides, defaultLanguage);
           const reason = issues.length ? issues.join(',') : 'mapper_rejected_unknown';
           if (diagnoseTrace) {
             diagnoseTrace.perProduct[p.productId] = {
@@ -1557,6 +1556,99 @@ class CdonProductsController {
       return { ok: false, error: failedForSku.errors[0].message };
     }
     return { ok: true };
+  }
+
+  /**
+   * CDON PUT /v2/articles/bulk — up to 50 update_article_quantity actions per HTTP call (sequential chunks).
+   * @param {object} req
+   * @param {Array<{ sku: string, quantity: number, productId?: string }>} items
+   * @returns {{ failures: Array<{ productId?: string, sku: string, error: string }> }}
+   */
+  async syncStockBulk(req, items) {
+    const failures = [];
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) {
+      return { failures };
+    }
+    const settings = await this.model.getSettings(req);
+    if (!settings?.apiKey || !settings?.apiSecret) {
+      for (const it of list) {
+        failures.push({
+          productId: it.productId,
+          sku: String(it.sku || ''),
+          error: 'CDON settings not found',
+        });
+      }
+      return { failures };
+    }
+    const url = `${CDON_MERCHANTS_API}/v2/articles/bulk`;
+    const chunkSize = 50;
+    for (let i = 0; i < list.length; i += chunkSize) {
+      const chunk = list.slice(i, i + chunkSize);
+      const actions = [];
+      for (const it of chunk) {
+        const sku = String(it.sku ?? '').trim();
+        const qty = Math.max(0, Math.min(500_000, Math.trunc(Number(it.quantity))));
+        if (!sku) {
+          failures.push({
+            productId: it.productId,
+            sku: '',
+            error: 'Missing channel SKU for CDON stock sync',
+          });
+          continue;
+        }
+        const quantityAction = {
+          sku,
+          action: 'update_article_quantity',
+          body: { quantity: qty },
+        };
+        const validation = this.validateCdonUpdateArticleQuantityAction(quantityAction);
+        if (!validation.ok) {
+          failures.push({
+            productId: it.productId,
+            sku,
+            error: validation.reason || 'invalid_quantity',
+          });
+          continue;
+        }
+        actions.push(quantityAction);
+      }
+      if (!actions.length) {
+        continue;
+      }
+      const { resp, text, json } = await this.cdonRequest(url, {
+        merchantId: settings.apiKey,
+        apiToken: settings.apiSecret,
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actions }),
+      });
+      if (!resp.ok) {
+        const errMsg =
+          json?.message || json?.failed?.[0]?.errors?.[0]?.message || text || `HTTP ${resp.status}`;
+        for (const a of actions) {
+          const row = chunk.find((c) => String(c.sku || '').trim() === a.sku);
+          failures.push({
+            productId: row?.productId,
+            sku: a.sku,
+            error: errMsg,
+          });
+        }
+        continue;
+      }
+      const failed = Array.isArray(json?.failed) ? json.failed : [];
+      for (const f of failed) {
+        const fsku = String(f?.sku || '').trim();
+        const row = chunk.find((c) => String(c.sku || '').trim() === fsku);
+        const msg = f?.errors?.[0]?.message || 'CDON bulk quantity failed';
+        failures.push({
+          productId: row?.productId,
+          sku: fsku,
+          error: msg,
+        });
+      }
+    }
+    return { failures };
   }
 
   async exportProductsUpdateOnlyStrict(req, res) {

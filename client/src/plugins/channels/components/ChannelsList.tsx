@@ -15,6 +15,8 @@ import {
 import { channelsApi } from '../api/channelsApi';
 import { useChannels } from '../hooks/useChannels';
 
+import { BatchSyncStatusModal } from './BatchSyncStatusModal';
+
 export const ChannelsList: React.FC = () => {
   const { channels, openChannelForView } = useChannels();
 
@@ -45,7 +47,8 @@ export const ChannelsList: React.FC = () => {
         Klicka på en rad (t.ex. CDON eller Fyndiq) för att öppna panelen och hantera instanser samt
         aktivera/avaktivera marknader (SE, DK, FI, NO).
       </p>
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <BatchSyncStatusModal />
         <Button variant="outline" size="sm" onClick={downloadTemplate}>
           <Download className="h-4 w-4" />
           Download import template

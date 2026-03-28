@@ -189,7 +189,25 @@ function createProductRoutes(controller, context) {
     (req, res) => controller.create(req, res),
   );
 
-  // PATCH /api/products/batch - Batch update (MUST be before '/:id' route)
+  // GET batch sync job history + status (before '/batch' PATCH)
+  router.get('/batch/sync-jobs', gate, (req, res) => controller.listBatchSyncJobs(req, res));
+  router.get('/batch/sync-jobs/:jobId', gate, (req, res) => controller.getBatchSyncJob(req, res));
+
+  // POST /api/products/batch/sync-job — same as PATCH /batch (explicit async job)
+  router.post(
+    '/batch/sync-job',
+    gate,
+    csrfProtection,
+    [
+      commonRules.array('ids', 250),
+      body('changes').optional().isObject().withMessage('changes must be an object'),
+      body('updates').optional().isObject().withMessage('updates must be an object'),
+    ],
+    validateRequest,
+    (req, res) => controller.startBatchSyncJob(req, res),
+  );
+
+  // PATCH /api/products/batch - Async batch sync job (MUST be before '/:id' route)
   router.patch(
     '/batch',
     gate,
@@ -197,6 +215,7 @@ function createProductRoutes(controller, context) {
     [
       commonRules.array('ids', 250),
       body('updates').optional().isObject().withMessage('updates must be an object'),
+      body('changes').optional().isObject().withMessage('changes must be an object'),
       body('updates.priceAmount').optional().isNumeric(),
       body('updates.quantity').optional().isInt({ min: 0 }),
       body('updates.status').optional().isIn(['for sale', 'paused']),

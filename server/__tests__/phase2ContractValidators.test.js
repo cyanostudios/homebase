@@ -182,7 +182,7 @@ describe('Phase 2 contract validators', () => {
   describe('getCdonArticleInputIssues', () => {
     it('returns missing_sku for product without sku or id', () => {
       const product = { title: 'x', mainImage: 'http://x', quantity: 0 };
-      const issues = getCdonArticleInputIssues(product, {}, 'sv-SE', ['se']);
+      const issues = getCdonArticleInputIssues(product, {}, 'sv-SE');
       expect(issues).toContain('missing_sku');
     });
 
@@ -195,7 +195,7 @@ describe('Phase 2 contract validators', () => {
         description: 'x'.repeat(10),
       };
       const overrides = { se: { active: true, priceAmount: 0, category: '1' } };
-      const issues = getCdonArticleInputIssues(product, overrides, 'sv-SE', ['se']);
+      const issues = getCdonArticleInputIssues(product, overrides, 'sv-SE');
       expect(issues).toContain('missing_positive_price');
     });
   });
@@ -210,7 +210,7 @@ describe('Phase 2 contract validators', () => {
         description: 'x'.repeat(10),
       };
       const overrides = { se: { active: true, priceAmount: 99, category: null } };
-      const issues = getFyndiqArticleInputIssues(product, overrides, 'sv-SE', ['se']);
+      const issues = getFyndiqArticleInputIssues(product, overrides, 'sv-SE');
       expect(issues).toContain('missing_categories');
     });
   });

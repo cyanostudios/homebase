@@ -698,51 +698,63 @@ class OrdersController {
     if (!byProductId.size && !bySku.size) return;
 
     for (const [pid, qty] of byProductId.entries()) {
-      const updated = await db.query(
-        `
-        UPDATE products
-        SET quantity = GREATEST(quantity - $2, 0),
-            updated_at = NOW()
-        WHERE id = $1
-        RETURNING id, sku, quantity
-        `,
-        [pid, qty],
-      );
-      if (!updated.length) continue;
+      const dec = await this.productsController.model.applyOrderQuantityDecrement(req, pid, qty);
+      if (!dec.ok) {
+        await this.productsController.model.insertQuickSyncJobRecord(req, {
+          errors: [
+            {
+              productId: String(pid),
+              channel: 'homebase',
+              message: dec.error || 'Kunde inte uppdatera lager (lås/timeout)',
+            },
+          ],
+          triggerSource: 'order_stock',
+        });
+        continue;
+      }
 
-      const productId = String(updated[0].id);
-      const sku = String(updated[0].sku || '').trim();
-      const newQty = Number(updated[0].quantity);
+      const productId = String(dec.row.id);
+      const sku = String(dec.row.sku || '').trim();
+      const newQty = Number(dec.row.quantity);
 
       await this.productsController.pushStockToChannels(req, {
         productId,
         sku,
         quantity: newQty,
         sourceChannel,
+        queueRole: 'order',
       });
     }
 
     for (const [sku, qty] of bySku.entries()) {
-      const updated = await db.query(
-        `
-        UPDATE products
-        SET quantity = GREATEST(quantity - $2, 0),
-            updated_at = NOW()
-        WHERE sku = $1
-        RETURNING id, sku, quantity
-        `,
-        [sku, qty],
+      const dec = await this.productsController.model.applyOrderQuantityDecrementBySku(
+        req,
+        sku,
+        qty,
       );
-      if (!updated.length) continue;
+      if (!dec.ok) {
+        await this.productsController.model.insertQuickSyncJobRecord(req, {
+          errors: [
+            {
+              productId: String(sku),
+              channel: 'homebase',
+              message: dec.error || 'Kunde inte uppdatera lager (lås/timeout)',
+            },
+          ],
+          triggerSource: 'order_stock',
+        });
+        continue;
+      }
 
-      const productId = String(updated[0].id);
-      const newQty = Number(updated[0].quantity);
+      const productId = String(dec.row.id);
+      const newQty = Number(dec.row.quantity);
 
       await this.productsController.pushStockToChannels(req, {
         productId,
-        sku,
+        sku: String(dec.row.sku || '').trim(),
         quantity: newQty,
         sourceChannel,
+        queueRole: 'order',
       });
     }
   }

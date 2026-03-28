@@ -37,6 +37,30 @@ import {
   type ValidationError,
 } from '../types/products';
 
+async function waitForProductBatchJob(jobId: string, maxMs = 300_000) {
+  const started = Date.now();
+  while (Date.now() - started < maxMs) {
+    const { job } = await productsApi.getBatchSyncJob(jobId);
+    if (!job) {
+      return null;
+    }
+    if ((job.completedAt !== null && job.completedAt !== undefined) || job.status === 'failed') {
+      return job;
+    }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return null;
+}
+
+/** Used when `reloadProducts` runs before any `loadProducts` (e.g. after batch while list ref is empty). */
+const CATALOG_RELOAD_FALLBACK: ProductListParams = {
+  limit: 50,
+  offset: 0,
+  sort: 'id',
+  order: 'asc',
+  list: 'all',
+};
+
 interface ProductContextType {
   // Panel state
   isProductPanelOpen: boolean;
@@ -52,9 +76,9 @@ interface ProductContextType {
   totalProducts: number;
   /** True when the user is on a page that should load the product catalog. */
   isProductCatalogBootstrap: boolean;
-  loadProducts: (params: ProductListParams) => Promise<void>;
-  /** Re-fetch using the last successful `loadProducts` params. */
-  reloadProducts: () => Promise<void>;
+  loadProducts: (params: ProductListParams) => Promise<Product[] | undefined>;
+  /** Re-fetch using the last successful `loadProducts` params (or a safe default). */
+  reloadProducts: () => Promise<Product[] | undefined>;
 
   // Product plugin settings (default delivery etc.)
   productSettings: ProductSettings | null;
@@ -122,14 +146,8 @@ interface ProductContextType {
   deleteProducts: (ids: string[]) => Promise<void>; // bulk
   batchUpdateProducts: (
     ids: string[],
-    updates: {
-      priceAmount?: number;
-      quantity?: number;
-      status?: string;
-      vatRate?: number;
-      currency?: string;
-    },
-  ) => Promise<{ updatedCount: number }>;
+    updates: Record<string, unknown>,
+  ) => Promise<{ updatedCount: number; jobId?: string; errors?: unknown[] }>;
   groupProducts: (
     productIds: string[],
     groupVariationType: 'color' | 'size' | 'model',
@@ -329,16 +347,16 @@ export function ProductProvider({
       }));
       setProducts(transformed);
       setTotalProducts(typeof data?.total === 'number' ? data.total : 0);
+      return transformed;
     } catch (error) {
       console.error('Failed to load products:', error);
+      return undefined;
     }
   }, []);
 
   const reloadProducts = useCallback(async () => {
-    const p = lastListParamsRef.current;
-    if (p) {
-      await loadProducts(p);
-    }
+    const p = lastListParamsRef.current ?? CATALOG_RELOAD_FALLBACK;
+    return loadProducts(p);
   }, [loadProducts]);
 
   const wasAuthenticatedRef = useRef(false);
@@ -485,15 +503,6 @@ export function ProductProvider({
   const openProductPanel = (product: Product | null) => {
     setCurrentProduct(product);
     setPanelMode(product ? 'edit' : 'create');
-    setIsProductPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
-
-  const openProductForEdit = (product: Product) => {
-    setCurrentProduct(product);
-    setPanelMode('edit');
-    setBatchProductIds([]);
     setIsProductPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -758,6 +767,18 @@ export function ProductProvider({
       updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
     };
   }, []);
+
+  const openProductForEdit = useCallback(
+    (product: Product) => {
+      setCurrentProduct(product);
+      setPanelMode('edit');
+      setBatchProductIds([]);
+      setIsProductPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
   const buildChannelExportPayload = useCallback((productForSync: any) => {
     if (!productForSync) {
@@ -1181,7 +1202,24 @@ export function ProductProvider({
           if (!message) {
             return;
           }
-          validationErrors.push({ field, message });
+          const row: ValidationError = { field, message };
+          if (err?.code) {
+            row.code = String(err.code);
+          } else if (error?.code) {
+            row.code = String(error.code);
+          }
+          validationErrors.push(row);
+        });
+      }
+
+      if (validationErrors.length === 0 && error?.status === 409 && error?.code === 'CONFLICT') {
+        validationErrors.push({
+          field: 'general',
+          code: 'CONFLICT',
+          message:
+            error?.error ||
+            error?.message ||
+            'Konflikt: en produkt med samma unika uppgifter finns redan.',
         });
       }
 
@@ -1189,7 +1227,11 @@ export function ProductProvider({
       if (validationErrors.length === 0) {
         const errorMessage =
           error?.error || error?.message || 'Failed to save product. Please try again.';
-        validationErrors.push({ field: 'general', message: errorMessage });
+        const row: ValidationError = { field: 'general', message: errorMessage };
+        if (error?.code) {
+          row.code = String(error.code);
+        }
+        validationErrors.push(row);
       }
 
       setValidationErrors(validationErrors);
@@ -1465,46 +1507,31 @@ export function ProductProvider({
     }
   };
 
-  const batchUpdateProducts = async (
-    ids: string[],
-    updates: {
-      priceAmount?: number;
-      quantity?: number;
-      status?: string;
-      vatRate?: number;
-      currency?: string;
-    },
-  ) => {
+  const batchUpdateProducts = async (ids: string[], updates: Record<string, unknown>) => {
     const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
     if (!uniqueIds.length) {
       return { updatedCount: 0 };
     }
     const filtered = Object.fromEntries(
       Object.entries(updates).filter(([, v]) => v !== undefined && v !== null && v !== ''),
-    ) as {
-      priceAmount?: number;
-      quantity?: number;
-      status?: string;
-      vatRate?: number;
-      currency?: string;
-    };
+    ) as Record<string, unknown>;
     if (Object.keys(filtered).length === 0) {
       return { updatedCount: 0 };
     }
     try {
       const result = await productsApi.batchUpdate(uniqueIds, filtered);
-      setProducts((prev) =>
-        prev.map((p) =>
-          uniqueIds.includes(String(p.id))
-            ? {
-                ...p,
-                ...filtered,
-                status: (filtered.status as Product['status'] | undefined) ?? p.status,
-              }
-            : p,
-        ),
-      );
-      return { updatedCount: result?.updatedCount ?? 0 };
+      if (result?.jobId) {
+        const job = await waitForProductBatchJob(result.jobId);
+        await reloadProducts();
+        const errs = Array.isArray(job?.errors) ? job.errors : [];
+        return {
+          updatedCount: job?.processedDb ?? uniqueIds.length,
+          jobId: result.jobId,
+          errors: errs,
+        };
+      }
+      await reloadProducts();
+      return { updatedCount: 0 };
     } catch (error: any) {
       console.error('Batch update failed:', error);
       throw error;

@@ -92,24 +92,30 @@ function parseFyndiqCategories(fyndiq) {
   return raw.map((c) => String(c).trim()).filter((c) => c && c !== '0');
 }
 
+const FYNDIQ_MARKETS_LC = ['se', 'dk', 'fi', 'no'];
+
+/**
+ * Full article PUT must list every market that is active in overrides. No guessing: if none active → [].
+ * @param {Object} overridesByMarket
+ * @returns {string[]} e.g. ['SE','DK','FI'] or []
+ */
+function deriveFyndiqMarketsUpper(overridesByMarket) {
+  return FYNDIQ_MARKETS_LC.filter((m) => {
+    const ov = overridesByMarket && overridesByMarket[m];
+    return ov && ov.active === true;
+  }).map((m) => String(m).toUpperCase());
+}
+
 /**
  * Build one Fyndiq article payload (single article, possibly multiple markets).
  * @param {Object} product - Base product: id, sku, mpn, title, description, status, quantity, priceAmount, currency, vatRate, mainImage, images, categories, brand, gtin, channelSpecific?.fyndiq
  * @param {Object} overridesByMarket - Per-market overrides: { se?: { priceAmount, currency, vatRate, category, active, originalPrice }, ... } (keys lower case)
  * @param {string} defaultLanguage - Default language code e.g. 'sv-SE' (used for title/description when no per-language data)
- * @param {string[]} marketsFilter - Markets to include e.g. ['se','dk','fi','no'] (lower case)
  * @returns {Object|null} Fyndiq API article body or null if required fields missing
  */
-function mapProductToFyndiqArticle(
-  product,
-  overridesByMarket,
-  defaultLanguage,
-  marketsFilter = ['se', 'dk', 'fi', 'no'],
-) {
+function mapProductToFyndiqArticle(product, overridesByMarket, defaultLanguage) {
   const sku = product?.id != null ? String(product.id).trim() : '';
-  const title = htmlToPlainText(
-    product?.title != null ? String(product.title).trim() : '',
-  );
+  const title = htmlToPlainText(product?.title != null ? String(product.title).trim() : '');
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
   const quantity =
     product?.quantity != null && Number.isFinite(Number(product.quantity))
@@ -126,15 +132,8 @@ function mapProductToFyndiqArticle(
     product?.channelSpecific?.fyndiq && typeof product.channelSpecific.fyndiq === 'object'
       ? product.channelSpecific.fyndiq
       : {};
-  // Only include markets where we have active overrides (user has enabled the product for that market).
-  const activeMarkets = (marketsFilter || ['se', 'dk', 'fi', 'no']).filter((m) => {
-    const mk = String(m).toLowerCase();
-    const ov = overridesByMarket && overridesByMarket[mk];
-    return ov && ov.active === true;
-  });
-  const markets = activeMarkets.length > 0
-    ? activeMarkets.map((m) => String(m).toUpperCase())
-    : (marketsFilter || ['se', 'dk', 'fi', 'no']).map((m) => String(m).toUpperCase());
+  const markets = deriveFyndiqMarketsUpper(overridesByMarket);
+  if (!markets.length) return null;
 
   // Title: per language from textsExtended (per marknad) + textsStandard, else products.title. UI sätter bara textsExtended per land.
   const textsExtended = product?.channelSpecific?.textsExtended;
@@ -169,9 +168,7 @@ function mapProductToFyndiqArticle(
   if (!titleArr || titleArr.length === 0) return null;
 
   // Description: per language from textsExtended + textsStandard, else products.description.
-  const baseDesc = htmlToPlainText(
-    product?.description != null ? String(product.description) : '',
-  );
+  const baseDesc = htmlToPlainText(product?.description != null ? String(product.description) : '');
   let descriptionArr = null;
   if (textsExtended && typeof textsExtended === 'object') {
     const arr = [];
@@ -181,9 +178,10 @@ function mapProductToFyndiqArticle(
       const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
       if (seen.has(lang)) continue;
       const t = textsExtended[mk];
-      const value = htmlToPlainText(
-        t?.description || standardText?.description || '',
-      ).slice(0, 4096);
+      const value = htmlToPlainText(t?.description || standardText?.description || '').slice(
+        0,
+        4096,
+      );
       if (value.length >= 10) {
         seen.add(lang);
         arr.push({ language: lang, value });
@@ -214,7 +212,8 @@ function mapProductToFyndiqArticle(
         ? Number(ov.priceAmount)
         : basePrice;
     const currency = String(DEFAULT_CURRENCY_BY_MARKET[m] || '').toUpperCase();
-    if (amount != null && amount > 0) price.push({ market: marketCode, value: { amount, currency } });
+    if (amount != null && amount > 0)
+      price.push({ market: marketCode, value: { amount, currency } });
   }
   if (price.length === 0) return null;
 
@@ -333,17 +332,10 @@ function mapProductToFyndiqArticle(
   return payload;
 }
 
-function getFyndiqArticleInputIssues(
-  product,
-  overridesByMarket,
-  defaultLanguage,
-  marketsFilter = ['se', 'dk', 'fi', 'no'],
-) {
+function getFyndiqArticleInputIssues(product, overridesByMarket, defaultLanguage) {
   const issues = [];
   const sku = product?.id != null ? String(product.id).trim() : '';
-  const title = htmlToPlainText(
-    product?.title != null ? String(product.title).trim() : '',
-  );
+  const title = htmlToPlainText(product?.title != null ? String(product.title).trim() : '');
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
   const quantity =
     product?.quantity != null && Number.isFinite(Number(product.quantity))
@@ -356,7 +348,9 @@ function getFyndiqArticleInputIssues(
   else if (!isValidUrl(mainImage)) issues.push('invalid_main_image_url');
   if (quantity == null || quantity < 0) issues.push('invalid_quantity');
 
-  const markets = (marketsFilter || ['se', 'dk', 'fi', 'no']).map((m) => String(m).toUpperCase());
+  const markets = deriveFyndiqMarketsUpper(overridesByMarket);
+  if (!markets.length) issues.push('no_active_markets');
+
   const textsExtended = product?.channelSpecific?.textsExtended;
   const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
     String(product?.channelSpecific?.textsStandard || '').toLowerCase(),

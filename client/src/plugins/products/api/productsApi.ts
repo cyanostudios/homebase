@@ -108,6 +108,9 @@ class ProductsApi {
         );
         err.status = 409;
         err.errors = payload.errors;
+        if (payload?.code) {
+          err.code = payload.code;
+        }
         throw err;
       }
 
@@ -117,6 +120,9 @@ class ProductsApi {
       );
       err.status = response.status;
       err.error = payload?.error || payload?.message;
+      if (payload?.code) {
+        err.code = payload.code;
+      }
       if (payload?.errors) {
         err.errors = payload.errors;
       }
@@ -292,23 +298,45 @@ class ProductsApi {
     });
   }
 
-  // ---- Batch update ----
-  // PATCH /api/products/batch
-  // body: { ids: string[], updates: { priceAmount?, quantity?, status?, vatRate?, currency? } }
+  // ---- Batch sync job (202 + jobId) ----
+  // PATCH /api/products/batch — body { ids, updates } eller { ids, changes }
   async batchUpdate(
     ids: string[],
-    updates: {
-      priceAmount?: number;
-      quantity?: number;
-      status?: string;
-      vatRate?: number;
-      currency?: string;
-    },
-  ): Promise<{ ok: true; updatedCount: number; updatedIds: string[] }> {
+    updates: Record<string, unknown>,
+  ): Promise<{
+    ok: true;
+    jobId: string | null;
+    accepted?: boolean;
+    totalProducts?: number;
+    message?: string;
+  }> {
     return this.request('/products/batch', {
       method: 'PATCH',
       body: JSON.stringify({ ids, updates }),
     });
+  }
+
+  async listBatchSyncJobs(): Promise<{
+    jobs: Array<{
+      id: string;
+      status: string;
+      totalProducts: number;
+      processedDb: number;
+      processedChannels: number;
+      productIds: string[];
+      changes: Record<string, unknown>;
+      errors: unknown[];
+      createdByUserId: string | null;
+      triggerSource: string;
+      createdAt: string;
+      completedAt: string | null;
+    }>;
+  }> {
+    return this.request('/products/batch/sync-jobs');
+  }
+
+  async getBatchSyncJob(jobId: string): Promise<{ job: any }> {
+    return this.request(`/products/batch/sync-jobs/${encodeURIComponent(jobId)}`);
   }
 
   // ---- Bulk delete (Platform) ----

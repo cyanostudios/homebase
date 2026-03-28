@@ -3,6 +3,10 @@
 // Uses @homebase/core SDK for database access with automatic tenant isolation
 
 const { Logger, Database, Context } = require('@homebase/core');
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 const { AppError } = require('../../server/core/errors/AppError');
 
 class ProductModel {
@@ -751,7 +755,9 @@ class ProductModel {
         throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
-      const d = this.normalizeInput(productData);
+      const { expectedUpdatedAt: _ignoreVersion, ...productDataForNormalize } = productData;
+      void _ignoreVersion;
+      const d = this.normalizeInput(productDataForNormalize);
       const existing = await this.getById(req, productId);
       if (!existing) {
         throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
@@ -1183,6 +1189,523 @@ class ProductModel {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to batch update products', 500, AppError.CODES.DATABASE_ERROR);
     }
+  }
+
+  async pruneBatchSyncJobs(req) {
+    const db = Database.get(req);
+    await db.query(`
+      DELETE FROM product_batch_sync_jobs
+      WHERE id NOT IN (
+        SELECT id FROM (
+          SELECT id FROM product_batch_sync_jobs
+          ORDER BY created_at DESC
+          LIMIT 50
+        ) k
+      )
+    `);
+  }
+
+  async insertProductBatchSyncJob(req, { productIds, changes, userId, triggerSource }) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const ids = Array.isArray(productIds)
+      ? productIds.map((x) => String(x).trim()).filter(Boolean)
+      : [];
+    const rows = await db.query(
+      `
+      INSERT INTO product_batch_sync_jobs
+        (status, total_products, product_ids, changes, created_by_user_id, trigger_source)
+      VALUES ($1, $2, $3::text[], $4::jsonb, $5, $6)
+      RETURNING *
+      `,
+      [
+        'pending',
+        ids.length,
+        ids,
+        JSON.stringify(changes && typeof changes === 'object' ? changes : {}),
+        userId != null ? String(userId) : null,
+        String(triggerSource || 'batch').trim() || 'batch',
+      ],
+    );
+    await this.pruneBatchSyncJobs(req);
+    return rows[0];
+  }
+
+  async deleteProductBatchSyncJob(req, jobId) {
+    const db = Database.get(req);
+    const jid = String(jobId || '').trim();
+    if (!jid) return;
+    await db.query(`DELETE FROM product_batch_sync_jobs WHERE id::text = $1`, [jid]);
+  }
+
+  async getProductBatchSyncJob(req, jobId) {
+    const db = Database.get(req);
+    const jid = String(jobId || '').trim();
+    if (!jid) return null;
+    const rows = await db.query(
+      `SELECT * FROM product_batch_sync_jobs WHERE id::text = $1 LIMIT 1`,
+      [jid],
+    );
+    return rows[0] || null;
+  }
+
+  async listProductBatchSyncJobs(req, limit = 50) {
+    const db = Database.get(req);
+    const lim = Math.min(100, Math.max(1, Number(limit) || 50));
+    return db.query(`SELECT * FROM product_batch_sync_jobs ORDER BY created_at DESC LIMIT $1`, [
+      lim,
+    ]);
+  }
+
+  async updateProductBatchSyncJob(req, jobId, fields) {
+    const db = Database.get(req);
+    const jid = String(jobId || '').trim();
+    if (!jid) return;
+    const allowed = ['status', 'processed_db', 'processed_channels', 'errors', 'completed_at'];
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    for (const key of allowed) {
+      if (fields[key] === undefined) continue;
+      if (key === 'errors') {
+        sets.push(`errors = $${idx}::jsonb`);
+        params.push(JSON.stringify(fields.errors));
+      } else if (key === 'completed_at') {
+        sets.push(`completed_at = $${idx}::timestamptz`);
+        params.push(fields.completed_at);
+      } else {
+        sets.push(`${key} = $${idx}`);
+        params.push(fields[key]);
+      }
+      idx += 1;
+    }
+    if (!sets.length) return;
+    params.push(jid);
+    const idPlaceholder = params.length;
+    await db.query(
+      `UPDATE product_batch_sync_jobs SET ${sets.join(', ')} WHERE id::text = $${idPlaceholder}`,
+      params,
+    );
+  }
+
+  /**
+   * Map dirty-only batch fields (camelCase) to DB columns. Only keys present in raw are considered.
+   */
+  buildBatchPatchColumns(raw) {
+    const out = {};
+    if (!raw || typeof raw !== 'object') return out;
+
+    if (raw.priceAmount !== undefined) {
+      const n = Number(raw.priceAmount);
+      if (Number.isFinite(n)) out.price_amount = n;
+    }
+    if (raw.quantity !== undefined) {
+      const n = Number(raw.quantity);
+      if (Number.isFinite(n)) out.quantity = Math.max(0, Math.trunc(n));
+    }
+    if (raw.status !== undefined) {
+      out.status = this.normalizeProductStatus(raw.status);
+    }
+    if (raw.vatRate !== undefined) {
+      const n = Number(raw.vatRate);
+      if (Number.isFinite(n)) out.vat_rate = n;
+    }
+    if (raw.currency !== undefined) {
+      const c = String(raw.currency || '')
+        .trim()
+        .toUpperCase();
+      if (/^[A-Z]{3}$/.test(c)) out.currency = c;
+    }
+    if (raw.title !== undefined) {
+      out.title = String(raw.title ?? '')
+        .trim()
+        .slice(0, 255);
+    }
+    if (raw.description !== undefined) {
+      out.description =
+        raw.description != null && String(raw.description).trim() !== ''
+          ? String(raw.description).trim()
+          : null;
+    }
+    if (raw.mainImage !== undefined) {
+      out.main_image =
+        raw.mainImage != null && String(raw.mainImage).trim() !== ''
+          ? String(raw.mainImage).trim()
+          : null;
+    }
+    if (raw.images !== undefined) {
+      const arr = Array.isArray(raw.images) ? raw.images.filter(Boolean) : [];
+      out.images = JSON.stringify(arr);
+    }
+    if (raw.categories !== undefined) {
+      const arr = Array.isArray(raw.categories) ? raw.categories.filter(Boolean) : [];
+      out.categories = JSON.stringify(arr);
+    }
+    if (raw.brand !== undefined) {
+      out.brand =
+        raw.brand != null && String(raw.brand).trim() !== '' ? String(raw.brand).trim() : null;
+    }
+    if (raw.brandId !== undefined) {
+      const n = Number(raw.brandId);
+      out.brand_id = Number.isFinite(n) ? n : null;
+    }
+    if (raw.mpn !== undefined) {
+      out.mpn = raw.mpn != null && String(raw.mpn).trim() !== '' ? String(raw.mpn).trim() : null;
+    }
+    if (raw.ean !== undefined) {
+      out.ean = raw.ean != null && String(raw.ean).trim() !== '' ? String(raw.ean).trim() : null;
+    }
+    if (raw.gtin !== undefined) {
+      out.gtin =
+        raw.gtin != null && String(raw.gtin).trim() !== '' ? String(raw.gtin).trim() : null;
+    }
+    if (raw.knNumber !== undefined) {
+      out.kn_number =
+        raw.knNumber != null && String(raw.knNumber).trim() !== ''
+          ? String(raw.knNumber).trim()
+          : null;
+    }
+    if (raw.supplierId !== undefined) {
+      const n = Number(raw.supplierId);
+      out.supplier_id = Number.isFinite(n) ? n : null;
+    }
+    if (raw.manufacturerId !== undefined) {
+      const n = Number(raw.manufacturerId);
+      out.manufacturer_id = Number.isFinite(n) ? n : null;
+    }
+    if (raw.channelSpecific !== undefined) {
+      if (raw.channelSpecific === null) {
+        out.channel_specific = null;
+      } else if (typeof raw.channelSpecific === 'object' && !Array.isArray(raw.channelSpecific)) {
+        out.channel_specific = JSON.stringify(raw.channelSpecific);
+      }
+    }
+    if (raw.purchasePrice !== undefined) {
+      const n = Number(raw.purchasePrice);
+      out.purchase_price = Number.isFinite(n) ? n : null;
+    }
+    if (raw.lagerplats !== undefined) {
+      out.lagerplats =
+        raw.lagerplats != null && String(raw.lagerplats).trim() !== ''
+          ? String(raw.lagerplats).trim().slice(0, 100)
+          : null;
+    }
+    if (raw.condition !== undefined) {
+      const c = String(raw.condition || '')
+        .trim()
+        .toLowerCase();
+      if (c === 'new' || c === 'used' || c === 'refurb') {
+        out.condition = c;
+      }
+    }
+    if (raw.groupId !== undefined) {
+      out.group_id =
+        raw.groupId != null && String(raw.groupId).trim() !== ''
+          ? String(raw.groupId).trim().slice(0, 100)
+          : null;
+    }
+    if (raw.volume !== undefined) {
+      const n = Number(raw.volume);
+      out.volume = Number.isFinite(n) ? n : null;
+    }
+    if (raw.volumeUnit !== undefined) {
+      out.volume_unit =
+        raw.volumeUnit != null && String(raw.volumeUnit).trim() !== ''
+          ? String(raw.volumeUnit).trim().slice(0, 20)
+          : null;
+    }
+    if (raw.notes !== undefined) {
+      out.notes =
+        raw.notes != null && String(raw.notes).trim() !== '' ? String(raw.notes).trim() : null;
+    }
+    if (raw.privateName !== undefined) {
+      out.private_name =
+        raw.privateName != null && String(raw.privateName).trim() !== ''
+          ? String(raw.privateName).trim()
+          : null;
+    }
+    if (raw.color !== undefined) {
+      out.color =
+        raw.color != null && String(raw.color).trim() !== ''
+          ? String(raw.color).trim().slice(0, 100)
+          : null;
+    }
+    if (raw.colorText !== undefined) {
+      out.color_text =
+        raw.colorText != null && String(raw.colorText).trim() !== ''
+          ? String(raw.colorText).trim().slice(0, 255)
+          : null;
+    }
+    if (raw.size !== undefined) {
+      out.size =
+        raw.size != null && String(raw.size).trim() !== ''
+          ? String(raw.size).trim().slice(0, 50)
+          : null;
+    }
+    if (raw.sizeText !== undefined) {
+      out.size_text =
+        raw.sizeText != null && String(raw.sizeText).trim() !== ''
+          ? String(raw.sizeText).trim().slice(0, 255)
+          : null;
+    }
+    if (raw.pattern !== undefined) {
+      out.pattern =
+        raw.pattern != null && String(raw.pattern).trim() !== ''
+          ? String(raw.pattern).trim().slice(0, 100)
+          : null;
+    }
+    if (raw.material !== undefined) {
+      out.material =
+        raw.material != null && String(raw.material).trim() !== ''
+          ? String(raw.material).trim().slice(0, 255)
+          : null;
+    }
+    if (raw.patternText !== undefined) {
+      out.pattern_text =
+        raw.patternText != null && String(raw.patternText).trim() !== ''
+          ? String(raw.patternText).trim().slice(0, 255)
+          : null;
+    }
+    if (raw.model !== undefined) {
+      out.model =
+        raw.model != null && String(raw.model).trim() !== ''
+          ? String(raw.model).trim().slice(0, 255)
+          : null;
+    }
+    if (raw.weight !== undefined) {
+      const n = Number(raw.weight);
+      out.weight = Number.isFinite(n) ? n : null;
+    }
+    if (raw.lengthCm !== undefined) {
+      const n = Number(raw.lengthCm);
+      out.length_cm = Number.isFinite(n) ? n : null;
+    }
+    if (raw.widthCm !== undefined) {
+      const n = Number(raw.widthCm);
+      out.width_cm = Number.isFinite(n) ? n : null;
+    }
+    if (raw.heightCm !== undefined) {
+      const n = Number(raw.heightCm);
+      out.height_cm = Number.isFinite(n) ? n : null;
+    }
+    if (raw.depthCm !== undefined) {
+      const n = Number(raw.depthCm);
+      out.depth_cm = Number.isFinite(n) ? n : null;
+    }
+
+    return out;
+  }
+
+  async applyProductBatchPatch(req, productIdText, rawPatch) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const pid = String(productIdText || '').trim();
+    if (!pid) {
+      throw new AppError('Product id required', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+
+    const patch = rawPatch && typeof rawPatch === 'object' ? { ...rawPatch } : {};
+    delete patch.__batchChannel;
+
+    const forbidden = new Set([
+      'groupVariationType',
+      'parentProductId',
+      'sku',
+      'id',
+      'group_variation_type',
+      'parent_product_id',
+      '__batchChannel',
+    ]);
+    for (const k of Object.keys(patch)) {
+      if (forbidden.has(k)) {
+        throw new AppError(
+          `Fältet ${k} kan inte ändras i batch`,
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+    }
+
+    const columns = this.buildBatchPatchColumns(patch);
+    if (!Object.keys(columns).length) {
+      return { skipped: true };
+    }
+
+    return db.transaction(async (tx) => {
+      const locked = await tx.query(
+        `SELECT id FROM ${ProductModel.TABLE} WHERE id::text = $1 FOR UPDATE`,
+        [pid],
+      );
+      if (!locked.length) {
+        throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const setParts = [];
+      const params = [];
+      let idx = 1;
+      for (const [col, val] of Object.entries(columns)) {
+        setParts.push(`${col} = $${idx}`);
+        params.push(val);
+        idx += 1;
+      }
+      setParts.push('updated_at = CURRENT_TIMESTAMP');
+      params.push(pid);
+      const sql = `
+        UPDATE ${ProductModel.TABLE}
+        SET ${setParts.join(', ')}
+        WHERE id::text = $${idx}
+      `;
+      await tx.query(sql, params);
+      return { skipped: false };
+    });
+  }
+
+  /**
+   * Order-driven quantity decrement with lock timeout + backoff (plan 6.2).
+   * @returns {{ ok: true, row: object } | { ok: false, error: string }}
+   */
+  async applyOrderQuantityDecrement(req, productId, qtyDelta) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      return { ok: false, error: 'Tenant not resolved' };
+    }
+    const pid = Number(productId);
+    if (!Number.isFinite(pid)) {
+      return { ok: false, error: 'invalid_product_id' };
+    }
+    const q = Math.trunc(Number(qtyDelta));
+    if (!Number.isFinite(q) || q <= 0) {
+      return { ok: false, error: 'invalid_qty' };
+    }
+
+    const delays = [5000, 15000, 60000, 60000, 60000];
+    let lastErr = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const rows = await db.transaction(async (tx) => {
+          await tx.query(`SET LOCAL lock_timeout = '5s'`);
+          return tx.query(
+            `
+            UPDATE ${ProductModel.TABLE}
+            SET quantity = GREATEST(quantity - $2, 0),
+                updated_at = NOW()
+            WHERE id = $1
+            RETURNING id, sku, quantity
+            `,
+            [pid, q],
+          );
+        });
+        if (!rows.length) {
+          return { ok: false, error: 'product_not_found' };
+        }
+        return { ok: true, row: rows[0] };
+      } catch (err) {
+        lastErr = err;
+        const code = err?.code || err?.details?.code;
+        const msg = String(err?.message || '');
+        const lockish =
+          code === '55P03' ||
+          code === '57014' ||
+          /lock timeout|canceling statement due to lock timeout/i.test(msg);
+        if (lockish && attempt < 4) {
+          await sleep(delays[attempt]);
+          continue;
+        }
+        return { ok: false, error: msg || 'db_error' };
+      }
+    }
+    return { ok: false, error: String(lastErr?.message || 'lock_failed') };
+  }
+
+  /**
+   * Same as applyOrderQuantityDecrement but matches by SKU (when order line has no product_id).
+   */
+  async applyOrderQuantityDecrementBySku(req, skuText, qtyDelta) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      return { ok: false, error: 'Tenant not resolved' };
+    }
+    const sku = String(skuText || '').trim();
+    if (!sku) {
+      return { ok: false, error: 'invalid_sku' };
+    }
+    const q = Math.trunc(Number(qtyDelta));
+    if (!Number.isFinite(q) || q <= 0) {
+      return { ok: false, error: 'invalid_qty' };
+    }
+
+    const delays = [5000, 15000, 60000, 60000, 60000];
+    let lastErr = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const rows = await db.transaction(async (tx) => {
+          await tx.query(`SET LOCAL lock_timeout = '5s'`);
+          return tx.query(
+            `
+            UPDATE ${ProductModel.TABLE}
+            SET quantity = GREATEST(quantity - $2, 0),
+                updated_at = NOW()
+            WHERE sku = $1
+            RETURNING id, sku, quantity
+            `,
+            [sku, q],
+          );
+        });
+        if (!rows.length) {
+          return { ok: false, error: 'product_not_found' };
+        }
+        return { ok: true, row: rows[0] };
+      } catch (err) {
+        lastErr = err;
+        const code = err?.code || err?.details?.code;
+        const msg = String(err?.message || '');
+        const lockish =
+          code === '55P03' ||
+          code === '57014' ||
+          /lock timeout|canceling statement due to lock timeout/i.test(msg);
+        if (lockish && attempt < 4) {
+          await sleep(delays[attempt]);
+          continue;
+        }
+        return { ok: false, error: msg || 'db_error' };
+      }
+    }
+    return { ok: false, error: String(lastErr?.message || 'lock_failed') };
+  }
+
+  async insertQuickSyncJobRecord(req, { errors, triggerSource }) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const userId = Context.getUserId(req);
+    const list = Array.isArray(errors) ? errors : [];
+    const pids = list.map((e) => String(e.productId || '').trim()).filter(Boolean);
+    await db.query(
+      `
+      INSERT INTO product_batch_sync_jobs
+        (status, total_products, processed_db, processed_channels, product_ids, changes, errors, trigger_source, created_by_user_id, completed_at)
+      VALUES ($1, $2, 0, 0, $3::text[], '{}'::jsonb, $4::jsonb, $5, $6, NOW())
+      `,
+      [
+        'failed',
+        pids.length || 1,
+        pids.length ? pids : ['0'],
+        JSON.stringify(list),
+        String(triggerSource || 'order_stock').trim() || 'order_stock',
+        userId != null ? String(userId) : null,
+      ],
+    );
+    await this.pruneBatchSyncJobs(req);
   }
 
   async upsertFromSelloProduct(
