@@ -17,9 +17,16 @@ const projectRoot = path.join(__dirname, '..');
 require('dotenv').config({ path: path.join(projectRoot, '.env') });
 require('dotenv').config({ path: path.join(projectRoot, '.env.local') });
 
-// Puppeteer (ingest browser_fetch): stable cache dir so Chromium is not resolved under sandboxed TMP.
-if (!process.env.PUPPETEER_CACHE_DIR) {
-  process.env.PUPPETEER_CACHE_DIR = path.join(projectRoot, '.cache', 'puppeteer');
+// Puppeteer (ingest browser_fetch): use project .cache/puppeteer by default. Cursor/sandbox may inject
+// PUPPETEER_CACHE_DIR under a temp path where Chrome was never installed — override that.
+const defaultPuppeteerCacheDir = path.join(projectRoot, '.cache', 'puppeteer');
+const rawPuppeteerCache = process.env.PUPPETEER_CACHE_DIR;
+const sandboxInjectedPuppeteerCache =
+  typeof rawPuppeteerCache === 'string' &&
+  (rawPuppeteerCache.includes('cursor-sandbox-cache') ||
+    rawPuppeteerCache.includes('sandbox-cache'));
+if (!rawPuppeteerCache || sandboxInjectedPuppeteerCache) {
+  process.env.PUPPETEER_CACHE_DIR = defaultPuppeteerCacheDir;
 }
 
 const PluginLoader = require('../plugin-loader');
