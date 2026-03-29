@@ -244,6 +244,16 @@ const server = app.listen(PORT, () => {
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
   console.log(`🔌 Loaded ${pluginLoader.getAllPlugins().length} plugins`);
+
+  try {
+    const {
+      runBrowserFetchStartupDiagnostics,
+    } = require('../plugins/ingest/services/browserFetchStartupDiagnostics');
+    void runBrowserFetchStartupDiagnostics();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[ingest:browser_fetch] startup diagnostics skipped:', msg);
+  }
 });
 
 // Graceful shutdown

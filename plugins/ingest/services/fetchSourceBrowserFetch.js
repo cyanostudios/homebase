@@ -119,4 +119,5 @@ async function fetchSourceBrowserFetch(sourceUrl) {
 
 module.exports = {
   fetchSourceBrowserFetch,
+  browserFetchEnabled,
 };
