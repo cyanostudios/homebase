@@ -354,7 +354,9 @@
     "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvariga. Vill du kasta dem?",
     "assignee": "Ansvarig",
     "addAssigneePlaceholder": "Lägg till ansvarig…",
-    "removeAssignee": "Ta bort ansvarig"
+    "removeAssignee": "Ta bort ansvarig",
+    "toTask": "Till uppgift",
+    "toTaskAndDelete": "Till uppgift och radera"
   },
   "notes": {
     "searchPlaceholder": "Sök {{count}} anteckningar...",
@@ -596,6 +598,8 @@
   },
   "app": {
     "createTaskFromNote": "Skapa uppgift från anteckning",
+    "createTaskFromNoteAndDelete": "Skapa uppgift och radera anteckning",
+    "taskCreatedNoteDeleteFailed": "Uppgiften skapades, men anteckningen kunde inte raderas. Du kan ta bort den manuellt.",
     "taskTitle": "Uppgiftens titel",
     "create": "Skapa",
     "createSlotFromMatch": "Skapa slot från match",

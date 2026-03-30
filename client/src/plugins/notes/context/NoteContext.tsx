@@ -572,15 +572,34 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     onExportItem,
 
     detailFooterActions: pluginActions
-      .filter((action) => action.id !== 'create-task-from-note' || hasTasksPlugin)
+      .filter((action) => {
+        if (
+          action.id === 'create-task-from-note' ||
+          action.id === 'create-task-from-note-and-delete'
+        ) {
+          return hasTasksPlugin;
+        }
+        return true;
+      })
       .map((action) => ({
         id: action.id,
         label: action.label,
         icon: action.icon,
-        onClick:
-          action.id === 'create-task-from-note' && openToTaskDialog
-            ? (note) => openToTaskDialog(note)
-            : action.onClick,
+        onClick: (note: Note) => {
+          if (!openToTaskDialog) {
+            void action.onClick(note);
+            return;
+          }
+          if (action.id === 'create-task-from-note') {
+            openToTaskDialog(note);
+            return;
+          }
+          if (action.id === 'create-task-from-note-and-delete') {
+            openToTaskDialog(note, { deleteNoteAfter: true });
+            return;
+          }
+          void action.onClick(note);
+        },
         className: undefined,
       })),
 

@@ -354,7 +354,9 @@
     "quickEditDiscardMessage": "You have unsaved changes to status, priority, due date or assignees. Do you want to discard them?",
     "assignee": "Assignee",
     "addAssigneePlaceholder": "Add assignee…",
-    "removeAssignee": "Remove assignee"
+    "removeAssignee": "Remove assignee",
+    "toTask": "To Task",
+    "toTaskAndDelete": "To Task and Delete"
   },
   "notes": {
     "searchPlaceholder": "Search {{count}} notes...",
@@ -596,6 +598,8 @@
   },
   "app": {
     "createTaskFromNote": "Create task from note",
+    "createTaskFromNoteAndDelete": "Create task and delete note",
+    "taskCreatedNoteDeleteFailed": "The task was created, but the note could not be deleted. You can delete it manually.",
     "taskTitle": "Task title",
     "create": "Create",
     "createSlotFromMatch": "Create slot from match",

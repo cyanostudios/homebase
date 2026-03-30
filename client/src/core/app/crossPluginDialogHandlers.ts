@@ -148,6 +148,10 @@ export function buildNoteToTaskOnConfirm(params: {
   setNoteForTask: Dispatch<SetStateAction<NoteForTaskState>>;
   attemptNavigation: (fn: () => void) => void;
   navigate: NavigateFunction;
+  deleteNoteAfter?: boolean;
+  deleteNote?: (id: string) => Promise<void>;
+  deleteNoteFailedMessage?: string;
+  setDeleteNoteAfterTask?: Dispatch<SetStateAction<boolean>>;
 }): (newName: string) => void {
   const {
     noteForTask,
@@ -156,11 +160,16 @@ export function buildNoteToTaskOnConfirm(params: {
     setNoteForTask,
     attemptNavigation,
     navigate,
+    deleteNoteAfter,
+    deleteNote,
+    deleteNoteFailedMessage,
+    setDeleteNoteAfterTask,
   } = params;
   return (newName: string) => {
     if (!noteForTask) {
       setShowToTaskDialog(false);
       setNoteForTask(null);
+      setDeleteNoteAfterTask?.(false);
       return;
     }
     const taskEntry = pluginContexts.find(({ plugin }) => plugin.name === 'tasks');
@@ -173,6 +182,7 @@ export function buildNoteToTaskOnConfirm(params: {
     if (typeof createTask !== 'function' || typeof closeNotePanel !== 'function') {
       setShowToTaskDialog(false);
       setNoteForTask(null);
+      setDeleteNoteAfterTask?.(false);
       return;
     }
     const payload = {
@@ -186,7 +196,17 @@ export function buildNoteToTaskOnConfirm(params: {
       createdFromNote: noteForTask.id,
     };
     createTask(payload)
-      .then((newTask: { id?: string | number } | undefined) => {
+      .then(async (newTask: { id?: string | number } | undefined) => {
+        if (deleteNoteAfter && typeof deleteNote === 'function' && noteForTask.id) {
+          try {
+            await deleteNote(String(noteForTask.id));
+          } catch {
+            alert(
+              deleteNoteFailedMessage ??
+                'Task was created, but the note could not be deleted. You can remove it manually.',
+            );
+          }
+        }
         closeNotePanel();
         attemptNavigation(() => navigate('/tasks'));
         if (
@@ -198,10 +218,12 @@ export function buildNoteToTaskOnConfirm(params: {
         }
         setShowToTaskDialog(false);
         setNoteForTask(null);
+        setDeleteNoteAfterTask?.(false);
       })
       .catch((err: unknown) => {
         setShowToTaskDialog(false);
         setNoteForTask(null);
+        setDeleteNoteAfterTask?.(false);
         alert(
           (err as { message?: string; error?: string })?.message ??
             (err as { message?: string; error?: string })?.error ??

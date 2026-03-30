@@ -48,6 +48,9 @@ function getQuickActionIconColorClass(actionId: string): string {
   if (actionId === 'create-task-from-note') {
     return 'text-green-600 dark:text-green-400';
   }
+  if (actionId === 'create-task-from-note-and-delete') {
+    return 'text-amber-600 dark:text-amber-400';
+  }
   return '';
 }
 

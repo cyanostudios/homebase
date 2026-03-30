@@ -153,6 +153,7 @@ function AppContent() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showToTaskDialog, setShowToTaskDialog] = useState(false);
+  const [deleteNoteAfterTask, setDeleteNoteAfterTask] = useState(false);
   const [noteForTask, setNoteForTask] = useState<{
     id: string;
     title?: string;
@@ -190,8 +191,9 @@ function AppContent() {
 
   // Register "Create task from note" dialog opener so NoteContext footer can open it
   useEffect(() => {
-    registerOpenToTaskDialog((note) => {
+    registerOpenToTaskDialog((note, options) => {
       setNoteForTask(note);
+      setDeleteNoteAfterTask(Boolean(options?.deleteNoteAfter));
       setShowToTaskDialog(true);
     });
     return () => registerOpenToTaskDialog(null);
@@ -488,6 +490,12 @@ function AppContent() {
     t,
   });
 
+  const notePluginContext = pluginContexts.find(({ plugin }) => plugin.name === 'notes')?.context;
+  const deleteNoteFromNotesPlugin =
+    typeof notePluginContext?.deleteNote === 'function'
+      ? (notePluginContext.deleteNote as (id: string) => Promise<void>)
+      : undefined;
+
   return (
     <>
       <MainLayout
@@ -564,7 +572,9 @@ function AppContent() {
       {/* Create task from note – cross-plugin infrastructure (notes → tasks); kept in App by design */}
       <DuplicateDialog
         isOpen={showToTaskDialog}
-        title={t('app.createTaskFromNote')}
+        title={
+          deleteNoteAfterTask ? t('app.createTaskFromNoteAndDelete') : t('app.createTaskFromNote')
+        }
         nameLabel={t('app.taskTitle')}
         confirmText={t('app.create')}
         defaultName={noteForTask?.title ?? ''}
@@ -575,10 +585,15 @@ function AppContent() {
           setNoteForTask,
           attemptNavigation,
           navigate,
+          deleteNoteAfter: deleteNoteAfterTask,
+          deleteNote: deleteNoteFromNotesPlugin,
+          deleteNoteFailedMessage: t('app.taskCreatedNoteDeleteFailed'),
+          setDeleteNoteAfterTask,
         })}
         onCancel={() => {
           setShowToTaskDialog(false);
           setNoteForTask(null);
+          setDeleteNoteAfterTask(false);
         }}
       />
 

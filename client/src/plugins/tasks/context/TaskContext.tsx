@@ -1,4 +1,4 @@
-import { CheckSquare, User } from 'lucide-react';
+import { CheckSquare, ListChecks, User } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -537,9 +537,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   }, []);
 
   useEffect(() => {
-    const unregister = registerAction('note', {
+    const unregisterToTask = registerAction('note', {
       id: 'create-task-from-note',
-      label: 'To Task',
+      label: t('tasks.toTask'),
       icon: CheckSquare,
       variant: 'primary',
       className: 'bg-green-600 hover:bg-green-700 text-white border-none',
@@ -569,8 +569,22 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       },
     });
 
-    return unregister;
-  }, [registerAction, saveTask, refreshData]);
+    const unregisterToTaskAndDelete = registerAction('note', {
+      id: 'create-task-from-note-and-delete',
+      label: t('tasks.toTaskAndDelete'),
+      icon: ListChecks,
+      variant: 'primary',
+      className: 'bg-amber-600 hover:bg-amber-700 text-white border-none',
+      onClick: async () => {
+        /* NoteContext routes to App dialog; registry entry supplies label/icon only. */
+      },
+    });
+
+    return () => {
+      unregisterToTask();
+      unregisterToTaskAndDelete();
+    };
+  }, [registerAction, saveTask, refreshData, t]);
 
   const deleteTask = useCallback(async (id: string) => {
     try {
