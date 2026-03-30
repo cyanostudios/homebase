@@ -93,6 +93,9 @@ class Database {
        * @returns {Object} PostgreSQL pool
        */
       getPool: () => pool,
+
+      /** Current tenant user id from request context (for raw SQL that cannot use insert()). */
+      getUserId: () => context.userId,
     };
   }
 

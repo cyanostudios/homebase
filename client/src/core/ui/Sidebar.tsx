@@ -29,6 +29,7 @@ export type NavPage =
   | 'tasks'
   | 'matches'
   | 'slots'
+  | 'cups'
   | 'files'
   | 'ingest'
   | 'mail'

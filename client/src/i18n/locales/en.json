@@ -82,7 +82,9 @@
     "pulse": "Pulse",
     "invoices-recurring": "Recurring",
     "invoices-payments": "Payments",
-    "invoices-reports": "Reports"
+    "invoices-reports": "Reports",
+    "cups": "Cups",
+    "cup": "Cup"
   },
   "preferences": {
     "title": "Preferences",

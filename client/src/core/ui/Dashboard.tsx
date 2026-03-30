@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import type { NavPage } from '@/core/ui/Sidebar';
@@ -15,6 +15,16 @@ export function Dashboard({ onPageChange }: DashboardProps) {
   const { user } = useApp();
   const { t } = useTranslation();
 
+  const header = (
+    <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
+      <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+        <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+          {t('nav.dashboard')}
+        </h2>
+      </div>
+    </div>
+  );
+
   const widgets = React.useMemo(
     () => PLUGIN_REGISTRY.filter((p) => user?.plugins?.includes(p.name) && p.dashboardWidget),
     [user?.plugins],
@@ -22,49 +32,64 @@ export function Dashboard({ onPageChange }: DashboardProps) {
 
   if (widgets.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-        <p>{t('dashboard.noWidgets')}</p>
+      <div className="min-h-full bg-background">
+        {header}
+        <div className="px-6 pb-6 space-y-4">
+          <Card className="mt-4 border border-border/70 bg-card p-6 text-center text-muted-foreground shadow-sm">
+            <p>{t('dashboard.noWidgets')}</p>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {widgets.map((plugin) => {
-        const WidgetComponent = plugin.dashboardWidget!;
-        const Icon = plugin.navigation?.icon;
-        return (
-          <Card
-            key={plugin.name}
-            className={cn(
-              'cursor-pointer transition-all duration-200 hover:shadow-md border-transparent',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              `plugin-${plugin.name} bg-plugin-subtle border-plugin-subtle hover:border-plugin-subtle/50`,
-            )}
-            tabIndex={0}
-            role="button"
-            onClick={() => onPageChange(plugin.name as NavPage)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onPageChange(plugin.name as NavPage);
-              }
-            }}
-          >
-            <CardHeader className="flex flex-row items-center gap-2 pb-2">
-              {Icon && <Icon className="h-5 w-5 text-plugin" aria-hidden />}
-              <span className="font-medium">{plugin.navigation?.label ?? plugin.name}</span>
-            </CardHeader>
-            <CardContent
-              className="pt-0"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
-            >
-              <WidgetComponent onOpenPlugin={() => onPageChange(plugin.name as NavPage)} />
-            </CardContent>
-          </Card>
-        );
-      })}
+    <div className="min-h-full bg-background">
+      {header}
+      <div className="px-6 pb-6 space-y-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {widgets.map((plugin) => {
+            const WidgetComponent = plugin.dashboardWidget!;
+            const Icon = plugin.navigation?.icon;
+            const label = plugin.navigation?.label ?? plugin.name;
+            return (
+              <Card
+                key={plugin.name}
+                className={cn(
+                  'relative flex min-h-[160px] cursor-pointer flex-col border border-border/70 bg-card p-5 shadow-sm transition-all',
+                  'hover:border-plugin-subtle hover:shadow-md',
+                  `plugin-${plugin.name} hover:plugin-${plugin.name}`,
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                )}
+                tabIndex={0}
+                role="button"
+                aria-label={label}
+                onClick={() => onPageChange(plugin.name as NavPage)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onPageChange(plugin.name as NavPage);
+                  }
+                }}
+              >
+                <div className="mb-3 flex min-w-0 items-start gap-2">
+                  {Icon ? (
+                    <Icon className="mt-0.5 h-5 w-5 shrink-0 text-plugin" aria-hidden />
+                  ) : null}
+                  <h3 className="line-clamp-2 text-base font-semibold leading-tight">{label}</h3>
+                </div>
+                <div
+                  className="flex min-h-0 flex-1 flex-col border-t border-border/60 pt-3"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <WidgetComponent onOpenPlugin={() => onPageChange(plugin.name as NavPage)} />
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

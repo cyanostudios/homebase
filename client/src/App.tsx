@@ -7,7 +7,7 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import { Home, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -347,9 +347,11 @@ function AppContent() {
 
   const contentTitle = useMemo(() => {
     if (
+      currentPage === 'dashboard' ||
       currentPage === 'mail' ||
       currentPage === 'pulses' ||
       currentPage === 'slots' ||
+      currentPage === 'cups' ||
       currentPage === 'notes' ||
       currentPage === 'contacts' ||
       currentPage === 'tasks' ||
@@ -357,9 +359,6 @@ function AppContent() {
       currentPage === 'ingest'
     ) {
       return '';
-    }
-    if (currentPage === 'dashboard') {
-      return 'Dashboard';
     }
     if (currentPage === 'settings') {
       return 'Settings';
@@ -378,9 +377,11 @@ function AppContent() {
 
   const contentIcon = useMemo(() => {
     if (
+      currentPage === 'dashboard' ||
       currentPage === 'mail' ||
       currentPage === 'pulses' ||
       currentPage === 'slots' ||
+      currentPage === 'cups' ||
       currentPage === 'notes' ||
       currentPage === 'contacts' ||
       currentPage === 'tasks' ||
@@ -388,9 +389,6 @@ function AppContent() {
       currentPage === 'ingest'
     ) {
       return undefined;
-    }
-    if (currentPage === 'dashboard') {
-      return Home;
     }
     if (currentPage === 'settings') {
       return Settings;
@@ -517,6 +515,7 @@ function AppContent() {
         onDetailPanelClose={onDetailPanelClose}
         detailPanelPluginName={currentPlugin?.name}
         contentFlush={
+          currentPage === 'dashboard' ||
           currentPage === 'slots' ||
           currentPage === 'notes' ||
           currentPage === 'contacts' ||
@@ -524,7 +523,8 @@ function AppContent() {
           currentPage === 'matches' ||
           currentPage === 'ingest' ||
           currentPage === 'mail' ||
-          currentPage === 'pulses'
+          currentPage === 'pulses' ||
+          currentPage === 'cups'
         }
       >
         {currentPage === 'dashboard' ? (

@@ -263,19 +263,59 @@ const server = app.listen(PORT, () => {
   }
 });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('🛑 SIGTERM received');
-  server.close();
-  await Bootstrap.shutdown();
-  await pool.end();
-  process.exit(0);
+/**
+ * Close HTTP listener. Without forcing connections closed, open keep-alive sockets
+ * can block `server.close()` indefinitely — tsx watch then hits "Process didn't exit in 5s".
+ * Node 18+: closeAllConnections() drops those clients after a short grace period.
+ */
+function closeHttpServer(
+  httpServer: ReturnType<typeof app.listen>,
+  forceAfterMs = 2000,
+): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve();
+    };
+    httpServer.close(() => done());
+    setTimeout(() => {
+      const s = httpServer as typeof httpServer & { closeAllConnections?: () => void };
+      if (typeof s.closeAllConnections === 'function') {
+        s.closeAllConnections();
+      }
+      done();
+    }, forceAfterMs);
+  });
+}
+
+let shutdownStarted = false;
+
+async function gracefulShutdown(signal: string) {
+  if (shutdownStarted) {
+    return;
+  }
+  shutdownStarted = true;
+  console.log(`🛑 ${signal} received`);
+  try {
+    await closeHttpServer(server);
+    await Bootstrap.shutdown();
+    await pool.end();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('❌ Error during shutdown:', msg);
+  } finally {
+    process.exit(0);
+  }
+}
+
+process.once('SIGTERM', () => {
+  void gracefulShutdown('SIGTERM');
 });
 
-process.on('SIGINT', async () => {
-  console.log('🛑 SIGINT received');
-  server.close();
-  await Bootstrap.shutdown();
-  await pool.end();
-  process.exit(0);
+process.once('SIGINT', () => {
+  void gracefulShutdown('SIGINT');
 });

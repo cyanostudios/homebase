@@ -90,17 +90,6 @@ class NoteModel {
       const existing = await db.query('SELECT * FROM notes WHERE id = $1', [noteId]);
       const backup = existing.length > 0 ? this.transformRow(existing[0]) : null;
 
-      // First, delete all tasks that were created from this note
-      // Use direct pool access for cross-plugin operations
-      const pool = req.tenantPool;
-      if (pool) {
-        const userId = req.session?.user?.id;
-        await pool.query('DELETE FROM tasks WHERE created_from_note = $1 AND user_id = $2', [
-          noteId,
-          userId,
-        ]);
-      }
-
       // Delete the note (tenant isolation automatic)
       await db.deleteRecord('notes', noteId);
 
@@ -132,28 +121,6 @@ class NoteModel {
             [ids, userId],
           );
           backups = existing.rows.map((row) => this.transformRow(row));
-        }
-      }
-
-      // First, delete all tasks that were created from these notes
-      if (pool && userId) {
-        const ids = Array.isArray(idsTextArray)
-          ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
-          : [];
-        if (ids.length > 0) {
-          // Convert string IDs to integers for INTEGER column comparison
-          const integerIds = ids.map((id) => {
-            const parsed = parseInt(id, 10);
-            if (isNaN(parsed)) {
-              throw new AppError(`Invalid ID format: ${id}`, 400, AppError.CODES.VALIDATION_ERROR);
-            }
-            return parsed;
-          });
-
-          await pool.query(
-            'DELETE FROM tasks WHERE created_from_note = ANY($1::int[]) AND user_id = $2',
-            [integerIds, userId],
-          );
         }
       }
 

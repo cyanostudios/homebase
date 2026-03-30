@@ -12,6 +12,7 @@ export const navPageToPath: Record<NavPage, string> = {
   tasks: '/tasks',
   matches: '/matches',
   slots: '/slots',
+  cups: '/cups',
   estimates: '/estimates',
   invoices: '/invoices',
   'invoices-recurring': '/invoices/recurring',

@@ -7,6 +7,8 @@ export interface UseBulkSelectionReturn {
   selectedIds: string[];
   toggleSelection: (id: string) => void;
   selectAll: (ids: string[]) => void;
+  /** Add ids to the current selection (functional update; avoids stale closures). */
+  mergeIntoSelection: (ids: string[]) => void;
   clearSelection: () => void;
   isSelected: (id: string) => boolean;
   selectedCount: number;
@@ -36,6 +38,14 @@ export function useBulkSelection(): UseBulkSelectionReturn {
     setSelectedIds(normalized);
   }, []);
 
+  const mergeIntoSelection = useCallback((ids: string[]) => {
+    const extra = Array.isArray(ids) ? ids.map(String) : [];
+    if (extra.length === 0) {
+      return;
+    }
+    setSelectedIds((prev) => Array.from(new Set([...prev.map(String), ...extra])));
+  }, []);
+
   // Clear all selections
   const clearSelection = useCallback(() => {
     setSelectedIds([]);
@@ -53,6 +63,7 @@ export function useBulkSelection(): UseBulkSelectionReturn {
     selectedIds,
     toggleSelection,
     selectAll,
+    mergeIntoSelection,
     clearSelection,
     isSelected,
     selectedCount,

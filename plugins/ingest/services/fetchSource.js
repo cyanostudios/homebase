@@ -48,10 +48,10 @@ async function fetchSourceGenericHttp(sourceUrl) {
       excerpt = placeholder;
     } else {
       const text = buf.toString('utf8');
-      bodyText = text.slice(0, MAX_EXCERPT);
+      // Full document for downstream parsers (e.g. cups accordion scrape). Download is already capped by MAX_BYTES.
+      bodyText = text;
       excerpt = text.slice(0, MAX_EXCERPT);
       if (text.length > MAX_EXCERPT) {
-        bodyText += '\n…';
         excerpt += '\n…';
       }
     }

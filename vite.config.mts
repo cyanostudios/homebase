@@ -1,6 +1,10 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   root: './client',
@@ -36,20 +40,17 @@ export default defineConfig({
         ws: true,
         cookiePathRewrite: '/',
         // Preserve cookies and session
-        onProxyReq: (proxyReq, req, res) => {
-          // Forward cookies
+        onProxyReq: (proxyReq, req, _res) => {
           if (req.headers.cookie) {
             proxyReq.setHeader('Cookie', req.headers.cookie);
           }
         },
-        onProxyRes: (proxyRes, req, res) => {
-          // Disable caching for API responses in development
+        onProxyRes: (proxyRes, _req, _res) => {
           proxyRes.headers['Cache-Control'] =
             'no-store, no-cache, must-revalidate, proxy-revalidate';
           proxyRes.headers['Pragma'] = 'no-cache';
           proxyRes.headers['Expires'] = '0';
 
-          // Forward Set-Cookie headers — strip Domain/Secure so the session sticks to the current host
           if (proxyRes.headers['set-cookie']) {
             proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map(
               (cookie: string) => {
@@ -63,24 +64,21 @@ export default defineConfig({
           }
         },
         configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, res) => {
+          proxy.on('error', (err, _req, _res) => {
             console.error('Vite proxy error:', err);
           });
         },
       },
     },
   },
-  // Disable build cache in development to ensure fresh builds
   build: {
     rollupOptions: {
       output: {
-        // Ensure unique file names to prevent browser caching
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
       },
     },
   },
-  // Clear Vite cache on startup in development
   clearScreen: false,
 });

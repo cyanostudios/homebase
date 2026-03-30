@@ -73,6 +73,12 @@ import { ContactsDashboardWidget } from '@/plugins/contacts/components/ContactsD
 import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import { CupForm } from '@/plugins/cups/components/CupForm';
+import { CupsDashboardWidget } from '@/plugins/cups/components/CupsDashboardWidget';
+import { CupsList } from '@/plugins/cups/components/CupsList';
+import { CupView } from '@/plugins/cups/components/CupView';
+import { CupsProvider } from '@/plugins/cups/context/CupsContext';
+import { useCups } from '@/plugins/cups/hooks/useCups';
 // Estimates
 import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
 import { EstimateList } from '@/plugins/estimates/components/EstimateList';
@@ -289,6 +295,25 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
+  },
+  {
+    name: 'cups',
+    Provider: CupsProvider,
+    hook: useCups,
+    panelKey: 'isCupPanelOpen',
+    components: {
+      List: CupsList,
+      Form: CupForm,
+      View: CupView,
+    },
+    navigation: {
+      category: 'Main',
+      label: 'Cups',
+      icon: Trophy,
+      order: 6,
+    },
+    dashboardWidget: CupsDashboardWidget,
+    displayPrefix: 'CUP',
   },
   {
     name: 'ingest',

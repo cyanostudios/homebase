@@ -452,7 +452,10 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       >
         <div className="space-y-6">
           <Card padding="none" className={TASK_DETAIL_CARD_CLASS}>
-            <DetailSection title={t('tasks.taskContent')} className="p-6">
+            <DetailSection
+              title={String((displayTask ?? task)?.title || '').trim() || '—'}
+              className="p-6"
+            >
               <RichTextContent
                 content={task.content}
                 mentions={task.mentions}

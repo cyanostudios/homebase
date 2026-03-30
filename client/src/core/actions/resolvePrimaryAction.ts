@@ -34,7 +34,8 @@ export function resolvePrimaryAction(
   if (
     currentPagePlugin.name === 'slots' ||
     currentPagePlugin.name === 'notes' ||
-    currentPagePlugin.name === 'ingest'
+    currentPagePlugin.name === 'ingest' ||
+    currentPagePlugin.name === 'cups'
   ) {
     return null;
   }

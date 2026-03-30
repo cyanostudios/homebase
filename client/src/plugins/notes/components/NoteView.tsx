@@ -408,7 +408,11 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         >
           <div className="space-y-6">
             <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
-              <DetailSection title={t('notes.noteContent')} iconPlugin="notes" className="p-6">
+              <DetailSection
+                title={(note.title || '').trim() || '—'}
+                iconPlugin="notes"
+                className="p-6"
+              >
                 <RichTextContent
                   content={note.content}
                   mentions={note.mentions || []}
