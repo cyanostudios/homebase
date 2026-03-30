@@ -12,6 +12,8 @@ export default defineConfig({
   },
   server: {
     port: 3001,
+    /** Do not fall back to another port — proxy targets API on :3002; if 3001 is busy, fail loudly. */
+    strictPort: true,
     hmr: {
       overlay: true,
       port: 3001,
