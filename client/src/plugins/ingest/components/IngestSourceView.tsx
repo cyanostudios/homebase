@@ -243,11 +243,6 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                       </span>
                       <span className="font-medium">{source.lastFetchStatus}</span>
                     </div>
-                    {source.lastFetchError && (
-                      <div className="rounded-md bg-destructive/10 p-2 text-[11px] text-destructive leading-snug">
-                        {source.lastFetchError}
-                      </div>
-                    )}
                     <div className="flex justify-between items-center gap-3 pt-2 border-t border-border/50">
                       <span className="text-muted-foreground shrink-0">{t('common.created')}</span>
                       <span className="font-medium">
@@ -323,9 +318,15 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                       <span className="font-mono">{latestRunForExcerpt.fetchMethod ?? '—'}</span> ·
                       HTTP {latestRunForExcerpt.httpStatus ?? '—'}
                     </p>
-                    <pre className="text-xs font-mono whitespace-pre-wrap break-words rounded-md bg-muted/50 p-3 max-h-64 overflow-y-auto border border-border/60">
-                      {latestRunForExcerpt.errorMessage || latestRunForExcerpt.rawExcerpt}
-                    </pre>
+                    {latestRunForExcerpt.errorMessage ? (
+                      <pre className="text-xs font-mono whitespace-pre-wrap break-words rounded-md border border-destructive/40 bg-destructive/10 p-3 max-h-64 overflow-y-auto text-destructive">
+                        {latestRunForExcerpt.errorMessage}
+                      </pre>
+                    ) : (
+                      <pre className="text-xs font-mono whitespace-pre-wrap break-words rounded-md bg-muted/50 p-3 max-h-64 overflow-y-auto border border-border/60">
+                        {latestRunForExcerpt.rawExcerpt}
+                      </pre>
+                    )}
                   </DetailSection>
                 </Card>
               )}
