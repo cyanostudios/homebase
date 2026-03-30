@@ -90,6 +90,8 @@ async function fetchSourceGenericHttp(sourceUrl) {
 
 /**
  * Normalized result (guide output shape).
+ * For fetchMethod browser_fetch only, excerpt may start with an HTML comment containing JSON diagnostics;
+ * generic_http is unchanged.
  * @returns {Promise<{
  *   ok: boolean,
  *   status: number|null,

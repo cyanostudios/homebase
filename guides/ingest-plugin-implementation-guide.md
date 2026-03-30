@@ -454,8 +454,8 @@ Output example:
   status: 200,
   contentType: 'text/html',
   contentLength: 12345,
-  bodyText: '...',
-  excerpt: '...',
+  bodyText: '...', // full fetched body for downstream parsing
+  excerpt: '...', // diagnostic preview only (capped)
   finalUrl: '...',
 }
 ```
@@ -479,9 +479,20 @@ Rules:
 
 - do not over-engineer
 - keep `generic_http` logic isolated from `browser_fetch`
-- cap excerpt length
+- cap excerpt length (diagnostic preview only)
+- for HTML in `browser_fetch`, keep full fetched HTML in `bodyText`; do not parse from `excerpt`
+- for HTML preview quality, prefer content from `<main>`/`<body>` over `<head>` metadata when building `excerpt`
 - sanitize obvious null/empty cases
 - do not implement site-specific parsing
+
+Browser-fetch diagnostics (observability only):
+
+- capture final effective URL after wait (`finalUrl`)
+- capture final document title (embedded in diagnostic comment in `excerpt`)
+- classify outcome to distinguish:
+  - initial/plain HTTP 403
+  - challenge/interstitial still active after wait
+  - browser/runtime failure
 
 ### `services/runIngest.js`
 
@@ -505,7 +516,8 @@ This is the equivalent of mail’s reusable service layer.
 Expose functions such as:
 
 - `runSourceById(req, sourceId)`
-- `fetchSourceFromRecord(req, sourceRecord)`
+- `fetchSourceFromRecord(req, sourceRecord)` -> returns normalized fetch result including full `bodyText`
+- `fetchSource({ sourceUrl, sourceType, fetchMethod })` -> direct reusable fetch entrypoint with same normalized result
 - maybe later: `getLatestSourceContent(req, sourceId)`
 
 This file must be designed for reuse by other plugins later.
