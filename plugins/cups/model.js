@@ -13,6 +13,9 @@ class CupsModel {
       start_date: row.start_date ?? null,
       end_date: row.end_date ?? null,
       categories: row.categories ?? null,
+      visible: row.visible !== false && row.visible !== 'false',
+      featured: row.featured === true || row.featured === 'true',
+      sanctioned: row.sanctioned !== false && row.sanctioned !== 'false',
       team_count:
         row.team_count !== null &&
         row.team_count !== undefined &&
@@ -73,6 +76,12 @@ class CupsModel {
         start_date: data.start_date || null,
         end_date: data.end_date || null,
         categories: data.categories?.trim() || null,
+        visible: data.visible !== false && data.visible !== 'false',
+        featured: data.featured === true || data.featured === 'true',
+        sanctioned:
+          data.sanctioned !== undefined
+            ? data.sanctioned !== false && data.sanctioned !== 'false'
+            : true,
         team_count: (() => {
           if (data.team_count === null || data.team_count === undefined || data.team_count === '') {
             return null;
@@ -99,7 +108,7 @@ class CupsModel {
   async update(req, id, data) {
     try {
       const db = Database.get(req);
-      const existing = await db.query('SELECT id FROM cups WHERE id = $1', [id]);
+      const existing = await db.query('SELECT * FROM cups WHERE id = $1', [id]);
       if (!existing.length) {
         throw new AppError('Cup not found', 404, AppError.CODES.NOT_FOUND);
       }
@@ -110,6 +119,18 @@ class CupsModel {
         start_date: data.start_date || null,
         end_date: data.end_date || null,
         categories: data.categories?.trim() || null,
+        visible:
+          data.visible !== undefined
+            ? data.visible !== false && data.visible !== 'false'
+            : existing[0].visible !== false && existing[0].visible !== 'false',
+        featured:
+          data.featured !== undefined
+            ? data.featured === true || data.featured === 'true'
+            : existing[0].featured === true || existing[0].featured === 'true',
+        sanctioned:
+          data.sanctioned !== undefined
+            ? data.sanctioned !== false && data.sanctioned !== 'false'
+            : existing[0].sanctioned !== false && existing[0].sanctioned !== 'false',
         team_count: (() => {
           if (data.team_count === null || data.team_count === undefined || data.team_count === '') {
             return null;

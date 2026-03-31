@@ -67,6 +67,7 @@ interface EstimateContextType {
   selectedEstimateIds: string[];
   toggleEstimateSelected: (id: string) => void;
   selectAllEstimates: (ids: string[]) => void;
+  mergeIntoEstimateSelection: (ids: string[]) => void;
   clearEstimateSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
@@ -178,6 +179,7 @@ export function EstimateProvider({
     selectedIds: selectedEstimateIds,
     toggleSelection: toggleEstimateSelectedCore,
     selectAll: selectAllEstimatesCore,
+    mergeIntoSelection: mergeIntoEstimateSelectionCore,
     clearSelection: clearEstimateSelectionCore,
     isSelected,
     selectedCount,
@@ -971,6 +973,7 @@ export function EstimateProvider({
     selectedEstimateIds,
     toggleEstimateSelected: toggleEstimateSelectedCore,
     selectAllEstimates: selectAllEstimatesCore,
+    mergeIntoEstimateSelection: mergeIntoEstimateSelectionCore,
     clearEstimateSelection: clearEstimateSelectionCore,
     selectedCount,
     isSelected,

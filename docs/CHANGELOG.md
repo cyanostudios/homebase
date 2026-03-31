@@ -4,12 +4,112 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
-## 2026-03 – Ingest-plugin (källor, hämtning, delad backend)
+## 2026-03 – Cups/Cupappen (hel plugin-dokumentation, återinförd och utbyggd)
 
-- **Nytt plugin `ingest`:** Källor med URL, typer enligt guide (`html`, `pdf`, `json`, `xml`, `other`), manuell hämtning, körhistorik med utdrag, CSRF på muterande API-rutter, återanvändbar **`ingestService`** (`runSourceById`, `fetchSourceFromRecord`, `getLatestSourceContent`) exporterad från plugin-init.
-- **Databas (tenant):** `054-ingest-sources-and-runs.sql`, därefter `056-ingest-runs-updated-at-and-rss-cleanup.sql` (`updated_at` på `ingest_runs`, legacy `rss` → `other`).
-- **Huvud-DB:** `055-grant-ingest-plugin-access.sql` via `npm run migrate:ingest-plugin-access`.
-- **Frontend:** `IngestSourceList` / `IngestSourceForm` / `IngestSourceView`, kontext-alias enligt guide (`saveIngestSource`, `runIngestSource`, m.fl.).
+- **Cups återinförd efter tidigare teardown (end-to-end):**
+  - Tenant-schema och modellflöde i `plugins/cups/model.js` uppdaterat för moderna cup-fält och importflöden.
+  - Kopplingar mot ingest/hämtning förstärkta via `plugins/cups/services/parseCupSource.js`, `plugins/ingest/services/fetchSource.js` och `plugins/ingest/services/fetchSourceBrowserFetch.js`.
+  - Serverkonfiguration justerad för publik cups-konsumtion i `server/index.ts` (inkl. CORS-relaterad drift för publik klient).
+
+- **Datamodell och egenskaper i cups:**
+  - Egenskaperna `visible`, `sanctioned` och `featured` används genom hela kedjan (DB -> backend -> API -> admin UI -> publik listning).
+  - Bulk-hantering och visning i adminlistor/paneler uppdaterad i cups-flödet (`CupsList`, `CupForm`, `CupView`, `CupsContext`, `cupsApi`, typer).
+  - Formvalidering/date-normalisering i `CupForm` förbättrad för att undvika låsta submit-lägen efter valideringsfel.
+
+- **Migrationer och scripts för cups:**
+  - Tenant-migrationer uppdaterade/utökade för cups, inklusive basmigration och senare schemaändringar i `server/migrations/058-cups-v1.sql` och dokumentation i `server/migrations/README.md`.
+  - Nya migrationsscripts och npm-kommandon i `package.json` (cups-egenskaper och relaterade schemauppdateringar).
+
+- **Admin-UI för cups (klientplugin):**
+  - Komplett cups-plugin på klientsidan med uppdaterade typer/API/kontext:
+    - `client/src/plugins/cups/types/cups.ts`
+    - `client/src/plugins/cups/api/cupsApi.ts`
+    - `client/src/plugins/cups/context/CupsContext.tsx`
+    - `client/src/plugins/cups/components/CupForm.tsx`
+    - `client/src/plugins/cups/components/CupView.tsx`
+    - `client/src/plugins/cups/components/CupsList.tsx`
+  - HTML entity-dekodning centraliserad i cups-API-lagret för renare text i adminvyer.
+
+- **Public cups-app (`public-cups`) etablerad och produktionsanpassad:**
+  - Statisk publik app för Cupappen med SEO/metadata, structured data, robots/sitemap/llms och svensk copy.
+  - Utsortering på `visible`, sektion för `featured`, svensk filter-UX (datum/kategori/distrikt), custom dropdowns, mobil kollapsbar filterpanel och filter-breadcrumbs.
+  - Förbättrad fritextsökning över fler fält samt normalisering/alias-hantering av kategorier.
+  - HTML entities dekodas i publik rendering så text visas korrekt.
+
+- **Mindre efterjusteringar dokumenterade i samma period:**
+  - `plugins/pulses/routes.js` har nu CSRF på alla write-routes.
+  - `public-cups/app.js` visar svenska kategorilabels i breadcrumbs (inte engelska nycklar).
+
+---
+
+## 2026-03 – Ingest-plugin (hel plugin-dokumentation)
+
+- **Roll:** Delad **kapabilitet** – registrera externa källor, hämta innehåll, spara körhistorik; återanvändbar backend för andra plugins (samma mönster som mail-plugin i guide). Inte bara CRUD.
+
+- **Backend (`plugins/ingest/`):**
+  - `plugin.config.js` – `routeBase: /api/ingest`, beskrivning av syfte.
+  - `index.js` – plugin-init, exponerar router + config.
+  - `controller.js` / `model.js` – källor, runs, validering och tenant-scope.
+  - `routes.js` – REST för list/skapande/uppdatering/körning; **CSRF på muterande rutter** (samma säkerhetsmönster som övriga plugins).
+
+- **Delat servicelager (återanvändning från andra plugins):**
+  - `services/ingestService.js` – `runSourceById`, `fetchSourceFromRecord`, `getLatestSourceContent`, samt re-export av `fetchSource` / `fetchSourceFromUrl` / `runIngest`.
+  - `services/fetchSource.js` – central hämtning (URL, `sourceType`, `fetchMethod`).
+  - `services/fetchSourceBrowserFetch.js` – browser-fetch-väg där det behövs.
+  - `services/runIngest.js` – full körning (motsvarar manuell run från UI/API).
+  - `services/pdfTextFromBuffer.js` – extraherad PDF-text för ingest/parser-flöden.
+  - `services/browserFetchStartupDiagnostics.js` – diagnostik kring browser-fetch.
+
+- **Databas och åtkomst:**
+  - Tenant: `054-ingest-sources-and-runs.sql` (`ingest_sources`, `ingest_runs`).
+  - Huvud-DB: `055-grant-ingest-plugin-access.sql` – plugin-rättigheter; kör `npm run migrate:ingest-plugin-access`.
+  - Uppföljning: `056-ingest-runs-updated-at-and-rss-cleanup.sql` (`updated_at` på runs, legacy `rss` → `other`).
+  - Se `server/migrations/README.md` § **054 / 055 / 056 – Ingest-plugin**.
+
+- **Frontend (klientplugin):**
+  - `IngestSourceList`, `IngestSourceForm`, `IngestSourceView` med `IngestContext` – källor, manuell körning, körhistorik med utdrag; kontext/hooks i linje med övriga list-plugins (selection, refresh).
+
+- **Koppling till cups:** Cups-import/parser (`plugins/cups/services/parseCupSource.js`) bygger på samma hämtningsstack som ingest där det är relevant; ingest förblir **generisk** (inga domänmodeller som `cups` i ingest-kärnan).
+
+---
+
+## 2026-03 – Övriga småfix och dev-stabilitet (från commits)
+
+Sammanfattning av mindre ändringar som inte har egen stor sektion ovan men finns i git-historiken:
+
+- **Dev / port-kollision:** Vite använder `strictPort` på **3001** så klienten inte kan “ta” API-port **3002** av misstag (`fix(dev): vite strictPort 3001…`).
+
+- **Server / miljö:** Laddning av `.env` / `.env.local` från **projektroten** för konsekvent konfiguration (`fix(server): load .env/.env.local from project root`).
+
+- **Puppeteer / browser_fetch (ingest):**
+  - Cache pin till `.cache/puppeteer`, Chrome-installationsscript, ignorerar sandbox-injicerad `PUPPETEER_CACHE_DIR` där det stör.
+  - `.env.example` dokumenterar sandbox-override för Puppeteer-cache.
+  - Valbar **startup-diagnostik** för `browser_fetch` när det är aktiverat.
+  - Förbättrad **HTML-parsning** och diagnostik vid browser-hämtning.
+  - UI: fel vid “Latest fetch” visas som röd varning där det ska, utan att feltext färgas fel i infosidopanelen.
+
+- **Klient:** `App.tsx`-orkestrering utbruten till **core helpers** (lättare att läsa och testa; `refactor(client): extract App.tsx orchestration…`).
+
+- **Notes:** Snabbåtgärder **To Task** och **Delete** i notes-flödet (`feat(notes): To Task and Delete quick action`).
+
+---
+
+## 2026-03 – Pulses CSRF-hardening + svensk kategori-label i public cups
+
+- **Pulses write-routes säkrade med CSRF (mönster-alignment mot mail):**
+  - `plugins/pulses/routes.js` importerar nu `csrfProtection` från `server/core/middleware/csrf`.
+  - CSRF middleware tillagd på samtliga muterande endpoints:
+    - `POST /api/pulses/send`
+    - `POST /api/pulses/test`
+    - `POST /api/pulses/settings`
+    - `POST /api/pulses/history/delete`
+  - Läsrutter (`GET /history`, `GET /settings`) är oförändrade.
+  - Ingen ändring i provider-logik, adapterval eller frontend-API-kontrakt.
+
+- **Public cups: breadcrumbs-kategorier visas nu på svenska:**
+  - `public-cups/app.js`: breadcrumbtext använder `getCategoryLabel(selectedCategory)` i stället för rått filtervärde.
+  - Åtgärdar att engelska nycklar (`women`, `men`, `girls`, `boys`) kunde visas i UI.
+  - Resultat: svenska labels i breadcrumbs (`Damer`, `Herrar`, `Flickor`, `Pojkar`, `Flickor och Pojkar`).
 
 ---
 

@@ -57,6 +57,7 @@ interface SlotsContextType {
   selectedSlotIds: string[];
   toggleSlotSelected: (id: string) => void;
   selectAllSlots: (ids: string[]) => void;
+  mergeIntoSlotSelection: (ids: string[]) => void;
   clearSlotSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
@@ -274,6 +275,7 @@ export function SlotsProvider({
     selectedIds: selectedSlotIds,
     toggleSelection: toggleSlotSelectedCore,
     selectAll: selectAllSlotsCore,
+    mergeIntoSelection: mergeIntoSlotSelectionCore,
     clearSelection: clearSlotSelectionCore,
     isSelected,
     selectedCount,
@@ -873,6 +875,7 @@ export function SlotsProvider({
     selectedSlotIds,
     toggleSlotSelected: toggleSlotSelectedCore,
     selectAllSlots: selectAllSlotsCore,
+    mergeIntoSlotSelection: mergeIntoSlotSelectionCore,
     clearSlotSelection: clearSlotSelectionCore,
     selectedCount,
     isSelected,

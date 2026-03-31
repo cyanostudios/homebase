@@ -29,6 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
@@ -79,6 +80,7 @@ export function SlotsList() {
     deleteSlots,
     selectedSlotIds,
     toggleSlotSelected,
+    mergeIntoSlotSelection,
     selectAllSlots,
     clearSlotSelection,
     selectedCount,
@@ -197,7 +199,18 @@ export function SlotsList() {
     });
   }, [slots, searchTerm, sortField, sortOrder, formatDateTimeForFilter]);
 
-  const visibleSlotIds = useMemo(() => filteredAndSorted.map((s) => s.id), [filteredAndSorted]);
+  const visibleSlotIds = useMemo(
+    () => filteredAndSorted.map((s) => String(s.id)),
+    [filteredAndSorted],
+  );
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleSlotIds,
+      mergeIntoSelection: mergeIntoSlotSelection,
+      toggleOne: toggleSlotSelected,
+    });
+
   const allVisibleSelected = useMemo(
     () => visibleSlotIds.length > 0 && visibleSlotIds.every((id) => isSelected(id)),
     [visibleSlotIds, isSelected],
@@ -480,7 +493,8 @@ export function SlotsList() {
                     <input
                       type="checkbox"
                       checked={selected}
-                      onChange={() => toggleSlotSelected(slot.id)}
+                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                      onChange={() => onVisibleRowCheckboxChange(slot.id)}
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 cursor-pointer"
                       aria-label={selected ? t('common.deselect') : t('common.select')}
@@ -495,7 +509,8 @@ export function SlotsList() {
                   <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
                     <span
                       className={cn(
-                        isSlotTimePast(slot.slot_time) && 'font-medium text-red-600 dark:text-red-400',
+                        isSlotTimePast(slot.slot_time) &&
+                          'font-medium text-red-600 dark:text-red-400',
                       )}
                     >
                       {formatDateTime(slot.slot_time)}
@@ -604,7 +619,7 @@ export function SlotsList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSorted.map((slot) => (
+                {filteredAndSorted.map((slot, index) => (
                   <TableRow
                     key={slot.id}
                     className={cn(
@@ -624,7 +639,8 @@ export function SlotsList() {
                       <input
                         type="checkbox"
                         checked={isSelected(slot.id)}
-                        onChange={() => toggleSlotSelected(slot.id)}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(slot.id)}
                         className="h-4 w-4 cursor-pointer"
                         aria-label={
                           isSelected(slot.id) ? t('common.unselectSlot') : t('common.selectSlot')

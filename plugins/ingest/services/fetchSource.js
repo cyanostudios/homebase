@@ -2,6 +2,7 @@
 // Fetch strategies for ingest: generic_http (axios) and browser_fetch (separate module). No site-specific parsing.
 const axios = require('axios');
 const { fetchSourceBrowserFetch } = require('./fetchSourceBrowserFetch');
+const { bufferLooksLikePdf, isPdfContentType, pdfTextFromBuffer } = require('./pdfTextFromBuffer');
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_EXCERPT = 8000;
@@ -14,10 +15,13 @@ const MAX_EXCERPT = 8000;
  */
 
 /**
- * Unchanged generic HTTP implementation (axios) — only path for fetchMethod generic_http / default.
+ * Generic HTTP fetch (axios). Binary types stay as placeholders except PDF, which is decoded via pdf-parse.
  * @param {string} sourceUrl
+ * @param {{ sourceType?: string }} [options]
  */
-async function fetchSourceGenericHttp(sourceUrl) {
+async function fetchSourceGenericHttp(sourceUrl, options = {}) {
+  const sourceTypeHint =
+    typeof options.sourceType === 'string' ? options.sourceType.trim().toLowerCase() : '';
   try {
     const res = await axios.get(sourceUrl, {
       timeout: 30000,
@@ -37,12 +41,40 @@ async function fetchSourceGenericHttp(sourceUrl) {
     const finalUrl = typeof responseUrl === 'string' ? responseUrl : sourceUrl;
 
     const looksBinary =
-      !contentType ||
-      /^(image|audio|video|application\/pdf|application\/octet-stream)/i.test(contentType);
+      !contentType || /^(image|audio|video|application\/octet-stream)/i.test(contentType);
+
+    const ok = status >= 200 && status < 300;
+    const tryAsPdf =
+      ok &&
+      buf.length > 0 &&
+      (isPdfContentType(contentType) || bufferLooksLikePdf(buf) || sourceTypeHint === 'pdf');
 
     let bodyText;
     let excerpt;
-    if (looksBinary && !/^text\//i.test(contentType || '')) {
+    if (tryAsPdf) {
+      try {
+        const text = await pdfTextFromBuffer(buf);
+        bodyText = text;
+        excerpt = text.slice(0, MAX_EXCERPT);
+        if (text.length > MAX_EXCERPT) {
+          excerpt += '\n…';
+        }
+      } catch (e) {
+        const msg = e && e.message ? String(e.message) : 'parse error';
+        const asUtf8 = buf.toString('utf8');
+        if (/^\s*</.test(asUtf8.slice(0, 64))) {
+          bodyText = asUtf8;
+          excerpt = asUtf8.slice(0, MAX_EXCERPT);
+          if (asUtf8.length > MAX_EXCERPT) {
+            excerpt += '\n…';
+          }
+        } else {
+          const placeholder = `[PDF text extraction failed: ${msg}; ${contentType || 'unknown'}; ${contentLength} bytes]`;
+          bodyText = placeholder;
+          excerpt = placeholder;
+        }
+      }
+    } else if (looksBinary && !/^text\//i.test(contentType || '')) {
       const placeholder = `[Non-text response; ${contentType || 'unknown'}; ${contentLength} bytes]`;
       bodyText = placeholder;
       excerpt = placeholder;
@@ -55,8 +87,6 @@ async function fetchSourceGenericHttp(sourceUrl) {
         excerpt += '\n…';
       }
     }
-
-    const ok = status >= 200 && status < 300;
     return {
       ok,
       status,
@@ -139,11 +169,16 @@ async function fetchSource(input) {
       ? input.fetchMethod.trim()
       : 'generic_http';
 
+  const sourceTypeOpt =
+    typeof input === 'object' && input && typeof input.sourceType === 'string'
+      ? input.sourceType
+      : '';
+
   if (fetchMethodRaw === 'browser_fetch') {
-    return fetchSourceBrowserFetch(sourceUrl);
+    return fetchSourceBrowserFetch(sourceUrl, { sourceType: sourceTypeOpt });
   }
 
-  return fetchSourceGenericHttp(sourceUrl);
+  return fetchSourceGenericHttp(sourceUrl, { sourceType: sourceTypeOpt });
 }
 
 /** @param {string} url */

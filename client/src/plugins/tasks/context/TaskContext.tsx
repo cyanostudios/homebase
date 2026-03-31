@@ -72,6 +72,7 @@ interface TaskContextType {
   selectedTaskIds: string[];
   toggleTaskSelected: (id: string) => void;
   selectAllTasks: (ids: string[]) => void;
+  mergeIntoTaskSelection: (ids: string[]) => void;
   clearTaskSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
@@ -153,6 +154,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedIds: selectedTaskIds,
     toggleSelection: toggleTaskSelectedCore,
     selectAll: selectAllTasksCore,
+    mergeIntoSelection: mergeIntoTaskSelectionCore,
     clearSelection: clearTaskSelectionCore,
     isSelected,
     selectedCount,
@@ -864,6 +866,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedTaskIds,
     toggleTaskSelected: toggleTaskSelectedCore,
     selectAllTasks: selectAllTasksCore,
+    mergeIntoTaskSelection: mergeIntoTaskSelectionCore,
     clearTaskSelection: clearTaskSelectionCore,
     selectedCount,
     isSelected,

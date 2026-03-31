@@ -8,6 +8,7 @@
     "dev:ui": "vite --port 3001",
     "dev:all": "concurrently -k -n API,UI -c auto \"npm:dev:api\" \"npm:dev:ui\"",
     "dev:public-booking": "npx serve public-booking -p 3003",
+    "dev:public-cups": "npx serve public-cups -p 3004",
     "build": "npm run build:ui && npm run build:api && npm run copy:ui",
     "build:ui": "vite build",
     "build:api": "tsc server/index.ts --outDir dist --target es2020 --module commonjs && cp -r server/migrations dist/migrations",
@@ -44,6 +45,9 @@
     "migrate:ingest-tenants": "node scripts/run-ingest-tenant-migrations.js",
     "migrate:cups-upsert-index": "node scripts/run-cups-upsert-index-migration.js",
     "migrate:cups-team-count": "node scripts/run-cups-team-count-migration.js",
+    "migrate:cups-sanctioned": "node scripts/run-cups-sanctioned-migration.js",
+    "migrate:cups-visible": "node scripts/run-cups-visible-migration.js",
+    "migrate:cups-featured": "node scripts/run-cups-featured-migration.js",
     "puppeteer:install-chrome": "cross-env PUPPETEER_CACHE_DIR=.cache/puppeteer puppeteer browsers install chrome",
     "twilio": "npm install twilio"
   },

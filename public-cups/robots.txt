@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cupappen.se/sitemap.xml

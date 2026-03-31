@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
@@ -66,6 +67,7 @@ export const TaskList: React.FC = () => {
     deleteTasks,
     selectedTaskIds,
     toggleTaskSelected,
+    mergeIntoTaskSelection,
     selectAllTasks,
     clearTaskSelection,
     selectedCount,
@@ -231,6 +233,13 @@ export const TaskList: React.FC = () => {
   }, [tasks, searchTerm, sortField, sortOrder, contacts, getAssignedContacts]);
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleTaskIds,
+      mergeIntoSelection: mergeIntoTaskSelection,
+      toggleOne: toggleTaskSelected,
+    });
 
   const allVisibleSelected = useMemo(
     () => visibleTaskIds.length > 0 && visibleTaskIds.every((id) => isSelected(id)),
@@ -456,7 +465,7 @@ export const TaskList: React.FC = () => {
             </Card>
           ) : viewMode === 'grid' ? (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {sortedTasks.map((task) => {
+              {sortedTasks.map((task, index) => {
                 const taskIsSelected = isSelected(task.id);
                 const assignedContacts = getAssignedContacts(task);
                 return (
@@ -485,7 +494,8 @@ export const TaskList: React.FC = () => {
                       <input
                         type="checkbox"
                         checked={taskIsSelected}
-                        onChange={() => toggleTaskSelected(task.id)}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(task.id)}
                         onClick={(e) => e.stopPropagation()}
                         className="cursor-pointer h-4 w-4"
                         aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
@@ -527,7 +537,7 @@ export const TaskList: React.FC = () => {
           ) : isMobile ? (
             <Card className="shadow-none">
               <div className="space-y-2 p-4">
-                {sortedTasks.map((task) => {
+                {sortedTasks.map((task, index) => {
                   const taskIsSelected = isSelected(task.id);
                   const assignedContacts = getAssignedContacts(task);
                   return (
@@ -555,7 +565,8 @@ export const TaskList: React.FC = () => {
                             <input
                               type="checkbox"
                               checked={taskIsSelected}
-                              onChange={() => toggleTaskSelected(task.id)}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(task.id)}
                               onClick={(e) => e.stopPropagation()}
                               className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
                               aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
@@ -681,7 +692,7 @@ export const TaskList: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedTasks.map((task) => {
+                  {sortedTasks.map((task, index) => {
                     const taskIsSelected = isSelected(task.id);
                     return (
                       <TableRow
@@ -707,7 +718,8 @@ export const TaskList: React.FC = () => {
                           <input
                             type="checkbox"
                             checked={taskIsSelected}
-                            onChange={() => toggleTaskSelected(task.id)}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(task.id)}
                             className="h-4 w-4 cursor-pointer"
                             aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
                           />

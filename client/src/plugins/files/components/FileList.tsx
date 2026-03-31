@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
@@ -77,6 +78,7 @@ export const FileList: React.FC = () => {
     openFileSettings,
     selectedFileIds,
     toggleFileSelected,
+    mergeIntoFileSelection,
     selectAllFiles,
     clearFileSelection,
     selectedCount,
@@ -160,6 +162,14 @@ export const FileList: React.FC = () => {
     [visibleIds, selectedFileIds],
   );
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleIds,
+      mergeIntoSelection: mergeIntoFileSelection,
+      toggleOne: toggleFileSelected,
+    });
+
   useEffect(() => {
     if (!headerCheckboxRef.current) {
       return;
@@ -291,7 +301,7 @@ export const FileList: React.FC = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {filteredAndSorted.map((row: any) => {
+              {filteredAndSorted.map((row: any, index: number) => {
                 const isSelected = selectedFileIds.includes(row.id);
                 const FileIcon = getFileIcon(row.mimeType);
                 const isImage = row.mimeType?.startsWith('image/');
@@ -321,8 +331,9 @@ export const FileList: React.FC = () => {
                         type="checkbox"
                         className="h-4 w-4 cursor-pointer shrink-0"
                         checked={isSelected}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
                         onClick={(e) => e.stopPropagation()}
-                        onChange={() => toggleFileSelected(row.id)}
+                        onChange={() => onVisibleRowCheckboxChange(row.id)}
                         aria-label={isSelected ? 'Unselect file' : 'Select file'}
                       />
                     </div>
@@ -408,7 +419,7 @@ export const FileList: React.FC = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredAndSorted.map((row: any) => {
+                  filteredAndSorted.map((row: any, index: number) => {
                     const isSelected = selectedFileIds.includes(row.id);
                     return (
                       <TableRow
@@ -429,8 +440,9 @@ export const FileList: React.FC = () => {
                             type="checkbox"
                             className="h-4 w-4 cursor-pointer"
                             checked={isSelected}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
                             onClick={(e) => e.stopPropagation()}
-                            onChange={() => toggleFileSelected(row.id)}
+                            onChange={() => onVisibleRowCheckboxChange(row.id)}
                             aria-label={isSelected ? 'Unselect file' : 'Select file'}
                           />
                         </TableCell>

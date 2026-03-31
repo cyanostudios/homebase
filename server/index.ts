@@ -76,7 +76,7 @@ app.use(
 );
 app.use(compression());
 // CORS: allow frontend origin so login/session work when frontend and API are on different hosts
-// Also allows PUBLIC_BOOKING_URL for the public booking app
+// Also allows PUBLIC_BOOKING_URL and PUBLIC_CUPS_URL for public apps
 const allowedOrigins: (string | boolean)[] = [];
 if (process.env.NODE_ENV === 'production') {
   if (process.env.FRONTEND_URL) {
@@ -84,6 +84,9 @@ if (process.env.NODE_ENV === 'production') {
   }
   if (process.env.PUBLIC_BOOKING_URL) {
     allowedOrigins.push(process.env.PUBLIC_BOOKING_URL);
+  }
+  if (process.env.PUBLIC_CUPS_URL) {
+    allowedOrigins.push(process.env.PUBLIC_CUPS_URL);
   }
 } else {
   const devUi = process.env.FRONTEND_URL || 'http://localhost:3001';
@@ -95,6 +98,12 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.PUBLIC_BOOKING_URL) {
     allowedOrigins.push(process.env.PUBLIC_BOOKING_URL);
   }
+  if (process.env.PUBLIC_CUPS_URL) {
+    allowedOrigins.push(process.env.PUBLIC_CUPS_URL);
+  }
+  // Public cups static app local dev defaults (works even without .env override)
+  allowedOrigins.push('http://localhost:3004');
+  allowedOrigins.push('http://127.0.0.1:3004');
   allowedOrigins.push('http://localhost:3002');
   allowedOrigins.push('http://127.0.0.1:3002');
 }

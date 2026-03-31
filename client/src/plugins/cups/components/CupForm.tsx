@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -23,7 +23,6 @@ type Props = {
 export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
   const { validationErrors, clearValidationErrors } = useCups();
   const item = currentCup ?? currentItem ?? null;
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: '',
     organizer: '',
@@ -36,6 +35,9 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
     registration_url: '',
     source_url: '',
     description: '',
+    visible: true,
+    sanctioned: true,
+    featured: false,
   });
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
     useUnsavedChanges();
@@ -54,31 +56,52 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
       registration_url: item?.registration_url || '',
       source_url: item?.source_url || '',
       description: item?.description || '',
+      visible: item?.visible !== false,
+      sanctioned: item?.sanctioned !== false,
+      featured: item?.featured === true,
     });
     clearValidationErrors();
     markClean();
   }, [item, clearValidationErrors, markClean]);
 
-  const hasErrors = useMemo(
-    () => validationErrors.some((e) => !e.message.includes('Warning')),
-    [validationErrors],
-  );
+  const onFieldChange = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm((p) => ({ ...p, [key]: value }));
+    if (validationErrors.length) {
+      clearValidationErrors();
+    }
+    markDirty();
+  };
+
+  const normalizeDateForApi = (value: string): string | null => {
+    const v = String(value || '').trim();
+    if (!v) {
+      return null;
+    }
+    // datetime-local returns YYYY-MM-DDTHH:mm; backend validator requires seconds.
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) {
+      return `${v}:00`;
+    }
+    return v;
+  };
 
   const submit = async () => {
-    setIsSubmitting(true);
     const ok = await onSave({
       ...form,
       name: form.name.trim(),
       organizer: form.organizer || null,
       location: form.location || null,
-      start_date: form.start_date || null,
-      end_date: form.end_date || null,
+      start_date: normalizeDateForApi(form.start_date),
+      end_date: normalizeDateForApi(form.end_date),
       categories: form.categories || null,
+      team_count: form.team_count.trim() ? Number(form.team_count) : null,
+      match_format: form.match_format || null,
+      featured: form.featured,
+      visible: form.visible,
+      sanctioned: form.sanctioned,
       registration_url: form.registration_url || null,
       source_url: form.source_url || null,
       description: form.description || null,
     });
-    setIsSubmitting(false);
     if (ok) {
       markClean();
     }
@@ -104,8 +127,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                 <Input
                   value={form.name}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, name: e.target.value }));
-                    markDirty();
+                    onFieldChange('name', e.target.value);
                   }}
                 />
               </div>
@@ -114,8 +136,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                 <Input
                   value={form.organizer}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, organizer: e.target.value }));
-                    markDirty();
+                    onFieldChange('organizer', e.target.value);
                   }}
                 />
               </div>
@@ -124,8 +145,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                 <Input
                   value={form.location}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, location: e.target.value }));
-                    markDirty();
+                    onFieldChange('location', e.target.value);
                   }}
                 />
               </div>
@@ -135,8 +155,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                   type="datetime-local"
                   value={form.start_date}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, start_date: e.target.value }));
-                    markDirty();
+                    onFieldChange('start_date', e.target.value);
                   }}
                 />
               </div>
@@ -146,8 +165,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                   type="datetime-local"
                   value={form.end_date}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, end_date: e.target.value }));
-                    markDirty();
+                    onFieldChange('end_date', e.target.value);
                   }}
                 />
               </div>
@@ -156,8 +174,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                 <Input
                   value={form.categories}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, categories: e.target.value }));
-                    markDirty();
+                    onFieldChange('categories', e.target.value);
                   }}
                   placeholder="comma separated"
                 />
@@ -167,8 +184,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                 <Input
                   value={form.match_format}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, match_format: e.target.value }));
-                    markDirty();
+                    onFieldChange('match_format', e.target.value);
                   }}
                   placeholder="e.g. 5 vs 5"
                 />
@@ -180,8 +196,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                   min={0}
                   value={form.team_count}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, team_count: e.target.value }));
-                    markDirty();
+                    onFieldChange('team_count', e.target.value);
                   }}
                   placeholder="team count"
                 />
@@ -191,8 +206,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                 <Input
                   value={form.registration_url}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, registration_url: e.target.value }));
-                    markDirty();
+                    onFieldChange('registration_url', e.target.value);
                   }}
                 />
               </div>
@@ -201,8 +215,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                 <Input
                   value={form.source_url}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, source_url: e.target.value }));
-                    markDirty();
+                    onFieldChange('source_url', e.target.value);
                   }}
                 />
               </div>
@@ -211,11 +224,56 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                 <Textarea
                   value={form.description}
                   onChange={(e) => {
-                    setForm((p) => ({ ...p, description: e.target.value }));
-                    markDirty();
+                    onFieldChange('description', e.target.value);
                   }}
                   rows={6}
                 />
+              </div>
+              <div className="md:col-span-2">
+                <div className="space-y-2 rounded-md border border-border px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label>Visible on public site</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Controls whether the cup appears in Cupappen.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.visible}
+                      onCheckedChange={(checked) => {
+                        onFieldChange('visible', checked);
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label>Sanctioned cup</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Indicates whether this cup is sanctioned.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.sanctioned}
+                      onCheckedChange={(checked) => {
+                        onFieldChange('sanctioned', checked);
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label>Featured</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Highlights this cup in the top section on Cupappen.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.featured}
+                      onCheckedChange={(checked) => {
+                        onFieldChange('featured', checked);
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </DetailSection>
@@ -230,18 +288,6 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
           </ul>
         </Card>
       )}
-      <div className="mt-4 flex justify-end gap-2">
-        <Button variant="secondary" onClick={() => attemptAction(onCancel)}>
-          Cancel
-        </Button>
-        <Button
-          onClick={submit}
-          disabled={isSubmitting || hasErrors}
-          className="bg-green-600 hover:bg-green-700 text-white border-none"
-        >
-          {isSubmitting ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
       <ConfirmDialog
         isOpen={showWarning}
         title="Unsaved changes"

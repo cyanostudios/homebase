@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
@@ -72,6 +73,7 @@ export const NoteList: React.FC = () => {
     deleteNotes,
     selectedNoteIds,
     toggleNoteSelected,
+    mergeIntoNoteSelection,
     selectAllNotes,
     clearNoteSelection,
     selectedCount,
@@ -170,6 +172,13 @@ export const NoteList: React.FC = () => {
   }, [notes, searchTerm, sortField, sortOrder]);
 
   const visibleNoteIds = useMemo(() => sortedNotes.map((note) => String(note.id)), [sortedNotes]);
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleNoteIds,
+      mergeIntoSelection: mergeIntoNoteSelection,
+      toggleOne: toggleNoteSelected,
+    });
 
   const allVisibleSelected = useMemo(
     () => visibleNoteIds.length > 0 && visibleNoteIds.every((id) => isSelected(id)),
@@ -381,7 +390,7 @@ export const NoteList: React.FC = () => {
           </Card>
         ) : viewMode === 'grid' ? (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {sortedNotes.map((note) => {
+            {sortedNotes.map((note, index) => {
               const noteIsSelected = isSelected(note.id);
               return (
                 <Card
@@ -410,7 +419,8 @@ export const NoteList: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={noteIsSelected}
-                      onChange={() => toggleNoteSelected(note.id)}
+                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                      onChange={() => onVisibleRowCheckboxChange(note.id)}
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 cursor-pointer"
                       aria-label={noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')}
@@ -513,7 +523,7 @@ export const NoteList: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedNotes.map((note) => {
+                {sortedNotes.map((note, index) => {
                   const noteIsSelected = isSelected(note.id);
                   return (
                     <TableRow
@@ -541,7 +551,8 @@ export const NoteList: React.FC = () => {
                           type="checkbox"
                           className="h-4 w-4 cursor-pointer"
                           checked={noteIsSelected}
-                          onChange={() => toggleNoteSelected(note.id)}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(note.id)}
                           aria-label={
                             noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
                           }

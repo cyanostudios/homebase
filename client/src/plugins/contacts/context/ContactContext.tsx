@@ -55,6 +55,7 @@ interface ContactContextType {
   selectedContactIds: string[];
   toggleContactSelected: (id: string) => void;
   selectAllContacts: (ids: string[]) => void;
+  mergeIntoContactSelection: (ids: string[]) => void;
   clearContactSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
@@ -222,6 +223,7 @@ export function ContactProvider({
     selectedIds: selectedContactIds,
     toggleSelection: toggleContactSelectedCore,
     selectAll: selectAllContactsCore,
+    mergeIntoSelection: mergeIntoContactSelectionCore,
     clearSelection: clearContactSelectionCore,
     isSelected,
     selectedCount,
@@ -825,6 +827,7 @@ export function ContactProvider({
     selectedContactIds,
     toggleContactSelected: toggleContactSelectedCore,
     selectAllContacts: selectAllContactsCore,
+    mergeIntoContactSelection: mergeIntoContactSelectionCore,
     clearContactSelection: clearContactSelectionCore,
     selectedCount,
     isSelected,

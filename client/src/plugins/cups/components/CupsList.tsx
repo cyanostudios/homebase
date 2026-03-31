@@ -7,6 +7,7 @@ import {
   Plus,
   Search,
   Settings,
+  SlidersHorizontal,
   Trash2,
   X,
 } from 'lucide-react';
@@ -25,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -35,6 +37,7 @@ import type { IngestSource } from '@/plugins/ingest/types/ingest';
 
 import { useCups } from '../hooks/useCups';
 
+import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
@@ -73,6 +76,7 @@ export function CupsList() {
     deleteCups,
     selectedCount,
     importFromIngestSource,
+    refreshCups,
   } = useCups();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -82,6 +86,7 @@ export function CupsList() {
   const [viewMode, setViewModeState] = useState<CupsViewMode>(getInitialViewMode);
   const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('view');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkPropertiesDialog, setShowBulkPropertiesDialog] = useState(false);
   const [pickImportOpen, setPickImportOpen] = useState(false);
   const [pickImportSettings, setPickImportSettings] = useState<{
     allowedIds: string[];
@@ -103,10 +108,10 @@ export function CupsList() {
   } | null>(null);
   const [ingestSources, setIngestSources] = useState<IngestSource[]>([]);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
-  /** Last cup id used as anchor for Shift+click range selection in list/grid. */
-  const lastSelectionAnchorCupIdRef = useRef<string | null>(null);
-  /** After Shift+range, ignore the next toggle for this cup id (merge already selected it). */
-  const skipNextToggleForCupIdRef = useRef<string | null>(null);
+  const selectedCups = useMemo(
+    () => cups.filter((c) => selectedCupIds.includes(c.id)),
+    [cups, selectedCupIds],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -314,49 +319,12 @@ export function CupsList() {
     }
   }, [allVisibleSelected, selectAllCups, selectedCupIds, visibleIds]);
 
-  /** Shift+click on a row checkbox: add all visible rows between anchor and this row to the selection. */
-  const handleRowCheckboxShiftMouseDown = useCallback(
-    (e: React.MouseEvent, index: number) => {
-      if (!e.shiftKey && !e.nativeEvent.shiftKey) {
-        return;
-      }
-      e.preventDefault();
-      e.stopPropagation();
-      const endCup = filteredAndSorted[index];
-      const endCupId = endCup?.id !== undefined && endCup?.id !== null ? String(endCup.id) : null;
-      if (endCupId) {
-        skipNextToggleForCupIdRef.current = endCupId;
-      }
-      let anchorIdx = index;
-      const anchorId = lastSelectionAnchorCupIdRef.current;
-      if (anchorId) {
-        const found = filteredAndSorted.findIndex((c) => c.id === anchorId);
-        if (found >= 0) {
-          anchorIdx = found;
-        }
-      }
-      const lo = Math.min(anchorIdx, index);
-      const hi = Math.max(anchorIdx, index);
-      const rangeIds = filteredAndSorted.slice(lo, hi + 1).map((c) => c.id);
-      mergeIntoCupSelection(rangeIds);
-      lastSelectionAnchorCupIdRef.current = endCupId;
-    },
-    [filteredAndSorted, mergeIntoCupSelection],
-  );
-
-  const onVisibleRowCheckboxChange = useCallback(
-    (cupId: string) => {
-      const key = String(cupId);
-      if (skipNextToggleForCupIdRef.current === key) {
-        skipNextToggleForCupIdRef.current = null;
-        lastSelectionAnchorCupIdRef.current = key;
-        return;
-      }
-      toggleCupSelected(cupId);
-      lastSelectionAnchorCupIdRef.current = key;
-    },
-    [toggleCupSelected],
-  );
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleIds,
+      mergeIntoSelection: mergeIntoCupSelection,
+      toggleOne: toggleCupSelected,
+    });
 
   if (cupsContentView === 'settings') {
     return (
@@ -457,6 +425,11 @@ export function CupsList() {
             onClearSelection={clearCupSelection}
             actions={[
               {
+                label: 'Properties',
+                icon: SlidersHorizontal,
+                onClick: () => setShowBulkPropertiesDialog(true),
+              },
+              {
                 label: 'Delete',
                 icon: Trash2,
                 variant: 'destructive',
@@ -506,6 +479,8 @@ export function CupsList() {
                   {cup.location || '—'}
                   {' · '}
                   {cup.start_date ? new Date(cup.start_date).toLocaleDateString('sv-SE') : '—'}
+                  {' · '}
+                  {cup.visible ? 'Visible' : 'Hidden'}
                 </div>
                 {ingestTitleForCup(cup.ingest_source_id) ? (
                   <div className="mt-1 text-xs text-muted-foreground">
@@ -557,6 +532,7 @@ export function CupsList() {
                     </div>
                   </TableHead>
                   <TableHead>Organizer</TableHead>
+                  <TableHead>Visible</TableHead>
                   <TableHead
                     className="cursor-pointer select-none hover:bg-muted/50"
                     onClick={() => {
@@ -650,6 +626,7 @@ export function CupsList() {
                     </TableCell>
                     <TableCell className="font-medium">{cup.name || '—'}</TableCell>
                     <TableCell>{cup.organizer || '—'}</TableCell>
+                    <TableCell>{cup.visible ? 'Yes' : 'No'}</TableCell>
                     <TableCell>{cup.location || '—'}</TableCell>
                     <TableCell
                       className="max-w-[14rem] truncate"
@@ -680,6 +657,16 @@ export function CupsList() {
         }}
         itemCount={selectedCount}
         itemLabel={selectedCount === 1 ? 'cup' : 'cups'}
+      />
+
+      <BulkPropertiesDialog
+        isOpen={showBulkPropertiesDialog}
+        onClose={() => setShowBulkPropertiesDialog(false)}
+        selectedCups={selectedCups}
+        onSuccess={async () => {
+          await refreshCups();
+          clearCupSelection();
+        }}
       />
 
       <CupIngestPickSourceDialog

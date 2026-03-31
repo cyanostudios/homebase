@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,7 @@ export const MailList: React.FC = () => {
     toggleSelected,
     clearSelection,
     replaceSelectedIds,
+    mergeIntoSelection,
     deleteHistory,
   } = useMail();
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,7 +82,14 @@ export const MailList: React.FC = () => {
     return { label: provider === 'resend' ? 'Resend' : 'SMTP', isOk: false };
   }, [settings, t]);
 
-  const visibleIds = useMemo(() => filtered.map((e) => e.id), [filtered]);
+  const visibleIds = useMemo(() => filtered.map((e) => String(e.id)), [filtered]);
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleIds,
+      mergeIntoSelection,
+      toggleOne: toggleSelected,
+    });
 
   const allVisibleSelected = useMemo(
     () => visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id)),
@@ -277,7 +286,7 @@ export const MailList: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((entry) => (
+                {filtered.map((entry, index) => (
                   <TableRow
                     key={entry.id}
                     className={cn(
@@ -290,7 +299,8 @@ export const MailList: React.FC = () => {
                         type="checkbox"
                         className="h-4 w-4 cursor-pointer"
                         checked={isSelected(entry.id)}
-                        onChange={() => toggleSelected(entry.id)}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(entry.id)}
                         aria-label={isSelected(entry.id) ? 'Deselect row' : 'Select row'}
                       />
                     </TableCell>

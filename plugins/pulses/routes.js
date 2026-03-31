@@ -1,6 +1,7 @@
 // plugins/pulses/routes.js
 const express = require('express');
 const { body } = require('express-validator');
+const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { validateRequest } = require('../../server/core/middleware/validation');
 const controller = require('./controller');
 const config = require('./plugin.config');
@@ -14,6 +15,7 @@ function createPulseRoutes(context) {
   router.post(
     '/send',
     gate,
+    csrfProtection,
     [
       body('to').trim().notEmpty().withMessage('Recipient (to) is required'),
       body('body').optional(),
@@ -30,6 +32,7 @@ function createPulseRoutes(context) {
   router.post(
     '/test',
     gate,
+    csrfProtection,
     [
       body('testTo').trim().notEmpty().withMessage('Phone number is required'),
       body('useSaved').optional().isBoolean(),
@@ -45,6 +48,7 @@ function createPulseRoutes(context) {
   router.post(
     '/settings',
     gate,
+    csrfProtection,
     [
       body('activeProvider').optional().isIn(['twilio', 'mock', 'apple-messages']),
       body('twilioAccountSid').optional().trim(),
@@ -58,6 +62,7 @@ function createPulseRoutes(context) {
   router.post(
     '/history/delete',
     gate,
+    csrfProtection,
     [body('ids').isArray({ min: 1 }).withMessage('At least one ID is required')],
     validateRequest,
     (req, res) => controller.deleteHistory(req, res),

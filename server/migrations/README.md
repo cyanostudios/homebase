@@ -31,9 +31,15 @@ Sätt `DATABASE_URL` till huvudapplikationens databas. Historiska filer `045`–
 
 ---
 
-## 058–061 – Cups (tenant-DB)
+## 058–063 – Cups (tenant-DB)
 
 - **`058-cups-v1.sql`** — tabell `cups` (ingår i ordinarie tenant-migrationer vid nya tenants).
+- **`050-cups-sanctioned.sql`** — kolumn `sanctioned` (egenskap för sanktionerad cup). **Redan skapade tenants** (one-shot):
+
+```bash
+npm run migrate:cups-sanctioned
+```
+
 - **`060-cups-upsert-index.sql`** — partiellt unikt index för import-upsert. **Redan skapade tenants** (one-shot):
 
 ```bash
@@ -44,6 +50,18 @@ npm run migrate:cups-upsert-index
 
 ```bash
 npm run migrate:cups-team-count
+```
+
+- **`062-cups-visible.sql`** — kolumn `visible` (styr om cup visas i publik listning). **Redan skapade tenants** (one-shot):
+
+```bash
+npm run migrate:cups-visible
+```
+
+- **`063-cups-featured.sql`** — kolumn `featured` (utvald cup i publik toppsektion, default av). **Redan skapade tenants** (one-shot):
+
+```bash
+npm run migrate:cups-featured
 ```
 
 Kräver `DATABASE_URL`; lokalt schema-per-tenant: `TENANT_PROVIDER=local`.

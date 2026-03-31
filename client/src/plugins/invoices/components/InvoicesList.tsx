@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
@@ -29,6 +30,7 @@ export function InvoicesList() {
     deleteInvoices,
     selectedInvoiceIds,
     toggleInvoiceSelected,
+    mergeIntoInvoiceSelection,
     clearInvoiceSelection,
     selectedCount,
     isSelected,
@@ -106,6 +108,18 @@ export function InvoicesList() {
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
   }, [invoices, searchTerm, sortField, sortOrder]);
+
+  const visibleInvoiceIds = useMemo(
+    () => sortedInvoices.map((inv) => String(inv.id)),
+    [sortedInvoices],
+  );
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleInvoiceIds,
+      mergeIntoSelection: mergeIntoInvoiceSelection,
+      toggleOne: toggleInvoiceSelected,
+    });
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -360,7 +374,8 @@ export function InvoicesList() {
                   <input
                     type="checkbox"
                     checked={invoiceIsSelected}
-                    onChange={() => toggleInvoiceSelected(invoice.id)}
+                    onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, idx)}
+                    onChange={() => onVisibleRowCheckboxChange(invoice.id)}
                     onClick={(e) => e.stopPropagation()}
                     className="cursor-pointer flex-shrink-0 h-5 w-5 sm:h-4 sm:w-4"
                     aria-label={invoiceIsSelected ? 'Unselect invoice' : 'Select invoice'}

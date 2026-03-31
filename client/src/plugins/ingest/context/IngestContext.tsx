@@ -43,6 +43,7 @@ export interface IngestContextType {
   selectedIngestIds: string[];
   toggleIngestSelected: (id: string) => void;
   selectAllIngest: (ids: string[]) => void;
+  mergeIntoIngestSelection: (ids: string[]) => void;
   clearIngestSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
@@ -79,6 +80,7 @@ function useIngestContextValue(
     selectedIds: selectedIngestIds,
     toggleSelection: toggleIngestSelectedCore,
     selectAll: selectAllIngestCore,
+    mergeIntoSelection: mergeIntoIngestSelectionCore,
     clearSelection: clearIngestSelectionCore,
     isSelected,
     selectedCount,
@@ -351,6 +353,7 @@ function useIngestContextValue(
     selectedIngestIds,
     toggleIngestSelected: toggleIngestSelectedCore,
     selectAllIngest: selectAllIngestCore,
+    mergeIntoIngestSelection: mergeIntoIngestSelectionCore,
     clearIngestSelection: clearIngestSelectionCore,
     selectedCount,
     isSelected,

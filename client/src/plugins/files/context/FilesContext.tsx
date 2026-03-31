@@ -63,6 +63,7 @@ interface FilesContextType {
   selectedFileIds: string[];
   toggleFileSelected: (id: string) => void;
   selectAllFiles: (ids: string[]) => void;
+  mergeIntoFileSelection: (ids: string[]) => void;
   clearFileSelection: () => void;
   deleteFiles: (ids: string[]) => Promise<void>;
   // Bulk selection from core hook (for compatibility)
@@ -108,6 +109,7 @@ export function FilesProvider({
     selectedIds: selectedFileIds,
     toggleSelection: toggleFileSelectedCore,
     selectAll: selectAllFilesCore,
+    mergeIntoSelection: mergeIntoFileSelectionCore,
     clearSelection: clearFileSelectionCore,
     isSelected,
     selectedCount,
@@ -417,6 +419,13 @@ export function FilesProvider({
     [selectAllFilesCore],
   );
 
+  const mergeIntoFileSelection = useCallback(
+    (ids: string[]) => {
+      mergeIntoFileSelectionCore(ids);
+    },
+    [mergeIntoFileSelectionCore],
+  );
+
   const clearFileSelection = useCallback(() => {
     clearFileSelectionCore();
   }, [clearFileSelectionCore]);
@@ -534,6 +543,7 @@ export function FilesProvider({
     selectedFileIds,
     toggleFileSelected,
     selectAllFiles,
+    mergeIntoFileSelection,
     clearFileSelection,
     selectedCount,
     isSelected,

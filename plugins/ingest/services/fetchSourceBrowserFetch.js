@@ -1,6 +1,7 @@
 // plugins/ingest/services/fetchSourceBrowserFetch.js
 // Headless browser fetch for ingest — separate strategy from generic_http (axios).
 const MAX_EXCERPT = 8000;
+const { bufferLooksLikePdf, isPdfContentType, pdfTextFromBuffer } = require('./pdfTextFromBuffer');
 
 /** Fallback if browser.userAgent() is unavailable. */
 const BROWSER_FETCH_USER_AGENT_FALLBACK =
@@ -218,6 +219,7 @@ function buildHtmlExcerpt(html) {
 /**
  * Same normalized result shape as fetchSource (generic_http). Diagnostics are embedded in excerpt/errorMessage only.
  * @param {string} sourceUrl
+ * @param {{ sourceType?: string }} [options]
  * @returns {Promise<{
  *   ok: boolean,
  *   status: number|null,
@@ -229,7 +231,9 @@ function buildHtmlExcerpt(html) {
  *   errorMessage: string|null
  * }>}
  */
-async function fetchSourceBrowserFetch(sourceUrl) {
+async function fetchSourceBrowserFetch(sourceUrl, options = {}) {
+  const sourceTypeHint =
+    typeof options.sourceType === 'string' ? options.sourceType.trim().toLowerCase() : '';
   if (!browserFetchEnabled()) {
     return {
       ok: false,
@@ -328,9 +332,42 @@ async function fetchSourceBrowserFetch(sourceUrl) {
     const rawCt = response != null ? response.headers()['content-type'] : null;
     const contentType =
       typeof rawCt === 'string' ? rawCt.split(';')[0].trim() || 'text/html' : 'text/html';
-    const html = await page.content();
+
+    const navUrl = navigationResponseUrl || sourceUrl;
+    const mightBePdf =
+      response != null &&
+      (isPdfContentType(contentType) ||
+        sourceTypeHint === 'pdf' ||
+        /\.pdf(\?|#|$)/i.test(sourceUrl) ||
+        /\.pdf(\?|#|$)/i.test(navUrl || ''));
+
+    let htmlContent = '';
+    let bodyText;
+    let contentLength;
+
+    if (mightBePdf) {
+      try {
+        const buf = await response.buffer();
+        contentLength = buf.length;
+        if (bufferLooksLikePdf(buf) || isPdfContentType(contentType)) {
+          bodyText = await pdfTextFromBuffer(buf);
+        } else {
+          bodyText = buf.toString('utf8');
+        }
+      } catch {
+        htmlContent = await page.content();
+        bodyText = htmlContent;
+        contentLength = Buffer.byteLength(htmlContent, 'utf8');
+      }
+    } else {
+      htmlContent = await page.content();
+      bodyText = htmlContent;
+      contentLength = Buffer.byteLength(htmlContent, 'utf8');
+    }
+
+    const htmlForSignals = htmlContent || bodyText || '';
     const cf = detectCloudflareSignals({
-      html,
+      html: htmlForSignals,
       title: documentTitle,
       url: finalUrlAfterWait,
     });
@@ -367,11 +404,10 @@ async function fetchSourceBrowserFetch(sourceUrl) {
       outcome,
     });
 
-    const preview = buildHtmlExcerpt(html);
+    const preview = htmlContent
+      ? buildHtmlExcerpt(htmlContent)
+      : (bodyText || '').slice(0, MAX_EXCERPT);
     const excerptBase = `${diag}${preview}`;
-    const buf = Buffer.from(html, 'utf8');
-    const contentLength = buf.length;
-    const bodyText = html;
     let excerpt = excerptBase.slice(0, MAX_EXCERPT);
     if (excerptBase.length > MAX_EXCERPT) {
       excerpt += '\n…';

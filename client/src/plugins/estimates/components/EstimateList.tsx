@@ -23,6 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
@@ -51,6 +52,7 @@ export function EstimateList() {
     deleteEstimates,
     selectedEstimateIds,
     toggleEstimateSelected,
+    mergeIntoEstimateSelection,
     selectAllEstimates,
     clearEstimateSelection,
     selectedCount,
@@ -158,6 +160,13 @@ export function EstimateList() {
     () => sortedEstimates.map((estimate) => String(estimate.id)),
     [sortedEstimates],
   );
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleEstimateIds,
+      mergeIntoSelection: mergeIntoEstimateSelection,
+      toggleOne: toggleEstimateSelected,
+    });
 
   // Selection helpers
   const allVisibleSelected = useMemo(
@@ -379,7 +388,7 @@ export function EstimateList() {
           </Card>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {sortedEstimates.map((estimate) => {
+            {sortedEstimates.map((estimate, index) => {
               const estimateIsSelected = isSelected(estimate.id);
               const totals = calculateEstimateTotals(
                 estimate.lineItems || [],
@@ -413,7 +422,8 @@ export function EstimateList() {
                       <input
                         type="checkbox"
                         checked={estimateIsSelected}
-                        onChange={() => toggleEstimateSelected(estimate.id)}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(estimate.id)}
                         onClick={(e) => e.stopPropagation()}
                         className="cursor-pointer h-4 w-4"
                         aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
@@ -452,7 +462,7 @@ export function EstimateList() {
           // Mobile: Card layout
           <Card className="shadow-none">
             <div className="space-y-2 p-4">
-              {sortedEstimates.map((estimate) => {
+              {sortedEstimates.map((estimate, index) => {
                 const estimateIsSelected = isSelected(estimate.id);
                 const totals = calculateEstimateTotals(
                   estimate.lineItems || [],
@@ -484,7 +494,8 @@ export function EstimateList() {
                           <input
                             type="checkbox"
                             checked={estimateIsSelected}
-                            onChange={() => toggleEstimateSelected(estimate.id)}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(estimate.id)}
                             onClick={(e) => e.stopPropagation()}
                             className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
                             aria-label={
@@ -606,7 +617,7 @@ export function EstimateList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedEstimates.map((estimate) => {
+                {sortedEstimates.map((estimate, index) => {
                   const estimateIsSelected = isSelected(estimate.id);
                   const totals = calculateEstimateTotals(
                     estimate.lineItems || [],
@@ -638,7 +649,8 @@ export function EstimateList() {
                         <input
                           type="checkbox"
                           checked={estimateIsSelected}
-                          onChange={() => toggleEstimateSelected(estimate.id)}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(estimate.id)}
                           className="h-4 w-4 cursor-pointer"
                           aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
                         />

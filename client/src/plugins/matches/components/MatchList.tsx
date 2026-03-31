@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -50,6 +51,7 @@ export function MatchList() {
     deleteMatches,
     selectedMatchIds,
     toggleMatchSelected,
+    mergeIntoMatchSelection,
     selectAllMatches,
     clearMatchSelection,
     selectedCount,
@@ -152,7 +154,18 @@ export function MatchList() {
     });
   }, [matches, searchTerm, sortField, sortOrder, formatDateTimeForFilter]);
 
-  const visibleMatchIds = useMemo(() => filteredAndSorted.map((m) => m.id), [filteredAndSorted]);
+  const visibleMatchIds = useMemo(
+    () => filteredAndSorted.map((m) => String(m.id)),
+    [filteredAndSorted],
+  );
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleMatchIds,
+      mergeIntoSelection: mergeIntoMatchSelection,
+      toggleOne: toggleMatchSelected,
+    });
+
   const allVisibleSelected = useMemo(
     () => visibleMatchIds.length > 0 && visibleMatchIds.every((id) => isSelected(id)),
     [visibleMatchIds, isSelected],
@@ -310,7 +323,7 @@ export function MatchList() {
           </Card>
         ) : viewMode === 'grid' ? (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredAndSorted.map((match) => {
+            {filteredAndSorted.map((match, index) => {
               const selected = isSelected(match.id);
               return (
                 <Card
@@ -338,7 +351,8 @@ export function MatchList() {
                     <input
                       type="checkbox"
                       checked={selected}
-                      onChange={() => toggleMatchSelected(match.id)}
+                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                      onChange={() => onVisibleRowCheckboxChange(match.id)}
                       onClick={(e) => e.stopPropagation()}
                       className="cursor-pointer h-4 w-4"
                       aria-label={selected ? 'Deselect' : 'Select'}
@@ -476,7 +490,7 @@ export function MatchList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSorted.map((match) => (
+                {filteredAndSorted.map((match, index) => (
                   <TableRow
                     key={match.id}
                     className={cn(
@@ -500,7 +514,8 @@ export function MatchList() {
                       <input
                         type="checkbox"
                         checked={isSelected(match.id)}
-                        onChange={() => toggleMatchSelected(match.id)}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(match.id)}
                         className="cursor-pointer h-4 w-4"
                         aria-label={isSelected(match.id) ? 'Unselect match' : 'Select match'}
                       />

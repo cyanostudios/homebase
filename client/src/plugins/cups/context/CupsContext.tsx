@@ -18,6 +18,7 @@ type CupsContextType = {
   cups: Cup[];
   cupsContentView: 'list' | 'settings';
   isSaving: boolean;
+  refreshCups: () => Promise<void>;
 
   openCupPanel: (cup: Cup | null) => void;
   openCupForEdit: (cup: Cup) => void;
@@ -305,6 +306,7 @@ export function CupsProvider({
     cups,
     cupsContentView,
     isSaving,
+    refreshCups: loadCups,
     openCupPanel,
     openCupForEdit,
     openCupForView,

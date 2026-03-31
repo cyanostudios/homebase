@@ -30,6 +30,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
@@ -72,6 +73,7 @@ export const ContactList: React.FC = () => {
     deleteContacts,
     selectedContactIds,
     toggleContactSelected,
+    mergeIntoContactSelection,
     selectAllContacts,
     clearContactSelection,
     selectedCount,
@@ -195,6 +197,13 @@ export const ContactList: React.FC = () => {
     () => sortedContacts.map((contact) => String(contact.id)),
     [sortedContacts],
   );
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleContactIds,
+      mergeIntoSelection: mergeIntoContactSelection,
+      toggleOne: toggleContactSelected,
+    });
 
   const allVisibleSelected = useMemo(
     () => visibleContactIds.length > 0 && visibleContactIds.every((id) => isSelected(id)),
@@ -461,7 +470,7 @@ export const ContactList: React.FC = () => {
             </Card>
           ) : viewMode === 'grid' ? (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {sortedContacts.map((contact) => {
+              {sortedContacts.map((contact, index) => {
                 const contactIsSelected = isSelected(contact.id);
                 return (
                   <Card
@@ -489,7 +498,8 @@ export const ContactList: React.FC = () => {
                       <input
                         type="checkbox"
                         checked={contactIsSelected}
-                        onChange={() => toggleContactSelected(contact.id)}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(contact.id)}
                         onClick={(e) => e.stopPropagation()}
                         className="cursor-pointer h-4 w-4"
                         aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
@@ -543,7 +553,7 @@ export const ContactList: React.FC = () => {
           ) : isMobile ? (
             <Card className="shadow-none">
               <div className="space-y-2 p-4">
-                {sortedContacts.map((contact) => {
+                {sortedContacts.map((contact, index) => {
                   const contactIsSelected = isSelected(contact.id);
                   return (
                     <Card
@@ -567,7 +577,8 @@ export const ContactList: React.FC = () => {
                             <input
                               type="checkbox"
                               checked={contactIsSelected}
-                              onChange={() => toggleContactSelected(contact.id)}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(contact.id)}
                               onClick={(e) => e.stopPropagation()}
                               className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
                               aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
@@ -675,7 +686,7 @@ export const ContactList: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedContacts.map((contact) => {
+                  {sortedContacts.map((contact, index) => {
                     const contactIsSelected = isSelected(contact.id);
                     return (
                       <TableRow
@@ -701,7 +712,8 @@ export const ContactList: React.FC = () => {
                           <input
                             type="checkbox"
                             checked={contactIsSelected}
-                            onChange={() => toggleContactSelected(contact.id)}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(contact.id)}
                             className="h-4 w-4 cursor-pointer"
                             aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                           />

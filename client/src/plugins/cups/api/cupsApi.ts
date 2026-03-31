@@ -1,10 +1,19 @@
 import type { Cup } from '../types/cups';
 
+function decodeHtmlEntities(value: string): string {
+  if (typeof document === 'undefined') {
+    return value;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = value;
+  return textarea.value;
+}
+
 function optionalString(v: unknown): string | null {
   if (v === null || v === undefined) {
     return null;
   }
-  return String(v);
+  return decodeHtmlEntities(String(v));
 }
 
 function optionalNumber(v: unknown): number | null {
@@ -15,15 +24,28 @@ function optionalNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function toBoolean(v: unknown, fallback = true): boolean {
+  if (v === null || v === undefined) {
+    return fallback;
+  }
+  if (v === false || v === 'false' || v === 0 || v === '0') {
+    return false;
+  }
+  return true;
+}
+
 function rowToCup(row: Record<string, unknown>): Cup {
   return {
     id: String(row.id),
-    name: String(row.name ?? ''),
+    name: decodeHtmlEntities(String(row.name ?? '')),
     organizer: optionalString(row.organizer),
     location: optionalString(row.location),
     start_date: optionalString(row.start_date),
     end_date: optionalString(row.end_date),
     categories: optionalString(row.categories),
+    visible: toBoolean(row.visible, true),
+    featured: toBoolean(row.featured, false),
+    sanctioned: toBoolean(row.sanctioned, true),
     team_count: optionalNumber(row.team_count),
     match_format: optionalString(row.match_format),
     description: optionalString(row.description),

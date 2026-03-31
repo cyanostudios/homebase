@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -149,6 +150,42 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
               <div className="grid grid-cols-3 gap-3">
                 <span className="text-muted-foreground">Description</span>
                 <span className="col-span-2 whitespace-pre-wrap">{current.description || '—'}</span>
+              </div>
+            </div>
+          </DetailSection>
+        </Card>
+        <Card
+          padding="none"
+          className="mt-3 overflow-hidden border border-border/70 bg-card shadow-sm"
+        >
+          <DetailSection title="Properties" className="p-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-medium">Visible on public site</div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Controls whether this cup appears in Cupappen.
+                  </p>
+                </div>
+                <Switch checked={!!current.visible} disabled />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-medium">Sanctioned cup</div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Indicates whether this cup is sanctioned.
+                  </p>
+                </div>
+                <Switch checked={!!current.sanctioned} disabled />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-medium">Featured</div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Shows this cup in the featured section on Cupappen.
+                  </p>
+                </div>
+                <Switch checked={!!current.featured} disabled />
               </div>
             </div>
           </DetailSection>

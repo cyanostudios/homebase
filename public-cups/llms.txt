@@ -1,0 +1,17 @@
+# Cupappen
+
+Cupappen är en publik katalog för svenska fotbollscuper.
+
+## Purpose
+- Hjälpa användare hitta cuper via sök och filter.
+- Visa verifierad cupinformation: namn, arrangör, datum, klasser, plats, spelform, antal lag och länk till cupsida.
+
+## Primary URL
+- https://cupappen.se/
+
+## Contact
+- mailto:info@cupappen.se
+
+## Data notes
+- Innehåll uppdateras löpande från ingest-källor.
+- Cupdata kan förändras över tid.

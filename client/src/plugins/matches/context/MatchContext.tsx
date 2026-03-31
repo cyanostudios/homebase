@@ -44,6 +44,7 @@ interface MatchContextType {
   selectedMatchIds: string[];
   toggleMatchSelected: (id: string) => void;
   selectAllMatches: (ids: string[]) => void;
+  mergeIntoMatchSelection: (ids: string[]) => void;
   clearMatchSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
@@ -135,6 +136,7 @@ export function MatchProvider({
     selectedIds: selectedMatchIds,
     toggleSelection: toggleMatchSelectedCore,
     selectAll: selectAllMatchesCore,
+    mergeIntoSelection: mergeIntoMatchSelectionCore,
     clearSelection: clearMatchSelectionCore,
     isSelected,
     selectedCount,
@@ -652,6 +654,7 @@ export function MatchProvider({
     selectedMatchIds,
     toggleMatchSelected: toggleMatchSelectedCore,
     selectAllMatches: selectAllMatchesCore,
+    mergeIntoMatchSelection: mergeIntoMatchSelectionCore,
     clearMatchSelection: clearMatchSelectionCore,
     selectedCount,
     isSelected,

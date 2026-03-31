@@ -52,6 +52,7 @@ interface PulseContextType {
   selectAll: () => void;
   clearSelection: () => void;
   replaceSelectedIds: (ids: string[]) => void;
+  mergeIntoSelection: (ids: string[]) => void;
   deleteHistory: (ids: string[]) => Promise<void>;
 }
 
@@ -233,6 +234,14 @@ export function PulseProvider({
     setSelectedIds(ids);
   }, []);
 
+  const mergeIntoSelection = useCallback((ids: string[]) => {
+    const extra = Array.isArray(ids) ? ids.map(String) : [];
+    if (extra.length === 0) {
+      return;
+    }
+    setSelectedIds((prev) => Array.from(new Set([...prev.map(String), ...extra])));
+  }, []);
+
   const deleteHistory = useCallback(
     async (ids: string[]) => {
       if (!isAuthenticated || ids.length === 0) {
@@ -279,6 +288,7 @@ export function PulseProvider({
     selectAll,
     clearSelection,
     replaceSelectedIds,
+    mergeIntoSelection,
     deleteHistory,
   };
 

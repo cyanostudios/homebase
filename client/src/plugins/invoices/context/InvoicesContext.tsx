@@ -68,6 +68,7 @@ interface InvoicesContextType {
   selectedInvoiceIds: string[];
   toggleInvoiceSelected: (id: string) => void;
   selectAllInvoices: (ids: string[]) => void;
+  mergeIntoInvoiceSelection: (ids: string[]) => void;
   clearInvoiceSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
@@ -117,6 +118,7 @@ export function InvoicesProvider({
     selectedIds: selectedInvoiceIds,
     toggleSelection: toggleInvoiceSelectedCore,
     selectAll: selectAllInvoicesCore,
+    mergeIntoSelection: mergeIntoInvoiceSelectionCore,
     clearSelection: clearInvoiceSelectionCore,
     isSelected,
     selectedCount,
@@ -456,6 +458,7 @@ export function InvoicesProvider({
     selectedInvoiceIds,
     toggleInvoiceSelected: toggleInvoiceSelectedCore,
     selectAllInvoices: selectAllInvoicesCore,
+    mergeIntoInvoiceSelection: mergeIntoInvoiceSelectionCore,
     clearInvoiceSelection: clearInvoiceSelectionCore,
     selectedCount,
     isSelected,

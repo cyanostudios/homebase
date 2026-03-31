@@ -58,6 +58,7 @@ interface NoteContextType {
   selectedNoteIds: string[];
   toggleNoteSelected: (id: string) => void;
   selectAllNotes: (ids: string[]) => void;
+  mergeIntoNoteSelection: (ids: string[]) => void;
   clearNoteSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
@@ -128,6 +129,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedIds: selectedNoteIds,
     toggleSelection: toggleNoteSelectedCore,
     selectAll: selectAllNotesCore,
+    mergeIntoSelection: mergeIntoNoteSelectionCore,
     clearSelection: clearNoteSelectionCore,
     isSelected,
     selectedCount,
@@ -444,6 +446,13 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [selectAllNotesCore],
   );
 
+  const mergeIntoNoteSelection = useCallback(
+    (ids: string[]) => {
+      mergeIntoNoteSelectionCore(ids);
+    },
+    [mergeIntoNoteSelectionCore],
+  );
+
   const clearNoteSelection = useCallback(() => {
     clearNoteSelectionCore();
   }, [clearNoteSelectionCore]);
@@ -545,6 +554,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedNoteIds,
     toggleNoteSelected,
     selectAllNotes,
+    mergeIntoNoteSelection,
     clearNoteSelection,
     selectedCount,
     isSelected,

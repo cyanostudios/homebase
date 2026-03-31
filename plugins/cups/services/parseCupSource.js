@@ -968,6 +968,7 @@ function parseSvMonthToken(token) {
     jan: 1,
     feb: 2,
     mar: 3,
+    mars: 3,
     apr: 4,
     maj: 5,
     jun: 6,
@@ -975,6 +976,7 @@ function parseSvMonthToken(token) {
     juli: 7,
     aug: 8,
     sep: 9,
+    sept: 9,
     okt: 10,
     nov: 11,
     dec: 12,
@@ -1125,7 +1127,9 @@ function parseStockholmPdfDateText(raw, year = STOCKHOLM_PDF_DEFAULT_YEAR) {
   }
   const firstPart = full.split(/\s*\+\s*/)[0].trim();
 
-  const rangeWithMonth = firstPart.match(/^(\d{1,2})\s*[-–]\s*(\d{1,2})\s+([a-zåäö]+)\.?$/i);
+  const rangeWithMonth = firstPart.match(
+    /^(\d{1,2})\s*[-–]\s*(\d{1,2})\s+([a-zåäö]+)\.?(?:\s+\d{4})?$/i,
+  );
   if (rangeWithMonth) {
     const d1 = parseInt(rangeWithMonth[1], 10);
     const d2 = parseInt(rangeWithMonth[2], 10);
@@ -1141,7 +1145,7 @@ function parseStockholmPdfDateText(raw, year = STOCKHOLM_PDF_DEFAULT_YEAR) {
     }
   }
 
-  const singleWithMonth = firstPart.match(/^(\d{1,2})\s+([a-zåäö]+)\.?$/i);
+  const singleWithMonth = firstPart.match(/^(\d{1,2})\s+([a-zåäö]+)\.?(?:\s+\d{4})?$/i);
   if (singleWithMonth) {
     const day = parseInt(singleWithMonth[1], 10);
     const mo = parseSvMonthToken(singleWithMonth[2]);
@@ -1226,8 +1230,10 @@ function tryParseCollapsedSwedishCupTableRow(line) {
   if (t.length < 16) {
     return null;
   }
+  // PDF extraction often keeps "Hemsida" as a trailing pseudo-column token.
+  t = t.replace(/\s+hemsida\s*$/i, '').trim();
 
-  const monthPat = '(?:jan|feb|mar|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec)';
+  const monthPat = '(?:jan|feb|mar|mars|apr|maj|jun|jul|juli|aug|sep|sept|okt|nov|dec)';
   const dateRangeRe = new RegExp(
     `(\\d{1,2}\\s*[-–]\\s*\\d{1,2}\\s+${monthPat}\\.?(?:\\s+\\d{4})?(?=\\s|$))`,
     'i',
@@ -1263,7 +1269,20 @@ function tryParseCollapsedSwedishCupTableRow(line) {
   }
 
   const tokens = t.split(/\s+/).filter(Boolean);
-  const suffixSet = new Set(['if', 'ff', 'bk', 'ik', 'sk', 'fc', 'hk']);
+  const suffixSet = new Set([
+    'if',
+    'ff',
+    'bk',
+    'ik',
+    'sk',
+    'fc',
+    'fk',
+    'ifk',
+    'gif',
+    'bois',
+    'afc',
+    'hk',
+  ]);
   const lastIdx = tokens.length - 1;
   const lastNorm = tokens[lastIdx] ? tokens[lastIdx].replace(/\.$/, '').toLowerCase() : '';
   if (lastIdx >= 2 && suffixSet.has(lastNorm)) {
@@ -1289,7 +1308,15 @@ function tryParseCollapsedSwedishCupTableRow(line) {
     }
   }
 
-  return { name: t.slice(0, 255), organizer: null, dateRaw, categories };
+  return {
+    name: t
+      .replace(/\s+hemsida\s*$/i, '')
+      .trim()
+      .slice(0, 255),
+    organizer: null,
+    dateRaw,
+    categories,
+  };
 }
 
 /**
@@ -1363,9 +1390,12 @@ function parseStockholmPdfTableCups(text, sourceUrl, sourceType) {
         : '';
 
     const hasCollapsedDateInName =
-      /\d{1,2}\s*[-–]\s*\d{1,2}\s+(?:jan|feb|mar|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec)/i.test(
+      /\d{1,2}\s*[-–]\s*\d{1,2}\s+(?:jan|feb|mar|mars|apr|maj|jun|jul|juli|aug|sep|sept|okt|nov|dec)/i.test(
         nameRaw,
-      ) || /\d{1,2}\s+(?:jan|feb|mar|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec)\b/i.test(nameRaw);
+      ) ||
+      /\d{1,2}\s+(?:jan|feb|mar|mars|apr|maj|jun|jul|juli|aug|sep|sept|okt|nov|dec)\b/i.test(
+        nameRaw,
+      );
 
     const shouldTryCollapsed =
       nameRaw.length > 18 && !organizer && !datumRaw && hasCollapsedDateInName;

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useApp } from '@/core/api/AppContext';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { mailApi } from '../api/mailApi';
 import type { MailLogEntry, MailSettings } from '../types/mail';
@@ -63,6 +64,7 @@ interface MailContextType {
   clearSelection: () => void;
   /** Replace selection (e.g. select-all-visible / union with filter). */
   replaceSelectedIds: (ids: string[]) => void;
+  mergeIntoSelection: (ids: string[]) => void;
   deleteHistory: (ids: string[]) => Promise<void>;
 }
 
@@ -163,10 +165,14 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return;
     }
     const parts = window.location.pathname.split('/');
-    if (parts[1] !== 'mail' || !parts[2] || isNaN(Number(parts[2]))) {
+    if (parts[1] !== 'mail' || !parts[2]) {
       return;
     }
-    const item = mailHistory.find((i) => String(i.id) === parts[2]);
+    const segment = parts[2];
+    let item = mailHistory.find((i) => String(i.id) === segment);
+    if (!item) {
+      item = resolveSlug(segment, mailHistory, 'subject') as MailLogEntry | null;
+    }
     if (item) {
       didOpenFromUrlRef.current = true;
       openMailForViewRef.current(item);
@@ -203,9 +209,9 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setCurrentMail(item);
       setPanelMode('view');
       setIsMailPanelOpen(true);
-      navigateToItem(item.id);
+      navigateToItem(item, mailHistory, 'subject');
     },
-    [onCloseOtherPanels, navigateToItem],
+    [onCloseOtherPanels, navigateToItem, mailHistory],
   );
 
   const openMailForViewRef = useRef(openMailForView);
@@ -281,6 +287,14 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setSelectedIds(ids);
   }, []);
 
+  const mergeIntoSelection = useCallback((ids: string[]) => {
+    const extra = Array.isArray(ids) ? ids.map(String) : [];
+    if (extra.length === 0) {
+      return;
+    }
+    setSelectedIds((prev) => Array.from(new Set([...prev.map(String), ...extra])));
+  }, []);
+
   const deleteHistory = useCallback(
     async (ids: string[]) => {
       if (!isAuthenticated || ids.length === 0) {
@@ -323,6 +337,7 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectAll,
     clearSelection,
     replaceSelectedIds,
+    mergeIntoSelection,
     deleteHistory,
   };
 

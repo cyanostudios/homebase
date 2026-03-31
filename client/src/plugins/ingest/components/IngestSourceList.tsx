@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -68,6 +69,7 @@ export const IngestSourceList: React.FC = () => {
     validationErrors,
     selectedIngestIds,
     toggleIngestSelected,
+    mergeIntoIngestSelection,
     selectAllIngest,
     clearIngestSelection,
     selectedCount,
@@ -157,6 +159,13 @@ export const IngestSourceList: React.FC = () => {
     () => filteredAndSorted.map((s) => String(s.id)),
     [filteredAndSorted],
   );
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleSourceIds,
+      mergeIntoSelection: mergeIntoIngestSelection,
+      toggleOne: (id) => toggleIngestSelected(String(id)),
+    });
 
   const allVisibleSelected = useMemo(
     () => visibleSourceIds.length > 0 && visibleSourceIds.every((id) => isSelected(id)),
@@ -308,7 +317,7 @@ export const IngestSourceList: React.FC = () => {
           </Card>
         ) : viewMode === 'grid' ? (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredAndSorted.map((row) => {
+            {filteredAndSorted.map((row, index) => {
               const selected = isSelected(row.id);
               return (
                 <Card
@@ -334,7 +343,8 @@ export const IngestSourceList: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={selected}
-                      onChange={() => toggleIngestSelected(String(row.id))}
+                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                      onChange={() => onVisibleRowCheckboxChange(String(row.id))}
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 cursor-pointer"
                       aria-label={selected ? 'Deselect' : 'Select'}
@@ -443,7 +453,7 @@ export const IngestSourceList: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSorted.map((row) => (
+                {filteredAndSorted.map((row, index) => (
                   <TableRow
                     key={row.id}
                     className={cn(
@@ -465,7 +475,8 @@ export const IngestSourceList: React.FC = () => {
                       <input
                         type="checkbox"
                         checked={isSelected(row.id)}
-                        onChange={() => toggleIngestSelected(String(row.id))}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(String(row.id))}
                         className="h-4 w-4 cursor-pointer"
                         aria-label={isSelected(row.id) ? 'Deselect source' : 'Select source'}
                       />
