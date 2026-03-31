@@ -31,6 +31,25 @@ Sätt `DATABASE_URL` till huvudapplikationens databas. Historiska filer `045`–
 
 ---
 
+## 058–061 – Cups (tenant-DB)
+
+- **`058-cups-v1.sql`** — tabell `cups` (ingår i ordinarie tenant-migrationer vid nya tenants).
+- **`060-cups-upsert-index.sql`** — partiellt unikt index för import-upsert. **Redan skapade tenants** (one-shot):
+
+```bash
+npm run migrate:cups-upsert-index
+```
+
+- **`061-cups-match-format-team-count.sql`** — kolumner `team_count`, `match_format`. **Redan skapade tenants** (one-shot):
+
+```bash
+npm run migrate:cups-team-count
+```
+
+Kräver `DATABASE_URL`; lokalt schema-per-tenant: `TENANT_PROVIDER=local`.
+
+---
+
 ## 033-pulses-plugin.sql
 
 Skapar tabellerna `pulse_settings` och `pulse_log` för Pulse (SMS)-pluginet.

@@ -31,6 +31,8 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
     start_date: '',
     end_date: '',
     categories: '',
+    team_count: '' as string,
+    match_format: '',
     registration_url: '',
     source_url: '',
     description: '',
@@ -46,6 +48,9 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
       start_date: item?.start_date ? String(item.start_date).slice(0, 16) : '',
       end_date: item?.end_date ? String(item.end_date).slice(0, 16) : '',
       categories: item?.categories || '',
+      team_count:
+        item?.team_count !== null && item?.team_count !== undefined ? String(item.team_count) : '',
+      match_format: item?.match_format || '',
       registration_url: item?.registration_url || '',
       source_url: item?.source_url || '',
       description: item?.description || '',
@@ -155,6 +160,30 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
                     markDirty();
                   }}
                   placeholder="comma separated"
+                />
+              </div>
+              <div>
+                <Label>Match format</Label>
+                <Input
+                  value={form.match_format}
+                  onChange={(e) => {
+                    setForm((p) => ({ ...p, match_format: e.target.value }));
+                    markDirty();
+                  }}
+                  placeholder="e.g. 5 vs 5"
+                />
+              </div>
+              <div>
+                <Label>Teams</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.team_count}
+                  onChange={(e) => {
+                    setForm((p) => ({ ...p, team_count: e.target.value }));
+                    markDirty();
+                  }}
+                  placeholder="team count"
                 />
               </div>
               <div>

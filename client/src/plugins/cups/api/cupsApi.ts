@@ -7,6 +7,14 @@ function optionalString(v: unknown): string | null {
   return String(v);
 }
 
+function optionalNumber(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') {
+    return null;
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 function rowToCup(row: Record<string, unknown>): Cup {
   return {
     id: String(row.id),
@@ -16,6 +24,8 @@ function rowToCup(row: Record<string, unknown>): Cup {
     start_date: optionalString(row.start_date),
     end_date: optionalString(row.end_date),
     categories: optionalString(row.categories),
+    team_count: optionalNumber(row.team_count),
+    match_format: optionalString(row.match_format),
     description: optionalString(row.description),
     registration_url: optionalString(row.registration_url),
     source_url: optionalString(row.source_url),

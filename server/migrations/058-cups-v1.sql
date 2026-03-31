@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS cups (
   start_date TIMESTAMP,
   end_date TIMESTAMP,
   categories TEXT,
+  team_count INTEGER,
+  match_format VARCHAR(512),
   description TEXT,
   registration_url TEXT,
   source_url TEXT,
@@ -26,6 +28,8 @@ ALTER TABLE cups ADD COLUMN IF NOT EXISTS location VARCHAR(255);
 ALTER TABLE cups ADD COLUMN IF NOT EXISTS start_date TIMESTAMP;
 ALTER TABLE cups ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;
 ALTER TABLE cups ADD COLUMN IF NOT EXISTS categories TEXT;
+ALTER TABLE cups ADD COLUMN IF NOT EXISTS team_count INTEGER;
+ALTER TABLE cups ADD COLUMN IF NOT EXISTS match_format VARCHAR(512);
 ALTER TABLE cups ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE cups ADD COLUMN IF NOT EXISTS registration_url TEXT;
 ALTER TABLE cups ADD COLUMN IF NOT EXISTS source_url TEXT;

@@ -117,6 +117,18 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                 <span className="col-span-2">{current.categories || '—'}</span>
               </div>
               <div className="grid grid-cols-3 gap-3">
+                <span className="text-muted-foreground">Match format</span>
+                <span className="col-span-2">{current.match_format || '—'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <span className="text-muted-foreground">Teams</span>
+                <span className="col-span-2">
+                  {current.team_count !== null && current.team_count !== undefined
+                    ? String(current.team_count)
+                    : '—'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
                 <span className="text-muted-foreground">Registration</span>
                 <span className="col-span-2">
                   {current.registration_url ? (

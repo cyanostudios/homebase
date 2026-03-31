@@ -43,6 +43,7 @@
     "migrate:ingest-plugin-access": "node scripts/run-grant-ingest-plugin-access-migration.js",
     "migrate:ingest-tenants": "node scripts/run-ingest-tenant-migrations.js",
     "migrate:cups-upsert-index": "node scripts/run-cups-upsert-index-migration.js",
+    "migrate:cups-team-count": "node scripts/run-cups-team-count-migration.js",
     "puppeteer:install-chrome": "cross-env PUPPETEER_CACHE_DIR=.cache/puppeteer puppeteer browsers install chrome",
     "twilio": "npm install twilio"
   },

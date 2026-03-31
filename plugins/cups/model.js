@@ -13,6 +13,13 @@ class CupsModel {
       start_date: row.start_date ?? null,
       end_date: row.end_date ?? null,
       categories: row.categories ?? null,
+      team_count:
+        row.team_count !== null &&
+        row.team_count !== undefined &&
+        !Number.isNaN(Number(row.team_count))
+          ? Number(row.team_count)
+          : null,
+      match_format: row.match_format ?? null,
       description: row.description ?? null,
       registration_url: row.registration_url ?? null,
       source_url: row.source_url ?? null,
@@ -66,6 +73,14 @@ class CupsModel {
         start_date: data.start_date || null,
         end_date: data.end_date || null,
         categories: data.categories?.trim() || null,
+        team_count: (() => {
+          if (data.team_count === null || data.team_count === undefined || data.team_count === '') {
+            return null;
+          }
+          const n = parseInt(String(data.team_count), 10);
+          return Number.isFinite(n) ? n : null;
+        })(),
+        match_format: data.match_format?.trim() || null,
         description: data.description || null,
         registration_url: data.registration_url?.trim() || null,
         source_url: data.source_url?.trim() || null,
@@ -95,6 +110,14 @@ class CupsModel {
         start_date: data.start_date || null,
         end_date: data.end_date || null,
         categories: data.categories?.trim() || null,
+        team_count: (() => {
+          if (data.team_count === null || data.team_count === undefined || data.team_count === '') {
+            return null;
+          }
+          const n = parseInt(String(data.team_count), 10);
+          return Number.isFinite(n) ? n : null;
+        })(),
+        match_format: data.match_format?.trim() || null,
         description: data.description || null,
         registration_url: data.registration_url?.trim() || null,
         source_url: data.source_url?.trim() || null,
@@ -189,6 +212,17 @@ class CupsModel {
       start_date: item.start_date ?? null,
       end_date: item.end_date ?? null,
       categories: item.categories?.trim() || null,
+      team_count: (() => {
+        if (item.team_count === null || item.team_count === undefined || item.team_count === '') {
+          return null;
+        }
+        const n = parseInt(String(item.team_count), 10);
+        return Number.isFinite(n) ? n : null;
+      })(),
+      match_format:
+        item.match_format != null && String(item.match_format).trim() !== ''
+          ? String(item.match_format).trim()
+          : null,
       description: item.description ?? null,
       registration_url: item.registration_url?.trim() || null,
       source_url: item.source_url ?? importMeta.sourceUrl ?? null,

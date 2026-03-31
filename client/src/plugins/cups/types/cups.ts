@@ -6,6 +6,10 @@ export interface Cup {
   start_date: string | null;
   end_date: string | null;
   categories: string | null;
+  /** Approximate number of teams (e.g. Småland "Antal lag"). */
+  team_count: number | null;
+  /** Match format in English (e.g. "5 vs 5"), derived from ingest "Spelform". */
+  match_format: string | null;
   description: string | null;
   registration_url: string | null;
   source_url: string | null;
