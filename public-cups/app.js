@@ -753,5 +753,5 @@ function toAbsolutePublicUrl(urlValue) {
 function accentClassForCup(cup) {
   const hasRegistrationUrl = !!String(cup?.registration_url || '').trim();
   const hasLocation = !!String(cup?.location || '').trim();
-  return hasRegistrationUrl && hasLocation ? 'accent-green' : 'accent-pink';
+  return hasRegistrationUrl && hasLocation ? 'accent-green' : 'accent-amber';
 }
