@@ -29,7 +29,6 @@ import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
@@ -45,7 +44,7 @@ import {
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
 import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView';
 
-type SortField = 'name' | 'start_date' | 'location' | 'updated_at' | 'ingest';
+type SortField = 'name' | 'start_date' | 'location' | 'updated_at' | 'ingest' | 'featured';
 type SortOrder = 'asc' | 'desc';
 type CupsViewMode = 'grid' | 'list';
 
@@ -212,6 +211,9 @@ export function CupsList() {
         }
         av = ta.toLowerCase();
         bv = tb.toLowerCase();
+      } else if (sortField === 'featured') {
+        av = a.featured === true ? 1 : 0;
+        bv = b.featured === true ? 1 : 0;
       } else {
         av = a.updated_at ? new Date(a.updated_at).getTime() : 0;
         bv = b.updated_at ? new Date(b.updated_at).getTime() : 0;
@@ -481,6 +483,8 @@ export function CupsList() {
                   {cup.start_date ? new Date(cup.start_date).toLocaleDateString('sv-SE') : '—'}
                   {' · '}
                   {cup.visible ? 'Visible' : 'Hidden'}
+                  {' · '}
+                  {cup.featured ? 'Featured' : 'Not featured'}
                 </div>
                 {ingestTitleForCup(cup.ingest_source_id) ? (
                   <div className="mt-1 text-xs text-muted-foreground">
@@ -490,7 +494,6 @@ export function CupsList() {
                 <div className="mt-auto border-t pt-4">
                   <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
                     <div>Updated: {new Date(cup.updated_at).toLocaleDateString('sv-SE')}</div>
-                    <div>ID: {formatDisplayNumber('cups', cup.id)}</div>
                   </div>
                 </div>
               </Card>
@@ -533,6 +536,27 @@ export function CupsList() {
                   </TableHead>
                   <TableHead>Organizer</TableHead>
                   <TableHead>Visible</TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none hover:bg-muted/50"
+                    onClick={() => {
+                      if (sortField === 'featured') {
+                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('featured');
+                        setSortOrder('desc');
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Featured</span>
+                      {sortField === 'featured' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="inline h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="inline h-3 w-3" />
+                        ))}
+                    </div>
+                  </TableHead>
                   <TableHead
                     className="cursor-pointer select-none hover:bg-muted/50"
                     onClick={() => {
@@ -596,7 +620,6 @@ export function CupsList() {
                         ))}
                     </div>
                   </TableHead>
-                  <TableHead className="text-right">ID</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -627,6 +650,7 @@ export function CupsList() {
                     <TableCell className="font-medium">{cup.name || '—'}</TableCell>
                     <TableCell>{cup.organizer || '—'}</TableCell>
                     <TableCell>{cup.visible ? 'Yes' : 'No'}</TableCell>
+                    <TableCell>{cup.featured ? 'Yes' : 'No'}</TableCell>
                     <TableCell>{cup.location || '—'}</TableCell>
                     <TableCell
                       className="max-w-[14rem] truncate"
@@ -636,9 +660,6 @@ export function CupsList() {
                     </TableCell>
                     <TableCell>
                       {cup.start_date ? new Date(cup.start_date).toLocaleDateString('sv-SE') : '—'}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs">
-                      {formatDisplayNumber('cups', cup.id)}
                     </TableCell>
                   </TableRow>
                 ))}
