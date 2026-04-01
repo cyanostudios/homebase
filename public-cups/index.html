@@ -23,18 +23,26 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://cupappen.se/" />
     <meta property="og:site_name" content="Cupappen" />
-    <meta property="og:image" content="https://cupappen.se/favicon.svg" />
+    <meta property="og:image" content="https://cupappen.se/assets/og/cupappen-og-1200x630.png" />
+    <meta property="og:image:secure_url" content="https://cupappen.se/assets/og/cupappen-og-1200x630.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="Cupappen - Hitta fotbollscuper i Sverige" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Cupappen - Hitta fotbollscuper" />
     <meta
       name="twitter:description"
       content="Sök och filtrera fotbollscuper i hela Sverige med SEO-optimerad listning."
     />
-    <meta name="twitter:image" content="https://cupappen.se/favicon.svg" />
+    <meta name="twitter:image" content="https://cupappen.se/assets/og/cupappen-og-1200x630.png" />
+    <meta name="twitter:image:alt" content="Cupappen - Hitta fotbollscuper i Sverige" />
     <link rel="canonical" href="https://cupappen.se/" />
     <link rel="alternate" hreflang="sv-SE" href="https://cupappen.se/" />
     <link rel="alternate" hreflang="x-default" href="https://cupappen.se/" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/icons/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon-180x180.png" />
     <link rel="robots" href="./robots.txt" />
     <link rel="sitemap" type="application/xml" title="Sitemap" href="./sitemap.xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -53,7 +61,12 @@
             "name": "Cupappen",
             "url": "https://cupappen.se/",
             "email": "info@cupappen.se",
-            "logo": "https://cupappen.se/favicon.svg"
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://cupappen.se/assets/icons/cupappen-logo-512.png",
+              "width": 512,
+              "height": 512
+            }
           },
           {
             "@type": "WebSite",
@@ -78,7 +91,8 @@
             "isPartOf": {
               "@id": "https://cupappen.se/#website"
             },
-            "inLanguage": "sv-SE"
+            "inLanguage": "sv-SE",
+            "description": "Cupappen listar fotbollscuper i Sverige med datum, arrangör, kategorier, antal lag och anmälningslänkar."
           }
         ]
       }
