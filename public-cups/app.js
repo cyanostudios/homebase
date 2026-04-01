@@ -313,7 +313,7 @@ function renderCupCard(cup) {
   const descriptionRaw = decodeHtmlEntities((cup.description || '').slice(0, 220));
   const description = escapeHtml(descriptionRaw || 'Ingen beskrivning tillgänglig.');
   const meta = [
-    metaPill('pin', normalizeText(cup.location), !!cup.location),
+    locationMetaPill(normalizeText(cup.location), !!cup.location),
     metaPill(
       'calendar',
       formatDateRange(cup.start_date, cup.end_date),
@@ -339,7 +339,7 @@ function renderCupCard(cup) {
     ? `<a class="register-link" href="${escapeHtml(withCupappenUtm(cup.registration_url))}" target="_blank" rel="noopener noreferrer">${iconSvg('external')}Till cupsidan</a>`
     : '';
 
-  const accentClass = accentById(cup.id);
+  const accentClass = accentClassForCup(cup);
 
   return `
     <article class="cup-card ${accentClass}">
@@ -359,7 +359,7 @@ function renderCupCard(cup) {
           </div>
           <div class="action-row">
             <p class="deadline-label">Plats</p>
-            <p class="action-value">${escapeHtml(normalizeText(cup.location) || '—')}</p>
+            <p class="action-value">${renderLocationLink(normalizeText(cup.location))}</p>
           </div>
           <div class="action-row">
             <p class="deadline-label">Klasser</p>
@@ -376,6 +376,18 @@ function metaPill(icon, text, visible, variantClass = '') {
   if (!visible || !text) return '';
   const cls = variantClass ? `meta-pill ${variantClass}` : 'meta-pill';
   return `<span class="${cls}">${iconSvg(icon)}${escapeHtml(text)}</span>`;
+}
+
+function locationMetaPill(text, visible) {
+  if (!visible || !text) return '';
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
+  return `<a class="meta-pill" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${iconSvg('pin')}${escapeHtml(text)}</a>`;
+}
+
+function renderLocationLink(text) {
+  if (!text) return '—';
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
+  return `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
 }
 
 function iconSvg(name) {
@@ -738,11 +750,8 @@ function toAbsolutePublicUrl(urlValue) {
   }
 }
 
-function accentById(id) {
-  const n = Number.parseInt(String(id || '0'), 10);
-  if (Number.isNaN(n)) return '';
-  const mod = Math.abs(n % 3);
-  if (mod === 0) return 'accent-green';
-  if (mod === 1) return 'accent-blue';
-  return 'accent-amber';
+function accentClassForCup(cup) {
+  const hasRegistrationUrl = !!String(cup?.registration_url || '').trim();
+  const hasLocation = !!String(cup?.location || '').trim();
+  return hasRegistrationUrl && hasLocation ? 'accent-green' : 'accent-pink';
 }

@@ -3,6 +3,59 @@ const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 class CupsModel {
+  normalizeComparableString(value) {
+    const s = value == null ? '' : String(value).trim();
+    return s === '' ? null : s;
+  }
+
+  normalizeComparableInt(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const n = parseInt(String(value), 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  normalizeComparableDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  }
+
+  isOnlyLocationDifference(existingRow, payload) {
+    if (!existingRow) return false;
+
+    const existingLocation = this.normalizeComparableString(existingRow.location);
+    const incomingLocation = this.normalizeComparableString(payload.location);
+    if (!existingLocation || existingLocation === incomingLocation) {
+      return false;
+    }
+
+    const sameString = (key) =>
+      this.normalizeComparableString(existingRow[key]) ===
+      this.normalizeComparableString(payload[key]);
+    const sameInt = (key) =>
+      this.normalizeComparableInt(existingRow[key]) === this.normalizeComparableInt(payload[key]);
+    const sameDate = (key) =>
+      this.normalizeComparableDate(existingRow[key]) === this.normalizeComparableDate(payload[key]);
+
+    return (
+      sameString('name') &&
+      sameString('organizer') &&
+      sameDate('start_date') &&
+      sameDate('end_date') &&
+      sameString('categories') &&
+      sameInt('team_count') &&
+      sameString('match_format') &&
+      sameString('description') &&
+      sameString('registration_url') &&
+      sameString('source_url') &&
+      sameString('source_type') &&
+      sameInt('ingest_source_id') &&
+      sameInt('ingest_run_id') &&
+      sameString('external_id')
+    );
+  }
+
   transformRow(row) {
     if (!row) return null;
     return {
@@ -276,6 +329,15 @@ class CupsModel {
         const payload = this.buildImportPayload(item, importMeta);
         const existingId = await this.findCupIdForImportDedupe(req, ingestSourceId, item);
         if (existingId != null) {
+          const db = Database.get(req);
+          const existingRows = await db.query('SELECT * FROM cups WHERE id = $1 LIMIT 1', [
+            existingId,
+          ]);
+          const existingRow = existingRows.length ? existingRows[0] : null;
+          if (this.isOnlyLocationDifference(existingRow, payload)) {
+            skipped += 1;
+            continue;
+          }
           await this.update(req, existingId, payload);
           updated += 1;
         } else {

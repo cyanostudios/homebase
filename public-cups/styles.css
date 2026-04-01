@@ -404,6 +404,10 @@ body {
   background: rgba(245, 158, 11, 0.1);
 }
 
+.cup-card.accent-pink {
+  background: rgba(244, 63, 94, 0.1);
+}
+
 .cup-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(28, 25, 23, 0.12);
