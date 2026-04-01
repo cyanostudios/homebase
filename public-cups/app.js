@@ -123,7 +123,7 @@ function syncMobileFiltersUI() {
 async function loadCups() {
   showState('loading');
   try {
-    const response = await fetch(`${API_BASE}/api/public/cups`);
+    const response = await fetch(`${API_BASE}/api/cups.php`);
     if (!response.ok) throw new Error(`Server returned ${response.status}`);
 
     const payload = await response.json();
