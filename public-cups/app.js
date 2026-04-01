@@ -103,7 +103,15 @@ document.addEventListener('click', (event) => {
     closeAllMenus();
   }
 });
-if (searchBtnEl) searchBtnEl.addEventListener('click', renderFiltered);
+if (searchBtnEl) {
+  searchBtnEl.addEventListener('click', () => {
+    renderFiltered();
+    if (mobileFilterMedia.matches) {
+      mobileFiltersCollapsed = true;
+      syncMobileFiltersUI();
+    }
+  });
+}
 if (clearFiltersBtnEl) clearFiltersBtnEl.addEventListener('click', clearFilters);
 
 function syncMobileFiltersUI() {
@@ -328,7 +336,7 @@ function renderCupCard(cup) {
     .join('');
 
   const register = cup.registration_url
-    ? `<a class="register-link" href="${escapeHtml(withCupappenUtm(cup.registration_url))}" target="_blank" rel="noopener noreferrer">${iconSvg('file')}Till cupsidan</a>`
+    ? `<a class="register-link" href="${escapeHtml(withCupappenUtm(cup.registration_url))}" target="_blank" rel="noopener noreferrer">${iconSvg('external')}Till cupsidan</a>`
     : '';
 
   const accentClass = accentById(cup.id);
@@ -382,6 +390,8 @@ function iconSvg(name) {
     person:
       '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.5-3.5 4-5 8-5s6.5 1.5 8 5"></path></svg>',
     file: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>',
+    external:
+      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7"></path><path d="M10 14 21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>',
     shield:
       '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 5-3.5 8.7-7 10-3.5-1.3-7-5-7-10V6z"></path><path d="m9 12 2 2 4-4"></path></svg>',
   };
