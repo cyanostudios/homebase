@@ -1,8 +1,4 @@
-const API_BASE =
-  window.PUBLIC_CUPS_API_BASE ||
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3002'
-    : 'https://api.cupappen.se');
+const API_BASE = window.PUBLIC_CUPS_API_BASE || window.location.origin;
 
 const CATEGORY_ALIASES = {
   f: 'Flickor',
