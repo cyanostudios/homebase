@@ -356,7 +356,8 @@ function AppContent() {
       currentPage === 'contacts' ||
       currentPage === 'tasks' ||
       currentPage === 'matches' ||
-      currentPage === 'ingest'
+      currentPage === 'ingest' ||
+      currentPage === 'files'
     ) {
       return '';
     }
@@ -386,7 +387,8 @@ function AppContent() {
       currentPage === 'contacts' ||
       currentPage === 'tasks' ||
       currentPage === 'matches' ||
-      currentPage === 'ingest'
+      currentPage === 'ingest' ||
+      currentPage === 'files'
     ) {
       return undefined;
     }
@@ -524,7 +526,8 @@ function AppContent() {
           currentPage === 'ingest' ||
           currentPage === 'mail' ||
           currentPage === 'pulses' ||
-          currentPage === 'cups'
+          currentPage === 'cups' ||
+          currentPage === 'files'
         }
       >
         {currentPage === 'dashboard' ? (

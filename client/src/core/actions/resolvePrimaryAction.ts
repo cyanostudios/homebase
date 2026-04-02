@@ -56,7 +56,9 @@ export function resolvePrimaryAction(
     (currentPagePlugin.name === 'mail' &&
       (context.mailContentView as ListOrSettings) === 'settings') ||
     (currentPagePlugin.name === 'pulses' &&
-      (context.pulsesContentView as ListOrSettings) === 'settings');
+      (context.pulsesContentView as ListOrSettings) === 'settings') ||
+    (currentPagePlugin.name === 'files' &&
+      (context.filesContentView as ListOrSettings) === 'settings');
   if (inSettings) {
     return null;
   }
@@ -76,21 +78,6 @@ export function resolvePrimaryAction(
     };
   }
 
-  const filesContentView = context.filesContentView as ListOrSettings;
-  const closeFileSettingsView = context.closeFileSettingsView as (() => void) | undefined;
-  if (
-    currentPagePlugin.name === 'files' &&
-    filesContentView === 'settings' &&
-    typeof closeFileSettingsView === 'function'
-  ) {
-    return {
-      label: t('common.close'),
-      icon: X,
-      onClick: closeFileSettingsView,
-      variant: 'secondary',
-    };
-  }
-
   if (
     (currentPagePlugin.name === 'contacts' &&
       (context.contactsContentView as string | undefined) === 'list') ||
@@ -101,7 +88,9 @@ export function resolvePrimaryAction(
     (currentPagePlugin.name === 'mail' &&
       (context.mailContentView as string | undefined) === 'list') ||
     (currentPagePlugin.name === 'pulses' &&
-      (context.pulsesContentView as string | undefined) === 'list')
+      (context.pulsesContentView as string | undefined) === 'list') ||
+    (currentPagePlugin.name === 'files' &&
+      (context.filesContentView as string | undefined) === 'list')
   ) {
     return null;
   }
