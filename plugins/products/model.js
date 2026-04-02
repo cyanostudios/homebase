@@ -374,6 +374,90 @@ class ProductModel {
     }
   }
 
+  /**
+   * All products sharing the same variant group_id (for batch channel export).
+   */
+  async listByGroupId(req, groupId) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+      const gid = String(groupId ?? '').trim();
+      if (!gid) return [];
+      const sql = `
+        SELECT
+          p.id,
+          p.sku,
+          p.mpn,
+          p.title,
+          p.description,
+          p.status,
+          p.quantity,
+          p.price_amount,
+          p.currency,
+          p.vat_rate,
+          p.main_image,
+          p.images,
+          p.categories,
+          p.brand,
+          p.brand_id,
+          p.ean,
+          p.gtin,
+          p.kn_number,
+          p.supplier_id,
+          p.manufacturer_id,
+          p.channel_specific,
+          p.purchase_price,
+          p.lagerplats,
+          p.condition,
+          p.group_id,
+          p.parent_product_id,
+          p.group_variation_type,
+          p.volume,
+          p.volume_unit,
+          p.notes,
+          p.private_name,
+          p.color,
+          p.color_text,
+          p.size,
+          p.size_text,
+          p.pattern,
+          p.material,
+          p.pattern_text,
+          p.model,
+          p.weight,
+          p.length_cm,
+          p.width_cm,
+          p.height_cm,
+          p.depth_cm,
+          p.source_created_at,
+          p.quantity_sold,
+          p.last_sold_at,
+          p.created_at,
+          p.updated_at,
+          b.name AS brand_name,
+          s.name AS supplier_name,
+          m.name AS manufacturer_name,
+          pli.list_id AS list_id,
+          l.name AS list_name
+        FROM ${ProductModel.TABLE} p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id
+        LEFT JOIN lists l ON l.id = pli.list_id
+        WHERE p.group_id = $1
+        ORDER BY p.parent_product_id NULLS FIRST, p.id ASC
+      `;
+      const result = await db.query(sql, [gid]);
+      return (result || []).map((row) => this.transformRow(row));
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to list products by group', error);
+      throw new AppError('Failed to list products by group', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async getBySku(req, sku) {
     try {
       const db = Database.get(req);
@@ -1532,18 +1616,59 @@ class ProductModel {
       }
     }
 
-    const columns = this.buildBatchPatchColumns(patch);
-    if (!Object.keys(columns).length) {
-      return { skipped: true };
-    }
-
     return db.transaction(async (tx) => {
       const locked = await tx.query(
-        `SELECT id FROM ${ProductModel.TABLE} WHERE id::text = $1 FOR UPDATE`,
+        `SELECT id, channel_specific FROM ${ProductModel.TABLE} WHERE id::text = $1 FOR UPDATE`,
         [pid],
       );
       if (!locked.length) {
         throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      // Merge channelSpecific (JSON) rather than blindly replacing it.
+      // This ensures batch edits can update only the intended sub-fields without unintentionally
+      // overwriting other existing channel_specific data.
+      if (patch.channelSpecific !== undefined) {
+        const existingRaw = locked[0]?.channel_specific;
+        const existing =
+          existingRaw != null && typeof existingRaw === 'object'
+            ? existingRaw
+            : typeof existingRaw === 'string'
+              ? (() => {
+                  try {
+                    return JSON.parse(existingRaw);
+                  } catch {
+                    return null;
+                  }
+                })()
+              : null;
+
+        const incoming = patch.channelSpecific;
+        if (incoming === null) {
+          patch.channelSpecific = null;
+        } else if (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
+          const merged = { ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}) };
+          for (const [k, v] of Object.entries(incoming)) {
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              const prev = merged[k];
+              merged[k] =
+                prev && typeof prev === 'object' && !Array.isArray(prev)
+                  ? { ...prev, ...v }
+                  : { ...v };
+            } else {
+              merged[k] = v;
+            }
+          }
+          patch.channelSpecific = Object.keys(merged).length ? merged : null;
+        } else {
+          // Invalid types are ignored by buildBatchPatchColumns, but make it explicit.
+          patch.channelSpecific = undefined;
+        }
+      }
+
+      const columns = this.buildBatchPatchColumns(patch);
+      if (!Object.keys(columns).length) {
+        return { skipped: true };
       }
 
       const setParts = [];

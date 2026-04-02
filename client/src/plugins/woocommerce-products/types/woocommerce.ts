@@ -1,11 +1,24 @@
 // client/src/plugins/woocommerce-products/types/woocommerce.ts
 
 // Tenant-scoped Woo settings stored in DB
+export type WooTextMarket = 'se' | 'dk' | 'fi' | 'no';
+
+/** Aligns API `market` (DB) with Woo text market; invalid → se */
+export function normalizeWooTextMarket(v: string | null | undefined): WooTextMarket {
+  const s = String(v ?? '')
+    .trim()
+    .toLowerCase();
+  if (s === 'dk' || s === 'fi' || s === 'no' || s === 'se') return s;
+  return 'se';
+}
+
 export interface WooSettings {
   id?: string;
   // Instance metadata (multi-store). Present when editing a specific store.
   instanceKey?: string;
   label?: string;
+  /** Which Texter market (SE/DK/FI/NO) feeds Woo name/description/SEO for this store */
+  textMarket?: WooTextMarket;
   storeUrl: string;
   consumerKey: string;
   consumerSecret: string;

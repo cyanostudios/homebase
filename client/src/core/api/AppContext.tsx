@@ -390,7 +390,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ message }),
       }).catch(() => {});
     };
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
       debugLog('CHECK_AUTH: Calling getMe...');
       const response = await api.getMe();
@@ -399,35 +398,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setActiveTenantId(response.tenantId ?? null);
       setIsAuthenticated(true);
     } catch (err: any) {
-      debugLog(
-        `CHECK_AUTH: getMe failed status: ${err?.status ?? '—'} message: ${err?.message ?? '—'} code: ${err?.code ?? '—'}`,
-      );
       const status = Number(err?.status || 0);
 
-      // Best-effort resilience: a short retry helps with transient cookie/proxy races on startup.
-      if (status === 401) {
-        try {
-          await sleep(250);
-          debugLog('CHECK_AUTH: Retrying getMe after 401...');
-          const retryResponse = await api.getMe();
-          debugLog(`CHECK_AUTH: retry OK userId: ${retryResponse?.user?.id ?? '—'}`);
-          setUser(retryResponse.user);
-          setActiveTenantId(retryResponse.tenantId ?? null);
-          setIsAuthenticated(true);
-          return;
-        } catch (retryErr: any) {
-          debugLog(
-            `CHECK_AUTH: retry failed status: ${retryErr?.status ?? '—'} message: ${retryErr?.message ?? '—'}`,
-          );
-        }
-      }
-
-      // Only clear auth state when we are certain it's an authentication failure.
+      // 401/403 is an expected outcome on first load when the user is not logged in yet.
+      // Treat it as "not authenticated" and avoid retry loops that create extra empty sessions.
       if (status === 401 || status === 403) {
+        debugLog(`CHECK_AUTH: not authenticated (status ${status})`);
         setUser(null);
         setActiveTenantId(null);
         setIsAuthenticated(false);
+        return;
       }
+
+      debugLog(
+        `CHECK_AUTH: getMe failed status: ${err?.status ?? '—'} message: ${err?.message ?? '—'} code: ${err?.code ?? '—'}`,
+      );
+      // For non-auth failures (network, 5xx), keep existing state and let the UI retry via refresh.
     } finally {
       setIsLoading(false);
       isCheckingAuth.current = false;

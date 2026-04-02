@@ -15,6 +15,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 
 import { woocommerceApi } from '../api/woocommerceApi';
 import { useWooCommerce } from '../context/WooCommerceContext';
+import { normalizeWooTextMarket } from '../types/woocommerce';
 
 interface WooInstance {
   id: string;
@@ -222,6 +223,7 @@ export const WooExportPanel: React.FC = () => {
                                   useQueryAuth: creds?.useQueryAuth ?? false,
                                   label: inst.label ?? '',
                                   instanceKey: inst.instanceKey,
+                                  textMarket: normalizeWooTextMarket(inst.market),
                                 } as any)
                               }
                             >

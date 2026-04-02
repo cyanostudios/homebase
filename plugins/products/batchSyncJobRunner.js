@@ -156,16 +156,10 @@ async function applyBatchChannelEnablesAndOverrides(req, productId, meta, jobErr
 
   const itemsRaw = Array.isArray(meta.channelOverridesToSave) ? meta.channelOverridesToSave : [];
   if (!itemsRaw.length) return;
-  const items = itemsRaw
-    .map((o) => ({
-      channelInstanceId: Number(o.channelInstanceId),
-      active: o.active !== false,
-      category: o.category ?? undefined,
-      priceAmount: o.priceAmount ?? undefined,
-      salePrice: o.salePrice ?? undefined,
-      originalPrice: o.originalPrice ?? undefined,
-    }))
-    .filter((o) => Number.isFinite(o.channelInstanceId) && o.channelInstanceId >= 1);
+  const items = itemsRaw.filter((o) => {
+    const id = Number(o?.channelInstanceId);
+    return Number.isFinite(id) && id >= 1;
+  });
   if (!items.length) return;
   try {
     await channelsModel.upsertProductOverridesBulk(req, { productId: String(productId), items });
@@ -178,18 +172,27 @@ async function applyBatchChannelEnablesAndOverrides(req, productId, meta, jobErr
   }
 }
 
+/** Same rules as WooCommerceController.partitionProductsByWooGroup: need groupId + variation type. */
+function rowIsVariantGroupMember(row) {
+  const gid = row?.groupId != null && String(row.groupId).trim() ? String(row.groupId).trim() : '';
+  if (!gid) return false;
+  const vt = String(row.groupVariationType || '').toLowerCase();
+  return vt === 'color' || vt === 'size' || vt === 'model';
+}
+
 /**
- * Full export (create/update) for batch-selected targets that have no usable external id yet.
+ * Full export for one or more MVP payloads (single product or whole variant group).
+ * Skips a channel when every product already has a valid listing id for that channel/instance.
  */
-async function runFullExportsForMissingListings(pc, req, row, channelMeta, jobErrors) {
-  const payload = buildExportPayload(row);
-  if (!payload) return;
+async function runFullExportsForPayloads(pc, req, payloads, channelMeta, jobErrors, jobErrorProductId) {
+  if (!payloads.length) return;
   const targets = Array.isArray(channelMeta.channelTargets) ? channelMeta.channelTargets : [];
   const withMarket = Array.isArray(channelMeta.channelTargetsWithMarket)
     ? channelMeta.channelTargetsWithMarket
     : [];
   const prevBody = req.body;
   const mockRes = createMockRes();
+  const errPid = String(jobErrorProductId || payloads[0]?.id || '').trim() || '';
 
   for (const t of targets) {
     const ch = String(t.channel || '')
@@ -199,19 +202,30 @@ async function runFullExportsForMissingListings(pc, req, row, channelMeta, jobEr
       t.channelInstanceId != null && Number.isFinite(Number(t.channelInstanceId))
         ? Number(t.channelInstanceId)
         : null;
-    const pid = String(row.id);
 
     try {
       if (ch === 'woocommerce' && instId != null) {
-        const mapRow = await channelsModel.getProductMapRow(req, pid, 'woocommerce', instId);
-        if (wooListingExists(mapRow?.external_id)) continue;
+        let anyMissing = false;
+        for (const p of payloads) {
+          const mapRow = await channelsModel.getProductMapRow(
+            req,
+            String(p.id),
+            'woocommerce',
+            instId,
+          );
+          if (!wooListingExists(mapRow?.external_id)) {
+            anyMissing = true;
+            break;
+          }
+        }
+        if (!anyMissing) continue;
         mockRes.statusCode = 200;
         mockRes.body = null;
-        req.body = { products: [payload], instanceIds: [String(instId)] };
+        req.body = { products: payloads, instanceIds: [String(instId)] };
         await pc.wooController.exportProducts(req, mockRes);
         if (mockRes.statusCode >= 400) {
           jobErrors.push({
-            productId: pid,
+            productId: errPid,
             channel: 'woocommerce',
             message: mockRes.body?.error || `HTTP ${mockRes.statusCode}`,
           });
@@ -221,8 +235,15 @@ async function runFullExportsForMissingListings(pc, req, row, channelMeta, jobEr
 
       if (ch === 'cdon') {
         const mapInstId = instId != null && Number.isFinite(Number(instId)) ? Number(instId) : null;
-        const mapRow = await channelsModel.getProductMapRow(req, pid, 'cdon', mapInstId);
-        if (cdonOrFyndiqArticleIdLooksValid(mapRow?.external_id)) continue;
+        let anyMissing = false;
+        for (const p of payloads) {
+          const mapRow = await channelsModel.getProductMapRow(req, String(p.id), 'cdon', mapInstId);
+          if (!cdonOrFyndiqArticleIdLooksValid(mapRow?.external_id)) {
+            anyMissing = true;
+            break;
+          }
+        }
+        if (!anyMissing) continue;
         const markets = [
           ...new Set(
             withMarket
@@ -238,11 +259,11 @@ async function runFullExportsForMissingListings(pc, req, row, channelMeta, jobEr
         const marketsFilter = markets.length ? markets : ['se'];
         mockRes.statusCode = 200;
         mockRes.body = null;
-        req.body = { products: [payload], markets: marketsFilter };
+        req.body = { products: payloads, markets: marketsFilter };
         await pc.cdonController.exportProducts(req, mockRes);
         if (mockRes.statusCode >= 400) {
           jobErrors.push({
-            productId: pid,
+            productId: errPid,
             channel: 'cdon',
             message: mockRes.body?.error || `HTTP ${mockRes.statusCode}`,
           });
@@ -251,8 +272,15 @@ async function runFullExportsForMissingListings(pc, req, row, channelMeta, jobEr
       }
 
       if (ch === 'fyndiq' && instId != null) {
-        const mapRow = await channelsModel.getProductMapRow(req, pid, 'fyndiq', instId);
-        if (cdonOrFyndiqArticleIdLooksValid(mapRow?.external_id)) continue;
+        let anyMissing = false;
+        for (const p of payloads) {
+          const mapRow = await channelsModel.getProductMapRow(req, String(p.id), 'fyndiq', instId);
+          if (!cdonOrFyndiqArticleIdLooksValid(mapRow?.external_id)) {
+            anyMissing = true;
+            break;
+          }
+        }
+        if (!anyMissing) continue;
         const markets = [
           ...new Set(
             withMarket
@@ -269,14 +297,14 @@ async function runFullExportsForMissingListings(pc, req, row, channelMeta, jobEr
         mockRes.statusCode = 200;
         mockRes.body = null;
         req.body = {
-          products: [payload],
+          products: payloads,
           markets: marketsFilter,
           includePriceAndQuantity: true,
         };
         await pc.fyndiqController.exportProducts(req, mockRes);
         if (mockRes.statusCode >= 400) {
           jobErrors.push({
-            productId: pid,
+            productId: errPid,
             channel: 'fyndiq',
             message: mockRes.body?.error || `HTTP ${mockRes.statusCode}`,
           });
@@ -284,15 +312,21 @@ async function runFullExportsForMissingListings(pc, req, row, channelMeta, jobEr
       }
     } catch (err) {
       jobErrors.push({
-        productId: pid,
+        productId: errPid,
         channel: ch || 'export',
         message: err?.message || String(err),
       });
-      Logger.warn('Batch full channel export failed', err, { productId: pid, channel: ch });
+      Logger.warn('Batch full channel export failed', err, { productId: errPid, channel: ch });
     }
   }
 
   req.body = prevBody;
+}
+
+async function runFullExportsForMissingListings(pc, req, row, channelMeta, jobErrors) {
+  const payload = buildExportPayload(row);
+  if (!payload) return;
+  await runFullExportsForPayloads(pc, req, [payload], channelMeta, jobErrors, String(row.id));
 }
 
 function buildExportPayload(row) {
@@ -319,6 +353,7 @@ function buildExportPayload(row) {
     volume: row.volume ?? null,
     volumeUnit: row.volumeUnit ?? null,
     channelSpecific: row.channelSpecific,
+    groupId: row.groupId ?? null,
     parentProductId: row.parentProductId,
     groupVariationType: row.groupVariationType,
     color: row.color,
@@ -326,6 +361,8 @@ function buildExportPayload(row) {
     size: row.size,
     sizeText: row.sizeText,
     model: row.model,
+    pattern: row.pattern,
+    patternText: row.patternText,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -477,10 +514,34 @@ async function runBatchSyncJob(productController, req, jobId) {
         Array.isArray(channelMeta.channelTargets) &&
         channelMeta.channelTargets.length
       ) {
+        const rowById = new Map();
         for (const idStr of successIds) {
           const row = await model.getById(req, idStr);
+          if (row) rowById.set(String(row.id), row);
+        }
+        const processedExportIds = new Set();
+        for (const idStr of successIds) {
+          if (processedExportIds.has(idStr)) continue;
+          const row = rowById.get(idStr);
           if (!row) continue;
-          await runFullExportsForMissingListings(productController, req, row, channelMeta, errors);
+          if (rowIsVariantGroupMember(row)) {
+            const groupRows = await model.listByGroupId(req, row.groupId);
+            for (const r of groupRows) processedExportIds.add(String(r.id));
+            const payloads = groupRows.map(buildExportPayload).filter(Boolean);
+            if (payloads.length) {
+              await runFullExportsForPayloads(
+                productController,
+                req,
+                payloads,
+                channelMeta,
+                errors,
+                String(row.id),
+              );
+            }
+          } else {
+            processedExportIds.add(idStr);
+            await runFullExportsForMissingListings(productController, req, row, channelMeta, errors);
+          }
         }
       }
 
@@ -491,6 +552,10 @@ async function runBatchSyncJob(productController, req, jobId) {
           [successIds],
         );
         const qtyById = new Map(qtyRows.map((r) => [String(r.id), r]));
+        const stockChannelRowsById = await productController.resolveStockChannelRowsForIds(
+          req,
+          successIds,
+        );
 
         const cdonItems = [];
         const fyndiqItems = [];
@@ -498,7 +563,7 @@ async function runBatchSyncJob(productController, req, jobId) {
           const row = qtyById.get(idStr);
           if (!row) continue;
           const qty = Math.max(0, Math.trunc(Number(row.quantity)));
-          const channelRows = await productController.resolveStockChannelRows(req, idStr);
+          const channelRows = stockChannelRowsById.get(idStr) || [];
           let wantsCdon = false;
           let wantsFyndiq = false;
           for (const cr of channelRows) {
@@ -537,7 +602,7 @@ async function runBatchSyncJob(productController, req, jobId) {
           const { failures } = await productController.cdonController.syncStockBulk(req, cdonItems);
           const failedSku = new Set(failures.map((f) => String(f.sku || '').trim()));
           for (const it of cdonItems) {
-            const extRows = await productController.resolveStockChannelRows(req, it.productId);
+            const extRows = stockChannelRowsById.get(it.productId) || [];
             const cdonRow = extRows.find(
               (r) =>
                 String(r.channel || '')
@@ -616,7 +681,7 @@ async function runBatchSyncJob(productController, req, jobId) {
           if (!row) continue;
           const qty = Math.max(0, Math.trunc(Number(row.quantity)));
           const sku = row.sku != null ? String(row.sku).trim() : '';
-          const channelRows = await productController.resolveStockChannelRows(req, idStr);
+          const channelRows = stockChannelRowsById.get(idStr) || [];
           for (const r of channelRows) {
             const channel = String(r.channel || '')
               .trim()

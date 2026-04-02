@@ -813,6 +813,8 @@ export function ProductProvider({
       size: productForSync.size,
       sizeText: productForSync.sizeText,
       model: productForSync.model,
+      pattern: productForSync.pattern,
+      patternText: productForSync.patternText,
       createdAt: productForSync.createdAt,
       updatedAt: productForSync.updatedAt,
     };

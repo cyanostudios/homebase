@@ -98,6 +98,7 @@ export function hasEcommerceCatalogPlugins(
 export function isEcommerceCatalogBootstrapPage(page: NavPage): boolean {
   return (
     page === 'products' ||
+    page === 'products-import' ||
     page === 'channels' ||
     page === 'woocommerce-products' ||
     page === 'cdon-products' ||

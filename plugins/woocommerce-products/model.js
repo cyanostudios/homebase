@@ -160,7 +160,16 @@ class WooCommerceModel {
     }
   }
 
-  async upsertInstance(req, { instanceKey, label, credentials } = {}) {
+  /** Which textsExtended key (se|dk|fi|no) drives Woo product name/description for this store. */
+  normalizeWooTextMarket(value) {
+    const s = String(value ?? '')
+      .trim()
+      .toLowerCase();
+    if (['se', 'dk', 'fi', 'no'].includes(s)) return s;
+    return 'se';
+  }
+
+  async upsertInstance(req, { instanceKey, label, credentials, textMarket } = {}) {
     try {
       const db = Database.get(req);
       const tenantId = req.session?.tenantId;
@@ -191,20 +200,22 @@ class WooCommerceModel {
       }
       const creds = this.normalizeCredentialsForStorage(credentials);
       const credsJsonb = this.credentialsForJsonb(creds);
+      const marketVal = this.normalizeWooTextMarket(textMarket);
 
       const rows = await db.query(
         `
         INSERT INTO ${WooCommerceModel.CHANNEL_INSTANCES_TABLE}
           (channel, instance_key, market, label, credentials, created_at, updated_at)
         VALUES
-          ($1, $2, NULL, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT (channel, instance_key) DO UPDATE SET
           label = EXCLUDED.label,
           credentials = EXCLUDED.credentials,
+          market = EXCLUDED.market,
           updated_at = CURRENT_TIMESTAMP
         RETURNING id, channel, instance_key, market, label, credentials, created_at, updated_at
         `,
-        [WooCommerceModel.CHANNEL, key, lbl, credsJsonb],
+        [WooCommerceModel.CHANNEL, key, marketVal, lbl, credsJsonb],
       );
 
       const r = rows[0];

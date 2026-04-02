@@ -71,6 +71,15 @@ function toStrOrUndef(v) {
   return s ? s : undefined;
 }
 
+/** Sello column mapping only when column issello is 1 (opt-in per row). */
+function isSelloImportRow(r) {
+  const v = r?.issello;
+  if (v === undefined || v === null || v === '') return false;
+  if (typeof v === 'number' && Number.isFinite(v)) return v === 1;
+  const s = String(v).trim();
+  return s === '1';
+}
+
 function mergeForUpdate(existing, incoming) {
   const merged = { ...existing };
 
@@ -90,10 +99,101 @@ function mergeForUpdate(existing, incoming) {
   setIf('brand', incoming.brand);
   setIf('mpn', incoming.mpn);
   setIf('gtin', incoming.gtin);
+  if (
+    incoming.channelSpecific !== undefined &&
+    incoming.channelSpecific !== null &&
+    typeof incoming.channelSpecific === 'object' &&
+    !Array.isArray(incoming.channelSpecific)
+  ) {
+    merged.channelSpecific = incoming.channelSpecific;
+  }
 
   // Always keep SKU stable (unique key)
   merged.sku = existing.sku;
   return merged;
+}
+
+/** Per-market Texter columns: title.se, description.se, title.dk, … (normalized header keys keep the dot). */
+const IMPORT_TEXT_MARKETS = ['se', 'dk', 'fi', 'no'];
+
+function importDescPlainNonEmpty(htmlOrText) {
+  const s = String(htmlOrText ?? '').trim();
+  if (!s) return false;
+  return (
+    s
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim().length > 0
+  );
+}
+
+function buildTextsExtendedPatchFromImportRow(r) {
+  const patch = {};
+  for (const mk of IMPORT_TEXT_MARKETS) {
+    const tk = `title.${mk}`;
+    const dk = `description.${mk}`;
+    const hasTk = Object.prototype.hasOwnProperty.call(r, tk);
+    const hasDk = Object.prototype.hasOwnProperty.call(r, dk);
+    if (!hasTk && !hasDk) continue;
+    const nameRaw = hasTk ? r[tk] : undefined;
+    const descRaw = hasDk ? r[dk] : undefined;
+    const hasName = nameRaw !== undefined && nameRaw !== null && String(nameRaw).trim() !== '';
+    const hasDesc = descRaw !== undefined && descRaw !== null && String(descRaw).trim() !== '';
+    if (!hasName && !hasDesc) continue;
+    const entry = {};
+    if (hasName) entry.name = String(nameRaw).trim().slice(0, 255);
+    if (hasDesc) entry.description = String(descRaw).trim();
+    patch[mk] = entry;
+  }
+  return patch;
+}
+
+function mergeTextsExtendedForImport(existing, patch) {
+  const ex =
+    existing && typeof existing === 'object' && !Array.isArray(existing) ? { ...existing } : {};
+  for (const [mk, fields] of Object.entries(patch)) {
+    if (!fields || typeof fields !== 'object') continue;
+    ex[mk] = { ...(ex[mk] || {}), ...fields };
+  }
+  return ex;
+}
+
+function mergeChannelSpecificForImport(existingCs, textsExtendedMerged, options = {}) {
+  const base =
+    existingCs && typeof existingCs === 'object' && !Array.isArray(existingCs) ? { ...existingCs } : {};
+  base.textsExtended = textsExtendedMerged;
+  if (options.textsStandard !== undefined && options.textsStandard !== null) {
+    base.textsStandard = options.textsStandard;
+  }
+  return base;
+}
+
+function normalizeImportTextsStandard(raw) {
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  if (['se', 'dk', 'fi', 'no'].includes(s)) return s;
+  return null;
+}
+
+/**
+ * Standard marknad för list-titel/beskrivning: alltid se om kolumnen textsStandard saknas eller är ogiltig.
+ * Om textsStandard sätts (t.ex. fi) måste den marknadens texter vara kompletta efter sammanslagning.
+ */
+function resolveStandardMarketPrimary(mergedTe, explicitRaw) {
+  const standardMk = normalizeImportTextsStandard(explicitRaw) ?? 'se';
+  const tx = mergedTe?.[standardMk];
+  const name = String(tx?.name ?? '').trim();
+  const desc = String(tx?.description ?? '');
+  if (!name || !importDescPlainNonEmpty(desc)) {
+    return { ok: false, code: 'standard_market_texts_incomplete', market: standardMk };
+  }
+  return {
+    ok: true,
+    standardMk,
+    title: name.slice(0, 255),
+    description: desc,
+  };
 }
 
 async function parseCsvBuffer(buffer) {
@@ -431,7 +531,28 @@ function getSelloGtin(product) {
   return null;
 }
 
-/** Extract value from Sello product properties by property name. */
+/**
+ * Read first non-empty primitive string from Sello property `value` (SELLO-API.md: locale keys).
+ * Order is fixed; no extra keys, no nested unwrapping.
+ */
+function readSelloPropertyValueObject(value) {
+  if (value == null) return null;
+  if (typeof value === 'string') {
+    const s = value.trim();
+    return s || null;
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) return null;
+  const keys = ['default', 'sv', 'en', 'da', 'fi', 'no', 'nb'];
+  for (const k of keys) {
+    const raw = value[k];
+    if (raw == null || typeof raw === 'object') continue;
+    const s = String(raw).trim();
+    if (s) return s;
+  }
+  return null;
+}
+
+/** Extract value from Sello product properties by exact property id (case-insensitive match only). */
 function getSelloPropertyValue(product, propertyIds) {
   const props = product?.properties;
   if (!Array.isArray(props)) return null;
@@ -443,12 +564,7 @@ function getSelloPropertyValue(product, propertyIds) {
       .toLowerCase();
     if (!name) continue;
     if (idsLower.includes(name)) {
-      const v = p?.value;
-      if (v && typeof v === 'object') {
-        const sv = String(v?.sv ?? v?.default ?? '').trim();
-        if (sv) return sv;
-      }
-      break;
+      return readSelloPropertyValueObject(p?.value);
     }
   }
   return null;
@@ -511,9 +627,12 @@ function getSelloMaterial(product) {
   return getSelloPropertyValue(product, ['material']);
 }
 
-/** Pattern preset from Sello property "ColorPattern" (för CDON/Fyndiq). */
+/**
+ * Fyndiq-mönster preset: Sello property id `FyndiqPattern` (channel-specific; se faktisk GET /v5/products/{id}).
+ * `ColorPattern` finns i category recommended list; äldre/vissa produkter kan använda `Pattern`.
+ */
 function getSelloPattern(product) {
-  return getSelloPropertyValue(product, ['colorpattern', 'pattern']);
+  return getSelloPropertyValue(product, ['fyndiqpattern', 'colorpattern', 'pattern']);
 }
 
 /** Pattern fritext from Sello property "Mönster" när preset saknas. */
@@ -623,6 +742,39 @@ function buildImportedChannelSpecificCategories(product, instancesByIntegration)
     ...(shippingTime && { shipping_time: shippingTime }),
   };
   return out;
+}
+
+/**
+ * Same merge/dedup rules as single-product stock channel resolution (map + overrides).
+ * @param {Array<{ channel: any, enabled: any, external_id: any, channel_instance_id: any }>} mapRows
+ * @param {Array<{ channel: any, enabled: any, external_id: any, channel_instance_id: any }>} overrideRows
+ */
+function mergeStockChannelRows(mapRows, overrideRows) {
+  const seen = new Set();
+  const rows = [];
+  for (const r of [...mapRows, ...overrideRows]) {
+    const ch = String(r.channel || '')
+      .trim()
+      .toLowerCase();
+    if (!ch) continue;
+    const isUniversalStock = ch === 'cdon' || ch === 'fyndiq';
+    const key = isUniversalStock ? `${ch}:` : `${ch}:${r.channel_instance_id ?? ''}`;
+    if (seen.has(key)) {
+      if (isUniversalStock && r.channel_instance_id == null) {
+        const idx = rows.findIndex(
+          (x) =>
+            String(x.channel || '')
+              .trim()
+              .toLowerCase() === ch,
+        );
+        if (idx >= 0 && rows[idx].channel_instance_id != null) rows[idx] = r;
+      }
+      continue;
+    }
+    seen.add(key);
+    rows.push(r);
+  }
+  return rows;
 }
 
 class ProductController {
@@ -871,31 +1023,70 @@ class ProductController {
          AND m.external_id IS NOT NULL`,
       [pid],
     );
-    const seen = new Set();
-    const rows = [];
-    for (const r of [...mapRows, ...overrideRows]) {
-      const ch = String(r.channel || '')
-        .trim()
-        .toLowerCase();
-      if (!ch) continue;
-      const isUniversalStock = ch === 'cdon' || ch === 'fyndiq';
-      const key = isUniversalStock ? `${ch}:` : `${ch}:${r.channel_instance_id ?? ''}`;
-      if (seen.has(key)) {
-        if (isUniversalStock && r.channel_instance_id == null) {
-          const idx = rows.findIndex(
-            (x) =>
-              String(x.channel || '')
-                .trim()
-                .toLowerCase() === ch,
-          );
-          if (idx >= 0 && rows[idx].channel_instance_id != null) rows[idx] = r;
-        }
-        continue;
-      }
-      seen.add(key);
-      rows.push(r);
+    return mergeStockChannelRows(mapRows, overrideRows);
+  }
+
+  /**
+   * Batch prefetch: same rows as {@link resolveStockChannelRows} per id, two SQL round-trips total.
+   * @param {object} req
+   * @param {string[]} ids
+   * @returns {Promise<Map<string, Array<{ channel: string, external_id: any, channel_instance_id: any }>>>}
+   */
+  async resolveStockChannelRowsForIds(req, ids) {
+    const db = Database.get(req);
+    const idList = [
+      ...new Set((ids || []).map((id) => String(id ?? '').trim()).filter(Boolean)),
+    ];
+    if (!idList.length) return new Map();
+
+    const mapRowsRaw = await db.query(
+      `SELECT product_id::text AS product_id, channel, enabled, external_id, channel_instance_id
+       FROM channel_product_map
+       WHERE product_id::text = ANY($1::text[])
+         AND (enabled = TRUE OR external_id IS NOT NULL)`,
+      [idList],
+    );
+    const overrideRowsRaw = await db.query(
+      `SELECT o.product_id::text AS product_id, o.channel, o.active AS enabled, m.external_id, o.channel_instance_id
+       FROM channel_product_overrides o
+       INNER JOIN channel_product_map m
+         ON m.product_id::text = o.product_id::text
+         AND m.channel = o.channel
+         AND (m.channel_instance_id IS NOT DISTINCT FROM o.channel_instance_id)
+       WHERE o.product_id::text = ANY($1::text[])
+         AND o.active = TRUE
+         AND o.channel_instance_id IS NOT NULL
+         AND m.external_id IS NOT NULL`,
+      [idList],
+    );
+
+    function slim(r) {
+      return {
+        channel: r.channel,
+        enabled: r.enabled,
+        external_id: r.external_id,
+        channel_instance_id: r.channel_instance_id,
+      };
     }
-    return rows;
+
+    const mapByPid = new Map();
+    for (const r of mapRowsRaw) {
+      const pid = String(r.product_id);
+      if (!mapByPid.has(pid)) mapByPid.set(pid, []);
+      mapByPid.get(pid).push(slim(r));
+    }
+    const overrideByPid = new Map();
+    for (const r of overrideRowsRaw) {
+      const pid = String(r.product_id);
+      if (!overrideByPid.has(pid)) overrideByPid.set(pid, []);
+      overrideByPid.get(pid).push(slim(r));
+    }
+
+    const result = new Map();
+    for (const pid of idList) {
+      result.set(pid, mergeStockChannelRows(mapByPid.get(pid) || [], overrideByPid.get(pid) || []));
+    }
+    return result;
   }
 
   async getSelloSettings(req, res) {
@@ -1409,14 +1600,6 @@ class ProductController {
       if (!tenantId) {
         return res.status(401).json({ error: 'Tenant not resolved', code: 'UNAUTHORIZED' });
       }
-      const busyId = batchSyncMutex.getActiveJobId(tenantId);
-      if (busyId) {
-        return res.status(409).json({
-          error: 'Sync already in progress',
-          code: 'SYNC_ALREADY_IN_PROGRESS',
-          jobId: busyId,
-        });
-      }
 
       const idsRaw = req.body?.ids;
       const changes = req.body?.changes ?? req.body?.updates ?? {};
@@ -1710,8 +1893,11 @@ class ProductController {
         const r = rawRows[i] || {};
 
         // Expected normalized keys (no spaces/underscores):
-        // Default import: sku, title, description, quantity, priceamount, currency, vatrate, status, brand, mpn, gtin
-        // Sello export: sku, standardnamesv, standarddescriptionsv, tax, brand, manufacturerno, propertygtin/propertyean,
+        // Default import (issello not 1): sku, quantity, …
+        //   Texter: title.se, description.se, … → textsExtended (importerat ersätter per fält/marknad vid merge).
+        //   Standard för title/description + textsStandard: se om textsStandard-kolumn saknas; annars värdet där (fi kräver kompletta FI-texter).
+        //   Generiska title / description används inte.
+        // Sello-style row: issello=1, then standardnamesv, standarddescriptionsv, tax, manufacturerno, propertygtin/propertyean,
         // plus per-channel columns like cdonseprice####, cdonseactive####, fyndiq3price####, fyndiq3active####.
         const sku = toStrOrUndef(r.sku);
         if (!sku) {
@@ -1720,21 +1906,20 @@ class ProductController {
           continue;
         }
 
-        const isSello =
-          r.standardnamesv != null || r.standarddescriptionsv != null || r.manufacturerno != null;
+        const isSello = isSelloImportRow(r);
         const selloVat = toFloatOrUndef(r.tax);
         const selloGtin = toStrOrUndef(r.propertygtin) || toStrOrUndef(r.propertyean);
         const selloMpn = toStrOrUndef(r.manufacturerno);
 
-        // Base fields (Sello takes precedence when present)
+        // Base fields (Sello column names when issello=1). Non-Sello: title/description från landsspecifika kolumner nedan.
         const incoming = {
           sku,
           title: isSello
             ? toStrOrUndef(r.standardnamesv) || toStrOrUndef(r.title)
-            : toStrOrUndef(r.title),
+            : undefined,
           description: isSello
             ? toStrOrUndef(r.standarddescriptionsv) || toStrOrUndef(r.description)
-            : toStrOrUndef(r.description),
+            : undefined,
           status: toStrOrUndef(r.status),
           quantity: toIntOrUndef(r.quantity),
           priceAmount: toFloatOrUndef(r.priceamount),
@@ -1757,6 +1942,46 @@ class ProductController {
         }
 
         const existing = await this.model.getBySku(req, sku);
+
+        if (!isSello) {
+          const textsPatch = buildTextsExtendedPatchFromImportRow(r);
+          const hasTextPatch = Object.keys(textsPatch).length > 0;
+          if (hasTextPatch) {
+            const existingTe =
+              existing?.channelSpecific?.textsExtended &&
+              typeof existing.channelSpecific.textsExtended === 'object'
+                ? existing.channelSpecific.textsExtended
+                : {};
+            const mergedTe = mergeTextsExtendedForImport(existingTe, textsPatch);
+            const resolved = resolveStandardMarketPrimary(mergedTe, r.textsstandard);
+            if (!resolved.ok) {
+              result.skippedInvalid.push({
+                row: rowNum,
+                sku,
+                reason: resolved.code,
+                market: resolved.market,
+              });
+              result.rows.push({
+                row: rowNum,
+                sku,
+                action: 'skipped',
+                reason: resolved.code,
+                market: resolved.market,
+              });
+              continue;
+            }
+            incoming.title = resolved.title;
+            incoming.description = resolved.description;
+            incoming.channelSpecific = mergeChannelSpecificForImport(
+              existing?.channelSpecific ?? null,
+              mergedTe,
+              { textsStandard: resolved.standardMk },
+            );
+          } else {
+            incoming.title = undefined;
+            incoming.description = undefined;
+          }
+        }
 
         if (mode === 'update-only') {
           if (!existing) {
@@ -1785,8 +2010,9 @@ class ProductController {
           }
           const title = incoming.title;
           if (!title) {
-            result.skippedInvalid.push({ row: rowNum, sku, reason: 'missing_title' });
-            result.rows.push({ row: rowNum, sku, action: 'skipped', reason: 'missing_title' });
+            const reason = isSello ? 'missing_title' : 'missing_market_texts';
+            result.skippedInvalid.push({ row: rowNum, sku, reason });
+            result.rows.push({ row: rowNum, sku, action: 'skipped', reason });
             continue;
           }
           const payload = {
@@ -1805,6 +2031,7 @@ class ProductController {
             images: [],
             categories: [],
             mainImage: '',
+            ...(incoming.channelSpecific ? { channelSpecific: incoming.channelSpecific } : {}),
           };
           const created = await this.model.create(req, payload);
 
@@ -1877,8 +2104,9 @@ class ProductController {
         } else {
           const title = incoming.title;
           if (!title) {
-            result.skippedInvalid.push({ row: rowNum, sku, reason: 'missing_title' });
-            result.rows.push({ row: rowNum, sku, action: 'skipped', reason: 'missing_title' });
+            const reason = isSello ? 'missing_title' : 'missing_market_texts';
+            result.skippedInvalid.push({ row: rowNum, sku, reason });
+            result.rows.push({ row: rowNum, sku, action: 'skipped', reason });
             continue;
           }
           const payload = {
@@ -1897,6 +2125,7 @@ class ProductController {
             images: [],
             categories: [],
             mainImage: '',
+            ...(incoming.channelSpecific ? { channelSpecific: incoming.channelSpecific } : {}),
           };
           const created = await this.model.create(req, payload);
 

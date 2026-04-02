@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { useWooCommerce } from '../context/WooCommerceContext';
+import { normalizeWooTextMarket, type WooTextMarket } from '../types/woocommerce';
 
 export const WooSettingsForm: React.FC = () => {
   const {
@@ -37,13 +39,22 @@ export const WooSettingsForm: React.FC = () => {
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    storeUrl: string;
+    consumerKey: string;
+    consumerSecret: string;
+    useQueryAuth: boolean;
+    instanceKey: string;
+    label: string;
+    textMarket: WooTextMarket;
+  }>({
     storeUrl: '',
     consumerKey: '',
     consumerSecret: '',
     useQueryAuth: false,
     instanceKey: '',
     label: '',
+    textMarket: 'se',
   });
   const [labelRequiredError, setLabelRequiredError] = useState<string | null>(null);
 
@@ -74,6 +85,7 @@ export const WooSettingsForm: React.FC = () => {
         useQueryAuth: !!sourceSettings.useQueryAuth,
         instanceKey: (sourceSettings as any).instanceKey || '',
         label: (sourceSettings as any).label || '',
+        textMarket: normalizeWooTextMarket(sourceSettings.textMarket),
       });
       markClean();
     } else {
@@ -97,6 +109,7 @@ export const WooSettingsForm: React.FC = () => {
       useQueryAuth: false,
       instanceKey: '',
       label: '',
+      textMarket: 'se',
     });
     markClean();
   }, [markClean]);
@@ -141,6 +154,7 @@ export const WooSettingsForm: React.FC = () => {
             useQueryAuth: !!sourceSettings.useQueryAuth,
             instanceKey: (sourceSettings as any).instanceKey || '',
             label: (sourceSettings as any).label || '',
+            textMarket: normalizeWooTextMarket(sourceSettings.textMarket),
           });
           markClean();
         } else {
@@ -236,6 +250,26 @@ export const WooSettingsForm: React.FC = () => {
             )}
             <p className="mt-1 text-xs text-muted-foreground">
               Ge butiken ett namn så att den syns med rätt namn i orderlistan.
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="wooTextMarket" className="mb-1">
+              Texter för export (marknad)
+            </Label>
+            <NativeSelect
+              id="wooTextMarket"
+              value={formData.textMarket}
+              onChange={(e) => update('textMarket', e.target.value as WooTextMarket)}
+            >
+              <option value="se">Svenska (SE)</option>
+              <option value="dk">Danska (DK)</option>
+              <option value="fi">Finska (FI)</option>
+              <option value="no">Norska (NO)</option>
+            </NativeSelect>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Namn, beskrivning och SEO-fält för Woo hämtas från produktens Texter för vald marknad —
+              inte från huvudtitel/beskrivning.
             </p>
           </div>
 

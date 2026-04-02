@@ -44,6 +44,50 @@ const MARKETS = [
   { key: 'no' as const, label: 'Norge', currency: 'NOK', lang: 'nb-NO' },
 ];
 
+type MarketKeyFromConst = (typeof MARKETS)[number]['key'];
+
+/** Nested cdon.markets / fyndiq.markets: Sello import uses active + optional shipping; never price (pricing = products.price_amount + channel_product_overrides). */
+const LEGACY_NESTED_MARKET_FIELD_KEYS = new Set([
+  'price',
+  'currency',
+  'vatRate',
+  'deliveryType',
+]);
+
+function buildPersistedMarketsForChannel(
+  formMarkets: Record<
+    MarketKeyFromConst,
+    { shippingMin: number | ''; shippingMax: number | '' }
+  >,
+  existingMarkets: Record<string, unknown> | undefined,
+): Record<string, Record<string, unknown>> {
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const { key } of MARKETS) {
+    const rawPrev = existingMarkets?.[key];
+    const prev: Record<string, unknown> =
+      rawPrev && typeof rawPrev === 'object' && !Array.isArray(rawPrev)
+        ? { ...(rawPrev as Record<string, unknown>) }
+        : {};
+    for (const k of LEGACY_NESTED_MARKET_FIELD_KEYS) {
+      delete prev[k];
+    }
+    const smin = formMarkets[key].shippingMin;
+    const smax = formMarkets[key].shippingMax;
+    if (smin === '' || !Number.isFinite(Number(smin))) {
+      delete prev.shippingMin;
+    } else {
+      prev.shippingMin = Number(smin);
+    }
+    if (smax === '' || !Number.isFinite(Number(smax))) {
+      delete prev.shippingMax;
+    } else {
+      prev.shippingMax = Number(smax);
+    }
+    out[key] = prev;
+  }
+  return out;
+}
+
 /** CDON/Fyndiq preset-size_SML (storlek dropdown) */
 const SIZE_OPTIONS = [
   { value: '', label: '— Välj storlek —' },
@@ -587,14 +631,11 @@ type MarketKey = 'se' | 'dk' | 'fi' | 'no';
 
 type DeliveryTypeValue = '' | 'mailbox' | 'service_point' | 'home_delivery';
 
+/** Kanaler: leveranstid + leveranstyp per land. Pris/valuta/moms = Baspris + Priser (overrides), aldrig här. */
 type MarketData = {
-  price: number;
-  currency: string;
-  vatRate: number;
-  shippingMin: number;
-  shippingMax: number;
+  shippingMin: number | '';
+  shippingMax: number | '';
   deliveryType: DeliveryTypeValue;
-  active: boolean;
 };
 
 type TextData = {
@@ -696,7 +737,7 @@ type FormData = {
   depthCm: number | '';
   /** Produkt-fliken: lista ('' = Huvudlista, annars list id) */
   listId: string;
-  /** Per-market: price, shipping, delivery_type, active */
+  /** Per SE/DK/FI/NO: leveranstid + leveranstyp (kanalpayload använder shipping_time + delivery_type). */
   markets: Record<MarketKey, MarketData>;
   /** Per-market language: title, description (SE/DK/FI/NO) */
   texts: Record<MarketKey, TextData>;
@@ -740,16 +781,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     productSettings?.defaultDeliveryCdon?.[market.toUpperCase() as 'SE' | 'DK' | 'NO' | 'FI'] ??
     productSettings?.defaultDeliveryFyndiq?.[market as 'se' | 'dk' | 'fi' | 'no'] ??
     productSettings?.defaultDelivery?.[market];
-  const createEmptyMarket = (market: MarketKey, currency: string): MarketData => {
+  const createEmptyMarket = (market: MarketKey, opts?: { forBatch?: boolean }): MarketData => {
     const dd = getDefaultDelivery(market);
+    const forBatch = Boolean(opts?.forBatch);
     return {
-      price: 0,
-      currency,
-      vatRate: 25,
-      shippingMin: dd?.shippingMin ?? 1,
-      shippingMax: dd?.shippingMax ?? 3,
+      shippingMin: forBatch ? '' : (dd?.shippingMin ?? 1),
+      shippingMax: forBatch ? '' : (dd?.shippingMax ?? 3),
       deliveryType: '',
-      active: true,
     };
   };
 
@@ -810,10 +848,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     depthCm: '',
     listId: '',
     markets: {
-      se: createEmptyMarket('se', 'SEK'),
-      dk: createEmptyMarket('dk', 'DKK'),
-      fi: createEmptyMarket('fi', 'EUR'),
-      no: createEmptyMarket('no', 'NOK'),
+      se: createEmptyMarket('se'),
+      dk: createEmptyMarket('dk'),
+      fi: createEmptyMarket('fi'),
+      no: createEmptyMarket('no'),
     },
     texts: {
       se: createEmptyText(),
@@ -823,6 +861,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     },
     standardTextMarket: 'se',
     channelCategories: {},
+  };
+
+  const batchInitialState: FormData = {
+    ...initialState,
+    quantity: '',
+    markets: {
+      se: createEmptyMarket('se', { forBatch: true }),
+      dk: createEmptyMarket('dk', { forBatch: true }),
+      fi: createEmptyMarket('fi', { forBatch: true }),
+      no: createEmptyMarket('no', { forBatch: true }),
+    },
   };
 
   const PRODUCT_INTERNAL_ONLY_KEYS: Array<keyof FormData> = [
@@ -1025,19 +1074,72 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       }
     }
 
-    if (
-      stableStringify(fd.channelSpecific ?? null) !== stableStringify(init.channelSpecific ?? null)
-    ) {
-      if (
-        fd.channelSpecific &&
-        typeof fd.channelSpecific === 'object' &&
-        !Array.isArray(fd.channelSpecific)
-      ) {
-        changes.channelSpecific = JSON.parse(JSON.stringify(fd.channelSpecific)) as Record<
-          string,
-          unknown
-        >;
-      }
+    // Batch-edit supports shipping/delivery updates via Kanaler-tabben.
+    // Those fields are edited in `fd.markets` but persisted in DB `channel_specific`,
+    // so we must include ONLY the actually-changed subfields in `channelSpecific`.
+    //
+    // IMPORTANT: In batch we must not send "unrelated but filled" fields. If the user changes
+    // delivery type only, we must not include shipping times (and vice versa).
+    const toShipNumOrNull = (v: number | '' | null | undefined): number | null =>
+      v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v);
+
+    const initShippingTime = MARKETS.map((m) => ({
+      market: m.key.toUpperCase(),
+      min: toShipNumOrNull(init.markets[m.key].shippingMin),
+      max: toShipNumOrNull(init.markets[m.key].shippingMax),
+    }));
+    const fdShippingTime = MARKETS.map((m) => ({
+      market: m.key.toUpperCase(),
+      min: toShipNumOrNull(fd.markets[m.key].shippingMin),
+      max: toShipNumOrNull(fd.markets[m.key].shippingMax),
+    }));
+
+    const initCdonDeliveryType = MARKETS.filter((m) => init.markets[m.key].deliveryType).map((m) => ({
+      market: m.key.toUpperCase(),
+      value: init.markets[m.key].deliveryType,
+    }));
+    const fdCdonDeliveryType = MARKETS.filter((m) => fd.markets[m.key].deliveryType).map((m) => ({
+      market: m.key.toUpperCase(),
+      value: fd.markets[m.key].deliveryType,
+    }));
+
+    const initFyndiqDeliveryType = MARKETS.filter((m) => {
+      const dt = init.markets[m.key].deliveryType;
+      return dt && dt !== 'home_delivery'; // Fyndiq: only mailbox, service_point
+    }).map((m) => ({ market: m.key.toUpperCase(), value: init.markets[m.key].deliveryType }));
+    const fdFyndiqDeliveryType = MARKETS.filter((m) => {
+      const dt = fd.markets[m.key].deliveryType;
+      return dt && dt !== 'home_delivery'; // Fyndiq: only mailbox, service_point
+    }).map((m) => ({ market: m.key.toUpperCase(), value: fd.markets[m.key].deliveryType }));
+
+    const csPatch: Record<string, any> = {};
+    const cdonPatch: Record<string, unknown> = {};
+    const fyndiqPatch: Record<string, unknown> = {};
+
+    const shippingChanged = stableStringify(fdShippingTime) !== stableStringify(initShippingTime);
+    const shippingComplete = fdShippingTime.every((x) => x.min != null && x.max != null);
+    if (shippingChanged && shippingComplete) {
+      cdonPatch.shipping_time = fdShippingTime as Array<{ market: string; min: number; max: number }>;
+      fyndiqPatch.shipping_time = fdShippingTime as Array<{ market: string; min: number; max: number }>;
+    }
+
+    const cdonDeliveryChanged =
+      stableStringify(fdCdonDeliveryType) !== stableStringify(initCdonDeliveryType);
+    if (cdonDeliveryChanged) {
+      cdonPatch.delivery_type = fdCdonDeliveryType;
+    }
+
+    const fyndiqDeliveryChanged =
+      stableStringify(fdFyndiqDeliveryType) !== stableStringify(initFyndiqDeliveryType);
+    if (fyndiqDeliveryChanged) {
+      fyndiqPatch.delivery_type = fdFyndiqDeliveryType;
+    }
+
+    if (Object.keys(cdonPatch).length > 0) csPatch.cdon = cdonPatch;
+    if (Object.keys(fyndiqPatch).length > 0) csPatch.fyndiq = fyndiqPatch;
+
+    if (Object.keys(csPatch).length > 0) {
+      changes.channelSpecific = csPatch;
     }
 
     return changes;
@@ -1049,17 +1151,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       return acc;
     }, {});
 
-  const buildMarketArticleSnapshot = (source: FormData) =>
-    MARKETS.reduce<
-      Record<string, { shippingMin: number; shippingMax: number; deliveryType: string }>
+  const buildMarketArticleSnapshot = (source: FormData) => {
+    const nOrNull = (v: number | '') =>
+      v === '' || !Number.isFinite(Number(v)) ? null : Number(v);
+    return MARKETS.reduce<
+      Record<string, { shippingMin: number | null; shippingMax: number | null; deliveryType: string }>
     >((acc, market) => {
       acc[market.key] = {
-        shippingMin: Number(source.markets[market.key].shippingMin ?? 0),
-        shippingMax: Number(source.markets[market.key].shippingMax ?? 0),
+        shippingMin: nOrNull(source.markets[market.key].shippingMin),
+        shippingMax: nOrNull(source.markets[market.key].shippingMax),
         deliveryType: String(source.markets[market.key].deliveryType ?? ''),
       };
       return acc;
     }, {});
+  };
 
   const toComparableOverrideValue = (value: string | number | null | undefined): string | null => {
     if (value == null) {
@@ -1090,6 +1195,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [batchPendingChanges, setBatchPendingChanges] = useState<Record<string, unknown> | null>(
     null,
   );
+  const [saveNotice, setSaveNotice] = useState('');
   // If true: MPN mirrors SKU automatically (until user overrides MPN)
   const [isMpnAuto, setIsMpnAuto] = useState(true);
   const [isGtinAuto, setIsGtinAuto] = useState(true);
@@ -1530,10 +1636,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   // Load current product (or leave empty for batch mode)
   useEffect(() => {
     if (isBatchMode) {
-      initialFormStateRef.current = JSON.parse(JSON.stringify(initialState)) as FormData;
+      initialFormStateRef.current = JSON.parse(JSON.stringify(batchInitialState)) as FormData;
       initialSelectedTargetKeysRef.current = new Set();
       initialChannelPriceOverridesRef.current = {};
-      setFormData(initialState);
+      setFormData(batchInitialState);
       setIsMpnAuto(true);
       markClean();
       return;
@@ -1587,41 +1693,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         const deliveryType =
           deliveryTypeFromApi(Array.isArray(cdonDelivery) ? cdonDelivery : undefined, m.key) ||
           deliveryTypeFromApi(Array.isArray(fyndiqDelivery) ? fyndiqDelivery : undefined, m.key);
-        if (mData && typeof mData === 'object') {
-          markets[m.key] = {
-            price: Number.isFinite(mData.price)
-              ? Number(mData.price)
-              : Number.isFinite(currentProduct.priceAmount)
-                ? Number(currentProduct.priceAmount)
-                : 0,
-            currency: mData.currency ?? m.currency,
-            vatRate: Number.isFinite(mData.vatRate) ? Number(mData.vatRate) : 25,
-            shippingMin: Number.isFinite(shippingTime?.min)
-              ? Number(shippingTime!.min)
-              : Number.isFinite(mData.shippingMin)
-                ? Number(mData.shippingMin)
-                : (defShip?.shippingMin ?? 1),
-            shippingMax: Number.isFinite(shippingTime?.max)
-              ? Number(shippingTime!.max)
-              : Number.isFinite(mData.shippingMax)
-                ? Number(mData.shippingMax)
-                : (defShip?.shippingMax ?? 3),
-            deliveryType: (mData as any).deliveryType ?? deliveryType,
-            active: mData.active !== false,
-          };
-        } else {
-          markets[m.key].price = Number.isFinite(currentProduct.priceAmount)
-            ? Number(currentProduct.priceAmount)
-            : markets[m.key].price;
-          markets[m.key].currency = currentProduct.currency ?? markets[m.key].currency;
-          ((markets[m.key].shippingMin = Number.isFinite(shippingTime?.min)
+        markets[m.key] = {
+          shippingMin: Number.isFinite(shippingTime?.min)
             ? Number(shippingTime!.min)
-            : (defShip?.shippingMin ?? 1)),
-            (markets[m.key].shippingMax = Number.isFinite(shippingTime?.max)
-              ? Number(shippingTime!.max)
-              : (defShip?.shippingMax ?? 3)));
-          markets[m.key].deliveryType = deliveryType;
-        }
+            : Number.isFinite((mData as { shippingMin?: unknown })?.shippingMin)
+              ? Number((mData as { shippingMin?: unknown }).shippingMin)
+              : (defShip?.shippingMin ?? 1),
+          shippingMax: Number.isFinite(shippingTime?.max)
+            ? Number(shippingTime!.max)
+            : Number.isFinite((mData as { shippingMax?: unknown })?.shippingMax)
+              ? Number((mData as { shippingMax?: unknown }).shippingMax)
+              : (defShip?.shippingMax ?? 3),
+          deliveryType,
+        };
         const tData = (cs.cdon as any)?.texts?.[m.key] ?? (cs.fyndiq as any)?.texts?.[m.key];
         const validFor = tData?.validFor ?? { cdon: true, fyndiq: true };
         const extended = (cs as any)?.textsExtended?.[m.key];
@@ -1812,18 +1896,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   // Load lists when Produkt tab is active (for List dropdown)
   useEffect(() => {
-    if (activeTab !== 'produkt' || isBatchMode) {
+    if (activeTab !== 'produkt') {
       return;
     }
     productsApi
       .getLists()
       .then((data) => setLists(data || []))
       .catch(() => setLists([]));
-  }, [activeTab, isBatchMode]);
+  }, [activeTab]);
 
   // Load brands, suppliers, manufacturers when Detaljer tab is active
   useEffect(() => {
-    if (activeTab !== 'detaljer' || isBatchMode) {
+    if (activeTab !== 'detaljer') {
       return;
     }
     (async () => {
@@ -1842,7 +1926,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         setManufacturers([]);
       }
     })();
-  }, [activeTab, isBatchMode]);
+  }, [activeTab]);
 
   // Aggregated list for Kategorier tab: one row CDON, one row Fyndiq, then one per Woo store.
   const categoryTabInstances = React.useMemo(() => {
@@ -1893,7 +1977,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   // Fetch category lists from server cache when Kategorier tab is active (one fetch for CDON, one for Fyndiq, per Woo store).
   useEffect(() => {
-    if (activeTab !== 'kategori' || isBatchMode || !categoryTabInstances.length) {
+    if (activeTab !== 'kategori' || !categoryTabInstances.length) {
       return;
     }
     for (const inst of categoryTabInstances) {
@@ -1929,7 +2013,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         }
       })();
     }
-  }, [activeTab, isBatchMode, categoryTabInstances, getChannelCategories]);
+  }, [activeTab, categoryTabInstances, getChannelCategories]);
 
   const updateField = (
     field: keyof FormData,
@@ -2299,6 +2383,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       return;
     }
     clearValidationErrors();
+    setSaveNotice('');
 
     if (isBatchMode) {
       const saveInstances = channelInstancesAll.length > 0 ? channelInstancesAll : channelInstances;
@@ -2312,9 +2397,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         const id = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
         return id ? targetKey(ch, id) : ch;
       };
-      const effectiveSelectedKeys = Array.from(selectedTargetKeys)
+      const selectedKeysArray = Array.from(selectedTargetKeys)
         .map(normalizeKey)
         .filter((k) => enabledKeys.has(k));
+      const overrideRowsBuilt = buildOverrideRows(
+        saveInstances,
+        selectedKeysArray,
+        formData.channelCategories,
+        channelPriceOverrides,
+      );
+      const overrideRowsActive = overrideRowsBuilt.map((row) => {
+        const hasOv =
+          (row.category != null && String(row.category).trim() !== '') ||
+          row.priceAmount != null ||
+          row.salePrice != null ||
+          row.originalPrice != null;
+        return { ...row, active: row.active || hasOv };
+      });
+      const effectiveSelectedKeys = [
+        ...new Set(
+          overrideRowsActive
+            .filter((r) => r.active)
+            .map((r) => normalizeKey(targetKey(r.channel, String(r.channelInstanceId)))),
+        ),
+      ].filter((k) => enabledKeys.has(k));
       const channelTargets = effectiveSelectedKeys.map((k) => {
         const colonIdx = k.indexOf(':');
         const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
@@ -2349,21 +2455,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           };
         })
         .filter((x): x is NonNullable<typeof x> => x != null);
-      const channelOverridesToSave = buildOverrideRows(
-        saveInstances,
-        effectiveSelectedKeys,
-        formData.channelCategories,
-        channelPriceOverrides,
-      )
+      const channelOverridesToSave = overrideRowsActive
         .filter((row) => row.active)
-        .map((row) => ({
-          channelInstanceId: row.channelInstanceId,
-          active: row.active,
-          category: row.category,
-          priceAmount: row.priceAmount != null ? Number(row.priceAmount) : null,
-          salePrice: row.salePrice != null ? Number(row.salePrice) : undefined,
-          originalPrice: row.originalPrice != null ? Number(row.originalPrice) : undefined,
-        }));
+        .map((row) => {
+          const item: Record<string, string | number | boolean> = {
+            channelInstanceId: row.channelInstanceId,
+            active: row.active,
+          };
+          if (row.category != null && String(row.category).trim() !== '') {
+            item.category = row.category;
+          }
+          if (row.priceAmount != null) {
+            item.priceAmount = Number(row.priceAmount);
+          }
+          if (row.salePrice != null) {
+            item.salePrice = Number(row.salePrice);
+          }
+          if (row.originalPrice != null) {
+            item.originalPrice = Number(row.originalPrice);
+          }
+          return item;
+        });
 
       const patchOnly = collectBatchPatchChanges(initialFormStateRef.current, formData);
       const changes: Record<string, unknown> = { ...patchOnly };
@@ -2384,6 +2496,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         };
       }
       if (Object.keys(patchOnly).length === 0 && !hasChannelPayload) {
+        setSaveNotice('Inget nytt att spara.');
         return;
       }
 
@@ -2437,11 +2550,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setProductFormSaving?.(true);
     try {
       // Build API-shaped channelSpecific: shipping_time, delivery_type, title[], description[]
-      const shippingTime = MARKETS.map((m) => ({
-        market: m.key.toUpperCase(),
-        min: formData.markets[m.key].shippingMin,
-        max: formData.markets[m.key].shippingMax,
-      }));
+      const shippingTime = MARKETS.map((m) => {
+        const dd = getDefaultDelivery(m.key);
+        const smin = formData.markets[m.key].shippingMin;
+        const smax = formData.markets[m.key].shippingMax;
+        const min =
+          smin === '' || !Number.isFinite(Number(smin)) ? (dd?.shippingMin ?? 1) : Number(smin);
+        const max =
+          smax === '' || !Number.isFinite(Number(smax)) ? (dd?.shippingMax ?? 3) : Number(smax);
+        return { market: m.key.toUpperCase(), min, max };
+      });
       const cdonDeliveryType = MARKETS.filter((m) => formData.markets[m.key].deliveryType).map(
         (m) => ({ market: m.key.toUpperCase(), value: formData.markets[m.key].deliveryType }),
       );
@@ -2504,12 +2622,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const fyndiqCat = (formData.channelCategories?.fyndiq ?? '').trim()
         ? [String(formData.channelCategories!.fyndiq).trim()]
         : [];
+      const existingCdonBlock =
+        existingCs.cdon && typeof existingCs.cdon === 'object' && !Array.isArray(existingCs.cdon)
+          ? (existingCs.cdon as Record<string, unknown>)
+          : {};
+      const existingFyndiqBlock =
+        existingCs.fyndiq && typeof existingCs.fyndiq === 'object' && !Array.isArray(existingCs.fyndiq)
+          ? (existingCs.fyndiq as Record<string, unknown>)
+          : {};
+      const cdonMarketsPersisted = buildPersistedMarketsForChannel(
+        formData.markets,
+        existingCdonBlock.markets as Record<string, unknown> | undefined,
+      );
+      const fyndiqMarketsPersisted = buildPersistedMarketsForChannel(
+        formData.markets,
+        existingFyndiqBlock.markets as Record<string, unknown> | undefined,
+      );
       const channelSpecific: Record<string, unknown> = {
         ...existingCs,
         weightUnit: formData.weightUnit,
         shoeSizeEu: formData.shoeSizeEu?.trim() || null,
         cdon: {
-          markets: formData.markets,
+          ...existingCdonBlock,
+          markets: cdonMarketsPersisted,
           texts: formData.texts,
           category: cdonCat,
           shipping_time: shippingTime,
@@ -2530,7 +2665,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             }),
         },
         fyndiq: {
-          markets: formData.markets,
+          ...existingFyndiqBlock,
+          markets: fyndiqMarketsPersisted,
           texts: formData.texts,
           categories: fyndiqCat,
           shipping_time: shippingTime,
@@ -2827,6 +2963,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           handleSubmit();
         }}
       >
+        {saveNotice ? (
+          <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-foreground">
+            {saveNotice}
+          </div>
+        ) : null}
+
         <div className="flex gap-1 border-b border-gray-200 pb-0">
           {(
             [
@@ -3077,9 +3219,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               type="text"
                               value={String(data.shippingMin)}
                               onChange={(e) => {
-                                const n =
-                                  e.target.value === '' ? NaN : parseInt(e.target.value, 10);
-                                updateMarket(m.key, 'shippingMin', Number.isFinite(n) ? n : 1);
+                                const raw = e.target.value;
+                                if (raw.trim() === '') {
+                                  updateMarket(m.key, 'shippingMin', '');
+                                  return;
+                                }
+                                const n = parseInt(raw, 10);
+                                updateMarket(m.key, 'shippingMin', Number.isFinite(n) ? n : '');
                               }}
                               placeholder="1"
                               className="h-8 w-20"
@@ -3091,9 +3237,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               type="text"
                               value={String(data.shippingMax)}
                               onChange={(e) => {
-                                const n =
-                                  e.target.value === '' ? NaN : parseInt(e.target.value, 10);
-                                updateMarket(m.key, 'shippingMax', Number.isFinite(n) ? n : 3);
+                                const raw = e.target.value;
+                                if (raw.trim() === '') {
+                                  updateMarket(m.key, 'shippingMax', '');
+                                  return;
+                                }
+                                const n = parseInt(raw, 10);
+                                updateMarket(m.key, 'shippingMax', Number.isFinite(n) ? n : '');
                               }}
                               placeholder="3"
                               className="h-8 w-20"

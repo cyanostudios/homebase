@@ -297,6 +297,7 @@ class WooCommerceApi {
     consumerKey: string;
     consumerSecret: string;
     useQueryAuth?: boolean;
+    textMarket?: 'se' | 'dk' | 'fi' | 'no';
   }): Promise<{
     ok: boolean;
     instance: {
@@ -330,6 +331,7 @@ class WooCommerceApi {
       consumerKey?: string;
       consumerSecret?: string;
       useQueryAuth?: boolean;
+      textMarket?: 'se' | 'dk' | 'fi' | 'no';
     },
   ): Promise<{
     ok: boolean;

@@ -4,6 +4,29 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-02 – WooCommerce texter per butik; produktimport till `textsExtended`; importvy (routing)
+
+### WooCommerce
+
+- **Migration `087-woocommerce-instance-text-market.sql`:** sätter `channel_instances.market = 'se'` för Woo-rader där `market` saknas (tom sträng inkluderad).
+- **Instans:** kolumn **`market`** (API **`textMarket`**) styr vilken **`channelSpecific.textsExtended[se|dk|fi|no]`** som matar Woo **name**, **description** och valfri SEO i export. Ingen fallback till `products.title` / huvudbeskrivning.
+- **Export:** validering (`validateWooExportTextsForWoo`); variabla produkter använder samma texter för parent; **`mapProductToWoo`** bygger kundtext från **`wooTexts`** ( vald marknad ).
+- **API:** POST/PUT `/api/woocommerce-products/instances` med valfri **`textMarket`** (`se`|`dk`|`fi`|`no`).
+- **Klient:** `WooSettingsForm` (marknadsval), `WooCommerceContext`, `WooExportPanel` (edit), typer och API.
+
+### Produkter – CSV/XLSX-import (icke-Sello)
+
+- Kolumner **`title.se`**, **`description.se`**, samma för **`.dk` / `.fi` / `.no`** (punkt i rubrik) mappas till **`channelSpecific.textsExtended`**. Generiska **`title`** / **`description`** ignoreras.
+- **Standard** för katalog **`title`** / **`description`** och **`textsStandard`:** **`se`** om kolumnen **`textsStandard`** saknas; valfri kolumn kan sätta t.ex. **`fi`** (då krävs kompletta texter för den marknaden). Vid fel: **`standard_market_texts_incomplete`** (med **`market`** i svaret där relevant).
+- **Importmall (kanaler):** `plugins/channels/model.js` **`buildImportTemplateCsv`** – kolumner per land + **`textsStandard`**.
+
+### Övrigt (samma release)
+
+- **plugins/products/model.js**, **batchSyncJobRunner.js**, **cdon/fyndiq mapTo\*Article**, **ProductForm** / **ProductContext** / **AppContext:** tillhörande justeringar i samma branch.
+- **Klient:** produktimport flyttad från modal till **dedikerad vy** **`products-import`** (knappen **Import** på produktlistan öppnar vyn). Routning: **`NavPage` `products-import`**, **`panelRendering`** → **`ProductImportPage`**, **`registerAppNavigate`** i **`MainLayout`**, **`isEcommerceCatalogBootstrapPage`**, sidtitel/ikon i **`App`** / **`TopBar`**, **`Sidebar`** markerar **Products** som aktiv på importsidan.
+
+---
+
 ## 2026-03-29 – Homebase v3.2.2: batch-synk (async jobb), Synkstatus, `expectedUpdatedAt`
 
 **Release:** npm-version **3.2.2**, branch **Homebase-V3.2.2**.

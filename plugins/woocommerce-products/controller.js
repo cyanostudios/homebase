@@ -202,13 +202,21 @@ class WooCommerceController {
 
   async createInstance(req, res) {
     try {
-      const { instanceKey, label, storeUrl, consumerKey, consumerSecret, useQueryAuth } =
-        req.body || {};
+      const {
+        instanceKey,
+        label,
+        storeUrl,
+        consumerKey,
+        consumerSecret,
+        useQueryAuth,
+        textMarket,
+      } = req.body || {};
       const finalLabel = this.requireStoreLabel(label);
 
       const instance = await this.model.upsertInstance(req, {
         instanceKey,
         label: finalLabel,
+        textMarket,
         credentials: {
           storeUrl,
           consumerKey,
@@ -236,7 +244,8 @@ class WooCommerceController {
   async updateInstance(req, res) {
     try {
       const instanceId = req.params?.id;
-      const { label, storeUrl, consumerKey, consumerSecret, useQueryAuth } = req.body || {};
+      const { label, storeUrl, consumerKey, consumerSecret, useQueryAuth, textMarket } =
+        req.body || {};
 
       const existing = await this.model.getInstanceById(req, instanceId);
       if (!existing) {
@@ -258,6 +267,7 @@ class WooCommerceController {
       const instance = await this.model.upsertInstance(req, {
         instanceKey: existing.instanceKey,
         label: finalLabel,
+        textMarket: textMarket !== undefined ? textMarket : existing.market,
         credentials: updatedCreds,
       });
 
@@ -404,6 +414,7 @@ class WooCommerceController {
         const settings = instance.credentials;
         const instanceId = instance.id;
         const base = this.normalizeBaseUrl(settings.storeUrl);
+        const textMarket = this.model.normalizeWooTextMarket(instance.market);
 
         const mapByProductId = await this.model.getChannelMapForProducts(
           req,
@@ -428,12 +439,44 @@ class WooCommerceController {
           const variationType = String(
             groupProducts[0]?.groupVariationType || 'color',
           ).toLowerCase();
+          const mainProduct =
+            groupProducts.find(
+              (p) => !p.parentProductId || String(p.parentProductId).trim() === '',
+            ) || groupProducts[0];
+          const vMain = this.validateWooExportTextsForWoo(mainProduct, textMarket);
+          if (!vMain.ok) {
+            for (const p of groupProducts) {
+              const pid = String(p?.id || '');
+              await this.model.upsertChannelMap(req, {
+                productId: pid,
+                channel,
+                channelInstanceId: instanceId,
+                externalId: null,
+                status: 'error',
+                error: vMain.message,
+              });
+              items.push({
+                productId: pid,
+                sku: `V${p?.id ?? ''}`,
+                status: 'validation_error',
+                reason: vMain.code,
+                error: vMain.message,
+              });
+              aggregated.counts.error += 1;
+            }
+            continue;
+          }
+          const parentTexts = {
+            name: String(vMain.tx.name ?? '').trim(),
+            description: String(vMain.tx.description ?? ''),
+          };
           const variableResult = await this.ensureWooVariableProduct(
             base,
             settings,
             groupId,
             groupProducts,
             instanceCategories,
+            parentTexts,
           );
           if (!variableResult?.wooParentId) {
             for (const p of groupProducts) {
@@ -561,9 +604,23 @@ class WooCommerceController {
             aggregated.counts.error += 1;
             continue;
           }
+          const vText = this.validateWooExportTextsForWoo(p, textMarket);
+          if (!vText.ok) {
+            standaloneValidationErrors.set(pid, {
+              productId: pid,
+              sku: exportSku,
+              status: 'validation_error',
+              reason: vText.code,
+              error: vText.message,
+            });
+            aggregated.counts.error += 1;
+            continue;
+          }
           const payload = this.mapProductToWoo(p, instanceCategories.get(pid) || [], {
             priceAmount: ov?.priceAmount != null ? Number(ov.priceAmount) : undefined,
             salePrice: ov?.salePrice != null ? Number(ov.salePrice) : undefined,
+            textMarket,
+            wooTexts: vText.tx,
           });
           const mappedId =
             mapByProductId.get(pid) || (exportSku ? existingBySku.get(exportSku) : null);
@@ -1709,6 +1766,7 @@ class WooCommerceController {
     groupId,
     groupProducts,
     overrideCategoriesByProductId,
+    parentTexts,
   ) {
     const existing = await this.findWooProductBySku(base, groupId, settings);
     if (existing?.id && existing.type === 'variable') {
@@ -1740,9 +1798,9 @@ class WooCommerceController {
     const payload = {
       type: 'variable',
       sku: groupId,
-      name: mainProduct?.title ?? 'Variable product',
+      name: String(parentTexts?.name ?? '').trim(),
       status: this.mapStatusToWoo(mainProduct?.status),
-      description: mainProduct?.description ?? '',
+      description: parentTexts?.description ?? '',
       manage_stock: false,
       attributes: [
         {
@@ -1892,8 +1950,51 @@ class WooCommerceController {
     return 'for sale';
   }
 
+  /**
+   * Woo export uses only channelSpecific.textsExtended[market] for customer-facing text for that store.
+   * No fallback to products.title/description. Meta fields are optional.
+   */
+  validateWooExportTextsForWoo(product, textMarket) {
+    const mk = this.model.normalizeWooTextMarket(textMarket);
+    const cs =
+      product?.channelSpecific && typeof product.channelSpecific === 'object'
+        ? product.channelSpecific
+        : {};
+    const textsExtended =
+      cs.textsExtended && typeof cs.textsExtended === 'object' ? cs.textsExtended : {};
+    const tx = textsExtended[mk];
+    if (!tx || typeof tx !== 'object') {
+      return {
+        ok: false,
+        code: 'missing_woo_texts',
+        message: `No Texter for market "${mk}" (title and description required for this Woo store).`,
+      };
+    }
+    const name = String(tx.name ?? '').trim();
+    const descHtml = String(tx.description ?? '').trim();
+    const descPlain = descHtml
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!name) {
+      return {
+        ok: false,
+        code: 'missing_woo_title',
+        message: `Missing product title in Texter for market "${mk}" (required for Woo export).`,
+      };
+    }
+    if (!descPlain) {
+      return {
+        ok: false,
+        code: 'missing_woo_description',
+        message: `Missing product description in Texter for market "${mk}" (required for Woo export).`,
+      };
+    }
+    return { ok: true, tx };
+  }
+
   // Transform MVP Product -> Woo product payload
-  // options: { priceAmount?: number, salePrice?: number } for per-instance override (regular_price, sale_price)
+  // options: { priceAmount?, salePrice?, textMarket, wooTexts } — wooTexts = textsExtended slice for the instance language
   mapProductToWoo(p, overrideCategories = [], options = {}) {
     const images = [];
     if (p?.mainImage && isValidImageUrl(p.mainImage)) images.push({ src: p.mainImage });
@@ -1914,15 +2015,10 @@ class WooCommerceController {
     const materialVal = (p?.material ?? '').trim();
     if (materialVal) attrs.push({ name: 'material', options: [materialVal] });
 
-    const cs = p?.channelSpecific && typeof p.channelSpecific === 'object' ? p.channelSpecific : {};
-    const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
-      String(cs.textsStandard || '').toLowerCase(),
-    )
-      ? String(cs.textsStandard).toLowerCase()
-      : 'se';
-    const textsExtended =
-      cs.textsExtended && typeof cs.textsExtended === 'object' ? cs.textsExtended : {};
-    const standardText = textsExtended[standardMarket] || textsExtended.se || {};
+    const wooTexts =
+      options.wooTexts && typeof options.wooTexts === 'object' ? options.wooTexts : {};
+    const name = String(wooTexts.name ?? '').trim();
+    const description = String(wooTexts.description ?? '').trim();
 
     const metaData = [];
     const ean = (p?.ean ?? '').trim();
@@ -1931,11 +2027,11 @@ class WooCommerceController {
     if (ean) metaData.push({ key: 'ean', value: ean });
     if (gtin) metaData.push({ key: 'gtin', value: gtin });
     if (mpn) metaData.push({ key: 'mpn', value: mpn });
-    const titleSeo = (standardText.titleSeo ?? '').trim();
+    const titleSeo = String(wooTexts.titleSeo ?? '').trim();
     if (titleSeo) metaData.push({ key: 'seo_title', value: titleSeo });
-    const metaDesc = (standardText.metaDesc ?? '').trim();
+    const metaDesc = String(wooTexts.metaDesc ?? '').trim();
     if (metaDesc) metaData.push({ key: 'seo_meta_desc', value: metaDesc });
-    const metaKw = (standardText.metaKeywords ?? '').trim();
+    const metaKw = String(wooTexts.metaKeywords ?? '').trim();
     if (metaKw) metaData.push({ key: 'seo_meta_keywords', value: metaKw });
     const conditionValue =
       p?.condition === 'refurb' ? 'refurbished' : p?.condition === 'used' ? 'used' : 'new';
@@ -1952,9 +2048,9 @@ class WooCommerceController {
         ? String(options.salePrice)
         : undefined;
 
-    const description = p?.description ?? '';
     const shortDescription =
-      metaDesc || (description.length > 160 ? description.slice(0, 157) + '...' : description);
+      metaDesc ||
+      (description.length > 160 ? description.slice(0, 157) + '...' : description);
 
     const weightUnit = (p?.channelSpecific?.weightUnit ?? 'g').toString().trim().toLowerCase();
     const weightKg =
@@ -1988,7 +2084,7 @@ class WooCommerceController {
 
     return {
       sku: p?.id != null ? String(p.id) : null,
-      name: p?.title ?? '',
+      name,
       status: this.mapStatusToWoo(p?.status),
       regular_price: regularPrice,
       ...(salePrice != null ? { sale_price: salePrice } : {}),

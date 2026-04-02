@@ -18,12 +18,13 @@ import {
 } from '@/core/navigation/appCurrentPageStore';
 
 import { woocommerceApi } from '../api/woocommerceApi';
-import type {
-  WooSettings,
-  WooTestResult,
-  WooExportResult,
-  MvpProduct,
-  ValidationError,
+import {
+  normalizeWooTextMarket,
+  type WooSettings,
+  type WooTestResult,
+  type WooExportResult,
+  type MvpProduct,
+  type ValidationError,
 } from '../types/woocommerce';
 
 type WooInstance = {
@@ -228,6 +229,7 @@ export function WooCommerceProvider({
           consumerSecret: String(raw.consumerSecret),
           useQueryAuth: !!raw.useQueryAuth,
           label: raw.label || undefined,
+          textMarket: raw.textMarket,
         });
         saved = {
           id: result.instance.id,
@@ -239,6 +241,7 @@ export function WooCommerceProvider({
           updatedAt: result.instance.updatedAt ? new Date(result.instance.updatedAt) : null,
           label: result.instance.label || undefined,
           instanceKey: result.instance.instanceKey || undefined,
+          textMarket: normalizeWooTextMarket(result.instance.market),
         } as any;
       } else {
         // Creating a new instance (multi-store). Generate instanceKey from store URL if not provided.
@@ -259,6 +262,7 @@ export function WooCommerceProvider({
           consumerKey: String(raw.consumerKey),
           consumerSecret: String(raw.consumerSecret),
           useQueryAuth: !!raw.useQueryAuth,
+          textMarket: raw.textMarket,
         });
         saved = {
           id: result.instance.id,
@@ -270,6 +274,7 @@ export function WooCommerceProvider({
           updatedAt: result.instance.updatedAt ? new Date(result.instance.updatedAt) : null,
           label: result.instance.label || undefined,
           instanceKey: result.instance.instanceKey || undefined,
+          textMarket: normalizeWooTextMarket(result.instance.market),
         } as any;
       }
 

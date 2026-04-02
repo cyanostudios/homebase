@@ -2,6 +2,8 @@
 
 import React from 'react';
 
+import { ProductImportPage } from '@/plugins/products/components/ProductImportPage';
+
 // --- helpers: hyphen-safe singular + capitalization ---
 const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 const singularCap = (pluginName: string) => {
@@ -77,6 +79,10 @@ export const createPanelRenderers = (
   };
 
   const renderCurrentPage = (currentPage: string, PLUGIN_REGISTRY: any[]) => {
+    if (currentPage === 'products-import') {
+      return <ProductImportPage />;
+    }
+
     const plugin = PLUGIN_REGISTRY.find((p) => p.name === currentPage);
     if (!plugin) {
       return <div>Plugin not found</div>;

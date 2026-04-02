@@ -235,6 +235,9 @@ export function TopBar({
     if (currentPage === 'settings') {
       return 'Settings';
     }
+    if (currentPage === 'products-import') {
+      return 'Importera produkter';
+    }
 
     for (const plugin of PLUGIN_REGISTRY) {
       if (plugin.name === currentPage && plugin.navigation?.label) {

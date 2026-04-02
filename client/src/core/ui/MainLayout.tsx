@@ -1,5 +1,7 @@
 import { type LucideIcon } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
+import { registerAppNavigate } from '@/core/navigation/navigateToPage';
 
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
@@ -50,6 +52,11 @@ export function MainLayout({
   const handlePageChange = (page: NavPage) => {
     onPageChange(page);
   };
+
+  useEffect(() => {
+    registerAppNavigate(onPageChange);
+    return () => registerAppNavigate(null);
+  }, [onPageChange]);
 
   return (
     <div className="min-h-screen bg-muted">

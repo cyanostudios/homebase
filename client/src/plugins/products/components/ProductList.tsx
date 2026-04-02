@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { navigateToPage } from '@/core/navigation/navigateToPage';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { buildListPaginationItems } from '@/core/utils/listPagination';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -85,6 +86,187 @@ const VARIATION_TYPE_LABEL: Record<string, string> = {
   model: 'Modell',
 };
 
+const VARIANT_GROUP_PALETTES = [
+  {
+    rowBg: 'bg-emerald-50/95 dark:bg-emerald-950/35',
+    rowHover: 'hover:bg-emerald-100/80 dark:hover:bg-emerald-950/45',
+    border: 'border-emerald-400',
+    accent: 'border-emerald-400',
+  },
+  {
+    rowBg: 'bg-sky-50/95 dark:bg-sky-950/35',
+    rowHover: 'hover:bg-sky-100/80 dark:hover:bg-sky-950/45',
+    border: 'border-sky-400',
+    accent: 'border-sky-400',
+  },
+  {
+    rowBg: 'bg-amber-50/95 dark:bg-amber-950/35',
+    rowHover: 'hover:bg-amber-100/80 dark:hover:bg-amber-950/45',
+    border: 'border-amber-400',
+    accent: 'border-amber-400',
+  },
+  {
+    rowBg: 'bg-violet-50/95 dark:bg-violet-950/35',
+    rowHover: 'hover:bg-violet-100/80 dark:hover:bg-violet-950/45',
+    border: 'border-violet-400',
+    accent: 'border-violet-400',
+  },
+  {
+    rowBg: 'bg-rose-50/95 dark:bg-rose-950/35',
+    rowHover: 'hover:bg-rose-100/80 dark:hover:bg-rose-950/45',
+    border: 'border-rose-400',
+    accent: 'border-rose-400',
+  },
+  {
+    rowBg: 'bg-cyan-50/95 dark:bg-cyan-950/35',
+    rowHover: 'hover:bg-cyan-100/80 dark:hover:bg-cyan-950/45',
+    border: 'border-cyan-400',
+    accent: 'border-cyan-400',
+  },
+] as const;
+
+/** Stable palette index from groupId so neighbouring groups get different colours. */
+function hashVariantGroupPaletteIndex(groupKey: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < groupKey.length; i++) {
+    h ^= groupKey.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h) % VARIANT_GROUP_PALETTES.length;
+}
+
+function getSortComparable(p: Record<string, unknown>, field: SortField): number | string {
+  switch (field) {
+    case 'id':
+      return Number(p.id) || 0;
+    case 'title':
+      return String(p.title || '').toLowerCase();
+    case 'quantity':
+      return Number(p.quantity) || 0;
+    case 'priceAmount':
+      return Number(p.priceAmount) || 0;
+    case 'sku':
+      return String(p.sku || '').toLowerCase();
+    default:
+      return 0;
+  }
+}
+
+function cmpSort(a: number | string, b: number | string, order: SortOrder): number {
+  if (typeof a === 'string' || typeof b === 'string') {
+    const sa = String(a);
+    const sb = String(b);
+    return order === 'asc' ? sa.localeCompare(sb) : sb.localeCompare(sa);
+  }
+  const na = Number(a);
+  const nb = Number(b);
+  return order === 'asc' ? na - nb : nb - na;
+}
+
+function sortRowsByField(rows: Record<string, unknown>[], field: SortField, order: SortOrder) {
+  return [...rows].sort((x, y) =>
+    cmpSort(getSortComparable(x, field), getSortComparable(y, field), order),
+  );
+}
+
+function aggregateGroupRank(
+  values: (number | string)[],
+  order: SortOrder,
+): number | string {
+  if (values.length === 0) return 0;
+  if (typeof values[0] === 'string') {
+    const strs = values as string[];
+    return order === 'asc'
+      ? strs.reduce((a, b) => (a < b ? a : b))
+      : strs.reduce((a, b) => (a > b ? a : b));
+  }
+  const nums = values as number[];
+  return order === 'asc' ? Math.min(...nums) : Math.max(...nums);
+}
+
+/**
+ * Reorder current page so variant groups (≥2 products with same groupId) stay contiguous:
+ * groups are ordered by min/max of the active sort column (same as list sort direction),
+ * members within a group follow the same sort.
+ */
+function clusterCatalogRowsByVariantGroup(
+  rows: Record<string, unknown>[],
+  sortField: SortField,
+  sortOrder: SortOrder,
+): Record<string, unknown>[] {
+  if (rows.length <= 1) return rows;
+  const counts = new Map<string, number>();
+  for (const p of rows) {
+    const g = p.groupId != null && String(p.groupId).trim() ? String(p.groupId).trim() : '';
+    if (g) counts.set(g, (counts.get(g) ?? 0) + 1);
+  }
+  const multi = new Set<string>();
+  for (const [g, c] of counts.entries()) {
+    if (c >= 2) multi.add(g);
+  }
+
+  const groupBuckets = new Map<string, Record<string, unknown>[]>();
+  const standalone: Record<string, unknown>[] = [];
+  for (const p of rows) {
+    const g = p.groupId != null && String(p.groupId).trim() ? String(p.groupId).trim() : '';
+    if (g && multi.has(g)) {
+      const arr = groupBuckets.get(g) ?? [];
+      arr.push(p);
+      groupBuckets.set(g, arr);
+    } else {
+      standalone.push(p);
+    }
+  }
+
+  type Seg =
+    | { kind: 'group'; gid: string; rank: number | string; rows: Record<string, unknown>[] }
+    | { kind: 'solo'; rank: number | string; row: Record<string, unknown> };
+
+  const segments: Seg[] = [];
+  for (const [gid, members] of groupBuckets.entries()) {
+    const sortedMembers = sortRowsByField(members, sortField, sortOrder);
+    const vals = members.map((m) => getSortComparable(m, sortField));
+    const rank = aggregateGroupRank(vals, sortOrder);
+    segments.push({ kind: 'group', gid, rank, rows: sortedMembers });
+  }
+  for (const p of standalone) {
+    segments.push({ kind: 'solo', rank: getSortComparable(p, sortField), row: p });
+  }
+
+  segments.sort((a, b) => {
+    const c = cmpSort(a.rank, b.rank, sortOrder);
+    if (c !== 0) return c;
+    const ida = a.kind === 'group' ? a.gid : String(a.row.id);
+    const idb = b.kind === 'group' ? b.gid : String(b.row.id);
+    return String(ida).localeCompare(String(idb));
+  });
+
+  const out: Record<string, unknown>[] = [];
+  for (const s of segments) {
+    if (s.kind === 'group') out.push(...s.rows);
+    else out.push(s.row);
+  }
+  return out;
+}
+
+function variantGroupRowChrome(
+  gi: { isFirst: boolean; isLast: boolean },
+  rowIndex: number,
+  borderClass: string,
+): string {
+  const gap = gi.isFirst && rowIndex > 0 ? 'mt-2.5' : '';
+  if (gi.isFirst && gi.isLast) {
+    return `${gap} border-2 ${borderClass} rounded-lg`;
+  }
+  if (gi.isFirst) {
+    return `${gap} border-t-2 border-x-2 ${borderClass} rounded-t-lg`;
+  }
+  if (gi.isLast) {
+    return `border-b-2 border-x-2 ${borderClass} rounded-b-lg`;
+  }
+  return `border-x-2 ${borderClass}`;
+}
+
 export const ProductList: React.FC = () => {
   const {
     products,
@@ -107,8 +289,6 @@ export const ProductList: React.FC = () => {
     resyncProducts,
     // Group products (variant group)
     groupProducts,
-    // Import
-    importProducts,
   } = useProducts();
 
   const { settings: cdonSettings } = useCdonProducts();
@@ -286,13 +466,7 @@ export const ProductList: React.FC = () => {
   } | null>(null);
   const [quantityDialogInput, setQuantityDialogInput] = useState('1');
 
-  // Import-modal state
-  const [showImportModal, setShowImportModal] = useState(false);
   const [showProductSettings, setShowProductSettings] = useState(false);
-  const [importMode, setImportMode] = useState<'update-only' | 'create-only' | 'upsert'>('upsert');
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [lastImportResult, setLastImportResult] = useState<any | null>(null);
 
   useEffect(() => {
     const checkScreenSize = () => setIsMobileView(window.innerWidth < 768);
@@ -395,8 +569,15 @@ export const ProductList: React.FC = () => {
     };
   };
 
-  /** Current page rows (search/sort/filter are applied server-side). */
-  const displayRows = useMemo(() => products.map(normalize), [products]);
+  /** Current page rows (search/sort/filter are applied server-side), then variant groups clustered for display. */
+  const displayRows = useMemo((): ReturnType<typeof normalize>[] => {
+    const normalized = products.map(normalize);
+    return clusterCatalogRowsByVariantGroup(
+      normalized as unknown as Record<string, unknown>[],
+      sortField,
+      sortOrder,
+    ) as ReturnType<typeof normalize>[];
+  }, [products, sortField, sortOrder]);
 
   const totalPages = limit > 0 ? Math.ceil(totalProducts / limit) || 1 : 1;
   const currentPage = limit > 0 ? Math.floor(offset / limit) + 1 : 1;
@@ -623,27 +804,6 @@ export const ProductList: React.FC = () => {
     }
   };
 
-  const runImportFlow = async () => {
-    if (!importFile) {
-      return;
-    }
-    setImporting(true);
-    try {
-      const resp = await importProducts(importFile, importMode);
-      setLastImportResult(resp);
-      // After import, selection may be stale
-      clearProductSelection();
-    } catch (err: any) {
-      console.error('Import failed:', err);
-      setLastImportResult({
-        ok: false,
-        error: String(err?.message || err?.error || err),
-      });
-    } finally {
-      setImporting(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -773,10 +933,7 @@ export const ProductList: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => {
-                setLastImportResult(null);
-                setImportFile(null);
-                setImportMode('upsert');
-                setShowImportModal(true);
+                attemptNavigation(() => navigateToPage('products-import'));
               }}
             >
               <Upload className="w-4 h-4 mr-2" />
@@ -1013,7 +1170,7 @@ export const ProductList: React.FC = () => {
 
       <Card className="shadow-none">
         {!isMobileView ? (
-          <Table>
+          <Table className="border-separate border-spacing-0">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-5 p-0" aria-hidden />
@@ -1090,21 +1247,46 @@ export const ProductList: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                displayRows.map((p: any) => {
+                displayRows.map((p: any, rowIndex: number) => {
                   const raw = p.raw;
                   const isSelected = selectedProductIds.includes(p.id);
                   const groupInfo = getGroupInfo(p);
+                  const pal =
+                    groupInfo != null
+                      ? VARIANT_GROUP_PALETTES[hashVariantGroupPaletteIndex(groupInfo.key)]
+                      : null;
+                  const chrome =
+                    groupInfo != null && pal != null
+                      ? variantGroupRowChrome(groupInfo, rowIndex, pal.border)
+                      : '';
+                  const rowBg =
+                    groupInfo != null && pal != null
+                      ? `${pal.rowBg} ${pal.rowHover}`
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-900/50';
                   return (
-                    <TableRow
-                      key={p.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-900/50 ${groupInfo ? 'bg-emerald-50 dark:bg-emerald-950/40' : ''}`}
-                      data-list-item={JSON.stringify(raw)}
-                      data-plugin-name="products"
-                    >
-                      <TableCell
-                        className={`w-5 p-0 align-top ${groupInfo ? 'border-l-2 border-emerald-400' : ''}`}
-                        aria-hidden
-                      />
+                    <React.Fragment key={p.id}>
+                      {groupInfo?.isFirst && rowIndex > 0 ? (
+                        <TableRow
+                          className="h-2.5 border-0 hover:bg-transparent pointer-events-none"
+                          aria-hidden
+                        >
+                          <TableCell
+                            colSpan={8}
+                            className="h-2.5 border-0 bg-transparent p-0"
+                          />
+                        </TableRow>
+                      ) : null}
+                      <TableRow
+                        className={`${rowBg} ${chrome} ${
+                          groupInfo == null ? '[&>td]:border-b [&>td]:border-gray-200' : ''
+                        }`}
+                        data-list-item={JSON.stringify(raw)}
+                        data-plugin-name="products"
+                      >
+                        <TableCell
+                          className={`w-5 p-0 align-top ${groupInfo != null && pal != null ? `border-l-2 ${pal.accent}` : ''}`}
+                          aria-hidden
+                        />
                       <TableCell className={`w-12 ${groupInfo ? 'pl-3' : ''}`}>
                         <input
                           type="checkbox"
@@ -1186,6 +1368,7 @@ export const ProductList: React.FC = () => {
                         </div>
                       </TableCell>
                     </TableRow>
+                    </React.Fragment>
                   );
                 })
               )}
@@ -1202,14 +1385,29 @@ export const ProductList: React.FC = () => {
                   : 'No products yet. Click "Add Product" to get started.'}
               </div>
             ) : (
-              displayRows.map((p: any) => {
+              displayRows.map((p: any, rowIndex: number) => {
                 const isSelected = selectedProductIds.includes(p.id);
                 const groupInfo = getGroupInfo(p);
+                const pal =
+                  groupInfo != null
+                    ? VARIANT_GROUP_PALETTES[hashVariantGroupPaletteIndex(groupInfo.key)]
+                    : null;
+                const chrome =
+                  groupInfo != null && pal != null
+                    ? variantGroupRowChrome(groupInfo, rowIndex, pal.border)
+                    : '';
+                const rowBg =
+                  groupInfo != null && pal != null
+                    ? pal.rowBg
+                    : '';
                 return (
-                  <div
-                    key={p.id}
-                    className={`p-4 ${groupInfo ? 'border-l-4 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 pl-3' : ''}`}
-                  >
+                  <React.Fragment key={p.id}>
+                    {groupInfo?.isFirst && rowIndex > 0 ? (
+                      <div className="h-2.5 shrink-0" aria-hidden />
+                    ) : null}
+                    <div
+                      className={`p-4 ${rowBg} ${chrome} ${groupInfo != null && pal != null ? 'pl-3' : 'border-b border-border'}`}
+                    >
                     <div className="flex items-start gap-3">
                       <div className="pt-1">
                         <input
@@ -1289,6 +1487,7 @@ export const ProductList: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                  </React.Fragment>
                 );
               })
             )}
@@ -1619,122 +1818,6 @@ export const ProductList: React.FC = () => {
                   }}
                 >
                   {publishing ? 'Publishing…' : 'Publish'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Import-modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => {
-              if (!importing) {
-                setShowImportModal(false);
-              }
-            }}
-          />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
-            <div className="bg-white rounded-xl shadow-xl border">
-              <div className="p-4 border-b">
-                <h3 className="mb-0 text-lg font-semibold">Import products</h3>
-                <div className="text-xs text-gray-500">
-                  Upload a .csv or .xlsx file and choose how to apply it.
-                </div>
-              </div>
-
-              <div className="p-4 space-y-4">
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Mode</div>
-                  <select
-                    className="w-full border rounded-md px-3 py-2 text-sm"
-                    value={importMode}
-                    onChange={(e) => setImportMode(e.target.value as any)}
-                    disabled={importing}
-                  >
-                    <option value="upsert">Upsert (update if SKU exists, else create)</option>
-                    <option value="update-only">Update-only (skip new SKUs)</option>
-                    <option value="create-only">Create-only (skip existing SKUs)</option>
-                  </select>
-                  <div className="text-xs text-gray-500">
-                    SKU is always required. For new products, Title is required.
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">File</div>
-                  <input
-                    type="file"
-                    accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    disabled={importing}
-                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                  />
-                  {importFile && (
-                    <div className="text-xs text-gray-600">
-                      Selected: <span className="font-mono">{importFile.name}</span>
-                    </div>
-                  )}
-                </div>
-
-                {lastImportResult && (
-                  <div className="rounded-md border p-3 text-sm">
-                    {lastImportResult.ok === false ? (
-                      <div className="text-red-700">
-                        Import failed: {String(lastImportResult.error || 'Unknown error')}
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <div className="font-medium">Import result</div>
-                        <div className="text-xs text-gray-600">
-                          Mode: {lastImportResult.mode} · Rows: {lastImportResult.totalRows}
-                        </div>
-                        <div>
-                          Created: {lastImportResult.created} · Updated: {lastImportResult.updated}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Missing SKU:{' '}
-                          {Array.isArray(lastImportResult.skippedMissingSku)
-                            ? lastImportResult.skippedMissingSku.length
-                            : 0}
-                          {' · '}
-                          Invalid:{' '}
-                          {Array.isArray(lastImportResult.skippedInvalid)
-                            ? lastImportResult.skippedInvalid.length
-                            : 0}
-                          {' · '}
-                          Conflicts:{' '}
-                          {Array.isArray(lastImportResult.conflicts)
-                            ? lastImportResult.conflicts.length
-                            : 0}
-                          {' · '}
-                          Not found:{' '}
-                          {Array.isArray(lastImportResult.notFound)
-                            ? lastImportResult.notFound.length
-                            : 0}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 border-t flex items-center justify-end gap-2">
-                <button
-                  className="px-3 py-1.5 rounded-md border text-sm"
-                  onClick={() => setShowImportModal(false)}
-                  disabled={importing}
-                >
-                  Close
-                </button>
-                <button
-                  className="px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm disabled:opacity-50"
-                  disabled={importing || !importFile}
-                  onClick={runImportFlow}
-                >
-                  {importing ? 'Importing…' : 'Import'}
                 </button>
               </div>
             </div>

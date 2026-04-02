@@ -1,9 +1,10 @@
 // plugins/fyndiq-products/mapToFyndiqArticle.js
 // Builds a Fyndiq Merchants API create/update article payload from product + overrides + default language.
 // Uses only fields and shapes from docs/FYNDIQ_API_DOCUMENTATION.md. No guessing.
-// Fyndiq requires plain text without HTML for title and description.
+// NOTE: We keep description line breaks using "<br>" so Fyndiq storefront renders paragraphs consistently.
 
 const { htmlToPlainText } = require('../../server/core/utils/htmlToPlainText');
+const { htmlToLineBreakHtml } = require('../../server/core/utils/htmlToLineBreakHtml');
 
 const DEFAULT_CURRENCY_BY_MARKET = { SE: 'SEK', DK: 'DKK', FI: 'EUR', NO: 'NOK' };
 
@@ -167,8 +168,10 @@ function mapProductToFyndiqArticle(product, overridesByMarket, defaultLanguage) 
   }
   if (!titleArr || titleArr.length === 0) return null;
 
-  // Description: per language from textsExtended + textsStandard, else products.description.
-  const baseDesc = htmlToPlainText(product?.description != null ? String(product.description) : '');
+  // Description: keep line breaks via <br> for storefront rendering.
+  const baseDesc = htmlToLineBreakHtml(
+    product?.description != null ? String(product.description) : '',
+  );
   let descriptionArr = null;
   if (textsExtended && typeof textsExtended === 'object') {
     const arr = [];
@@ -178,7 +181,7 @@ function mapProductToFyndiqArticle(product, overridesByMarket, defaultLanguage) 
       const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
       if (seen.has(lang)) continue;
       const t = textsExtended[mk];
-      const value = htmlToPlainText(t?.description || standardText?.description || '').slice(
+      const value = htmlToLineBreakHtml(t?.description || standardText?.description || '').slice(
         0,
         4096,
       );
@@ -318,6 +321,21 @@ function mapProductToFyndiqArticle(product, overridesByMarket, defaultLanguage) 
     if (props.length > 0) payload.properties = mergeProperties(numericalProps, props);
   } else if (numericalProps.length > 0) {
     payload.properties = numericalProps;
+  }
+  // Fyndiq properties: preset-pattern / fritext — same `name: pattern` as CDON (properties.json / Merchants API)
+  const langPat = defaultLanguage || 'sv-SE';
+  const presetP = product?.pattern != null && String(product.pattern).trim();
+  const freeP = product?.patternText != null && String(product.patternText).trim();
+  const patternVal =
+    presetP ? String(presetP).trim() : freeP ? String(freeP).trim() : null;
+  if (patternVal) {
+    const cur = Array.isArray(payload.properties) ? payload.properties : [];
+    if (!cur.some((p) => p?.name === 'pattern')) {
+      payload.properties = mergeProperties(numericalProps, [
+        ...cur,
+        { name: 'pattern', value: patternVal.slice(0, 100), language: langPat },
+      ]);
+    }
   }
   if (fyndiq.variational_properties && Array.isArray(fyndiq.variational_properties)) {
     payload.variational_properties = fyndiq.variational_properties;

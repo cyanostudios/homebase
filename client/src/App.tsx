@@ -225,6 +225,9 @@ function AppContent() {
     if (currentPage === 'settings') {
       return 'Settings';
     }
+    if (currentPage === 'products-import') {
+      return 'Importera produkter';
+    }
 
     if (!currentPagePlugin?.navigation) {
       return currentPage;
@@ -425,7 +428,13 @@ function AppContent() {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         contentTitle={contentTitle}
-        contentIcon={currentPage === 'settings' ? undefined : currentPagePlugin?.navigation?.icon}
+        contentIcon={
+          currentPage === 'settings'
+            ? undefined
+            : currentPage === 'products-import'
+              ? PLUGIN_REGISTRY.find((p) => p.name === 'products')?.navigation?.icon
+              : currentPagePlugin?.navigation?.icon
+        }
         contentActionLabel={currentPage === 'settings' ? 'Close' : primaryAction?.label}
         contentActionIcon={currentPage === 'settings' ? undefined : primaryAction?.icon}
         onContentAction={

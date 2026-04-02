@@ -15,6 +15,22 @@ function trimNonEmpty(v) {
   return s !== '' ? s : null;
 }
 
+function parseCredentialsJsonb(rawCredentials) {
+  // channel_instances.credentials is stored as JSONB: { v: <encrypted string> }.
+  // Only decrypt locally to derive non-sensitive fields like storeUrl.
+  if (rawCredentials == null || typeof rawCredentials !== 'object') return null;
+  if (!('v' in rawCredentials)) return null;
+  const enc = rawCredentials.v;
+  if (typeof enc !== 'string' || !CredentialsCrypto.isEncrypted(enc)) return null;
+  try {
+    const decrypted = CredentialsCrypto.decrypt(enc);
+    const parsed = JSON.parse(decrypted);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * CDON/Fyndiq consumer product URLs use a 16-character hex slug (from a UUID or equivalent).
  * Pure digit strings are not valid storefront article ids (they are often internal product id or SKU).
@@ -296,12 +312,14 @@ class ChannelsModel {
           if (!linkId) continue;
         }
 
+        const creds = ch === 'woocommerce' ? parseCredentialsJsonb(r?.credentials) : null;
         const storeUrl =
           ch === 'woocommerce'
             ? trimNonEmpty(
-                r?.credentials?._homebase_store_url ||
-                  r?.credentials?.storeUrl ||
-                  r?.credentials?.store_url,
+                (creds?._homebase_store_url || creds?.storeUrl || creds?.store_url) ??
+                  (r?.credentials?._homebase_store_url ||
+                    r?.credentials?.storeUrl ||
+                    r?.credentials?.store_url),
               )
             : null;
 
@@ -922,56 +940,11 @@ class ChannelsModel {
         ]),
       );
 
-      const rows = [];
-      for (const o of items) {
-        const instId = Number(o.channelInstanceId);
-        if (!Number.isFinite(instId) || instId < 1) continue;
-        const inst = instMap.get(instId);
-        if (!inst) continue;
-        const price =
-          o.priceAmount != null &&
-          Number.isFinite(Number(o.priceAmount)) &&
-          Number(o.priceAmount) > 0
-            ? Number(o.priceAmount)
-            : null;
-        const vat =
-          o.vatRate != null && Number.isFinite(Number(o.vatRate)) ? Number(o.vatRate) : null;
-        const cur =
-          o.currency != null && String(o.currency).trim()
-            ? String(o.currency).trim().toUpperCase()
-            : null;
-        const cat =
-          o.category != null && String(o.category).trim() ? String(o.category).trim() : null;
-        const sale =
-          o.salePrice != null && Number.isFinite(Number(o.salePrice)) && Number(o.salePrice) > 0
-            ? Number(o.salePrice)
-            : null;
-        const orig =
-          o.originalPrice != null &&
-          Number.isFinite(Number(o.originalPrice)) &&
-          Number(o.originalPrice) > 0
-            ? Number(o.originalPrice)
-            : null;
-        rows.push({
-          instId,
-          ch: inst.channel,
-          instanceKey: inst.instanceKey,
-          active: !!o.active,
-          price,
-          cur,
-          vat,
-          cat,
-          sale,
-          orig,
-        });
-      }
-      if (rows.length === 0) return { ok: true, count: 0 };
-
       const existingRows = await db.query(
         `SELECT channel_instance_id, active, price_amount, currency, vat_rate, category, sale_price, original_price
          FROM ${ChannelsModel.CHANNEL_OVERRIDES_TABLE}
          WHERE product_id = $1 AND channel_instance_id = ANY($2::int[])`,
-        [pid, rows.map((row) => row.instId)],
+        [pid, instanceIds],
       );
       const existingByInstanceId = new Map(
         existingRows.map((row) => [
@@ -987,6 +960,66 @@ class ChannelsModel {
           },
         ]),
       );
+
+      const rows = [];
+      for (const o of items) {
+        const instId = Number(o.channelInstanceId);
+        if (!Number.isFinite(instId) || instId < 1) continue;
+        const inst = instMap.get(instId);
+        if (!inst) continue;
+        const ex = existingByInstanceId.get(instId);
+        const has = (k) => Object.prototype.hasOwnProperty.call(o, k);
+        const price = has('priceAmount')
+          ? o.priceAmount != null &&
+            Number.isFinite(Number(o.priceAmount)) &&
+            Number(o.priceAmount) > 0
+            ? Number(o.priceAmount)
+            : null
+          : (ex?.price ?? null);
+        const vat = has('vatRate')
+          ? o.vatRate != null && Number.isFinite(Number(o.vatRate))
+            ? Number(o.vatRate)
+            : null
+          : (ex?.vat ?? null);
+        const cur = has('currency')
+          ? o.currency != null && String(o.currency).trim()
+            ? String(o.currency).trim().toUpperCase()
+            : null
+          : (ex?.cur ?? null);
+        const cat = has('category')
+          ? o.category != null && String(o.category).trim()
+            ? String(o.category).trim()
+            : null
+          : (ex?.cat ?? null);
+        const sale = has('salePrice')
+          ? o.salePrice != null &&
+            Number.isFinite(Number(o.salePrice)) &&
+            Number(o.salePrice) > 0
+            ? Number(o.salePrice)
+            : null
+          : (ex?.sale ?? null);
+        const orig = has('originalPrice')
+          ? o.originalPrice != null &&
+            Number.isFinite(Number(o.originalPrice)) &&
+            Number(o.originalPrice) > 0
+            ? Number(o.originalPrice)
+            : null
+          : (ex?.orig ?? null);
+        rows.push({
+          instId,
+          ch: inst.channel,
+          instanceKey: inst.instanceKey,
+          active: has('active') ? !!o.active : (ex?.active ?? false),
+          price,
+          cur,
+          vat,
+          cat,
+          sale,
+          orig,
+        });
+      }
+      if (rows.length === 0) return { ok: true, count: 0 };
+
       const rowsToWrite = rows.filter((row) => {
         const existingRow = existingByInstanceId.get(row.instId);
         if (!existingRow) {
@@ -1010,7 +1043,6 @@ class ChannelsModel {
       const params = [pid];
       let idx = 2;
       for (const r of rowsToWrite) {
-        // $1 = product_id; per row: channel, instance, channel_instance_id, active, price, currency, vat, category, sale_price, original_price ($idx..$idx+9). No duplicate $2 — that produced one extra value vs 13 columns.
         values.push(
           `($1, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, $${idx + 8}, $${idx + 9}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         );
@@ -1057,11 +1089,18 @@ class ChannelsModel {
     try {
       const instances = await this.listInstances(req);
 
-      // Core product columns (stable)
+      // Core product columns (stable). Texter per land → channelSpecific.textsExtended (see products import).
       const baseCols = [
         'sku',
-        'title',
-        'description',
+        'title.se',
+        'description.se',
+        'title.dk',
+        'description.dk',
+        'title.fi',
+        'description.fi',
+        'title.no',
+        'description.no',
+        'textsStandard',
         'quantity',
         'vatRate',
         'brand',
@@ -1078,7 +1117,6 @@ class ChannelsModel {
 
         instCols.push(`${ch}.${key}.active`);
         instCols.push(`${ch}.${key}.price`);
-        instCols.push(`${ch}.${key}.currency`);
         if (ch === 'woocommerce') instCols.push(`${ch}.${key}.categories`);
         else instCols.push(`${ch}.${key}.category`);
       }

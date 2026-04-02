@@ -45,6 +45,7 @@ export type NavPage =
   | 'inspection'
   | 'channels'
   | 'products'
+  | 'products-import'
   | 'woocommerce-products'
   | 'cdon-products'
   | 'fyndiq-products'
@@ -178,7 +179,9 @@ export function Sidebar({
   const renderNavItem = (item: any) => {
     const Icon = item.icon;
     const isActive =
-      item.page === currentPage || item.submenu?.some((sub: any) => sub.page === currentPage);
+      item.page === currentPage ||
+      item.submenu?.some((sub: any) => sub.page === currentPage) ||
+      (currentPage === 'products-import' && item.page === 'products');
     const hasSubmenu = item.submenu && item.submenu.length > 0;
     const isSubmenuOpen = openSubmenus.has(item.label);
 
