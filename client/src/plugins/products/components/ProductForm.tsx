@@ -26,7 +26,6 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { channelsApi } from '@/plugins/channels/api/channelsApi';
 import type { ChannelInstance } from '@/plugins/channels/types/channels';
-import { filesApi } from '@/plugins/files/api/filesApi';
 
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
@@ -47,18 +46,10 @@ const MARKETS = [
 type MarketKeyFromConst = (typeof MARKETS)[number]['key'];
 
 /** Nested cdon.markets / fyndiq.markets: Sello import uses active + optional shipping; never price (pricing = products.price_amount + channel_product_overrides). */
-const LEGACY_NESTED_MARKET_FIELD_KEYS = new Set([
-  'price',
-  'currency',
-  'vatRate',
-  'deliveryType',
-]);
+const LEGACY_NESTED_MARKET_FIELD_KEYS = new Set(['price', 'currency', 'vatRate', 'deliveryType']);
 
 function buildPersistedMarketsForChannel(
-  formMarkets: Record<
-    MarketKeyFromConst,
-    { shippingMin: number | ''; shippingMax: number | '' }
-  >,
+  formMarkets: Record<MarketKeyFromConst, { shippingMin: number | ''; shippingMax: number | '' }>,
   existingMarkets: Record<string, unknown> | undefined,
 ): Record<string, Record<string, unknown>> {
   const out: Record<string, Record<string, unknown>> = {};
@@ -1094,10 +1085,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       max: toShipNumOrNull(fd.markets[m.key].shippingMax),
     }));
 
-    const initCdonDeliveryType = MARKETS.filter((m) => init.markets[m.key].deliveryType).map((m) => ({
-      market: m.key.toUpperCase(),
-      value: init.markets[m.key].deliveryType,
-    }));
+    const initCdonDeliveryType = MARKETS.filter((m) => init.markets[m.key].deliveryType).map(
+      (m) => ({
+        market: m.key.toUpperCase(),
+        value: init.markets[m.key].deliveryType,
+      }),
+    );
     const fdCdonDeliveryType = MARKETS.filter((m) => fd.markets[m.key].deliveryType).map((m) => ({
       market: m.key.toUpperCase(),
       value: fd.markets[m.key].deliveryType,
@@ -1119,8 +1112,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const shippingChanged = stableStringify(fdShippingTime) !== stableStringify(initShippingTime);
     const shippingComplete = fdShippingTime.every((x) => x.min != null && x.max != null);
     if (shippingChanged && shippingComplete) {
-      cdonPatch.shipping_time = fdShippingTime as Array<{ market: string; min: number; max: number }>;
-      fyndiqPatch.shipping_time = fdShippingTime as Array<{ market: string; min: number; max: number }>;
+      cdonPatch.shipping_time = fdShippingTime as Array<{
+        market: string;
+        min: number;
+        max: number;
+      }>;
+      fyndiqPatch.shipping_time = fdShippingTime as Array<{
+        market: string;
+        min: number;
+        max: number;
+      }>;
     }
 
     const cdonDeliveryChanged =
@@ -1135,8 +1136,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       fyndiqPatch.delivery_type = fdFyndiqDeliveryType;
     }
 
-    if (Object.keys(cdonPatch).length > 0) csPatch.cdon = cdonPatch;
-    if (Object.keys(fyndiqPatch).length > 0) csPatch.fyndiq = fyndiqPatch;
+    if (Object.keys(cdonPatch).length > 0) {
+      csPatch.cdon = cdonPatch;
+    }
+    if (Object.keys(fyndiqPatch).length > 0) {
+      csPatch.fyndiq = fyndiqPatch;
+    }
 
     if (Object.keys(csPatch).length > 0) {
       changes.channelSpecific = csPatch;
@@ -1155,7 +1160,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const nOrNull = (v: number | '') =>
       v === '' || !Number.isFinite(Number(v)) ? null : Number(v);
     return MARKETS.reduce<
-      Record<string, { shippingMin: number | null; shippingMax: number | null; deliveryType: string }>
+      Record<
+        string,
+        { shippingMin: number | null; shippingMax: number | null; deliveryType: string }
+      >
     >((acc, market) => {
       acc[market.key] = {
         shippingMin: nOrNull(source.markets[market.key].shippingMin),
@@ -2627,7 +2635,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           ? (existingCs.cdon as Record<string, unknown>)
           : {};
       const existingFyndiqBlock =
-        existingCs.fyndiq && typeof existingCs.fyndiq === 'object' && !Array.isArray(existingCs.fyndiq)
+        existingCs.fyndiq &&
+        typeof existingCs.fyndiq === 'object' &&
+        !Array.isArray(existingCs.fyndiq)
           ? (existingCs.fyndiq as Record<string, unknown>)
           : {};
       const cdonMarketsPersisted = buildPersistedMarketsForChannel(
@@ -2927,7 +2937,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
     setMediaUploading(true);
     try {
-      const items = await filesApi.uploadFiles(Array.from(files));
+      const items = await productsApi.uploadMediaFiles(Array.from(files));
       const urls = (items || []).map((i: any) => i?.url).filter(Boolean);
       const toAdd = urls.map((u: string) =>
         u.startsWith('http') ? u : `${window.location.origin}${u.startsWith('/') ? '' : '/'}${u}`,

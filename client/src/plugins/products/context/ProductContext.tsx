@@ -26,6 +26,7 @@ import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceAp
 import {
   productsApi,
   type ProductImportMode,
+  type ProductImportMatchKey,
   type ProductImportResult,
   type ProductListParams,
 } from '../api/productsApi';
@@ -153,7 +154,11 @@ interface ProductContextType {
     groupVariationType: 'color' | 'size' | 'model',
     mainProductId?: string | null,
   ) => Promise<{ updatedCount: number }>;
-  importProducts: (file: File, mode: ProductImportMode) => Promise<ProductImportResult>;
+  importProducts: (
+    file: File,
+    mode: ProductImportMode,
+    matchKey?: ProductImportMatchKey,
+  ) => Promise<ProductImportResult>;
 
   clearValidationErrors: () => void;
 
@@ -1560,8 +1565,12 @@ export function ProductProvider({
   };
 
   const importProducts = useCallback(
-    async (file: File, mode: ProductImportMode): Promise<ProductImportResult> => {
-      const result = await productsApi.importProducts(file, mode);
+    async (
+      file: File,
+      mode: ProductImportMode,
+      matchKey: ProductImportMatchKey = 'sku',
+    ): Promise<ProductImportResult> => {
+      const result = await productsApi.importProducts(file, mode, matchKey);
       await reloadProducts();
       return result;
     },

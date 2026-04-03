@@ -3,6 +3,7 @@
 // Uses @homebase/core SDK for database access with automatic tenant isolation
 
 const { Logger, Database, Context } = require('@homebase/core');
+const importStorage = require('./importStorage');
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -543,6 +544,184 @@ class ProductModel {
         throw error;
       }
       throw new AppError('Failed to fetch product by SKU', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * First product with this GTIN (duplicate GTIN: lowest id). Used by CSV import match key.
+   */
+  async getFirstByGtin(req, gtin) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+      }
+      const clean = String(gtin || '').trim();
+      if (!clean) return null;
+      const sql = `
+        SELECT
+          p.id,
+          p.sku,
+          p.mpn,
+          p.title,
+          p.description,
+          p.status,
+          p.quantity,
+          p.price_amount,
+          p.currency,
+          p.vat_rate,
+          p.main_image,
+          p.images,
+          p.categories,
+          p.brand,
+          p.brand_id,
+          p.ean,
+          p.gtin,
+          p.kn_number,
+          p.supplier_id,
+          p.manufacturer_id,
+          p.channel_specific,
+          p.purchase_price,
+          p.lagerplats,
+          p.condition,
+          p.group_id,
+          p.volume,
+          p.volume_unit,
+          p.notes,
+          p.private_name,
+          p.color,
+          p.color_text,
+          p.size,
+          p.size_text,
+          p.pattern,
+          p.material,
+          p.pattern_text,
+          p.model,
+          p.parent_product_id,
+          p.group_variation_type,
+          p.weight,
+          p.length_cm,
+          p.width_cm,
+          p.height_cm,
+          p.depth_cm,
+          p.source_created_at,
+          p.quantity_sold,
+          p.last_sold_at,
+          p.created_at,
+          p.updated_at,
+          b.name AS brand_name,
+          s.name AS supplier_name,
+          m.name AS manufacturer_name,
+          pli.list_id AS list_id,
+          l.name AS list_name
+        FROM ${ProductModel.TABLE} p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id
+        LEFT JOIN lists l ON l.id = pli.list_id
+        WHERE p.gtin = $1
+        ORDER BY p.id ASC
+        LIMIT 1
+      `;
+      const result = await db.query(sql, [clean]);
+      return result[0] ? this.transformRow(result[0]) : null;
+    } catch (error) {
+      Logger.error('Failed to fetch product by GTIN', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch product by GTIN', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * First product with this EAN (duplicate EAN: lowest id). Used by CSV import match key.
+   */
+  async getFirstByEan(req, ean) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+      }
+      const clean = String(ean || '').trim();
+      if (!clean) return null;
+      const sql = `
+        SELECT
+          p.id,
+          p.sku,
+          p.mpn,
+          p.title,
+          p.description,
+          p.status,
+          p.quantity,
+          p.price_amount,
+          p.currency,
+          p.vat_rate,
+          p.main_image,
+          p.images,
+          p.categories,
+          p.brand,
+          p.brand_id,
+          p.ean,
+          p.gtin,
+          p.kn_number,
+          p.supplier_id,
+          p.manufacturer_id,
+          p.channel_specific,
+          p.purchase_price,
+          p.lagerplats,
+          p.condition,
+          p.group_id,
+          p.volume,
+          p.volume_unit,
+          p.notes,
+          p.private_name,
+          p.color,
+          p.color_text,
+          p.size,
+          p.size_text,
+          p.pattern,
+          p.material,
+          p.pattern_text,
+          p.model,
+          p.parent_product_id,
+          p.group_variation_type,
+          p.weight,
+          p.length_cm,
+          p.width_cm,
+          p.height_cm,
+          p.depth_cm,
+          p.source_created_at,
+          p.quantity_sold,
+          p.last_sold_at,
+          p.created_at,
+          p.updated_at,
+          b.name AS brand_name,
+          s.name AS supplier_name,
+          m.name AS manufacturer_name,
+          pli.list_id AS list_id,
+          l.name AS list_name
+        FROM ${ProductModel.TABLE} p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id
+        LEFT JOIN lists l ON l.id = pli.list_id
+        WHERE p.ean = $1
+        ORDER BY p.id ASC
+        LIMIT 1
+      `;
+      const result = await db.query(sql, [clean]);
+      return result[0] ? this.transformRow(result[0]) : null;
+    } catch (error) {
+      Logger.error('Failed to fetch product by EAN', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch product by EAN', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -1375,6 +1554,127 @@ class ProductModel {
     );
   }
 
+  // ---------- Product import jobs (CSV/XLSX async, max 5 files per tenant) ----------
+
+  async pruneProductImportJobs(req) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const toRemove = await db.query(
+      `
+      SELECT id, storage_path
+      FROM product_import_jobs
+      ORDER BY created_at DESC
+      OFFSET 5
+      `,
+    );
+    const rows = toRemove.rows || [];
+    if (!rows.length) return;
+    const ids = rows.map((r) => r.id);
+    for (const r of rows) {
+      if (r.storage_path) {
+        await importStorage.unlinkQuiet(String(r.storage_path));
+      }
+    }
+    await db.query(`DELETE FROM product_import_jobs WHERE id = ANY($1::uuid[])`, [ids]);
+  }
+
+  async insertProductImportJob(req, row) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const headersJson = JSON.stringify(
+      Array.isArray(row.detectedHeaders) ? row.detectedHeaders : [],
+    );
+    const result = await db.query(
+      `
+      INSERT INTO product_import_jobs (
+        status, mode, match_key, original_filename, mime_type, storage_path,
+        total_rows, detected_headers
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+      RETURNING *
+      `,
+      [
+        row.status || 'queued',
+        String(row.mode || 'upsert'),
+        String(row.matchKey || 'sku'),
+        String(row.originalFilename || ''),
+        row.mimeType ? String(row.mimeType) : null,
+        String(row.storagePath || ''),
+        Number(row.totalRows) || 0,
+        headersJson,
+      ],
+    );
+    await this.pruneProductImportJobs(req);
+    return result[0];
+  }
+
+  async updateProductImportJob(req, jobId, fields) {
+    const db = Database.get(req);
+    const jid = String(jobId || '').trim();
+    if (!jid) return;
+    const allowed = [
+      'status',
+      'storage_path',
+      'processed_rows',
+      'created_count',
+      'updated_count',
+      'error_count',
+      'skipped_missing_key',
+      'skipped_invalid',
+      'conflicts_count',
+      'not_found_count',
+      'last_error',
+      'finished_at',
+    ];
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    for (const key of allowed) {
+      if (fields[key] === undefined) continue;
+      const col = key;
+      if (key === 'finished_at') {
+        sets.push(`finished_at = $${idx}::timestamptz`);
+        params.push(fields[key]);
+      } else {
+        sets.push(`${col} = $${idx}`);
+        params.push(fields[key]);
+      }
+      idx += 1;
+    }
+    if (!sets.length) return;
+    params.push(jid);
+    await db.query(
+      `UPDATE product_import_jobs SET ${sets.join(', ')} WHERE id::text = $${idx}`,
+      params,
+    );
+  }
+
+  async getProductImportJob(req, jobId) {
+    const db = Database.get(req);
+    const jid = String(jobId || '').trim();
+    if (!jid) return null;
+    const rows = await db.query(`SELECT * FROM product_import_jobs WHERE id::text = $1 LIMIT 1`, [
+      jid,
+    ]);
+    return rows[0] || null;
+  }
+
+  async listProductImportJobs(req, limit = 5) {
+    const db = Database.get(req);
+    const lim = Math.min(20, Math.max(1, Number(limit) || 5));
+    const rows = await db.query(
+      `SELECT * FROM product_import_jobs ORDER BY created_at DESC LIMIT $1`,
+      [lim],
+    );
+    return rows;
+  }
+
   /**
    * Map dirty-only batch fields (camelCase) to DB columns. Only keys present in raw are considered.
    */
@@ -1647,7 +1947,11 @@ class ProductModel {
         if (incoming === null) {
           patch.channelSpecific = null;
         } else if (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
-          const merged = { ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}) };
+          const merged = {
+            ...(existing && typeof existing === 'object' && !Array.isArray(existing)
+              ? existing
+              : {}),
+          };
           for (const [k, v] of Object.entries(incoming)) {
             if (v && typeof v === 'object' && !Array.isArray(v)) {
               const prev = merged[k];

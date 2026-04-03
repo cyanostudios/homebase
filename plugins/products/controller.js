@@ -2,9 +2,6 @@
 
 const { Logger, Context, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
-const XLSX = require('xlsx');
-const csvParser = require('csv-parser');
-const { Readable } = require('stream');
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
@@ -31,25 +28,29 @@ const batchSyncMutex = require('./batchSyncMutex');
 const productImportLock = require('./productImportLock');
 const batchSyncStarterQueue = require('./batchSyncStarterQueue');
 const { runBatchSyncJob } = require('./batchSyncJobRunner');
+const importStorage = require('./importStorage');
+const importParse = require('./importParse');
+const { runProductImportJob } = require('./importJobRunner');
+const ChannelsModel = require('../channels/model');
+const { buildImportColumnReferencePayload } = require('./importColumnReference');
+const {
+  deepMergeChannelSpecific,
+  buildFlatIncomingFromRow,
+  parseListId,
+  applyTextsAndChannelSpecific,
+} = require('./importProductRowMapper');
+const { validateImageUrls } = require('../../server/core/utils/validateImageUrl');
+const { ProductMediaService } = require('./productMediaService');
+
+const channelsModelForImportRef = new ChannelsModel();
+
+const { normalizeHeader, parseCsvBuffer, parseXlsxBuffer } = importParse;
 
 const IMPORT_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
-const IMPORT_MAX_ROWS = 5000;
+const IMPORT_MAX_ROWS = importParse.IMPORT_MAX_ROWS;
 /** Max ids per PATCH/DELETE batch (aligned with catalog list page size cap). */
 const PRODUCTS_BATCH_MAX_IDS = 250;
 const SELLO_PAGE_SIZE = 100;
-
-function normalizeHeader(h) {
-  return (
-    String(h || '')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '')
-      .replace(/[_-]+/g, '')
-      // Keep dots so we can parse standard headers like "cdon.se.price"
-      // Also strips external suffixes like "#53270".
-      .replace(/[^a-z0-9.]+/g, '')
-  );
-}
 
 function toIntOrUndef(v) {
   if (v === undefined || v === null || v === '') return undefined;
@@ -71,6 +72,50 @@ function toStrOrUndef(v) {
   return s ? s : undefined;
 }
 
+/** Match column for resolving existing product (import). */
+function extractImportMatchValue(r, matchKey, isSello) {
+  if (matchKey === 'sku') {
+    return toStrOrUndef(r.sku);
+  }
+  if (matchKey === 'id') {
+    const v = r.id;
+    if (v === undefined || v === null || String(v).trim() === '') {
+      return undefined;
+    }
+    return String(v).trim();
+  }
+  if (matchKey === 'gtin') {
+    return toStrOrUndef(r.gtin) || (isSello ? toStrOrUndef(r.propertygtin) : undefined);
+  }
+  if (matchKey === 'ean') {
+    return toStrOrUndef(r.ean) || (isSello ? toStrOrUndef(r.propertyean) : undefined);
+  }
+  return undefined;
+}
+
+async function resolveImportExistingProduct(controller, req, matchKey, matchVal) {
+  if (matchVal === undefined || matchVal === null || String(matchVal).trim() === '') {
+    return null;
+  }
+  if (matchKey === 'sku') {
+    return controller.model.getBySku(req, String(matchVal).trim());
+  }
+  if (matchKey === 'id') {
+    const id = parseInt(String(matchVal), 10);
+    if (!Number.isFinite(id)) {
+      return null;
+    }
+    return controller.model.getById(req, String(id));
+  }
+  if (matchKey === 'gtin') {
+    return controller.model.getFirstByGtin(req, String(matchVal).trim());
+  }
+  if (matchKey === 'ean') {
+    return controller.model.getFirstByEan(req, String(matchVal).trim());
+  }
+  return null;
+}
+
 /** Sello column mapping only when column issello is 1 (opt-in per row). */
 function isSelloImportRow(r) {
   const v = r?.issello;
@@ -89,6 +134,12 @@ function mergeForUpdate(existing, incoming) {
     }
   };
 
+  const setIfNum = (key, val) => {
+    if (val !== undefined && val !== null && Number.isFinite(Number(val))) {
+      merged[key] = val;
+    }
+  };
+
   setIf('title', incoming.title);
   setIf('description', incoming.description);
   setIf('status', incoming.status);
@@ -99,13 +150,51 @@ function mergeForUpdate(existing, incoming) {
   setIf('brand', incoming.brand);
   setIf('mpn', incoming.mpn);
   setIf('gtin', incoming.gtin);
+  setIf('ean', incoming.ean);
+  setIf('mainImage', incoming.mainImage);
+  if (incoming.images !== undefined && Array.isArray(incoming.images)) {
+    merged.images = incoming.images;
+  }
+  if (incoming.categories !== undefined && Array.isArray(incoming.categories)) {
+    merged.categories = incoming.categories;
+  }
+  setIfNum('purchasePrice', incoming.purchasePrice);
+  setIf('privateName', incoming.privateName);
+  setIf('knNumber', incoming.knNumber);
+  setIf('lagerplats', incoming.lagerplats);
+  if (incoming.condition !== undefined && incoming.condition !== null) {
+    const c = String(incoming.condition).trim().toLowerCase();
+    if (c === 'new' || c === 'used' || c === 'refurb') merged.condition = c;
+  }
+  setIf('color', incoming.color);
+  setIf('colorText', incoming.colorText);
+  setIf('size', incoming.size);
+  setIf('sizeText', incoming.sizeText);
+  setIf('pattern', incoming.pattern);
+  setIf('material', incoming.material);
+  setIf('patternText', incoming.patternText);
+  setIf('model', incoming.model);
+  setIfNum('weight', incoming.weight);
+  setIfNum('volume', incoming.volume);
+  setIf('volumeUnit', incoming.volumeUnit);
+  setIf('notes', incoming.notes);
+  setIfNum('lengthCm', incoming.lengthCm);
+  setIfNum('widthCm', incoming.widthCm);
+  setIfNum('heightCm', incoming.heightCm);
+  setIfNum('depthCm', incoming.depthCm);
+  setIfNum('brandId', incoming.brandId);
+  setIfNum('supplierId', incoming.supplierId);
+  setIfNum('manufacturerId', incoming.manufacturerId);
   if (
     incoming.channelSpecific !== undefined &&
     incoming.channelSpecific !== null &&
     typeof incoming.channelSpecific === 'object' &&
     !Array.isArray(incoming.channelSpecific)
   ) {
-    merged.channelSpecific = incoming.channelSpecific;
+    merged.channelSpecific = deepMergeChannelSpecific(
+      existing.channelSpecific,
+      incoming.channelSpecific,
+    );
   }
 
   // Always keep SKU stable (unique key)
@@ -113,129 +202,89 @@ function mergeForUpdate(existing, incoming) {
   return merged;
 }
 
-/** Per-market Texter columns: title.se, description.se, title.dk, … (normalized header keys keep the dot). */
-const IMPORT_TEXT_MARKETS = ['se', 'dk', 'fi', 'no'];
-
-function importDescPlainNonEmpty(htmlOrText) {
-  const s = String(htmlOrText ?? '').trim();
-  if (!s) return false;
-  return (
-    s
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim().length > 0
-  );
-}
-
-function buildTextsExtendedPatchFromImportRow(r) {
-  const patch = {};
-  for (const mk of IMPORT_TEXT_MARKETS) {
-    const tk = `title.${mk}`;
-    const dk = `description.${mk}`;
-    const hasTk = Object.prototype.hasOwnProperty.call(r, tk);
-    const hasDk = Object.prototype.hasOwnProperty.call(r, dk);
-    if (!hasTk && !hasDk) continue;
-    const nameRaw = hasTk ? r[tk] : undefined;
-    const descRaw = hasDk ? r[dk] : undefined;
-    const hasName = nameRaw !== undefined && nameRaw !== null && String(nameRaw).trim() !== '';
-    const hasDesc = descRaw !== undefined && descRaw !== null && String(descRaw).trim() !== '';
-    if (!hasName && !hasDesc) continue;
-    const entry = {};
-    if (hasName) entry.name = String(nameRaw).trim().slice(0, 255);
-    if (hasDesc) entry.description = String(descRaw).trim();
-    patch[mk] = entry;
+async function validateImportRowImageUrls(incoming) {
+  const urls = [];
+  if (incoming.mainImage) urls.push(incoming.mainImage);
+  if (Array.isArray(incoming.images) && incoming.images.length) {
+    urls.push(...incoming.images);
   }
-  return patch;
+  if (!urls.length) return { ok: true };
+  const vr = await validateImageUrls(urls, { concurrency: 4 });
+  if (vr.ok) return { ok: true };
+  const reason = incoming.mainImage && vr.index === 0 ? 'invalid_main_image' : 'invalid_image_url';
+  return { ok: false, reason, url: vr.url, detail: vr.result };
 }
 
-function mergeTextsExtendedForImport(existing, patch) {
-  const ex =
-    existing && typeof existing === 'object' && !Array.isArray(existing) ? { ...existing } : {};
-  for (const [mk, fields] of Object.entries(patch)) {
-    if (!fields || typeof fields !== 'object') continue;
-    ex[mk] = { ...(ex[mk] || {}), ...fields };
-  }
-  return ex;
-}
-
-function mergeChannelSpecificForImport(existingCs, textsExtendedMerged, options = {}) {
-  const base =
-    existingCs && typeof existingCs === 'object' && !Array.isArray(existingCs) ? { ...existingCs } : {};
-  base.textsExtended = textsExtendedMerged;
-  if (options.textsStandard !== undefined && options.textsStandard !== null) {
-    base.textsStandard = options.textsStandard;
-  }
-  return base;
-}
-
-function normalizeImportTextsStandard(raw) {
-  const s = String(raw ?? '')
-    .trim()
-    .toLowerCase();
-  if (['se', 'dk', 'fi', 'no'].includes(s)) return s;
-  return null;
-}
-
-/**
- * Standard marknad för list-titel/beskrivning: alltid se om kolumnen textsStandard saknas eller är ogiltig.
- * Om textsStandard sätts (t.ex. fi) måste den marknadens texter vara kompletta efter sammanslagning.
- */
-function resolveStandardMarketPrimary(mergedTe, explicitRaw) {
-  const standardMk = normalizeImportTextsStandard(explicitRaw) ?? 'se';
-  const tx = mergedTe?.[standardMk];
-  const name = String(tx?.name ?? '').trim();
-  const desc = String(tx?.description ?? '');
-  if (!name || !importDescPlainNonEmpty(desc)) {
-    return { ok: false, code: 'standard_market_texts_incomplete', market: standardMk };
-  }
+function buildImportCreatePayload(sku, incoming) {
   return {
-    ok: true,
-    standardMk,
-    title: name.slice(0, 255),
-    description: desc,
+    sku,
+    mpn: incoming.mpn ?? '',
+    title: incoming.title,
+    description: incoming.description ?? '',
+    status: incoming.status ?? 'for sale',
+    quantity: incoming.quantity ?? 0,
+    priceAmount: incoming.priceAmount ?? 0,
+    currency: incoming.currency ?? 'SEK',
+    vatRate: incoming.vatRate ?? 25,
+    brand: incoming.brand ?? '',
+    gtin: incoming.gtin ?? '',
+    ean: incoming.ean ?? '',
+    images: incoming.images ?? [],
+    categories: incoming.categories ?? [],
+    mainImage: incoming.mainImage ?? '',
+    purchasePrice: incoming.purchasePrice ?? null,
+    privateName: incoming.privateName ?? null,
+    knNumber: incoming.knNumber ?? null,
+    lagerplats: incoming.lagerplats ?? null,
+    condition: incoming.condition ?? 'new',
+    color: incoming.color ?? null,
+    colorText: incoming.colorText ?? null,
+    size: incoming.size ?? null,
+    sizeText: incoming.sizeText ?? null,
+    pattern: incoming.pattern ?? null,
+    material: incoming.material ?? null,
+    patternText: incoming.patternText ?? null,
+    model: incoming.model ?? null,
+    weight: incoming.weight ?? null,
+    volume: incoming.volume ?? null,
+    volumeUnit: incoming.volumeUnit ?? null,
+    notes: incoming.notes ?? null,
+    lengthCm: incoming.lengthCm ?? null,
+    widthCm: incoming.widthCm ?? null,
+    heightCm: incoming.heightCm ?? null,
+    depthCm: incoming.depthCm ?? null,
+    brandId: incoming.brandId ?? null,
+    supplierId: incoming.supplierId ?? null,
+    manufacturerId: incoming.manufacturerId ?? null,
+    ...(incoming.channelSpecific ? { channelSpecific: incoming.channelSpecific } : {}),
   };
 }
 
-async function parseCsvBuffer(buffer) {
-  return await new Promise((resolve, reject) => {
-    const rows = [];
-    const stream = Readable.from(buffer);
+async function applyImportChannelOverrides(controller, req, r, productId, incoming) {
+  const overrides = controller.parseSelloOverridesFromRow(r);
+  if (!overrides.length) return;
+  for (const o of overrides) {
+    const currency =
+      o.channel === 'cdon'
+        ? o.instance === 'se'
+          ? 'SEK'
+          : o.instance === 'dk'
+            ? 'DKK'
+            : o.instance === 'fi'
+              ? 'EUR'
+              : null
+        : (incoming.currency ?? null);
 
-    stream
-      .pipe(
-        csvParser({
-          mapHeaders: ({ header }) => normalizeHeader(header),
-          skipLines: 0,
-          strict: false,
-        }),
-      )
-      .on('data', (row) => {
-        rows.push(row);
-        if (rows.length > IMPORT_MAX_ROWS) {
-          stream.destroy(new Error(`Too many rows (max ${IMPORT_MAX_ROWS})`));
-        }
-      })
-      .on('error', (err) => reject(err))
-      .on('end', () => resolve(rows));
-  });
-}
-
-function parseXlsxBuffer(buffer) {
-  const wb = XLSX.read(buffer, { type: 'buffer' });
-  const sheetName = wb.SheetNames?.[0];
-  if (!sheetName) return [];
-  const sheet = wb.Sheets[sheetName];
-  const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-  if (!Array.isArray(json)) return [];
-
-  // Normalize keys to match CSV path
-  return json.map((row) => {
-    const out = {};
-    for (const [k, v] of Object.entries(row || {})) {
-      out[normalizeHeader(k)] = v;
-    }
-    return out;
-  });
+    await controller.upsertChannelOverride(req, {
+      productId,
+      channel: o.channel,
+      instance: o.instance,
+      active: o.active,
+      priceAmount: o.priceAmount,
+      currency,
+      vatRate: incoming.vatRate ?? 25,
+    });
+  }
 }
 
 function sanitizePathSegment(value, fallback = 'item') {
@@ -778,14 +827,84 @@ function mergeStockChannelRows(mapRows, overrideRows) {
 }
 
 class ProductController {
-  constructor(model, selloModel) {
+  constructor(model, selloModel, productMediaService) {
     this.model = model;
     this.selloModel = selloModel || null;
+    this.productMediaService = productMediaService || new ProductMediaService();
     this.wooController = new WooCommerceController(new WooCommerceModel());
     this.cdonModel = new CdonProductsModel();
     this.cdonController = new CdonProductsController(this.cdonModel);
     this.fyndiqModel = new FyndiqProductsModel();
     this.fyndiqController = new FyndiqProductsController(this.fyndiqModel);
+  }
+
+  async uploadMedia(req, res) {
+    try {
+      const files = Array.isArray(req.files) ? req.files : [];
+      if (!files.length) {
+        return res.status(400).json({ error: 'No files uploaded', code: 'VALIDATION_ERROR' });
+      }
+      const uploaded = await this.productMediaService.uploadPendingManualFiles(req, files);
+      return res.json(uploaded);
+    } catch (error) {
+      Logger.error('Upload product media error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to upload product media' });
+    }
+  }
+
+  async reconcileHostedProductMedia(req, product) {
+    if (!product?.id) return product;
+    const imageUrls = this.productMediaService.getProductImageUrls(product);
+    await this.productMediaService.reconcileAttachedProductMedia(req, product.id, imageUrls);
+    return product;
+  }
+
+  async upsertSelloProductWithHostedImages(req, payload) {
+    const {
+      imageSourceUrls,
+      mainImage: _ignoredMainImage,
+      images: _ignoredImages,
+      ...productPayload
+    } = payload || {};
+    void _ignoredMainImage;
+    void _ignoredImages;
+
+    const selloIdVal = String(productPayload.selloId ?? '').trim();
+    let existing = null;
+    if (selloIdVal) {
+      existing = await this.model.getById(req, selloIdVal);
+    }
+    const pidForMedia =
+      existing?.id != null && String(existing.id).trim() !== '' ? Number(existing.id) : null;
+
+    const hostedMedia = await this.productMediaService.ensureHostedSelloMedia(req, {
+      productId: pidForMedia,
+      selloId: selloIdVal,
+      sourceUrls: Array.isArray(imageSourceUrls) ? imageSourceUrls : [],
+    });
+
+    const result = await this.model.upsertFromSelloProduct(req, {
+      ...productPayload,
+      mainImage: hostedMedia.mainImage,
+      images: hostedMedia.images,
+    });
+
+    const finalId = String(result?.product?.id || '').trim();
+    if (finalId) {
+      await this.productMediaService.reconcileAttachedProductMedia(
+        req,
+        finalId,
+        hostedMedia.allHostedUrls,
+      );
+    }
+
+    return {
+      ...result,
+      media: hostedMedia,
+    };
   }
 
   /**
@@ -1034,9 +1153,7 @@ class ProductController {
    */
   async resolveStockChannelRowsForIds(req, ids) {
     const db = Database.get(req);
-    const idList = [
-      ...new Set((ids || []).map((id) => String(id ?? '').trim()).filter(Boolean)),
-    ];
+    const idList = [...new Set((ids || []).map((id) => String(id ?? '').trim()).filter(Boolean))];
     if (!idList.length) return new Map();
 
     const mapRowsRaw = await db.query(
@@ -1509,6 +1626,7 @@ class ProductController {
       if (!data) return;
 
       const product = await this.model.create(req, data);
+      await this.reconcileHostedProductMedia(req, product);
       return res.json(product);
     } catch (error) {
       Logger.error('Create product error', error, { userId: Context.getUserId(req) });
@@ -1549,6 +1667,7 @@ class ProductController {
       if (!data) return;
 
       const product = await this.model.update(req, req.params.id, data);
+      await this.reconcileHostedProductMedia(req, product);
       return res.json(product);
     } catch (error) {
       Logger.error('Update product error', error, { userId: Context.getUserId(req) });
@@ -1572,6 +1691,7 @@ class ProductController {
 
   async delete(req, res) {
     try {
+      await this.productMediaService.deleteProductMedia(req, req.params.id);
       await this.model.delete(req, req.params.id);
       return res.json({ message: 'Product deleted successfully' });
     } catch (error) {
@@ -1791,6 +1911,7 @@ class ProductController {
         });
       }
 
+      await this.productMediaService.deleteProductsMedia(req, ids);
       const result = await this.model.bulkDelete(req, ids);
 
       const deleted =
@@ -1817,12 +1938,229 @@ class ProductController {
     }
   }
 
+  /**
+   * Core CSV/XLSX row import (used by async import job). Does not acquire import lock — caller must.
+   */
+  async importRowsCore(req, rawRows, mode, matchKey, onRowProcessed) {
+    const mk = matchKey || 'sku';
+    const result = {
+      ok: true,
+      mode,
+      matchKey: mk,
+      totalRows: rawRows.length,
+      created: 0,
+      updated: 0,
+      skippedMissingSku: [],
+      skippedMissingKey: [],
+      skippedInvalid: [],
+      conflicts: [],
+      notFound: [],
+      rows: [],
+    };
+
+    for (let i = 0; i < rawRows.length; i++) {
+      const rowNum = i + 1;
+      const r = rawRows[i] || {};
+      try {
+        const isSello = isSelloImportRow(r);
+        const matchVal = extractImportMatchValue(r, mk, isSello);
+        if (matchVal === undefined || matchVal === null || String(matchVal).trim() === '') {
+          result.skippedMissingKey.push({ row: rowNum, matchKey: mk });
+          result.rows.push({
+            row: rowNum,
+            action: 'skipped',
+            reason: 'missing_match_key',
+            matchKey: mk,
+          });
+          continue;
+        }
+
+        const existing = await resolveImportExistingProduct(this, req, mk, matchVal);
+
+        const sku = toStrOrUndef(r.sku) || (existing ? existing.sku : undefined);
+        if (!sku) {
+          result.skippedMissingSku.push({ row: rowNum });
+          result.skippedMissingKey.push({ row: rowNum, matchKey: mk, reason: 'missing_sku' });
+          result.rows.push({ row: rowNum, action: 'skipped', reason: 'missing_sku' });
+          continue;
+        }
+
+        let incoming = buildFlatIncomingFromRow(r, isSello);
+        incoming.sku = sku;
+
+        if (incoming.title && incoming.title.length > 255) {
+          incoming.title = incoming.title.slice(0, 255);
+        }
+        if (incoming.currency) {
+          incoming.currency = incoming.currency.toUpperCase();
+        }
+        if (incoming.quantity !== undefined && incoming.quantity < 0) {
+          incoming.quantity = 0;
+        }
+        if (incoming.priceAmount !== undefined && incoming.priceAmount < 0) {
+          incoming.priceAmount = 0;
+        }
+        if (incoming.vatRate !== undefined && (incoming.vatRate < 0 || incoming.vatRate > 50)) {
+          incoming.vatRate = undefined;
+        }
+
+        const ch = applyTextsAndChannelSpecific(r, existing, isSello);
+        if (!ch.ok) {
+          result.skippedInvalid.push({
+            row: rowNum,
+            sku,
+            reason: ch.code,
+            market: ch.market,
+            message: ch.message,
+          });
+          result.rows.push({
+            row: rowNum,
+            sku,
+            action: 'skipped',
+            reason: ch.code,
+            market: ch.market,
+          });
+          continue;
+        }
+
+        if (ch.channelSpecific !== undefined) {
+          incoming.channelSpecific = ch.channelSpecific;
+        }
+        if (ch.usedTextsExtended) {
+          incoming.title = ch.title;
+          incoming.description = ch.description;
+        }
+
+        const imgCheck = await validateImportRowImageUrls(incoming);
+        if (!imgCheck.ok) {
+          result.skippedInvalid.push({
+            row: rowNum,
+            sku,
+            reason: imgCheck.reason,
+            url: imgCheck.url,
+          });
+          result.rows.push({
+            row: rowNum,
+            sku,
+            action: 'skipped',
+            reason: imgCheck.reason,
+            url: imgCheck.url,
+          });
+          continue;
+        }
+
+        const listId = parseListId(r);
+
+        const createTitleOk = () => {
+          const t = incoming.title;
+          return !!(t && String(t).trim());
+        };
+
+        if (mode === 'update-only') {
+          if (!existing) {
+            result.notFound.push({ row: rowNum, sku, matchKey: mk, key: matchVal });
+            result.rows.push({
+              row: rowNum,
+              sku,
+              action: 'skipped',
+              reason: 'match_not_found',
+              matchKey: mk,
+            });
+            continue;
+          }
+          const merged = mergeForUpdate(existing, incoming);
+          const saved = await this.model.update(req, existing.id, merged);
+          if (listId) {
+            await this.model.setProductList(req, saved?.id ?? existing.id, listId);
+          }
+          await applyImportChannelOverrides(this, req, r, saved?.id ?? existing.id, incoming);
+          result.updated++;
+          result.rows.push({ row: rowNum, sku, action: 'updated', id: saved?.id });
+          continue;
+        }
+
+        if (mode === 'create-only') {
+          if (existing) {
+            result.conflicts.push({ row: rowNum, sku, existingId: existing.id });
+            result.rows.push({
+              row: rowNum,
+              sku,
+              action: 'skipped',
+              reason: 'sku_conflict',
+              id: existing.id,
+            });
+            continue;
+          }
+          if (!createTitleOk()) {
+            result.skippedInvalid.push({ row: rowNum, sku, reason: 'missing_title' });
+            result.rows.push({ row: rowNum, sku, action: 'skipped', reason: 'missing_title' });
+            continue;
+          }
+          const payload = buildImportCreatePayload(sku, incoming);
+          const created = await this.model.create(req, payload);
+          const newId = created?.id;
+          if (listId && newId) {
+            await this.model.setProductList(req, newId, listId);
+          }
+          await applyImportChannelOverrides(this, req, r, newId, incoming);
+
+          result.created++;
+          result.rows.push({ row: rowNum, sku, action: 'created', id: newId });
+          continue;
+        }
+
+        // upsert
+        if (existing) {
+          const merged = mergeForUpdate(existing, incoming);
+          const saved = await this.model.update(req, existing.id, merged);
+          const outId = saved?.id ?? existing.id;
+          if (listId) {
+            await this.model.setProductList(req, outId, listId);
+          }
+          await applyImportChannelOverrides(this, req, r, outId, incoming);
+
+          result.updated++;
+          result.rows.push({ row: rowNum, sku, action: 'updated', id: saved?.id });
+        } else {
+          if (!createTitleOk()) {
+            result.skippedInvalid.push({ row: rowNum, sku, reason: 'missing_title' });
+            result.rows.push({ row: rowNum, sku, action: 'skipped', reason: 'missing_title' });
+            continue;
+          }
+          const payload = buildImportCreatePayload(sku, incoming);
+          const created = await this.model.create(req, payload);
+          const newId = created?.id;
+          if (listId && newId) {
+            await this.model.setProductList(req, newId, listId);
+          }
+          await applyImportChannelOverrides(this, req, r, newId, incoming);
+
+          result.created++;
+          result.rows.push({ row: rowNum, sku, action: 'created', id: newId });
+        }
+      } finally {
+        if (typeof onRowProcessed === 'function') {
+          await onRowProcessed(rowNum, {
+            processedRows: rowNum,
+            created: result.created,
+            updated: result.updated,
+            skippedMissingKey: result.skippedMissingKey.length,
+            skippedInvalid: result.skippedInvalid.length,
+            conflicts: result.conflicts.length,
+            notFound: result.notFound.length,
+            skippedMissingSku: result.skippedMissingSku.length,
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
   // ---- Import ----
   // POST /api/products/import (multipart/form-data)
-  // fields: mode = 'update-only' | 'create-only' | 'upsert'
-  // file: file
+  // fields: mode, matchKey (sku|id|gtin|ean), file
   async import(req, res) {
-    let tenantIdForImportLock = null;
     try {
       const modeRaw = String(req.body?.mode || 'upsert')
         .trim()
@@ -1834,6 +2172,17 @@ class ProductController {
       if (!mode) {
         return res.status(400).json({
           error: 'Invalid mode (use update-only, create-only, or upsert)',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const matchKeyRaw = String(req.body?.matchKey || 'sku')
+        .trim()
+        .toLowerCase();
+      const matchKey = ['sku', 'id', 'gtin', 'ean'].includes(matchKeyRaw) ? matchKeyRaw : null;
+      if (!matchKey) {
+        return res.status(400).json({
+          error: 'Invalid matchKey (use sku, id, gtin, or ean)',
           code: 'VALIDATION_ERROR',
         });
       }
@@ -1870,333 +2219,230 @@ class ProductController {
           .json({ error: `Too many rows (max ${IMPORT_MAX_ROWS})`, code: 'VALIDATION_ERROR' });
       }
 
-      tenantIdForImportLock = req.session?.tenantId || null;
-      if (tenantIdForImportLock) {
-        productImportLock.begin(tenantIdForImportLock);
-      }
+      const detectedHeaders =
+        rawRows.length > 0 && rawRows[0] && typeof rawRows[0] === 'object'
+          ? Object.keys(rawRows[0])
+          : [];
 
-      const result = {
-        ok: true,
+      const jobRow = await this.model.insertProductImportJob(req, {
+        status: 'queued',
         mode,
+        matchKey,
+        originalFilename: String(file.originalname || 'import.csv'),
+        mimeType: file.mimetype || null,
+        storagePath: '',
         totalRows: rawRows.length,
-        created: 0,
-        updated: 0,
-        skippedMissingSku: [],
-        skippedInvalid: [],
-        conflicts: [],
-        notFound: [],
-        rows: [],
-      };
+        detectedHeaders,
+      });
 
-      for (let i = 0; i < rawRows.length; i++) {
-        const rowNum = i + 1;
-        const r = rawRows[i] || {};
+      const jobId = String(jobRow.id);
+      const absPath = await importStorage.writeJobFile(jobId, file.buffer, file.originalname);
+      await this.model.updateProductImportJob(req, jobId, { storage_path: absPath });
 
-        // Expected normalized keys (no spaces/underscores):
-        // Default import (issello not 1): sku, quantity, …
-        //   Texter: title.se, description.se, … → textsExtended (importerat ersätter per fält/marknad vid merge).
-        //   Standard för title/description + textsStandard: se om textsStandard-kolumn saknas; annars värdet där (fi kräver kompletta FI-texter).
-        //   Generiska title / description används inte.
-        // Sello-style row: issello=1, then standardnamesv, standarddescriptionsv, tax, manufacturerno, propertygtin/propertyean,
-        // plus per-channel columns like cdonseprice####, cdonseactive####, fyndiq3price####, fyndiq3active####.
-        const sku = toStrOrUndef(r.sku);
-        if (!sku) {
-          result.skippedMissingSku.push({ row: rowNum });
-          result.rows.push({ row: rowNum, action: 'skipped', reason: 'missing_sku' });
-          continue;
-        }
+      setImmediate(() => {
+        runProductImportJob(this, req, jobId).catch((err) => {
+          Logger.error('Product import job failed', err, { jobId });
+        });
+      });
 
-        const isSello = isSelloImportRow(r);
-        const selloVat = toFloatOrUndef(r.tax);
-        const selloGtin = toStrOrUndef(r.propertygtin) || toStrOrUndef(r.propertyean);
-        const selloMpn = toStrOrUndef(r.manufacturerno);
-
-        // Base fields (Sello column names when issello=1). Non-Sello: title/description från landsspecifika kolumner nedan.
-        const incoming = {
-          sku,
-          title: isSello
-            ? toStrOrUndef(r.standardnamesv) || toStrOrUndef(r.title)
-            : undefined,
-          description: isSello
-            ? toStrOrUndef(r.standarddescriptionsv) || toStrOrUndef(r.description)
-            : undefined,
-          status: toStrOrUndef(r.status),
-          quantity: toIntOrUndef(r.quantity),
-          priceAmount: toFloatOrUndef(r.priceamount),
-          currency: toStrOrUndef(r.currency),
-          vatRate: isSello && selloVat != null ? selloVat : toFloatOrUndef(r.vatrate),
-          brand: toStrOrUndef(r.brand),
-          mpn: isSello ? selloMpn || undefined : toStrOrUndef(r.mpn),
-          gtin: isSello ? selloGtin || undefined : toStrOrUndef(r.gtin),
-        };
-
-        // Basic bounds / normalization (security + sanity)
-        if (incoming.title && incoming.title.length > 255)
-          incoming.title = incoming.title.slice(0, 255);
-        if (incoming.currency) incoming.currency = incoming.currency.toUpperCase();
-        if (incoming.quantity !== undefined && incoming.quantity < 0) incoming.quantity = 0;
-        if (incoming.priceAmount !== undefined && incoming.priceAmount < 0)
-          incoming.priceAmount = 0;
-        if (incoming.vatRate !== undefined && (incoming.vatRate < 0 || incoming.vatRate > 50)) {
-          incoming.vatRate = undefined;
-        }
-
-        const existing = await this.model.getBySku(req, sku);
-
-        if (!isSello) {
-          const textsPatch = buildTextsExtendedPatchFromImportRow(r);
-          const hasTextPatch = Object.keys(textsPatch).length > 0;
-          if (hasTextPatch) {
-            const existingTe =
-              existing?.channelSpecific?.textsExtended &&
-              typeof existing.channelSpecific.textsExtended === 'object'
-                ? existing.channelSpecific.textsExtended
-                : {};
-            const mergedTe = mergeTextsExtendedForImport(existingTe, textsPatch);
-            const resolved = resolveStandardMarketPrimary(mergedTe, r.textsstandard);
-            if (!resolved.ok) {
-              result.skippedInvalid.push({
-                row: rowNum,
-                sku,
-                reason: resolved.code,
-                market: resolved.market,
-              });
-              result.rows.push({
-                row: rowNum,
-                sku,
-                action: 'skipped',
-                reason: resolved.code,
-                market: resolved.market,
-              });
-              continue;
-            }
-            incoming.title = resolved.title;
-            incoming.description = resolved.description;
-            incoming.channelSpecific = mergeChannelSpecificForImport(
-              existing?.channelSpecific ?? null,
-              mergedTe,
-              { textsStandard: resolved.standardMk },
-            );
-          } else {
-            incoming.title = undefined;
-            incoming.description = undefined;
-          }
-        }
-
-        if (mode === 'update-only') {
-          if (!existing) {
-            result.notFound.push({ row: rowNum, sku });
-            result.rows.push({ row: rowNum, sku, action: 'skipped', reason: 'sku_not_found' });
-            continue;
-          }
-          const merged = mergeForUpdate(existing, incoming);
-          const saved = await this.model.update(req, existing.id, merged);
-          result.updated++;
-          result.rows.push({ row: rowNum, sku, action: 'updated', id: saved?.id });
-          continue;
-        }
-
-        if (mode === 'create-only') {
-          if (existing) {
-            result.conflicts.push({ row: rowNum, sku, existingId: existing.id });
-            result.rows.push({
-              row: rowNum,
-              sku,
-              action: 'skipped',
-              reason: 'sku_conflict',
-              id: existing.id,
-            });
-            continue;
-          }
-          const title = incoming.title;
-          if (!title) {
-            const reason = isSello ? 'missing_title' : 'missing_market_texts';
-            result.skippedInvalid.push({ row: rowNum, sku, reason });
-            result.rows.push({ row: rowNum, sku, action: 'skipped', reason });
-            continue;
-          }
-          const payload = {
-            sku,
-            mpn: incoming.mpn ?? '',
-            title,
-            description: incoming.description ?? '',
-            status: incoming.status ?? 'for sale',
-            quantity: incoming.quantity ?? 0,
-            priceAmount: incoming.priceAmount ?? 0,
-            currency: incoming.currency ?? 'SEK',
-            vatRate: incoming.vatRate ?? 25,
-            brand: incoming.brand ?? '',
-            mpn: incoming.mpn ?? '',
-            gtin: incoming.gtin ?? '',
-            images: [],
-            categories: [],
-            mainImage: '',
-            ...(incoming.channelSpecific ? { channelSpecific: incoming.channelSpecific } : {}),
-          };
-          const created = await this.model.create(req, payload);
-
-          // Sello-style per-channel overrides (price/active per channel instance)
-          if (isSello) {
-            const overrides = this.parseSelloOverridesFromRow(r);
-            for (const o of overrides) {
-              // market default currencies for CDON
-              const currency =
-                o.channel === 'cdon'
-                  ? o.instance === 'se'
-                    ? 'SEK'
-                    : o.instance === 'dk'
-                      ? 'DKK'
-                      : o.instance === 'fi'
-                        ? 'EUR'
-                        : null
-                  : (incoming.currency ?? null);
-
-              await this.upsertChannelOverride(req, {
-                productId: created?.id,
-                channel: o.channel,
-                instance: o.instance,
-                active: o.active,
-                priceAmount: o.priceAmount,
-                currency,
-                vatRate: incoming.vatRate ?? 25,
-              });
-            }
-          }
-
-          result.created++;
-          result.rows.push({ row: rowNum, sku, action: 'created', id: created?.id });
-          continue;
-        }
-
-        // upsert
-        if (existing) {
-          const merged = mergeForUpdate(existing, incoming);
-          const saved = await this.model.update(req, existing.id, merged);
-
-          if (isSello) {
-            const overrides = this.parseSelloOverridesFromRow(r);
-            for (const o of overrides) {
-              const currency =
-                o.channel === 'cdon'
-                  ? o.instance === 'se'
-                    ? 'SEK'
-                    : o.instance === 'dk'
-                      ? 'DKK'
-                      : o.instance === 'fi'
-                        ? 'EUR'
-                        : null
-                  : (incoming.currency ?? null);
-
-              await this.upsertChannelOverride(req, {
-                productId: saved?.id ?? existing.id,
-                channel: o.channel,
-                instance: o.instance,
-                active: o.active,
-                priceAmount: o.priceAmount,
-                currency,
-                vatRate: incoming.vatRate ?? 25,
-              });
-            }
-          }
-
-          result.updated++;
-          result.rows.push({ row: rowNum, sku, action: 'updated', id: saved?.id });
-        } else {
-          const title = incoming.title;
-          if (!title) {
-            const reason = isSello ? 'missing_title' : 'missing_market_texts';
-            result.skippedInvalid.push({ row: rowNum, sku, reason });
-            result.rows.push({ row: rowNum, sku, action: 'skipped', reason });
-            continue;
-          }
-          const payload = {
-            sku,
-            mpn: incoming.mpn ?? '',
-            title,
-            description: incoming.description ?? '',
-            status: incoming.status ?? 'for sale',
-            quantity: incoming.quantity ?? 0,
-            priceAmount: incoming.priceAmount ?? 0,
-            currency: incoming.currency ?? 'SEK',
-            vatRate: incoming.vatRate ?? 25,
-            brand: incoming.brand ?? '',
-            mpn: incoming.mpn ?? '',
-            gtin: incoming.gtin ?? '',
-            images: [],
-            categories: [],
-            mainImage: '',
-            ...(incoming.channelSpecific ? { channelSpecific: incoming.channelSpecific } : {}),
-          };
-          const created = await this.model.create(req, payload);
-
-          if (isSello) {
-            const overrides = this.parseSelloOverridesFromRow(r);
-            for (const o of overrides) {
-              const currency =
-                o.channel === 'cdon'
-                  ? o.instance === 'se'
-                    ? 'SEK'
-                    : o.instance === 'dk'
-                      ? 'DKK'
-                      : o.instance === 'fi'
-                        ? 'EUR'
-                        : null
-                  : (incoming.currency ?? null);
-
-              await this.upsertChannelOverride(req, {
-                productId: created?.id,
-                channel: o.channel,
-                instance: o.instance,
-                active: o.active,
-                priceAmount: o.priceAmount,
-                currency,
-                vatRate: incoming.vatRate ?? 25,
-              });
-            }
-          }
-
-          result.created++;
-          result.rows.push({ row: rowNum, sku, action: 'created', id: created?.id });
-        }
-      }
-
-      return res.json(result);
+      return res.status(202).json({
+        ok: true,
+        jobId,
+        accepted: true,
+        mode,
+        matchKey,
+        totalRows: rawRows.length,
+      });
     } catch (error) {
-      Logger.error('Import products error', error, { userId: Context.getUserId(req) });
-
+      Logger.error('Import products (enqueue) error', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      return res.status(500).json({ error: 'Failed to import products' });
-    } finally {
-      if (tenantIdForImportLock) {
-        productImportLock.end(tenantIdForImportLock);
+      return res.status(500).json({ error: 'Failed to enqueue product import' });
+    }
+  }
+
+  mapImportJobRow(row) {
+    if (!row) return null;
+    let headers = row.detected_headers;
+    if (typeof headers === 'string') {
+      try {
+        headers = JSON.parse(headers);
+      } catch {
+        headers = [];
       }
+    }
+    return {
+      id: String(row.id),
+      status: row.status,
+      mode: row.mode,
+      matchKey: row.match_key,
+      originalFilename: row.original_filename,
+      mimeType: row.mime_type,
+      totalRows: row.total_rows,
+      processedRows: row.processed_rows,
+      createdCount: row.created_count,
+      updatedCount: row.updated_count,
+      errorCount: row.error_count,
+      skippedMissingKey: row.skipped_missing_key,
+      skippedInvalid: row.skipped_invalid,
+      conflictsCount: row.conflicts_count,
+      notFoundCount: row.not_found_count,
+      detectedHeaders: Array.isArray(headers) ? headers : [],
+      lastError: row.last_error,
+      createdAt: row.created_at,
+      finishedAt: row.finished_at,
+    };
+  }
+
+  async getImportJob(req, res) {
+    try {
+      const jobId = String(req.params.jobId || '').trim();
+      if (!jobId) {
+        return res.status(400).json({ error: 'Missing job id', code: 'VALIDATION_ERROR' });
+      }
+      const job = await this.model.getProductImportJob(req, jobId);
+      if (!job) {
+        return res.status(404).json({ error: 'Import job not found', code: 'NOT_FOUND' });
+      }
+      return res.json({ job: this.mapImportJobRow(job) });
+    } catch (error) {
+      Logger.error('getImportJob', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to load import job' });
+    }
+  }
+
+  async listImportHistory(req, res) {
+    try {
+      const rows = await this.model.listProductImportJobs(req, 5);
+      const items = rows.map((r) => this.mapImportJobRow(r));
+      return res.json({ items });
+    } catch (error) {
+      Logger.error('listImportHistory', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to list import history' });
+    }
+  }
+
+  async downloadImportHistoryFile(req, res) {
+    try {
+      const jobId = String(req.params.jobId || '').trim();
+      if (!jobId) {
+        return res.status(400).json({ error: 'Missing job id', code: 'VALIDATION_ERROR' });
+      }
+      const job = await this.model.getProductImportJob(req, jobId);
+      if (!job || !job.storage_path) {
+        return res.status(404).json({ error: 'File not found', code: 'NOT_FOUND' });
+      }
+      const buf = await importStorage.readJobFile(job.storage_path);
+      const rawName = String(job.original_filename || 'import').replace(/[\r\n"]/g, '');
+      const mime = job.mime_type || 'application/octet-stream';
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Content-Disposition', `attachment; filename="${rawName}"`);
+      return res.status(200).send(buf);
+    } catch (error) {
+      Logger.error('downloadImportHistoryFile', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to download import file' });
+    }
+  }
+
+  async getImportColumnReference(req, res) {
+    try {
+      const instances = await channelsModelForImportRef.listInstances(req, {
+        includeDisabled: true,
+      });
+      const payload = buildImportColumnReferencePayload(instances);
+      return res.json(payload);
+    } catch (error) {
+      Logger.error('getImportColumnReference', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to load column reference' });
     }
   }
 
   /**
-   * Build image URLs from Sello API response. Sello may return images as:
-   * - array of { url_large, url_small } (GET product list/single)
-   * - array of plain URL strings
-   * - or other shapes; we accept url_large, url_small, url, image.
-   * Used at import so we store public Sello URLs; CDON/Fyndiq/WooCommerce can fetch them when we export.
-   * TODO: When done with Sello phase, switch to proper storage (download to server or cloud).
+   * Build image URLs from Sello API response. Accepts either the full product object or a plain `images` array.
+   * Sello may return:
+   * - `images`: [{ url_large, url_small }] or string URLs
+   * - nested `product.images` / `product.image`
+   * - cover URL on `image` (list/single variants)
+   * - alternate keys: image_url_large, image_url_small (see SELLO-API.md examples)
    */
-  getSelloImageUrls(images) {
-    const imageItems = Array.isArray(images) ? images : [];
+  getSelloImageUrls(imagesOrProduct) {
     const urls = [];
+    const pushHttp = (value) => {
+      let u = String(value || '').trim();
+      if (u.startsWith('//')) u = `https:${u}`;
+      if (u && (u.startsWith('http://') || u.startsWith('https://'))) urls.push(u);
+    };
+
+    let subject = imagesOrProduct;
+    let unwrapDepth = 0;
+    while (
+      subject &&
+      typeof subject === 'object' &&
+      !Array.isArray(subject) &&
+      subject.data != null &&
+      typeof subject.data === 'object' &&
+      !Array.isArray(subject.data) &&
+      unwrapDepth < 5
+    ) {
+      subject = subject.data;
+      unwrapDepth += 1;
+    }
+
+    let imageItems = [];
+    if (Array.isArray(subject)) {
+      imageItems = subject;
+    } else if (subject && typeof subject === 'object') {
+      const o = subject;
+      if (Array.isArray(o.images)) {
+        imageItems = o.images;
+      } else if (Array.isArray(o.product?.images)) {
+        imageItems = o.product.images;
+      }
+      const cover = o.image ?? o.product?.image;
+      if (typeof cover === 'string' && cover.trim()) {
+        imageItems = [{ url_large: cover.trim() }, ...imageItems];
+      }
+    }
+
     for (let i = 0; i < imageItems.length; i += 1) {
       const item = imageItems[i];
       let u = '';
       if (typeof item === 'string') {
         u = item.trim();
       } else if (item && typeof item === 'object') {
-        u = String(item.url_large ?? item.url_small ?? item.url ?? item.image ?? '').trim();
+        u = String(
+          item.url_large ??
+            item.url_small ??
+            item.url ??
+            item.image ??
+            item.image_url_large ??
+            item.image_url_small ??
+            '',
+        ).trim();
       }
-      if (u && (u.startsWith('http://') || u.startsWith('https://'))) urls.push(u);
+      pushHttp(u);
     }
-    return { urls, downloaded: urls.length, failed: 0 };
+
+    const seen = new Set();
+    const unique = urls.filter((u) => {
+      if (seen.has(u)) return false;
+      seen.add(u);
+      return true;
+    });
+    return { urls: unique, downloaded: unique.length, failed: 0 };
   }
 
   async downloadSelloImages(req, sku, images) {
@@ -2407,9 +2653,18 @@ class ProductController {
             });
             continue;
           }
-          const imageResult = this.getSelloImageUrls(raw?.images);
-          summary.image_downloaded += imageResult.downloaded;
-          summary.image_failed += imageResult.failed;
+          let imageResult = this.getSelloImageUrls(raw);
+          if (!imageResult.urls.length && sku && this.selloModel) {
+            try {
+              const full = await this.selloModel.fetchSelloJson({
+                apiKey,
+                path: `/v5/products/${encodeURIComponent(sku)}`,
+              });
+              imageResult = this.getSelloImageUrls(full);
+            } catch {
+              /* keep first parse */
+            }
+          }
           const categoryIds = getSelloAllCategoryIds(raw);
           const importedChannelSpecific = buildImportedChannelSpecificCategories(
             raw,
@@ -2475,7 +2730,7 @@ class ProductController {
               manufacturerName,
             );
           }
-          const upsertResult = await this.model.upsertFromSelloProduct(req, {
+          const upsertResult = await this.upsertSelloProductWithHostedImages(req, {
             selloId: sku,
             privateName: (() => {
               const v = raw?.private_name ?? raw?.product?.private_name;
@@ -2487,8 +2742,7 @@ class ProductController {
             quantity: raw?.quantity,
             priceAmount: undefined,
             vatRate: raw?.tax,
-            mainImage: imageResult.urls[0] || null,
-            images: imageResult.urls,
+            imageSourceUrls: imageResult.urls,
             categories: categoryIds,
             channelSpecific: Object.keys(importedChannelSpecific).length
               ? importedChannelSpecific
@@ -2519,6 +2773,8 @@ class ProductController {
               raw?.sold != null && Number.isFinite(Number(raw.sold)) ? Number(raw.sold) : undefined,
             lastSoldAt: raw?.last_sold != null ? String(raw.last_sold).trim() : undefined,
           });
+          summary.image_downloaded += Number(upsertResult?.media?.uploadedCount || 0);
+          summary.image_failed += Number(upsertResult?.media?.failedCount || 0);
           const createdProductId = String(upsertResult?.product?.id || '').trim();
           if (createdProductId && groupIdRaw) {
             selloIdToHomebaseId.set(sku, { groupId: groupIdRaw, isMultiProductGroup });
@@ -2621,6 +2877,15 @@ class ProductController {
               }
             }
           }
+          const mediaSummary = (() => {
+            const m = upsertResult?.media;
+            if (!m || typeof m !== 'object') return undefined;
+            return {
+              uploaded: Number(m.uploadedCount || 0),
+              reused: Number(m.reusedCount || 0),
+              failed: Number(m.failedCount || 0),
+            };
+          })();
           if (upsertResult.created) {
             summary.created += 1;
             summary.rows.push({
@@ -2628,6 +2893,7 @@ class ProductController {
               status: 'created',
               reason: null,
               sourceCreatedAt: raw?.created_at || null,
+              media: mediaSummary,
             });
           } else {
             summary.updated += 1;
@@ -2636,6 +2902,7 @@ class ProductController {
               status: 'updated',
               reason: null,
               sourceCreatedAt: raw?.created_at || null,
+              media: mediaSummary,
             });
           }
         }
@@ -2718,9 +2985,18 @@ class ProductController {
             continue;
           }
 
-          const imageResult = this.getSelloImageUrls(raw?.images);
-          summary.image_downloaded += imageResult.downloaded;
-          summary.image_failed += imageResult.failed;
+          let imageResult = this.getSelloImageUrls(raw);
+          if (!imageResult.urls.length && sku && this.selloModel) {
+            try {
+              const full = await this.selloModel.fetchSelloJson({
+                apiKey,
+                path: `/v5/products/${encodeURIComponent(sku)}`,
+              });
+              imageResult = this.getSelloImageUrls(full);
+            } catch {
+              /* list rows may omit images; full GET failed */
+            }
+          }
           const categoryIds = getSelloAllCategoryIds(raw);
           const importedChannelSpecific = buildImportedChannelSpecificCategories(
             raw,
@@ -2786,7 +3062,7 @@ class ProductController {
               manufacturerName,
             );
           }
-          const upsertResult = await this.model.upsertFromSelloProduct(req, {
+          const upsertResult = await this.upsertSelloProductWithHostedImages(req, {
             selloId: sku,
             privateName: (() => {
               const v = raw?.private_name ?? raw?.product?.private_name;
@@ -2798,8 +3074,7 @@ class ProductController {
             quantity: raw?.quantity,
             priceAmount: undefined,
             vatRate: raw?.tax,
-            mainImage: imageResult.urls[0] || null,
-            images: imageResult.urls,
+            imageSourceUrls: imageResult.urls,
             categories: categoryIds,
             channelSpecific: Object.keys(importedChannelSpecific).length
               ? importedChannelSpecific
@@ -2830,6 +3105,8 @@ class ProductController {
               raw?.sold != null && Number.isFinite(Number(raw.sold)) ? Number(raw.sold) : undefined,
             lastSoldAt: raw?.last_sold != null ? String(raw.last_sold).trim() : undefined,
           });
+          summary.image_downloaded += Number(upsertResult?.media?.uploadedCount || 0);
+          summary.image_failed += Number(upsertResult?.media?.failedCount || 0);
           const productId = String(upsertResult?.product?.id || '').trim();
           if (productId && groupIdRaw && groupInfo) {
             pageProductIdToGroupId.set(productId, {
@@ -2911,6 +3188,15 @@ class ProductController {
               }
             }
           }
+          const mediaSummary = (() => {
+            const m = upsertResult?.media;
+            if (!m || typeof m !== 'object') return undefined;
+            return {
+              uploaded: Number(m.uploadedCount || 0),
+              reused: Number(m.reusedCount || 0),
+              failed: Number(m.failedCount || 0),
+            };
+          })();
           if (upsertResult.created) {
             summary.created += 1;
             summary.rows.push({
@@ -2918,6 +3204,7 @@ class ProductController {
               status: 'created',
               reason: null,
               sourceCreatedAt: raw?.created_at || null,
+              media: mediaSummary,
             });
           } else {
             summary.updated += 1;
@@ -2926,6 +3213,7 @@ class ProductController {
               status: 'updated',
               reason: null,
               sourceCreatedAt: raw?.created_at || null,
+              media: mediaSummary,
             });
           }
         }

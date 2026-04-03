@@ -4,8 +4,8 @@
 // Kör: PHASE1_PILOT_USER_ID=1 node scripts/import-single-sello-product.js 132797129
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env.local'), override: true });
 
 const ProductModel = require('../plugins/products/model');
 const ProductController = require('../plugins/products/controller');

@@ -4,6 +4,50 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-03 – Hostade produktbilder (Backblaze B2), Sello-import, media-DB, CLI-env
+
+### Lagring (B2)
+
+- **`server/core/services/storage/b2ObjectStorage.js`:** S3-klient mot B2 med **`forcePathStyle: true`** (path-style mot `B2_ENDPOINT`). Normalisering av **`B2_PUBLIC_BASE_URL`** så bucket i `/file/{bucket}` stämmer med **`B2_BUCKET`**. Hjälpfunktion **`objectKeyFromB2FileUrl`** för att plocka objektnyckel ur Friendly URL.
+- **Dokumentation i kod:** publika `<img>`-URL:er kräver att bucket tillåter **anon läsning**; annars 403 trots lyckad uppladdning.
+
+### Produktmedia (service + DB)
+
+- **`plugins/products/productMediaService.js`:** `ensureHostedSelloMedia` hämtar Sello-URL:er, laddar upp till B2, skapar rader i **`product_media_objects`**. **`mainImage`** = första hostade URL; **`images`** = endast **extrabilder** (`slice(1)`), så huvudbild dupliceras inte i `images`. **`allHostedUrls`** används internt till **`reconcileAttachedProductMedia`** (behåll/radera enligt full lista).
+- **`reconcileAttachedProductMedia` / `rowMediaUrlMatchesKeep`:** matchar även på **objektnyckel** om Friendly URL skiljer sig (t.ex. olika `f003`/`f004`) så felaktiga B2-raderingar och hide-markers undviks.
+- **Parallella uppladdningar** (begränsad samtidighet, standard 8): env **`PRODUCT_MEDIA_UPLOAD_CONCURRENCY`** (max 12 i kod).
+- **`plugins/products/productMediaObjectModel.js`**, migration **`089-product-media-objects.sql`**.
+
+### Sello-import & controller
+
+- **`plugins/products/controller.js`:** `getSelloImageUrls` — unwrap av nästlade **`data`**, protokoll-relativa `//…` → `https:`, refetch av full produkt om listan saknar bild-URL:er. **`upsertSelloProductWithHostedImages`** skickar **`allHostedUrls`** till reconcile. Import-svar per rad: **`media: { uploaded, reused, failed }`**.
+
+### Async filimport (referens)
+
+- Migration **`088-product-import-jobs.sql`**, workers (`importJobRunner`, `importParse`, `importStorage`, `importProductRowMapper`, `importColumnReference`), tester och klientrelaterade produktfiler i samma leverans.
+
+### CLI-scripts
+
+- **`scripts/sget.js`**, **`import-single-sello-product.js`**, **`sync-all-sello-products.js`:** laddar env som API: **`.env`** först, sedan **`.env.local`** med **`override: true`**. `sget` skriver kort B2-statistik per rad.
+
+### Tester
+
+- **`server/__tests__/productMediaService.test.js`**, **`importProductRowMapper.test.js`**, **`validateImageUrl.test.js`**.
+
+### Övrigt dokumentation (API-referens)
+
+- Tillagda/uppdaterade filer under **`docs/API-DOCS/`** (PostNord m.m.) och **`docs/products-*.md`** där relevant.
+
+---
+
+## 2026-04-02 – Full produktimport (Excel/CSV): fältparitet, bild-URL, `channelSpecificJson`, lista
+
+- **Import:** `plugins/products/importProductRowMapper.js` mappar basfält (bl.a. inköp, dimensioner, lookup-id, bilder, kategorier), utökade per-marknadstexter (SEO, bulletpoints), valfri kolumn **`channelSpecificJson`** (whitelistade nycklar) med **djup merge** mot befintligt `channelSpecific`.
+- **Bilder:** `server/core/utils/validateImageUrl.js` — endast `http`/`https`, validering via **HEAD** / **GET** och `Content-Type` `image/*`; ogiltig rad → `invalid_main_image` / `invalid_image_url`.
+- **Lista:** kolumn **`listId`** → efter lyckad create/update anropas `model.setProductList` (samma som `PUT /api/products/:id/list`).
+- **Kanalpriser:** punktnotation / `parseSelloOverridesFromRow` → **`upsertChannelOverride`** även när **`issello` ≠ 1** om override-kolumner finns.
+- **Dokumentation:** `docs/product-import-columns.md`; kolumnreferens i `plugins/products/importColumnReference.js` uppdaterad.
+
 ## 2026-04-02 – WooCommerce texter per butik; produktimport till `textsExtended`; importvy (routing)
 
 ### WooCommerce
@@ -19,6 +63,13 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 - Kolumner **`title.se`**, **`description.se`**, samma för **`.dk` / `.fi` / `.no`** (punkt i rubrik) mappas till **`channelSpecific.textsExtended`**. Generiska **`title`** / **`description`** ignoreras.
 - **Standard** för katalog **`title`** / **`description`** och **`textsStandard`:** **`se`** om kolumnen **`textsStandard`** saknas; valfri kolumn kan sätta t.ex. **`fi`** (då krävs kompletta texter för den marknaden). Vid fel: **`standard_market_texts_incomplete`** (med **`market`** i svaret där relevant).
 - **Importmall (kanaler):** `plugins/channels/model.js` **`buildImportTemplateCsv`** – kolumner per land + **`textsStandard`**.
+
+### Produkter – async CSV/XLSX-import (Sello-lik)
+
+- **Migration `088-product-import-jobs.sql`:** tabell `product_import_jobs` (status, matchnyckel, räknare, `detected_headers`, `storage_path`). Max **5** sparade jobb per tenant (äldre rader + filer rensas vid ny insert).
+- **API:** POST `/api/products/import` svarar **202** med `jobId`; GET `/api/products/import/jobs/:jobId` (polling), GET `/api/products/import/history`, GET `/api/products/import/history/:jobId/file` (nedladdning), GET `/api/products/import/column-reference` (allmänt / Sello / per kanalinstans).
+- **Matchnyckel:** `sku` | `id` | `gtin` | `ean` (dubblett GTIN/EAN → **lägsta id**). **Worker:** `importJobRunner.js` under `productImportLock`.
+- **Klient:** `ProductImportPage` – matchnyckel, live-räknare via polling, historik med nedladdning, kolumnreferens (collapsible), tabeller mappar och kanalinstanser.
 
 ### Övrigt (samma release)
 

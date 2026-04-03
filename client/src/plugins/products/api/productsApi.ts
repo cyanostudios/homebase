@@ -19,18 +19,57 @@ export type ProductListParams = {
 
 export type ApiFieldError = { field: string; message: string };
 export type ProductImportMode = 'update-only' | 'create-only' | 'upsert';
-export type ProductImportResult = {
-  ok: true;
+export type ProductImportMatchKey = 'sku' | 'id' | 'gtin' | 'ean';
+
+export type ProductImportJobSnapshot = {
+  id: string;
+  status: string;
   mode: ProductImportMode;
+  matchKey: string;
+  originalFilename: string;
+  mimeType: string | null;
   totalRows: number;
-  created: number;
-  updated: number;
-  skippedMissingSku: Array<{ row: number }>;
-  skippedInvalid: Array<{ row: number; sku: string; reason: string }>;
-  conflicts: Array<{ row: number; sku: string; existingId: string }>;
-  notFound: Array<{ row: number; sku: string }>;
-  rows: Array<{ row: number; sku?: string; action: string; reason?: string; id?: string }>;
+  processedRows: number;
+  createdCount: number;
+  updatedCount: number;
+  errorCount: number;
+  skippedMissingKey: number;
+  skippedInvalid: number;
+  conflictsCount: number;
+  notFoundCount: number;
+  detectedHeaders: string[];
+  lastError: string | null;
+  createdAt: string;
+  finishedAt: string | null;
 };
+
+export type ProductImportStartResponse = {
+  ok: true;
+  accepted: true;
+  jobId: string;
+  mode: ProductImportMode;
+  matchKey: string;
+  totalRows: number;
+};
+
+export type ImportColumnRef = { name: string; description: string };
+export type ImportColumnReferenceResponse = {
+  general: ImportColumnRef[];
+  sello: ImportColumnRef[];
+  channels: Array<{
+    channel: string;
+    instanceKey: string;
+    numericId: string;
+    market: string | null;
+    label: string | null;
+    exampleColumns: string[];
+    legacyHints: string[];
+  }>;
+};
+
+/** Finished import job (after background processing). */
+export type ProductImportResult = { ok: true; job: ProductImportJobSnapshot };
+
 export type SelloSettings = {
   id?: string;
   apiKey: string;
@@ -229,6 +268,35 @@ class ProductsApi {
     return Number.isFinite(n) ? n : 0;
   }
 
+  async uploadMediaFiles(
+    files: File[],
+  ): Promise<Array<{ url: string; originalFilename: string | null }>> {
+    const fd = new FormData();
+    for (const file of files) {
+      fd.append('files', file, file.name);
+    }
+    const csrfToken = await this.getCsrfToken();
+    const response = await fetch('/api/products/media/upload', {
+      method: 'POST',
+      body: fd,
+      credentials: 'include',
+      headers: {
+        'X-CSRF-Token': csrfToken,
+      },
+    });
+    const payloadText = await response.text();
+    const payload = payloadText ? JSON.parse(payloadText) : null;
+    if (!response.ok) {
+      const err: any = new Error(
+        payload?.error || payload?.message || response.statusText || 'Upload failed',
+      );
+      err.status = response.status;
+      err.code = payload?.code;
+      throw err;
+    }
+    return Array.isArray(payload) ? payload : [];
+  }
+
   async createProduct(data: any): Promise<Product> {
     return this.request('/products', {
       method: 'POST',
@@ -351,12 +419,55 @@ class ProductsApi {
     });
   }
 
-  // ---- Import ----
-  // POST /api/products/import (multipart/form-data)
-  async importProducts(file: File, mode: ProductImportMode): Promise<ProductImportResult> {
+  // ---- Import (async job, HTTP 202) ----
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async getImportJob(jobId: string): Promise<{ job: ProductImportJobSnapshot }> {
+    return this.request(`/products/import/jobs/${encodeURIComponent(jobId)}`);
+  }
+
+  async getImportHistory(): Promise<{ items: ProductImportJobSnapshot[] }> {
+    return this.request('/products/import/history');
+  }
+
+  async getImportColumnReference(): Promise<ImportColumnReferenceResponse> {
+    return this.request('/products/import/column-reference');
+  }
+
+  async downloadImportFile(jobId: string): Promise<Blob> {
+    const response = await fetch(`/api/products/import/history/${encodeURIComponent(jobId)}/file`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      let payload: any = null;
+      try {
+        payload = await response.json();
+      } catch {
+        void 0;
+      }
+      const err: any = new Error(
+        payload?.error || payload?.message || response.statusText || 'Download failed',
+      );
+      err.status = response.status;
+      throw err;
+    }
+    return response.blob();
+  }
+
+  /**
+   * POST /api/products/import — 202 with jobId; worker processes file in background.
+   */
+  async startProductImport(
+    file: File,
+    mode: ProductImportMode,
+    matchKey: ProductImportMatchKey = 'sku',
+  ): Promise<ProductImportStartResponse> {
     const csrf = await this.getCsrfToken();
     const form = new FormData();
     form.append('mode', mode);
+    form.append('matchKey', matchKey);
     form.append('file', file);
 
     const response = await fetch('/api/products/import', {
@@ -383,7 +494,47 @@ class ProductsApi {
       throw err;
     }
 
-    return payload as ProductImportResult;
+    if (response.status !== 202 || !payload?.jobId) {
+      const err: any = new Error('Unexpected import response');
+      err.status = response.status;
+      throw err;
+    }
+
+    return {
+      ok: true,
+      accepted: true,
+      jobId: String(payload.jobId),
+      mode: payload.mode as ProductImportMode,
+      matchKey: String(payload.matchKey || matchKey),
+      totalRows: Number(payload.totalRows) || 0,
+    };
+  }
+
+  async waitForImportJob(jobId: string, intervalMs = 750): Promise<ProductImportJobSnapshot> {
+    const deadline = Date.now() + 30 * 60 * 1000;
+    while (Date.now() < deadline) {
+      const { job } = await this.getImportJob(jobId);
+      if (job.status === 'completed' || job.status === 'failed') {
+        return job;
+      }
+      await this.sleep(intervalMs);
+    }
+    const err: any = new Error('Import timed out');
+    err.code = 'IMPORT_TIMEOUT';
+    throw err;
+  }
+
+  /**
+   * Starts import and blocks until the job finishes (no live progress; use startProductImport + getImportJob for that).
+   */
+  async importProducts(
+    file: File,
+    mode: ProductImportMode,
+    matchKey: ProductImportMatchKey = 'sku',
+  ): Promise<ProductImportResult> {
+    const started = await this.startProductImport(file, mode, matchKey);
+    const job = await this.waitForImportJob(started.jobId);
+    return { ok: true, job };
   }
 
   async getSelloSettings(): Promise<SelloSettings | null> {

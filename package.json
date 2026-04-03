@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
+    "@aws-sdk/client-s3": "^3.1023.0",
     "@homebase/core": "file:packages/core",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",

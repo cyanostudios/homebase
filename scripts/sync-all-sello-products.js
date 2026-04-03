@@ -4,8 +4,8 @@
 // Kör: PHASE1_PILOT_USER_ID=1 node scripts/sync-all-sello-products.js
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env.local'), override: true });
 
 const Bootstrap = require('../server/core/Bootstrap');
 const ProductModel = require('../plugins/products/model');

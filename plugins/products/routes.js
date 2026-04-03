@@ -21,6 +21,13 @@ function createProductRoutes(controller, context) {
       files: 1,
     },
   });
+  const mediaUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 20 * 1024 * 1024,
+      files: 10,
+    },
+  });
   const runImportUpload = (req, res, next) =>
     upload.single('file')(req, res, (err) => {
       if (!err) return next();
@@ -30,6 +37,20 @@ function createProductRoutes(controller, context) {
             ? 'File too large (max 10MB)'
             : err.code === 'LIMIT_FILE_COUNT'
               ? 'Too many files (max 1)'
+              : 'Upload rejected';
+        return res.status(400).json({ error: msg, code: 'VALIDATION_ERROR' });
+      }
+      return res.status(400).json({ error: 'Upload failed', code: 'VALIDATION_ERROR' });
+    });
+  const runMediaUpload = (req, res, next) =>
+    mediaUpload.array('files', 10)(req, res, (err) => {
+      if (!err) return next();
+      if (err instanceof multer.MulterError) {
+        const msg =
+          err.code === 'LIMIT_FILE_SIZE'
+            ? 'File too large (max 20MB)'
+            : err.code === 'LIMIT_FILE_COUNT'
+              ? 'Too many files (max 10)'
               : 'Upload rejected';
         return res.status(400).json({ error: msg, code: 'VALIDATION_ERROR' });
       }
@@ -128,6 +149,19 @@ function createProductRoutes(controller, context) {
   // POST /api/products/import - CSV/XLSX import (MUST be before '/:id' route)
   router.post('/import', gate, uploadLimiter, csrfProtection, runImportUpload, (req, res) =>
     controller.import(req, res),
+  );
+
+  router.post('/media/upload', gate, uploadLimiter, csrfProtection, runMediaUpload, (req, res) =>
+    controller.uploadMedia(req, res),
+  );
+
+  router.get('/import/jobs/:jobId', gate, (req, res) => controller.getImportJob(req, res));
+  router.get('/import/history', gate, (req, res) => controller.listImportHistory(req, res));
+  router.get('/import/history/:jobId/file', gate, (req, res) =>
+    controller.downloadImportHistoryFile(req, res),
+  );
+  router.get('/import/column-reference', gate, (req, res) =>
+    controller.getImportColumnReference(req, res),
   );
 
   // POST /api/products/import/sello - Pull products from Sello API

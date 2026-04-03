@@ -4,8 +4,9 @@
 // Eller: SGET=109512000,124732609 node scripts/sget.js
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
+// Same order as server/index.ts: base .env, then .env.local wins (CLI must match API or B2/env differs).
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env.local'), override: true });
 
 const ProductModel = require('../plugins/products/model');
 const ProductController = require('../plugins/products/controller');
@@ -61,9 +62,19 @@ async function run() {
   console.log(`sget: ${selloProductIds.length} produkt(er)\n`);
   const rows = summary.rows || [];
   for (const r of rows) {
-    console.log(`  ${r.status}: ${r.sku || r.id} ${r.title ? `– ${r.title.slice(0, 50)}…` : ''}`);
+    const m = r.media;
+    const b2 =
+      m && typeof m === 'object'
+        ? ` — B2: ${m.uploaded} uppl., ${m.reused} återanv., ${m.failed} fel`
+        : '';
+    console.log(`  ${r.status}: ${r.sku || r.id}${b2}`);
   }
   console.log(`\n${summary.created || 0} skapade, ${summary.updated || 0} uppdaterade`);
+  if (summary.image_downloaded != null || summary.image_failed != null) {
+    console.log(
+      `Bilder (B2): ${summary.image_downloaded || 0} uppladdade, ${summary.image_failed || 0} fel`,
+    );
+  }
   process.exit(0);
 }
 
