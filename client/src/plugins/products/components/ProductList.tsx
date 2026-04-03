@@ -135,6 +135,10 @@ function hashVariantGroupPaletteIndex(groupKey: string): number {
   return Math.abs(h) % VARIANT_GROUP_PALETTES.length;
 }
 
+function isNonNullish<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
+
 function getSortComparable(p: Record<string, unknown>, field: SortField): number | string {
   switch (field) {
     case 'id':
@@ -169,11 +173,10 @@ function sortRowsByField(rows: Record<string, unknown>[], field: SortField, orde
   );
 }
 
-function aggregateGroupRank(
-  values: (number | string)[],
-  order: SortOrder,
-): number | string {
-  if (values.length === 0) return 0;
+function aggregateGroupRank(values: (number | string)[], order: SortOrder): number | string {
+  if (values.length === 0) {
+    return 0;
+  }
   if (typeof values[0] === 'string') {
     const strs = values as string[];
     return order === 'asc'
@@ -194,21 +197,33 @@ function clusterCatalogRowsByVariantGroup(
   sortField: SortField,
   sortOrder: SortOrder,
 ): Record<string, unknown>[] {
-  if (rows.length <= 1) return rows;
+  if (rows.length <= 1) {
+    return rows;
+  }
   const counts = new Map<string, number>();
   for (const p of rows) {
-    const g = p.groupId != null && String(p.groupId).trim() ? String(p.groupId).trim() : '';
-    if (g) counts.set(g, (counts.get(g) ?? 0) + 1);
+    const g =
+      p.groupId !== null && p.groupId !== undefined && String(p.groupId).trim()
+        ? String(p.groupId).trim()
+        : '';
+    if (g) {
+      counts.set(g, (counts.get(g) ?? 0) + 1);
+    }
   }
   const multi = new Set<string>();
   for (const [g, c] of counts.entries()) {
-    if (c >= 2) multi.add(g);
+    if (c >= 2) {
+      multi.add(g);
+    }
   }
 
   const groupBuckets = new Map<string, Record<string, unknown>[]>();
   const standalone: Record<string, unknown>[] = [];
   for (const p of rows) {
-    const g = p.groupId != null && String(p.groupId).trim() ? String(p.groupId).trim() : '';
+    const g =
+      p.groupId !== null && p.groupId !== undefined && String(p.groupId).trim()
+        ? String(p.groupId).trim()
+        : '';
     if (g && multi.has(g)) {
       const arr = groupBuckets.get(g) ?? [];
       arr.push(p);
@@ -235,7 +250,9 @@ function clusterCatalogRowsByVariantGroup(
 
   segments.sort((a, b) => {
     const c = cmpSort(a.rank, b.rank, sortOrder);
-    if (c !== 0) return c;
+    if (c !== 0) {
+      return c;
+    }
     const ida = a.kind === 'group' ? a.gid : String(a.row.id);
     const idb = b.kind === 'group' ? b.gid : String(b.row.id);
     return String(ida).localeCompare(String(idb));
@@ -243,8 +260,11 @@ function clusterCatalogRowsByVariantGroup(
 
   const out: Record<string, unknown>[] = [];
   for (const s of segments) {
-    if (s.kind === 'group') out.push(...s.rows);
-    else out.push(s.row);
+    if (s.kind === 'group') {
+      out.push(...s.rows);
+    } else {
+      out.push(s.row);
+    }
   }
   return out;
 }
@@ -1251,16 +1271,15 @@ export const ProductList: React.FC = () => {
                   const raw = p.raw;
                   const isSelected = selectedProductIds.includes(p.id);
                   const groupInfo = getGroupInfo(p);
-                  const pal =
-                    groupInfo != null
-                      ? VARIANT_GROUP_PALETTES[hashVariantGroupPaletteIndex(groupInfo.key)]
-                      : null;
+                  const pal = isNonNullish(groupInfo)
+                    ? VARIANT_GROUP_PALETTES[hashVariantGroupPaletteIndex(groupInfo.key)]
+                    : null;
                   const chrome =
-                    groupInfo != null && pal != null
+                    isNonNullish(groupInfo) && isNonNullish(pal)
                       ? variantGroupRowChrome(groupInfo, rowIndex, pal.border)
                       : '';
                   const rowBg =
-                    groupInfo != null && pal != null
+                    isNonNullish(groupInfo) && isNonNullish(pal)
                       ? `${pal.rowBg} ${pal.rowHover}`
                       : 'hover:bg-gray-50 dark:hover:bg-gray-900/50';
                   return (
@@ -1270,104 +1289,101 @@ export const ProductList: React.FC = () => {
                           className="h-2.5 border-0 hover:bg-transparent pointer-events-none"
                           aria-hidden
                         >
-                          <TableCell
-                            colSpan={8}
-                            className="h-2.5 border-0 bg-transparent p-0"
-                          />
+                          <TableCell colSpan={8} className="h-2.5 border-0 bg-transparent p-0" />
                         </TableRow>
                       ) : null}
                       <TableRow
                         className={`${rowBg} ${chrome} ${
-                          groupInfo == null ? '[&>td]:border-b [&>td]:border-gray-200' : ''
+                          !isNonNullish(groupInfo) ? '[&>td]:border-b [&>td]:border-gray-200' : ''
                         }`}
                         data-list-item={JSON.stringify(raw)}
                         data-plugin-name="products"
                       >
                         <TableCell
-                          className={`w-5 p-0 align-top ${groupInfo != null && pal != null ? `border-l-2 ${pal.accent}` : ''}`}
+                          className={`w-5 p-0 align-top ${isNonNullish(groupInfo) && isNonNullish(pal) ? `border-l-2 ${pal.accent}` : ''}`}
                           aria-hidden
                         />
-                      <TableCell className={`w-12 ${groupInfo ? 'pl-3' : ''}`}>
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 cursor-pointer rounded border-input"
-                          checked={isSelected}
-                          onChange={() => toggleProductSelected(p.id)}
-                          aria-label={isSelected ? 'Unselect product' : 'Select product'}
-                        />
-                      </TableCell>
-                      <TableCell className={groupInfo ? 'pl-3' : ''}>
-                        <div className="text-sm font-mono font-medium">#{p.id}</div>
-                      </TableCell>
-                      <TableCell className={groupInfo ? 'pl-3' : ''}>
-                        <ProductTitleWithLinksHover
-                          productId={p.id}
-                          title={p.title}
-                          groupInfo={
-                            groupInfo
-                              ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
-                              : undefined
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className={groupInfo ? 'pl-3' : ''}>
-                        <div className="text-sm text-muted-foreground">{p.sku || '—'}</div>
-                      </TableCell>
-                      <TableCell className={groupInfo ? 'pl-3' : ''}>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0"
-                            disabled={quantityUpdatingId === p.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const current = Number.isFinite(p.quantity) ? p.quantity : 0;
-                              openQuantityDialog(p.id, current, 'minus');
-                            }}
-                            aria-label="Minska antal"
-                          >
-                            <Minus className="h-3.5 w-3.5" />
-                          </Button>
-                          <span className="min-w-[1.5rem] text-center text-sm tabular-nums">
-                            {p.quantity}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0"
-                            disabled={quantityUpdatingId === p.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const current = Number.isFinite(p.quantity) ? p.quantity : 0;
-                              openQuantityDialog(p.id, current, 'plus');
-                            }}
-                            aria-label="Öka antal"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className={groupInfo ? 'pl-3' : ''}>
-                        <div className="text-sm">
-                          {p.priceAmount?.toFixed
-                            ? p.priceAmount.toFixed(2)
-                            : Number(p.priceAmount || 0).toFixed(2)}{' '}
-                          {p.currency}
-                        </div>
-                      </TableCell>
-                      <TableCell className={`text-right ${groupInfo ? 'pl-3' : ''}`}>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleOpenProduct(raw)}
-                          >
-                            Edit
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        <TableCell className={`w-12 ${groupInfo ? 'pl-3' : ''}`}>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer rounded border-input"
+                            checked={isSelected}
+                            onChange={() => toggleProductSelected(p.id)}
+                            aria-label={isSelected ? 'Unselect product' : 'Select product'}
+                          />
+                        </TableCell>
+                        <TableCell className={groupInfo ? 'pl-3' : ''}>
+                          <div className="text-sm font-mono font-medium">#{p.id}</div>
+                        </TableCell>
+                        <TableCell className={groupInfo ? 'pl-3' : ''}>
+                          <ProductTitleWithLinksHover
+                            productId={p.id}
+                            title={p.title}
+                            groupInfo={
+                              groupInfo
+                                ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
+                                : undefined
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className={groupInfo ? 'pl-3' : ''}>
+                          <div className="text-sm text-muted-foreground">{p.sku || '—'}</div>
+                        </TableCell>
+                        <TableCell className={groupInfo ? 'pl-3' : ''}>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              disabled={quantityUpdatingId === p.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                                openQuantityDialog(p.id, current, 'minus');
+                              }}
+                              aria-label="Minska antal"
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="min-w-[1.5rem] text-center text-sm tabular-nums">
+                              {p.quantity}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              disabled={quantityUpdatingId === p.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                                openQuantityDialog(p.id, current, 'plus');
+                              }}
+                              aria-label="Öka antal"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className={groupInfo ? 'pl-3' : ''}>
+                          <div className="text-sm">
+                            {p.priceAmount?.toFixed
+                              ? p.priceAmount.toFixed(2)
+                              : Number(p.priceAmount || 0).toFixed(2)}{' '}
+                            {p.currency}
+                          </div>
+                        </TableCell>
+                        <TableCell className={`text-right ${groupInfo ? 'pl-3' : ''}`}>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleOpenProduct(raw)}
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     </React.Fragment>
                   );
                 })
@@ -1388,105 +1404,101 @@ export const ProductList: React.FC = () => {
               displayRows.map((p: any, rowIndex: number) => {
                 const isSelected = selectedProductIds.includes(p.id);
                 const groupInfo = getGroupInfo(p);
-                const pal =
-                  groupInfo != null
-                    ? VARIANT_GROUP_PALETTES[hashVariantGroupPaletteIndex(groupInfo.key)]
-                    : null;
+                const pal = isNonNullish(groupInfo)
+                  ? VARIANT_GROUP_PALETTES[hashVariantGroupPaletteIndex(groupInfo.key)]
+                  : null;
                 const chrome =
-                  groupInfo != null && pal != null
+                  isNonNullish(groupInfo) && isNonNullish(pal)
                     ? variantGroupRowChrome(groupInfo, rowIndex, pal.border)
                     : '';
-                const rowBg =
-                  groupInfo != null && pal != null
-                    ? pal.rowBg
-                    : '';
+                const rowBg = isNonNullish(groupInfo) && isNonNullish(pal) ? pal.rowBg : '';
                 return (
                   <React.Fragment key={p.id}>
                     {groupInfo?.isFirst && rowIndex > 0 ? (
                       <div className="h-2.5 shrink-0" aria-hidden />
                     ) : null}
                     <div
-                      className={`p-4 ${rowBg} ${chrome} ${groupInfo != null && pal != null ? 'pl-3' : 'border-b border-border'}`}
+                      className={`p-4 ${rowBg} ${chrome} ${isNonNullish(groupInfo) && isNonNullish(pal) ? 'pl-3' : 'border-b border-border'}`}
                     >
-                    <div className="flex items-start gap-3">
-                      <div className="pt-1">
-                        <input
-                          type="checkbox"
-                          className="rounded border-input"
-                          checked={isSelected}
-                          onChange={() => toggleProductSelected(p.id)}
-                          aria-label={isSelected ? 'Unselect product' : 'Select product'}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <ProductTitleWithLinksHover
-                            productId={p.id}
-                            title={p.title}
-                            groupInfo={
-                              groupInfo
-                                ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
-                                : undefined
-                            }
+                      <div className="flex items-start gap-3">
+                        <div className="pt-1">
+                          <input
+                            type="checkbox"
+                            className="rounded border-input"
+                            checked={isSelected}
+                            onChange={() => toggleProductSelected(p.id)}
+                            aria-label={isSelected ? 'Unselect product' : 'Select product'}
                           />
                         </div>
-                        <div className="mt-1 space-y-1">
-                          <div className="text-xs text-muted-foreground">
-                            #{p.id} · {p.sku || '—'}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <ProductTitleWithLinksHover
+                              productId={p.id}
+                              title={p.title}
+                              groupInfo={
+                                groupInfo
+                                  ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
+                                  : undefined
+                              }
+                            />
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 shrink-0"
-                              disabled={quantityUpdatingId === p.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const current = Number.isFinite(p.quantity) ? p.quantity : 0;
-                                openQuantityDialog(p.id, current, 'minus');
-                              }}
-                              aria-label="Minska antal"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="min-w-[1.25rem] text-center text-xs tabular-nums">
-                              {p.quantity}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 shrink-0"
-                              disabled={quantityUpdatingId === p.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const current = Number.isFinite(p.quantity) ? p.quantity : 0;
-                                openQuantityDialog(p.id, current, 'plus');
-                              }}
-                              aria-label="Öka antal"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {p.priceAmount?.toFixed
-                              ? p.priceAmount.toFixed(2)
-                              : Number(p.priceAmount || 0).toFixed(2)}{' '}
-                            {p.currency}
+                          <div className="mt-1 space-y-1">
+                            <div className="text-xs text-muted-foreground">
+                              #{p.id} · {p.sku || '—'}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0"
+                                disabled={quantityUpdatingId === p.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                                  openQuantityDialog(p.id, current, 'minus');
+                                }}
+                                aria-label="Minska antal"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="min-w-[1.25rem] text-center text-xs tabular-nums">
+                                {p.quantity}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0"
+                                disabled={quantityUpdatingId === p.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                                  openQuantityDialog(p.id, current, 'plus');
+                                }}
+                                aria-label="Öka antal"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {p.priceAmount?.toFixed
+                                ? p.priceAmount.toFixed(2)
+                                : Number(p.priceAmount || 0).toFixed(2)}{' '}
+                              {p.currency}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => attemptNavigation(() => openProductForEdit(p.raw))}
-                          className="h-8 px-3"
-                        >
-                          Edit
-                        </Button>
+                        <div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => attemptNavigation(() => openProductForEdit(p.raw))}
+                            className="h-8 px-3"
+                          >
+                            Edit
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   </React.Fragment>
                 );
               })
