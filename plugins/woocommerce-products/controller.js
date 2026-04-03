@@ -5,6 +5,7 @@
 
 const { Logger, Context, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { getAssetOriginalUrl, normalizeProductImages } = require('../products/productImageAssets');
 
 const OrdersModel = require('../orders/model');
 const CdonProductsModel = require('../cdon-products/model');
@@ -15,6 +16,12 @@ function isValidImageUrl(s) {
   if (typeof s !== 'string' || !s.trim()) return false;
   const t = s.trim();
   return (t.startsWith('http://') || t.startsWith('https://')) && t.length > 8;
+}
+
+function getProductExtraImageUrls(product) {
+  return normalizeProductImages(product?.images)
+    .map((asset) => getAssetOriginalUrl(asset))
+    .filter((url) => url && url !== String(product?.mainImage || '').trim());
 }
 
 class WooCommerceController {
@@ -590,7 +597,7 @@ class WooCommerceController {
             aggregated.counts.error += 1;
             continue;
           }
-          const images = Array.isArray(p?.images) ? p.images : [];
+          const images = getProductExtraImageUrls(p);
           const invalidImage = images.find(
             (u) => u != null && String(u).trim() && !isValidImageUrl(String(u).trim()),
           );
@@ -1998,10 +2005,8 @@ class WooCommerceController {
   mapProductToWoo(p, overrideCategories = [], options = {}) {
     const images = [];
     if (p?.mainImage && isValidImageUrl(p.mainImage)) images.push({ src: p.mainImage });
-    if (Array.isArray(p?.images)) {
-      for (const src of p.images) {
-        if (src && isValidImageUrl(String(src).trim())) images.push({ src: String(src).trim() });
-      }
+    for (const src of getProductExtraImageUrls(p)) {
+      if (src && isValidImageUrl(String(src).trim())) images.push({ src: String(src).trim() });
     }
 
     const attrs = [];
@@ -2049,8 +2054,7 @@ class WooCommerceController {
         : undefined;
 
     const shortDescription =
-      metaDesc ||
-      (description.length > 160 ? description.slice(0, 157) + '...' : description);
+      metaDesc || (description.length > 160 ? description.slice(0, 157) + '...' : description);
 
     const weightUnit = (p?.channelSpecific?.weightUnit ?? 'g').toString().trim().toLowerCase();
     const weightKg =

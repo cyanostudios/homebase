@@ -38,6 +38,176 @@ export type ProductSaveChangeSet = {
   };
 };
 
+export type ProductImageVariant = {
+  key: string | null;
+  url: string | null;
+  versionId?: string | null;
+  mimeType: string | null;
+  size: number | null;
+  width: number | null;
+  height: number | null;
+};
+
+export type ProductImageAsset = {
+  assetId: string | null;
+  position: number;
+  originalFilename: string | null;
+  sourceUrl: string | null;
+  hash: string | null;
+  mimeType: string | null;
+  size: number | null;
+  width: number | null;
+  height: number | null;
+  variants: {
+    original: ProductImageVariant;
+    preview: ProductImageVariant;
+    thumbnail: ProductImageVariant;
+  };
+  legacy?: boolean;
+};
+
+export function isProductImageAsset(value: unknown): value is ProductImageAsset {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const variants = (value as { variants?: unknown }).variants;
+  return !!variants && typeof variants === 'object' && !Array.isArray(variants);
+}
+
+export function getProductImageOriginalUrl(
+  asset: ProductImageAsset | null | undefined,
+): string | null {
+  return asset?.variants?.original?.url ?? null;
+}
+
+export function getProductImagePreviewUrl(
+  asset: ProductImageAsset | null | undefined,
+): string | null {
+  return asset?.variants?.preview?.url ?? asset?.variants?.original?.url ?? null;
+}
+
+export function getProductImageOriginalFilename(
+  asset: ProductImageAsset | null | undefined,
+): string | null {
+  return asset?.originalFilename ?? null;
+}
+
+export function normalizeProductImageAsset(raw: unknown, position = 0): ProductImageAsset | null {
+  if (typeof raw === 'string') {
+    const clean = raw.trim();
+    if (!clean) {
+      return null;
+    }
+    const variant: ProductImageVariant = {
+      key: null,
+      url: clean,
+      versionId: null,
+      mimeType: null,
+      size: null,
+      width: null,
+      height: null,
+    };
+    return {
+      assetId: null,
+      position,
+      originalFilename: null,
+      sourceUrl: null,
+      hash: null,
+      mimeType: null,
+      size: null,
+      width: null,
+      height: null,
+      variants: {
+        original: variant,
+        preview: { ...variant },
+        thumbnail: { ...variant },
+      },
+      legacy: true,
+    };
+  }
+  if (!isProductImageAsset(raw)) {
+    return null;
+  }
+  const original = raw.variants?.original ?? null;
+  if (!original?.url) {
+    return null;
+  }
+  const preview = raw.variants?.preview ?? original;
+  const thumbnail = raw.variants?.thumbnail ?? preview ?? original;
+  return {
+    assetId: raw.assetId ?? null,
+    position: Number.isFinite(Number(raw.position)) ? Number(raw.position) : position,
+    originalFilename: raw.originalFilename ?? null,
+    sourceUrl: raw.sourceUrl ?? null,
+    hash: raw.hash ?? null,
+    mimeType: raw.mimeType ?? original.mimeType ?? null,
+    size: Number.isFinite(Number(raw.size)) ? Number(raw.size) : (original.size ?? null),
+    width: Number.isFinite(Number(raw.width)) ? Number(raw.width) : (original.width ?? null),
+    height: Number.isFinite(Number(raw.height)) ? Number(raw.height) : (original.height ?? null),
+    variants: {
+      original: {
+        key: original.key ?? null,
+        url: original.url ?? null,
+        versionId: (() => {
+          const v = (original as { versionId?: unknown }).versionId;
+          return v !== undefined && v !== null ? String(v) || null : null;
+        })(),
+        mimeType: original.mimeType ?? null,
+        size: Number.isFinite(Number(original.size)) ? Number(original.size) : null,
+        width: Number.isFinite(Number(original.width)) ? Number(original.width) : null,
+        height: Number.isFinite(Number(original.height)) ? Number(original.height) : null,
+      },
+      preview: {
+        key: preview.key ?? null,
+        url: preview.url ?? original.url ?? null,
+        versionId: (() => {
+          const v = (preview as { versionId?: unknown }).versionId;
+          return v !== undefined && v !== null ? String(v) || null : null;
+        })(),
+        mimeType: preview.mimeType ?? original.mimeType ?? null,
+        size: Number.isFinite(Number(preview.size)) ? Number(preview.size) : null,
+        width: Number.isFinite(Number(preview.width)) ? Number(preview.width) : null,
+        height: Number.isFinite(Number(preview.height)) ? Number(preview.height) : null,
+      },
+      thumbnail: {
+        key: thumbnail.key ?? null,
+        url: thumbnail.url ?? preview.url ?? original.url ?? null,
+        versionId: (() => {
+          const v = (thumbnail as { versionId?: unknown }).versionId;
+          return v !== undefined && v !== null ? String(v) || null : null;
+        })(),
+        mimeType: thumbnail.mimeType ?? preview.mimeType ?? original.mimeType ?? null,
+        size: Number.isFinite(Number(thumbnail.size)) ? Number(thumbnail.size) : null,
+        width: Number.isFinite(Number(thumbnail.width)) ? Number(thumbnail.width) : null,
+        height: Number.isFinite(Number(thumbnail.height)) ? Number(thumbnail.height) : null,
+      },
+    },
+    legacy: raw.legacy === true,
+  };
+}
+
+export function normalizeProductImages(raw: unknown): ProductImageAsset[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out: ProductImageAsset[] = [];
+  const seen = new Set<string>();
+  raw.forEach((item, index) => {
+    const asset = normalizeProductImageAsset(item, index);
+    const originalUrl = getProductImageOriginalUrl(asset);
+    if (!asset || !originalUrl) {
+      return;
+    }
+    const key = originalUrl.trim().toLowerCase();
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    out.push({ ...asset, position: out.length });
+  });
+  return out;
+}
+
 export interface Product {
   id: string;
 
@@ -52,7 +222,7 @@ export interface Product {
   currency: string; // ISO-4217, e.g. "SEK"
   vatRate: number; // e.g. 25
   mainImage: string | null; // URL
-  images: string[]; // array of URLs
+  images: ProductImageAsset[]; // full media assets
   categories: string[]; // array of strings
   brand: string | null;
   brandId?: string | null;

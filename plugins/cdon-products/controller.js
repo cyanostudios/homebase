@@ -14,6 +14,7 @@ const {
   validateCdonArticlePayload,
 } = require('./mapToCdonArticle');
 const { fetchCategoriesFromApi: fetchCategoriesFromApiModule } = require('./fetchCategories');
+const { getAssetOriginalUrl, normalizeProductImages } = require('../products/productImageAssets');
 
 const CDON_MERCHANTS_API = 'https://merchants-api.cdon.com/api';
 const CDON_CATEGORIZATION_API =
@@ -320,8 +321,10 @@ class CdonProductsController {
         const id = this.escapeXml(p.cdonId);
         const main = this.escapeXml(p.mainImage);
         const extras = Array.isArray(p.images)
-          ? p.images
+          ? normalizeProductImages(p.images)
+              .map((asset) => getAssetOriginalUrl(asset))
               .filter(Boolean)
+              .filter((u) => String(u).trim() !== String(p.mainImage || '').trim())
               .slice(0, 10)
               .map((u) => this.escapeXml(u))
           : [];

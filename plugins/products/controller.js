@@ -41,6 +41,13 @@ const {
 } = require('./importProductRowMapper');
 const { validateImageUrls } = require('../../server/core/utils/validateImageUrl');
 const { ProductMediaService } = require('./productMediaService');
+const {
+  collectProductOriginalImageUrls,
+  getAssetOriginalUrl,
+  normalizeProductImageAsset,
+  normalizeProductImages,
+  reorderAssetsByMainImage,
+} = require('./productImageAssets');
 
 const channelsModelForImportRef = new ChannelsModel();
 
@@ -203,11 +210,10 @@ function mergeForUpdate(existing, incoming) {
 }
 
 async function validateImportRowImageUrls(incoming) {
-  const urls = [];
-  if (incoming.mainImage) urls.push(incoming.mainImage);
-  if (Array.isArray(incoming.images) && incoming.images.length) {
-    urls.push(...incoming.images);
-  }
+  const urls = collectProductOriginalImageUrls({
+    mainImage: incoming.mainImage,
+    images: incoming.images,
+  });
   if (!urls.length) return { ok: true };
   const vr = await validateImageUrls(urls, { concurrency: 4 });
   if (vr.ok) return { ok: true };
@@ -857,8 +863,8 @@ class ProductController {
 
   async reconcileHostedProductMedia(req, product) {
     if (!product?.id) return product;
-    const imageUrls = this.productMediaService.getProductImageUrls(product);
-    await this.productMediaService.reconcileAttachedProductMedia(req, product.id, imageUrls);
+    const orderedAssets = reorderAssetsByMainImage(product.images, product.mainImage);
+    await this.productMediaService.reconcileAttachedProductMedia(req, product.id, orderedAssets);
     return product;
   }
 
@@ -897,7 +903,7 @@ class ProductController {
       await this.productMediaService.reconcileAttachedProductMedia(
         req,
         finalId,
-        hostedMedia.allHostedUrls,
+        hostedMedia.images,
       );
     }
 
@@ -1625,7 +1631,16 @@ class ProductController {
       const data = this.requireSku(req, res);
       if (!data) return;
 
-      const product = await this.model.create(req, data);
+      const hostedMedia = await this.productMediaService.ensureProductMedia(req, {
+        productId: null,
+        mainImage: data.mainImage,
+        images: data.images,
+      });
+      const product = await this.model.create(req, {
+        ...data,
+        mainImage: hostedMedia.mainImage,
+        images: hostedMedia.images,
+      });
       await this.reconcileHostedProductMedia(req, product);
       return res.json(product);
     } catch (error) {
@@ -1665,8 +1680,16 @@ class ProductController {
     try {
       const data = this.requireSku(req, res);
       if (!data) return;
-
-      const product = await this.model.update(req, req.params.id, data);
+      const hostedMedia = await this.productMediaService.ensureProductMedia(req, {
+        productId: req.params.id,
+        mainImage: data.mainImage,
+        images: data.images,
+      });
+      const product = await this.model.update(req, req.params.id, {
+        ...data,
+        mainImage: hostedMedia.mainImage,
+        images: hostedMedia.images,
+      });
       await this.reconcileHostedProductMedia(req, product);
       return res.json(product);
     } catch (error) {
@@ -2069,10 +2092,20 @@ class ProductController {
             continue;
           }
           const merged = mergeForUpdate(existing, incoming);
-          const saved = await this.model.update(req, existing.id, merged);
+          const hostedMedia = await this.productMediaService.ensureProductMedia(req, {
+            productId: existing.id,
+            mainImage: merged.mainImage,
+            images: merged.images,
+          });
+          const saved = await this.model.update(req, existing.id, {
+            ...merged,
+            mainImage: hostedMedia.mainImage,
+            images: hostedMedia.images,
+          });
           if (listId) {
             await this.model.setProductList(req, saved?.id ?? existing.id, listId);
           }
+          await this.reconcileHostedProductMedia(req, saved);
           await applyImportChannelOverrides(this, req, r, saved?.id ?? existing.id, incoming);
           result.updated++;
           result.rows.push({ row: rowNum, sku, action: 'updated', id: saved?.id });
@@ -2097,11 +2130,21 @@ class ProductController {
             continue;
           }
           const payload = buildImportCreatePayload(sku, incoming);
-          const created = await this.model.create(req, payload);
+          const hostedMedia = await this.productMediaService.ensureProductMedia(req, {
+            productId: null,
+            mainImage: payload.mainImage,
+            images: payload.images,
+          });
+          const created = await this.model.create(req, {
+            ...payload,
+            mainImage: hostedMedia.mainImage,
+            images: hostedMedia.images,
+          });
           const newId = created?.id;
           if (listId && newId) {
             await this.model.setProductList(req, newId, listId);
           }
+          await this.reconcileHostedProductMedia(req, created);
           await applyImportChannelOverrides(this, req, r, newId, incoming);
 
           result.created++;
@@ -2112,11 +2155,21 @@ class ProductController {
         // upsert
         if (existing) {
           const merged = mergeForUpdate(existing, incoming);
-          const saved = await this.model.update(req, existing.id, merged);
+          const hostedMedia = await this.productMediaService.ensureProductMedia(req, {
+            productId: existing.id,
+            mainImage: merged.mainImage,
+            images: merged.images,
+          });
+          const saved = await this.model.update(req, existing.id, {
+            ...merged,
+            mainImage: hostedMedia.mainImage,
+            images: hostedMedia.images,
+          });
           const outId = saved?.id ?? existing.id;
           if (listId) {
             await this.model.setProductList(req, outId, listId);
           }
+          await this.reconcileHostedProductMedia(req, saved);
           await applyImportChannelOverrides(this, req, r, outId, incoming);
 
           result.updated++;
@@ -2128,11 +2181,21 @@ class ProductController {
             continue;
           }
           const payload = buildImportCreatePayload(sku, incoming);
-          const created = await this.model.create(req, payload);
+          const hostedMedia = await this.productMediaService.ensureProductMedia(req, {
+            productId: null,
+            mainImage: payload.mainImage,
+            images: payload.images,
+          });
+          const created = await this.model.create(req, {
+            ...payload,
+            mainImage: hostedMedia.mainImage,
+            images: hostedMedia.images,
+          });
           const newId = created?.id;
           if (listId && newId) {
             await this.model.setProductList(req, newId, listId);
           }
+          await this.reconcileHostedProductMedia(req, created);
           await applyImportChannelOverrides(this, req, r, newId, incoming);
 
           result.created++;

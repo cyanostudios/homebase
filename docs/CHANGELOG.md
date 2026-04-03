@@ -4,6 +4,44 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-04 – Produktmedia: asset-modell (original/preview/thumbnail), batch-pipeline, kanaler
+
+### Datamodell och lagring
+
+- **`server/migrations/090-product-media-asset-metadata.sql`:** utökar **`product_media_objects`** med bl.a. **`position`**, **`content_hash`**, **`mime_type`**, **`size_bytes`**, **`width`**, **`height`**, **`variants`** (JSONB).
+- **`plugins/products/productImageAssets.js`:** normalisering av **`ProductImageAsset`**, hjälp för original/preview/thumbnail-URL:er och **`collectAssetVariantDeleteTargets`** för B2-radering.
+- **`server/core/services/storage/imageProcessingService.js`:** **`sharp`** – metadata, SHA256-hash, **`preview`** (WebP, max 500×500) och **`thumbnail`**.
+- **`server/core/services/storage/mediaAssetService.js`:** skapar hostade assets (uppladdning av alla varianter).
+- **`server/core/services/storage/b2ObjectStorage.js`:** deterministiska nycklar via **`buildAssetVariantKey`**, **`VersionId`** vid upload, **`deleteObjects`** med versionsmedveten radering (**`ListObjectVersionsCommand`**) för versionerade buckets.
+
+### Service och produktmodell
+
+- **`plugins/products/productMediaService.js`:** **`ensureProductMedia`**, hash-baserad dedupe, **`reconcileAttachedProductMedia`** mot asset-ID/nycklar/URL:er; Sello-flöde via **`ensureHostedSelloMedia`**; skydd mot felaktig återanvändning av **`assetId`** från annan produkt.
+- **`plugins/products/productMediaObjectModel.js`**, **`plugins/products/model.js`**, **`plugins/products/controller.js`:** sparad **`images`** som JSONB med asset-objekt; create/update/import via samma media-pipeline.
+
+### Batch och import
+
+- **`plugins/products/batchSyncJobRunner.js`:** batch med **`mainImage`** / **`images`** går via **`ensureProductMedia`** och **`reconcileHostedProductMedia`** per produkt (export **`patchTouchesManagedMedia`**, **`buildBatchPatchWithHostedMedia`** för tester).
+
+### Kanalexport
+
+- **`plugins/cdon-products/mapToCdonArticle.js`**, **`plugins/cdon-products/controller.js`**, **`plugins/fyndiq-products/mapToFyndiqArticle.js`**, **`plugins/woocommerce-products/controller.js`:** läser **`original.url`** från sparade assets (inte preview).
+
+### Klient
+
+- **`client/src/plugins/products/types/products.ts`**, **`ProductContext.tsx`**, **`productsApi.ts`**, **`ProductForm.tsx`:** **`ProductImageAsset`**, preview i galleri, klick öppnar original, tydligare fel vid upload/save och vid batch med delvisa fel.
+
+### Dokumentation och tester
+
+- **`docs/products-payload-and-channel-export-fields.md`:** **`images`** som sparad asset-lista, inte enbart URL-lista.
+- **`server/__tests__/productMediaService.test.js`**, **`productMediaChannels.test.js`**, **`productMediaWoo.test.js`**, **`batchProductMedia.test.js`**.
+
+### Beroenden
+
+- **`package.json` / `package-lock.json`:** **`sharp`** (och tillhörande låsning).
+
+---
+
 ## 2026-04-03 – Hostade produktbilder (Backblaze B2), Sello-import, media-DB, CLI-env
 
 ### Lagring (B2)

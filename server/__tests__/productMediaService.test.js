@@ -1,8 +1,53 @@
+jest.mock('@homebase/core', () => ({
+  Context: { getUserId: jest.fn(() => null) },
+  Logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn() },
+}));
+
 const {
   ProductMediaService,
   collectProductImageUrls,
 } = require('../../plugins/products/productMediaService');
 const { objectKeyFromB2FileUrl } = require('../../server/core/services/storage/b2ObjectStorage');
+
+function makeAsset(url, overrides = {}) {
+  return {
+    assetId: overrides.assetId ?? null,
+    position: overrides.position ?? 0,
+    originalFilename: overrides.originalFilename ?? 'image.jpg',
+    sourceUrl: overrides.sourceUrl ?? null,
+    hash: overrides.hash ?? null,
+    mimeType: overrides.mimeType ?? 'image/jpeg',
+    size: overrides.size ?? 100,
+    width: overrides.width ?? 400,
+    height: overrides.height ?? 400,
+    variants: {
+      original: {
+        key: overrides.originalKey ?? null,
+        url,
+        mimeType: overrides.mimeType ?? 'image/jpeg',
+        size: overrides.size ?? 100,
+        width: overrides.width ?? 400,
+        height: overrides.height ?? 400,
+      },
+      preview: {
+        key: overrides.previewKey ?? null,
+        url: overrides.previewUrl ?? url,
+        mimeType: 'image/webp',
+        size: 50,
+        width: 200,
+        height: 200,
+      },
+      thumbnail: {
+        key: overrides.thumbnailKey ?? null,
+        url: overrides.thumbnailUrl ?? url,
+        mimeType: 'image/webp',
+        size: 25,
+        width: 80,
+        height: 80,
+      },
+    },
+  };
+}
 
 describe('collectProductImageUrls', () => {
   it('keeps current product contract as public URL strings', () => {
@@ -34,12 +79,20 @@ describe('objectKeyFromB2FileUrl', () => {
 describe('ProductMediaService', () => {
   it('reconcile does not delete when keep URL differs by f-host but key matches', async () => {
     const mediaObjectModel = {
-      attachPendingUrlsToProduct: jest.fn().mockResolvedValue([]),
+      attachPendingIdsToProduct: jest.fn().mockResolvedValue([]),
+      updateById: jest.fn().mockResolvedValue(null),
       listByProductId: jest.fn().mockResolvedValue([
         {
           id: 'keep-id',
           url: 'https://f004.backblazeb2.com/file/my-bucket/tenants/1/a.jpg',
           storage_key: 'tenants/1/a.jpg',
+          position: 0,
+          variants: {
+            original: {
+              key: 'tenants/1/a.jpg',
+              url: 'https://f004.backblazeb2.com/file/my-bucket/tenants/1/a.jpg',
+            },
+          },
         },
       ]),
       deleteByIds: jest.fn().mockResolvedValue([]),
@@ -52,7 +105,7 @@ describe('ProductMediaService', () => {
     const service = new ProductMediaService({ storage, mediaObjectModel });
 
     await service.reconcileAttachedProductMedia({}, '123', [
-      'https://f003.backblazeb2.com/file/my-bucket/tenants/1/a.jpg',
+      makeAsset('https://f003.backblazeb2.com/file/my-bucket/tenants/1/a.jpg'),
     ]);
 
     expect(storage.deleteObjects).not.toHaveBeenCalled();
@@ -61,10 +114,23 @@ describe('ProductMediaService', () => {
 
   it('attaches pending uploads and deletes stale managed media', async () => {
     const mediaObjectModel = {
-      attachPendingUrlsToProduct: jest.fn().mockResolvedValue([]),
+      attachPendingIdsToProduct: jest.fn().mockResolvedValue([]),
+      updateById: jest.fn().mockResolvedValue(null),
       listByProductId: jest.fn().mockResolvedValue([
-        { id: 'keep-id', url: 'https://cdn.example.com/keep.jpg', storage_key: 'keep-key' },
-        { id: 'drop-id', url: 'https://cdn.example.com/drop.jpg', storage_key: 'drop-key' },
+        {
+          id: 'keep-id',
+          url: 'https://cdn.example.com/keep.jpg',
+          storage_key: 'keep-key',
+          position: 0,
+          variants: { original: { key: 'keep-key', url: 'https://cdn.example.com/keep.jpg' } },
+        },
+        {
+          id: 'drop-id',
+          url: 'https://cdn.example.com/drop.jpg',
+          storage_key: 'drop-key',
+          position: 1,
+          variants: { original: { key: 'drop-key', url: 'https://cdn.example.com/drop.jpg' } },
+        },
       ]),
       deleteByIds: jest.fn().mockResolvedValue([]),
     };
@@ -76,38 +142,177 @@ describe('ProductMediaService', () => {
     const service = new ProductMediaService({ storage, mediaObjectModel });
 
     await service.reconcileAttachedProductMedia({}, '123', [
-      'https://cdn.example.com/keep.jpg',
-      'https://cdn.example.com/keep.jpg',
+      makeAsset('https://cdn.example.com/keep.jpg', {
+        assetId: 'keep-id',
+        originalKey: 'keep-key',
+      }),
     ]);
 
-    expect(mediaObjectModel.attachPendingUrlsToProduct).toHaveBeenCalledWith({}, '123', [
-      'https://cdn.example.com/keep.jpg',
-    ]);
-    expect(storage.deleteObjects).toHaveBeenCalledWith(['drop-key']);
+    expect(mediaObjectModel.attachPendingIdsToProduct).toHaveBeenCalledWith({}, '123', ['keep-id']);
+    expect(storage.deleteObjects).toHaveBeenCalledWith([{ key: 'drop-key', versionId: null }]);
     expect(mediaObjectModel.deleteByIds).toHaveBeenCalledWith({}, ['drop-id']);
   });
 
-  it('reuses hosted Sello media for unchanged source URLs', async () => {
+  it('reuses hosted Sello media by content hash and uploads new variants', async () => {
     const mediaObjectModel = {
-      findByProductAndSourceUrls: jest.fn().mockResolvedValue([
-        {
-          id: 'existing-id',
-          source_url: 'https://images.sello.test/existing.jpg',
-          url: 'https://cdn.example.com/existing.jpg',
-          storage_key: 'existing-key',
-        },
-      ]),
-      create: jest.fn().mockResolvedValue(null),
-      attachPendingUrlsToProduct: jest.fn().mockResolvedValue([]),
       listByProductId: jest.fn().mockResolvedValue([
         {
           id: 'existing-id',
           source_url: 'https://images.sello.test/existing.jpg',
           url: 'https://cdn.example.com/existing.jpg',
           storage_key: 'existing-key',
+          content_hash: 'same-hash',
+          position: 0,
+          original_filename: 'existing.jpg',
+          variants: {
+            original: {
+              key: 'existing-key',
+              url: 'https://cdn.example.com/existing.jpg',
+              mimeType: 'image/jpeg',
+              size: 100,
+              width: 800,
+              height: 800,
+            },
+            preview: {
+              key: 'existing-preview',
+              url: 'https://cdn.example.com/existing-preview.webp',
+              mimeType: 'image/webp',
+              size: 50,
+              width: 400,
+              height: 400,
+            },
+            thumbnail: {
+              key: 'existing-thumb',
+              url: 'https://cdn.example.com/existing-thumb.webp',
+              mimeType: 'image/webp',
+              size: 20,
+              width: 120,
+              height: 120,
+            },
+          },
+        },
+      ]),
+      create: jest.fn().mockImplementation(async (_req, row) => ({
+        id: 'new-id',
+        product_id: row.productId,
+        source_kind: row.sourceKind,
+        source_url: row.sourceUrl,
+        original_filename: row.originalFilename,
+        storage_key: row.storageKey,
+        url: row.url,
+        position: row.position,
+        content_hash: row.contentHash,
+        mime_type: row.mimeType,
+        size_bytes: row.sizeBytes,
+        width: row.width,
+        height: row.height,
+        variants: row.variants,
+      })),
+      updateById: jest.fn().mockResolvedValue(null),
+      attachPendingIdsToProduct: jest.fn().mockResolvedValue([]),
+      findPendingBySourceUrls: jest.fn().mockResolvedValue([
+        {
+          id: 'existing-id',
+          source_url: 'https://images.sello.test/existing.jpg',
+          url: 'https://cdn.example.com/existing.jpg',
+          storage_key: 'existing-key',
+          content_hash: 'same-hash',
+          variants: {
+            original: { key: 'existing-key', url: 'https://cdn.example.com/existing.jpg' },
+          },
         },
       ]),
       deleteByIds: jest.fn().mockResolvedValue([]),
+    };
+
+    const imageProcessingService = {
+      buildImageAssetVariants: jest.fn().mockImplementation(async ({ originalFilename }) =>
+        originalFilename === 'existing.jpg'
+          ? {
+              originalFilename: 'existing.jpg',
+              hash: 'same-hash',
+              mimeType: 'image/jpeg',
+              size: 100,
+              width: 800,
+              height: 800,
+              variants: {
+                original: {
+                  buffer: Buffer.from('existing'),
+                  mimeType: 'image/jpeg',
+                  extension: 'jpg',
+                  size: 100,
+                  width: 800,
+                  height: 800,
+                },
+                preview: {
+                  buffer: Buffer.from('preview'),
+                  mimeType: 'image/webp',
+                  extension: 'webp',
+                  size: 50,
+                  width: 400,
+                  height: 400,
+                },
+                thumbnail: {
+                  buffer: Buffer.from('thumb'),
+                  mimeType: 'image/webp',
+                  extension: 'webp',
+                  size: 20,
+                  width: 120,
+                  height: 120,
+                },
+              },
+            }
+          : {
+              originalFilename: 'new.jpg',
+              hash: 'new-hash',
+              mimeType: 'image/jpeg',
+              size: 110,
+              width: 900,
+              height: 900,
+              variants: {
+                original: {
+                  buffer: Buffer.from('new'),
+                  mimeType: 'image/jpeg',
+                  extension: 'jpg',
+                  size: 110,
+                  width: 900,
+                  height: 900,
+                },
+                preview: {
+                  buffer: Buffer.from('new-preview'),
+                  mimeType: 'image/webp',
+                  extension: 'webp',
+                  size: 55,
+                  width: 450,
+                  height: 450,
+                },
+                thumbnail: {
+                  buffer: Buffer.from('new-thumb'),
+                  mimeType: 'image/webp',
+                  extension: 'webp',
+                  size: 22,
+                  width: 140,
+                  height: 140,
+                },
+              },
+            },
+      ),
+    };
+    const mediaAssetService = {
+      createHostedAssetFromProcessed: jest.fn().mockResolvedValue(
+        makeAsset('https://cdn.example.com/new.jpg', {
+          assetId: 'new-id',
+          position: 1,
+          sourceUrl: 'https://images.sello.test/new.jpg',
+          hash: 'new-hash',
+          originalFilename: 'new.jpg',
+          originalKey: 'new-key',
+          previewKey: 'new-preview',
+          previewUrl: 'https://cdn.example.com/new-preview.webp',
+          thumbnailKey: 'new-thumb',
+          thumbnailUrl: 'https://cdn.example.com/new-thumb.webp',
+        }),
+      ),
     };
 
     const service = new ProductMediaService({
@@ -120,12 +325,21 @@ describe('ProductMediaService', () => {
         ),
       },
       mediaObjectModel,
+      imageProcessingService,
+      mediaAssetService,
     });
-    service.uploadExternalImage = jest.fn().mockResolvedValue({
-      key: 'new-key',
-      publicUrl: 'https://cdn.example.com/new.jpg',
-      originalFilename: 'new.jpg',
-    });
+    service.fetchExternalBuffer = jest
+      .fn()
+      .mockResolvedValueOnce({
+        buffer: Buffer.from('existing'),
+        originalFilename: 'existing.jpg',
+        mimeType: 'image/jpeg',
+      })
+      .mockResolvedValueOnce({
+        buffer: Buffer.from('new'),
+        originalFilename: 'new.jpg',
+        mimeType: 'image/jpeg',
+      });
 
     const result = await service.ensureHostedSelloMedia(
       { session: { tenantId: 7 } },
@@ -136,15 +350,8 @@ describe('ProductMediaService', () => {
       },
     );
 
-    expect(service.uploadExternalImage).toHaveBeenCalledTimes(1);
-    expect(service.uploadExternalImage).toHaveBeenCalledWith(
-      { session: { tenantId: 7 } },
-      {
-        tenantId: 7,
-        scope: 'sello/55',
-        sourceUrl: 'https://images.sello.test/new.jpg',
-      },
-    );
+    expect(service.fetchExternalBuffer).toHaveBeenCalledTimes(2);
+    expect(mediaAssetService.createHostedAssetFromProcessed).toHaveBeenCalledTimes(1);
     expect(mediaObjectModel.create).toHaveBeenCalledWith(
       { session: { tenantId: 7 } },
       {
@@ -154,10 +361,19 @@ describe('ProductMediaService', () => {
         originalFilename: 'new.jpg',
         storageKey: 'new-key',
         url: 'https://cdn.example.com/new.jpg',
+        position: 1,
+        contentHash: 'new-hash',
+        mimeType: 'image/jpeg',
+        sizeBytes: 100,
+        width: 400,
+        height: 400,
+        variants: expect.any(Object),
       },
     );
     expect(result.mainImage).toBe('https://cdn.example.com/existing.jpg');
-    expect(result.images).toEqual(['https://cdn.example.com/new.jpg']);
+    expect(result.images).toHaveLength(2);
+    expect(result.images[0].variants.original.url).toBe('https://cdn.example.com/existing.jpg');
+    expect(result.images[1].variants.original.url).toBe('https://cdn.example.com/new.jpg');
     expect(result.allHostedUrls).toEqual([
       'https://cdn.example.com/existing.jpg',
       'https://cdn.example.com/new.jpg',

@@ -5,6 +5,7 @@
 
 const { htmlToPlainText } = require('../../server/core/utils/htmlToPlainText');
 const { htmlToLineBreakHtml } = require('../../server/core/utils/htmlToLineBreakHtml');
+const { getAssetOriginalUrl, normalizeProductImages } = require('../products/productImageAssets');
 
 const DEFAULT_CURRENCY_BY_MARKET = { SE: 'SEK', DK: 'DKK', FI: 'EUR', NO: 'NOK' };
 
@@ -277,9 +278,9 @@ function mapProductToFyndiqArticle(product, overridesByMarket, defaultLanguage) 
   if (fyndiq.legacy_product_id != null)
     payload.legacy_product_id = Number(fyndiq.legacy_product_id);
   if (Array.isArray(product?.images) && product.images.length) {
-    const trimmed = product.images
+    const trimmed = normalizeProductImages(product.images)
+      .map((asset) => getAssetOriginalUrl(asset))
       .filter(Boolean)
-      .map((u) => String(u).trim())
       .filter((u) => u !== mainImage)
       .slice(0, 10);
     const invalid = trimmed.find((u) => !isValidUrl(u));
@@ -326,8 +327,7 @@ function mapProductToFyndiqArticle(product, overridesByMarket, defaultLanguage) 
   const langPat = defaultLanguage || 'sv-SE';
   const presetP = product?.pattern != null && String(product.pattern).trim();
   const freeP = product?.patternText != null && String(product.patternText).trim();
-  const patternVal =
-    presetP ? String(presetP).trim() : freeP ? String(freeP).trim() : null;
+  const patternVal = presetP ? String(presetP).trim() : freeP ? String(freeP).trim() : null;
   if (patternVal) {
     const cur = Array.isArray(payload.properties) ? payload.properties : [];
     if (!cur.some((p) => p?.name === 'pattern')) {

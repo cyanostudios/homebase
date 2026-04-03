@@ -31,6 +31,7 @@ import {
   type ProductListParams,
 } from '../api/productsApi';
 import {
+  normalizeProductImages,
   normalizeProductStatus,
   type Product,
   type ProductSaveChangeSet,
@@ -568,7 +569,7 @@ export function ProductProvider({
         mpn: (raw.mpn ?? '').trim() || (raw.sku ?? '').trim(),
         description: raw.description ?? '',
         mainImage: raw.mainImage ?? '',
-        images: Array.isArray(raw.images) ? raw.images : [],
+        images: normalizeProductImages(raw.images),
         categories: Array.isArray(raw.categories) ? raw.categories : [],
         brand: (raw.brand ?? '').trim(),
         privateName: (raw.privateName ?? '').trim() || undefined,

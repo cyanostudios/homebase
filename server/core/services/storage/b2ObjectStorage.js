@@ -2,7 +2,12 @@ const path = require('path');
 const crypto = require('crypto');
 
 const { Logger } = require('@homebase/core');
-const { PutObjectCommand, DeleteObjectsCommand, S3Client } = require('@aws-sdk/client-s3');
+const {
+  PutObjectCommand,
+  DeleteObjectsCommand,
+  ListObjectVersionsCommand,
+  S3Client,
+} = require('@aws-sdk/client-s3');
 const FileType = require('file-type');
 
 const { AppError } = require('../../errors/AppError');
@@ -242,15 +247,46 @@ class B2ObjectStorage {
     return `tenants/${safeTenantId}/products/${safeScope}/${info.safeBaseName}-${randomHex}.${info.extension}`;
   }
 
+  buildAssetVariantKey({
+    tenantId,
+    productId,
+    pendingScope,
+    assetId,
+    position,
+    variant,
+    hash,
+    extension,
+  }) {
+    const safeTenantId = sanitizePathSegment(tenantId, 'tenant');
+    const safeVariant = sanitizePathSegment(variant, 'original');
+    const safeAssetId = sanitizePathSegment(assetId, 'asset');
+    const safeHash = sanitizePathSegment(hash, 'hash');
+    const ext = sanitizePathSegment(extension, 'bin');
+    const pos = Number.isFinite(Number(position)) ? Math.max(0, Math.trunc(Number(position))) : 0;
+    if (productId != null && String(productId).trim() !== '') {
+      const safeProductId = sanitizePathSegment(productId, 'product');
+      return `tenants/${safeTenantId}/products/${safeProductId}/${safeVariant}/${pos}_${safeAssetId}_${safeHash}.${ext}`;
+    }
+    const safePending = sanitizePathSegment(pendingScope || 'pending', 'pending');
+    return `tenants/${safeTenantId}/products/${safePending}/${safeVariant}/${pos}_${safeAssetId}_${safeHash}.${ext}`;
+  }
+
   getPublicUrl(key) {
     return `${this.publicBaseUrl}/${String(key || '').replace(/^\/+/, '')}`;
   }
 
-  async uploadImageBuffer({ buffer, originalFilename, declaredMimeType, key }) {
+  async uploadBuffer({
+    buffer,
+    originalFilename,
+    declaredMimeType,
+    contentType,
+    key,
+    cacheControl,
+  }) {
     const validated = await this.validateImageBuffer({
       buffer,
-      originalFilename,
-      declaredMimeType,
+      originalFilename: originalFilename || 'image',
+      declaredMimeType: declaredMimeType || contentType,
     });
     const finalKey =
       String(key || '').trim() ||
@@ -262,15 +298,23 @@ class B2ObjectStorage {
       });
 
     try {
-      await this.client.send(
+      const response = await this.client.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: finalKey,
           Body: validated.buffer,
-          ContentType: validated.mimeType,
-          CacheControl: 'public, max-age=31536000, immutable',
+          ContentType: contentType || validated.mimeType,
+          CacheControl: cacheControl || 'public, max-age=31536000, immutable',
         }),
       );
+      return {
+        key: finalKey,
+        publicUrl: this.getPublicUrl(finalKey),
+        mimeType: validated.mimeType,
+        size: validated.size,
+        originalFilename: validated.originalFilename,
+        versionId: String(response?.VersionId || '').trim() || null,
+      };
     } catch (error) {
       Logger.error('B2 upload failed', error, { bucket: this.bucket, key: finalKey });
       throw new AppError(
@@ -279,34 +323,98 @@ class B2ObjectStorage {
         'PRODUCT_MEDIA_UPLOAD_FAILED',
       );
     }
+  }
 
-    return {
-      key: finalKey,
-      publicUrl: this.getPublicUrl(finalKey),
-      mimeType: validated.mimeType,
-      size: validated.size,
-      originalFilename: validated.originalFilename,
-    };
+  async uploadImageBuffer({ buffer, originalFilename, declaredMimeType, key }) {
+    return this.uploadBuffer({ buffer, originalFilename, declaredMimeType, key });
+  }
+
+  async listObjectVersionsForKey(key) {
+    const cleanKey = String(key || '').trim();
+    if (!cleanKey) return [];
+    const out = [];
+    let KeyMarker;
+    let VersionIdMarker;
+    while (true) {
+      const response = await this.client.send(
+        new ListObjectVersionsCommand({
+          Bucket: this.bucket,
+          Prefix: cleanKey,
+          KeyMarker,
+          VersionIdMarker,
+        }),
+      );
+      for (const row of response?.Versions || []) {
+        if (String(row?.Key || '') === cleanKey) {
+          out.push({ Key: cleanKey, VersionId: String(row.VersionId || '').trim() || undefined });
+        }
+      }
+      for (const row of response?.DeleteMarkers || []) {
+        if (String(row?.Key || '') === cleanKey) {
+          out.push({ Key: cleanKey, VersionId: String(row.VersionId || '').trim() || undefined });
+        }
+      }
+      if (!response?.IsTruncated) break;
+      KeyMarker = response.NextKeyMarker;
+      VersionIdMarker = response.NextVersionIdMarker;
+    }
+    return out;
   }
 
   async deleteObjects(keys) {
-    const list = Array.isArray(keys)
-      ? Array.from(new Set(keys.map((key) => String(key || '').trim()).filter(Boolean)))
-      : [];
-    if (!list.length) return;
+    const raw = Array.isArray(keys) ? keys : [];
+    const purgeEntries = [];
+    const seen = new Set();
+
+    for (const entry of raw) {
+      const key =
+        typeof entry === 'string'
+          ? String(entry).trim()
+          : entry && typeof entry === 'object'
+            ? String(entry.key || '').trim()
+            : '';
+      const versionId =
+        entry && typeof entry === 'object' ? String(entry.versionId || '').trim() || null : null;
+      if (!key) continue;
+
+      if (versionId) {
+        const sig = `${key}@@${versionId}`;
+        if (seen.has(sig)) continue;
+        seen.add(sig);
+        purgeEntries.push({ Key: key, VersionId: versionId });
+        continue;
+      }
+
+      const versions = await this.listObjectVersionsForKey(key);
+      if (versions.length) {
+        for (const row of versions) {
+          const sig = `${row.Key}@@${row.VersionId || ''}`;
+          if (seen.has(sig)) continue;
+          seen.add(sig);
+          purgeEntries.push(row);
+        }
+      } else {
+        const sig = `${key}@@`;
+        if (seen.has(sig)) continue;
+        seen.add(sig);
+        purgeEntries.push({ Key: key });
+      }
+    }
+
+    if (!purgeEntries.length) return;
 
     try {
       await this.client.send(
         new DeleteObjectsCommand({
           Bucket: this.bucket,
           Delete: {
-            Objects: list.map((key) => ({ Key: key })),
+            Objects: purgeEntries,
             Quiet: false,
           },
         }),
       );
     } catch (error) {
-      Logger.error('B2 delete failed', error, { bucket: this.bucket, count: list.length });
+      Logger.error('B2 delete failed', error, { bucket: this.bucket, count: purgeEntries.length });
       throw new AppError(
         'Failed to delete product media from B2',
         500,
@@ -321,4 +429,5 @@ module.exports = {
   ALLOWED_IMAGE_MIME,
   sanitizePathSegment,
   objectKeyFromB2FileUrl,
+  normalizeUploadInfo,
 };

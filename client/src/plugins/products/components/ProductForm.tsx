@@ -30,7 +30,13 @@ import type { ChannelInstance } from '@/plugins/channels/types/channels';
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
 import {
+  getProductImageOriginalFilename,
+  getProductImageOriginalUrl,
+  getProductImagePreviewUrl,
+  normalizeProductImageAsset,
+  normalizeProductImages,
   normalizeProductStatus,
+  type ProductImageAsset,
   type ProductSaveChangeSet,
   type ProductStatus,
   type ProductSyncChannel,
@@ -104,6 +110,46 @@ const SHIPPED_FROM_OPTIONS = [
   { value: 'EU', label: 'EU' },
   { value: 'NON_EU', label: 'Ej EU' },
 ];
+
+function buildExternalImageAsset(url: string, position: number): ProductImageAsset {
+  return (
+    normalizeProductImageAsset(url, position) ?? {
+      assetId: null,
+      position,
+      originalFilename: null,
+      sourceUrl: null,
+      hash: null,
+      mimeType: null,
+      size: null,
+      width: null,
+      height: null,
+      variants: {
+        original: { key: null, url, mimeType: null, size: null, width: null, height: null },
+        preview: { key: null, url, mimeType: null, size: null, width: null, height: null },
+        thumbnail: { key: null, url, mimeType: null, size: null, width: null, height: null },
+      },
+      legacy: true,
+    }
+  );
+}
+
+function orderAssetsByMainImage(
+  assets: ProductImageAsset[],
+  mainImage: string,
+): ProductImageAsset[] {
+  const normalized = normalizeProductImages(assets);
+  if (!mainImage) {
+    return normalized.map((asset, position) => ({ ...asset, position }));
+  }
+  const idx = normalized.findIndex((asset) => getProductImageOriginalUrl(asset) === mainImage);
+  if (idx <= 0) {
+    return normalized.map((asset, position) => ({ ...asset, position }));
+  }
+  const picked = normalized[idx];
+  const rest = normalized.slice();
+  rest.splice(idx, 1);
+  return [picked, ...rest].map((asset, position) => ({ ...asset, position }));
+}
 
 /** Volymenhet: Sello volume_unit (m3, dm3, cm3, l, ml) */
 const VOLUME_UNIT_OPTIONS = [
@@ -688,7 +734,7 @@ type FormData = {
   mpn: string;
   description: string;
   mainImage: string;
-  images: string[];
+  images: ProductImageAsset[];
   categories: string[];
   brand: string;
   brandId: string;
@@ -1794,7 +1840,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         mpn,
         description: baseDesc,
         mainImage: currentProduct.mainImage ?? '',
-        images: Array.isArray(currentProduct.images) ? currentProduct.images : [],
+        images: orderAssetsByMainImage(
+          normalizeProductImages(currentProduct.images),
+          currentProduct.mainImage ?? '',
+        ),
         categories: Array.isArray(currentProduct.categories) ? currentProduct.categories : [],
         brand: currentProduct.brand ?? '',
         brandId: (currentProduct as any).brandId ?? '',
@@ -2025,7 +2074,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const updateField = (
     field: keyof FormData,
-    value: string | number | string[] | Record<MarketKey, string>,
+    value: string | number | string[] | ProductImageAsset[] | Record<MarketKey, string>,
   ) => {
     setFormData((prev) => {
       // SKU change should update MPN if MPN is in auto mode
@@ -2815,6 +2864,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         if (!currentProduct) {
           setFormData(initialState);
         }
+      } else {
+        setSaveNotice('Kunde inte spara produkten. Kontrollera felen nedan.');
       }
     } finally {
       submittingGuardRef.current = false;
@@ -2855,13 +2906,25 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setIsSubmitting(true);
     setProductFormSaving?.(true);
     try {
-      await batchUpdateProducts(batchProductIds, changes);
+      const result = await batchUpdateProducts(batchProductIds, changes);
+      const errs = Array.isArray(result?.errors) ? result.errors : [];
+      if (errs.length > 0) {
+        const first = String((errs[0] as { message?: unknown } | undefined)?.message ?? '').trim();
+        setSaveNotice(
+          first ||
+            `Batch sparades delvis, men ${errs.length} produkt${errs.length === 1 ? '' : 'er'} fick fel.`,
+        );
+        setBatchPreviewOpen(false);
+        setBatchPendingChanges(null);
+        return;
+      }
       markClean();
       setBatchPreviewOpen(false);
       setBatchPendingChanges(null);
       closeProductPanel();
     } catch (err) {
       console.error('Batch update failed', err);
+      setSaveNotice(getReadableErrorMessage(err, 'Kunde inte spara batchandringar.'));
     } finally {
       submittingGuardRef.current = false;
       setIsSubmitting(false);
@@ -2898,36 +2961,90 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     /^varning\b/i.test(String(message || '').trim()) ||
     /^warning\b/i.test(String(message || '').trim());
   const hasBlockingErrors = validationErrors.some((e) => !isWarningMessage(e.message));
+  const orderedAssets = orderAssetsByMainImage(formData.images, formData.mainImage);
+  const mainImageAsset =
+    orderedAssets.find((asset) => getProductImageOriginalUrl(asset) === formData.mainImage) ?? null;
+  const galleryImages = orderedAssets.filter(
+    (asset) => getProductImageOriginalUrl(asset) !== formData.mainImage,
+  );
+  const openOriginalImage = (asset: ProductImageAsset | null | undefined, fallbackUrl?: string) => {
+    const url = getProductImageOriginalUrl(asset) || fallbackUrl || '';
+    if (!url) {
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  const getReadableErrorMessage = (error: unknown, fallback: string) => {
+    const err = error as
+      | { error?: unknown; message?: unknown; errors?: Array<{ message?: unknown }> }
+      | undefined;
+    if (Array.isArray(err?.errors) && err.errors.length) {
+      const first = String(err.errors[0]?.message ?? '').trim();
+      if (first) {
+        return first;
+      }
+    }
+    const direct = String(err?.error ?? err?.message ?? '').trim();
+    return direct || fallback;
+  };
 
   const addImage = () => {
     const v = newImage.trim();
     if (!v) {
       return;
     }
-    updateField('images', [...formData.images, v]);
+    const asset = buildExternalImageAsset(v, formData.images.length);
+    setFormData((prev) => {
+      const nextImages = normalizeProductImages([...prev.images, asset]).slice(0, 11);
+      const nextMain = prev.mainImage || getProductImageOriginalUrl(nextImages[0]) || '';
+      return {
+        ...prev,
+        mainImage: nextMain,
+        images: orderAssetsByMainImage(nextImages, nextMain),
+      };
+    });
+    markDirty();
     setNewImage('');
   };
 
   const removeImage = (idx: number) => {
-    const next = formData.images.slice();
-    next.splice(idx, 1);
-    updateField('images', next);
+    const asset = galleryImages[idx];
+    if (!asset) {
+      return;
+    }
+    const removeUrl = getProductImageOriginalUrl(asset);
+    const next = orderedAssets.filter((item) => getProductImageOriginalUrl(item) !== removeUrl);
+    setFormData((prev) => ({
+      ...prev,
+      images: orderAssetsByMainImage(next, prev.mainImage),
+    }));
+    markDirty();
+  };
+
+  const removeMainImage = () => {
+    const next = orderedAssets.filter(
+      (item) => getProductImageOriginalUrl(item) !== formData.mainImage,
+    );
+    const nextMain = getProductImageOriginalUrl(next[0]) || '';
+    setFormData((prev) => ({
+      ...prev,
+      mainImage: nextMain,
+      images: orderAssetsByMainImage(next, nextMain),
+    }));
+    markDirty();
   };
 
   const promoteToMain = (idx: number) => {
-    const url = formData.images[idx];
+    const asset = galleryImages[idx];
+    const url = getProductImageOriginalUrl(asset);
     if (!url) {
       return;
     }
-    const oldMain = formData.mainImage;
-    // Swap: promoted extra becomes main; old main takes that extra's slot (no cycling).
-    const newImages = formData.images.slice();
-    if (oldMain) {
-      newImages[idx] = oldMain;
-    } else {
-      newImages.splice(idx, 1);
-    }
-    setFormData((prev) => ({ ...prev, mainImage: url, images: newImages }));
+    setFormData((prev) => ({
+      ...prev,
+      mainImage: url,
+      images: orderAssetsByMainImage(prev.images, url),
+    }));
     markDirty();
   };
 
@@ -2938,27 +3055,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setMediaUploading(true);
     try {
       const items = await productsApi.uploadMediaFiles(Array.from(files));
-      const urls = (items || []).map((i: any) => i?.url).filter(Boolean);
-      const toAdd = urls.map((u: string) =>
-        u.startsWith('http') ? u : `${window.location.origin}${u.startsWith('/') ? '' : '/'}${u}`,
-      );
+      const toAdd = normalizeProductImages(items);
       setFormData((prev) => {
         let main = prev.mainImage;
         const imgs = [...prev.images];
-        for (const u of toAdd) {
+        for (const asset of toAdd) {
+          const url = getProductImageOriginalUrl(asset);
+          if (!url) {
+            continue;
+          }
           if (!main) {
-            main = u;
-          } else if (imgs.length < 10) {
-            imgs.push(u);
-          } else {
+            main = url;
+          }
+          imgs.push(asset);
+          if (imgs.length >= 11) {
             break;
           }
         }
-        return { ...prev, mainImage: main, images: imgs };
+        return { ...prev, mainImage: main, images: orderAssetsByMainImage(imgs, main) };
       });
       markDirty();
     } catch (err) {
       console.error('Upload failed', err);
+      setSaveNotice(getReadableErrorMessage(err, 'Kunde inte ladda upp bilderna.'));
     } finally {
       setMediaUploading(false);
     }
@@ -3462,16 +3581,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   {formData.mainImage ? (
                     <>
                       <img
-                        src={formData.mainImage}
+                        src={getProductImagePreviewUrl(mainImageAsset) || formData.mainImage}
                         alt="Huvudbild"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover cursor-zoom-in"
+                        onClick={() => openOriginalImage(mainImageAsset, formData.mainImage)}
+                        title="Öppna original"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <Button
                           type="button"
                           variant="secondary"
                           size="sm"
-                          onClick={() => updateField('mainImage', '')}
+                          onClick={removeMainImage}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -3479,6 +3600,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           Huvudbild
                         </span>
                       </div>
+                      {getProductImageOriginalFilename(mainImageAsset) ? (
+                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[11px] px-2 py-1 truncate">
+                          {getProductImageOriginalFilename(mainImageAsset)}
+                        </div>
+                      ) : null}
                     </>
                   ) : (
                     <label className="flex flex-col items-center justify-center h-full cursor-pointer p-4">
@@ -3497,7 +3623,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               </div>
               {/* 10 smaller slots */}
               {Array.from({ length: 10 }).map((_, idx) => {
-                const img = formData.images[idx];
+                const asset = galleryImages[idx];
+                const img = getProductImagePreviewUrl(asset);
                 return (
                   <div
                     key={idx}
@@ -3505,7 +3632,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   >
                     {img ? (
                       <>
-                        <img src={img} alt="" className="w-full h-full object-cover" />
+                        <img
+                          src={img}
+                          alt=""
+                          className="w-full h-full object-cover cursor-zoom-in"
+                          onClick={() => openOriginalImage(asset, img)}
+                          title="Öppna original"
+                        />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                           <Button
                             type="button"
@@ -3527,9 +3660,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
+                        {getProductImageOriginalFilename(asset) ? (
+                          <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[11px] px-2 py-1 truncate">
+                            {getProductImageOriginalFilename(asset)}
+                          </div>
+                        ) : null}
                       </>
                     ) : (
-                      idx === formData.images.length && (
+                      idx === galleryImages.length && (
                         <label className="flex flex-col items-center justify-center h-full cursor-pointer p-2">
                           <Upload className="w-6 h-6 text-gray-400" />
                           <input

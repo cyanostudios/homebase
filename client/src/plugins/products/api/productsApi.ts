@@ -3,7 +3,7 @@
 
 import { getSharedCsrfToken } from '@/core/api/csrf';
 
-import type { Product } from '../types/products';
+import type { Product, ProductImageAsset } from '../types/products';
 
 export type ProductListSortField = 'id' | 'title' | 'quantity' | 'priceAmount' | 'sku';
 
@@ -268,9 +268,7 @@ class ProductsApi {
     return Number.isFinite(n) ? n : 0;
   }
 
-  async uploadMediaFiles(
-    files: File[],
-  ): Promise<Array<{ url: string; originalFilename: string | null }>> {
+  async uploadMediaFiles(files: File[]): Promise<ProductImageAsset[]> {
     const fd = new FormData();
     for (const file of files) {
       fd.append('files', file, file.name);

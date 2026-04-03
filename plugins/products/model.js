@@ -4,6 +4,7 @@
 
 const { Logger, Database, Context } = require('@homebase/core');
 const importStorage = require('./importStorage');
+const { normalizeProductImages } = require('./productImageAssets');
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -21,6 +22,10 @@ class ProductModel {
     if (s === 'paused') return 'paused';
     if (s === 'for sale' || s === 'forsale') return 'for sale';
     return 'for sale';
+  }
+
+  normalizeProductImagesValue(rawImages) {
+    return normalizeProductImages(rawImages);
   }
 
   // ---------- Public API ----------
@@ -1721,7 +1726,7 @@ class ProductModel {
           : null;
     }
     if (raw.images !== undefined) {
-      const arr = Array.isArray(raw.images) ? raw.images.filter(Boolean) : [];
+      const arr = this.normalizeProductImagesValue(raw.images);
       out.images = JSON.stringify(arr);
     }
     if (raw.categories !== undefined) {
@@ -2242,7 +2247,7 @@ class ProductModel {
             ? Number(existing.vatRate) || 25
             : 25,
         mainImage: mainImage != null ? String(mainImage) : null,
-        images: Array.isArray(images) ? images : [],
+        images: this.normalizeProductImagesValue(images),
         categories: Array.isArray(categories)
           ? categories.map((x) => String(x || '').trim()).filter(Boolean)
           : existing?.categories || [],
@@ -2565,7 +2570,7 @@ class ProductModel {
       currency: safeCurrency,
       vatRate: toFloat(data.vatRate, 25),
       mainImage: clean(data.mainImage),
-      images: Array.isArray(data.images) ? data.images.filter(Boolean) : [],
+      images: this.normalizeProductImagesValue(data.images),
       categories: Array.isArray(data.categories) ? data.categories.filter(Boolean) : [],
       brand: clean(data.brand),
       brandId:
@@ -2666,7 +2671,7 @@ class ProductModel {
       currency: row.currency ?? 'SEK',
       vatRate: toNumberOr(row.vat_rate, 25),
       mainImage: row.main_image ?? null,
-      images: parseJsonArray(row.images),
+      images: this.normalizeProductImagesValue(parseJsonArray(row.images)),
       categories: parseJsonArray(row.categories),
       brand: row.brand_name ?? row.brand ?? null,
       brandId: row.brand_id != null ? String(row.brand_id) : null,

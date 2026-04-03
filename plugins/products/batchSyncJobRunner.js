@@ -97,6 +97,43 @@ function splitJobPayload(jobRow) {
   };
 }
 
+function patchTouchesManagedMedia(productPatch) {
+  const patch = productPatch && typeof productPatch === 'object' ? productPatch : {};
+  return (
+    Object.prototype.hasOwnProperty.call(patch, 'mainImage') ||
+    Object.prototype.hasOwnProperty.call(patch, 'images')
+  );
+}
+
+async function buildBatchPatchWithHostedMedia(
+  productController,
+  req,
+  productId,
+  productPatch,
+  existingRow,
+) {
+  const patch = productPatch && typeof productPatch === 'object' ? { ...productPatch } : {};
+  if (!patchTouchesManagedMedia(patch)) {
+    return patch;
+  }
+  const existing = existingRow || (await productController.model.getById(req, productId));
+  if (!existing) {
+    throw new Error('Product not found before media batch patch');
+  }
+  const hostedMedia = await productController.productMediaService.ensureProductMedia(req, {
+    productId,
+    mainImage: Object.prototype.hasOwnProperty.call(patch, 'mainImage')
+      ? patch.mainImage
+      : existing.mainImage,
+    images: Object.prototype.hasOwnProperty.call(patch, 'images') ? patch.images : existing.images,
+  });
+  return {
+    ...patch,
+    mainImage: hostedMedia.mainImage,
+    images: hostedMedia.images,
+  };
+}
+
 function wooListingExists(externalId) {
   const s = externalId != null ? String(externalId).trim() : '';
   return s !== '' && Number.isFinite(Number(s)) && Number(s) > 0;
@@ -184,7 +221,14 @@ function rowIsVariantGroupMember(row) {
  * Full export for one or more MVP payloads (single product or whole variant group).
  * Skips a channel when every product already has a valid listing id for that channel/instance.
  */
-async function runFullExportsForPayloads(pc, req, payloads, channelMeta, jobErrors, jobErrorProductId) {
+async function runFullExportsForPayloads(
+  pc,
+  req,
+  payloads,
+  channelMeta,
+  jobErrors,
+  jobErrorProductId,
+) {
   if (!payloads.length) return;
   const targets = Array.isArray(channelMeta.channelTargets) ? channelMeta.channelTargets : [];
   const withMarket = Array.isArray(channelMeta.channelTargetsWithMarket)
@@ -474,9 +518,25 @@ async function runBatchSyncJob(productController, req, jobId) {
     for (const pid of productIds) {
       const idStr = String(pid).trim();
       try {
-        const r = await model.applyProductBatchPatch(req, idStr, productPatch);
+        const existingRow = patchTouchesManagedMedia(productPatch)
+          ? await model.getById(req, idStr)
+          : null;
+        const patchForRow = await buildBatchPatchWithHostedMedia(
+          productController,
+          req,
+          idStr,
+          productPatch,
+          existingRow,
+        );
+        const r = await model.applyProductBatchPatch(req, idStr, patchForRow);
         if (!r.skipped) {
           processedDb += 1;
+        }
+        if (patchTouchesManagedMedia(patchForRow)) {
+          const savedRow = await model.getById(req, idStr);
+          if (savedRow) {
+            await productController.reconcileHostedProductMedia(req, savedRow);
+          }
         }
         if (channelMeta) {
           await applyBatchChannelEnablesAndOverrides(req, idStr, channelMeta, errors);
@@ -540,7 +600,13 @@ async function runBatchSyncJob(productController, req, jobId) {
             }
           } else {
             processedExportIds.add(idStr);
-            await runFullExportsForMissingListings(productController, req, row, channelMeta, errors);
+            await runFullExportsForMissingListings(
+              productController,
+              req,
+              row,
+              channelMeta,
+              errors,
+            );
           }
         }
       }
@@ -742,4 +808,6 @@ async function runBatchSyncJob(productController, req, jobId) {
 module.exports = {
   runBatchSyncJob,
   changesNeedArticleExport,
+  patchTouchesManagedMedia,
+  buildBatchPatchWithHostedMedia,
 };
