@@ -41,6 +41,14 @@ export interface ButtonProps
   icon?: LucideIcon; // Support icon prop for backward compatibility
 }
 
+/** Radix Slot allows only one element; JSX whitespace becomes extra text children. */
+function slotSingleChild(node: React.ReactNode): React.ReactNode {
+  const nodes = React.Children.toArray(node).filter(
+    (c) => !(typeof c === 'string' && c.trim() === ''),
+  );
+  return nodes.length === 1 ? nodes[0] : node;
+}
+
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, icon: Icon, children, ...props }, ref) => {
     // Map old variant names to new ones
@@ -51,6 +59,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const mappedSize = size === 'md' ? 'default' : size;
 
     const Comp = asChild ? Slot : 'button';
+    // Slot (asChild) requires exactly one element child — never render Icon as a sibling.
     return (
       <Comp
         className={cn(
@@ -59,8 +68,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         {...props}
       >
-        {Icon && <Icon className="h-4 w-4" />}
-        {children}
+        {asChild ? (
+          slotSingleChild(children)
+        ) : (
+          <>
+            {Icon && <Icon className="h-4 w-4" />}
+            {children}
+          </>
+        )}
       </Comp>
     );
   },

@@ -14,7 +14,8 @@ import React, { useEffect, useRef } from 'react';
 import { MentionContent } from './MentionContent';
 
 interface RichTextContentProps {
-  content: string;
+  /** May be missing or non-string at runtime if API data is incomplete. */
+  content?: string | null;
   mentions?: any[];
   onMentionClick?: (contactId: string) => void;
 }
@@ -47,12 +48,23 @@ function isHtml(content: string) {
   return content.trimStart().startsWith('<');
 }
 
+function normalizeContent(content: string | null | undefined): string {
+  if (content === undefined || content === null) {
+    return '';
+  }
+  if (typeof content === 'string') {
+    return content;
+  }
+  return String(content);
+}
+
 export const RichTextContent: React.FC<RichTextContentProps> = ({
   content,
   mentions = [],
   onMentionClick,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const text = normalizeContent(content);
 
   // Event delegation: handle clicks on .mention spans
   useEffect(() => {
@@ -76,16 +88,16 @@ export const RichTextContent: React.FC<RichTextContentProps> = ({
     return () => el.removeEventListener('click', handler);
   }, [onMentionClick]);
 
-  if (!content) {
+  if (!text.trim()) {
     return <span className="text-muted-foreground italic text-sm">No content</span>;
   }
 
-  if (!isHtml(content)) {
+  if (!isHtml(text)) {
     // Legacy plain-text content – use the existing mention renderer
-    return <MentionContent content={content} mentions={mentions} onMentionClick={onMentionClick} />;
+    return <MentionContent content={text} mentions={mentions} onMentionClick={onMentionClick} />;
   }
 
-  const sanitized = DOMPurify.sanitize(content, {
+  const sanitized = DOMPurify.sanitize(text, {
     ALLOWED_TAGS: PURIFY_ALLOWED_TAGS,
     ALLOWED_ATTR: PURIFY_ALLOWED_ATTR,
   } as any) as unknown as string;

@@ -8,6 +8,15 @@ export interface FileItem {
   mimeType?: string | null;
   uploadedBy?: string | null; // user id/email/name if available
   url?: string | null; // presigned or relative path
+  storageProvider?: string | null;
+  externalFileId?: string | null;
   createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
+}
+
+/** Row from GET /api/files/attachments */
+export interface FileAttachmentEntry {
+  attachmentId: string;
+  attachedAt: string;
+  file: FileItem;
 }

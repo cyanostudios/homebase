@@ -14,6 +14,7 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
+import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 
 import { useNotes } from '../hooks/useNotes';
 
@@ -276,6 +277,10 @@ export const NoteForm: React.FC<NoteFormProps> = ({
                 </div>
               </DetailSection>
             </Card>
+
+            {currentNote ? (
+              <FileAttachmentsSection pluginName="notes" entityId={currentNote.id} />
+            ) : null}
           </form>
         </DetailLayout>
       </div>

@@ -48,6 +48,7 @@
     "migrate:cups-sanctioned": "node scripts/run-cups-sanctioned-migration.js",
     "migrate:cups-visible": "node scripts/run-cups-visible-migration.js",
     "migrate:cups-featured": "node scripts/run-cups-featured-migration.js",
+    "migrate:files-storage": "node scripts/run-files-storage-migrations.js",
     "puppeteer:install-chrome": "cross-env PUPPETEER_CACHE_DIR=.cache/puppeteer puppeteer browsers install chrome",
     "twilio": "npm install twilio"
   },
