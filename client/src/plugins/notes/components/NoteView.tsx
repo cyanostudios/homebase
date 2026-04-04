@@ -15,6 +15,7 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import type { Note } from '@/plugins/notes/types/notes';
 
@@ -406,7 +407,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
             </div>
           }
         >
-          <div className="space-y-6">
+          <div className="space-y-4">
             <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
               <DetailSection
                 title={(note.title || '').trim() || '—'}
@@ -420,6 +421,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                 />
               </DetailSection>
             </Card>
+            <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
           </div>
         </DetailLayout>
       </div>

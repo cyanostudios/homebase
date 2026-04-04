@@ -541,7 +541,22 @@
     "previewContent": "File content",
     "previewUnavailableTitle": "Preview unavailable",
     "previewNoUrl": "No URL associated with this file record.",
-    "previewNoInline": "No inline preview is available for this file type. Use the external link to view or download."
+    "previewNoInline": "No inline preview is available for this file type. Use the external link to view or download.",
+    "attachmentsTitle": "Attachments",
+    "attachmentsSectionHelp": "Upload files from your computer. They are saved in Files and linked here.",
+    "attachmentsRowTitle": "Upload",
+    "attachmentsUploadButton": "Upload file",
+    "attachmentsAdd": "Add files",
+    "attachmentsFromLibrary": "From Files",
+    "attachmentsFromLibraryHelp": "Attach a file you already uploaded in the Files plugin.",
+    "attachmentsPickPlaceholder": "Search or pick a file…",
+    "attachmentsNoFilesInLibrary": "No files in library yet. Upload in Files first.",
+    "attachmentsAllAttached": "All library files are already attached.",
+    "attachmentsNoSearchResults": "No matching files.",
+    "attachmentsUploading": "Uploading…",
+    "attachmentsEmpty": "No attachments yet.",
+    "attachmentsDownload": "Download",
+    "attachmentsRemove": "Remove attachment"
   },
   "mail": {
     "panelTitle": "Mail settings",

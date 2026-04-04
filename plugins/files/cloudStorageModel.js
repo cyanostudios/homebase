@@ -3,6 +3,13 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
+/** Same scope as Database.insert / googledrive_settings lookups in storage layer. */
+function tenantScopedUserId(req) {
+  return (
+    req.session?.currentTenantUserId ?? req.session?.user?.id ?? req.session?.user?.uuid ?? null
+  );
+}
+
 class CloudStorageModel {
   static TABLES = {
     onedrive: 'onedrive_settings',
@@ -13,9 +20,9 @@ class CloudStorageModel {
   async getSettings(req, service) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const uid = tenantScopedUserId(req);
 
-      if (!userId) {
+      if (!uid) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
@@ -34,7 +41,7 @@ class CloudStorageModel {
         WHERE user_id = $1
         LIMIT 1
       `;
-      const result = await db.query(sql, [userId]);
+      const result = await db.query(sql, [uid]);
       return result.length ? this.transformSettingsRow(result[0], service) : null;
     } catch (error) {
       Logger.error(`Failed to get ${service} settings`, error);
@@ -48,9 +55,9 @@ class CloudStorageModel {
   async upsertSettings(req, service, data) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const uid = tenantScopedUserId(req);
 
-      if (!userId) {
+      if (!uid) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
@@ -83,13 +90,13 @@ class CloudStorageModel {
         RETURNING *
       `;
       const result = await db.query(sql, [
-        userId,
+        uid,
         accessToken,
         refreshToken,
         tokenExpiresAt,
         connected,
       ]);
-      Logger.info(`${service} settings saved`, { userId });
+      Logger.info(`${service} settings saved`, { userId: uid });
       return this.transformSettingsRow(result[0], service);
     } catch (error) {
       Logger.error(`Failed to save ${service} settings`, error);
@@ -103,9 +110,9 @@ class CloudStorageModel {
   async disconnect(req, service) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const uid = tenantScopedUserId(req);
 
-      if (!userId) {
+      if (!uid) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
@@ -128,8 +135,8 @@ class CloudStorageModel {
         WHERE user_id = $1
         RETURNING *
       `;
-      const result = await db.query(sql, [userId]);
-      Logger.info(`${service} disconnected`, { userId });
+      const result = await db.query(sql, [uid]);
+      Logger.info(`${service} disconnected`, { userId: uid });
       return result.length ? this.transformSettingsRow(result[0], service) : null;
     } catch (error) {
       Logger.error(`Failed to disconnect ${service}`, error);
@@ -143,9 +150,9 @@ class CloudStorageModel {
   async upsertOAuthCredentials(req, service, clientId, clientSecret) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const uid = tenantScopedUserId(req);
 
-      if (!userId) {
+      if (!uid) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
@@ -171,11 +178,11 @@ class CloudStorageModel {
         RETURNING *
       `;
       const result = await db.query(sql, [
-        userId,
+        uid,
         clientId ? String(clientId).trim() : null,
         clientSecret ? String(clientSecret).trim() : null,
       ]);
-      Logger.info(`${service} OAuth credentials saved`, { userId });
+      Logger.info(`${service} OAuth credentials saved`, { userId: uid });
       return this.transformSettingsRow(result[0], service);
     } catch (error) {
       Logger.error(`Failed to save ${service} OAuth credentials`, error);

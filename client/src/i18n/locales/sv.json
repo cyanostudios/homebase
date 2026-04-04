@@ -541,7 +541,22 @@
     "previewContent": "Filinnehåll",
     "previewUnavailableTitle": "Ingen förhandsvisning",
     "previewNoUrl": "Ingen URL är kopplad till den här filposten.",
-    "previewNoInline": "Ingen inbäddad förhandsvisning finns för den här filtypen. Använd den externa länken för att visa eller ladda ner."
+    "previewNoInline": "Ingen inbäddad förhandsvisning finns för den här filtypen. Använd den externa länken för att visa eller ladda ner.",
+    "attachmentsTitle": "Bilagor",
+    "attachmentsSectionHelp": "Ladda upp filer från datorn. De sparas under Filer och länkas hit.",
+    "attachmentsRowTitle": "Ladda upp",
+    "attachmentsUploadButton": "Ladda upp fil",
+    "attachmentsAdd": "Lägg till filer",
+    "attachmentsFromLibrary": "Från Filer",
+    "attachmentsFromLibraryHelp": "Bifoga en fil du redan laddat upp under pluginen Filer.",
+    "attachmentsPickPlaceholder": "Sök eller välj fil…",
+    "attachmentsNoFilesInLibrary": "Inga filer i biblioteket än. Ladda upp under Filer först.",
+    "attachmentsAllAttached": "Alla filer i biblioteket är redan bifogade.",
+    "attachmentsNoSearchResults": "Inga filer matchar sökningen.",
+    "attachmentsUploading": "Laddar upp…",
+    "attachmentsEmpty": "Inga bilagor ännu.",
+    "attachmentsDownload": "Ladda ner",
+    "attachmentsRemove": "Ta bort bilaga"
   },
   "mail": {
     "panelTitle": "Mail-inställningar",

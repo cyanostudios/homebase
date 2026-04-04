@@ -20,7 +20,7 @@ class FilesModel {
 
       // Tenant isolation automatic
       const rows = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
+        `SELECT id, user_id, name, size, mime_type, url, storage_provider, external_file_id, created_at, updated_at
          FROM ${FilesModel.TABLE}
          ORDER BY ${FilesModel.ORDER_BY}`,
         [],
@@ -38,7 +38,7 @@ class FilesModel {
       const db = Database.get(req);
 
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
+        `SELECT id, user_id, name, size, mime_type, url, storage_provider, external_file_id, created_at, updated_at
          FROM ${FilesModel.TABLE}
          WHERE id = $1
          LIMIT 1`,
@@ -63,7 +63,7 @@ class FilesModel {
 
       const like = `%/api/files/raw/${filename}`;
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
+        `SELECT id, user_id, name, size, mime_type, url, storage_provider, external_file_id, created_at, updated_at
          FROM ${FilesModel.TABLE}
          WHERE url LIKE $1
          ORDER BY id DESC
@@ -91,12 +91,19 @@ class FilesModel {
       const db = Database.get(req);
 
       // Use database.insert for automatic tenant isolation
-      const result = await db.insert(FilesModel.TABLE, {
+      const insertPayload = {
         name: String(data?.name ?? '').trim(),
         size: data?.size ?? null,
         mime_type: data?.mimeType ?? null,
         url: data?.url ?? null,
-      });
+      };
+      if (data?.storageProvider != null) {
+        insertPayload.storage_provider = String(data.storageProvider);
+      }
+      if (data?.externalFileId != null) {
+        insertPayload.external_file_id = String(data.externalFileId);
+      }
+      const result = await db.insert(FilesModel.TABLE, insertPayload);
 
       Logger.info('File metadata created', { fileId: result.id });
 
@@ -134,6 +141,12 @@ class FilesModel {
       }
       if (Object.prototype.hasOwnProperty.call(data, 'url')) {
         updateData.url = data.url ?? null;
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'storageProvider')) {
+        updateData.storage_provider = data.storageProvider ?? 'local';
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'externalFileId')) {
+        updateData.external_file_id = data.externalFileId ?? null;
       }
 
       // Use database.update for automatic tenant isolation
@@ -185,6 +198,8 @@ class FilesModel {
       size: row.size != null ? Number(row.size) : null,
       mimeType: row.mime_type ?? null,
       url: row.url ?? null,
+      storageProvider: row.storage_provider ?? 'local',
+      externalFileId: row.external_file_id ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

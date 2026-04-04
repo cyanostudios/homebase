@@ -1,5 +1,7 @@
 // client/src/plugins/files/api/filesApi.ts
 // Files API - V2 with CSRF protection
+import type { FileAttachmentEntry, FileItem } from '../types/files';
+
 export type ApiFieldError = { field: string; message: string };
 
 export class FilesApi {
@@ -55,15 +57,16 @@ export class FilesApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    // Add CSRF token for mutations (but not for multipart uploads - browser sets Content-Type)
     if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      // For multipart uploads, don't set Content-Type header (browser needs to set boundary)
+      const token = await this.getCsrfToken();
+      headers['X-CSRF-Token'] = token;
       if (!(options.body instanceof FormData)) {
-        headers['Content-Type'] = 'application/json';
+        const isDeleteWithoutBody =
+          options.method === 'DELETE' && (options.body === undefined || options.body === null);
+        if (!isDeleteWithoutBody) {
+          headers['Content-Type'] = 'application/json';
+        }
       }
-      // CSRF temporarily disabled: headers["X-CSRF-Token"] = await this.getCsrfToken();
-    } else if (!options.method || options.method === 'GET') {
-      // GET requests don't need CSRF token
     }
 
     let response: Response;
@@ -151,7 +154,7 @@ export class FilesApi {
   }
 
   // MULTIPART upload (returns array of created items)
-  async uploadFiles(files: File[]): Promise<any[]> {
+  async uploadFiles(files: File[]): Promise<FileItem[]> {
     const fd = new FormData();
     for (const f of files) {
       fd.append('files', f, f.name);
@@ -160,6 +163,41 @@ export class FilesApi {
       method: 'POST',
       body: fd,
       // NOTE: let browser set the correct multipart boundary → no manual Content-Type
+    });
+  }
+
+  /** Authenticated download URL (streams bytes via storage abstraction). */
+  getFileDownloadUrl(fileId: string): string {
+    return `${this.basePath}/${encodeURIComponent(fileId)}/download`;
+  }
+
+  listAttachments(pluginName: string, entityId: string): Promise<FileAttachmentEntry[]> {
+    const q = new URLSearchParams({
+      plugin: pluginName,
+      entityId: String(entityId),
+    });
+    return this.request(`/attachments?${q.toString()}`);
+  }
+
+  createAttachment(payload: { pluginName: string; entityId: string; fileId: string }): Promise<{
+    attachmentId: string;
+    fileId: string;
+    pluginName: string;
+    entityId: string;
+    file: Pick<
+      FileItem,
+      'id' | 'name' | 'size' | 'mimeType' | 'url' | 'storageProvider' | 'externalFileId'
+    >;
+  }> {
+    return this.request('/attachments', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  deleteAttachment(attachmentId: string): Promise<{ ok: true; id: string }> {
+    return this.request(`/attachments/${encodeURIComponent(attachmentId)}`, {
+      method: 'DELETE',
     });
   }
 }
