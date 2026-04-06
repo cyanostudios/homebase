@@ -1,14 +1,30 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const analyze = process.env.ANALYZE === '1' || process.env.ANALYZE === 'true';
+
 export default defineConfig({
   root: './client',
-  plugins: [react()],
+  plugins: [
+    react(),
+    ...(analyze
+      ? [
+          visualizer({
+            filename: path.resolve(__dirname, 'bundle-stats.html'),
+            open: false,
+            gzipSize: true,
+            brotliSize: true,
+            template: 'treemap',
+          }),
+        ]
+      : []),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './client/src'),

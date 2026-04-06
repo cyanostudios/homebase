@@ -49,7 +49,7 @@ class CloudStorageController {
         redirectUri: `${baseUrl}/api/files/cloud/googledrive/auth/callback`,
         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
         tokenUrl: 'https://oauth2.googleapis.com/token',
-        scope: 'https://www.googleapis.com/auth/drive.readwrite',
+        scope: 'https://www.googleapis.com/auth/drive.file',
       },
     };
     return configs[service] || null;

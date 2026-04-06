@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -14,6 +15,7 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
+import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 
 import { useNotes } from '../hooks/useNotes';
 
@@ -42,6 +44,8 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   isSubmitting: externalIsSubmitting = false,
 }) => {
   const { t } = useTranslation();
+  const { user } = useApp();
+  const hasFilesPlugin = (user?.plugins ?? []).includes('files');
   const { validationErrors, clearValidationErrors, panelMode } = useNotes();
   const {
     isDirty,
@@ -276,6 +280,10 @@ export const NoteForm: React.FC<NoteFormProps> = ({
                 </div>
               </DetailSection>
             </Card>
+
+            {hasFilesPlugin && currentNote ? (
+              <FileAttachmentsSection pluginName="notes" entityId={currentNote.id} />
+            ) : null}
           </form>
         </DetailLayout>
       </div>

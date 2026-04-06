@@ -7,7 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
-const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { commonRules, validateRequest, query } = require('../../server/core/middleware/validation');
 const { uploadLimiter } = require('../../server/core/middleware/rateLimit');
 
 function ensureDirSync(dir) {
@@ -118,17 +118,6 @@ function createFilesRoutes(controller, context) {
     (req, res) => controller.create(req, res),
   );
 
-  router.put(
-    '/:id',
-    gate,
-    /* csrfProtection, */ // Temporarily disabled
-    commonRules.id('id'),
-    commonRules.string('name', 1, 255).optional(),
-    commonRules.optionalString('url', 500),
-    validateRequest,
-    (req, res) => controller.update(req, res),
-  );
-
   // DELETE /api/files/batch - Bulk delete (MUST be before '/:id' route)
   router.delete(
     '/batch',
@@ -139,13 +128,46 @@ function createFilesRoutes(controller, context) {
     (req, res) => controller.bulkDelete(req, res),
   );
 
-  router.delete(
-    '/:id',
+  // ---- Storage abstraction diagnostics (active provider = same rules as upload) ----
+  router.get('/storage/google-drive/health', gate, (req, res) =>
+    controller.validateGoogleDriveStorage(req, res),
+  );
+  router.get('/storage/objects', gate, (req, res) => controller.listStorageObjects(req, res));
+
+  // ---- Attachments (plugin entity links) ----
+  router.get(
+    '/attachments',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
-    commonRules.id('id'),
+    query('plugin')
+      .trim()
+      .isLength({ min: 1, max: 64 })
+      .withMessage('plugin query param is required'),
+    query('entityId')
+      .trim()
+      .isLength({ min: 1, max: 64 })
+      .withMessage('entityId query param is required'),
     validateRequest,
-    (req, res) => controller.delete(req, res),
+    (req, res) => controller.getAttachments(req, res),
+  );
+
+  router.post(
+    '/attachments',
+    gate,
+    csrfProtection,
+    commonRules.string('pluginName', 1, 64),
+    commonRules.string('entityId', 1, 64),
+    commonRules.requiredId('fileId'),
+    validateRequest,
+    (req, res) => controller.createAttachment(req, res),
+  );
+
+  router.delete(
+    '/attachments/:attachmentId',
+    gate,
+    csrfProtection,
+    commonRules.id('attachmentId'),
+    validateRequest,
+    (req, res) => controller.deleteAttachment(req, res),
   );
 
   // ---- MULTIPART upload: returns array of created FileItems ----
@@ -204,6 +226,31 @@ function createFilesRoutes(controller, context) {
   // GET /api/files/cloud/:service/embed - Get embed URL for file manager
   router.get('/cloud/:service/embed', gate, (req, res) =>
     cloudStorageController.getEmbedUrl(req, res),
+  );
+
+  // Stream file by id (local disk or cloud via storage abstraction)
+  router.get('/:id/download', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.downloadById(req, res),
+  );
+
+  router.put(
+    '/:id',
+    gate,
+    /* csrfProtection, */ // Temporarily disabled
+    commonRules.id('id'),
+    commonRules.string('name', 1, 255).optional(),
+    commonRules.optionalString('url', 500),
+    validateRequest,
+    (req, res) => controller.update(req, res),
+  );
+
+  router.delete(
+    '/:id',
+    gate,
+    /* csrfProtection, */ // Temporarily disabled
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.delete(req, res),
   );
 
   return router;

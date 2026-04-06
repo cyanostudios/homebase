@@ -11,6 +11,7 @@
     "dev:public-cups": "npx serve public-cups -p 3004",
     "build": "npm run build:ui && npm run build:api && npm run copy:ui",
     "build:ui": "vite build",
+    "build:ui:analyze": "cross-env ANALYZE=1 vite build",
     "build:api": "tsc server/index.ts --outDir dist --target es2020 --module commonjs && cp -r server/migrations dist/migrations",
     "copy:ui": "mkdir -p dist/public && cp -r client/dist/* dist/public/",
     "start": "npm run start:api",
@@ -48,6 +49,7 @@
     "migrate:cups-sanctioned": "node scripts/run-cups-sanctioned-migration.js",
     "migrate:cups-visible": "node scripts/run-cups-visible-migration.js",
     "migrate:cups-featured": "node scripts/run-cups-featured-migration.js",
+    "migrate:files-storage": "node scripts/run-files-storage-migrations.js",
     "puppeteer:install-chrome": "cross-env PUPPETEER_CACHE_DIR=.cache/puppeteer puppeteer browsers install chrome",
     "twilio": "npm install twilio"
   },
@@ -188,6 +190,7 @@
     "lint-staged": "^16.2.4",
     "postcss": "^8.4.47",
     "prettier": "^3.6.2",
+    "rollup-plugin-visualizer": "^5.14.0",
     "supertest": "^7.0.0",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",

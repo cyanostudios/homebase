@@ -1,5 +1,6 @@
 import { ExternalLink, File, FileText, Image as ImageIcon, Info } from 'lucide-react';
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -9,9 +10,11 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { FileItem } from '../types/files';
 
 type Props = {
-  file?: FileItem; // passed by panelRendering as singular prop
-  item?: FileItem; // generic fallback
+  file?: FileItem;
+  item?: FileItem;
 };
+
+const FILE_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 
 function humanSize(bytes?: number | null) {
   if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) {
@@ -28,6 +31,7 @@ function humanSize(bytes?: number | null) {
 }
 
 export const FileView: React.FC<Props> = ({ file, item }) => {
+  const { t } = useTranslation();
   const f = (file ?? item) as FileItem | undefined;
 
   const isImage = useMemo(() => {
@@ -42,64 +46,66 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
 
   if (!f) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-50">
-        <File className="w-12 h-12 mb-4" />
-        <p className="text-sm font-medium">No file selected.</p>
+      <div className="plugin-files flex flex-col items-center justify-center p-12 text-muted-foreground opacity-50">
+        <File className="mb-4 h-12 w-12" />
+        <p className="text-sm font-medium">{t('files.viewNoSelection')}</p>
       </div>
     );
   }
 
   return (
-    <div className="plugin-files">
+    <div className="plugin-files min-h-full bg-background p-4 md:p-6">
       <DetailLayout
         sidebar={
-          <div className="space-y-6">
-            <Card
-              padding="none"
-              className="overflow-hidden border-none shadow-sm bg-background/50 plugin-files"
-            >
-              <DetailSection title="Information" icon={Info} className="p-4">
+          <div className="space-y-4">
+            <Card padding="none" className={FILE_DETAIL_CARD_CLASS}>
+              <DetailSection
+                title={t('files.viewInformation')}
+                icon={Info}
+                iconPlugin="files"
+                className="p-4"
+              >
                 <div className="space-y-4 text-xs">
-                  <div className="flex justify-between items-center group">
-                    <span className="text-muted-foreground">Type</span>
-                    <span className="font-medium truncate max-w-[150px]">
+                  <div className="group flex items-center justify-between">
+                    <span className="text-muted-foreground">{t('files.viewType')}</span>
+                    <span className="max-w-[150px] truncate font-medium">
                       {f.mimeType || 'application/octet-stream'}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center group">
-                    <span className="text-muted-foreground">Size</span>
+                  <div className="group flex items-center justify-between">
+                    <span className="text-muted-foreground">{t('files.viewSize')}</span>
                     <span className="font-medium">{humanSize(f.size)}</span>
                   </div>
                   {f.url && (
                     <div className="flex flex-col gap-1 pt-1">
-                      <span className="text-muted-foreground">Source URL</span>
+                      <span className="text-muted-foreground">{t('files.viewSourceUrl')}</span>
                       <a
                         href={f.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-primary hover:underline font-medium break-all flex items-center gap-1"
+                        className="flex items-center gap-1 break-all font-medium text-primary hover:underline"
                       >
-                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                        View Original
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                        {t('files.viewOpenOriginal')}
                       </a>
                     </div>
                   )}
-                  <div className="pt-2 mt-2 border-t border-border/50">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">ID</span>
+                  <div className="mt-2 border-t border-border/50 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">{t('files.viewId')}</span>
                       <span className="font-mono font-medium opacity-70">
                         {formatDisplayNumber('files', f.id)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-muted-foreground">Created</span>
-                      <span className="font-medium font-mono text-[10px] opacity-70">
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-muted-foreground">{t('files.viewCreated')}</span>
+                      <span className="font-mono text-[10px] font-medium opacity-70">
                         {f.createdAt ? new Date(f.createdAt).toLocaleDateString() : '—'}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-muted-foreground">Updated</span>
-                      <span className="font-medium font-mono text-[10px] opacity-70">
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-muted-foreground">{t('files.viewUpdated')}</span>
+                      <span className="font-mono text-[10px] font-medium opacity-70">
                         {f.updatedAt ? new Date(f.updatedAt).toLocaleDateString() : '—'}
                       </span>
                     </div>
@@ -110,20 +116,26 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
           </div>
         }
       >
-        <div className="space-y-6">
-          {/* Preview Area */}
+        <div className="space-y-4">
           {f.url ? (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <Card padding="none" className={FILE_DETAIL_CARD_CLASS}>
               <DetailSection
-                title={isImage ? 'Image Preview' : isPdf ? 'PDF Preview' : 'File Content'}
+                title={
+                  isImage
+                    ? t('files.previewImage')
+                    : isPdf
+                      ? t('files.previewPdf')
+                      : t('files.previewContent')
+                }
+                iconPlugin="files"
                 className="p-6"
               >
                 {isImage ? (
-                  <div className="rounded-lg overflow-hidden border border-border/50 shadow-inner bg-muted/20 flex items-center justify-center min-h-[200px]">
-                    <img src={f.url} alt={f.name || 'image'} className="max-w-full h-auto" />
+                  <div className="flex min-h-[200px] items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
+                    <img src={f.url} alt={f.name || 'image'} className="h-auto max-w-full" />
                   </div>
                 ) : isPdf ? (
-                  <div className="rounded-lg overflow-hidden border border-border/50 shadow-inner bg-muted/20">
+                  <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/20 shadow-inner">
                     <iframe
                       src={f.url}
                       title={f.name || 'pdf'}
@@ -133,21 +145,22 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
-                    <FileText className="w-12 h-12 mb-4" />
-                    <p className="text-sm">No inline preview available for this file type.</p>
-                    <p className="text-xs mt-1">
-                      Please use the external link to view or download.
-                    </p>
+                    <FileText className="mb-4 h-12 w-12" />
+                    <p className="text-sm">{t('files.previewNoInline')}</p>
                   </div>
                 )}
               </DetailSection>
             </Card>
           ) : (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Preview Unavailable" className="p-6">
+            <Card padding="none" className={FILE_DETAIL_CARD_CLASS}>
+              <DetailSection
+                title={t('files.previewUnavailableTitle')}
+                iconPlugin="files"
+                className="p-6"
+              >
                 <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
-                  <ImageIcon className="w-12 h-12 mb-4" />
-                  <p className="text-sm">No URL associated with this file record.</p>
+                  <ImageIcon className="mb-4 h-12 w-12" />
+                  <p className="text-sm">{t('files.previewNoUrl')}</p>
                 </div>
               </DetailSection>
             </Card>

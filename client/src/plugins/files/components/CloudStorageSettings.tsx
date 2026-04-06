@@ -1,44 +1,48 @@
 // client/src/plugins/files/components/CloudStorageSettings.tsx
-import { Cloud, X, ExternalLink, Key } from 'lucide-react';
+import { Check, Cloud, ExternalLink, Key, X } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Heading, Text } from '@/core/ui/Typography';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { DetailSection } from '@/core/ui/DetailSection';
+import { cn } from '@/lib/utils';
 
 import { cloudStorageApi, type CloudStorageService } from '../api/cloudStorageApi';
 import { useFiles } from '../hooks/useFiles';
 
+const SERVICES = [
+  'onedrive',
+  'dropbox',
+  'googledrive',
+] as const satisfies readonly CloudStorageService[];
+
 const serviceConfig = {
   onedrive: {
     name: 'OneDrive',
-    icon: '📁',
-    color: 'bg-blue-500',
-    description: 'Access your OneDrive files directly from Homebase',
+    descriptionKey: 'files.cloudServiceOnedriveDesc' as const,
   },
   dropbox: {
     name: 'Dropbox',
-    icon: '📦',
-    color: 'bg-blue-600',
-    description: 'Access your Dropbox files directly from Homebase',
+    descriptionKey: 'files.cloudServiceDropboxDesc' as const,
   },
   googledrive: {
     name: 'Google Drive',
-    icon: '☁️',
-    color: 'bg-yellow-500',
-    description: 'Access your Google Drive files directly from Homebase',
+    descriptionKey: 'files.cloudServiceGoogledriveDesc' as const,
   },
 };
 
 export const CloudStorageSettings: React.FC = () => {
+  const { t } = useTranslation();
   const {
     cloudStorageSettings,
     connectCloudStorage,
     disconnectCloudStorage,
     getCloudStorageEmbedUrl,
   } = useFiles();
+  const [selectedService, setSelectedService] = useState<CloudStorageService>('onedrive');
   const [openingService, setOpeningService] = useState<CloudStorageService | null>(null);
-  const [configuringService, setConfiguringService] = useState<CloudStorageService | null>(null);
   const [credentials, setCredentials] = useState<
     Record<CloudStorageService, { clientId: string; clientSecret: string }>
   >({
@@ -47,8 +51,17 @@ export const CloudStorageSettings: React.FC = () => {
     googledrive: { clientId: '', clientSecret: '' },
   });
   const [savingCredentials, setSavingCredentials] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(
+    null,
+  );
+
+  const selectService = (service: CloudStorageService) => {
+    setSelectedService(service);
+    setFeedback(null);
+  };
 
   const handleConnect = async (service: CloudStorageService) => {
+    setFeedback(null);
     try {
       await connectCloudStorage(service);
     } catch (err) {
@@ -57,9 +70,10 @@ export const CloudStorageSettings: React.FC = () => {
   };
 
   const handleDisconnect = async (service: CloudStorageService) => {
-    if (!confirm(`Are you sure you want to disconnect ${serviceConfig[service].name}?`)) {
+    if (!confirm(t('files.cloudDisconnectConfirm', { name: serviceConfig[service].name }))) {
       return;
     }
+    setFeedback(null);
     try {
       await disconnectCloudStorage(service);
     } catch (err) {
@@ -68,6 +82,7 @@ export const CloudStorageSettings: React.FC = () => {
   };
 
   const handleOpenFileManager = async (service: CloudStorageService) => {
+    setFeedback(null);
     setOpeningService(service);
     try {
       const embedUrl = await getCloudStorageEmbedUrl(service);
@@ -76,7 +91,7 @@ export const CloudStorageSettings: React.FC = () => {
       }
     } catch (err) {
       console.error(`Failed to open ${service} file manager:`, err);
-      alert(`Failed to open ${serviceConfig[service].name} file manager`);
+      setFeedback({ type: 'error', text: t('files.cloudOpenFailed') });
     } finally {
       setOpeningService(null);
     }
@@ -85,163 +100,175 @@ export const CloudStorageSettings: React.FC = () => {
   const handleSaveCredentials = async (service: CloudStorageService) => {
     const creds = credentials[service];
     if (!creds.clientId || !creds.clientSecret) {
-      alert('Please enter both Client ID and Client Secret');
+      setFeedback({ type: 'error', text: t('files.cloudCredentialsBothRequired') });
       return;
     }
 
+    setFeedback(null);
     setSavingCredentials(true);
     try {
       await cloudStorageApi.saveOAuthCredentials(service, creds.clientId, creds.clientSecret);
-      setConfiguringService(null);
-      alert('OAuth credentials saved successfully');
-    } catch (err: any) {
+      setFeedback({ type: 'success', text: t('files.cloudCredentialsSaved') });
+    } catch (err: unknown) {
       console.error(`Failed to save ${service} credentials:`, err);
-      alert(`Failed to save credentials: ${err.message || 'Unknown error'}`);
+      const message = err instanceof Error ? err.message : t('files.cloudSaveCredentialsFailed');
+      setFeedback({ type: 'error', text: message });
     } finally {
       setSavingCredentials(false);
     }
   };
 
+  const activeConfig = serviceConfig[selectedService];
+  const isConnected = cloudStorageSettings[selectedService]?.connected || false;
+
   return (
-    <div className="space-y-4">
-      <div>
-        <Heading level={3}>Cloud Storage Integration</Heading>
-        <Text variant="caption">
-          Connect your cloud storage accounts to access files directly from Homebase
-        </Text>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {(['onedrive', 'dropbox', 'googledrive'] as CloudStorageService[]).map((service) => {
-          const config = serviceConfig[service];
-          const settings = cloudStorageSettings[service];
-          const isConnected = settings?.connected || false;
-
-          return (
-            <Card key={service} className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{config.icon}</span>
-                  <Heading level={4} className="mb-0">
-                    {config.name}
-                  </Heading>
-                </div>
-                {isConnected && (
-                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                    Connected
-                  </span>
+    <div className="space-y-6">
+      <DetailSection title={t('mail.provider')} icon={Cloud} iconPlugin="files">
+        <p className="mb-4 text-sm text-muted-foreground">{t('files.cloudStorageDescription')}</p>
+        <div className="flex flex-wrap gap-2">
+          {SERVICES.map((service) => {
+            const config = serviceConfig[service];
+            const connected = cloudStorageSettings[service]?.connected || false;
+            const isActive = selectedService === service;
+            return (
+              <button
+                key={service}
+                type="button"
+                onClick={() => selectService(service)}
+                className={cn(
+                  'flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-background hover:bg-muted',
                 )}
+              >
+                <span
+                  className={cn('h-2 w-2 rounded-full', connected ? 'bg-green-500' : 'bg-red-500')}
+                />
+                {config.name}
+                {isActive && <Check className="h-3.5 w-3.5" />}
+              </button>
+            );
+          })}
+        </div>
+      </DetailSection>
+
+      <DetailSection
+        title={t('mail.credentials')}
+        icon={Key}
+        className="border-t border-border pt-6"
+      >
+        <p className="mb-4 text-sm text-muted-foreground">{t(activeConfig.descriptionKey)}</p>
+
+        {feedback && (
+          <p
+            className={cn(
+              'mb-4 text-sm',
+              feedback.type === 'error' ? 'text-destructive' : 'text-green-600 dark:text-green-400',
+            )}
+            role="status"
+          >
+            {feedback.text}
+          </p>
+        )}
+
+        {isConnected ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-9 text-xs"
+              onClick={() => void handleOpenFileManager(selectedService)}
+              disabled={openingService === selectedService}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {openingService === selectedService ? t('files.cloudOpening') : t('files.cloudOpen')}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => void handleDisconnect(selectedService)}
+              title={t('files.cloudDisconnect')}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-muted-foreground">{t('files.cloudOAuthHint')}</p>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor={`${selectedService}-client-id`}>{t('files.cloudClientId')}</Label>
+                <Input
+                  id={`${selectedService}-client-id`}
+                  type="text"
+                  value={credentials[selectedService].clientId}
+                  onChange={(e) =>
+                    setCredentials({
+                      ...credentials,
+                      [selectedService]: {
+                        ...credentials[selectedService],
+                        clientId: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder={t('files.cloudClientIdPlaceholder')}
+                  autoComplete="off"
+                  className="mt-1.5 h-9 text-xs"
+                />
               </div>
-
-              <Text variant="caption" className="mb-4 block">
-                {config.description}
-              </Text>
-
-              {configuringService === service ? (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Client ID
-                    </label>
-                    <input
-                      type="text"
-                      value={credentials[service].clientId}
-                      onChange={(e) =>
-                        setCredentials({
-                          ...credentials,
-                          [service]: { ...credentials[service], clientId: e.target.value },
-                        })
-                      }
-                      placeholder="Enter your OAuth Client ID"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Client Secret
-                    </label>
-                    <input
-                      type="password"
-                      value={credentials[service].clientSecret}
-                      onChange={(e) =>
-                        setCredentials({
-                          ...credentials,
-                          [service]: { ...credentials[service], clientSecret: e.target.value },
-                        })
-                      }
-                      placeholder="Enter your OAuth Client Secret"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => handleSaveCredentials(service)}
-                      disabled={savingCredentials}
-                      className="flex-1"
-                    >
-                      {savingCredentials ? 'Saving...' : 'Save Credentials'}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setConfiguringService(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                  <Text variant="caption" className="text-xs text-gray-500">
-                    Optional: If you have your own OAuth app registered, enter the credentials here.
-                    Otherwise, leave empty to use the default app.
-                  </Text>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  {isConnected ? (
-                    <>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleOpenFileManager(service)}
-                        disabled={openingService === service}
-                        className="flex-1"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-1" />
-                        {openingService === service ? 'Opening...' : 'Open'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDisconnect(service)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleConnect(service)}
-                        className="flex-1"
-                      >
-                        <Cloud className="w-4 h-4 mr-1" />
-                        Connect
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setConfiguringService(service)}
-                        title="Configure OAuth credentials"
-                      >
-                        <Key className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+              <div>
+                <Label htmlFor={`${selectedService}-client-secret`}>
+                  {t('files.cloudClientSecret')}
+                </Label>
+                <Input
+                  id={`${selectedService}-client-secret`}
+                  type="password"
+                  value={credentials[selectedService].clientSecret}
+                  onChange={(e) =>
+                    setCredentials({
+                      ...credentials,
+                      [selectedService]: {
+                        ...credentials[selectedService],
+                        clientSecret: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder={t('files.cloudClientSecretPlaceholder')}
+                  autoComplete="off"
+                  className="mt-1.5 h-9 text-xs"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => void handleConnect(selectedService)}
+              >
+                <Cloud className="h-3.5 w-3.5" />
+                {t('files.cloudConnect')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => void handleSaveCredentials(selectedService)}
+                disabled={savingCredentials}
+              >
+                {savingCredentials
+                  ? t('files.cloudSavingCredentials')
+                  : t('files.cloudSaveCredentials')}
+              </Button>
+            </div>
+          </>
+        )}
+      </DetailSection>
     </div>
   );
 };

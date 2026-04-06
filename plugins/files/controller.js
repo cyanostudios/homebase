@@ -1,13 +1,54 @@
 // plugins/files/controller.js
-// Files controller - V3 with @homebase/core SDK
+// Files controller - V3 with @homebase/core SDK + storage abstraction
 const fs = require('fs');
 const path = require('path');
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const {
+  ensureStorageProvidersRegistered,
+} = require('../../server/core/storage/registerDefaultAdapters');
+const StorageProviderRegistry = require('../../server/core/storage/StorageProviderRegistry');
+
+/** MIME types (or filename) safe to show in browser without forcing download. */
+function wantsInlinePreview(mimeType, filename) {
+  if (mimeType && typeof mimeType === 'string') {
+    const m = mimeType.toLowerCase();
+    if (
+      m.startsWith('image/') ||
+      m === 'application/pdf' ||
+      m.startsWith('text/') ||
+      m.startsWith('video/') ||
+      m.startsWith('audio/')
+    ) {
+      return true;
+    }
+  }
+  if (filename && typeof filename === 'string') {
+    const ext = path.extname(filename).toLowerCase();
+    return [
+      '.pdf',
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.webp',
+      '.svg',
+      '.txt',
+      '.mp4',
+      '.webm',
+    ].includes(ext);
+  }
+  return false;
+}
 
 class FilesController {
-  constructor(model) {
+  /**
+   * @param {import('./model')} model
+   * @param {import('./filesService')} filesService
+   */
+  constructor(model, filesService) {
     this.model = model;
+    this.filesService = filesService;
   }
 
   mapUniqueViolation(error) {
@@ -80,29 +121,12 @@ class FilesController {
 
   async delete(req, res) {
     try {
-      // Get file metadata first to know filename
       const item = await this.model.getById(req, req.params.id);
       if (!item) {
         return res.status(404).json({ error: 'Item not found' });
       }
 
-      // Try to delete physical file if url points to our raw-route
-      const uploadRoot = path.join(process.cwd(), 'server', 'uploads', 'files');
-      try {
-        if (item.url && item.url.startsWith('/api/files/raw/')) {
-          const filename = path.basename(item.url.replace('/api/files/raw/', ''));
-          const abs = path.join(uploadRoot, filename);
-          if (fs.existsSync(abs)) {
-            fs.unlinkSync(abs);
-
-            Logger.info('Physical file deleted', { filename, fileId: req.params.id });
-          }
-        }
-      } catch (fsErr) {
-        Logger.warn('Failed to delete physical file', fsErr, { fileId: req.params.id });
-      }
-
-      // Delete metadata in DB
+      await this.filesService.deleteStoredBlob(req, item);
       await this.model.delete(req, req.params.id);
       res.json({ message: 'Item deleted successfully', id: String(req.params.id) });
     } catch (error) {
@@ -119,26 +143,10 @@ class FilesController {
     }
   }
 
-  // DELETE /api/files/batch
-  // body: { ids: string[] }
   async bulkDelete(req, res) {
     try {
-      // Debug logging
-      Logger.info('Bulk delete request received', {
-        body: req.body,
-        bodyType: typeof req.body,
-        bodyKeys: req.body ? Object.keys(req.body) : 'null/undefined',
-        idsRaw: req.body?.ids,
-        idsType: typeof req.body?.ids,
-        isArray: Array.isArray(req.body?.ids),
-      });
-
       const idsRaw = req.body?.ids;
       if (!Array.isArray(idsRaw)) {
-        Logger.warn('Bulk delete validation failed - not an array', {
-          idsRaw,
-          idsType: typeof idsRaw,
-        });
         return res
           .status(400)
           .json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
@@ -156,35 +164,20 @@ class FilesController {
           .json({ error: 'Too many ids (max 500 per request)', code: 'VALIDATION_ERROR' });
       }
 
-      // Get all files first to delete physical files
-      const uploadRoot = path.join(process.cwd(), 'server', 'uploads', 'files');
       const itemsToDelete = [];
       for (const id of ids) {
         try {
           const item = await this.model.getById(req, id);
           if (item) itemsToDelete.push(item);
-        } catch (e) {
-          // Skip if not found
+        } catch (_e) {
+          /* skip */
         }
       }
 
-      // Delete physical files
       for (const item of itemsToDelete) {
-        try {
-          if (item.url && item.url.startsWith('/api/files/raw/')) {
-            const filename = path.basename(item.url.replace('/api/files/raw/', ''));
-            const abs = path.join(uploadRoot, filename);
-            if (fs.existsSync(abs)) {
-              fs.unlinkSync(abs);
-              Logger.info('Physical file deleted', { filename, fileId: item.id });
-            }
-          }
-        } catch (fsErr) {
-          Logger.warn('Failed to delete physical file', fsErr, { fileId: item.id });
-        }
+        await this.filesService.deleteStoredBlob(req, item);
       }
 
-      // Delete metadata in DB
       const result = await this.model.bulkDelete(req, ids);
 
       const deleted =
@@ -211,29 +204,15 @@ class FilesController {
     }
   }
 
-  async upload(req, res, { uploadRoot }) {
+  async upload(req, res, { uploadRoot: _uploadRoot }) {
+    void _uploadRoot;
     try {
       const files = Array.isArray(req.files) ? req.files : [];
       if (!files.length) {
         return res.status(400).json({ error: 'No files uploaded' });
       }
 
-      const created = [];
-      for (const f of files) {
-        // 🔧 Multer ger originalname i latin1 – konvertera till UTF-8
-        const utf8Name = f.originalname
-          ? Buffer.from(f.originalname, 'latin1').toString('utf8')
-          : 'file';
-
-        const item = await this.model.create(req, {
-          name: utf8Name,
-          size: f.size ?? null,
-          mimeType: f.mimetype ?? null,
-          url: `/api/files/raw/${path.basename(f.filename)}`,
-        });
-        created.push(item);
-      }
-
+      const created = await this.filesService.processUpload(req, files);
       res.json(created);
     } catch (error) {
       Logger.error('File upload failed', error, { userId: Context.getUserId(req) });
@@ -242,35 +221,194 @@ class FilesController {
         return res.status(error.statusCode).json(error.toJSON());
       }
 
-      res.status(500).json({ error: 'Failed to upload files' });
+      res.status(500).json({ error: error?.message || 'Failed to upload files' });
     }
   }
 
-  // Serve with correct Content-Disposition filename (original name)
   async raw(req, res, { uploadRoot }) {
     try {
       const filename = path.basename(req.params.filename || '');
       if (!filename) return res.status(400).json({ error: 'Missing filename' });
 
+      const item = await this.model.getByStoredFilename(req, filename);
+      if (item && item.storageProvider === 'googledrive') {
+        return res.status(400).json({
+          error: 'Use GET /api/files/:id/download for cloud-hosted files',
+        });
+      }
+
       const abs = path.join(uploadRoot, filename);
       if (!fs.existsSync(abs)) return res.status(404).json({ error: 'File not found' });
 
-      // Look up DB record to suggest original name for download
       let suggested = null;
       try {
-        const item = await this.model.getByStoredFilename(req, filename);
         if (item?.name) suggested = item.name;
-      } catch (e) {
-        // Soft error – continue without suggested name
+      } catch (_e) {
+        /* ignore */
+      }
+
+      const mime = item?.mimeType || 'application/octet-stream';
+      if (item?.mimeType) {
+        res.setHeader('Content-Type', mime);
       }
 
       if (suggested) {
-        return res.download(abs, suggested);
+        const disp = wantsInlinePreview(item?.mimeType, suggested) ? 'inline' : 'attachment';
+        res.setHeader(
+          'Content-Disposition',
+          `${disp}; filename*=UTF-8''${encodeURIComponent(suggested)}`,
+        );
+        return res.sendFile(abs);
       }
       return res.sendFile(abs);
     } catch (error) {
       Logger.error('File serve failed', error, { filename: req.params.filename });
       res.status(500).json({ error: 'Failed to serve file' });
+    }
+  }
+
+  /** Stream file bytes via storage abstraction (local or Google Drive). */
+  async downloadById(req, res) {
+    try {
+      ensureStorageProvidersRegistered();
+      const row = await this.model.getById(req, req.params.id);
+      if (!row) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const extId = this.filesService.resolveExternalId(row);
+      if (!extId) {
+        return res.status(404).json({ error: 'No file content available' });
+      }
+
+      const provider = StorageProviderRegistry.resolveForFileRow(row);
+      const stream = await provider.download(req, { externalFileId: extId });
+
+      const inline =
+        req.query.inline === '1' ||
+        req.query.inline === 'true' ||
+        req.query.disposition === 'inline';
+      const disposition = inline ? 'inline' : 'attachment';
+      const nameEnc = encodeURIComponent(row.name || 'file');
+
+      res.setHeader('Content-Type', row.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${nameEnc}`);
+
+      stream.on('error', (err) => {
+        Logger.error('Download stream error', err, { fileId: req.params.id });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Download failed' });
+        } else {
+          res.destroy();
+        }
+      });
+      stream.pipe(res);
+    } catch (error) {
+      Logger.error('Download by id failed', error, { fileId: req.params.id });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: error?.message || 'Download failed' });
+    }
+  }
+
+  /**
+   * Objects from the active StorageProvider (Google Drive API or empty for local).
+   * For verifying list + token refresh without file_attachments.
+   */
+  async listStorageObjects(req, res) {
+    try {
+      ensureStorageProvidersRegistered();
+      const provider = await StorageProviderRegistry.resolveForUpload(req);
+      const raw = Number(req.query.pageSize);
+      const pageSize = Math.min(Number.isFinite(raw) && raw > 0 ? raw : 50, 100);
+      const items = await provider.list(req, { pageSize });
+      res.json({ provider: provider.name, items });
+    } catch (error) {
+      Logger.error('List storage objects failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: error?.message || 'Failed to list storage objects' });
+    }
+  }
+
+  /**
+   * Forces a minimal Drive API call through the adapter (validates + refreshes token if needed).
+   * Returns 400 if local storage is active or Drive is not connected.
+   */
+  async validateGoogleDriveStorage(req, res) {
+    try {
+      ensureStorageProvidersRegistered();
+      const provider = await StorageProviderRegistry.resolveForUpload(req);
+      if (provider.name !== 'googledrive') {
+        return res.status(400).json({
+          error: 'Google Drive is not the active storage provider',
+          activeProvider: provider.name,
+        });
+      }
+      await provider.list(req, { pageSize: 1 });
+      res.json({ ok: true, provider: 'googledrive' });
+    } catch (error) {
+      Logger.error('Google Drive storage validation failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res
+        .status(502)
+        .json({ ok: false, error: error?.message || 'Google Drive validation failed' });
+    }
+  }
+
+  async getAttachments(req, res) {
+    try {
+      const pluginName = req.query.plugin;
+      const entityId = req.query.entityId;
+      if (!pluginName || !entityId) {
+        return res.status(400).json({ error: 'plugin and entityId query params are required' });
+      }
+      const list = await this.filesService.getAttachmentsForEntity(req, {
+        pluginName,
+        entityId,
+      });
+      res.json(list);
+    } catch (error) {
+      Logger.error('Get attachments failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to list attachments' });
+    }
+  }
+
+  async createAttachment(req, res) {
+    try {
+      const { pluginName, entityId, fileId } = req.body;
+      const row = await this.filesService.attachFile(req, {
+        pluginName,
+        entityId,
+        fileId: String(fileId),
+      });
+      res.status(201).json(row);
+    } catch (error) {
+      Logger.error('Create attachment failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to attach file' });
+    }
+  }
+
+  async deleteAttachment(req, res) {
+    try {
+      await this.filesService.detachFile(req, req.params.attachmentId);
+      res.json({ ok: true, id: String(req.params.attachmentId) });
+    } catch (error) {
+      Logger.error('Delete attachment failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to detach file' });
     }
   }
 }
