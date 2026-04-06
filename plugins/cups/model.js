@@ -142,10 +142,36 @@ class CupsModel {
         description: data.description || null,
         registration_url: data.registration_url?.trim() || null,
         source_url: data.source_url?.trim() || null,
-        source_type: data.source_type?.trim() || null,
-        ingest_source_id: data.ingest_source_id || null,
-        ingest_run_id: data.ingest_run_id || null,
-        external_id: data.external_id?.trim() || null,
+        source_type:
+          data.source_type !== undefined
+            ? data.source_type?.trim() || null
+            : (existing[0].source_type ?? null),
+        ingest_source_id: (() => {
+          if (data.ingest_source_id === undefined) {
+            return existing[0].ingest_source_id ?? null;
+          }
+          if (data.ingest_source_id === null || data.ingest_source_id === '') {
+            return null;
+          }
+          const n = parseInt(String(data.ingest_source_id), 10);
+          return Number.isFinite(n) ? n : (existing[0].ingest_source_id ?? null);
+        })(),
+        ingest_run_id: (() => {
+          if (data.ingest_run_id === undefined) {
+            return existing[0].ingest_run_id ?? null;
+          }
+          if (data.ingest_run_id === null || data.ingest_run_id === '') {
+            return null;
+          }
+          const n = parseInt(String(data.ingest_run_id), 10);
+          return Number.isFinite(n) ? n : (existing[0].ingest_run_id ?? null);
+        })(),
+        external_id:
+          data.external_id === undefined
+            ? (existing[0].external_id ?? null)
+            : data.external_id != null && String(data.external_id).trim() !== ''
+              ? String(data.external_id).trim()
+              : null,
       });
       return this.transformRow(row);
     } catch (error) {
