@@ -167,6 +167,8 @@ function transformCup(array $row): array
         'start_date' => $row['start_date'] ?? null,
         'end_date' => $row['end_date'] ?? null,
         'categories' => $row['categories'] ?? null,
+        /** Explicit true: SQL already filters visible; clients treat missing as hidden in some builds. */
+        'visible' => true,
         'featured' => toBool($row['featured'] ?? false, false),
         'sanctioned' => toBool($row['sanctioned'] ?? true, true),
         'team_count' => $teamCount,
