@@ -191,9 +191,20 @@ Add provider credentials to .env.local
 Restart server
 No code changes needed
 
+---
 
-Plugin Development Workflow
-Creating a New Plugin
+## Cups: import från SvFF-sidor (HTML/PDF)
+
+- **Kod:** `plugins/cups/services/parseCupSource.js` – `parseCupSource({ html, sourceUrl, sourceType })` returnerar normaliserade cup-rader; `detectCupSourceProfile` väljer vilken parser som ska köras (tabell, accordion, år+månad-lista, PDF, m.m.).
+- **Östergötland *Sanktionerade cuper*:** profil `svff_yearmonth_list` när värd är `ostergotland.svenskfotboll.se` och sidan innehåller rubriken *Sanktionerade cuper*; **Futsal**-rader importeras inte.
+- **Historik och full profil-lista:** `docs/CHANGELOG.md` (§ **2026-04 – Cups: SvFF-import**).
+- **Publik cup-sajt:** katalogen `public-cups/` (statisk frontend + `api/cups.php`); listning bygger på API som bara exponerar **synliga** cuper (`visible`). Se samma changelog-avsnitt.
+
+---
+
+## Plugin Development Workflow
+
+### Creating a New Plugin
 Backend (5-10 min):
 # Copy backend template
 cp -r templates/plugin-backend-template plugins/my-plugin

@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
@@ -59,6 +67,24 @@ type CupsContextType = {
 };
 
 const CupsContext = createContext<CupsContextType | undefined>(undefined);
+
+/** Prev/next i detaljpanel följer stigande id (2 → 3), inte listans visningsordning. */
+function compareCupIdForNav(a: string, b: string): number {
+  const sa = String(a);
+  const sb = String(b);
+  if (/^\d+$/.test(sa) && /^\d+$/.test(sb)) {
+    const ba = BigInt(sa);
+    const bb = BigInt(sb);
+    if (ba < bb) {
+      return -1;
+    }
+    if (ba > bb) {
+      return 1;
+    }
+    return 0;
+  }
+  return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: 'base' });
+}
 
 export function CupsProvider({
   children,
@@ -273,8 +299,13 @@ export function CupsProvider({
     setCupsContentView('list');
   }, []);
 
-  const rawItemIndex = currentCup ? cups.findIndex((c) => c.id === currentCup.id) : -1;
-  const totalItems = cups.length;
+  const cupsOrderedById = useMemo(
+    () => [...cups].sort((x, y) => compareCupIdForNav(String(x.id), String(y.id))),
+    [cups],
+  );
+
+  const rawItemIndex = currentCup ? cupsOrderedById.findIndex((c) => c.id === currentCup.id) : -1;
+  const totalItems = cupsOrderedById.length;
   const hasPrevItem = rawItemIndex > 0;
   const hasNextItem = rawItemIndex >= 0 && rawItemIndex < totalItems - 1;
 
@@ -282,21 +313,21 @@ export function CupsProvider({
     if (!hasPrevItem || rawItemIndex <= 0) {
       return;
     }
-    const prev = cups[rawItemIndex - 1];
+    const prev = cupsOrderedById[rawItemIndex - 1];
     if (prev) {
       openCupForView(prev);
     }
-  }, [hasPrevItem, rawItemIndex, cups, openCupForView]);
+  }, [hasPrevItem, rawItemIndex, cupsOrderedById, openCupForView]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || rawItemIndex < 0 || rawItemIndex >= cups.length - 1) {
+    if (!hasNextItem || rawItemIndex < 0 || rawItemIndex >= cupsOrderedById.length - 1) {
       return;
     }
-    const next = cups[rawItemIndex + 1];
+    const next = cupsOrderedById[rawItemIndex + 1];
     if (next) {
       openCupForView(next);
     }
-  }, [hasNextItem, rawItemIndex, cups, openCupForView]);
+  }, [hasNextItem, rawItemIndex, cupsOrderedById, openCupForView]);
 
   const value: CupsContextType = {
     isCupPanelOpen,

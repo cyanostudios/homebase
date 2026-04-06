@@ -309,7 +309,12 @@ function renderCups(featured, regular) {
 
 function renderCupCard(cup) {
   const organizerText = normalizeText(cup.organizer);
-  const organizer = organizerText ? `Arrangör: ${escapeHtml(organizerText)}` : 'Arrangör saknas';
+  const districtText = normalizeText(cup.ingest_source_name).trim();
+  const organizer = organizerText
+    ? `Arrangör: ${escapeHtml(organizerText)}${districtText ? `, ${escapeHtml(districtText)}` : ''}`
+    : districtText
+      ? `Arrangör saknas · ${escapeHtml(districtText)}`
+      : 'Arrangör saknas';
   const descriptionRaw = decodeHtmlEntities((cup.description || '').slice(0, 220));
   const description = escapeHtml(descriptionRaw || 'Ingen beskrivning tillgänglig.');
   const meta = [

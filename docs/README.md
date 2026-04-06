@@ -4,7 +4,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 
 ### Aktuell kodrad
 
-- **`homebase-V3.5`** – long-lived branch för V3.5-arbete (`origin/homebase-V3.5`). Se senaste ändringar i `CHANGELOG.md` (t.ex. files-alignment 2026-04).
+- **`homebase-V3.5`** – long-lived branch för V3.5-arbete (`origin/homebase-V3.5`). Se `CHANGELOG.md`: **2026-04** (cups/SvFF-import inkl. Östergötland, `public-cups`, files/notes-bilagor, bundle-analys, files-layout).
 
 ## Snabbstart (ny utvecklare)
 
@@ -14,6 +14,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **Plugin design (slots/notes-mönster):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Säkerhet:** `SECURITY_GUIDELINES.md`
 - **Dev/Deploy:** `DEVELOPMENT_GUIDE_V2.md`, `DEPLOYMENT_V2.md`
+- **Cups-import (SvFF HTML/PDF, `parseCupSource`):** avsnitt i `DEVELOPMENT_GUIDE_V2.md` + detaljer i `CHANGELOG.md` (2026-04, cups).
 - **Frontend bundle-analys (Vite treemap):** `FRONTEND_BUNDLE_ANALYSIS.md`
 
 ## Canonical dokument (hålls uppdaterade)

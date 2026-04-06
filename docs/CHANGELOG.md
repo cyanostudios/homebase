@@ -4,6 +4,48 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-04 – Cups: SvFF-import (`parseCupSource`), formulär och publik sajt
+
+Sammanfattning av ändringar som bygger vidare på cups/ingest efter mars-dokumentationen, inklusive regional HTML-import, import-UX och `public-cups`.
+
+### `plugins/cups/services/parseCupSource.js` – profiler och detektering
+
+`detectCupSourceProfile` väljer parser utifrån HTML/PDF och i vissa fall **värdnamn** (URL). Typer (`CupSourceProfile`): `stockholm_pdf_table`, `labeled_plaintext_pdf`, `svff_yearmonth_list`, `angermanland_labeled`, `sodermanland_accordion`, `svff_table`, `svff_paragraph_list`, `smaland_label_list`, `skane_accordion`, `bohuslan_html_list`, samt PDF-varianter där det gäller.
+
+- **`svff_table`:** HTML-tabell med kolumn **Cupnamn** (t.ex. Västerbotten, Västmanland).
+- **`svff_paragraph_list`:** Uppland (_Arr. förening_), Jämtland-liknande (_Cuper YYYY_ i rubrik).
+- **`sodermanland_accordion`:** Accordion med **h3**-titlar och sanktionsdatum i id.
+- **`svff_yearmonth_list`:** Accordion per **år**, månadsrubriker (`<strong>Januari</strong>`) och `<ul>/<li>`-rader.
+  - Triggas av texten **Lista över cuper med tillstånd** (tidigare Östergötland-variant), eller av **`ostergotland.svenskfotboll.se` + Sanktionerade cuper** + accordion (sidan `/tavling/sanktionerade-cuper/`).
+  - **Futsal-rader** tas inte med i importen (`match_format === 'Futsal'` eller rad som slutar med `, Futsal`).
+- **`angermanland_labeled`:** Etiketter _Tävling / Cup:_ i stycken.
+- Övriga: Skåne-accordion, Småland (_Tävlingens namn:_), Bohuslän-Dalsland (_Fotbollscuper_), m.m.
+
+### Östergötland-listor – tolkning av datum och namn
+
+`parseOstergotlandListItem` / `parseOstergotlandDateRaw` / `parseSwedishSlashDateRange` har utökats för verkliga listrader: **komma saknas** mellan datum och cupnamn (t.ex. efter länk), **d/m – d/m** över månadsgräns, **flera datum** (`17 - 18/1, 24/1`), **`och`** mellan datum, **`<br>`** som avgränsare, **punkt före kategori** (t.ex. _MAIK-Cupen. F/P …_), kompakta former som **3-6/4**, **28/29/3** (två dagar samma månad).
+
+### Cups admin / API (övrigt i samma period)
+
+- **CupForm:** fält som hör till **ingest/import** (källa, körning m.m.) **bevaras** vid spara så de inte nollas av misstag.
+- **Reimport:** manuell **plats** kan bevaras när cuper uppdateras från källa (justerat beteende i cups-flödet).
+- **Publik konsumtion:** `public-cups/api/cups.php` läser endast **`visible`**-cuper (`COALESCE(c.visible, TRUE) = TRUE`); klienten i `public-cups/app.js` filtrerar också bort poster där `visible` är explicit falskt.
+
+### `public-cups/` (statisk sajt + PHP-API)
+
+- **API:** fetch mot **`public-cups/api/cups.php`**; standardbas-URL kan följa **aktuell origin** vid behov.
+- **Drift:** `Dockerfile` för statisk sajt + PHP-API; dokumenterad i samma leverans.
+- **SEO & spårning:** förbättrade sociala metadata/strukturerad data; **Google Tag Manager** (GTM-T9Z5HTC6); **footer-disclaimer** (formaterad copy).
+- **UI:** kort använder **blå/grön** accent beroende på om cup har länk/plats; palett justerad mot tidigare utseende; **mobil/layout** (bl.a. `4ddb896`).
+- **CSS (`public-cups/styles.css`):** `.cup-action` med flex/min/max så **långa cupnamn** inte spränger kortlayouten; `.cup-title`-radbrytning (~23ch); responsiva justeringar för smala vyer.
+
+### Klient / dev (samma tidslinje)
+
+- **Vite:** kompatibilitetsväg i `vite.config.mts` återställd där det behövdes (`5941928`).
+- **Frontend:** styling-pipeline och mobil cups-UX i admin/publik riktning (`4ddb896`).
+
+---
+
 ## 2026-04 – Files-plugin: inställningar och lista i linje med mail/contacts
 
 - **Branch / release-line:** Pågående arbete under **`homebase-V3.5`** (spårar `origin/homebase-V3.5`). Tidigare agent-/pending-branch **`cursor/pending-changes-2161`** användes för isolerade ändringar innan merge/synk.
@@ -20,6 +62,12 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
   - `App.tsx` och `resolvePrimaryAction.ts` – files-sidans chrome och primär knapp matchar övriga plugins.
 
 - **Översättningar:** Uppdaterade nycklar i `client/src/i18n/locales/en.json` och `sv.json` för nya/ändrade strängar i files-flödet.
+
+### Files / notes (lagring och bilagor, samma release-spår)
+
+- **Lagring:** fler **storage providers** och inställningsvägar i files-plugin (backend + klient).
+- **Anteckningar:** **bilagor via files** – API (`client/src/plugins/files/api/filesApi.ts`), `FileAttachmentsSection.tsx`, samt `NoteForm.tsx` / `NoteView.tsx` för att knyta och visa bilagor.
+- **Server:** motsvarande stöd i `plugins/files/controller.js` där det tillkommit.
 
 ## 2026-04 – Frontend bundle-analys (Vite)
 
