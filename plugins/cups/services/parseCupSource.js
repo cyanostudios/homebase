@@ -1,12 +1,14 @@
 /**
  * Domain-owned cup parser. Ingest supplies full `bodyText`; this module extracts cup rows.
- * Profiles: Stockholm PDF table, labeled PDF/plaintext (Småland/Skåne-style lines), Skåne/SVFF accordion, Småland HTML lists, then single-page fallback.
+ * Profiles: Stockholm PDF table, labeled PDF/plaintext, Skåne/SVFF accordion, Småland lists, Bohuslän list,
+ * SvFF table (Cupnamn), Södermanland accordion h3, Östergötland year/month lists, Ångermanland labeled blocks,
+ * Uppland/Jämtland paragraph lists, then single-page fallback.
  *
  * @param {{ html: string, sourceUrl?: string, sourceType?: string }} input
  * @returns {Array<Record<string, unknown>>}
  */
 
-/** @typedef {'skane_accordion' | 'smaland_label_list' | 'stockholm_pdf_table' | 'labeled_plaintext_pdf' | 'bohuslan_html_list' | null} CupSourceProfile */
+/** @typedef {'skane_accordion' | 'smaland_label_list' | 'stockholm_pdf_table' | 'labeled_plaintext_pdf' | 'bohuslan_html_list' | 'svff_table' | 'svff_paragraph_list' | 'sodermanland_accordion' | 'svff_yearmonth_list' | 'angermanland_labeled' | null} CupSourceProfile */
 
 /** Default calendar year for Stockholm PDF day/month-only dates (conservative; year rarely appears in cells). */
 const STOCKHOLM_PDF_DEFAULT_YEAR = new Date().getFullYear();
@@ -107,6 +109,34 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
     html.includes('<div class="accordion__item">') ||
     (html.includes('accordion__item') && html.includes('accordion__content'));
 
+  /** Östergötland: year accordions + month headings + list items (before generic skane_accordion). */
+  if (/Lista över cuper med tillstånd/i.test(html)) {
+    return 'svff_yearmonth_list';
+  }
+
+  /** Ångermanland-style labeled paragraphs. */
+  if (/Tävling\s*\/\s*Cup\s*:/i.test(html)) {
+    return 'angermanland_labeled';
+  }
+
+  /** Södermanland: accordion + h3 titles with YYYYMMDD sanction-style ids. */
+  if (hasSkaneAccordion && /<h3\b[^>]*>[\s\S]{0,500}?\d{8}\s*-\s*\d+/i.test(html)) {
+    return 'sodermanland_accordion';
+  }
+
+  /** Västerbotten / Västmanland: Excel-style table with Cupnamn column. */
+  if (/<table[\s>]/.test(html) && /\bCupnamn\b/i.test(html)) {
+    return 'svff_table';
+  }
+
+  /** Uppland: Arr. förening blocks; Jämtland: "Cuper 20xx" heading + prose. */
+  if (/Arr\.\s*förening\s*:/i.test(html)) {
+    return 'svff_paragraph_list';
+  }
+  if (/<h2[^>]*>\s*Cuper\s+\d{4}/i.test(html)) {
+    return 'svff_paragraph_list';
+  }
+
   /** Småland multisite uses SVFF accordion DOM + "Tävlingens namn:" (Skåne body uses "Cup/tävling:"). */
   if (hasSkaneAccordion && /\bTävlingens namn\s*:/i.test(html)) {
     return 'smaland_label_list';
@@ -174,6 +204,46 @@ function parseCupSource({ html, sourceUrl, sourceType }) {
 
   if (profile === 'bohuslan_html_list') {
     const rows = parseBohuslanHtmlListCups(html, sourceUrl, sourceType);
+    if (rows.length > 0) {
+      return rows;
+    }
+    return parseFallbackSinglePage(html, sourceUrl, sourceType);
+  }
+
+  if (profile === 'svff_table') {
+    const rows = parseSvffTableCups(html, sourceUrl, sourceType);
+    if (rows.length > 0) {
+      return rows;
+    }
+    return parseFallbackSinglePage(html, sourceUrl, sourceType);
+  }
+
+  if (profile === 'sodermanland_accordion') {
+    const rows = parseSodermanlandAccordionCups(html, sourceUrl, sourceType);
+    if (rows.length > 0) {
+      return rows;
+    }
+    return parseFallbackSinglePage(html, sourceUrl, sourceType);
+  }
+
+  if (profile === 'svff_yearmonth_list') {
+    const rows = parseSvffYearMonthListCups(html, sourceUrl, sourceType);
+    if (rows.length > 0) {
+      return rows;
+    }
+    return parseFallbackSinglePage(html, sourceUrl, sourceType);
+  }
+
+  if (profile === 'angermanland_labeled') {
+    const rows = parseAngermanlandLabeledCups(html, sourceUrl, sourceType);
+    if (rows.length > 0) {
+      return rows;
+    }
+    return parseFallbackSinglePage(html, sourceUrl, sourceType);
+  }
+
+  if (profile === 'svff_paragraph_list') {
+    const rows = parseSvffParagraphListCups(html, sourceUrl, sourceType);
     if (rows.length > 0) {
       return rows;
     }
@@ -1467,6 +1537,674 @@ function parseStockholmPdfTableCups(text, sourceUrl, sourceType) {
   return out;
 }
 
+/**
+ * Parse date cells in SvFF district HTML tables (slash dates, Swedish month names).
+ * @returns {{ start: string|null, end: string|null, dateText: string }}
+ */
+function parseSvffTableDateCell(raw, defaultYear = STOCKHOLM_PDF_DEFAULT_YEAR) {
+  const full = (raw || '').trim();
+  if (!full) {
+    return { start: null, end: null, dateText: '' };
+  }
+  const slash = parseSwedishSlashDateRange(full, defaultYear);
+  if (slash.start && slash.end) {
+    return { start: slash.start, end: slash.end, dateText: full };
+  }
+  const sm = parseDatumFieldSmaland(full, defaultYear);
+  if (sm.start && sm.end) {
+    return sm;
+  }
+  const st = parseStockholmPdfDateText(full, defaultYear);
+  if (st.start && st.end) {
+    return { start: st.start, end: st.end, dateText: st.dateText || full };
+  }
+  return { start: null, end: null, dateText: full };
+}
+
+/**
+ * Map header row texts to column indices for SvFF cup tables (Västerbotten, Västmanland).
+ * @param {string[]} headerTexts
+ */
+function mapSvffHtmlTableColumns(headerTexts) {
+  const m = { name: null, date: null, age: null, org: null, yearCol: null };
+  headerTexts.forEach((raw, j) => {
+    const t = String(raw || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!t) {
+      return;
+    }
+    if (/cupnamn|cupens namn/i.test(t)) {
+      m.name = j;
+    } else if (/^datum$/i.test(t)) {
+      m.date = j;
+    } else if (/åldersgrupp|pojk|flick|P\/F|Pojk\/Flick/i.test(t)) {
+      m.age = j;
+    } else if (/arrangör|^förening$/i.test(t)) {
+      m.org = j;
+    } else if (/^20\d{2}$/.test(t)) {
+      m.yearCol = j;
+    }
+  });
+  return m;
+}
+
+/**
+ * Västerbotten / Västmanland: pasted Excel table in .rich-text or inside accordion.
+ * @param {string} html
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseSvffTableCups(html, sourceUrl, sourceType) {
+  const tableRe = /<table\b[^>]*>[\s\S]*?<\/table>/gi;
+  let bestTable = '';
+  let tm;
+  while ((tm = tableRe.exec(html)) !== null) {
+    if (/\bCupnamn\b/i.test(tm[0])) {
+      bestTable = tm[0];
+      break;
+    }
+  }
+  if (!bestTable) {
+    return [];
+  }
+
+  const trRe = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+  const rows = [];
+  let trm;
+  while ((trm = trRe.exec(bestTable)) !== null) {
+    const trInner = trm[1];
+    const cellRe = /<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi;
+    const cells = [];
+    let cm;
+    while ((cm = cellRe.exec(trInner)) !== null) {
+      cells.push({ html: cm[1], text: stripTags(cm[1]) });
+    }
+    if (cells.length) {
+      rows.push(cells);
+    }
+  }
+
+  let headerIdx = -1;
+  let colMap = { name: null, date: null, age: null, org: null, yearCol: null };
+  for (let i = 0; i < rows.length; i += 1) {
+    const texts = rows[i].map((c) => c.text);
+    const joined = texts.join(' | ');
+    if (/\bCupnamn\b/i.test(joined)) {
+      headerIdx = i;
+      colMap = mapSvffHtmlTableColumns(texts);
+      break;
+    }
+  }
+  if (headerIdx < 0 || colMap.name == null) {
+    return [];
+  }
+
+  const defaultYear = STOCKHOLM_PDF_DEFAULT_YEAR;
+  const out = [];
+
+  for (let i = headerIdx + 1; i < rows.length; i += 1) {
+    const cells = rows[i];
+    const texts = cells.map((c) => c.text);
+    if (texts.every((x) => !String(x || '').trim())) {
+      continue;
+    }
+    if (/\bCupnamn\b/i.test(texts.join(' '))) {
+      continue;
+    }
+
+    let dateCol = colMap.date;
+    const nameCol = colMap.name;
+    const ageCol = colMap.age;
+    const orgCol = colMap.org;
+    if (dateCol == null && colMap.yearCol != null && nameCol === 1 && texts.length >= 3) {
+      dateCol = 0;
+    }
+
+    const nameHtml = cells[nameCol]?.html || '';
+    const nameText = stripTags(nameHtml).replace(/\s+/g, ' ').trim();
+    if (!nameText || /^cupnamn$/i.test(nameText)) {
+      continue;
+    }
+
+    const dateRaw = dateCol != null && cells[dateCol] ? texts[dateCol] : '';
+    const ageText = ageCol != null && cells[ageCol] ? texts[ageCol] : '';
+    const orgText = orgCol != null && cells[orgCol] ? texts[orgCol] : '';
+
+    const regUrl = extractExternalUrl(nameHtml) || extractUrlFromCellOrLine(nameHtml);
+    const dateParsed = parseSvffTableDateCell(dateRaw, defaultYear);
+    const categories = ageText ? ageText : null;
+    const desc = [dateRaw, nameText, ageText, orgText].filter(Boolean).join(' · ');
+
+    out.push({
+      name: nameText.slice(0, 255),
+      organizer: orgText || null,
+      location: null,
+      start_date: dateParsed.start,
+      end_date: dateParsed.end,
+      categories,
+      team_count: null,
+      match_format: null,
+      description: desc || null,
+      registration_url: regUrl,
+      source_url: sourceUrl || null,
+      source_type: sourceType || 'html',
+      external_id: stableExternalId(
+        nameText,
+        dateParsed.start,
+        dateParsed.end,
+        regUrl,
+        dateParsed.dateText || dateRaw,
+      ),
+    });
+  }
+
+  return out;
+}
+
+/**
+ * @param {string} h3Plain
+ * @returns {{ name: string, organizer: string, start: string|null, end: string|null, dateText: string }|null}
+ */
+function parseSodermanlandH3Title(h3Plain) {
+  const h3Text = String(h3Plain || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  let m = h3Text.match(/^(.+?),\s*(\d{4})(\d{2})(\d{2})-(\d{2,8})\s*\(([^)]+)\)\s*$/);
+  if (m) {
+    const name = m[1].trim();
+    const y = parseInt(m[2], 10);
+    const mo = parseInt(m[3], 10);
+    const d = parseInt(m[4], 10);
+    const rest = m[5];
+    const organizer = m[6].trim();
+    const start = isoDate(y, mo, d);
+    let end = start;
+    let dateText = `${m[2]}${m[3]}${m[4]}-${rest}`;
+    if (rest.length === 4) {
+      const mo2 = parseInt(rest.slice(0, 2), 10);
+      const d2 = parseInt(rest.slice(2, 4), 10);
+      if (mo2 >= 1 && mo2 <= 12 && d2 >= 1 && d2 <= 31) {
+        end = isoDate(y, mo2, d2);
+      }
+    }
+    return { name, organizer, start, end, dateText };
+  }
+  m = h3Text.match(/^(.+?),\s*(\d{8})\s*\(([^)]+)\)\s*$/);
+  if (m) {
+    const name = m[1].trim();
+    const compact = m[2];
+    const organizer = m[3].trim();
+    const y = parseInt(compact.slice(0, 4), 10);
+    const mo = parseInt(compact.slice(4, 6), 10);
+    const d = parseInt(compact.slice(6, 8), 10);
+    const start = isoDate(y, mo, d);
+    return { name, organizer, start, end: start, dateText: compact };
+  }
+  return null;
+}
+
+/**
+ * Södermanland: accordion sections with h3 cup titles (sanction id) and ul/li categories.
+ * @param {string} html
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseSodermanlandAccordionCups(html, sourceUrl, sourceType) {
+  const blocks = splitAccordionItemBlocks(html);
+  const out = [];
+
+  for (const block of blocks) {
+    const accTitle = stripTags(extractAccordionTitle(block) || '').trim();
+    if (/cupsanktion/i.test(accTitle) || /cupsanktion/i.test(block)) {
+      continue;
+    }
+    const h3m = block.match(/<h3\b[^>]*>([\s\S]*?)<\/h3>/i);
+    if (!h3m) {
+      continue;
+    }
+    const parsedH3 = parseSodermanlandH3Title(stripTags(h3m[1]));
+    if (!parsedH3?.name) {
+      continue;
+    }
+
+    const ulm = block.match(/<ul\b[^>]*>([\s\S]*?)<\/ul>/i);
+    const catItems = [];
+    if (ulm) {
+      const lim = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
+      let lm;
+      while ((lm = lim.exec(ulm[1])) !== null) {
+        const lt = stripTags(lm[1]).trim();
+        if (lt) {
+          catItems.push(lt);
+        }
+      }
+    }
+    const categories = catItems.length ? catItems.join('; ') : null;
+    const desc =
+      categories ||
+      stripTags(extractAccordionContentAllParagraphsInnerHtml(block)).slice(0, 800) ||
+      null;
+
+    out.push({
+      name: parsedH3.name.slice(0, 255),
+      organizer: parsedH3.organizer || null,
+      location: null,
+      start_date: parsedH3.start,
+      end_date: parsedH3.end,
+      categories,
+      team_count: null,
+      match_format: null,
+      description: desc,
+      registration_url: null,
+      source_url: sourceUrl || null,
+      source_type: sourceType || 'html',
+      external_id: stableExternalId(
+        parsedH3.name,
+        parsedH3.start,
+        parsedH3.end,
+        null,
+        parsedH3.dateText,
+      ),
+    });
+  }
+
+  return out;
+}
+
+function looksLikeOstergotlandDatePrefix(s) {
+  const t = String(s || '').trim();
+  if (!/^\d/.test(t)) {
+    return false;
+  }
+  if (/[\/\-]/.test(t)) {
+    return true;
+  }
+  return /\bjan|feb|mars|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec/i.test(t);
+}
+
+/**
+ * @param {string} liHtml
+ * @param {string} _monthHint
+ * @param {number} defaultYear
+ */
+function parseOstergotlandListItem(liHtml, _monthHint, defaultYear) {
+  let t = String(liHtml || '');
+  let match_format = null;
+  const plain = stripTags(t).replace(/\s+/g, ' ').trim();
+  let rest = plain.replace(/^[-*•]\s*/, '').trim();
+
+  if (/\bFutsal\s*$/i.test(rest)) {
+    match_format = 'Futsal';
+    rest = rest
+      .replace(/\bFutsal\s*$/i, '')
+      .trim()
+      .replace(/,\s*$/, '');
+  } else if (/\bFotboll\s*$/i.test(rest)) {
+    match_format = 'Fotboll';
+    rest = rest
+      .replace(/\bFotboll\s*$/i, '')
+      .trim()
+      .replace(/,\s*$/, '');
+  }
+
+  const parts = rest
+    .split(/\s*,\s*/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (parts.length < 2) {
+    return null;
+  }
+
+  let i = 0;
+  const dateParts = [];
+  while (i < parts.length && looksLikeOstergotlandDatePrefix(parts[i])) {
+    dateParts.push(parts[i]);
+    i += 1;
+  }
+  if (dateParts.length === 0 || i >= parts.length) {
+    return null;
+  }
+
+  const dateRaw = dateParts.join(', ');
+  const remainder = parts.slice(i);
+  let name = '';
+  let organizer = '';
+  let categories = null;
+
+  if (remainder.length >= 3) {
+    name = remainder[0];
+    categories = remainder[1];
+    organizer = remainder.slice(2).join(', ');
+  } else if (remainder.length === 2) {
+    name = remainder[0];
+    organizer = remainder[1];
+  } else {
+    name = remainder[0];
+  }
+
+  const regUrl = extractExternalUrl(liHtml) || extractUrlFromCellOrLine(liHtml);
+  let start = null;
+  let end = null;
+  const firstSeg = dateRaw.split(/\s*-\s*/)[0]?.trim() || dateRaw;
+  const d1 = parseSwedishSlashDateRange(firstSeg, defaultYear);
+  if (d1.start && d1.end) {
+    start = d1.start;
+    end = d1.end;
+  } else {
+    const sm = parseDatumFieldSmaland(dateRaw, defaultYear);
+    if (sm.start && sm.end) {
+      start = sm.start;
+      end = sm.end;
+    } else {
+      const st = parseStockholmPdfDateText(dateRaw, defaultYear);
+      start = st.start;
+      end = st.end;
+    }
+  }
+
+  return {
+    name: name.slice(0, 255),
+    organizer: organizer || null,
+    location: null,
+    start_date: start,
+    end_date: end,
+    categories: categories || null,
+    team_count: null,
+    match_format,
+    description: plain.slice(0, 2000),
+    registration_url: regUrl,
+  };
+}
+
+/**
+ * Östergötland: accordion per year, month strong + ul/li lines.
+ * @param {string} html
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseSvffYearMonthListCups(html, sourceUrl, sourceType) {
+  const blocks = splitAccordionItemBlocks(html);
+  const out = [];
+
+  for (const block of blocks) {
+    const title = stripTags(extractAccordionTitle(block) || '').trim();
+    if (/cupsanktion/i.test(title)) {
+      continue;
+    }
+    if (!/^20\d{2}$/.test(title)) {
+      continue;
+    }
+    const defaultYear = parseInt(title, 10);
+    const monthUlRe = /<p[^>]*>\s*<strong>([^<]+)<\/strong>\s*<\/p>\s*<ul[^>]*>([\s\S]*?)<\/ul>/gi;
+    let mm;
+    while ((mm = monthUlRe.exec(block)) !== null) {
+      const monthToken = mm[1].replace(/\.$/, '').trim();
+      const ulInner = mm[2];
+      const liRe = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
+      let liM;
+      while ((liM = liRe.exec(ulInner)) !== null) {
+        const row = parseOstergotlandListItem(liM[1], monthToken, defaultYear);
+        if (row && row.name) {
+          out.push({
+            name: row.name,
+            organizer: row.organizer,
+            location: row.location,
+            start_date: row.start_date,
+            end_date: row.end_date,
+            categories: row.categories,
+            team_count: row.team_count,
+            match_format: row.match_format,
+            description: row.description,
+            registration_url: row.registration_url,
+            source_url: sourceUrl || null,
+            source_type: sourceType || 'html',
+            external_id: stableExternalId(
+              row.name,
+              row.start_date,
+              row.end_date,
+              row.registration_url,
+              row.description,
+            ),
+          });
+        }
+      }
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Ångermanland-style: repeated <p> blocks with "Tävling/ Cup:" labels.
+ * @param {string} html
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseAngermanlandLabeledCups(html, sourceUrl, sourceType) {
+  const mainMatch = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  const slice = mainMatch ? mainMatch[1] : html;
+  const re = /Tävling\s*\/\s*Cup\s*:/gi;
+  const starts = [];
+  let m;
+  while ((m = re.exec(slice)) !== null) {
+    starts.push(m.index);
+  }
+  if (starts.length === 0) {
+    return [];
+  }
+
+  const out = [];
+  for (let s = 0; s < starts.length; s += 1) {
+    const from = starts[s];
+    const to = s + 1 < starts.length ? starts[s + 1] : slice.length;
+    const block = slice.slice(from, to);
+
+    const nameM = block.match(
+      /Tävling\s*\/\s*Cup\s*:\s*([\s\S]*?)(?=Tävling\s*\/\s*Cup\s*spelas\s*:|$)/i,
+    );
+    const name = nameM ? stripTags(nameM[1]).replace(/\s+/g, ' ').trim() : '';
+    if (!name) {
+      continue;
+    }
+
+    const spelasM = block.match(
+      /Tävling\s*\/\s*Cup\s*spelas\s*:\s*([\s\S]*?)(?=Spelplats|Tävlingskategori|Tävlingen)/i,
+    );
+    const dateRaw = spelasM ? stripTags(spelasM[1]).replace(/\s+/g, ' ').trim() : '';
+
+    const platsM = block.match(/Spelplats\s*[;:]\s*([\s\S]*?)(?=Tävlingskategori|Tävlingen)/i);
+    const location = platsM ? stripTags(platsM[1]).replace(/\s+/g, ' ').trim() : null;
+
+    const tavKatM = block.match(/Tävlingskategori\s*:\s*([\s\S]*?)(?=Tävlingen)/i);
+    const tavKat = tavKatM ? stripTags(tavKatM[1]).replace(/\s+/g, ' ').trim() : '';
+
+    const foljM = block.match(
+      /Tävlingen\s*\/\s*Cupen\s+gäller\s+följande\s+kategori\s*:\s*([\s\S]*?)(?=Tävling\s*\/\s*Cup\s*:|$)/i,
+    );
+    const categories = foljM ? stripTags(foljM[1]).replace(/\s+/g, ' ').trim() : null;
+
+    let match_format = null;
+    if (/futsal/i.test(tavKat)) {
+      match_format = 'Futsal';
+    } else if (/fotboll/i.test(tavKat)) {
+      match_format = 'Fotboll';
+    }
+
+    const sm = parseDatumFieldSmaland(dateRaw, STOCKHOLM_PDF_DEFAULT_YEAR);
+    const df = parseDatumField(dateRaw);
+    const start = sm.start || df.start;
+    const end = sm.end || df.end;
+
+    const desc = [dateRaw, location, tavKat, categories].filter(Boolean).join('\n');
+
+    out.push({
+      name: name.slice(0, 255),
+      organizer: null,
+      location: location || null,
+      start_date: start,
+      end_date: end,
+      categories: categories || null,
+      team_count: null,
+      match_format,
+      description: desc || null,
+      registration_url: extractExternalUrl(block) || extractUrlFromCellOrLine(block),
+      source_url: sourceUrl || null,
+      source_type: sourceType || 'html',
+      external_id: stableExternalId(name, start, end, null, dateRaw || desc),
+    });
+  }
+
+  return out;
+}
+
+/**
+ * Uppland (Arr. förening + strong date line) and Jämtland (Cuper YYYY + prose paragraphs).
+ * @param {string} html
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseSvffParagraphListCups(html, sourceUrl, sourceType) {
+  const mainMatch = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  const slice = mainMatch ? mainMatch[1] : html;
+
+  if (/Arr\.\s*förening\s*:/i.test(slice)) {
+    return parseUpplandParagraphCups(slice, sourceUrl, sourceType);
+  }
+
+  return parseJamtlandParagraphCups(slice, sourceUrl, sourceType);
+}
+
+/**
+ * @param {string} htmlFragment
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseUpplandParagraphCups(htmlFragment, sourceUrl, sourceType) {
+  const out = [];
+  const pRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let pm;
+  while ((pm = pRe.exec(htmlFragment)) !== null) {
+    const inner = pm[1];
+    if (!/Arr\.\s*förening\s*:/i.test(inner)) {
+      continue;
+    }
+    const sm = inner.match(/<strong\b[^>]*>([\s\S]*?)<\/strong>/i);
+    if (!sm) {
+      continue;
+    }
+    const head = stripTags(sm[1]).replace(/\s+/g, ' ').trim();
+    const dm = head.match(
+      /^(\d{1,2}\/\d{1,2}(?:\s*-\s*\d{1,2}\/\d{1,2})?|\d{1,2}\/\d{1,2}-\d{1,2}\/\d{1,2})\s+(.+)$/,
+    );
+    if (!dm) {
+      continue;
+    }
+    const dateRaw = dm[1].trim();
+    const cupName = dm[2].trim();
+    const orgM = inner.match(/Arr\.\s*förening\s*:\s*([^<\n]+)/i);
+    const organizer = orgM ? stripTags(orgM[1]).replace(/\s+/g, ' ').trim() : '';
+
+    const regUrl = extractExternalUrl(inner) || extractUrlFromCellOrLine(inner);
+    const dateRawClean = dateRaw.trim();
+    let start = null;
+    let end = null;
+    const dmRange = dateRawClean.match(
+      /^(\d{1,2}\/\d{1,2})\s*[-–]\s*(\d{1,2}\/\d{1,2})(?:\s+(\d{4}))?$/,
+    );
+    if (dmRange) {
+      const y = dmRange[3] ? parseInt(dmRange[3], 10) : STOCKHOLM_PDF_DEFAULT_YEAR;
+      const a = parseSwedishSlashDateRange(dmRange[1], y);
+      const b = parseSwedishSlashDateRange(dmRange[2], y);
+      if (a.start && b.end) {
+        start = a.start;
+        end = b.end;
+      }
+    } else {
+      const pr = parseSwedishSlashDateRange(dateRawClean, STOCKHOLM_PDF_DEFAULT_YEAR);
+      start = pr.start;
+      end = pr.end;
+    }
+    if (!start) {
+      const smd = parseDatumFieldSmaland(dateRawClean, STOCKHOLM_PDF_DEFAULT_YEAR);
+      start = smd.start;
+      end = smd.end;
+    }
+
+    out.push({
+      name: cupName.slice(0, 255),
+      organizer: organizer || null,
+      location: null,
+      start_date: start,
+      end_date: end,
+      categories: null,
+      team_count: null,
+      match_format: null,
+      description: stripTags(inner).slice(0, 1500),
+      registration_url: regUrl,
+      source_url: sourceUrl || null,
+      source_type: sourceType || 'html',
+      external_id: stableExternalId(cupName, start, end, regUrl, dateRaw),
+    });
+  }
+  return out;
+}
+
+/**
+ * @param {string} htmlFragment
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseJamtlandParagraphCups(htmlFragment, sourceUrl, sourceType) {
+  const h2m = htmlFragment.match(/<h2\b[^>]*>\s*Cuper\s+(\d{4})\s*<\/h2>/i);
+  const defaultYear = h2m ? parseInt(h2m[1], 10) : STOCKHOLM_PDF_DEFAULT_YEAR;
+  const startIdx = h2m ? h2m.index + h2m[0].length : 0;
+  const rest = htmlFragment.slice(startIdx);
+  const nextH2 = rest.search(/<h2\b/i);
+  const section = nextH2 >= 0 ? rest.slice(0, nextH2) : rest;
+
+  const out = [];
+  const pRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let pm;
+  while ((pm = pRe.exec(section)) !== null) {
+    const inner = pm[1];
+    const text = stripTags(inner).replace(/\s+/g, ' ').trim();
+    if (text.length < 12 || /^vi fyller/i.test(text)) {
+      continue;
+    }
+    const regUrl = extractExternalUrl(inner) || extractUrlFromCellOrLine(inner);
+    let name = text;
+    let dateRaw = '';
+    const dateTail = text.match(
+      /\s*[-–]\s*((?:\d{1,2}\s*(?:jan|feb|mars|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec)\b[^.]*(?:\.\s*)?)+|(?:\d{1,2}\s*[-–]\s*\d{1,2}\s*(?:jan|feb|mars|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec)\b[^.]*))/i,
+    );
+    if (dateTail) {
+      dateRaw = dateTail[1].trim();
+      name = text.slice(0, dateTail.index).trim();
+    }
+    const sm = parseDatumFieldSmaland(dateRaw, defaultYear);
+    const start = sm.start;
+    const end = sm.end;
+
+    out.push({
+      name: name.slice(0, 255) || text.slice(0, 255),
+      organizer: null,
+      location: null,
+      start_date: start,
+      end_date: end,
+      categories: null,
+      team_count: null,
+      match_format: null,
+      description: text.slice(0, 2000),
+      registration_url: regUrl,
+      source_url: sourceUrl || null,
+      source_type: sourceType || 'html',
+      external_id: stableExternalId(name || text, start, end, regUrl, dateRaw || text),
+    });
+  }
+  return out;
+}
+
 /** Single-page fallback when no profile yields rows. */
 function parseFallbackSinglePage(html, sourceUrl, sourceType) {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -1515,4 +2253,9 @@ module.exports = {
   parseStockholmPdfTableCups,
   parseLabeledPlaintextPdfCups,
   parseBohuslanHtmlListCups,
+  parseSvffTableCups,
+  parseSodermanlandAccordionCups,
+  parseSvffYearMonthListCups,
+  parseAngermanlandLabeledCups,
+  parseSvffParagraphListCups,
 };

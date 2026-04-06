@@ -16,6 +16,7 @@ dist
 # Build/output
 server/public
 vite.config.ts.*
+bundle-stats.html
 
 # Env files
 .env

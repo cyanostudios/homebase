@@ -9,6 +9,38 @@ const {
 } = require('../../server/core/storage/registerDefaultAdapters');
 const StorageProviderRegistry = require('../../server/core/storage/StorageProviderRegistry');
 
+/** MIME types (or filename) safe to show in browser without forcing download. */
+function wantsInlinePreview(mimeType, filename) {
+  if (mimeType && typeof mimeType === 'string') {
+    const m = mimeType.toLowerCase();
+    if (
+      m.startsWith('image/') ||
+      m === 'application/pdf' ||
+      m.startsWith('text/') ||
+      m.startsWith('video/') ||
+      m.startsWith('audio/')
+    ) {
+      return true;
+    }
+  }
+  if (filename && typeof filename === 'string') {
+    const ext = path.extname(filename).toLowerCase();
+    return [
+      '.pdf',
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.webp',
+      '.svg',
+      '.txt',
+      '.mp4',
+      '.webm',
+    ].includes(ext);
+  }
+  return false;
+}
+
 class FilesController {
   /**
    * @param {import('./model')} model
@@ -215,8 +247,18 @@ class FilesController {
         /* ignore */
       }
 
+      const mime = item?.mimeType || 'application/octet-stream';
+      if (item?.mimeType) {
+        res.setHeader('Content-Type', mime);
+      }
+
       if (suggested) {
-        return res.download(abs, suggested);
+        const disp = wantsInlinePreview(item?.mimeType, suggested) ? 'inline' : 'attachment';
+        res.setHeader(
+          'Content-Disposition',
+          `${disp}; filename*=UTF-8''${encodeURIComponent(suggested)}`,
+        );
+        return res.sendFile(abs);
       }
       return res.sendFile(abs);
     } catch (error) {
@@ -242,11 +284,15 @@ class FilesController {
       const provider = StorageProviderRegistry.resolveForFileRow(row);
       const stream = await provider.download(req, { externalFileId: extId });
 
+      const inline =
+        req.query.inline === '1' ||
+        req.query.inline === 'true' ||
+        req.query.disposition === 'inline';
+      const disposition = inline ? 'inline' : 'attachment';
+      const nameEnc = encodeURIComponent(row.name || 'file');
+
       res.setHeader('Content-Type', row.mimeType || 'application/octet-stream');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename*=UTF-8''${encodeURIComponent(row.name || 'file')}`,
-      );
+      res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${nameEnc}`);
 
       stream.on('error', (err) => {
         Logger.error('Download stream error', err, { fileId: req.params.id });

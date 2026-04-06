@@ -166,9 +166,16 @@ export class FilesApi {
     });
   }
 
-  /** Authenticated download URL (streams bytes via storage abstraction). */
-  getFileDownloadUrl(fileId: string): string {
-    return `${this.basePath}/${encodeURIComponent(fileId)}/download`;
+  /**
+   * Authenticated URL that streams file bytes via storage abstraction.
+   * Use `inline: true` for “open in tab” (Content-Disposition: inline); default is attachment download.
+   */
+  getFileDownloadUrl(fileId: string, options?: { inline?: boolean }): string {
+    const path = `${this.basePath}/${encodeURIComponent(fileId)}/download`;
+    if (options?.inline) {
+      return `${path}?inline=1`;
+    }
+    return path;
   }
 
   listAttachments(pluginName: string, entityId: string): Promise<FileAttachmentEntry[]> {

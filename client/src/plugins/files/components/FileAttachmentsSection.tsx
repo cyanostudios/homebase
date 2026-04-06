@@ -1,4 +1,4 @@
-import { Download, Search, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
+import { Download, ExternalLink, Search, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,6 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { cn } from '@/lib/utils';
 import { filesApi } from '@/plugins/files/api/filesApi';
 import { useFileAttachments } from '@/plugins/files/hooks/useFileAttachments';
@@ -79,6 +80,10 @@ export function FileAttachmentsSection({
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [fileSearch, setFileSearch] = useState('');
   const [filePickerOpen, setFilePickerOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<{
+    attachmentId: string;
+    displayName: string;
+  } | null>(null);
 
   const disabled = entityId === null || entityId === undefined || entityId === '';
 
@@ -335,48 +340,83 @@ export function FileAttachmentsSection({
               return (
                 <li
                   key={row.attachmentId}
-                  className={cn(
-                    'flex min-w-0 gap-3 rounded-lg border border-border p-4',
-                    readOnly ? '' : 'items-center justify-between',
-                  )}
+                  className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-border p-4"
                 >
                   <div className="min-w-0 flex-1 space-y-0.5">
                     <div className="truncate text-sm font-medium">{displayName}</div>
                     {meta ? <p className="text-[11px] text-muted-foreground">{meta}</p> : null}
                   </div>
-                  {!readOnly ? (
-                    <div className="flex shrink-0 gap-1">
-                      <a
-                        href={filesApi.getFileDownloadUrl(file.id)}
-                        download={displayName || undefined}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={t('files.attachmentsDownload')}
-                        className={cn(
-                          buttonVariants({ variant: 'ghost', size: 'sm' }),
-                          'h-9 w-9 shrink-0 p-0 inline-flex items-center justify-center',
-                        )}
-                      >
-                        <Download className="h-4 w-4 shrink-0" aria-hidden />
-                        <span className="sr-only">{t('files.attachmentsDownload')}</span>
-                      </a>
+                  <div className="flex shrink-0 gap-1">
+                    <a
+                      href={filesApi.getFileDownloadUrl(file.id)}
+                      download={displayName || undefined}
+                      rel="noreferrer"
+                      aria-label={t('files.attachmentsDownload')}
+                      className={cn(
+                        buttonVariants({ variant: 'ghost', size: 'sm' }),
+                        'h-9 w-9 shrink-0 p-0 inline-flex items-center justify-center',
+                      )}
+                    >
+                      <Download className="h-4 w-4 shrink-0" aria-hidden />
+                      <span className="sr-only">{t('files.attachmentsDownload')}</span>
+                    </a>
+                    <a
+                      href={filesApi.getFileDownloadUrl(file.id, { inline: true })}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={t('files.attachmentsOpenInNewTab')}
+                      className={cn(
+                        buttonVariants({ variant: 'ghost', size: 'sm' }),
+                        'h-9 w-9 shrink-0 p-0 inline-flex items-center justify-center',
+                      )}
+                    >
+                      <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+                      <span className="sr-only">{t('files.attachmentsOpenInNewTab')}</span>
+                    </a>
+                    {!readOnly ? (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         icon={Trash2}
                         className="h-9 w-9 shrink-0 p-0 text-destructive hover:text-destructive"
-                        onClick={() => void detach(row.attachmentId)}
+                        onClick={() =>
+                          setRemoveTarget({
+                            attachmentId: row.attachmentId,
+                            displayName,
+                          })
+                        }
                         aria-label={t('files.attachmentsRemove')}
                       />
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={removeTarget !== null}
+        title={t('files.attachmentsRemoveDialogTitle')}
+        message={
+          removeTarget
+            ? t('files.attachmentsRemoveDialogMessage', { name: removeTarget.displayName })
+            : ''
+        }
+        confirmText={t('files.attachmentsRemove')}
+        cancelText={t('common.cancel')}
+        variant="danger"
+        onConfirm={() => {
+          if (!removeTarget) {
+            return;
+          }
+          void detach(removeTarget.attachmentId);
+          setRemoveTarget(null);
+        }}
+        onCancel={() => setRemoveTarget(null)}
+      />
     </Card>
   );
 }

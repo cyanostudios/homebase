@@ -556,7 +556,10 @@
     "attachmentsUploading": "Laddar upp…",
     "attachmentsEmpty": "Inga bilagor ännu.",
     "attachmentsDownload": "Ladda ner",
-    "attachmentsRemove": "Ta bort bilaga"
+    "attachmentsOpenInNewTab": "Öppna i ny flik",
+    "attachmentsRemove": "Ta bort bilaga",
+    "attachmentsRemoveDialogTitle": "Ta bort bilaga",
+    "attachmentsRemoveDialogMessage": "\"{{name}}\" tas bort från det här objektet. Filen finns kvar under Filer."
   },
   "mail": {
     "panelTitle": "Mail-inställningar",

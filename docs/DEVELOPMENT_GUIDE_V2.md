@@ -414,6 +414,14 @@ railway logs
 
 Performance Optimization
 Frontend Optimization
+Bundle analysis (where JS weight comes from):
+
+```bash
+npm run build:ui:analyze
+```
+
+Opens no browser automatically; open generated `bundle-stats.html` at repo root. See `docs/FRONTEND_BUNDLE_ANALYSIS.md`.
+
 Code Splitting:
 // Lazy load plugin components
 const MyPluginList = React.lazy(() => import('./components/MyPluginList'));

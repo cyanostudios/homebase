@@ -556,7 +556,10 @@
     "attachmentsUploading": "Uploading…",
     "attachmentsEmpty": "No attachments yet.",
     "attachmentsDownload": "Download",
-    "attachmentsRemove": "Remove attachment"
+    "attachmentsOpenInNewTab": "Open in new tab",
+    "attachmentsRemove": "Remove attachment",
+    "attachmentsRemoveDialogTitle": "Remove attachment",
+    "attachmentsRemoveDialogMessage": "\"{{name}}\" will be removed from this item. The file stays in Files."
   },
   "mail": {
     "panelTitle": "Mail settings",
