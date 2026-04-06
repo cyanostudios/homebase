@@ -4,6 +4,23 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-04 – Files-plugin: inställningar och lista i linje med mail/contacts
+
+- **Branch / release-line:** Pågående arbete under **`homebase-V3.5`** (spårar `origin/homebase-V3.5`). Tidigare agent-/pending-branch **`cursor/pending-changes-2161`** användes för isolerade ändringar innan merge/synk.
+
+- **Files-inställningar (mail-liknande mönster):**
+  - `CloudStorageSettings.tsx` – provider/credentials-layout som mail, OAuth-fält inline, ingen “key toggle”-överraskning.
+  - `FileSettingsForm.tsx` / `FileSettingsView.tsx` – förenklad vy i linje med övriga settings-flöden.
+
+- **Lista och detaljvy:**
+  - `FileList.tsx` – egen header (sök, rutnät/lista, lägg till), `contentFlush`, ingen duplicerad `ContentHeader`.
+  - `FileView.tsx` – kortstil och i18n som övriga detaljvyer.
+
+- **App / primär åtgärd:**
+  - `App.tsx` och `resolvePrimaryAction.ts` – files-sidans chrome och primär knapp matchar övriga plugins.
+
+- **Översättningar:** Uppdaterade nycklar i `client/src/i18n/locales/en.json` och `sv.json` för nya/ändrade strängar i files-flödet.
+
 ## 2026-04 – Frontend bundle-analys (Vite)
 
 - **`npm run build:ui:analyze`:** kör produktionsbuild med `ANALYZE=1` och skriver interaktiv treemap till `bundle-stats.html` i repo-roten (gitignoreras).

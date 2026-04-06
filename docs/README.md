@@ -2,6 +2,10 @@
 
 Det här är den **aktuella** ingången till dokumentationen. Målet är att hålla få dokument som är uppdaterade, och flytta historik/“vad som ändrats” till `CHANGELOG.md`.
 
+### Aktuell kodrad
+
+- **`homebase-V3.5`** – long-lived branch för V3.5-arbete (`origin/homebase-V3.5`). Se senaste ändringar i `CHANGELOG.md` (t.ex. files-alignment 2026-04).
+
 ## Snabbstart (ny utvecklare)
 
 - **Arkitektur & core services:** `CORE_SERVICES_ARCHITECTURE.md`
