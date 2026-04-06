@@ -114,8 +114,8 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
     return 'svff_yearmonth_list';
   }
 
-  /** Ångermanland-style labeled paragraphs. */
-  if (/Tävling\s*\/\s*Cup\s*:/i.test(html)) {
+  /** Ångermanland-style labeled paragraphs (SvFF HTML uses entities, e.g. T&auml;vling/ Cup:). */
+  if (/Tävling\s*\/\s*Cup\s*:/i.test(decodeHtmlEntities(html))) {
     return 'angermanland_labeled';
   }
 
@@ -129,8 +129,8 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
     return 'svff_table';
   }
 
-  /** Uppland: Arr. förening blocks; Jämtland: "Cuper 20xx" heading + prose. */
-  if (/Arr\.\s*förening\s*:/i.test(html)) {
+  /** Uppland: Arr. förening blocks (SvFF HTML uses entities e.g. Arr. f&ouml;rening). */
+  if (/Arr\.\s*förening\s*:/i.test(decodeHtmlEntities(html))) {
     return 'svff_paragraph_list';
   }
   if (/<h2[^>]*>\s*Cuper\s+\d{4}/i.test(html)) {
@@ -425,6 +425,34 @@ function parseDatumFieldSmaland(datumValue, defaultYear = STOCKHOLM_PDF_DEFAULT_
   }
 
   return { start: null, end: null, dateText: trimmed };
+}
+
+/**
+ * Ångermanland: "18-19 / 25-26 april 2026" (two weekend spans in one month).
+ * @returns {{ start: string|null, end: string|null }}
+ */
+function parseAngermanlandSlashWeekendRanges(dateRaw, defaultYear = STOCKHOLM_PDF_DEFAULT_YEAR) {
+  const cleaned = String(dateRaw || '')
+    .replace(/\.$/, '')
+    .trim();
+  const m = cleaned.match(
+    /^(\d{1,2})-(\d{1,2})\s*\/\s*(\d{1,2})-(\d{1,2})\s+([a-zåäö]+)(?:\s+(\d{4}))?$/i,
+  );
+  if (!m) {
+    return { start: null, end: null };
+  }
+  const mo = resolveSwedishMonth(m[5]);
+  const y = m[6] ? parseInt(m[6], 10) : defaultYear;
+  if (!mo) {
+    return { start: null, end: null };
+  }
+  const days = [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10), parseInt(m[4], 10)];
+  if (days.some((d) => d < 1 || d > 31)) {
+    return { start: null, end: null };
+  }
+  const lo = Math.min(...days);
+  const hi = Math.max(...days);
+  return { start: toIsoDate(y, mo, lo), end: toIsoDate(y, mo, hi) };
 }
 
 /**
@@ -1727,7 +1755,38 @@ function parseSodermanlandH3Title(h3Plain) {
       if (mo2 >= 1 && mo2 <= 12 && d2 >= 1 && d2 <= 31) {
         end = isoDate(y, mo2, d2);
       }
+    } else if (/^\d{1,2}$/.test(rest)) {
+      const d2 = parseInt(rest, 10);
+      if (d2 >= 1 && d2 <= 31 && d2 > d && d2 - d <= 7) {
+        end = isoDate(y, mo, d2);
+      }
     }
+    return { name, organizer, start, end, dateText };
+  }
+  /** Missing leading zero before day: "2026034-15" → 4 mars, often end day 15 same month. */
+  m = h3Text.match(/^(.+?),\s*(\d{4})(\d{2})(\d)-(\d{1,8})\s*\(([^)]+)\)\s*$/);
+  if (m) {
+    const name = m[1].trim();
+    const y = parseInt(m[2], 10);
+    const mo = parseInt(m[3], 10);
+    const d = parseInt(m[4], 10);
+    const rest = m[5];
+    const organizer = m[6].trim();
+    const start = isoDate(y, mo, d);
+    let end = start;
+    if (/^\d{1,2}$/.test(rest)) {
+      const d2 = parseInt(rest, 10);
+      if (d2 >= 1 && d2 <= 31) {
+        end = isoDate(y, mo, d2);
+      }
+    } else if (rest.length === 4) {
+      const mo2 = parseInt(rest.slice(0, 2), 10);
+      const d2 = parseInt(rest.slice(2, 4), 10);
+      if (mo2 >= 1 && mo2 <= 12 && d2 >= 1 && d2 <= 31) {
+        end = isoDate(y, mo2, d2);
+      }
+    }
+    const dateText = `${m[2]}${m[3]}${m[4]}-${rest}`;
     return { name, organizer, start, end, dateText };
   }
   m = h3Text.match(/^(.+?),\s*(\d{8})\s*\(([^)]+)\)\s*$/);
@@ -1740,6 +1799,26 @@ function parseSodermanlandH3Title(h3Plain) {
     const d = parseInt(compact.slice(6, 8), 10);
     const start = isoDate(y, mo, d);
     return { name, organizer, start, end: start, dateText: compact };
+  }
+  /** No arranger in parens: "…, 20260328-29" → 28–29 same month. */
+  m = h3Text.match(/^(.+?),\s*(\d{4})(\d{2})(\d{2})-(\d{1,2})\s*$/);
+  if (m) {
+    const name = m[1].trim();
+    const y = parseInt(m[2], 10);
+    const mo = parseInt(m[3], 10);
+    const d1 = parseInt(m[4], 10);
+    const d2 = parseInt(m[5], 10);
+    if (d1 >= 1 && d1 <= 31 && d2 >= 1 && d2 <= 31) {
+      const start = isoDate(y, mo, d1);
+      const end = isoDate(y, mo, Math.max(d1, d2));
+      return {
+        name,
+        organizer: null,
+        start,
+        end,
+        dateText: `${m[2]}${m[3]}${m[4]}-${m[5]}`,
+      };
+    }
   }
   return null;
 }
@@ -1759,54 +1838,62 @@ function parseSodermanlandAccordionCups(html, sourceUrl, sourceType) {
     if (/cupsanktion/i.test(accTitle) || /cupsanktion/i.test(block)) {
       continue;
     }
-    const h3m = block.match(/<h3\b[^>]*>([\s\S]*?)<\/h3>/i);
-    if (!h3m) {
-      continue;
-    }
-    const parsedH3 = parseSodermanlandH3Title(stripTags(h3m[1]));
-    if (!parsedH3?.name) {
-      continue;
-    }
 
-    const ulm = block.match(/<ul\b[^>]*>([\s\S]*?)<\/ul>/i);
-    const catItems = [];
-    if (ulm) {
-      const lim = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
-      let lm;
-      while ((lm = lim.exec(ulm[1])) !== null) {
-        const lt = stripTags(lm[1]).trim();
-        if (lt) {
-          catItems.push(lt);
+    const h3Re = /<h3\b[^>]*>([\s\S]*?)<\/h3>/gi;
+    let h3Match;
+    while ((h3Match = h3Re.exec(block)) !== null) {
+      const h3Inner = h3Match[1];
+      const h3Start = h3Match.index;
+      const afterH3 = h3Start + h3Match[0].length;
+      const nextH3Rel = block.slice(afterH3).search(/<h3\b/i);
+      const segmentEnd = nextH3Rel === -1 ? block.length : afterH3 + nextH3Rel;
+      const segment = block.slice(h3Start, segmentEnd);
+
+      const parsedH3 = parseSodermanlandH3Title(stripTags(h3Inner));
+      if (!parsedH3?.name) {
+        continue;
+      }
+
+      const ulm = segment.match(/<ul\b[^>]*>([\s\S]*?)<\/ul>/i);
+      const catItems = [];
+      if (ulm) {
+        const lim = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
+        let lm;
+        while ((lm = lim.exec(ulm[1])) !== null) {
+          const lt = stripTags(lm[1]).trim();
+          if (lt) {
+            catItems.push(lt);
+          }
         }
       }
-    }
-    const categories = catItems.length ? catItems.join('; ') : null;
-    const desc =
-      categories ||
-      stripTags(extractAccordionContentAllParagraphsInnerHtml(block)).slice(0, 800) ||
-      null;
+      const categories = catItems.length ? catItems.join('; ') : null;
+      const desc =
+        categories ||
+        stripTags(extractAccordionContentAllParagraphsInnerHtml(segment)).slice(0, 800) ||
+        null;
 
-    out.push({
-      name: parsedH3.name.slice(0, 255),
-      organizer: parsedH3.organizer || null,
-      location: null,
-      start_date: parsedH3.start,
-      end_date: parsedH3.end,
-      categories,
-      team_count: null,
-      match_format: null,
-      description: desc,
-      registration_url: null,
-      source_url: sourceUrl || null,
-      source_type: sourceType || 'html',
-      external_id: stableExternalId(
-        parsedH3.name,
-        parsedH3.start,
-        parsedH3.end,
-        null,
-        parsedH3.dateText,
-      ),
-    });
+      out.push({
+        name: parsedH3.name.slice(0, 255),
+        organizer: parsedH3.organizer || null,
+        location: null,
+        start_date: parsedH3.start,
+        end_date: parsedH3.end,
+        categories,
+        team_count: null,
+        match_format: null,
+        description: desc,
+        registration_url: null,
+        source_url: sourceUrl || null,
+        source_type: sourceType || 'html',
+        external_id: stableExternalId(
+          parsedH3.name,
+          parsedH3.start,
+          parsedH3.end,
+          null,
+          parsedH3.dateText,
+        ),
+      });
+    }
   }
 
   return out;
@@ -1981,9 +2068,15 @@ function parseSvffYearMonthListCups(html, sourceUrl, sourceType) {
  * @param {string|null|undefined} sourceUrl
  * @param {string|null|undefined} sourceType
  */
+function stripHtmlScriptsAndStyles(html) {
+  return String(html || '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+}
+
 function parseAngermanlandLabeledCups(html, sourceUrl, sourceType) {
   const mainMatch = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
-  const slice = mainMatch ? mainMatch[1] : html;
+  const slice = stripHtmlScriptsAndStyles(decodeHtmlEntities(mainMatch ? mainMatch[1] : html));
   const re = /Tävling\s*\/\s*Cup\s*:/gi;
   const starts = [];
   let m;
@@ -2003,7 +2096,8 @@ function parseAngermanlandLabeledCups(html, sourceUrl, sourceType) {
     const nameM = block.match(
       /Tävling\s*\/\s*Cup\s*:\s*([\s\S]*?)(?=Tävling\s*\/\s*Cup\s*spelas\s*:|$)/i,
     );
-    const name = nameM ? stripTags(nameM[1]).replace(/\s+/g, ' ').trim() : '';
+    let name = nameM ? stripTags(nameM[1]).replace(/\s+/g, ' ').trim() : '';
+    name = name.replace(/\.\s*$/, '');
     if (!name) {
       continue;
     }
@@ -2019,10 +2113,21 @@ function parseAngermanlandLabeledCups(html, sourceUrl, sourceType) {
     const tavKatM = block.match(/Tävlingskategori\s*:\s*([\s\S]*?)(?=Tävlingen)/i);
     const tavKat = tavKatM ? stripTags(tavKatM[1]).replace(/\s+/g, ' ').trim() : '';
 
+    /** Stop at next cup label (same &lt;p&gt;) or closing &lt;/p&gt; — last cup's block runs to end of &lt;main&gt; otherwise ads/footer leak into categories. */
     const foljM = block.match(
-      /Tävlingen\s*\/\s*Cupen\s+gäller\s+följande\s+kategori\s*:\s*([\s\S]*?)(?=Tävling\s*\/\s*Cup\s*:|$)/i,
+      /Tävlingen\s*\/\s*Cupen\s+gäller\s+följande\s+kategori\s*:\s*([\s\S]*?)(?=Tävling\s*\/\s*Cup\s*:|<\/p>|$)/i,
     );
-    const categories = foljM ? stripTags(foljM[1]).replace(/\s+/g, ' ').trim() : null;
+    let categories = foljM ? stripTags(foljM[1]).replace(/\s+/g, ' ').trim() : null;
+    if (categories) {
+      categories = categories
+        .replace(/\bCuper\s+Tillståndsansökan\b.*$/i, '')
+        .replace(/\bTillståndsansökan\b.*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    if (categories === '') {
+      categories = null;
+    }
 
     let match_format = null;
     if (/futsal/i.test(tavKat)) {
@@ -2033,8 +2138,9 @@ function parseAngermanlandLabeledCups(html, sourceUrl, sourceType) {
 
     const sm = parseDatumFieldSmaland(dateRaw, STOCKHOLM_PDF_DEFAULT_YEAR);
     const df = parseDatumField(dateRaw);
-    const start = sm.start || df.start;
-    const end = sm.end || df.end;
+    const aw = parseAngermanlandSlashWeekendRanges(dateRaw, STOCKHOLM_PDF_DEFAULT_YEAR);
+    const start = sm.start || df.start || aw.start;
+    const end = sm.end || df.end || aw.end;
 
     const desc = [dateRaw, location, tavKat, categories].filter(Boolean).join('\n');
 
@@ -2066,7 +2172,8 @@ function parseAngermanlandLabeledCups(html, sourceUrl, sourceType) {
  */
 function parseSvffParagraphListCups(html, sourceUrl, sourceType) {
   const mainMatch = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
-  const slice = mainMatch ? mainMatch[1] : html;
+  const rawSlice = mainMatch ? mainMatch[1] : html;
+  const slice = decodeHtmlEntities(rawSlice);
 
   if (/Arr\.\s*förening\s*:/i.test(slice)) {
     return parseUpplandParagraphCups(slice, sourceUrl, sourceType);
