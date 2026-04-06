@@ -21,6 +21,12 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 - **Översättningar:** Uppdaterade nycklar i `client/src/i18n/locales/en.json` och `sv.json` för nya/ändrade strängar i files-flödet.
 
+## 2026-04 – Frontend bundle-analys (Vite)
+
+- **`npm run build:ui:analyze`:** kör produktionsbuild med `ANALYZE=1` och skriver interaktiv treemap till `bundle-stats.html` i repo-roten (gitignoreras).
+- **`vite.config.mts`:** `rollup-plugin-visualizer` aktiveras endast när `ANALYZE` är satt; vanlig `npm run build:ui` påverkas inte.
+- **Dokumentation:** `docs/FRONTEND_BUNDLE_ANALYSIS.md`; länkar från `docs/README.md` och `docs/DEVELOPMENT_GUIDE_V2.md` (Performance → Frontend).
+
 ---
 
 ## 2026-03 – Cups/Cupappen (hel plugin-dokumentation, återinförd och utbyggd)

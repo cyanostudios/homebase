@@ -14,6 +14,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **Plugin design (slots/notes-mönster):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Säkerhet:** `SECURITY_GUIDELINES.md`
 - **Dev/Deploy:** `DEVELOPMENT_GUIDE_V2.md`, `DEPLOYMENT_V2.md`
+- **Frontend bundle-analys (Vite treemap):** `FRONTEND_BUNDLE_ANALYSIS.md`
 
 ## Canonical dokument (hålls uppdaterade)
 
@@ -30,6 +31,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **Plugin design-alignment (checklista):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Security:** `SECURITY_GUIDELINES.md`
 - **Deploy:** `DEPLOYMENT_V2.md`
+- **Frontend bundle-analys:** `FRONTEND_BUNDLE_ANALYSIS.md` (`npm run build:ui:analyze` → `bundle-stats.html`)
 - **Lessons learned / vanliga misstag:** `LESSONS_LEARNED.md`
 
 ## Dokumentationspolicy

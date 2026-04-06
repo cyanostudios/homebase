@@ -216,7 +216,8 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       closeNotePanel();
     }
   };
-  const { refreshData } = useApp();
+  const { refreshData, user } = useApp();
+  const hasFilesPlugin = (user?.plugins ?? []).includes('files');
 
   const [contactsData, setContactsData] = useState<any[]>([]);
   const [showDeleteNoteConfirm, setShowDeleteNoteConfirm] = useState(false);
@@ -421,7 +422,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                 />
               </DetailSection>
             </Card>
-            <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
+            {hasFilesPlugin ? (
+              <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
+            ) : null}
           </div>
         </DetailLayout>
       </div>
