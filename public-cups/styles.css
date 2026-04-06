@@ -471,7 +471,9 @@ body {
 }
 
 .cup-action {
-  min-width: 190px;
+  flex: 0 1 190px;
+  min-width: 0;
+  max-width: 190px;
   border-left: 1px solid #e7e5e4;
   padding-left: var(--space-3);
   display: flex;
@@ -522,6 +524,11 @@ body {
   line-height: 1.35;
   color: #292524;
   font-weight: 600;
+  /* ~23 tecken per rad så långa listor inte spränger kortlayouten */
+  max-width: 23ch;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .register-link {
@@ -593,6 +600,8 @@ body {
   }
   .cup-action {
     min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
     border-left: 0;
     border-top: 1px solid #e7e5e4;
     padding-left: 0;

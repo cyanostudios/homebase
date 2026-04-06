@@ -113,6 +113,14 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
   if (/Lista över cuper med tillstånd/i.test(html)) {
     return 'svff_yearmonth_list';
   }
+  /** Östergötland: /tavling/sanktionerade-cuper/ (rubrik "Sanktionerade cuper", år i accordion). */
+  if (
+    /(^|\.)ostergotland\.svenskfotboll\.se$/i.test(host) &&
+    /Sanktionerade cuper/i.test(decodeHtmlEntities(html)) &&
+    hasSkaneAccordion
+  ) {
+    return 'svff_yearmonth_list';
+  }
 
   /** Ångermanland-style labeled paragraphs (SvFF HTML uses entities, e.g. T&auml;vling/ Cup:). */
   if (/Tävling\s*\/\s*Cup\s*:/i.test(decodeHtmlEntities(html))) {
@@ -133,7 +141,8 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
   if (/Arr\.\s*förening\s*:/i.test(decodeHtmlEntities(html))) {
     return 'svff_paragraph_list';
   }
-  if (/<h2[^>]*>\s*Cuper\s+\d{4}/i.test(html)) {
+  /** Jämtland m.fl.: rubrik kan vara &lt;h2&gt;&lt;strong&gt;Cuper 2026&lt;/strong&gt;&lt;/h2&gt;. */
+  if (/<h2\b[^>]*>[\s\S]*?Cuper\s+\d{4}/i.test(decodeHtmlEntities(html))) {
     return 'svff_paragraph_list';
   }
 
@@ -1091,7 +1100,56 @@ function parseSwedishSlashDateRange(raw, defaultYear = STOCKHOLM_PDF_DEFAULT_YEA
   if (!s) {
     return { start: null, end: null, dateText: null };
   }
-  const m = s.match(/^(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?$/);
+  /** "28/29/3" (två dagar i samma månad, förekommer i listor). */
+  const mDoubleDay = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{1,2})(?:\s*\/\s*(\d{2,4}))?$/);
+  if (mDoubleDay) {
+    const da = parseInt(mDoubleDay[1], 10);
+    const db = parseInt(mDoubleDay[2], 10);
+    const mo = parseInt(mDoubleDay[3], 10);
+    if (mo >= 1 && mo <= 12 && da >= 1 && da <= 31 && db >= 1 && db <= 31 && db !== da) {
+      let y = defaultYear;
+      if (mDoubleDay[4]) {
+        const yRaw = parseInt(mDoubleDay[4], 10);
+        y = mDoubleDay[4].length === 2 ? 2000 + yRaw : yRaw;
+      }
+      const lo = Math.min(da, db);
+      const hi = Math.max(da, db);
+      if (hi - lo <= 3) {
+        return { start: isoDate(y, mo, lo), end: isoDate(y, mo, hi), dateText: s };
+      }
+    }
+  }
+  /** "14/5 - 17/5", "31/1-8/2" (samma eller annan månad). */
+  const crossM = s.match(/^(\d{1,2})\/(\d{1,2})\s*-\s*(\d{1,2})\/(\d{1,2})(?:\s*\/\s*(\d{2,4}))?$/);
+  if (crossM) {
+    const da1 = parseInt(crossM[1], 10);
+    const mo1 = parseInt(crossM[2], 10);
+    const da2 = parseInt(crossM[3], 10);
+    const mo2 = parseInt(crossM[4], 10);
+    let y = defaultYear;
+    if (crossM[5]) {
+      const yRaw = parseInt(crossM[5], 10);
+      y = crossM[5].length === 2 ? 2000 + yRaw : yRaw;
+    }
+    if (
+      mo1 >= 1 &&
+      mo1 <= 12 &&
+      mo2 >= 1 &&
+      mo2 <= 12 &&
+      da1 >= 1 &&
+      da1 <= 31 &&
+      da2 >= 1 &&
+      da2 <= 31
+    ) {
+      const yEnd = mo2 < mo1 ? y + 1 : y;
+      return { start: isoDate(y, mo1, da1), end: isoDate(yEnd, mo2, da2), dateText: s };
+    }
+  }
+  let m = s.match(/^(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?$/);
+  if (!m) {
+    /** "3-6/4", "10-22/10" utan mellanslag runt bindestreck. */
+    m = s.match(/^(\d{1,2})-(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?$/);
+  }
   if (!m) {
     return { start: null, end: null, dateText: s };
   }
@@ -1899,15 +1957,98 @@ function parseSodermanlandAccordionCups(html, sourceUrl, sourceType) {
   return out;
 }
 
-function looksLikeOstergotlandDatePrefix(s) {
+/** True if the whole segment is only date tokens (comma-joined ranges, "och", month names). */
+function looksLikeOstergotlandDateOnly(s) {
   const t = String(s || '').trim();
   if (!/^\d/.test(t)) {
     return false;
   }
-  if (/[\/\-]/.test(t)) {
-    return true;
+  const monthRe =
+    /\bjan(?:uari)?|feb(?:ruari)?|mars|apr(?:il)?|maj|jun(?:i)?|jul(?:i)?|aug(?:usti)?|sep(?:tember)?|okt(?:ober)?|nov(?:ember)?|dec(?:ember)?\.?/gi;
+  const normalized = t
+    .replace(monthRe, ' ')
+    .replace(/\boch\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return /^[\d\s,\/\-]+$/.test(normalized);
+}
+
+/**
+ * "14/5 - 17/5 Norrköping City Cup" (no comma before name when an &lt;a&gt; follows the date).
+ * @returns {{ date: string, rest: string } | null}
+ */
+function trySplitLeadingDateFromOstergotlandPart(s) {
+  const t = String(s || '').trim();
+  const m = t.match(
+    /^([\d\s,\/\-]+(?:\s+och\s+[\d\s,\/\-]+)+|[\d\s,\/\-]+)\s+([A-Za-zÅÄÖåäö].*)$/i,
+  );
+  if (!m) {
+    return null;
   }
-  return /\bjan|feb|mars|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec/i.test(t);
+  const date = m[1].trim();
+  const rest = m[2].trim();
+  if (!/[\d/]/.test(date) || !looksLikeOstergotlandDateOnly(date)) {
+    return null;
+  }
+  return { date, rest };
+}
+
+/** Flera datum i samma rad, t.ex. "17 - 18/1, 24/1". */
+function parseOstergotlandDateRaw(dateRaw, defaultYear) {
+  const full = String(dateRaw || '').trim();
+  if (!full) {
+    return { start: null, end: null };
+  }
+  const segments = full
+    .split(/\s*,\s*/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  let start = null;
+  let end = null;
+  for (const seg of segments) {
+    const ochParts = seg
+      .split(/\s+och\s+/i)
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const subSegs = ochParts.length > 1 ? ochParts : [seg];
+    for (const sub of subSegs) {
+      const d = parseSwedishSlashDateRange(sub, defaultYear);
+      if (d.start && d.end) {
+        if (!start || d.start < start) {
+          start = d.start;
+        }
+        if (!end || d.end > end) {
+          end = d.end;
+        }
+        continue;
+      }
+      const sm = parseDatumFieldSmaland(sub, defaultYear);
+      if (sm.start && sm.end) {
+        if (!start || sm.start < start) {
+          start = sm.start;
+        }
+        if (!end || sm.end > end) {
+          end = sm.end;
+        }
+        continue;
+      }
+      const st = parseStockholmPdfDateText(sub, defaultYear);
+      if (st.start && st.end) {
+        if (!start || st.start < start) {
+          start = st.start;
+        }
+        if (!end || st.end > end) {
+          end = st.end;
+        }
+      }
+    }
+  }
+  if (!start) {
+    const st = parseStockholmPdfDateText(full, defaultYear);
+    start = st.start;
+    end = st.end;
+  }
+  return { start, end };
 }
 
 /**
@@ -1916,10 +2057,11 @@ function looksLikeOstergotlandDatePrefix(s) {
  * @param {number} defaultYear
  */
 function parseOstergotlandListItem(liHtml, _monthHint, defaultYear) {
-  let t = String(liHtml || '');
+  let t = String(liHtml || '').replace(/<br\s*\/?>/gi, ', ');
   let match_format = null;
   const plain = stripTags(t).replace(/\s+/g, ' ').trim();
   let rest = plain.replace(/^[-*•]\s*/, '').trim();
+  rest = rest.replace(/(\S)\.\s+(?=[A-Za-zÅÄÖåäö])/g, '$1, ');
 
   if (/\bFutsal\s*$/i.test(rest)) {
     match_format = 'Futsal';
@@ -1945,16 +2087,26 @@ function parseOstergotlandListItem(liHtml, _monthHint, defaultYear) {
 
   let i = 0;
   const dateParts = [];
-  while (i < parts.length && looksLikeOstergotlandDatePrefix(parts[i])) {
+  while (i < parts.length && looksLikeOstergotlandDateOnly(parts[i])) {
     dateParts.push(parts[i]);
     i += 1;
   }
-  if (dateParts.length === 0 || i >= parts.length) {
+  let remainder;
+  if (dateParts.length === 0 && parts.length > 0) {
+    const sp = trySplitLeadingDateFromOstergotlandPart(parts[0]);
+    if (!sp) {
+      return null;
+    }
+    dateParts.push(sp.date);
+    remainder = [sp.rest, ...parts.slice(1)];
+  } else {
+    remainder = parts.slice(i);
+  }
+  if (dateParts.length === 0 || remainder.length === 0) {
     return null;
   }
 
   const dateRaw = dateParts.join(', ');
-  const remainder = parts.slice(i);
   let name = '';
   let organizer = '';
   let categories = null;
@@ -1971,24 +2123,7 @@ function parseOstergotlandListItem(liHtml, _monthHint, defaultYear) {
   }
 
   const regUrl = extractExternalUrl(liHtml) || extractUrlFromCellOrLine(liHtml);
-  let start = null;
-  let end = null;
-  const firstSeg = dateRaw.split(/\s*-\s*/)[0]?.trim() || dateRaw;
-  const d1 = parseSwedishSlashDateRange(firstSeg, defaultYear);
-  if (d1.start && d1.end) {
-    start = d1.start;
-    end = d1.end;
-  } else {
-    const sm = parseDatumFieldSmaland(dateRaw, defaultYear);
-    if (sm.start && sm.end) {
-      start = sm.start;
-      end = sm.end;
-    } else {
-      const st = parseStockholmPdfDateText(dateRaw, defaultYear);
-      start = st.start;
-      end = st.end;
-    }
-  }
+  const { start, end } = parseOstergotlandDateRaw(dateRaw, defaultYear);
 
   return {
     name: name.slice(0, 255),
@@ -2033,6 +2168,15 @@ function parseSvffYearMonthListCups(html, sourceUrl, sourceType) {
       while ((liM = liRe.exec(ulInner)) !== null) {
         const row = parseOstergotlandListItem(liM[1], monthToken, defaultYear);
         if (row && row.name) {
+          if (row.match_format === 'Futsal') {
+            continue;
+          }
+          if (
+            row.match_format !== 'Fotboll' &&
+            /,\s*Futsal\s*\.?\s*$/i.test(String(row.description || '').trim())
+          ) {
+            continue;
+          }
           out.push({
             name: row.name,
             organizer: row.organizer,
@@ -2263,9 +2407,19 @@ function parseUpplandParagraphCups(htmlFragment, sourceUrl, sourceType) {
  * @param {string|null|undefined} sourceType
  */
 function parseJamtlandParagraphCups(htmlFragment, sourceUrl, sourceType) {
-  const h2m = htmlFragment.match(/<h2\b[^>]*>\s*Cuper\s+(\d{4})\s*<\/h2>/i);
-  const defaultYear = h2m ? parseInt(h2m[1], 10) : STOCKHOLM_PDF_DEFAULT_YEAR;
-  const startIdx = h2m ? h2m.index + h2m[0].length : 0;
+  let defaultYear = STOCKHOLM_PDF_DEFAULT_YEAR;
+  let startIdx = 0;
+  const h2HeadingRe = /<h2\b[^>]*>([\s\S]*?)<\/h2>/gi;
+  let h2m;
+  while ((h2m = h2HeadingRe.exec(htmlFragment)) !== null) {
+    const innerPlain = stripTags(h2m[1]).replace(/\s+/g, ' ').trim();
+    const ym = innerPlain.match(/^Cuper\s+(\d{4})\b/i);
+    if (ym) {
+      defaultYear = parseInt(ym[1], 10);
+      startIdx = h2m.index + h2m[0].length;
+      break;
+    }
+  }
   const rest = htmlFragment.slice(startIdx);
   const nextH2 = rest.search(/<h2\b/i);
   const section = nextH2 >= 0 ? rest.slice(0, nextH2) : rest;
@@ -2276,22 +2430,60 @@ function parseJamtlandParagraphCups(htmlFragment, sourceUrl, sourceType) {
   while ((pm = pRe.exec(section)) !== null) {
     const inner = pm[1];
     const text = stripTags(inner).replace(/\s+/g, ' ').trim();
-    if (text.length < 12 || /^vi fyller/i.test(text)) {
+    if (text.length < 12 || /^vi fyller/i.test(text) || /^här listas/i.test(text)) {
       continue;
     }
     const regUrl = extractExternalUrl(inner) || extractUrlFromCellOrLine(inner);
     let name = text;
     let dateRaw = '';
+    /** Full + short Swedish months (SvFF uses "april", "augusti", etc. — not just "apr"). */
+    const svMonth =
+      '(?:jan(?:uari)?|feb(?:ruari)?|mars|apr(?:il)?|maj|jun(?:i)?|jul(?:i)?|aug(?:usti)?|sep(?:tember)?|okt(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
     const dateTail = text.match(
-      /\s*[-–]\s*((?:\d{1,2}\s*(?:jan|feb|mars|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec)\b[^.]*(?:\.\s*)?)+|(?:\d{1,2}\s*[-–]\s*\d{1,2}\s*(?:jan|feb|mars|apr|maj|jun|jul|juli|aug|sep|okt|nov|dec)\b[^.]*))/i,
+      new RegExp(
+        `\\s*[-–]\\s*((?:\\d{1,2}\\s*${svMonth}\\b[^.]*(?:\\.\\s*)?)+|(?:\\d{1,2}\\s*[-–]\\s*\\d{1,2}\\s*${svMonth}\\b[^.]*)|(?:\\d{1,2}\\s*${svMonth}\\b\\s*[-–]\\s*\\d{1,2}\\s*${svMonth}\\b[^.]*))`,
+        'i',
+      ),
     );
     if (dateTail) {
-      dateRaw = dateTail[1].trim();
+      dateRaw = dateTail[1].trim().replace(/\.\s*$/, '');
       name = text.slice(0, dateTail.index).trim();
     }
     const sm = parseDatumFieldSmaland(dateRaw, defaultYear);
-    const start = sm.start;
-    const end = sm.end;
+    let start = sm.start;
+    let end = sm.end;
+    if (!start && dateRaw) {
+      if (/\boch\b/i.test(dateRaw)) {
+        const parts = dateRaw
+          .split(/\s+och\s+/i)
+          .map((p) => p.trim())
+          .filter(Boolean);
+        if (parts.length === 2) {
+          const a = parseDatumFieldSmaland(parts[0], defaultYear);
+          const b = parseDatumFieldSmaland(parts[1], defaultYear);
+          if (a.start && b.start) {
+            start = a.start;
+            end = b.end || b.start;
+          }
+        }
+      }
+      if (!start) {
+        const cross = dateRaw.match(
+          /^(\d{1,2})\s+([a-zåäö]+)\s*[-–]\s*(\d{1,2})\s+([a-zåäö]+)\s*\.?$/i,
+        );
+        if (cross) {
+          const mo1 = resolveSwedishMonth(cross[2]);
+          const mo2 = resolveSwedishMonth(cross[4]);
+          const d1 = parseInt(cross[1], 10);
+          const d2 = parseInt(cross[3], 10);
+          const y = defaultYear;
+          if (mo1 && mo2 && d1 >= 1 && d1 <= 31 && d2 >= 1 && d2 <= 31) {
+            start = toIsoDate(y, mo1, d1);
+            end = toIsoDate(y, mo2, d2);
+          }
+        }
+      }
+    }
 
     out.push({
       name: name.slice(0, 255) || text.slice(0, 255),
