@@ -464,7 +464,7 @@ export const NoteList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
@@ -477,7 +477,7 @@ export const NoteList: React.FC = () => {
                     />
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => handleSort('title')}
                   >
                     <div className="flex items-center gap-2">
@@ -490,10 +490,10 @@ export const NoteList: React.FC = () => {
                         ))}
                     </div>
                   </TableHead>
-                  <TableHead>{t('notes.content')}</TableHead>
-                  <TableHead>{t('notes.mentions')}</TableHead>
+                  <TableHead className="text-xs">{t('notes.content')}</TableHead>
+                  <TableHead className="text-xs">{t('notes.mentions')}</TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => handleSort('updatedAt')}
                   >
                     <div className="flex items-center gap-2">
@@ -507,7 +507,7 @@ export const NoteList: React.FC = () => {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => handleSort('createdAt')}
                   >
                     <div className="flex items-center gap-2">
@@ -546,7 +546,7 @@ export const NoteList: React.FC = () => {
                         handleOpenForView(note);
                       }}
                     >
-                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           className="h-4 w-4 cursor-pointer"
@@ -560,7 +560,7 @@ export const NoteList: React.FC = () => {
                       </TableCell>
                       <TableCell className="font-semibold">{note.title}</TableCell>
                       <TableCell>
-                        <div className="max-w-[300px] line-clamp-2 text-sm text-muted-foreground">
+                        <div className="max-w-[300px] line-clamp-2 text-xs text-muted-foreground">
                           {truncateContent(note.content, 100)}
                         </div>
                       </TableCell>
@@ -576,10 +576,10 @@ export const NoteList: React.FC = () => {
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-xs">
                         {new Date(note.updatedAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground">
                         {new Date(note.createdAt).toLocaleDateString()}
                       </TableCell>
                     </TableRow>

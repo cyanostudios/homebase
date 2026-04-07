@@ -269,7 +269,7 @@ export const MailList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
@@ -279,10 +279,10 @@ export const MailList: React.FC = () => {
                       onChange={onToggleAllVisible}
                     />
                   </TableHead>
-                  <TableHead>{t('mail.date')}</TableHead>
-                  <TableHead>{t('mail.to')}</TableHead>
-                  <TableHead>{t('mail.subject')}</TableHead>
-                  <TableHead>{t('mail.source')}</TableHead>
+                  <TableHead className="text-xs">{t('mail.date')}</TableHead>
+                  <TableHead className="text-xs">{t('mail.to')}</TableHead>
+                  <TableHead className="text-xs">{t('mail.subject')}</TableHead>
+                  <TableHead className="text-xs">{t('mail.source')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -294,7 +294,7 @@ export const MailList: React.FC = () => {
                       isSelected(entry.id) && 'bg-plugin-subtle',
                     )}
                   >
-                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 cursor-pointer"
@@ -304,16 +304,16 @@ export const MailList: React.FC = () => {
                         aria-label={isSelected(entry.id) ? 'Deselect row' : 'Select row'}
                       />
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-xs text-muted-foreground">
                       {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate font-medium" title={entry.to}>
+                    <TableCell className="max-w-[200px] truncate text-xs" title={entry.to}>
                       {entry.to}
                     </TableCell>
-                    <TableCell className="max-w-[280px] truncate text-sm" title={entry.subject}>
+                    <TableCell className="max-w-[280px] truncate text-xs" title={entry.subject}>
                       {entry.subject || '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs">
                       {entry.pluginSource ? (
                         <Badge
                           variant="outline"
@@ -338,7 +338,7 @@ export const MailList: React.FC = () => {
                           {entry.pluginSource}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
                   </TableRow>

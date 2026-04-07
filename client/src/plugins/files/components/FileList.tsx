@@ -393,7 +393,7 @@ export const FileList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
@@ -404,7 +404,7 @@ export const FileList: React.FC = () => {
                     />
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => handleSort('name')}
                   >
                     <div className="flex items-center gap-2">
@@ -417,10 +417,10 @@ export const FileList: React.FC = () => {
                         ))}
                     </div>
                   </TableHead>
-                  <TableHead>{t('files.columnType')}</TableHead>
-                  <TableHead>{t('files.columnSize')}</TableHead>
+                  <TableHead className="text-xs">{t('files.columnType')}</TableHead>
+                  <TableHead className="text-xs">{t('files.columnSize')}</TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => handleSort('updatedAt')}
                   >
                     <div className="flex items-center gap-2">
@@ -462,7 +462,7 @@ export const FileList: React.FC = () => {
                           handleOpenForView(row.raw);
                         }}
                       >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="text-xs" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             className="h-4 w-4 cursor-pointer"
@@ -479,11 +479,11 @@ export const FileList: React.FC = () => {
                             <span className="font-medium">{row.name || '—'}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
+                        <TableCell className="text-muted-foreground text-xs">
                           {row.mimeType || '—'}
                         </TableCell>
-                        <TableCell className="text-sm">{humanSize(row.size)}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
+                        <TableCell className="text-xs">{humanSize(row.size)}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
                           {row.updatedAt ? row.updatedAt.toLocaleDateString() : '—'}
                         </TableCell>
                       </TableRow>

@@ -627,7 +627,7 @@ export const ContactList: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">
+                    <TableHead className="w-12 text-xs">
                       <input
                         ref={headerCheckboxRef}
                         type="checkbox"
@@ -640,7 +640,7 @@ export const ContactList: React.FC = () => {
                       />
                     </TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('name')}
                     >
                       <div className="flex items-center gap-2">
@@ -654,7 +654,7 @@ export const ContactList: React.FC = () => {
                       </div>
                     </TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('type')}
                     >
                       <div className="flex items-center gap-2">
@@ -667,9 +667,9 @@ export const ContactList: React.FC = () => {
                           ))}
                       </div>
                     </TableHead>
-                    <TableHead>Tags</TableHead>
+                    <TableHead className="text-xs">Tags</TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('email')}
                     >
                       <div className="flex items-center gap-2">
@@ -682,7 +682,7 @@ export const ContactList: React.FC = () => {
                           ))}
                       </div>
                     </TableHead>
-                    <TableHead>Phone</TableHead>
+                    <TableHead className="text-xs">Phone</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -708,7 +708,7 @@ export const ContactList: React.FC = () => {
                           handleOpenForView(contact);
                         }}
                       >
-                        <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={contactIsSelected}
@@ -754,7 +754,7 @@ export const ContactList: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1.5 text-sm">
+                          <div className="flex items-center gap-1.5 text-xs">
                             <Mail className="w-3 h-3 text-muted-foreground" />
                             <span className="truncate max-w-[200px]">{contact.email}</span>
                           </div>

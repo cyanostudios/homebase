@@ -393,7 +393,7 @@ export const IngestSourceList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
@@ -404,7 +404,7 @@ export const IngestSourceList: React.FC = () => {
                     />
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => handleSort('name')}
                   >
                     <div className="flex items-center gap-2">
@@ -412,9 +412,11 @@ export const IngestSourceList: React.FC = () => {
                       {sortIcon('name')}
                     </div>
                   </TableHead>
-                  <TableHead className="hidden md:table-cell">{t('ingest.colUrl')}</TableHead>
+                  <TableHead className="hidden text-xs md:table-cell">
+                    {t('ingest.colUrl')}
+                  </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => handleSort('sourceType')}
                   >
                     <div className="flex items-center gap-2">
@@ -423,7 +425,7 @@ export const IngestSourceList: React.FC = () => {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => handleSort('lastFetchStatus')}
                   >
                     <div className="flex items-center gap-2">
@@ -432,7 +434,7 @@ export const IngestSourceList: React.FC = () => {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="hidden cursor-pointer select-none hover:bg-muted/50 lg:table-cell"
+                    className="hidden cursor-pointer select-none text-xs hover:bg-muted/50 lg:table-cell"
                     onClick={() => handleSort('lastFetchedAt')}
                   >
                     <div className="flex items-center gap-2">
@@ -440,9 +442,11 @@ export const IngestSourceList: React.FC = () => {
                       {sortIcon('lastFetchedAt')}
                     </div>
                   </TableHead>
-                  <TableHead className="hidden lg:table-cell">{t('ingest.colActive')}</TableHead>
+                  <TableHead className="hidden text-xs lg:table-cell">
+                    {t('ingest.colActive')}
+                  </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none text-right hover:bg-muted/50"
+                    className="cursor-pointer select-none text-right text-xs hover:bg-muted/50"
                     onClick={() => handleSort('updatedAt')}
                   >
                     <div className="flex items-center justify-end gap-2">
@@ -471,7 +475,7 @@ export const IngestSourceList: React.FC = () => {
                     role="button"
                     aria-label={`Open ${row.name}`}
                   >
-                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isSelected(row.id)}
@@ -484,10 +488,10 @@ export const IngestSourceList: React.FC = () => {
                     <TableCell>
                       <span className="font-medium">{row.name}</span>
                     </TableCell>
-                    <TableCell className="hidden max-w-[240px] truncate text-sm text-muted-foreground md:table-cell">
+                    <TableCell className="hidden max-w-[240px] truncate text-xs text-muted-foreground md:table-cell">
                       {row.sourceUrl}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
+                    <TableCell className="text-muted-foreground text-xs">
                       <Badge variant="outline" className="text-[10px] font-normal uppercase">
                         {row.sourceType}
                       </Badge>
@@ -503,10 +507,10 @@ export const IngestSourceList: React.FC = () => {
                         {row.lastFetchStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden whitespace-nowrap text-sm text-muted-foreground lg:table-cell">
+                    <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground lg:table-cell">
                       {formatDateTimeShort(row.lastFetchedAt)}
                     </TableCell>
-                    <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
+                    <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
                       {row.isActive ? t('common.yes') : t('common.no')}
                     </TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">

@@ -90,7 +90,8 @@ export function resolvePrimaryAction(
     (currentPagePlugin.name === 'pulses' &&
       (context.pulsesContentView as string | undefined) === 'list') ||
     (currentPagePlugin.name === 'files' &&
-      (context.filesContentView as string | undefined) === 'list')
+      (context.filesContentView as string | undefined) === 'list') ||
+    (currentPagePlugin.name === 'estimates' && estimatesContentView === 'list')
   ) {
     return null;
   }

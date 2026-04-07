@@ -2,12 +2,12 @@ import {
   Plus,
   Trash2,
   Copy,
-  User,
-  FileText,
   ListOrdered,
   Percent,
   Calculator,
   StickyNote,
+  Info,
+  SlidersHorizontal,
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,9 +20,13 @@ import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { cn } from '@/lib/utils';
 
 import { useEstimates } from '../hooks/useEstimates';
 import { Estimate, LineItem, calculateLineItem, calculateEstimateTotals } from '../types/estimate';
@@ -32,6 +36,10 @@ interface EstimateFormProps {
   onSave: (data: any) => Promise<{ success: boolean; message?: string }>;
   onCancel: () => void;
 }
+
+const ESTIMATE_FORM_CARD_CLASS =
+  'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
+const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateFormProps) {
   const { t } = useTranslation();
@@ -287,425 +295,519 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
   // Check if there are any blocking errors (non-warning)
   const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
+  const fieldLabelClass =
+    'mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
+  const fieldInputClass = 'h-10 text-sm';
+  const fieldSelectClass = 'h-10 text-sm';
+
+  const formSidebar = currentEstimate ? (
+    <div className="space-y-6">
+      <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+        <DetailSection
+          title={t('estimates.information')}
+          icon={Info}
+          iconPlugin="estimates"
+          className="p-4"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">ID</span>
+              <span className="font-mono font-medium">
+                {formatDisplayNumber('estimates', currentEstimate.id)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Number</span>
+              <span className="font-mono font-medium">
+                {formatDisplayNumber('estimates', currentEstimate.estimateNumber)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Created</span>
+              <span className="font-medium">
+                {currentEstimate.createdAt
+                  ? new Date(currentEstimate.createdAt).toLocaleDateString()
+                  : '—'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Updated</span>
+              <span className="font-medium">
+                {currentEstimate.updatedAt
+                  ? new Date(currentEstimate.updatedAt).toLocaleDateString()
+                  : '—'}
+              </span>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+      <DetailActivityLog
+        entityType="estimate"
+        entityId={currentEstimate.id}
+        limit={30}
+        title={t('estimates.activity')}
+        showClearButton
+        refreshKey={String(currentEstimate.updatedAt ?? currentEstimate.id)}
+      />
+    </div>
+  ) : null;
 
   return (
-    <div className="space-y-4">
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
-        }}
-      >
-        {/* Validation Summary */}
-        {hasBlockingErrors && (
-          <Card padding="sm" className="shadow-none px-0">
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-red-400 dark:text-red-500"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
-                    Cannot save estimate
-                  </h3>
-                  <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                    <p>Please fix the following errors before saving:</p>
-                    <ul className="list-disc list-inside mt-1">
-                      {validationErrors
-                        .filter((error) => !error.message.includes('Warning'))
-                        .map((error, index) => (
-                          <li key={error.field ?? index}>{error.message}</li>
-                        ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
+    <>
+      <div
+        className={cn(
+          'plugin-estimates min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
+          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
         )}
-
-        {/* Customer Selection */}
-        <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title={t('estimates.customerInfo')} icon={User} iconPlugin="estimates">
-            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-              <div>
-                <Label htmlFor="estimate-contact" className="mb-1">
-                  Customer
-                </Label>
-                <NativeSelect
-                  id="estimate-contact"
-                  value={formData.contactId}
-                  onChange={(e) => handleContactChange(e.target.value)}
-                  className={getFieldError('contactId') ? 'border-red-500' : ''}
-                  required
-                >
-                  <option value="">Select a customer...</option>
-                  {safeContacts.map((contact) => (
-                    <option key={contact.id} value={contact.id}>
-                      {contact.companyName}{' '}
-                      {contact.organizationNumber && `(${contact.organizationNumber})`}
-                    </option>
-                  ))}
-                </NativeSelect>
-                {getFieldError('contactId') && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                    {getFieldError('contactId')?.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="estimate-currency" className="mb-1">
-                  Currency
-                </Label>
-                <NativeSelect
-                  id="estimate-currency"
-                  value={formData.currency}
-                  onChange={(e) => updateField('currency', e.target.value)}
-                >
-                  <option value="SEK">SEK (Swedish Krona)</option>
-                  <option value="EUR">EUR (Euro)</option>
-                  <option value="USD">USD (US Dollar)</option>
-                  <option value="NOK">NOK (Norwegian Krone)</option>
-                  <option value="DKK">DKK (Danish Krone)</option>
-                </NativeSelect>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
-
-        {/* Estimate Details */}
-        <Card padding="sm" className="shadow-none px-0">
-          <DetailSection
-            title={t('estimates.estimateDetails')}
-            icon={FileText}
-            iconPlugin="estimates"
+      >
+        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+          <form
+            className="space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
           >
-            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-              <div>
-                <Label htmlFor="estimate-valid-to" className="mb-1">
-                  Valid To
-                </Label>
-                <Input
-                  id="estimate-valid-to"
-                  type="date"
-                  value={formatValidToDate(formData.validTo)}
-                  onChange={(e) => updateField('validTo', parseValidToDate(e.target.value))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="estimate-status" className="mb-1">
-                  Status
-                </Label>
-                <NativeSelect
-                  id="estimate-status"
-                  value={formData.status}
-                  onChange={(e) => updateField('status', e.target.value)}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="sent">Sent</option>
-                  <option value="accepted">Accepted</option>
-                  <option value="rejected">Rejected</option>
-                </NativeSelect>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
-
-        {/* Line Items */}
-        <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title={t('estimates.lineItems')} icon={ListOrdered} iconPlugin="estimates">
-            <div className="flex items-center justify-end mb-3">
-              <Button
-                type="button"
-                onClick={addLineItem}
-                variant="secondary"
-                icon={Plus}
-                size="sm"
-                className="h-9 text-xs px-3"
-              >
-                Add Item
-              </Button>
-            </div>
-
-            {formData.lineItems.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 text-sm">No line items added yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {formData.lineItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`border border-gray-200 dark:border-gray-800 rounded-lg p-3 ${
-                      duplicatedItemIds.has(item.id) ? 'bg-green-50 dark:bg-green-950/30' : ''
-                    }`}
-                  >
-                    {/* Row 1: Item number + Description + Action */}
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-shrink-0 w-12">
-                        Item {index + 1}
-                      </span>
-                      <Textarea
-                        value={item.description}
-                        onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                        placeholder="Service or product description"
-                        rows={1}
-                        className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => duplicateLineItem(index)}
-                        variant="secondary"
-                        icon={Copy}
-                        size="sm"
-                        className="h-8 w-8 p-0 flex-shrink-0"
-                        title="Duplicate item"
-                      ></Button>
-                      <Button
-                        type="button"
-                        onClick={() => removeLineItem(index)}
-                        variant="danger"
-                        icon={Trash2}
-                        size="sm"
-                        className="h-8 w-8 p-0 flex-shrink-0"
-                      ></Button>
+            {/* Validation Summary */}
+            {hasBlockingErrors && (
+              <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-red-400 dark:text-red-500"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
                     </div>
-
-                    {/* Row 2: Numbers table */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50 dark:bg-gray-900/50">
-                          <tr>
-                            <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Qty
-                            </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Unit Price
-                            </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Discount %
-                            </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              VAT %
-                            </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Discount
-                            </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              VAT
-                            </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              Total
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td className="px-2 py-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)
-                                }
-                                className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                                required
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={item.unitPrice}
-                                onChange={(e) =>
-                                  updateLineItem(
-                                    index,
-                                    'unitPrice',
-                                    parseFloat(e.target.value) || 0,
-                                  )
-                                }
-                                className="w-20 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                                required
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={item.discount || 0}
-                                onChange={(e) =>
-                                  updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)
-                                }
-                                className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <NativeSelect
-                                value={item.vatRate}
-                                onChange={(e) =>
-                                  updateLineItem(index, 'vatRate', parseFloat(e.target.value))
-                                }
-                                className="w-16 h-8 px-1 py-1 text-sm"
-                              >
-                                <option value="0">0%</option>
-                                <option value="6">6%</option>
-                                <option value="12">12%</option>
-                                <option value="25">25%</option>
-                              </NativeSelect>
-                            </td>
-                            <td className="px-2 py-1 text-right text-sm text-gray-900 dark:text-gray-100">
-                              -{(item.discountAmount || 0).toFixed(2)}
-                            </td>
-                            <td className="px-2 py-1 text-right text-sm text-gray-900 dark:text-gray-100">
-                              {(item.vatAmount || 0).toFixed(2)}
-                            </td>
-                            <td className="px-2 py-1 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {(item.lineTotal || 0).toFixed(2)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
+                        Cannot save estimate
+                      </h3>
+                      <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                        <p>Please fix the following errors before saving:</p>
+                        <ul className="list-disc list-inside mt-1">
+                          {validationErrors
+                            .filter((error) => !error.message.includes('Warning'))
+                            .map((error, index) => (
+                              <li key={error.field ?? index}>{error.message}</li>
+                            ))}
+                        </ul>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              </Card>
             )}
-          </DetailSection>
-        </Card>
 
-        {/* Estimate Discount - After line items, before totals */}
-        {formData.lineItems.length > 0 && (
-          <Card padding="sm" className="shadow-none px-0">
-            <DetailSection title={t('estimates.discount')} icon={Percent} iconPlugin="estimates">
-              <div className="flex items-center gap-4 mb-2">
-                <Label
-                  htmlFor="estimate-discount"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+            {/* Estimate properties: Contact → Currency → Valid to → Status (same order as view) */}
+            <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+              <DetailSection
+                title={t('estimates.estimateProperties')}
+                icon={SlidersHorizontal}
+                iconPlugin="estimates"
+                className="p-6"
+              >
+                <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+                  <div>
+                    <Label htmlFor="estimate-contact" className={fieldLabelClass}>
+                      {t('estimates.fieldContact')}
+                    </Label>
+                    <NativeSelect
+                      id="estimate-contact"
+                      value={formData.contactId}
+                      onChange={(e) => handleContactChange(e.target.value)}
+                      className={cn(
+                        fieldSelectClass,
+                        getFieldError('contactId') && 'border-red-500',
+                      )}
+                      required
+                    >
+                      <option value="">{t('estimates.selectContact')}</option>
+                      {safeContacts.map((contact) => (
+                        <option key={contact.id} value={contact.id}>
+                          {contact.companyName}{' '}
+                          {contact.organizationNumber && `(${contact.organizationNumber})`}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                    {getFieldError('contactId') && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {getFieldError('contactId')?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="estimate-currency" className={fieldLabelClass}>
+                      {t('estimates.fieldCurrency')}
+                    </Label>
+                    <NativeSelect
+                      id="estimate-currency"
+                      value={formData.currency}
+                      onChange={(e) => updateField('currency', e.target.value)}
+                      className={fieldSelectClass}
+                    >
+                      <option value="SEK">SEK (Swedish Krona)</option>
+                      <option value="EUR">EUR (Euro)</option>
+                      <option value="USD">USD (US Dollar)</option>
+                      <option value="NOK">NOK (Norwegian Krone)</option>
+                      <option value="DKK">DKK (Danish Krone)</option>
+                    </NativeSelect>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="estimate-valid-to" className={fieldLabelClass}>
+                      {t('estimates.fieldValidTo')}
+                    </Label>
+                    <Input
+                      id="estimate-valid-to"
+                      type="date"
+                      value={formatValidToDate(formData.validTo)}
+                      onChange={(e) => updateField('validTo', parseValidToDate(e.target.value))}
+                      className={fieldInputClass}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="estimate-status" className={fieldLabelClass}>
+                      {t('estimates.fieldStatus')}
+                    </Label>
+                    <NativeSelect
+                      id="estimate-status"
+                      value={formData.status}
+                      onChange={(e) => updateField('status', e.target.value)}
+                      className={fieldSelectClass}
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="sent">Sent</option>
+                      <option value="accepted">Accepted</option>
+                      <option value="rejected">Rejected</option>
+                    </NativeSelect>
+                  </div>
+                </div>
+              </DetailSection>
+            </Card>
+
+            {/* Line Items */}
+            <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+              <DetailSection
+                title={t('estimates.lineItems')}
+                icon={ListOrdered}
+                iconPlugin="estimates"
+                className="p-6"
+              >
+                <div className="flex items-center justify-end mb-3">
+                  <Button
+                    type="button"
+                    onClick={addLineItem}
+                    variant="secondary"
+                    icon={Plus}
+                    size="sm"
+                    className="h-9 text-xs px-3"
+                  >
+                    Add Item
+                  </Button>
+                </div>
+
+                {formData.lineItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No line items added yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {formData.lineItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`rounded-lg border border-border p-3 ${
+                          duplicatedItemIds.has(item.id) ? 'bg-green-50 dark:bg-green-950/30' : ''
+                        }`}
+                      >
+                        {/* Row 1: Item number + Description + Action */}
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="w-12 flex-shrink-0 text-sm font-medium text-foreground">
+                            Item {index + 1}
+                          </span>
+                          <Textarea
+                            value={item.description}
+                            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                            placeholder="Service or product description"
+                            rows={1}
+                            className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
+                            required
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => duplicateLineItem(index)}
+                            variant="secondary"
+                            icon={Copy}
+                            size="sm"
+                            className="h-8 w-8 p-0 flex-shrink-0"
+                            title="Duplicate item"
+                          ></Button>
+                          <Button
+                            type="button"
+                            onClick={() => removeLineItem(index)}
+                            variant="danger"
+                            icon={Trash2}
+                            size="sm"
+                            className="h-8 w-8 p-0 flex-shrink-0"
+                          ></Button>
+                        </div>
+
+                        {/* Row 2: Numbers table */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-muted/40">
+                              <tr>
+                                <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                  Qty
+                                </th>
+                                <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                  Unit Price
+                                </th>
+                                <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                  Discount %
+                                </th>
+                                <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                  VAT %
+                                </th>
+                                <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                  Discount
+                                </th>
+                                <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                  VAT
+                                </th>
+                                <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                  Total
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td className="px-2 py-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={item.quantity}
+                                    onChange={(e) =>
+                                      updateLineItem(
+                                        index,
+                                        'quantity',
+                                        parseFloat(e.target.value) || 0,
+                                      )
+                                    }
+                                    className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                    required
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={item.unitPrice}
+                                    onChange={(e) =>
+                                      updateLineItem(
+                                        index,
+                                        'unitPrice',
+                                        parseFloat(e.target.value) || 0,
+                                      )
+                                    }
+                                    className="w-20 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                    required
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={item.discount || 0}
+                                    onChange={(e) =>
+                                      updateLineItem(
+                                        index,
+                                        'discount',
+                                        parseFloat(e.target.value) || 0,
+                                      )
+                                    }
+                                    className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                  />
+                                </td>
+                                <td className="px-2 py-1">
+                                  <NativeSelect
+                                    value={item.vatRate}
+                                    onChange={(e) =>
+                                      updateLineItem(index, 'vatRate', parseFloat(e.target.value))
+                                    }
+                                    className="w-16 h-8 px-1 py-1 text-sm"
+                                  >
+                                    <option value="0">0%</option>
+                                    <option value="6">6%</option>
+                                    <option value="12">12%</option>
+                                    <option value="25">25%</option>
+                                  </NativeSelect>
+                                </td>
+                                <td className="px-2 py-1 text-right text-sm text-foreground">
+                                  -{(item.discountAmount || 0).toFixed(2)}
+                                </td>
+                                <td className="px-2 py-1 text-right text-sm text-foreground">
+                                  {(item.vatAmount || 0).toFixed(2)}
+                                </td>
+                                <td className="px-2 py-1 text-right text-sm font-medium text-foreground">
+                                  {(item.lineTotal || 0).toFixed(2)}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </DetailSection>
+            </Card>
+
+            {/* Estimate Discount - After line items, before totals */}
+            {formData.lineItems.length > 0 && (
+              <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+                <DetailSection
+                  title={t('estimates.discount')}
+                  icon={Percent}
+                  iconPlugin="estimates"
+                  className="p-6"
                 >
-                  Estimate Discount (%)
-                </Label>
-                <div className="max-w-xs">
-                  <Input
-                    id="estimate-discount"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.estimateDiscount || 0}
-                    onChange={(e) =>
-                      updateField('estimateDiscount', parseFloat(e.target.value) || 0)
-                    }
-                    placeholder="0.00"
-                    className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                  <div className="flex items-center gap-4 mb-2">
+                    <Label htmlFor="estimate-discount" className={fieldLabelClass}>
+                      Estimate Discount (%)
+                    </Label>
+                    <div className="max-w-xs">
+                      <Input
+                        id="estimate-discount"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={formData.estimateDiscount || 0}
+                        onChange={(e) =>
+                          updateField('estimateDiscount', parseFloat(e.target.value) || 0)
+                        }
+                        placeholder="0.00"
+                        className={cn(
+                          fieldInputClass,
+                          '[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]',
+                        )}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Discount applied to subtotal after line item discounts
+                  </p>
+                </DetailSection>
+              </Card>
+            )}
+
+            {/* Totals Summary */}
+            {formData.lineItems.length > 0 && (
+              <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+                <DetailSection
+                  title={t('estimates.summary')}
+                  icon={Calculator}
+                  iconPlugin="estimates"
+                  className="p-6"
+                >
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Subtotal:</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {(totals.subtotal || 0).toFixed(2)} {formData.currency}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Total Line Item Discounts:
+                      </span>
+                      <span className="text-sm font-medium text-foreground">
+                        -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-border pt-2">
+                      <span className="text-sm text-muted-foreground">
+                        Subtotal after line discounts:
+                      </span>
+                      <span className="text-sm font-medium text-foreground">
+                        {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
+                      </span>
+                    </div>
+                    {/* NEW: Show estimate discount if applied */}
+                    {formData.estimateDiscount > 0 && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            Estimate Discount ({formData.estimateDiscount}%):
+                          </span>
+                          <span className="text-sm font-medium text-foreground">
+                            -{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t border-border pt-2">
+                          <span className="text-sm text-muted-foreground">
+                            Subtotal after estimate discount:
+                          </span>
+                          <span className="text-sm font-medium text-foreground">
+                            {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)}{' '}
+                            {formData.currency}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Total VAT:</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {(totals.totalVat || 0).toFixed(2)} {formData.currency}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-border pt-2 text-lg font-semibold">
+                      <span>Total:</span>
+                      <span>
+                        {(totals.total || 0).toFixed(2)} {formData.currency}
+                      </span>
+                    </div>
+                  </div>
+                </DetailSection>
+              </Card>
+            )}
+
+            {/* Notes */}
+            <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+              <DetailSection
+                title={t('estimates.notes')}
+                icon={StickyNote}
+                iconPlugin="estimates"
+                className="p-6"
+              >
+                <div>
+                  <Label htmlFor="estimate-notes" className={fieldLabelClass}>
+                    Additional Notes
+                  </Label>
+                  <Textarea
+                    id="estimate-notes"
+                    value={formData.notes}
+                    onChange={(e) => updateField('notes', e.target.value)}
+                    placeholder="Additional notes or terms..."
+                    rows={4}
+                    className="resize-vertical text-sm"
                   />
                 </div>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Discount applied to subtotal after line item discounts
-              </p>
-            </DetailSection>
-          </Card>
-        )}
-
-        {/* Totals Summary */}
-        {formData.lineItems.length > 0 && (
-          <Card padding="sm" className="shadow-none px-0">
-            <DetailSection title={t('estimates.summary')} icon={Calculator} iconPlugin="estimates">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {(totals.subtotal || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Line Item Discounts:
-                  </span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Subtotal after line discounts:
-                  </span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-                {/* NEW: Show estimate discount if applied */}
-                {formData.estimateDiscount > 0 && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        Estimate Discount ({formData.estimateDiscount}%):
-                      </span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        -{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        Subtotal after estimate discount:
-                      </span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)} {formData.currency}
-                      </span>
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Total VAT:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {(totals.totalVat || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between text-lg font-semibold border-t border-gray-200 dark:border-gray-800 pt-2">
-                  <span>Total:</span>
-                  <span>
-                    {(totals.total || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-        )}
-
-        {/* Notes */}
-        <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title={t('estimates.notes')} icon={StickyNote} iconPlugin="estimates">
-            <div>
-              <Label htmlFor="estimate-notes" className="mb-1">
-                Additional Notes
-              </Label>
-              <Textarea
-                id="estimate-notes"
-                value={formData.notes}
-                onChange={(e) => updateField('notes', e.target.value)}
-                placeholder="Additional notes or terms..."
-                rows={4}
-                className="resize-vertical"
-              />
-            </div>
-          </DetailSection>
-        </Card>
-      </form>
+              </DetailSection>
+            </Card>
+          </form>
+        </DetailLayout>
+      </div>
 
       {/* Unsaved Changes Warning */}
       <ConfirmDialog
@@ -718,6 +820,6 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         onCancel={cancelDiscard}
         variant="warning"
       />
-    </div>
+    </>
   );
 }

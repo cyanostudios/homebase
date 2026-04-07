@@ -608,7 +608,7 @@ export const TaskList: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">
+                    <TableHead className="w-12 text-xs">
                       <input
                         ref={headerCheckboxRef}
                         type="checkbox"
@@ -619,7 +619,7 @@ export const TaskList: React.FC = () => {
                       />
                     </TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('title')}
                     >
                       <div className="flex items-center gap-2">
@@ -633,7 +633,7 @@ export const TaskList: React.FC = () => {
                       </div>
                     </TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('status')}
                     >
                       <div className="flex items-center gap-2">
@@ -647,7 +647,7 @@ export const TaskList: React.FC = () => {
                       </div>
                     </TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('priority')}
                     >
                       <div className="flex items-center gap-2">
@@ -661,7 +661,7 @@ export const TaskList: React.FC = () => {
                       </div>
                     </TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('dueDate')}
                     >
                       <div className="flex items-center gap-2">
@@ -674,9 +674,9 @@ export const TaskList: React.FC = () => {
                           ))}
                       </div>
                     </TableHead>
-                    <TableHead>Assigned</TableHead>
+                    <TableHead className="text-xs">Assigned</TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('updatedAt')}
                     >
                       <div className="flex items-center gap-2">
@@ -714,7 +714,7 @@ export const TaskList: React.FC = () => {
                           handleOpenForView(task);
                         }}
                       >
-                        <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={taskIsSelected}
@@ -757,7 +757,7 @@ export const TaskList: React.FC = () => {
                             );
                           })()}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground">
                           {new Date(task.updatedAt).toLocaleDateString()}
                         </TableCell>
                       </TableRow>

@@ -504,7 +504,7 @@ export function CupsList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
@@ -514,7 +514,7 @@ export function CupsList() {
                     />
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => {
                       if (sortField === 'name') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -534,10 +534,10 @@ export function CupsList() {
                         ))}
                     </div>
                   </TableHead>
-                  <TableHead>Organizer</TableHead>
-                  <TableHead>Visible</TableHead>
+                  <TableHead className="text-xs">Organizer</TableHead>
+                  <TableHead className="text-xs">Visible</TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => {
                       if (sortField === 'featured') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -558,7 +558,7 @@ export function CupsList() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => {
                       if (sortField === 'location') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -579,7 +579,7 @@ export function CupsList() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50 max-w-[14rem]"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50 max-w-[14rem]"
                     onClick={() => {
                       if (sortField === 'ingest') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -600,7 +600,7 @@ export function CupsList() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => {
                       if (sortField === 'start_date') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -638,7 +638,7 @@ export function CupsList() {
                     }}
                     role="button"
                   >
-                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isSelected(cup.id)}
@@ -648,17 +648,17 @@ export function CupsList() {
                       />
                     </TableCell>
                     <TableCell className="font-medium">{cup.name || '—'}</TableCell>
-                    <TableCell>{cup.organizer || '—'}</TableCell>
-                    <TableCell>{cup.visible ? 'Yes' : 'No'}</TableCell>
-                    <TableCell>{cup.featured ? 'Yes' : 'No'}</TableCell>
-                    <TableCell>{cup.location || '—'}</TableCell>
+                    <TableCell className="text-xs">{cup.organizer || '—'}</TableCell>
+                    <TableCell className="text-xs">{cup.visible ? 'Yes' : 'No'}</TableCell>
+                    <TableCell className="text-xs">{cup.featured ? 'Yes' : 'No'}</TableCell>
+                    <TableCell className="text-xs">{cup.location || '—'}</TableCell>
                     <TableCell
-                      className="max-w-[14rem] truncate"
+                      className="max-w-[14rem] truncate text-xs"
                       title={ingestTitleForCup(cup.ingest_source_id) || undefined}
                     >
                       {ingestTitleForCup(cup.ingest_source_id) || '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs">
                       {cup.start_date ? new Date(cup.start_date).toLocaleDateString('sv-SE') : '—'}
                     </TableCell>
                   </TableRow>

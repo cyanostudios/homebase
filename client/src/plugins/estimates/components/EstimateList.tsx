@@ -6,6 +6,8 @@ import {
   FileText,
   Grid3x3,
   List as ListIcon,
+  Plus,
+  Search,
   Settings,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -14,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -26,8 +29,6 @@ import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
-import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -48,6 +49,7 @@ export function EstimateList() {
     estimates,
     estimatesContentView,
     openEstimateSettings,
+    openEstimatePanel,
     openEstimateForView,
     deleteEstimates,
     selectedEstimateIds,
@@ -61,7 +63,6 @@ export function EstimateList() {
   } = useEstimates();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
-  const { setHeaderTrailing } = useContentLayout();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('createdAt');
@@ -94,6 +95,7 @@ export function EstimateList() {
   );
 
   const [isMobile, setIsMobile] = useState(false);
+  const ESTIMATE_LIST_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 
   // Detect mobile screen size
   useEffect(() => {
@@ -284,62 +286,6 @@ export function EstimateList() {
     await exportToPDF(pdfData, filename, pdfHeaders, 'Estimates Export');
   };
 
-  useEffect(() => {
-    if (estimatesContentView !== 'list') {
-      setHeaderTrailing(null);
-      return () => setHeaderTrailing(null);
-    }
-    setHeaderTrailing(
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t('estimates.searchPlaceholder')}
-        rightActions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              onClick={() => openEstimateSettings()}
-              className="h-9 text-xs px-3"
-              title={t('common.settings')}
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Grid3x3}
-              onClick={() => setViewMode('grid')}
-              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
-            >
-              {t('slots.grid')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={ListIcon}
-              onClick={() => setViewMode('list')}
-              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
-            >
-              {t('slots.list')}
-            </Button>
-          </div>
-        }
-      />,
-    );
-    return () => setHeaderTrailing(null);
-  }, [
-    t,
-    searchTerm,
-    setSearchTerm,
-    viewMode,
-    setViewMode,
-    setHeaderTrailing,
-    estimatesContentView,
-    openEstimateSettings,
-  ]);
-
   // Protected navigation handlers
   const handleOpenForView = (estimate: any) => {
     attemptNavigation(() => {
@@ -352,116 +298,99 @@ export function EstimateList() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Bulk Action Bar */}
-      <BulkActionBar
-        selectedCount={selectedCount}
-        onClearSelection={clearEstimateSelection}
-        actions={[
-          {
-            label: t('common.exportCsv'),
-            icon: FileSpreadsheet,
-            onClick: handleExportCSV,
-            variant: 'default',
-          },
-          {
-            label: t('common.exportPdf'),
-            icon: FileText,
-            onClick: handleExportPDF,
-            variant: 'default',
-          },
-          {
-            label: t('common.delete'),
-            icon: Trash2,
-            onClick: () => setShowBulkDeleteModal(true),
-            variant: 'destructive',
-          },
-        ]}
-      />
-
-      <Card className="shadow-none border-none bg-transparent">
-        {sortedEstimates.length === 0 ? (
-          <Card className="shadow-none">
-            <div className="p-6 text-center text-muted-foreground">
-              {searchTerm ? t('estimates.noMatch') : t('estimates.noYet')}
-            </div>
-          </Card>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {sortedEstimates.map((estimate, index) => {
-              const estimateIsSelected = isSelected(estimate.id);
-              const totals = calculateEstimateTotals(
-                estimate.lineItems || [],
-                estimate.estimateDiscount || 0,
-              );
-              return (
-                <Card
-                  key={estimate.id}
-                  className={cn(
-                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[180px] border-transparent bg-gray-50 dark:bg-gray-900/40',
-                    estimateIsSelected
-                      ? 'plugin-estimates bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
-                      : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md',
-                    recentlyDuplicatedEstimateId === String(estimate.id) &&
-                      'bg-green-50 dark:bg-green-950/30',
-                  )}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                      return;
-                    }
-                    e.preventDefault();
-                    handleOpenForView(estimate);
-                  }}
-                  data-list-item={JSON.stringify(estimate)}
-                  data-plugin-name="estimates"
-                  role="button"
-                  aria-label={`Open estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={estimateIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(estimate.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer h-4 w-4"
-                        aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
-                      />
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        {formatDisplayNumber('estimates', estimate.estimateNumber)}
-                      </span>
-                    </div>
-                    {getStatusBadge(estimate.status)}
-                  </div>
-                  <h3 className="font-semibold text-base mb-1 line-clamp-1">
-                    {estimate.contactName}
-                  </h3>
-                  <div className="text-xs text-muted-foreground mb-4">
-                    {estimate.organizationNumber && <span>Org: {estimate.organizationNumber}</span>}
-                  </div>
-                  <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
-                    <div className="flex items-center justify-between text-sm font-medium">
-                      <span>
-                        {totals.total.toFixed(2)} {estimate.currency}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                      <div>Created: {new Date(estimate.createdAt).toLocaleDateString()}</div>
-                      <div>Valid to: {new Date(estimate.validTo).toLocaleDateString()}</div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
+    <div className="plugin-estimates min-h-full bg-background">
+      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
+        <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+          <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+            {t('nav.estimates')}
+          </h2>
+          <div className="relative w-full max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('estimates.searchPlaceholder')}
+              className="h-9 bg-background pl-9 text-xs"
+            />
           </div>
-        ) : isMobile ? (
-          // Mobile: Card layout
-          <Card className="shadow-none">
-            <div className="space-y-2 p-4">
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Settings}
+            onClick={() => openEstimateSettings()}
+            className="h-9 px-3 text-xs"
+            title={t('common.settings')}
+          >
+            {t('common.settings')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Grid3x3}
+            onClick={() => setViewMode('grid')}
+            className={cn('h-9 px-3 text-xs', viewMode === 'grid' && 'text-primary')}
+          >
+            {t('slots.grid')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ListIcon}
+            onClick={() => setViewMode('list')}
+            className={cn('h-9 px-3 text-xs', viewMode === 'list' && 'text-primary')}
+          >
+            {t('slots.list')}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            className="h-9 px-3 text-xs"
+            onClick={() => attemptNavigation(() => openEstimatePanel(null))}
+          >
+            {t('estimates.addEstimate')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="px-6 pb-6 space-y-4">
+        {/* Bulk Action Bar */}
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onClearSelection={clearEstimateSelection}
+          actions={[
+            {
+              label: t('common.exportCsv'),
+              icon: FileSpreadsheet,
+              onClick: handleExportCSV,
+              variant: 'default',
+            },
+            {
+              label: t('common.exportPdf'),
+              icon: FileText,
+              onClick: handleExportPDF,
+              variant: 'default',
+            },
+            {
+              label: t('common.delete'),
+              icon: Trash2,
+              onClick: () => setShowBulkDeleteModal(true),
+              variant: 'destructive',
+            },
+          ]}
+        />
+
+        <div>
+          {sortedEstimates.length === 0 ? (
+            <Card className={ESTIMATE_LIST_CARD_CLASS}>
+              <div className="p-6 text-center text-muted-foreground">
+                {searchTerm ? t('estimates.noMatch') : t('estimates.noYet')}
+              </div>
+            </Card>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {sortedEstimates.map((estimate, index) => {
                 const estimateIsSelected = isSelected(estimate.id);
                 const totals = calculateEstimateTotals(
@@ -472,7 +401,10 @@ export function EstimateList() {
                   <Card
                     key={estimate.id}
                     className={cn(
-                      'p-4 cursor-pointer hover:bg-accent transition-colors',
+                      'relative min-h-[180px] cursor-pointer border border-border/70 bg-card p-5 shadow-sm transition-all',
+                      estimateIsSelected
+                        ? 'plugin-estimates bg-plugin-subtle border-plugin-subtle ring-1 border-plugin-subtle'
+                        : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md',
                       recentlyDuplicatedEstimateId === String(estimate.id) &&
                         'bg-green-50 dark:bg-green-950/30',
                     )}
@@ -488,135 +420,54 @@ export function EstimateList() {
                     role="button"
                     aria-label={`Open estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <input
-                            type="checkbox"
-                            checked={estimateIsSelected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(estimate.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
-                            aria-label={
-                              estimateIsSelected ? 'Unselect estimate' : 'Select estimate'
-                            }
-                          />
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {formatDisplayNumber('estimates', estimate.estimateNumber)}
-                          </span>
-                          {getStatusBadge(estimate.status)}
-                        </div>
-                        <h3 className="font-semibold mb-1 truncate">{estimate.contactName}</h3>
-                        {estimate.organizationNumber && (
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Org: {estimate.organizationNumber}
-                          </p>
-                        )}
-                        <div className="flex flex-col gap-1 text-sm">
-                          <div className="font-medium">
-                            {totals.total.toFixed(2)} {estimate.currency}
-                          </div>
-                          <div className="text-muted-foreground">
-                            {estimate.lineItems.length} item
-                            {estimate.lineItems.length !== 1 ? 's' : ''}
-                            {totals.totalVat > 0 &&
-                              ` • VAT: ${totals.totalVat.toFixed(2)} ${estimate.currency}`}
-                          </div>
-                          <div className="text-muted-foreground">
-                            Valid to: {new Date(estimate.validTo).toLocaleDateString()}
-                          </div>
-                          <div className="text-muted-foreground">
-                            Created: {new Date(estimate.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={estimateIsSelected}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(estimate.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer h-4 w-4"
+                          aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {formatDisplayNumber('estimates', estimate.estimateNumber)}
+                        </span>
+                      </div>
+                      {getStatusBadge(estimate.status)}
+                    </div>
+                    <h3 className="font-semibold text-base mb-1 line-clamp-1">
+                      {estimate.contactName}
+                    </h3>
+                    <div className="text-xs text-muted-foreground mb-4">
+                      {estimate.organizationNumber && (
+                        <span>Org: {estimate.organizationNumber}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
+                      <div className="flex items-center justify-between text-sm font-medium">
+                        <span>
+                          {totals.total.toFixed(2)} {estimate.currency}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {estimate.lineItems.length} item
+                          {estimate.lineItems.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                        <div>Created: {new Date(estimate.createdAt).toLocaleDateString()}</div>
+                        <div>Valid to: {new Date(estimate.validTo).toLocaleDateString()}</div>
                       </div>
                     </div>
                   </Card>
                 );
               })}
             </div>
-          </Card>
-        ) : (
-          // Desktop: Table layout
-          <Card className="shadow-none">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <input
-                      ref={headerCheckboxRef}
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={handleHeaderCheckboxChange}
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={
-                        allVisibleSelected ? 'Deselect all estimates' : 'Select all estimates'
-                      }
-                    />
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('estimateNumber')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Estimate #</span>
-                      {sortField === 'estimateNumber' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('contactName')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Contact</span>
-                      {sortField === 'contactName' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('total')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Total</span>
-                      {sortField === 'total' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead>Valid To</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('createdAt')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Created</span>
-                      {sortField === 'createdAt' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          ) : isMobile ? (
+            // Mobile: Card layout
+            <Card className={ESTIMATE_LIST_CARD_CLASS}>
+              <div className="space-y-2 p-4">
                 {sortedEstimates.map((estimate, index) => {
                   const estimateIsSelected = isSelected(estimate.id);
                   const totals = calculateEstimateTotals(
@@ -624,86 +475,246 @@ export function EstimateList() {
                     estimate.estimateDiscount || 0,
                   );
                   return (
-                    <TableRow
+                    <Card
                       key={estimate.id}
                       className={cn(
-                        'cursor-pointer hover:bg-accent',
+                        'border border-border/70 bg-card p-4 shadow-sm cursor-pointer hover:bg-muted/50 transition-colors',
                         recentlyDuplicatedEstimateId === String(estimate.id) &&
                           'bg-green-50 dark:bg-green-950/30',
                       )}
-                      tabIndex={0}
-                      data-list-item={JSON.stringify(estimate)}
-                      data-plugin-name="estimates"
-                      role="button"
-                      aria-label={`Open estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}`}
                       onClick={(e) => {
-                        // Don't open if clicking checkbox
                         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                           return;
                         }
                         e.preventDefault();
                         handleOpenForView(estimate);
                       }}
+                      data-list-item={JSON.stringify(estimate)}
+                      data-plugin-name="estimates"
+                      role="button"
+                      aria-label={`Open estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}`}
                     >
-                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={estimateIsSelected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(estimate.id)}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
-                        />
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {formatDisplayNumber('estimates', estimate.estimateNumber)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-0.5">
-                          <span>{estimate.contactName}</span>
-                          {estimate.organizationNumber && (
-                            <span className="text-xs text-muted-foreground">
-                              Org: {estimate.organizationNumber}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <input
+                              type="checkbox"
+                              checked={estimateIsSelected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(estimate.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                              aria-label={
+                                estimateIsSelected ? 'Unselect estimate' : 'Select estimate'
+                              }
+                            />
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {formatDisplayNumber('estimates', estimate.estimateNumber)}
                             </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(estimate.status)}</TableCell>
-                      <TableCell className="font-medium">
-                        {totals.total.toFixed(2)} {estimate.currency}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(estimate.validTo).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
-                        {totals.totalVat > 0 && (
-                          <div className="text-xs">
-                            VAT: {totals.totalVat.toFixed(2)} {estimate.currency}
+                            {getStatusBadge(estimate.status)}
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(estimate.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
+                          <h3 className="font-semibold mb-1 truncate">{estimate.contactName}</h3>
+                          {estimate.organizationNumber && (
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Org: {estimate.organizationNumber}
+                            </p>
+                          )}
+                          <div className="flex flex-col gap-1 text-sm">
+                            <div className="font-medium">
+                              {totals.total.toFixed(2)} {estimate.currency}
+                            </div>
+                            <div className="text-muted-foreground">
+                              {estimate.lineItems.length} item
+                              {estimate.lineItems.length !== 1 ? 's' : ''}
+                              {totals.totalVat > 0 &&
+                                ` • VAT: ${totals.totalVat.toFixed(2)} ${estimate.currency}`}
+                            </div>
+                            <div className="text-muted-foreground">
+                              Valid to: {new Date(estimate.validTo).toLocaleDateString()}
+                            </div>
+                            <div className="text-muted-foreground">
+                              Created: {new Date(estimate.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </Card>
-        )}
-      </Card>
+              </div>
+            </Card>
+          ) : (
+            // Desktop: Table layout
+            <Card className={ESTIMATE_LIST_CARD_CLASS}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12 text-xs">
+                      <input
+                        ref={headerCheckboxRef}
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={handleHeaderCheckboxChange}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={
+                          allVisibleSelected ? 'Deselect all estimates' : 'Select all estimates'
+                        }
+                      />
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
+                      onClick={() => handleSort('estimateNumber')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Estimate #</span>
+                        {sortField === 'estimateNumber' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
+                      onClick={() => handleSort('contactName')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Contact</span>
+                        {sortField === 'contactName' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
+                      onClick={() => handleSort('total')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Total</span>
+                        {sortField === 'total' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-xs">Valid To</TableHead>
+                    <TableHead className="text-xs">Items</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
+                      onClick={() => handleSort('createdAt')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Created</span>
+                        {sortField === 'createdAt' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedEstimates.map((estimate, index) => {
+                    const estimateIsSelected = isSelected(estimate.id);
+                    const totals = calculateEstimateTotals(
+                      estimate.lineItems || [],
+                      estimate.estimateDiscount || 0,
+                    );
+                    return (
+                      <TableRow
+                        key={estimate.id}
+                        className={cn(
+                          'cursor-pointer hover:bg-muted/50',
+                          estimateIsSelected && 'bg-plugin-subtle',
+                          recentlyDuplicatedEstimateId === String(estimate.id) &&
+                            'bg-green-50 dark:bg-green-950/30',
+                        )}
+                        tabIndex={0}
+                        data-list-item={JSON.stringify(estimate)}
+                        data-plugin-name="estimates"
+                        role="button"
+                        aria-label={`Open estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}`}
+                        onClick={(e) => {
+                          // Don't open if clicking checkbox
+                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                            return;
+                          }
+                          e.preventDefault();
+                          handleOpenForView(estimate);
+                        }}
+                      >
+                        <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={estimateIsSelected}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(estimate.id)}
+                            className="h-4 w-4 cursor-pointer"
+                            aria-label={
+                              estimateIsSelected ? 'Unselect estimate' : 'Select estimate'
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {formatDisplayNumber('estimates', estimate.estimateNumber)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span>{estimate.contactName}</span>
+                            {estimate.organizationNumber && (
+                              <span className="text-xs text-muted-foreground">
+                                Org: {estimate.organizationNumber}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(estimate.status)}</TableCell>
+                        <TableCell className="font-medium">
+                          {totals.total.toFixed(2)} {estimate.currency}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {new Date(estimate.validTo).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {estimate.lineItems.length} item
+                          {estimate.lineItems.length !== 1 ? 's' : ''}
+                          {totals.totalVat > 0 && (
+                            <div className="text-xs">
+                              VAT: {totals.totalVat.toFixed(2)} {estimate.currency}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(estimate.createdAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </div>
 
-      {/* Bulk Delete Modal */}
-      <BulkDeleteModal
-        isOpen={showBulkDeleteModal}
-        onClose={() => setShowBulkDeleteModal(false)}
-        onConfirm={handleBulkDelete}
-        itemCount={selectedCount}
-        itemLabel="estimates"
-        isLoading={deleting}
-      />
+        {/* Bulk Delete Modal */}
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          itemCount={selectedCount}
+          itemLabel="estimates"
+          isLoading={deleting}
+        />
+      </div>
     </div>
   );
 }

@@ -392,7 +392,7 @@ export function MatchList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
@@ -403,7 +403,7 @@ export function MatchList() {
                     />
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                     onClick={() => {
                       if (sortField === 'home_team') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -423,9 +423,9 @@ export function MatchList() {
                         ))}
                     </div>
                   </TableHead>
-                  <TableHead>Sport · Format</TableHead>
+                  <TableHead className="text-xs">Sport · Format</TableHead>
                   <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                     onClick={() => {
                       if (sortField === 'location') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -446,7 +446,7 @@ export function MatchList() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                     onClick={() => {
                       if (sortField === 'start_time') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -467,7 +467,7 @@ export function MatchList() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="text-right cursor-pointer hover:bg-muted/50 select-none"
+                    className="text-right cursor-pointer hover:bg-muted/50 select-none text-xs"
                     onClick={() => {
                       if (sortField === 'updatedAt') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -510,7 +510,7 @@ export function MatchList() {
                     role="button"
                     aria-label={`Open ${match.home_team} – ${match.away_team}`}
                   >
-                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isSelected(match.id)}
@@ -525,17 +525,17 @@ export function MatchList() {
                         {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
                       </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
+                    <TableCell className="text-muted-foreground text-xs">
                       {match.sport_type}
                       {match.format ? ` · ${match.format}` : ''}
                       {match.total_minutes !== null && match.total_minutes !== undefined
                         ? ` · ${match.total_minutes} min`
                         : ''}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
+                    <TableCell className="text-muted-foreground text-xs">
                       {match.location || '—'}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
+                    <TableCell className="text-muted-foreground text-xs">
                       {formatDateTime(match.start_time)}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground text-xs">

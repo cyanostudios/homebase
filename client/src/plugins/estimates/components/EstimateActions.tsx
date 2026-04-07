@@ -42,7 +42,7 @@ export function EstimateShareBlock({ estimate }: { estimate: Estimate }) {
     <>
       {estimateShareExistingShare && (
         <div
-          className={`mt-4 p-4 rounded-lg border ${
+          className={`p-4 rounded-lg border ${
             isShareExpired
               ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
               : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'

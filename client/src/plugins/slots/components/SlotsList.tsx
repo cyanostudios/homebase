@@ -537,7 +537,7 @@ export function SlotsList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
@@ -550,7 +550,7 @@ export function SlotsList() {
                     />
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => {
                       if (sortField === 'name') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -571,7 +571,7 @@ export function SlotsList() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => {
                       if (sortField === 'location') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -592,7 +592,7 @@ export function SlotsList() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
+                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
                     onClick={() => {
                       if (sortField === 'slot_time') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -612,8 +612,8 @@ export function SlotsList() {
                         ))}
                     </div>
                   </TableHead>
-                  <TableHead>{t('common.capacity')}</TableHead>
-                  <TableHead>
+                  <TableHead className="text-xs">{t('common.capacity')}</TableHead>
+                  <TableHead className="text-xs">
                     {t('common.visible')} / {t('common.notifications')}
                   </TableHead>
                 </TableRow>
@@ -635,7 +635,7 @@ export function SlotsList() {
                     }}
                     role="button"
                   >
-                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isSelected(slot.id)}
@@ -672,7 +672,7 @@ export function SlotsList() {
                     >
                       {formatDateTime(slot.slot_time)}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1.5">
                         {slot.capacity}
                         <CapacityAssignedDots
@@ -681,7 +681,7 @@ export function SlotsList() {
                         />
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-xs text-muted-foreground">
                       {slot.visible ? t('common.yes') : t('common.no')} ·{' '}
                       {slot.notifications_enabled ? t('common.on') : t('common.off')}
                     </TableCell>

@@ -277,7 +277,7 @@ export const PulseList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-xs">
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
@@ -287,11 +287,11 @@ export const PulseList: React.FC = () => {
                       onChange={onToggleAllVisible}
                     />
                   </TableHead>
-                  <TableHead>{t('pulses.date')}</TableHead>
-                  <TableHead>{t('pulses.recipient')}</TableHead>
-                  <TableHead>{t('pulses.body')}</TableHead>
-                  <TableHead>{t('pulses.status')}</TableHead>
-                  <TableHead>{t('pulses.source')}</TableHead>
+                  <TableHead className="text-xs">{t('pulses.date')}</TableHead>
+                  <TableHead className="text-xs">{t('pulses.recipient')}</TableHead>
+                  <TableHead className="text-xs">{t('pulses.body')}</TableHead>
+                  <TableHead className="text-xs">{t('pulses.status')}</TableHead>
+                  <TableHead className="text-xs">{t('pulses.source')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -303,7 +303,7 @@ export const PulseList: React.FC = () => {
                       isSelected(entry.id) && 'bg-plugin-subtle',
                     )}
                   >
-                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 cursor-pointer"
@@ -313,24 +313,21 @@ export const PulseList: React.FC = () => {
                         aria-label={isSelected(entry.id) ? 'Deselect row' : 'Select row'}
                       />
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-xs text-muted-foreground">
                       {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
                     </TableCell>
-                    <TableCell
-                      className="max-w-[180px] truncate font-medium"
-                      title={entry.recipient}
-                    >
+                    <TableCell className="max-w-[180px] truncate text-xs" title={entry.recipient}>
                       {entry.recipient}
                     </TableCell>
-                    <TableCell className="max-w-[240px] truncate text-sm" title={entry.body || ''}>
+                    <TableCell className="max-w-[240px] truncate text-xs" title={entry.body || ''}>
                       {entry.body || '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs">
                       <Badge variant="outline" className="text-[10px] font-medium">
                         {entry.status || '—'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs">
                       {entry.pluginSource ? (
                         <Badge
                           variant="outline"
@@ -355,7 +352,7 @@ export const PulseList: React.FC = () => {
                           {entry.pluginSource}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
                   </TableRow>
