@@ -3,6 +3,7 @@
 // Uses only fields and shapes from docs/CDON_API_DOCUMENTATION.md. No guessing.
 // NOTE: We keep description line breaks using "<br>" so CDON storefront renders paragraphs consistently.
 
+const { Logger } = require('@homebase/core');
 const { htmlToPlainText } = require('../../server/core/utils/htmlToPlainText');
 const { htmlToLineBreakHtml } = require('../../server/core/utils/htmlToLineBreakHtml');
 const { getAssetOriginalUrl, normalizeProductImages } = require('../products/productImageAssets');
@@ -10,6 +11,7 @@ const { getAssetOriginalUrl, normalizeProductImages } = require('../products/pro
 const DEFAULT_CURRENCY_BY_MARKET = { SE: 'SEK', DK: 'DKK', FI: 'EUR', NO: 'NOK' };
 
 const MARKET_TO_LANG = { SE: 'sv-SE', DK: 'da-DK', FI: 'fi-FI', NO: 'nb-NO' };
+const PRODUCT_MEDIA_MISSING_FOR_CHANNEL = 'PRODUCT_MEDIA_MISSING_FOR_CHANNEL';
 
 const SKU_MIN = 1;
 const SKU_MAX = 64;
@@ -108,8 +110,23 @@ function mapProductToCdonArticle(product, overridesByMarket, defaultLanguage) {
   const status = product?.status === 'paused' ? 'paused' : 'for sale';
 
   if (!sku || sku.length < SKU_MIN || sku.length > SKU_MAX) return null;
-  if (!title || !mainImage) return null;
-  if (!isValidUrl(mainImage)) return null;
+  if (!title) return null;
+  if (!mainImage) {
+    Logger.warn('CDON export missing product media', {
+      productId: sku || null,
+      code: PRODUCT_MEDIA_MISSING_FOR_CHANNEL,
+      reason: 'missing_main_image',
+    });
+    return null;
+  }
+  if (!isValidUrl(mainImage)) {
+    Logger.warn('CDON export missing product media', {
+      productId: sku || null,
+      code: PRODUCT_MEDIA_MISSING_FOR_CHANNEL,
+      reason: 'invalid_main_image_url',
+    });
+    return null;
+  }
   if (quantity == null || quantity < 0) return null;
 
   const cdon =
@@ -282,9 +299,21 @@ function mapProductToCdonArticle(product, overridesByMarket, defaultLanguage) {
         return true;
       });
     const invalid = trimmed.find((u) => !isValidUrl(u));
-    if (invalid !== undefined) return null;
+    if (invalid !== undefined) {
+      Logger.warn('CDON export missing product media', {
+        productId: sku || null,
+        code: PRODUCT_MEDIA_MISSING_FOR_CHANNEL,
+        reason: 'invalid_images_url',
+      });
+      return null;
+    }
     if (trimmed.length) payload.images = trimmed;
   }
+  Logger.info('CDON export selected product media', {
+    productId: sku || null,
+    mainImage,
+    extraImageCount: Array.isArray(payload.images) ? payload.images.length : 0,
+  });
   if (textsExtended && typeof textsExtended === 'object') {
     const uspArr = [];
     const seen = new Set();
@@ -509,10 +538,10 @@ function getCdonArticleInputIssues(product, overridesByMarket, defaultLanguage) 
   });
   if (!hasPositiveMarketPrice) issues.push('missing_positive_price');
 
-  const images = Array.isArray(product?.images) ? product.images : [];
-  const invalidImage = images.find(
-    (u) => u != null && String(u).trim() && !isValidUrl(String(u).trim()),
-  );
+  const images = normalizeProductImages(product?.images)
+    .map((asset) => getAssetOriginalUrl(asset))
+    .filter(Boolean);
+  const invalidImage = images.find((u) => !isValidUrl(String(u).trim()));
   if (invalidImage) issues.push('invalid_images_url');
 
   const cdon =
@@ -540,8 +569,18 @@ function validateCdonArticlePayload(article) {
   const quantity = Number(article.quantity);
   if (!Number.isInteger(quantity) || quantity < 0) return { ok: false, reason: 'invalid_quantity' };
   const mainImage = String(article.main_image || '').trim();
-  if (!mainImage) return { ok: false, reason: 'missing_main_image' };
-  if (!isValidUrl(mainImage)) return { ok: false, reason: 'invalid_main_image_url' };
+  if (!mainImage)
+    return {
+      ok: false,
+      reason: 'missing_main_image',
+      code: PRODUCT_MEDIA_MISSING_FOR_CHANNEL,
+    };
+  if (!isValidUrl(mainImage))
+    return {
+      ok: false,
+      reason: 'invalid_main_image_url',
+      code: PRODUCT_MEDIA_MISSING_FOR_CHANNEL,
+    };
 
   const markets = Array.isArray(article.markets) ? article.markets : [];
   if (!markets.length) return { ok: false, reason: 'missing_markets' };

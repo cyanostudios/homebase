@@ -8,6 +8,7 @@ const {
   collectProductImageUrls,
 } = require('../../plugins/products/productMediaService');
 const { objectKeyFromB2FileUrl } = require('../../server/core/services/storage/b2ObjectStorage');
+const { AppError } = require('../../server/core/errors/AppError');
 
 function makeAsset(url, overrides = {}) {
   return {
@@ -381,5 +382,85 @@ describe('ProductMediaService', () => {
     expect(result.reusedCount).toBe(1);
     expect(result.uploadedCount).toBe(1);
     expect(result.failedCount).toBe(0);
+  });
+
+  it('blocks single product delete when managed media delete fails', async () => {
+    const mediaObjectModel = {
+      listByProductId: jest.fn().mockResolvedValue([
+        {
+          id: 'asset-1',
+          position: 0,
+          variants: {
+            original: { key: 'original-key', url: 'https://cdn.example.com/original.jpg' },
+          },
+        },
+      ]),
+    };
+    const storage = {
+      deleteObjects: jest
+        .fn()
+        .mockRejectedValue(
+          new AppError(
+            'Failed to delete product media from B2',
+            500,
+            'PRODUCT_MEDIA_DELETE_FAILED',
+          ),
+        ),
+    };
+    const service = new ProductMediaService({ storage, mediaObjectModel });
+
+    await expect(service.deleteProductMediaStrict({}, '123')).rejects.toMatchObject({
+      code: 'PRODUCT_MEDIA_DELETE_FAILED',
+      details: expect.objectContaining({
+        productId: '123',
+        reason: 'delete_product',
+      }),
+    });
+  });
+
+  it('returns partial delete result for bulk media delete', async () => {
+    const mediaObjectModel = {
+      listByProductId: jest.fn().mockImplementation(async (_req, productId) => [
+        {
+          id: `asset-${productId}`,
+          position: 0,
+          variants: {
+            original: {
+              key: `key-${productId}`,
+              url: `https://cdn.example.com/${productId}.jpg`,
+            },
+          },
+        },
+      ]),
+    };
+    const storage = {
+      deleteObjects: jest.fn().mockImplementation(async (targets) => {
+        if (targets.some((target) => target.key === 'key-1')) {
+          throw new AppError(
+            'Failed to delete product media from B2',
+            500,
+            'PRODUCT_MEDIA_DELETE_FAILED',
+          );
+        }
+      }),
+    };
+    const service = new ProductMediaService({ storage, mediaObjectModel });
+
+    await expect(service.deleteProductMediaStrict({}, '1')).rejects.toMatchObject({
+      code: 'PRODUCT_MEDIA_DELETE_FAILED',
+    });
+
+    const result = await service.deleteProductsMediaStrictPartial({}, ['1', '2']);
+
+    expect(result).toEqual({
+      okIds: ['2'],
+      failed: [
+        expect.objectContaining({
+          productId: '1',
+          code: 'PRODUCT_MEDIA_DELETE_FAILED',
+          message: 'Failed to delete product media from B2',
+        }),
+      ],
+    });
   });
 });

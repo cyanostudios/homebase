@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 
 const sharp = require('sharp');
+const { Logger } = require('@homebase/core');
 
 const { AppError } = require('../../errors/AppError');
 
@@ -68,6 +69,11 @@ class ImageProcessingService {
         .webp({ quality: 82 })
         .toBuffer();
       const previewMeta = await sharp(previewBuffer).metadata();
+      Logger.info('Product media preview generated', {
+        originalFilename: String(originalFilename || '').trim() || null,
+        width: Number.isFinite(Number(previewMeta.width)) ? Number(previewMeta.width) : null,
+        height: Number.isFinite(Number(previewMeta.height)) ? Number(previewMeta.height) : null,
+      });
 
       const thumbnailBuffer = await sharp(buffer, { animated: true, pages: 1 })
         .rotate()
@@ -80,6 +86,11 @@ class ImageProcessingService {
         .webp({ quality: 78 })
         .toBuffer();
       const thumbnailMeta = await sharp(thumbnailBuffer).metadata();
+      Logger.info('Product media thumbnail generated', {
+        originalFilename: String(originalFilename || '').trim() || null,
+        width: Number.isFinite(Number(thumbnailMeta.width)) ? Number(thumbnailMeta.width) : null,
+        height: Number.isFinite(Number(thumbnailMeta.height)) ? Number(thumbnailMeta.height) : null,
+      });
 
       return {
         originalFilename:
@@ -121,6 +132,10 @@ class ImageProcessingService {
         },
       };
     } catch (error) {
+      Logger.error('Product media processing failed', error, {
+        originalFilename: String(originalFilename || '').trim() || null,
+        code: 'PRODUCT_MEDIA_PROCESSING_FAILED',
+      });
       throw new AppError(
         `Failed to process image: ${String(error?.message || error)}`,
         400,

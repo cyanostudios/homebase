@@ -4,6 +4,34 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-08 – Produktmedia: strikt delete-policy, felkoder och loggning
+
+### Delete-policy (B2 ↔ DB)
+
+- **Strikt per produkt:** produkt tas **inte** bort ur databasen om associerad media inte kunde raderas från B2.
+- **Bulk delete är partial:** `DELETE /api/products/batch` raderar de produkter vars media-delete lyckas och returnerar en tydlig fel-lista för resten.
+  - Se ny doc: **`docs/products-bulk-delete.md`**
+
+### Felkoder (PRODUCT*MEDIA*\*) och tydligare kontrakt
+
+- **`PRODUCT_MEDIA_MISSING_FOR_CHANNEL`:** används när CDON/Fyndiq saknar giltig huvudbild (t.ex. missing/invalid `main_image`).
+- Standardiserad error-wrapping i produktmedia så att mediafel alltid får en tydlig `PRODUCT_MEDIA_*`-kod vid delete/fetch/process/upload.
+
+### Loggning (utan credential-läckage)
+
+- Strukturerade loggar för:
+  - fetch start/success/fail
+  - upload start/success/skipped (reused)
+  - preview/thumbnail generation
+  - delete start/success/fail (inkl. counts + productId)
+  - Woo export: valda bild-URL:er (original)
+
+### Tester
+
+- Nya/utökade tester för:
+  - strict delete och partial bulk delete (**`server/__tests__/productDeletePolicy.test.js`**, samt nya fall i **`productMediaService.test.js`**)
+  - kanal-validering som bär `PRODUCT_MEDIA_MISSING_FOR_CHANNEL` (**`productMediaChannels.test.js`**)
+
 ## 2026-04-04 – Produktmedia: asset-modell (original/preview/thumbnail), batch-pipeline, kanaler
 
 ### Datamodell och lagring

@@ -1,3 +1,9 @@
+jest.mock('@homebase/core', () => ({
+  Logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  Context: { getUserId: jest.fn(() => null) },
+  Database: { get: jest.fn() },
+}));
+
 const WooCommerceController = require('../../plugins/woocommerce-products/controller');
 
 function makeAsset(originalUrl, previewUrl) {

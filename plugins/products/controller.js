@@ -1714,7 +1714,7 @@ class ProductController {
 
   async delete(req, res) {
     try {
-      await this.productMediaService.deleteProductMedia(req, req.params.id);
+      await this.productMediaService.deleteProductMediaStrict(req, req.params.id);
       await this.model.delete(req, req.params.id);
       return res.json({ message: 'Product deleted successfully' });
     } catch (error) {
@@ -1934,21 +1934,44 @@ class ProductController {
         });
       }
 
-      await this.productMediaService.deleteProductsMedia(req, ids);
-      const result = await this.model.bulkDelete(req, ids);
+      const mediaDelete = await this.productMediaService.deleteProductsMediaStrictPartial(req, ids);
+      const deletedIds = [];
+      const failed = [...(Array.isArray(mediaDelete?.failed) ? mediaDelete.failed : [])];
 
-      const deleted =
-        typeof result?.deletedCount === 'number'
-          ? result.deletedCount
-          : Array.isArray(result?.deletedIds)
-            ? result.deletedIds.length
-            : 0;
+      for (const productId of mediaDelete?.okIds || []) {
+        try {
+          const result = await this.model.delete(req, productId);
+          const deletedId = String(result?.id || '').trim() || String(productId);
+          deletedIds.push(deletedId);
+        } catch (error) {
+          if (error instanceof AppError) {
+            failed.push({
+              productId,
+              code: error.code,
+              message: error.message,
+              details: error.details || null,
+            });
+          } else {
+            failed.push({
+              productId,
+              code: AppError.CODES.DATABASE_ERROR,
+              message: 'Failed to delete product',
+              details: null,
+            });
+          }
+        }
+      }
+
+      const deleted = deletedIds.length;
 
       return res.json({
-        ok: true,
+        ok: failed.length === 0,
+        partial: failed.length > 0,
         requested: ids.length,
         deleted,
-        deletedIds: result?.deletedIds || [],
+        deletedIds,
+        failedCount: failed.length,
+        failed,
       });
     } catch (error) {
       Logger.error('Bulk delete error', error, { userId: Context.getUserId(req) });

@@ -666,10 +666,15 @@ class FyndiqProductsController {
         if (!payload) {
           const issues = getFyndiqArticleInputIssues(p, overrides, defaultLanguage);
           const reason = issues.length ? issues.join(',') : 'mapper_rejected_unknown';
+          const reasonCode =
+            issues.includes('missing_main_image') || issues.includes('invalid_main_image_url')
+              ? 'PRODUCT_MEDIA_MISSING_FOR_CHANNEL'
+              : null;
           if (diagnoseTrace) {
             diagnoseTrace.perProduct[productId] = {
               skip: 'mapper_rejected',
               reason,
+              code: reasonCode,
               issues,
               overrides: Object.fromEntries(
                 Object.entries(overrides).map(([k, v]) => [k, { ...v }]),
@@ -684,19 +689,27 @@ class FyndiqProductsController {
               enabled: true,
               externalId: null,
               status: 'error',
-              error: `mapper_rejected:${reason}`,
+              error: reasonCode
+                ? `mapper_rejected:${reasonCode}:${reason}`
+                : `mapper_rejected:${reason}`,
             });
           }
           items.push({
             productId,
             sku: p?.sku || null,
             status: 'error',
-            error: `mapper_rejected:${reason}`,
+            error: reasonCode
+              ? `mapper_rejected:${reasonCode}:${reason}`
+              : `mapper_rejected:${reason}`,
           });
           continue;
         }
         const payloadCheck = validateFyndiqArticlePayload(payload);
         if (!payloadCheck.ok) {
+          const reasonCode =
+            typeof payloadCheck.code === 'string' && payloadCheck.code.trim()
+              ? String(payloadCheck.code).trim()
+              : null;
           if (!dryRun) {
             await this.model.upsertChannelMap(req, {
               productId,
@@ -704,14 +717,18 @@ class FyndiqProductsController {
               enabled: true,
               externalId: null,
               status: 'error',
-              error: `contract_validation_failed:${payloadCheck.reason}`,
+              error: reasonCode
+                ? `contract_validation_failed:${reasonCode}:${payloadCheck.reason}`
+                : `contract_validation_failed:${payloadCheck.reason}`,
             });
           }
           items.push({
             productId,
             sku: p?.sku || null,
             status: 'error',
-            error: `contract_validation_failed:${payloadCheck.reason}`,
+            error: reasonCode
+              ? `contract_validation_failed:${reasonCode}:${payloadCheck.reason}`
+              : `contract_validation_failed:${payloadCheck.reason}`,
           });
           continue;
         }

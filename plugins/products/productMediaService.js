@@ -27,6 +27,43 @@ const {
 } = require('./productImageAssets');
 
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
+const PRODUCT_MEDIA_ERROR_CODES = new Set([
+  'PRODUCT_MEDIA_FETCH_FAILED',
+  'PRODUCT_MEDIA_INVALID_IMAGE',
+  'PRODUCT_MEDIA_UPLOAD_FAILED',
+  'PRODUCT_MEDIA_PROCESSING_FAILED',
+  'PRODUCT_MEDIA_DELETE_FAILED',
+  'PRODUCT_MEDIA_MISSING_FOR_CHANNEL',
+  'PRODUCT_MEDIA_SCHEMA_INVALID',
+  'PRODUCT_MEDIA_STORAGE_NOT_CONFIGURED',
+]);
+
+function mergeDetails(existing, extra) {
+  return {
+    ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}),
+    ...(extra && typeof extra === 'object' && !Array.isArray(extra) ? extra : {}),
+  };
+}
+
+function toProductMediaError(error, { message, statusCode = 500, code, details = null }) {
+  if (error instanceof AppError) {
+    const finalCode = PRODUCT_MEDIA_ERROR_CODES.has(error.code) ? error.code : code;
+    const finalStatus = Number.isFinite(Number(error.statusCode))
+      ? Number(error.statusCode)
+      : statusCode;
+    const finalMessage = String(error.message || '').trim() || message;
+    const finalDetails = mergeDetails(error.details, details);
+    if (
+      finalCode === error.code &&
+      finalStatus === error.statusCode &&
+      JSON.stringify(finalDetails || null) === JSON.stringify(error.details || null)
+    ) {
+      return error;
+    }
+    return new AppError(finalMessage, finalStatus, finalCode, finalDetails);
+  }
+  return new AppError(message, statusCode, code, mergeDetails(null, details));
+}
 
 async function mapPool(length, concurrency, worker) {
   if (length <= 0) return [];
@@ -169,12 +206,29 @@ class ProductMediaService {
     };
   }
 
+  buildDeleteTargets(rows) {
+    const deleteTargets = [];
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const asset = this.rowToAsset(row);
+      deleteTargets.push(...collectAssetVariantDeleteTargets(asset));
+    }
+    return deleteTargets;
+  }
+
   async fetchExternalBuffer(sourceUrl) {
     if (!isHttpUrl(sourceUrl)) {
+      Logger.warn('Product media fetch rejected: invalid source URL', {
+        sourceUrl: String(sourceUrl || '').trim() || null,
+        code: 'PRODUCT_MEDIA_INVALID_IMAGE',
+      });
       throw new AppError('External image URL must be http(s)', 400, 'PRODUCT_MEDIA_INVALID_IMAGE');
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.fetchTimeoutMs);
+    Logger.info('Product media fetch start', {
+      sourceUrl: String(sourceUrl || '').trim(),
+      timeoutMs: this.fetchTimeoutMs,
+    });
     try {
       const response = await fetch(String(sourceUrl).trim(), {
         method: 'GET',
@@ -182,6 +236,11 @@ class ProductMediaService {
         signal: controller.signal,
       });
       if (!response.ok) {
+        Logger.warn('Product media fetch failed', {
+          sourceUrl: String(sourceUrl || '').trim(),
+          status: response.status,
+          code: 'PRODUCT_MEDIA_FETCH_FAILED',
+        });
         throw new AppError(
           `Failed to fetch external image: ${response.status}`,
           400,
@@ -191,6 +250,12 @@ class ProductMediaService {
       const contentLength = Number(response.headers.get('content-length') || 0);
       const storage = this.getStorage();
       if (contentLength > 0 && contentLength > storage.maxFileBytes) {
+        Logger.warn('Product media fetch rejected: file too large', {
+          sourceUrl: String(sourceUrl || '').trim(),
+          contentLength,
+          maxFileBytes: storage.maxFileBytes,
+          code: 'PRODUCT_MEDIA_INVALID_IMAGE',
+        });
         throw new AppError(
           `External image exceeds max size of ${storage.maxFileBytes} bytes`,
           400,
@@ -198,6 +263,11 @@ class ProductMediaService {
         );
       }
       const arrayBuffer = await response.arrayBuffer();
+      Logger.info('Product media fetch success', {
+        sourceUrl: String(sourceUrl || '').trim(),
+        bytes: Number(arrayBuffer.byteLength || 0),
+        mimeType: response.headers.get('content-type') || null,
+      });
       return {
         buffer: Buffer.from(arrayBuffer),
         originalFilename: fileNameFromUrl(sourceUrl),
@@ -206,6 +276,11 @@ class ProductMediaService {
     } catch (error) {
       if (error instanceof AppError) throw error;
       const detail = error?.name === 'AbortError' ? 'timeout' : String(error?.message || error);
+      Logger.warn('Product media fetch failed', {
+        sourceUrl: String(sourceUrl || '').trim(),
+        detail,
+        code: 'PRODUCT_MEDIA_FETCH_FAILED',
+      });
       throw new AppError(
         `Failed to fetch external image: ${detail}`,
         400,
@@ -223,6 +298,15 @@ class ProductMediaService {
     const tenantId = req.session?.tenantId;
     if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
     const assetId = crypto.randomUUID();
+    Logger.info('Product media upload start', {
+      tenantId: String(tenantId),
+      productId: productId != null ? String(productId) : null,
+      pendingScope: pendingScope != null ? String(pendingScope) : null,
+      sourceKind: String(sourceKind || '').trim() || null,
+      sourceUrl: sourceUrl != null ? String(sourceUrl).trim() || null : null,
+      position,
+      assetId,
+    });
     const asset = await this.mediaAssetService.createHostedAssetFromProcessed({
       tenantId: String(tenantId),
       productId: productId != null ? String(productId) : null,
@@ -236,6 +320,17 @@ class ProductMediaService {
       req,
       this.buildRowPayloadFromAsset(asset, { productId, sourceKind }),
     );
+    Logger.info('Product media upload success', {
+      tenantId: String(tenantId),
+      productId: productId != null ? String(productId) : null,
+      pendingScope: pendingScope != null ? String(pendingScope) : null,
+      sourceKind: String(sourceKind || '').trim() || null,
+      sourceUrl: sourceUrl != null ? String(sourceUrl).trim() || null : null,
+      position,
+      assetId,
+      hash: asset?.hash || null,
+      variantCount: Object.keys(asset?.variants || {}).length,
+    });
     return this.rowToAsset(row) || asset;
   }
 
@@ -256,6 +351,15 @@ class ProductMediaService {
     );
     const match = existingByHash.get(processed.hash) || null;
     if (match) {
+      Logger.info('Product media upload skipped: reused existing asset', {
+        productId: productId != null ? String(productId) : null,
+        pendingScope: pendingScope != null ? String(pendingScope) : null,
+        sourceKind: String(sourceKind || '').trim() || null,
+        sourceUrl: sourceUrl != null ? String(sourceUrl).trim() || null : null,
+        position,
+        assetId: String(match.id || '').trim() || null,
+        hash: processed.hash,
+      });
       if (String(match.source_url || '').trim() !== String(sourceUrl || '').trim()) {
         await this.mediaObjectModel.updateById(req, match.id, {
           ...this.buildRowPayloadFromAsset(this.rowToAsset(match), {
@@ -305,6 +409,12 @@ class ProductMediaService {
       });
       uploads.push(asset);
     }
+    Logger.info('Product media update success', {
+      productId: null,
+      sourceKind: 'manual_upload',
+      uploadCount: uploads.length,
+      userId: userId != null ? String(userId) : null,
+    });
     return uploads;
   }
 
@@ -374,13 +484,21 @@ class ProductMediaService {
       (row) => !this.rowMatchesAsset(row, keepAssetIds, keepKeys, keepUrls),
     );
     if (stale.length) {
-      await this.deleteManagedRows(stale);
+      await this.deleteManagedRows(stale, {
+        productId: String(productId || '').trim() || null,
+        reason: 'reconcile_stale_assets',
+      });
       await this.mediaObjectModel.deleteByIds(
         req,
         stale.map((row) => row.id),
       );
     }
     await this.syncAssetPositions(req, productId, normalizedAssets);
+    Logger.info('Product media update success', {
+      productId: String(productId || '').trim() || null,
+      assetCount: normalizedAssets.length,
+      deletedAssetCount: stale.length,
+    });
   }
 
   async ensureHostedSelloMedia(req, { productId, selloId, sourceUrls }) {
@@ -440,6 +558,10 @@ class ProductMediaService {
             productId: pid,
             selloId: String(selloId || '').trim() || null,
             sourceUrl,
+            code:
+              error instanceof AppError && PRODUCT_MEDIA_ERROR_CODES.has(error.code)
+                ? error.code
+                : 'PRODUCT_MEDIA_UPLOAD_FAILED',
             error: String(error?.message || error),
           });
           return null;
@@ -560,27 +682,94 @@ class ProductMediaService {
 
     const ordered = output.map((asset, position) => ({ ...asset, position }));
     const finalMain = ordered.length ? getAssetOriginalUrl(ordered[0]) : null;
+    Logger.info('Product media update success', {
+      productId: pid != null ? String(pid) : null,
+      assetCount: ordered.length,
+      dedupeDropCount: duplicatePendingIds.length,
+    });
     return { mainImage: finalMain, images: ordered };
   }
 
-  async deleteManagedRows(rows) {
-    const deleteTargets = [];
-    for (const row of Array.isArray(rows) ? rows : []) {
-      const asset = this.rowToAsset(row);
-      deleteTargets.push(...collectAssetVariantDeleteTargets(asset));
+  async deleteManagedRows(rows, context = {}) {
+    const deleteTargets = this.buildDeleteTargets(rows);
+    const assetCount = Array.isArray(rows) ? rows.length : 0;
+    const details = {
+      productId: context?.productId ?? null,
+      reason: context?.reason ?? null,
+      assetCount,
+      objectCount: deleteTargets.length,
+    };
+    if (!deleteTargets.length) {
+      Logger.info('Product media delete success', details);
+      return { deletedAssetCount: assetCount, deletedObjectCount: 0 };
     }
-    if (!deleteTargets.length) return;
-    await this.getStorage().deleteObjects(deleteTargets);
+    Logger.info('Product media delete start', details);
+    try {
+      await this.getStorage().deleteObjects(deleteTargets);
+      Logger.info('Product media delete success', details);
+      return { deletedAssetCount: assetCount, deletedObjectCount: deleteTargets.length };
+    } catch (error) {
+      Logger.error('Product media delete failed', error, details);
+      throw toProductMediaError(error, {
+        message: 'Failed to delete product media from B2',
+        statusCode: 500,
+        code: 'PRODUCT_MEDIA_DELETE_FAILED',
+        details,
+      });
+    }
+  }
+
+  async deleteProductMediaStrict(req, productId) {
+    const productIdText = String(productId || '').trim();
+    const rows = await this.mediaObjectModel.listByProductId(req, productId);
+    return this.deleteManagedRows(rows, {
+      productId: productIdText || null,
+      reason: 'delete_product',
+    });
+  }
+
+  async deleteProductsMediaStrictPartial(req, productIds) {
+    const ids = Array.from(
+      new Set(
+        (Array.isArray(productIds) ? productIds : [])
+          .map((id) => String(id || '').trim())
+          .filter(Boolean),
+      ),
+    );
+    const okIds = [];
+    const failed = [];
+    for (const productId of ids) {
+      try {
+        await this.deleteProductMediaStrict(req, productId);
+        okIds.push(productId);
+      } catch (error) {
+        const normalized = toProductMediaError(error, {
+          message: 'Failed to delete product media from B2',
+          statusCode: 500,
+          code: 'PRODUCT_MEDIA_DELETE_FAILED',
+          details: { productId },
+        });
+        failed.push({
+          productId,
+          code: normalized.code,
+          message: normalized.message,
+          details: normalized.details || null,
+        });
+      }
+    }
+    return { okIds, failed };
   }
 
   async deleteProductMedia(req, productId) {
-    const rows = await this.mediaObjectModel.listByProductId(req, productId);
-    await this.deleteManagedRows(rows);
+    return this.deleteProductMediaStrict(req, productId);
   }
 
   async deleteProductsMedia(req, productIds) {
     const rows = await this.mediaObjectModel.listByProductIds(req, productIds);
-    await this.deleteManagedRows(rows);
+    return this.deleteManagedRows(rows, {
+      reason: 'delete_products_batch',
+      productId: null,
+    });
   }
 }
 

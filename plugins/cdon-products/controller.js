@@ -1092,10 +1092,15 @@ class CdonProductsController {
         if (article) {
           const payloadCheck = validateCdonArticlePayload(article);
           if (!payloadCheck.ok) {
+            const reasonCode =
+              typeof payloadCheck.code === 'string' && payloadCheck.code.trim()
+                ? String(payloadCheck.code).trim()
+                : null;
             if (diagnoseTrace) {
               diagnoseTrace.perProduct[p.productId] = {
                 skip: 'contract_validation_failed',
                 reason: payloadCheck.reason,
+                code: reasonCode,
                 overrides: Object.fromEntries(
                   Object.entries(overrides).map(([k, v]) => [k, { ...v }]),
                 ),
@@ -1104,7 +1109,9 @@ class CdonProductsController {
             items.push({
               productId: p.productId,
               status: 'error',
-              error: `contract_validation_failed:${payloadCheck.reason}`,
+              error: reasonCode
+                ? `contract_validation_failed:${reasonCode}:${payloadCheck.reason}`
+                : `contract_validation_failed:${payloadCheck.reason}`,
             });
             continue;
           }
@@ -1157,10 +1164,15 @@ class CdonProductsController {
         } else {
           const issues = getCdonArticleInputIssues(raw, overrides, defaultLanguage);
           const reason = issues.length ? issues.join(',') : 'mapper_rejected_unknown';
+          const reasonCode =
+            issues.includes('missing_main_image') || issues.includes('invalid_main_image_url')
+              ? 'PRODUCT_MEDIA_MISSING_FOR_CHANNEL'
+              : null;
           if (diagnoseTrace) {
             diagnoseTrace.perProduct[p.productId] = {
               skip: 'mapper_rejected',
               reason,
+              code: reasonCode,
               issues,
               overrides: Object.fromEntries(
                 Object.entries(overrides).map(([k, v]) => [k, { ...v }]),
@@ -1170,7 +1182,9 @@ class CdonProductsController {
           items.push({
             productId: p.productId,
             status: 'error',
-            error: `mapper_rejected:${reason}`,
+            error: reasonCode
+              ? `mapper_rejected:${reasonCode}:${reason}`
+              : `mapper_rejected:${reason}`,
           });
         }
       }

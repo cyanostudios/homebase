@@ -2008,6 +2008,11 @@ class WooCommerceController {
     for (const src of getProductExtraImageUrls(p)) {
       if (src && isValidImageUrl(String(src).trim())) images.push({ src: String(src).trim() });
     }
+    Logger.info('Woo export selected product media', {
+      productId: p?.id != null ? String(p.id) : null,
+      mainImage: p?.mainImage && isValidImageUrl(p.mainImage) ? String(p.mainImage).trim() : null,
+      imageCount: images.length,
+    });
 
     const attrs = [];
     if (p?.brand) attrs.push({ name: 'brand', options: [String(p.brand)] });

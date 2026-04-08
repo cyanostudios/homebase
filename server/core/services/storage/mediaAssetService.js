@@ -1,3 +1,4 @@
+const { Logger } = require('@homebase/core');
 const { AppError } = require('../../errors/AppError');
 const { B2ObjectStorage } = require('./b2ObjectStorage');
 const { ImageProcessingService } = require('./imageProcessingService');
@@ -33,6 +34,14 @@ class MediaAssetService {
       );
     }
 
+    Logger.info('Product media asset upload start', {
+      tenantId: tenantId != null ? String(tenantId) : null,
+      productId: productId != null ? String(productId) : null,
+      pendingScope: pendingScope != null ? String(pendingScope) : null,
+      assetId: safeAssetId,
+      position,
+      hash: processed.hash || null,
+    });
     const uploads = {};
     for (const variantName of ['original', 'preview', 'thumbnail']) {
       const variant = processed.variants[variantName];
@@ -61,6 +70,16 @@ class MediaAssetService {
         height: variant.height,
       };
     }
+
+    Logger.info('Product media asset upload success', {
+      tenantId: tenantId != null ? String(tenantId) : null,
+      productId: productId != null ? String(productId) : null,
+      pendingScope: pendingScope != null ? String(pendingScope) : null,
+      assetId: safeAssetId,
+      position,
+      hash: processed.hash || null,
+      variantCount: Object.keys(uploads).length,
+    });
 
     return {
       assetId: safeAssetId,

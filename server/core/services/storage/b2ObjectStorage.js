@@ -203,9 +203,19 @@ class B2ObjectStorage {
   async validateImageBuffer({ buffer, originalFilename, declaredMimeType }) {
     const size = Buffer.isBuffer(buffer) ? buffer.length : 0;
     if (!size) {
+      Logger.warn('Product media validation failed: empty image buffer', {
+        originalFilename: String(originalFilename || '').trim() || null,
+        code: 'PRODUCT_MEDIA_INVALID_IMAGE',
+      });
       throw new AppError('Uploaded image is empty', 400, 'PRODUCT_MEDIA_INVALID_IMAGE');
     }
     if (size > this.maxFileBytes) {
+      Logger.warn('Product media validation failed: file too large', {
+        originalFilename: String(originalFilename || '').trim() || null,
+        size,
+        maxFileBytes: this.maxFileBytes,
+        code: 'PRODUCT_MEDIA_INVALID_IMAGE',
+      });
       throw new AppError(
         `Uploaded image exceeds max size of ${this.maxFileBytes} bytes`,
         400,
@@ -216,6 +226,11 @@ class B2ObjectStorage {
     const detected = await FileType.fromBuffer(buffer);
     const mimeType = String(detected?.mime || declaredMimeType || '').toLowerCase();
     if (!ALLOWED_IMAGE_MIME.has(mimeType)) {
+      Logger.warn('Product media validation failed: unsupported mime type', {
+        originalFilename: String(originalFilename || '').trim() || null,
+        mimeType: mimeType || null,
+        code: 'PRODUCT_MEDIA_INVALID_IMAGE',
+      });
       throw new AppError(
         `Unsupported image type: ${mimeType || 'unknown'}`,
         400,
@@ -404,6 +419,10 @@ class B2ObjectStorage {
     if (!purgeEntries.length) return;
 
     try {
+      Logger.info('B2 delete start', {
+        bucket: this.bucket,
+        objectCount: purgeEntries.length,
+      });
       await this.client.send(
         new DeleteObjectsCommand({
           Bucket: this.bucket,
@@ -413,6 +432,10 @@ class B2ObjectStorage {
           },
         }),
       );
+      Logger.info('B2 delete success', {
+        bucket: this.bucket,
+        objectCount: purgeEntries.length,
+      });
     } catch (error) {
       Logger.error('B2 delete failed', error, { bucket: this.bucket, count: purgeEntries.length });
       throw new AppError(

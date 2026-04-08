@@ -1,5 +1,15 @@
-const { mapProductToCdonArticle } = require('../../plugins/cdon-products/mapToCdonArticle');
-const { mapProductToFyndiqArticle } = require('../../plugins/fyndiq-products/mapToFyndiqArticle');
+jest.mock('@homebase/core', () => ({
+  Logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+
+const {
+  mapProductToCdonArticle,
+  validateCdonArticlePayload,
+} = require('../../plugins/cdon-products/mapToCdonArticle');
+const {
+  mapProductToFyndiqArticle,
+  validateFyndiqArticlePayload,
+} = require('../../plugins/fyndiq-products/mapToFyndiqArticle');
 
 function makeAsset(originalUrl, previewUrl) {
   return {
@@ -106,5 +116,47 @@ describe('product media channel adapters', () => {
     expect(payload).not.toBeNull();
     expect(payload.main_image).toBe('https://cdn.example.com/original-main.jpg');
     expect(payload.images).toEqual(['https://cdn.example.com/original-extra.jpg']);
+  });
+
+  it('reports PRODUCT_MEDIA_MISSING_FOR_CHANNEL when CDON payload lacks main image', () => {
+    const result = validateCdonArticlePayload({
+      sku: '123',
+      status: 'for sale',
+      quantity: 1,
+      main_image: '',
+      markets: ['SE'],
+      title: [{ language: 'sv-SE', value: 'Produkt titel' }],
+      description: [{ language: 'sv-SE', value: 'Beskrivning som ar tillrackligt lang.' }],
+      price: [{ market: 'SE', value: { amount_including_vat: 100, currency: 'SEK' } }],
+      shipping_time: [{ market: 'SE', min: 1, max: 3 }],
+      category: '3938',
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'missing_main_image',
+      code: 'PRODUCT_MEDIA_MISSING_FOR_CHANNEL',
+    });
+  });
+
+  it('reports PRODUCT_MEDIA_MISSING_FOR_CHANNEL when Fyndiq payload lacks main image', () => {
+    const result = validateFyndiqArticlePayload({
+      sku: '123',
+      status: 'for sale',
+      quantity: 1,
+      main_image: '',
+      markets: ['SE'],
+      title: [{ language: 'sv-SE', value: 'Produkt titel' }],
+      description: [{ language: 'sv-SE', value: 'Beskrivning som ar tillrackligt lang.' }],
+      price: [{ market: 'SE', value: { amount: 100, currency: 'SEK' } }],
+      categories: ['cat-1'],
+      shipping_time: [{ market: 'SE', min: 1, max: 3 }],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'missing_main_image',
+      code: 'PRODUCT_MEDIA_MISSING_FOR_CHANNEL',
+    });
   });
 });
