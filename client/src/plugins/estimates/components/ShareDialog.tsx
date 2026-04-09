@@ -13,10 +13,19 @@ interface ShareDialogProps {
   isOpen: boolean;
   onClose: () => void;
   shareUrl: string;
-  estimateNumber: string;
+  /** Label shown in copy (estimate number, note title, etc.) */
+  entityLabel: string;
+  /** Controls title and wording */
+  variant?: 'estimate' | 'note';
 }
 
-export function ShareDialog({ isOpen, onClose, shareUrl, estimateNumber }: ShareDialogProps) {
+export function ShareDialog({
+  isOpen,
+  onClose,
+  shareUrl,
+  entityLabel,
+  variant = 'estimate',
+}: ShareDialogProps) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = async () => {
@@ -35,13 +44,16 @@ export function ShareDialog({ isOpen, onClose, shareUrl, estimateNumber }: Share
     }
   };
 
+  const title = variant === 'note' ? 'Note Share' : 'Estimate Share';
+  const entityWord = variant === 'note' ? 'note' : 'estimate';
+
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <AlertDialogTitle className="text-lg font-semibold flex items-center gap-2">
             <Share className="w-5 h-5 text-blue-600" />
-            Estimate Share
+            {title}
           </AlertDialogTitle>
           <Button variant="ghost" size="sm" className="w-8 h-8 p-0 rounded-full" onClick={onClose}>
             <X className="w-4 h-4" />
@@ -50,8 +62,8 @@ export function ShareDialog({ isOpen, onClose, shareUrl, estimateNumber }: Share
 
         <div className="space-y-4 py-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Anyone with this link can view estimate{' '}
-            <span className="font-medium text-gray-900 dark:text-gray-100">{estimateNumber}</span>.
+            Anyone with this link can view {entityWord}{' '}
+            <span className="font-medium text-gray-900 dark:text-gray-100">{entityLabel}</span>.
           </p>
 
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2">

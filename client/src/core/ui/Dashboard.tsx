@@ -83,7 +83,9 @@ export function Dashboard({ onPageChange }: DashboardProps) {
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
-                  <WidgetComponent onOpenPlugin={() => onPageChange(plugin.name as NavPage)} />
+                  <React.Suspense fallback={null}>
+                    <WidgetComponent onOpenPlugin={() => onPageChange(plugin.name as NavPage)} />
+                  </React.Suspense>
                 </div>
               </Card>
             );

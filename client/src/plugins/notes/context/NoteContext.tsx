@@ -1,9 +1,11 @@
+import { ExternalLink, Share } from 'lucide-react';
 import React, {
   createContext,
   useContext,
   useState,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
   ReactNode,
 } from 'react';
@@ -19,8 +21,8 @@ import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
-import { notesApi } from '../api/notesApi';
-import { Note, ValidationError } from '../types/notes';
+import { noteShareApi, notesApi } from '../api/notesApi';
+import { Note, NoteShare, ValidationError } from '../types/notes';
 import { getNoteExportBaseFilename, notesExportConfig } from '../utils/noteExportConfig';
 
 interface NoteContextType {
@@ -72,14 +74,22 @@ interface NoteContextType {
   exportFormats: ExportFormat[];
   /** Called by PanelFooter to export current item in given format. */
   onExportItem: (format: ExportFormat, item: Note) => void;
-  /** Optional actions shown in detail panel footer (e.g. "To Task") – same style as Delete/Export. */
+  /** Optional actions shown in detail panel quick actions (e.g. Share, "To Task") – same style as Delete/Export. */
   detailFooterActions?: Array<{
     id: string;
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     onClick: (item: Note) => void;
     className?: string;
+    disabled?: boolean;
   }>;
+
+  noteShareExistingShare: NoteShare | null;
+  noteShareShowDialog: boolean;
+  setNoteShareShowDialog: (show: boolean) => void;
+  noteShareIsCreatingShare: boolean;
+  handleNoteCopyShareUrl: () => void;
+  handleNoteRevokeShare: () => void;
 
   navigateToPrevItem: () => void;
   navigateToNextItem: () => void;
@@ -505,6 +515,167 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [createNote, closeNotePanel],
   );
 
+  const [noteShareExistingShare, setNoteShareExistingShare] = useState<NoteShare | null>(null);
+  const [noteShareShowDialog, setNoteShareShowDialog] = useState(false);
+  const [noteShareIsCreatingShare, setNoteShareIsCreatingShare] = useState(false);
+
+  useEffect(() => {
+    if (panelMode === 'view' && currentNote?.id) {
+      let cancelled = false;
+      noteShareApi
+        .getShares(currentNote.id)
+        .then((shares) => {
+          if (cancelled) {
+            return;
+          }
+          const active = shares.find((s) => new Date(s.validUntil) > new Date());
+          setNoteShareExistingShare(active || null);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setNoteShareExistingShare(null);
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    setNoteShareExistingShare(null);
+  }, [panelMode, currentNote?.id]);
+
+  const defaultNoteShareValidUntil = useCallback((): Date => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }, []);
+
+  const handleNoteShareClick = useCallback(
+    async (note: Note) => {
+      if (noteShareExistingShare) {
+        setNoteShareShowDialog(true);
+        return;
+      }
+      setNoteShareIsCreatingShare(true);
+      try {
+        const share = await noteShareApi.createShare({
+          noteId: note.id,
+          validUntil: defaultNoteShareValidUntil(),
+        });
+        setNoteShareExistingShare(share);
+        setNoteShareShowDialog(true);
+      } catch (error) {
+        console.error('Failed to create note share:', error);
+        alert(error instanceof Error ? error.message : 'Failed to create share link');
+      } finally {
+        setNoteShareIsCreatingShare(false);
+      }
+    },
+    [noteShareExistingShare, defaultNoteShareValidUntil],
+  );
+
+  const handleNoteCopyShareUrl = useCallback(() => {
+    if (!noteShareExistingShare) {
+      return;
+    }
+    const url = noteShareApi.generateShareUrl(noteShareExistingShare.shareToken);
+    navigator.clipboard.writeText(url).catch(() => {});
+  }, [noteShareExistingShare]);
+
+  const handleNoteRevokeShare = useCallback(async () => {
+    if (!noteShareExistingShare) {
+      return;
+    }
+    try {
+      await noteShareApi.revokeShare(noteShareExistingShare.id);
+      setNoteShareExistingShare(null);
+    } catch (error) {
+      console.error('Failed to revoke note share:', error);
+      alert('Failed to revoke share link');
+    }
+  }, [noteShareExistingShare]);
+
+  const pluginDetailActions = useMemo(
+    () =>
+      pluginActions
+        .filter((action) => {
+          if (
+            action.id === 'create-task-from-note' ||
+            action.id === 'create-task-from-note-and-delete'
+          ) {
+            return hasTasksPlugin;
+          }
+          return true;
+        })
+        .map((action) => ({
+          id: action.id,
+          label: action.label,
+          icon: action.icon,
+          onClick: (note: Note) => {
+            if (!openToTaskDialog) {
+              void action.onClick(note);
+              return;
+            }
+            if (action.id === 'create-task-from-note') {
+              openToTaskDialog(note);
+              return;
+            }
+            if (action.id === 'create-task-from-note-and-delete') {
+              openToTaskDialog(note, { deleteNoteAfter: true });
+              return;
+            }
+            void action.onClick(note);
+          },
+          className: undefined,
+        })),
+    [pluginActions, hasTasksPlugin, openToTaskDialog],
+  );
+
+  const shareDetailActions = useMemo(() => {
+    if (panelMode !== 'view' || !currentNote) {
+      return [];
+    }
+    const hasActiveShare =
+      noteShareExistingShare && new Date(noteShareExistingShare.validUntil) > new Date();
+    if (hasActiveShare && noteShareExistingShare) {
+      const shareUrl = noteShareApi.generateShareUrl(noteShareExistingShare.shareToken);
+      return [
+        {
+          id: 'view-share',
+          label: 'View',
+          icon: ExternalLink,
+          onClick: (_item: Note) => {
+            window.open(shareUrl, '_blank', 'noopener,noreferrer');
+          },
+          className: 'h-9 text-xs px-3',
+        },
+      ];
+    }
+    return [
+      {
+        id: 'share',
+        label: noteShareIsCreatingShare ? 'Creating Share…' : 'Share note',
+        icon: Share,
+        onClick: (note: Note) => {
+          void handleNoteShareClick(note);
+        },
+        className: 'h-9 text-xs px-3',
+        disabled: noteShareIsCreatingShare,
+      },
+    ];
+  }, [
+    panelMode,
+    currentNote,
+    noteShareExistingShare,
+    noteShareIsCreatingShare,
+    handleNoteShareClick,
+  ]);
+
+  const mergedDetailFooterActions = useMemo(
+    () => [...shareDetailActions, ...pluginDetailActions],
+    [shareDetailActions, pluginDetailActions],
+  );
+
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
 
   const onExportItem = useCallback(
@@ -581,37 +752,14 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     exportFormats,
     onExportItem,
 
-    detailFooterActions: pluginActions
-      .filter((action) => {
-        if (
-          action.id === 'create-task-from-note' ||
-          action.id === 'create-task-from-note-and-delete'
-        ) {
-          return hasTasksPlugin;
-        }
-        return true;
-      })
-      .map((action) => ({
-        id: action.id,
-        label: action.label,
-        icon: action.icon,
-        onClick: (note: Note) => {
-          if (!openToTaskDialog) {
-            void action.onClick(note);
-            return;
-          }
-          if (action.id === 'create-task-from-note') {
-            openToTaskDialog(note);
-            return;
-          }
-          if (action.id === 'create-task-from-note-and-delete') {
-            openToTaskDialog(note, { deleteNoteAfter: true });
-            return;
-          }
-          void action.onClick(note);
-        },
-        className: undefined,
-      })),
+    detailFooterActions: mergedDetailFooterActions,
+
+    noteShareExistingShare,
+    noteShareShowDialog,
+    setNoteShareShowDialog,
+    noteShareIsCreatingShare,
+    handleNoteCopyShareUrl,
+    handleNoteRevokeShare,
 
     navigateToPrevItem,
     navigateToNextItem,

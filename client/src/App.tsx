@@ -43,7 +43,16 @@ import {
   GlobalNavigationGuardProvider,
   useGlobalNavigationGuard,
 } from '@/hooks/useGlobalNavigationGuard';
-import { PublicEstimateView } from '@/plugins/estimates/components/PublicEstimateView';
+const PublicEstimateView = React.lazy(() =>
+  import('@/plugins/estimates/components/PublicEstimateView').then((m) => ({
+    default: m.PublicEstimateView,
+  })),
+);
+const PublicNoteView = React.lazy(() =>
+  import('@/plugins/notes/components/PublicNoteView').then((m) => ({
+    default: m.PublicNoteView,
+  })),
+);
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes
 function PluginProviders({ children }: { children: React.ReactNode }) {
@@ -634,30 +643,32 @@ function PublicEstimateRoute() {
   if (!token) {
     return <div>Invalid link</div>;
   }
-  return <PublicEstimateView token={token} />;
+  return (
+    <React.Suspense fallback={null}>
+      <PublicEstimateView token={token} />
+    </React.Suspense>
+  );
+}
+
+function PublicNoteRoute() {
+  const { token } = useParams<{ token: string }>();
+  if (!token) {
+    return <div>Invalid link</div>;
+  }
+  return (
+    <React.Suspense fallback={null}>
+      <PublicNoteView token={token} />
+    </React.Suspense>
+  );
 }
 
 // Main App component
 function App() {
-  // Initialize theme early to prevent flash of wrong theme
-  React.useEffect(() => {
-    const stored = localStorage.getItem('theme');
-    const root = window.document.documentElement;
-
-    if (
-      stored === 'dark' ||
-      (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    ) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, []);
-
   return (
     <Routes>
       {/* Public routes – no auth / no providers needed */}
       <Route path="/public/estimate/:token" element={<PublicEstimateRoute />} />
+      <Route path="/public/note/:token" element={<PublicNoteRoute />} />
 
       {/* All private routes – wrapped in full provider stack */}
       <Route

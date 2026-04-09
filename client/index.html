@@ -11,6 +11,18 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Homebase v3.5</title>
+    <!-- Synchronous theme init: runs before React renders to prevent layout shift -->
+    <script>
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var root = document.documentElement;
+        if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

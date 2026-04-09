@@ -1,6 +1,10 @@
 // plugins/ingest/services/ingestService.js
 // Shared entrypoints for other plugins (guide §451). Same module as UI uses via controller.
-const { fetchSource, fetchSourceFromUrl } = require('./fetchSource');
+const {
+  fetchSource,
+  fetchSourceFromUrl,
+  cookieHeaderForInternalFileUrl,
+} = require('./fetchSource');
 const { runIngest } = require('./runIngest');
 
 /**
@@ -19,7 +23,6 @@ async function runSourceById(model, req, sourceId) {
  * @param {Record<string, unknown>} record — e.g. model row with sourceUrl / source_url
  */
 async function fetchSourceFromRecord(req, record) {
-  void req;
   const sourceUrl = record.sourceUrl ?? record.source_url;
   if (!sourceUrl) {
     return {
@@ -33,10 +36,13 @@ async function fetchSourceFromRecord(req, record) {
       errorMessage: 'Missing source URL',
     };
   }
+  const urlStr = String(sourceUrl);
+  const cookieHeader = cookieHeaderForInternalFileUrl(req, urlStr);
   return fetchSource({
-    sourceUrl: String(sourceUrl),
+    sourceUrl: urlStr,
     sourceType: String(record.sourceType ?? record.source_type ?? 'other'),
     fetchMethod: String(record.fetchMethod ?? record.fetch_method ?? 'generic_http'),
+    ...(cookieHeader ? { cookieHeader } : {}),
   });
 }
 

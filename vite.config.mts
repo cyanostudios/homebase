@@ -93,6 +93,27 @@ export default defineConfig({
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
+        manualChunks(id) {
+          // Plugin chunks — each plugin gets its own cacheable chunk
+          if (id.includes('/plugins/contacts/')) return 'plugin-contacts';
+          if (id.includes('/plugins/notes/')) return 'plugin-notes';
+          if (id.includes('/plugins/tasks/')) return 'plugin-tasks';
+          if (id.includes('/plugins/estimates/')) return 'plugin-estimates';
+          if (id.includes('/plugins/invoices/')) return 'plugin-invoices';
+          if (id.includes('/plugins/files/')) return 'plugin-files';
+          if (id.includes('/plugins/matches/')) return 'plugin-matches';
+          if (id.includes('/plugins/slots/')) return 'plugin-slots';
+          if (id.includes('/plugins/cups/')) return 'plugin-cups';
+          if (id.includes('/plugins/ingest/')) return 'plugin-ingest';
+          if (id.includes('/plugins/mail/')) return 'plugin-mail';
+          if (id.includes('/plugins/pulses/')) return 'plugin-pulses';
+          if (id.includes('/plugins/settings/')) return 'plugin-settings';
+          // Heavy vendor chunks — isolated for better caching and lazy-load targeting
+          if (id.includes('@tiptap') || id.includes('tippy')) return 'vendor-tiptap';
+          if (id.includes('recharts')) return 'vendor-recharts';
+          if (id.includes('jspdf') || id.includes('html2pdf')) return 'vendor-pdf';
+          if (id.includes('date-fns')) return 'vendor-datefns';
+        },
       },
     },
   },

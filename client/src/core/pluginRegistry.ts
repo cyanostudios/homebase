@@ -45,6 +45,11 @@ export interface DashboardWidgetProps {
  * - **Provider**: wraps app; receives auth + `onCloseOtherPanels`.
  * - **components.List | Form | View**: main page, panel form, panel detail view.
  */
+/** Accepts both eager and lazy (React.lazy) component types. */
+type PluginComponent<P = Record<string, never>> =
+  | React.ComponentType<P>
+  | React.LazyExoticComponent<React.ComponentType<P>>;
+
 export interface PluginRegistryEntry {
   name: string;
   Provider: React.ComponentType<{
@@ -55,98 +60,278 @@ export interface PluginRegistryEntry {
   hook: () => any;
   panelKey: string;
   components: {
-    List?: React.ComponentType;
-    Form?: React.ComponentType<any>;
-    View?: React.ComponentType<any>;
+    List?: PluginComponent;
+    Form?: PluginComponent<any>;
+    View?: PluginComponent<any>;
   };
   navigation?: PluginNavigationConfig;
   /** Valfri widget för Dashboard. Visas endast om plugin är aktiverad för användaren. */
-  dashboardWidget?: React.ComponentType<DashboardWidgetProps>;
+  dashboardWidget?: PluginComponent<DashboardWidgetProps>;
   /** Prefix för visning av entitetsnummer (t.ex. CNT-1, EST-2025-001). */
   displayPrefix?: string;
 }
 
+// ─── Static imports: Providers and hooks must be eager (used at app init) ────
+
 // Contacts
-import { ContactForm } from '@/plugins/contacts/components/ContactForm';
-import { ContactList } from '@/plugins/contacts/components/ContactList';
-import { ContactsDashboardWidget } from '@/plugins/contacts/components/ContactsDashboardWidget';
-import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
-import { CupForm } from '@/plugins/cups/components/CupForm';
-import { CupsDashboardWidget } from '@/plugins/cups/components/CupsDashboardWidget';
-import { CupsList } from '@/plugins/cups/components/CupsList';
-import { CupView } from '@/plugins/cups/components/CupView';
+// Cups
 import { CupsProvider } from '@/plugins/cups/context/CupsContext';
 import { useCups } from '@/plugins/cups/hooks/useCups';
 // Estimates
-import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
-import { EstimateList } from '@/plugins/estimates/components/EstimateList';
-import { EstimatesDashboardWidget } from '@/plugins/estimates/components/EstimatesDashboardWidget';
-import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 // Files
-import { FileForm } from '@/plugins/files/components/FileForm';
-import { FileList } from '@/plugins/files/components/FileList';
-import { FilesDashboardWidget } from '@/plugins/files/components/FilesDashboardWidget';
-import { FileView } from '@/plugins/files/components/FileView';
 import { FilesProvider } from '@/plugins/files/context/FilesContext';
 import { useFiles } from '@/plugins/files/hooks/useFiles';
 // Ingest
-import { IngestSourceForm } from '@/plugins/ingest/components/IngestSourceForm';
-import { IngestSourceList } from '@/plugins/ingest/components/IngestSourceList';
-import { IngestSourceView } from '@/plugins/ingest/components/IngestSourceView';
 import { IngestProvider } from '@/plugins/ingest/context/IngestContext';
 import { useIngest } from '@/plugins/ingest/hooks/useIngest';
 // Invoices
-import { InvoicesDashboardWidget } from '@/plugins/invoices/components/InvoicesDashboardWidget';
-import { InvoicesForm } from '@/plugins/invoices/components/InvoicesForm';
-import { InvoicesList } from '@/plugins/invoices/components/InvoicesList';
-import { InvoicesView } from '@/plugins/invoices/components/InvoicesView';
 import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
 import { invoicesNavigation } from '@/plugins/invoices/navigation';
-// Notes
-import { MailDashboardWidget } from '@/plugins/mail/components/MailDashboardWidget';
-import { MailList } from '@/plugins/mail/components/MailList';
-import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
+// Mail
 import { MailProvider } from '@/plugins/mail/context/MailContext';
 import { useMail } from '@/plugins/mail/hooks/useMail';
-import { MatchesDashboardWidget } from '@/plugins/matches/components/MatchesDashboardWidget';
-import { MatchForm } from '@/plugins/matches/components/MatchForm';
-import { MatchList } from '@/plugins/matches/components/MatchList';
-import { MatchView } from '@/plugins/matches/components/MatchView';
+// Matches
 import { MatchProvider } from '@/plugins/matches/context/MatchContext';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
-import { NoteForm } from '@/plugins/notes/components/NoteForm';
-import { NoteList } from '@/plugins/notes/components/NoteList';
-import { NotesDashboardWidget } from '@/plugins/notes/components/NotesDashboardWidget';
-import { NoteView } from '@/plugins/notes/components/NoteView';
+// Notes
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
-import { PulseList } from '@/plugins/pulses/components/PulseList';
-import { PulsesDashboardWidget } from '@/plugins/pulses/components/PulsesDashboardWidget';
-import { PulseSettingsForm } from '@/plugins/pulses/components/PulseSettingsForm';
+// Pulses
 import { PulseProvider } from '@/plugins/pulses/context/PulseContext';
 import { usePulses } from '@/plugins/pulses/hooks/usePulses';
-// Tasks
-import { SettingsForm } from '@/plugins/settings/components/SettingsForm';
-import { SettingsList } from '@/plugins/settings/components/SettingsList';
+// Settings
 import { SettingsProvider } from '@/plugins/settings/context/SettingsContext';
 import { useSettings } from '@/plugins/settings/hooks/useSettings';
-import { SlotForm } from '@/plugins/slots/components/SlotForm';
-import { SlotsDashboardWidget } from '@/plugins/slots/components/SlotsDashboardWidget';
-import { SlotsList } from '@/plugins/slots/components/SlotsList';
-import { SlotView } from '@/plugins/slots/components/SlotView';
+// Slots
 import { SlotsProvider } from '@/plugins/slots/context/SlotsContext';
 import { useSlotsContext as useSlots } from '@/plugins/slots/context/SlotsContext';
-import { TaskForm } from '@/plugins/tasks/components/TaskForm';
-import { TaskList } from '@/plugins/tasks/components/TaskList';
-import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardWidget';
-import { TaskView } from '@/plugins/tasks/components/TaskView';
+// Tasks
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
+
+// ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
+// These are loaded on-demand: List when navigating to a plugin page,
+// Form/View when opening a panel, dashboardWidget when Dashboard is rendered.
+
+// Contacts
+const ContactList = React.lazy(() =>
+  import('@/plugins/contacts/components/ContactList').then((m) => ({ default: m.ContactList })),
+);
+const ContactForm = React.lazy(() =>
+  import('@/plugins/contacts/components/ContactForm').then((m) => ({ default: m.ContactForm })),
+);
+const ContactView = React.lazy(() =>
+  import('@/plugins/contacts/components/ContactView').then((m) => ({ default: m.ContactView })),
+);
+const ContactsDashboardWidget = React.lazy(() =>
+  import('@/plugins/contacts/components/ContactsDashboardWidget').then((m) => ({
+    default: m.ContactsDashboardWidget,
+  })),
+);
+
+// Cups
+const CupsList = React.lazy(() =>
+  import('@/plugins/cups/components/CupsList').then((m) => ({ default: m.CupsList })),
+);
+const CupForm = React.lazy(() =>
+  import('@/plugins/cups/components/CupForm').then((m) => ({ default: m.CupForm })),
+);
+const CupView = React.lazy(() =>
+  import('@/plugins/cups/components/CupView').then((m) => ({ default: m.CupView })),
+);
+const CupsDashboardWidget = React.lazy(() =>
+  import('@/plugins/cups/components/CupsDashboardWidget').then((m) => ({
+    default: m.CupsDashboardWidget,
+  })),
+);
+
+// Estimates
+const EstimateList = React.lazy(() =>
+  import('@/plugins/estimates/components/EstimateList').then((m) => ({
+    default: m.EstimateList,
+  })),
+);
+const EstimateForm = React.lazy(() =>
+  import('@/plugins/estimates/components/EstimateForm').then((m) => ({
+    default: m.EstimateForm,
+  })),
+);
+const EstimateView = React.lazy(() =>
+  import('@/plugins/estimates/components/EstimateView').then((m) => ({
+    default: m.EstimateView,
+  })),
+);
+const EstimatesDashboardWidget = React.lazy(() =>
+  import('@/plugins/estimates/components/EstimatesDashboardWidget').then((m) => ({
+    default: m.EstimatesDashboardWidget,
+  })),
+);
+
+// Files
+const FileList = React.lazy(() =>
+  import('@/plugins/files/components/FileList').then((m) => ({ default: m.FileList })),
+);
+const FileForm = React.lazy(() =>
+  import('@/plugins/files/components/FileForm').then((m) => ({ default: m.FileForm })),
+);
+const FileView = React.lazy(() =>
+  import('@/plugins/files/components/FileView').then((m) => ({ default: m.FileView })),
+);
+const FilesDashboardWidget = React.lazy(() =>
+  import('@/plugins/files/components/FilesDashboardWidget').then((m) => ({
+    default: m.FilesDashboardWidget,
+  })),
+);
+
+// Ingest
+const IngestSourceList = React.lazy(() =>
+  import('@/plugins/ingest/components/IngestSourceList').then((m) => ({
+    default: m.IngestSourceList,
+  })),
+);
+const IngestSourceForm = React.lazy(() =>
+  import('@/plugins/ingest/components/IngestSourceForm').then((m) => ({
+    default: m.IngestSourceForm,
+  })),
+);
+const IngestSourceView = React.lazy(() =>
+  import('@/plugins/ingest/components/IngestSourceView').then((m) => ({
+    default: m.IngestSourceView,
+  })),
+);
+
+// Invoices
+const InvoicesList = React.lazy(() =>
+  import('@/plugins/invoices/components/InvoicesList').then((m) => ({
+    default: m.InvoicesList,
+  })),
+);
+const InvoicesForm = React.lazy(() =>
+  import('@/plugins/invoices/components/InvoicesForm').then((m) => ({
+    default: m.InvoicesForm,
+  })),
+);
+const InvoicesView = React.lazy(() =>
+  import('@/plugins/invoices/components/InvoicesView').then((m) => ({
+    default: m.InvoicesView,
+  })),
+);
+const InvoicesDashboardWidget = React.lazy(() =>
+  import('@/plugins/invoices/components/InvoicesDashboardWidget').then((m) => ({
+    default: m.InvoicesDashboardWidget,
+  })),
+);
+
+// Mail
+const MailList = React.lazy(() =>
+  import('@/plugins/mail/components/MailList').then((m) => ({ default: m.MailList })),
+);
+const MailSettingsForm = React.lazy(() =>
+  import('@/plugins/mail/components/MailSettingsForm').then((m) => ({
+    default: m.MailSettingsForm,
+  })),
+);
+const MailDashboardWidget = React.lazy(() =>
+  import('@/plugins/mail/components/MailDashboardWidget').then((m) => ({
+    default: m.MailDashboardWidget,
+  })),
+);
+
+// Matches
+const MatchList = React.lazy(() =>
+  import('@/plugins/matches/components/MatchList').then((m) => ({ default: m.MatchList })),
+);
+const MatchForm = React.lazy(() =>
+  import('@/plugins/matches/components/MatchForm').then((m) => ({ default: m.MatchForm })),
+);
+const MatchView = React.lazy(() =>
+  import('@/plugins/matches/components/MatchView').then((m) => ({ default: m.MatchView })),
+);
+const MatchesDashboardWidget = React.lazy(() =>
+  import('@/plugins/matches/components/MatchesDashboardWidget').then((m) => ({
+    default: m.MatchesDashboardWidget,
+  })),
+);
+
+// Notes
+const NoteList = React.lazy(() =>
+  import('@/plugins/notes/components/NoteList').then((m) => ({ default: m.NoteList })),
+);
+const NoteForm = React.lazy(() =>
+  import('@/plugins/notes/components/NoteForm').then((m) => ({ default: m.NoteForm })),
+);
+const NoteView = React.lazy(() =>
+  import('@/plugins/notes/components/NoteView').then((m) => ({ default: m.NoteView })),
+);
+const NotesDashboardWidget = React.lazy(() =>
+  import('@/plugins/notes/components/NotesDashboardWidget').then((m) => ({
+    default: m.NotesDashboardWidget,
+  })),
+);
+
+// Pulses
+const PulseList = React.lazy(() =>
+  import('@/plugins/pulses/components/PulseList').then((m) => ({ default: m.PulseList })),
+);
+const PulseSettingsForm = React.lazy(() =>
+  import('@/plugins/pulses/components/PulseSettingsForm').then((m) => ({
+    default: m.PulseSettingsForm,
+  })),
+);
+const PulsesDashboardWidget = React.lazy(() =>
+  import('@/plugins/pulses/components/PulsesDashboardWidget').then((m) => ({
+    default: m.PulsesDashboardWidget,
+  })),
+);
+
+// Settings
+const SettingsList = React.lazy(() =>
+  import('@/plugins/settings/components/SettingsList').then((m) => ({
+    default: m.SettingsList,
+  })),
+);
+const SettingsForm = React.lazy(() =>
+  import('@/plugins/settings/components/SettingsForm').then((m) => ({
+    default: m.SettingsForm,
+  })),
+);
+
+// Slots
+const SlotsList = React.lazy(() =>
+  import('@/plugins/slots/components/SlotsList').then((m) => ({ default: m.SlotsList })),
+);
+const SlotForm = React.lazy(() =>
+  import('@/plugins/slots/components/SlotForm').then((m) => ({ default: m.SlotForm })),
+);
+const SlotView = React.lazy(() =>
+  import('@/plugins/slots/components/SlotView').then((m) => ({ default: m.SlotView })),
+);
+const SlotsDashboardWidget = React.lazy(() =>
+  import('@/plugins/slots/components/SlotsDashboardWidget').then((m) => ({
+    default: m.SlotsDashboardWidget,
+  })),
+);
+
+// Tasks
+const TaskList = React.lazy(() =>
+  import('@/plugins/tasks/components/TaskList').then((m) => ({ default: m.TaskList })),
+);
+const TaskForm = React.lazy(() =>
+  import('@/plugins/tasks/components/TaskForm').then((m) => ({ default: m.TaskForm })),
+);
+const TaskView = React.lazy(() =>
+  import('@/plugins/tasks/components/TaskView').then((m) => ({ default: m.TaskView })),
+);
+const TasksDashboardWidget = React.lazy(() =>
+  import('@/plugins/tasks/components/TasksDashboardWidget').then((m) => ({
+    default: m.TasksDashboardWidget,
+  })),
+);
 
 export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {

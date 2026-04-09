@@ -1,8 +1,8 @@
 /**
  * Domain-owned cup parser. Ingest supplies full `bodyText`; this module extracts cup rows.
- * Profiles: Stockholm PDF table, labeled PDF/plaintext, Skåne/SVFF accordion, Småland lists, Bohuslän list,
- * SvFF table (Cupnamn), Södermanland accordion h3, Östergötland year/month lists, Ångermanland labeled blocks,
- * Uppland/Jämtland paragraph lists, then single-page fallback.
+ * Profiles: Stockholm PDF table, SvFF-style PDF (Cupnamn + Arrangör, e.g. Göteborg), labeled PDF/plaintext,
+ * Skåne/SVFF accordion, Småland lists, Bohuslän list, SvFF table (Cupnamn), Södermanland accordion h3,
+ * Östergötland year/month lists, Ångermanland labeled blocks, Uppland/Jämtland paragraph lists, then fallback.
  *
  * @param {{ html: string, sourceUrl?: string, sourceType?: string }} input
  * @returns {Array<Record<string, unknown>>}
@@ -56,6 +56,40 @@ function looksLikeStockholmPdfTable(text, sourceUrl, sourceType) {
 }
 
 /**
+ * District PDFs (e.g. Göteborgs FF) often use **Cupnamn** + **Arrangör** like SvFF HTML tables,
+ * not Stockholm's "Cupens namn". Same row shape as {@link parseStockholmPdfTableCups}.
+ * @param {string} text
+ * @param {string|undefined|null} _sourceUrl
+ * @param {string|undefined|null} sourceType
+ */
+function looksLikeSvffStylePdfCupTable(text, _sourceUrl, sourceType) {
+  void _sourceUrl;
+  const st = String(sourceType || '')
+    .trim()
+    .toLowerCase();
+  if (!text || typeof text !== 'string') {
+    return false;
+  }
+  if (/^\[Non-text response/i.test(text.trim())) {
+    return false;
+  }
+  if (/\bCupens namn\b/i.test(text)) {
+    return false;
+  }
+  if (!/\bCupnamn\b/i.test(text) || !/\bArrangör\b/i.test(text)) {
+    return false;
+  }
+  /** Let {@link parseSvffTableCups} handle real HTML tables with Cupnamn. */
+  if (/<table[\s>]/i.test(text)) {
+    return false;
+  }
+  if (st !== 'pdf' && st !== 'other') {
+    return false;
+  }
+  return true;
+}
+
+/**
  * PDF text with Småland/Skåne-style labels (not the Stockholm tabell layout).
  * @param {string} text
  * @param {string|undefined|null} sourceType
@@ -89,6 +123,10 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
   }
 
   if (looksLikeStockholmPdfTable(html, sourceUrl, sourceType)) {
+    return 'stockholm_pdf_table';
+  }
+
+  if (looksLikeSvffStylePdfCupTable(html, sourceUrl, sourceType)) {
     return 'stockholm_pdf_table';
   }
 
@@ -1343,9 +1381,21 @@ function findStockholmTableHeaderLineIndex(lines) {
     if (/\bCupens namn\b/i.test(l) && /\bDatum\b/i.test(l)) {
       return i;
     }
+    /** Göteborg / SvFF-style PDF: Cupnamn Arrangör … */
+    if (/\bCupnamn\b/i.test(l) && /\bArrangör\b/i.test(l)) {
+      return i;
+    }
+    if (/\bCupnamn\b/i.test(l) && /\bDatum\b/i.test(l)) {
+      return i;
+    }
   }
   for (let i = 0; i < lines.length; i += 1) {
     if (/\bCupens namn\b/i.test(lines[i])) {
+      return i;
+    }
+  }
+  for (let i = 0; i < lines.length; i += 1) {
+    if (/\bCupnamn\b/i.test(lines[i])) {
       return i;
     }
   }
@@ -1356,7 +1406,7 @@ function mapStockholmHeaderIndices(headerCells) {
   const idx = { name: -1, organizer: -1, datum: -1, categories: -1, link: -1 };
   headerCells.forEach((cell, i) => {
     const c = String(cell || '').trim();
-    if (/\bcupens namn\b/i.test(c)) {
+    if (/\bcupens namn\b/i.test(c) || /\bcupnamn\b/i.test(c)) {
       idx.name = i;
     } else if (/\barrangör\b/i.test(c)) {
       idx.organizer = i;
@@ -1523,7 +1573,7 @@ function parseStockholmPdfTableCups(text, sourceUrl, sourceType) {
 
   for (let r = hi + 1; r < lines.length; r += 1) {
     const line = lines[r];
-    if (/\bCupens namn\b/i.test(line) && line.length < 200) {
+    if ((/\bCupens namn\b/i.test(line) || /\bCupnamn\b/i.test(line)) && line.length < 200) {
       continue;
     }
     const cells = splitPdfTableLine(line);

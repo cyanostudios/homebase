@@ -8,6 +8,36 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_EXCERPT = 8000;
 
 /**
+ * Server-side fetch (axios) has no browser cookies. For ingest sources pointing at our own
+ * authenticated file download URLs, forward the incoming session cookie so PDF/HTML can be read.
+ * @param {import('express').Request|null|undefined} req
+ * @param {string} sourceUrl
+ * @returns {string|undefined}
+ */
+function cookieHeaderForInternalFileUrl(req, sourceUrl) {
+  if (!req?.headers?.cookie || !sourceUrl || typeof sourceUrl !== 'string') {
+    return undefined;
+  }
+  try {
+    const u = new URL(sourceUrl);
+    if (!u.pathname.includes('/api/files/')) {
+      return undefined;
+    }
+    const h = u.hostname.toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1') {
+      return req.headers.cookie;
+    }
+    const reqHost = typeof req.get === 'function' ? req.get('host') : null;
+    if (reqHost && u.host === reqHost) {
+      return req.headers.cookie;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * @typedef {Object} FetchSourceInput
  * @property {string} sourceUrl
  * @property {string} [sourceType]
@@ -22,6 +52,10 @@ const MAX_EXCERPT = 8000;
 async function fetchSourceGenericHttp(sourceUrl, options = {}) {
   const sourceTypeHint =
     typeof options.sourceType === 'string' ? options.sourceType.trim().toLowerCase() : '';
+  const cookieHeader =
+    typeof options.cookieHeader === 'string' && options.cookieHeader.trim()
+      ? options.cookieHeader.trim()
+      : undefined;
   try {
     const res = await axios.get(sourceUrl, {
       timeout: 30000,
@@ -29,6 +63,7 @@ async function fetchSourceGenericHttp(sourceUrl, options = {}) {
       maxBodyLength: MAX_BYTES,
       validateStatus: () => true,
       responseType: 'arraybuffer',
+      headers: cookieHeader ? { Cookie: cookieHeader } : {},
     });
 
     const status = res.status;
@@ -174,11 +209,22 @@ async function fetchSource(input) {
       ? input.sourceType
       : '';
 
+  const cookieHeaderOverride =
+    typeof input === 'object' &&
+    input &&
+    typeof input.cookieHeader === 'string' &&
+    input.cookieHeader.trim()
+      ? input.cookieHeader.trim()
+      : undefined;
+
   if (fetchMethodRaw === 'browser_fetch') {
     return fetchSourceBrowserFetch(sourceUrl, { sourceType: sourceTypeOpt });
   }
 
-  return fetchSourceGenericHttp(sourceUrl, { sourceType: sourceTypeOpt });
+  return fetchSourceGenericHttp(sourceUrl, {
+    sourceType: sourceTypeOpt,
+    cookieHeader: cookieHeaderOverride,
+  });
 }
 
 /** @param {string} url */
@@ -189,6 +235,7 @@ async function fetchSourceFromUrl(url) {
 module.exports = {
   fetchSource,
   fetchSourceFromUrl,
+  cookieHeaderForInternalFileUrl,
   MAX_EXCERPT,
   MAX_BYTES,
 };

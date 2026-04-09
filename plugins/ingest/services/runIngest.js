@@ -1,7 +1,7 @@
 // plugins/ingest/services/runIngest.js
 // Orchestrate one import run (guide §439): create run → fetch → update run → source metadata.
 const { AppError } = require('../../../server/core/errors/AppError');
-const { fetchSource } = require('./fetchSource');
+const { fetchSource, cookieHeaderForInternalFileUrl } = require('./fetchSource');
 
 const ALLOWED_TYPES = new Set(['html', 'pdf', 'json', 'xml', 'other']);
 
@@ -45,10 +45,12 @@ async function runIngest(model, req, sourceId) {
   try {
     const st =
       source.sourceType && ALLOWED_TYPES.has(source.sourceType) ? source.sourceType : 'other';
+    const ch = cookieHeaderForInternalFileUrl(req, source.sourceUrl);
     fetchResult = await fetchSource({
       sourceUrl: source.sourceUrl,
       sourceType: st,
       fetchMethod: resolvedFetchMethod,
+      ...(ch ? { cookieHeader: ch } : {}),
     });
   } catch (e) {
     fetchResult = {

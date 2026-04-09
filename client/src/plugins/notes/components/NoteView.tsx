@@ -19,6 +19,8 @@ import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmen
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import type { Note } from '@/plugins/notes/types/notes';
 
+import { NoteShareBlock } from './NoteShareBlock';
+
 const NOTE_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
@@ -36,6 +38,7 @@ interface NoteQuickActionsCardProps {
     icon: React.ComponentType<{ className?: string }>;
     onClick: (item: Note) => void;
     className?: string;
+    disabled?: boolean;
   }>;
 }
 
@@ -51,6 +54,12 @@ function getQuickActionIconColorClass(actionId: string): string {
   }
   if (actionId === 'create-task-from-note-and-delete') {
     return 'text-amber-600 dark:text-amber-400';
+  }
+  if (actionId === 'view-share') {
+    return 'text-blue-600 dark:text-blue-400';
+  }
+  if (actionId === 'share') {
+    return 'text-violet-600 dark:text-violet-400';
   }
   return '';
 }
@@ -422,6 +431,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                 />
               </DetailSection>
             </Card>
+
+            <NoteShareBlock note={note} />
+
             {hasFilesPlugin ? (
               <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
             ) : null}

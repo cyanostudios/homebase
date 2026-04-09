@@ -4,6 +4,12 @@ import React from 'react';
 
 import { getSingular, getSingularCap } from '@/core/pluginSingular';
 
+// Accepts both regular React components (functions) and React.lazy exotic components (objects).
+// React.isValidElementType is an internal API not exported from the react package.
+function isRenderableComponent(c: unknown): boolean {
+  return typeof c === 'function' || (c !== null && c !== undefined && typeof c === 'object');
+}
+
 export const createPanelRenderers = (
   currentPlugin: any,
   currentPluginContext: any,
@@ -21,7 +27,7 @@ export const createPanelRenderers = (
     const FormComponent = currentPlugin.components.Form;
 
     if (currentMode === 'view') {
-      if (typeof ViewComponent !== 'function') {
+      if (!isRenderableComponent(ViewComponent)) {
         if (import.meta.env.DEV) {
           console.warn(
             `[panelRendering] Plugin "${currentPlugin.name}" has no View component in registry but panel mode is "view". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
@@ -46,10 +52,14 @@ export const createPanelRenderers = (
             }
           : {};
 
-      return <ViewComponent {...finalProps} {...ingestRunImport} />;
+      return (
+        <React.Suspense fallback={null}>
+          <ViewComponent {...finalProps} {...ingestRunImport} />
+        </React.Suspense>
+      );
     }
 
-    if (typeof FormComponent !== 'function') {
+    if (!isRenderableComponent(FormComponent)) {
       if (import.meta.env.DEV) {
         console.warn(
           `[panelRendering] Plugin "${currentPlugin.name}" has no Form component in registry but panel mode is "${currentMode}". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
@@ -72,7 +82,11 @@ export const createPanelRenderers = (
         : {}),
     };
 
-    return <FormComponent {...formProps} />;
+    return (
+      <React.Suspense fallback={null}>
+        <FormComponent {...formProps} />
+      </React.Suspense>
+    );
   };
 
   const renderCurrentPage = (currentPage: string, PLUGIN_REGISTRY: any[]) => {
@@ -82,7 +96,7 @@ export const createPanelRenderers = (
     }
 
     const ListComponent = plugin.components.List;
-    if (typeof ListComponent !== 'function') {
+    if (!isRenderableComponent(ListComponent)) {
       if (import.meta.env.DEV) {
         console.warn(
           `[panelRendering] Plugin "${plugin.name}" has no List component in registry. See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
@@ -90,7 +104,11 @@ export const createPanelRenderers = (
       }
       return <div>Plugin list not configured</div>;
     }
-    return <ListComponent />;
+    return (
+      <React.Suspense fallback={null}>
+        <ListComponent />
+      </React.Suspense>
+    );
   };
 
   return {

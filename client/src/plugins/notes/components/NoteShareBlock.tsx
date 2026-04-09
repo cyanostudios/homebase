@@ -2,45 +2,43 @@ import { Copy, Check, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { ShareDialog } from '@/plugins/estimates/components/ShareDialog';
 
-import { estimateShareApi } from '../api/estimatesApi';
-import { useEstimates } from '../hooks/useEstimates';
-import type { Estimate } from '../types/estimate';
+import { noteShareApi } from '../api/notesApi';
+import { useNotes } from '../hooks/useNotes';
+import type { Note } from '../types/notes';
 
-import { ShareDialog } from './ShareDialog';
-
-/** Renders share URL box + ShareDialog + Expired modal. Actions (Share, Download PDF) live in panel footer. */
-export function EstimateShareBlock({ estimate }: { estimate: Estimate }) {
+/** Share URL box + dialog (Share / View actions live in quick actions, same pattern as estimates). */
+export function NoteShareBlock({ note }: { note: Note }) {
   const {
-    estimateShareExistingShare,
-    estimateShareShowDialog,
-    setEstimateShareShowDialog,
-    estimateShareShowExpiredModal,
-    setEstimateShareShowExpiredModal,
-    handleEstimateCopyShareUrl,
-    handleEstimateRevokeShare,
-  } = useEstimates();
+    noteShareExistingShare,
+    noteShareShowDialog,
+    setNoteShareShowDialog,
+    handleNoteCopyShareUrl,
+    handleNoteRevokeShare,
+  } = useNotes();
 
   const [copied, setCopied] = useState(false);
 
-  const shareUrl = estimateShareExistingShare
-    ? estimateShareApi.generateShareUrl(estimateShareExistingShare.shareToken)
+  const shareUrl = noteShareExistingShare
+    ? noteShareApi.generateShareUrl(noteShareExistingShare.shareToken)
     : '';
-  const isShareExpired = estimateShareExistingShare
-    ? new Date(estimateShareExistingShare.validUntil) <= new Date()
+  const isShareExpired = noteShareExistingShare
+    ? new Date(noteShareExistingShare.validUntil) <= new Date()
     : false;
 
   const handleCopy = () => {
-    handleEstimateCopyShareUrl();
+    handleNoteCopyShareUrl();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const entityLabel = (note.title || '').trim() || formatDisplayNumber('notes', note.id);
+
   return (
     <>
-      {estimateShareExistingShare && (
+      {noteShareExistingShare && (
         <div
           className={`p-4 rounded-lg border ${
             isShareExpired
@@ -94,17 +92,17 @@ export function EstimateShareBlock({ estimate }: { estimate: Estimate }) {
             <div className="flex items-center justify-left">
               <div>
                 {isShareExpired ? 'Expired on' : 'Expires on'}{' '}
-                {new Date(estimateShareExistingShare.validUntil).toLocaleDateString()}
-                {estimateShareExistingShare.accessedCount > 0 && (
+                {new Date(noteShareExistingShare.validUntil).toLocaleDateString()}
+                {noteShareExistingShare.accessedCount > 0 && (
                   <span className="ml-2">
-                    • Accessed {estimateShareExistingShare.accessedCount} times
+                    • Accessed {noteShareExistingShare.accessedCount} times
                   </span>
                 )}
               </div>
               <Button
                 variant="link"
                 size="sm"
-                onClick={handleEstimateRevokeShare}
+                onClick={handleNoteRevokeShare}
                 className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 h-auto p-0 underline decoration-red-600/30 font-normal ml-4"
               >
                 Revoke
@@ -114,23 +112,12 @@ export function EstimateShareBlock({ estimate }: { estimate: Estimate }) {
         </div>
       )}
 
-      <ConfirmDialog
-        isOpen={estimateShareShowExpiredModal}
-        title="Cannot create share link"
-        message={`Estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)} expired on ${new Date(estimate.validTo).toLocaleDateString()}. Share links can only be created for estimates that are still valid. Update the "Valid To" date in edit mode to create a share link.`}
-        confirmText="Got it"
-        cancelText="Close"
-        onConfirm={() => setEstimateShareShowExpiredModal(false)}
-        onCancel={() => setEstimateShareShowExpiredModal(false)}
-        variant="warning"
-      />
-
       <ShareDialog
-        isOpen={estimateShareShowDialog}
-        onClose={() => setEstimateShareShowDialog(false)}
+        isOpen={noteShareShowDialog}
+        onClose={() => setNoteShareShowDialog(false)}
         shareUrl={shareUrl}
-        entityLabel={formatDisplayNumber('estimates', estimate.estimateNumber)}
-        variant="estimate"
+        entityLabel={entityLabel}
+        variant="note"
       />
     </>
   );

@@ -152,10 +152,35 @@ export function FilesProvider({
   useEffect(() => {
     if (isAuthenticated) {
       void loadItems();
+      void loadCloudStorageSettings();
     } else {
       setFiles([]);
     }
   }, [isAuthenticated, loadItems]);
+
+  // Handle OAuth callback: /files?cloud=googledrive&connected=true (or cloud=error&message=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cloud = params.get('cloud');
+    const connected = params.get('connected');
+    const message = params.get('message');
+
+    if (cloud && cloud !== 'error' && connected === 'true') {
+      void loadCloudStorageSettings();
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (cloud === 'error') {
+      const label =
+        message === 'session_expired'
+          ? 'Session expired — please log in and try again'
+          : message === 'invalid_state'
+            ? 'OAuth state mismatch — please try connecting again'
+            : message === 'oauth_not_configured'
+              ? 'OAuth credentials not configured'
+              : `Cloud connect failed${message ? `: ${message}` : ''}`;
+      setValidationErrors([{ field: 'general', message: label }]);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const didOpenFromUrlRef = useRef(false);
   useEffect(() => {

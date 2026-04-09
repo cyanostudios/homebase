@@ -10,7 +10,9 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { RichTextEditor } from '@/core/ui/RichTextEditor';
+const RichTextEditor = React.lazy(() =>
+  import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
+);
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -265,12 +267,21 @@ export const NoteForm: React.FC<NoteFormProps> = ({
                   </div>
                   <div>
                     <Label className="mb-1">{t('notes.content')}</Label>
-                    <RichTextEditor
-                      value={formData.content}
-                      onChange={handleContentChange}
-                      placeholder={t('notes.contentPlaceholder')}
-                      className={getFieldError('content') ? 'border-red-500' : ''}
-                    />
+                    <React.Suspense
+                      fallback={
+                        <textarea
+                          className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          disabled
+                        />
+                      }
+                    >
+                      <RichTextEditor
+                        value={formData.content}
+                        onChange={handleContentChange}
+                        placeholder={t('notes.contentPlaceholder')}
+                        className={getFieldError('content') ? 'border-red-500' : ''}
+                      />
+                    </React.Suspense>
                     {getFieldError('content') && (
                       <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                         {getFieldError('content')?.message}
