@@ -17,6 +17,9 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
@@ -137,7 +140,8 @@ export function ContactProvider({
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
 
   // Data state
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -373,7 +377,7 @@ export function ContactProvider({
       onCloseOtherPanels();
       navigateToItem(contact, contacts, 'companyName');
     },
-    [onCloseOtherPanels, navigateToItem, contacts],
+    [onCloseOtherPanels, navigateToItem, contacts, setValidationErrors],
   );
 
   const openContactSettings = useCallback(() => {
@@ -395,7 +399,7 @@ export function ContactProvider({
     setTagsDraft(null);
     setTagError(null);
     navigateToBase();
-  }, [navigateToBase]);
+  }, [navigateToBase, setValidationErrors]);
 
   useEffect(() => {
     registerPanelCloseFunction('contacts', closeContactPanel);
@@ -404,32 +408,14 @@ export function ContactProvider({
     };
   }, [closeContactPanel, registerPanelCloseFunction, unregisterPanelCloseFunction]);
 
-  const currentItemIndex = currentContact
-    ? contacts.findIndex((c) => c.id === currentContact.id)
-    : -1;
-  const totalItems = contacts.length;
-  const hasPrevItem = currentItemIndex > 0;
-  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) {
-      return;
-    }
-    const prev = contacts[currentItemIndex - 1];
-    if (prev) {
-      openContactForView(prev);
-    }
-  }, [hasPrevItem, currentItemIndex, contacts, openContactForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= contacts.length - 1) {
-      return;
-    }
-    const next = contacts[currentItemIndex + 1];
-    if (next) {
-      openContactForView(next);
-    }
-  }, [hasNextItem, currentItemIndex, contacts, openContactForView]);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(contacts, currentContact, openContactForView);
 
   const openContactForViewRef = useRef(openContactForView);
   useEffect(() => {
@@ -459,10 +445,6 @@ export function ContactProvider({
       openContactForViewRef.current(item as Contact);
     }
   }, [location.pathname, contacts]);
-
-  const clearValidationErrors = () => {
-    setValidationErrors([]);
-  };
 
   const contactTagsKey = JSON.stringify(
     Array.isArray(currentContact?.tags) ? currentContact.tags : [],
@@ -609,7 +591,7 @@ export function ContactProvider({
         return false;
       }
     },
-    [closeContactPanel, currentContact, refreshData, validateContact],
+    [closeContactPanel, currentContact, refreshData, validateContact, setValidationErrors],
   );
 
   const onApplyTagsEdit = useCallback(async () => {
@@ -717,26 +699,8 @@ export function ContactProvider({
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
 
-  const getDuplicateConfig = useCallback(
-    (item: Contact | null) => {
-      if (!item) {
-        return null;
-      }
-      const baseTitle = item.companyName?.trim() || t('nav.contact');
-      return {
-        defaultName: `Copy of ${baseTitle}`,
-        nameLabel: t('contacts.title'),
-        confirmOnly: false,
-      };
-    },
-    [t],
-  );
-
-  const executeDuplicate = useCallback(
-    async (
-      item: Contact,
-      newName: string,
-    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+  const createContactDuplicate = useCallback(
+    async (item: Contact, newName: string): Promise<Contact> => {
       const nextName = (newName ?? '').trim();
       const payload = {
         ...item,
@@ -746,7 +710,6 @@ export function ContactProvider({
       delete payload.createdAt;
       delete payload.updatedAt;
       delete payload.contactNumber;
-
       const created = await contactsApi.createContact(payload);
       const normalized: Contact = {
         ...created,
@@ -755,12 +718,18 @@ export function ContactProvider({
         updatedAt: new Date(created.updatedAt),
       };
       setContacts((prev) => [normalized, ...prev]);
-      const highlightId =
-        normalized?.id !== null && normalized?.id !== undefined ? String(normalized.id) : undefined;
-      return { closePanel: closeContactPanel, highlightId };
+      return normalized;
     },
-    [closeContactPanel],
+    [],
   );
+
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: Contact) => `Copy of ${item.companyName?.trim() || t('nav.contact')}`,
+    nameLabel: t('contacts.title'),
+    confirmOnly: false,
+    createDuplicate: createContactDuplicate,
+    closePanel: closeContactPanel,
+  });
 
   const onExportItem = useCallback((format: ExportFormat, item: Contact) => {
     const result = exportItems({
@@ -857,7 +826,7 @@ export function ContactProvider({
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    currentItemIndex,
     totalItems,
 
     detailFooterActions,

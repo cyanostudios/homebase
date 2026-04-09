@@ -17,6 +17,9 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
@@ -125,7 +128,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
 
   // Data state
   const [notes, setNotes] = useState<Note[]>([]);
@@ -151,7 +155,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setPanelMode('create');
     setValidationErrors([]);
     navigateToBase();
-  }, [navigateToBase]);
+  }, [navigateToBase, setValidationErrors]);
 
   useEffect(() => {
     registerPanelCloseFunction('notes', closeNotePanel);
@@ -177,7 +181,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const errorMessage = error?.message || error?.error || 'Failed to load notes';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
-  }, []);
+  }, [setValidationErrors]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -220,7 +224,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         navigateToItem(note, notes, 'title');
       }
     },
-    [onCloseOtherPanels, clearNoteSelectionCore, navigateToItem, notes],
+    [onCloseOtherPanels, clearNoteSelectionCore, navigateToItem, notes, setValidationErrors],
   );
 
   const openNoteForEdit = useCallback(
@@ -234,7 +238,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       onCloseOtherPanels();
       navigateToItem(note, notes, 'title');
     },
-    [onCloseOtherPanels, clearNoteSelectionCore, navigateToItem, notes],
+    [onCloseOtherPanels, clearNoteSelectionCore, navigateToItem, notes, setValidationErrors],
   );
 
   const openNoteForView = useCallback(
@@ -247,7 +251,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       onCloseOtherPanels();
       navigateToItem(note, notes, 'title');
     },
-    [onCloseOtherPanels, navigateToItem, notes],
+    [onCloseOtherPanels, navigateToItem, notes, setValidationErrors],
   );
 
   const openNoteSettings = useCallback(() => {
@@ -299,34 +303,14 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return () => registerNotesNavigation(null);
   }, [registerNotesNavigation, openNoteForViewBridge]);
 
-  const currentItemIndex = currentNote ? notes.findIndex((n) => n.id === currentNote.id) : -1;
-  const totalItems = notes.length;
-  const hasPrevItem = currentItemIndex > 0;
-  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) {
-      return;
-    }
-    const prev = notes[currentItemIndex - 1];
-    if (prev) {
-      openNoteForView(prev);
-    }
-  }, [hasPrevItem, currentItemIndex, notes, openNoteForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= notes.length - 1) {
-      return;
-    }
-    const next = notes[currentItemIndex + 1];
-    if (next) {
-      openNoteForView(next);
-    }
-  }, [hasNextItem, currentItemIndex, notes, openNoteForView]);
-
-  const clearValidationErrors = useCallback(() => {
-    setValidationErrors([]);
-  }, []);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(notes, currentNote, openNoteForView);
 
   const saveNote = useCallback(
     async (noteData: any): Promise<boolean> => {
@@ -402,7 +386,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         return false;
       }
     },
-    [currentNote, closeNotePanel, validateNote],
+    [currentNote, closeNotePanel, validateNote, setValidationErrors],
   );
 
   const deleteNote = useCallback(
@@ -419,7 +403,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         setValidationErrors([{ field: 'general', message: errorMessage }]);
       }
     },
-    [isSelected, toggleNoteSelectedCore, t],
+    [isSelected, toggleNoteSelectedCore, t, setValidationErrors],
   );
 
   const deleteNotes = useCallback(
@@ -439,7 +423,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         setValidationErrors([{ field: 'general', message: errorMessage }]);
       }
     },
-    [clearNoteSelectionCore],
+    [clearNoteSelectionCore, setValidationErrors],
   );
 
   const toggleNoteSelected = useCallback(
@@ -467,21 +451,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     clearNoteSelectionCore();
   }, [clearNoteSelectionCore]);
 
-  const getDuplicateConfig = useCallback(
-    (item: Note | null) => {
-      if (!item) {
-        return null;
-      }
-      const baseTitle = item.title?.trim() || 'Item';
-      return {
-        defaultName: `Copy of ${baseTitle}`,
-        nameLabel: t('notes.title'),
-        confirmOnly: false,
-      };
-    },
-    [t],
-  );
-
   const createNote = useCallback(
     async (noteData: { title: string; content?: string; mentions?: any[] }): Promise<Note> => {
       const newNote = await notesApi.createNote(noteData);
@@ -496,24 +465,25 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [],
   );
 
-  const executeDuplicate = useCallback(
-    async (
-      item: Note,
-      newName: string,
-    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+  const createNoteDuplicate = useCallback(
+    async (item: Note, newName: string): Promise<Note> => {
       const nextName = (newName ?? '').trim();
-      const payload = {
+      return createNote({
         title: nextName || item.title?.trim() || 'Untitled',
         content: item.content ?? '',
         mentions: item.mentions ?? [],
-      };
-      const newNote = await createNote(payload);
-      const highlightId =
-        newNote?.id !== null && newNote?.id !== undefined ? String(newNote.id) : undefined;
-      return { closePanel: closeNotePanel, highlightId };
+      });
     },
-    [createNote, closeNotePanel],
+    [createNote],
   );
+
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: Note) => `Copy of ${item.title?.trim() || 'Item'}`,
+    nameLabel: t('notes.title'),
+    confirmOnly: false,
+    createDuplicate: createNoteDuplicate,
+    closePanel: closeNotePanel,
+  });
 
   const [noteShareExistingShare, setNoteShareExistingShare] = useState<NoteShare | null>(null);
   const [noteShareShowDialog, setNoteShareShowDialog] = useState(false);
@@ -694,7 +664,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         });
       }
     },
-    [t],
+    [t, setValidationErrors],
   );
 
   const getDeleteMessage = (item: Note | null) =>
@@ -765,7 +735,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    currentItemIndex,
     totalItems,
   };
 

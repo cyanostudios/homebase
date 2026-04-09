@@ -14,6 +14,8 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import {
@@ -100,7 +102,8 @@ export function FilesProvider({
   const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
   const [currentFile, setCurrentFile] = useState<FileItem | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [filesContentView, setFilesContentView] = useState<'list' | 'settings'>('list');
 
@@ -147,7 +150,7 @@ export function FilesProvider({
       const errorMessage = e?.message || e?.error || 'Failed to load files';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
-  }, [api]);
+  }, [api, setValidationErrors]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -180,7 +183,7 @@ export function FilesProvider({
       setValidationErrors([{ field: 'general', message: label }]);
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, [setValidationErrors]);
 
   const didOpenFromUrlRef = useRef(false);
   useEffect(() => {
@@ -236,7 +239,7 @@ export function FilesProvider({
       onCloseOtherPanels();
       navigateToItem(item, files, 'name');
     },
-    [onCloseOtherPanels, navigateToItem, files],
+    [onCloseOtherPanels, navigateToItem, files, setValidationErrors],
   );
 
   const openFileForViewRef = useRef(openFileForView);
@@ -258,34 +261,14 @@ export function FilesProvider({
   };
   const closeFilePanel = () => closeFilesPanel();
 
-  const currentItemIndex = currentFile ? files.findIndex((f) => f.id === currentFile.id) : -1;
-  const totalItems = files.length;
-  const hasPrevItem = currentItemIndex > 0;
-  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) {
-      return;
-    }
-    const prev = files[currentItemIndex - 1];
-    if (prev) {
-      openFileForView(prev);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- openFileForView identity stable
-  }, [hasPrevItem, currentItemIndex, files]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= files.length - 1) {
-      return;
-    }
-    const next = files[currentItemIndex + 1];
-    if (next) {
-      openFileForView(next);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- openFileForView identity stable
-  }, [hasNextItem, currentItemIndex, files]);
-
-  const clearValidationErrors = () => setValidationErrors([]);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(files, currentFile, openFileForView);
 
   const saveFile = async (raw: any): Promise<boolean> => {
     const errors = validate(raw);
@@ -592,7 +575,7 @@ export function FilesProvider({
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    currentItemIndex,
     totalItems,
   };
 

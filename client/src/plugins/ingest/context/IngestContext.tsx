@@ -1,9 +1,11 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useEffect, useState, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useApp } from '@/core/api/AppContext';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 
 import { ingestApi } from '../api/ingestApi';
@@ -69,7 +71,8 @@ function useIngestContextValue(
   const [isIngestPanelOpen, setIsIngestPanelOpen] = useState(false);
   const [currentIngest, setCurrentIngest] = useState<IngestSource | null>(null);
   const [panelMode, setPanelMode] = useState<PanelMode>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
   const [ingest, setIngest] = useState<IngestSource[]>([]);
   const [ingestRuns, setIngestRuns] = useState<IngestRun[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -96,7 +99,7 @@ function useIngestContextValue(
       setValidationErrors([{ field: 'general', message: msg }]);
       return [];
     }
-  }, []);
+  }, [setValidationErrors]);
 
   const loadIngestRuns = useCallback(async (sourceId: string) => {
     setRunsLoading(true);
@@ -117,7 +120,7 @@ function useIngestContextValue(
     setValidationErrors([]);
     setIngestRuns([]);
     navigateToBase();
-  }, [navigateToBase]);
+  }, [navigateToBase, setValidationErrors]);
 
   useEffect(() => {
     registerPanelCloseFunction('ingest', closeIngestPanel);
@@ -132,8 +135,6 @@ function useIngestContextValue(
     }
   }, [isAuthenticated, loadIngestSources]);
 
-  const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
-
   const openIngestPanel = useCallback(
     (item: IngestSource | null) => {
       clearIngestSelectionCore();
@@ -144,7 +145,7 @@ function useIngestContextValue(
       setIngestRuns([]);
       onCloseOtherPanels();
     },
-    [clearIngestSelectionCore, onCloseOtherPanels],
+    [clearIngestSelectionCore, onCloseOtherPanels, setValidationErrors],
   );
 
   const openIngestForEdit = useCallback(
@@ -157,7 +158,7 @@ function useIngestContextValue(
       setIngestRuns([]);
       onCloseOtherPanels();
     },
-    [clearIngestSelectionCore, onCloseOtherPanels],
+    [clearIngestSelectionCore, onCloseOtherPanels, setValidationErrors],
   );
 
   const openIngestForView = useCallback(
@@ -171,7 +172,14 @@ function useIngestContextValue(
       onCloseOtherPanels();
       navigateToItem(item, ingest, 'name');
     },
-    [clearIngestSelectionCore, ingest, loadIngestRuns, navigateToItem, onCloseOtherPanels],
+    [
+      clearIngestSelectionCore,
+      ingest,
+      loadIngestRuns,
+      navigateToItem,
+      onCloseOtherPanels,
+      setValidationErrors,
+    ],
   );
 
   const validate = useCallback(
@@ -244,7 +252,16 @@ function useIngestContextValue(
         setIsSaving(false);
       }
     },
-    [currentIngest?.id, loadIngestRuns, loadIngestSources, navigateToItem, panelMode, t, validate],
+    [
+      currentIngest?.id,
+      loadIngestRuns,
+      loadIngestSources,
+      navigateToItem,
+      panelMode,
+      setValidationErrors,
+      t,
+      validate,
+    ],
   );
 
   const deleteIngest = useCallback(
@@ -295,32 +312,14 @@ function useIngestContextValue(
     [t],
   );
 
-  const currentItemIndex = useMemo(() => {
-    if (!currentIngest) {
-      return -1;
-    }
-    return ingest.findIndex((s) => s.id === currentIngest.id);
-  }, [currentIngest, ingest]);
-
-  const navigateToPrevItem = useCallback(() => {
-    if (currentItemIndex <= 0) {
-      return;
-    }
-    const prev = ingest[currentItemIndex - 1];
-    if (prev) {
-      openIngestForView(prev);
-    }
-  }, [currentItemIndex, ingest, openIngestForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (currentItemIndex < 0 || currentItemIndex >= ingest.length - 1) {
-      return;
-    }
-    const next = ingest[currentItemIndex + 1];
-    if (next) {
-      openIngestForView(next);
-    }
-  }, [currentItemIndex, ingest, openIngestForView]);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(ingest, currentIngest, openIngestForView);
 
   return {
     isIngestPanelOpen,
@@ -360,10 +359,10 @@ function useIngestContextValue(
     getDeleteMessage,
     navigateToPrevItem,
     navigateToNextItem,
-    hasPrevItem: currentItemIndex > 0,
-    hasNextItem: currentItemIndex >= 0 && currentItemIndex < ingest.length - 1,
+    hasPrevItem,
+    hasNextItem,
     currentItemIndex,
-    totalItems: ingest.length,
+    totalItems,
   };
 }
 

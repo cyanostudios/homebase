@@ -17,6 +17,9 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { resolveSlug } from '@/core/utils/slugUtils';
@@ -153,7 +156,8 @@ export function EstimateProvider({
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
   const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
   const [estimatesContentView, setEstimatesContentView] = useState<'list' | 'settings'>('list');
 
   // Data state
@@ -192,6 +196,8 @@ export function EstimateProvider({
     } else {
       setEstimates([]);
     }
+    // loadEstimates is intentionally not in deps (plain async fn; avoids re-run loops)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isAuthenticated gate only
   }, [isAuthenticated]);
 
   const didOpenFromUrlRef = useRef(false);
@@ -318,7 +324,7 @@ export function EstimateProvider({
       onCloseOtherPanels();
       navigateToItem(estimate, estimates, 'estimateNumber');
     },
-    [onCloseOtherPanels, navigateToItem, estimates],
+    [onCloseOtherPanels, navigateToItem, estimates, setValidationErrors],
   );
 
   const openEstimateForViewRef = useRef(openEstimateForView);
@@ -335,32 +341,14 @@ export function EstimateProvider({
     return () => registerEstimatesNavigation(null);
   }, [registerEstimatesNavigation, openEstimateForViewBridge]);
 
-  const currentItemIndex = currentEstimate
-    ? estimates.findIndex((e) => e.id === currentEstimate.id)
-    : -1;
-  const totalItems = estimates.length;
-  const hasPrevItem = currentItemIndex > 0;
-  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) {
-      return;
-    }
-    const prev = estimates[currentItemIndex - 1];
-    if (prev) {
-      openEstimateForView(prev);
-    }
-  }, [hasPrevItem, currentItemIndex, estimates, openEstimateForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= estimates.length - 1) {
-      return;
-    }
-    const next = estimates[currentItemIndex + 1];
-    if (next) {
-      openEstimateForView(next);
-    }
-  }, [hasNextItem, currentItemIndex, estimates, openEstimateForView]);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(estimates, currentEstimate, openEstimateForView);
 
   const closeEstimatePanel = useCallback(() => {
     setIsEstimatePanelOpen(false);
@@ -369,9 +357,7 @@ export function EstimateProvider({
     setValidationErrors([]);
     setQuickEditDraft(null);
     navigateToBase();
-  }, [navigateToBase]);
-
-  const clearValidationErrors = () => setValidationErrors([]);
+  }, [navigateToBase, setValidationErrors]);
 
   const saveEstimate = useCallback(
     async (
@@ -463,7 +449,7 @@ export function EstimateProvider({
         return { success: false, message };
       }
     },
-    [currentEstimate, closeEstimatePanel],
+    [currentEstimate, closeEstimatePanel, setValidationErrors],
   );
 
   const deleteEstimate = async (id: string) => {
@@ -544,28 +530,13 @@ export function EstimateProvider({
     [generateNextEstimateNumber],
   );
 
-  const getDuplicateConfig = useCallback((item: Estimate | null) => {
-    if (!item) {
-      return null;
-    }
-    return {
-      defaultName: item.contactName ? `Copy of ${item.contactName}` : '',
-      nameLabel: 'Estimate',
-      confirmOnly: true,
-    };
-  }, []);
-
-  const executeDuplicate = useCallback(
-    async (
-      item: Estimate,
-      _newName: string,
-    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
-      const newEstimate = await duplicateEstimate(item);
-      const highlightId = (newEstimate?.id ?? null) !== null ? String(newEstimate.id) : undefined;
-      return { closePanel: closeEstimatePanel, highlightId };
-    },
-    [duplicateEstimate, closeEstimatePanel],
-  );
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: Estimate) => (item.contactName ? `Copy of ${item.contactName}` : ''),
+    nameLabel: 'Estimate',
+    confirmOnly: true,
+    createDuplicate: duplicateEstimate,
+    closePanel: closeEstimatePanel,
+  });
 
   // Share state (for view mode footer + share URL box in view)
   const [estimateShareExistingShare, setEstimateShareExistingShare] =
@@ -884,23 +855,13 @@ export function EstimateProvider({
       );
     }
 
-    if (t) {
-      switch (mode) {
-        case 'edit':
-          return t('panel.editItem', { item: t('nav.estimate') });
-        case 'create':
-          return t('panel.createItem', { item: t('nav.estimate') });
-        default:
-          return t('nav.estimate');
-      }
-    }
     switch (mode) {
       case 'edit':
-        return 'Edit Estimate';
+        return t('panel.editItem', { item: t('nav.estimate') });
       case 'create':
-        return 'Create Estimate';
+        return t('panel.createItem', { item: t('nav.estimate') });
       default:
-        return 'Estimate';
+        return t('nav.estimate');
     }
   };
 
@@ -1013,7 +974,7 @@ export function EstimateProvider({
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    currentItemIndex,
     totalItems,
 
     estimatesContentView,

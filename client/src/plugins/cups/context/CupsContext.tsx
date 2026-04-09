@@ -13,6 +13,8 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { cupsApi } from '../api/cupsApi';
@@ -102,7 +104,8 @@ export function CupsProvider({
   const [isCupPanelOpen, setIsCupPanelOpen] = useState(false);
   const [currentCup, setCurrentCup] = useState<Cup | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
-  const [validationErrors, setValidationErrors] = useState<CupValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<CupValidationError>();
   const [cups, setCups] = useState<Cup[]>([]);
   const [cupsContentView, setCupsContentView] = useState<'list' | 'settings'>('list');
   const [isSaving, setIsSaving] = useState(false);
@@ -123,7 +126,7 @@ export function CupsProvider({
     } catch (error: any) {
       setValidationErrors([{ field: 'general', message: error?.message || 'Failed to load cups' }]);
     }
-  }, []);
+  }, [setValidationErrors]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -139,7 +142,7 @@ export function CupsProvider({
     setPanelMode('create');
     setValidationErrors([]);
     navigateToBase();
-  }, [navigateToBase]);
+  }, [navigateToBase, setValidationErrors]);
 
   useEffect(() => {
     registerPanelCloseFunction('cups', closeCupPanel);
@@ -158,7 +161,7 @@ export function CupsProvider({
         navigateToItem(cup, cups, 'name');
       }
     },
-    [clearCupSelection, navigateToItem, cups, onCloseOtherPanels],
+    [clearCupSelection, navigateToItem, cups, onCloseOtherPanels, setValidationErrors],
   );
 
   const openCupForEdit = useCallback(
@@ -171,7 +174,7 @@ export function CupsProvider({
       onCloseOtherPanels();
       navigateToItem(cup, cups, 'name');
     },
-    [navigateToItem, cups, onCloseOtherPanels],
+    [navigateToItem, cups, onCloseOtherPanels, setValidationErrors],
   );
 
   const openCupForViewRef = useRef<(cup: Cup) => void>(() => {});
@@ -185,7 +188,7 @@ export function CupsProvider({
       onCloseOtherPanels();
       navigateToItem(cup, cups, 'name');
     },
-    [navigateToItem, cups, onCloseOtherPanels],
+    [navigateToItem, cups, onCloseOtherPanels, setValidationErrors],
   );
   useEffect(() => {
     openCupForViewRef.current = openCupForView;
@@ -242,7 +245,7 @@ export function CupsProvider({
         setIsSaving(false);
       }
     },
-    [currentCup],
+    [currentCup, setValidationErrors],
   );
 
   const deleteCup = useCallback(
@@ -282,8 +285,6 @@ export function CupsProvider({
     [loadCups],
   );
 
-  const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
-
   const getDeleteMessage = useCallback(
     (item: Cup | null) => `Delete "${item?.name || 'this cup'}"? This action cannot be undone.`,
     [],
@@ -304,30 +305,14 @@ export function CupsProvider({
     [cups],
   );
 
-  const rawItemIndex = currentCup ? cupsOrderedById.findIndex((c) => c.id === currentCup.id) : -1;
-  const totalItems = cupsOrderedById.length;
-  const hasPrevItem = rawItemIndex > 0;
-  const hasNextItem = rawItemIndex >= 0 && rawItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || rawItemIndex <= 0) {
-      return;
-    }
-    const prev = cupsOrderedById[rawItemIndex - 1];
-    if (prev) {
-      openCupForView(prev);
-    }
-  }, [hasPrevItem, rawItemIndex, cupsOrderedById, openCupForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || rawItemIndex < 0 || rawItemIndex >= cupsOrderedById.length - 1) {
-      return;
-    }
-    const next = cupsOrderedById[rawItemIndex + 1];
-    if (next) {
-      openCupForView(next);
-    }
-  }, [hasNextItem, rawItemIndex, cupsOrderedById, openCupForView]);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(cupsOrderedById, currentCup, openCupForView);
 
   const value: CupsContextType = {
     isCupPanelOpen,
@@ -361,7 +346,7 @@ export function CupsProvider({
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: rawItemIndex === -1 ? 0 : rawItemIndex + 1,
+    currentItemIndex,
     totalItems,
   };
 

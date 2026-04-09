@@ -15,6 +15,8 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { resolveSlug } from '@/core/utils/slugUtils';
@@ -108,7 +110,8 @@ export function InvoicesProvider({
   const [isInvoicesPanelOpen, setIsInvoicesPanelOpen] = useState(false);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
 
   // Data
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -212,7 +215,7 @@ export function InvoicesProvider({
       onCloseOtherPanels();
       navigateToItem(item, invoices, 'invoiceNumber');
     },
-    [onCloseOtherPanels, navigateToItem, invoices],
+    [onCloseOtherPanels, navigateToItem, invoices, setValidationErrors],
   );
 
   const openInvoiceForViewRef = useRef(openInvoiceForView);
@@ -226,39 +229,19 @@ export function InvoicesProvider({
     setPanelMode('create');
     setValidationErrors([]);
     navigateToBase();
-  }, [navigateToBase]);
+  }, [navigateToBase, setValidationErrors]);
 
   // ⬇️ singular alias to satisfy UniversalPanel handler name inference (close + Singular + Panel)
   const closeInvoicePanel = () => closeInvoicesPanel();
 
-  const currentItemIndex = currentInvoice
-    ? invoices.findIndex((i) => i.id === currentInvoice.id)
-    : -1;
-  const totalItems = invoices.length;
-  const hasPrevItem = currentItemIndex > 0;
-  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) {
-      return;
-    }
-    const prev = invoices[currentItemIndex - 1];
-    if (prev) {
-      openInvoiceForView(prev);
-    }
-  }, [hasPrevItem, currentItemIndex, invoices, openInvoiceForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= invoices.length - 1) {
-      return;
-    }
-    const next = invoices[currentItemIndex + 1];
-    if (next) {
-      openInvoiceForView(next);
-    }
-  }, [hasNextItem, currentItemIndex, invoices, openInvoiceForView]);
-
-  const clearValidationErrors = () => setValidationErrors([]);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(invoices, currentInvoice, openInvoiceForView);
 
   const saveInvoice = async (raw: any): Promise<boolean> => {
     const errors = validate(raw);
@@ -469,7 +452,7 @@ export function InvoicesProvider({
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    currentItemIndex,
     totalItems,
   };
 

@@ -17,6 +17,9 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
@@ -136,7 +139,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksContentView, setTasksContentView] = useState<'list' | 'settings'>('list');
@@ -167,7 +171,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setValidationErrors([]);
     setQuickEditDraft(null);
     navigateToBase();
-  }, [navigateToBase]);
+  }, [navigateToBase, setValidationErrors]);
 
   useEffect(() => {
     registerPanelCloseFunction('tasks', closeTaskPanel);
@@ -191,7 +195,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const errorMessage = error?.message || error?.error || 'Failed to load tasks';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
-  }, []);
+  }, [setValidationErrors]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -254,7 +258,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         navigateToItem(task, tasks, 'title');
       }
     },
-    [onCloseOtherPanels, clearTaskSelectionCore, navigateToItem, tasks],
+    [onCloseOtherPanels, clearTaskSelectionCore, navigateToItem, tasks, setValidationErrors],
   );
 
   const openTaskForEdit = useCallback(
@@ -269,7 +273,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       onCloseOtherPanels();
       navigateToItem(task, tasks, 'title');
     },
-    [onCloseOtherPanels, clearTaskSelectionCore, navigateToItem, tasks],
+    [onCloseOtherPanels, clearTaskSelectionCore, navigateToItem, tasks, setValidationErrors],
   );
 
   const openTaskForView = useCallback(
@@ -283,7 +287,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       onCloseOtherPanels();
       navigateToItem(task, tasks, 'title');
     },
-    [onCloseOtherPanels, navigateToItem, tasks],
+    [onCloseOtherPanels, navigateToItem, tasks, setValidationErrors],
   );
 
   const openTaskSettings = useCallback(() => {
@@ -336,34 +340,14 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return () => registerTasksNavigation(null);
   }, [registerTasksNavigation, openTaskForViewBridge]);
 
-  const currentItemIndex = currentTask ? tasks.findIndex((t) => t.id === currentTask.id) : -1;
-  const totalItems = tasks.length;
-  const hasPrevItem = currentItemIndex > 0;
-  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) {
-      return;
-    }
-    const prev = tasks[currentItemIndex - 1];
-    if (prev) {
-      openTaskForView(prev);
-    }
-  }, [hasPrevItem, currentItemIndex, tasks, openTaskForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= tasks.length - 1) {
-      return;
-    }
-    const next = tasks[currentItemIndex + 1];
-    if (next) {
-      openTaskForView(next);
-    }
-  }, [hasNextItem, currentItemIndex, tasks, openTaskForView]);
-
-  const clearValidationErrors = useCallback(() => {
-    setValidationErrors([]);
-  }, []);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(tasks, currentTask, openTaskForView);
 
   const saveTask = useCallback(
     async (taskData: any, taskId?: string): Promise<boolean> => {
@@ -447,7 +431,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         return false;
       }
     },
-    [currentTask, closeTaskPanel, validateTask],
+    [currentTask, closeTaskPanel, validateTask, setValidationErrors],
   );
 
   const setQuickEditField = useCallback(
@@ -626,21 +610,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [currentTask, closeTaskPanel, clearTaskSelectionCore],
   );
 
-  const getDuplicateConfig = useCallback(
-    (item: Task | null) => {
-      if (!item) {
-        return null;
-      }
-      const baseTitle = item.title?.trim() || 'Item';
-      return {
-        defaultName: `Copy of ${baseTitle}`,
-        nameLabel: t('tasks.title'),
-        confirmOnly: false,
-      };
-    },
-    [t],
-  );
-
   const createTask = useCallback(
     async (taskData: {
       title: string;
@@ -665,13 +634,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [],
   );
 
-  const executeDuplicate = useCallback(
-    async (
-      item: Task,
-      newName: string,
-    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+  const createTaskDuplicate = useCallback(
+    async (item: Task, newName: string): Promise<Task> => {
       const nextName = (newName ?? '').trim();
-      const payload = {
+      return createTask({
         title: nextName || item.title?.trim() || 'Untitled',
         content: item.content ?? '',
         status: item.status ?? 'not started',
@@ -680,14 +646,18 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         assignedTo: item.assignedTo ?? null,
         assignedToIds: item.assignedToIds ?? (item.assignedTo ? [String(item.assignedTo)] : []),
         mentions: item.mentions ?? [],
-      };
-      const newTask = await createTask(payload);
-      const highlightId =
-        newTask?.id !== null && newTask?.id !== undefined ? String(newTask.id) : undefined;
-      return { closePanel: closeTaskPanel, highlightId };
+      });
     },
-    [createTask, closeTaskPanel],
+    [createTask],
   );
+
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: Task) => `Copy of ${item.title?.trim() || 'Item'}`,
+    nameLabel: t('tasks.title'),
+    confirmOnly: false,
+    createDuplicate: createTaskDuplicate,
+    closePanel: closeTaskPanel,
+  });
 
   const getPanelSubtitle = useCallback(
     (mode: string, item: Task | null) => {
@@ -894,7 +864,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    currentItemIndex,
     totalItems,
   };
 

@@ -15,7 +15,7 @@ import {
   Trophy,
   Zap,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -34,9 +34,10 @@ import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
+import type { Contact } from '../types/contacts';
 
 interface ContactViewProps {
-  contact: any;
+  contact: Contact;
 }
 
 const CONTACT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
@@ -263,7 +264,7 @@ function RelatedItemsCard({
   );
 }
 
-export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
+export const ContactView = React.memo(function ContactView({ contact }: ContactViewProps) {
   const { t } = useTranslation();
   const {
     user,
@@ -369,91 +370,114 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     getTasksWithMentionsForContact,
   ]);
 
-  const formatDuration = (seconds: number) => {
+  const formatDuration = useCallback((seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
     return `${minutes} min`;
-  };
+  }, []);
 
-  const handleDeleteTimeEntry = async (entryId: string) => {
-    if (!contact?.id) {
-      return;
-    }
-    setDeletingEntryId(entryId);
-    try {
-      const response = await fetch(`/api/contacts/${contact.id}/time-entries/${entryId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        setTimeEntries((prev) => prev.filter((entry) => entry.id !== entryId));
+  const handleDeleteTimeEntry = useCallback(
+    async (entryId: string) => {
+      if (!contact?.id) {
+        return;
       }
-    } finally {
-      setDeletingEntryId(null);
-    }
-  };
+      setDeletingEntryId(entryId);
+      try {
+        const response = await fetch(`/api/contacts/${contact.id}/time-entries/${entryId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          setTimeEntries((prev) => prev.filter((entry) => entry.id !== entryId));
+        }
+      } finally {
+        setDeletingEntryId(null);
+      }
+    },
+    [contact?.id],
+  );
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!contact) {
       return;
     }
     await deleteContact(contact.id);
     setShowDeleteContactConfirm(false);
     closeContactPanel();
-  };
+  }, [contact, deleteContact, closeContactPanel]);
 
-  const toEstimateItems: RelatedItem[] = relatedEstimates.map((item: any) => ({
-    id: item.id,
-    label: formatDisplayNumber('estimates', item.estimateNumber),
-    onOpen: () => {
-      closeContactPanel();
-      openEstimateForView(item);
-    },
-    pluginClass: 'plugin-estimates bg-plugin-subtle/40',
-  }));
+  const toEstimateItems: RelatedItem[] = useMemo(
+    () =>
+      relatedEstimates.map((item: any) => ({
+        id: item.id,
+        label: formatDisplayNumber('estimates', item.estimateNumber),
+        onOpen: () => {
+          closeContactPanel();
+          openEstimateForView(item);
+        },
+        pluginClass: 'plugin-estimates bg-plugin-subtle/40',
+      })),
+    [relatedEstimates, closeContactPanel, openEstimateForView],
+  );
 
-  const toTaskItems: RelatedItem[] = [...assignedTasks, ...mentionedInTasks].map((item: any) => ({
-    id: item.id,
-    label: item.title || 'Task',
-    onOpen: () => {
-      closeContactPanel();
-      openTaskForView(item);
-    },
-    pluginClass: 'plugin-tasks bg-plugin-subtle/40',
-  }));
+  const toTaskItems: RelatedItem[] = useMemo(
+    () =>
+      [...assignedTasks, ...mentionedInTasks].map((item: any) => ({
+        id: item.id,
+        label: item.title || 'Task',
+        onOpen: () => {
+          closeContactPanel();
+          openTaskForView(item);
+        },
+        pluginClass: 'plugin-tasks bg-plugin-subtle/40',
+      })),
+    [assignedTasks, mentionedInTasks, closeContactPanel, openTaskForView],
+  );
 
-  const toNoteItems: RelatedItem[] = mentionedInNotes.map((item: any) => ({
-    id: item.id,
-    label: item.title || 'Note',
-    onOpen: () => {
-      closeContactPanel();
-      openNoteForView(item);
-    },
-    pluginClass: 'plugin-notes bg-plugin-subtle/40',
-  }));
+  const toNoteItems: RelatedItem[] = useMemo(
+    () =>
+      mentionedInNotes.map((item: any) => ({
+        id: item.id,
+        label: item.title || 'Note',
+        onOpen: () => {
+          closeContactPanel();
+          openNoteForView(item);
+        },
+        pluginClass: 'plugin-notes bg-plugin-subtle/40',
+      })),
+    [mentionedInNotes, closeContactPanel, openNoteForView],
+  );
 
-  const toSlotItems: RelatedItem[] = slots.map((item: any) => ({
-    id: item.id,
-    label: item.location || 'Slot',
-    onOpen: () => {
-      closeContactPanel();
-      openSlotForView(item);
-    },
-    pluginClass: 'plugin-slots bg-plugin-subtle/40',
-  }));
+  const toSlotItems: RelatedItem[] = useMemo(
+    () =>
+      slots.map((item: any) => ({
+        id: item.id,
+        label: item.location || 'Slot',
+        onOpen: () => {
+          closeContactPanel();
+          openSlotForView(item);
+        },
+        pluginClass: 'plugin-slots bg-plugin-subtle/40',
+      })),
+    [slots, closeContactPanel, openSlotForView],
+  );
 
-  const toMatchItems: RelatedItem[] = matchMatches.map((item: any) => ({
-    id: item.id,
-    label: `${item.home_team ?? '—'} - ${item.away_team ?? '—'}`,
-    onOpen: () => {
-      closeContactPanel();
-      openMatchForView(item);
-    },
-    pluginClass: 'plugin-matches bg-plugin-subtle/40',
-  }));
+  const toMatchItems: RelatedItem[] = useMemo(
+    () =>
+      matchMatches.map((item: any) => ({
+        id: item.id,
+        label: `${item.home_team ?? '—'} - ${item.away_team ?? '—'}`,
+        onOpen: () => {
+          closeContactPanel();
+          openMatchForView(item);
+        },
+        pluginClass: 'plugin-matches bg-plugin-subtle/40',
+      })),
+    [matchMatches, closeContactPanel, openMatchForView],
+  );
 
   if (!contact) {
     return null;
@@ -931,4 +955,4 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       />
     </div>
   );
-};
+});

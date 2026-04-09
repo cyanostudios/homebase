@@ -17,6 +17,9 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
@@ -177,7 +180,8 @@ export function SlotsProvider({
   const [isSlotsPanelOpen, setIsSlotsPanelOpen] = useState(false);
   const [currentSlot, setCurrentSlot] = useState<Slot | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsContentView, setSlotsContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedSlotId, setRecentlyDuplicatedSlotId] = useState<string | null>(null);
@@ -289,7 +293,7 @@ export function SlotsProvider({
     setMentionsDraft(null);
     setShowDiscardQuickEditDialog(false);
     navigateToBase();
-  }, [navigateToBase]);
+  }, [navigateToBase, setValidationErrors]);
 
   useEffect(() => {
     registerPanelCloseFunction('slots', closeSlotPanel);
@@ -305,7 +309,7 @@ export function SlotsProvider({
         { field: 'general', message: extractErrorMsg(error, t('slots.loadFailed')) },
       ]);
     }
-  }, [t]);
+  }, [t, setValidationErrors]);
 
   const refreshSlots = useCallback(async () => {
     await loadSlots();
@@ -366,7 +370,7 @@ export function SlotsProvider({
         );
       }
     },
-    [onCloseOtherPanels, clearSlotSelectionCore, navigateToItem, slots],
+    [onCloseOtherPanels, clearSlotSelectionCore, navigateToItem, slots, setValidationErrors],
   );
 
   const openSlotForEdit = useCallback(
@@ -384,7 +388,7 @@ export function SlotsProvider({
         i.slot_time ? String(i.slot_time).slice(0, 10) : '',
       );
     },
-    [onCloseOtherPanels, clearSlotSelectionCore, navigateToItem, slots],
+    [onCloseOtherPanels, clearSlotSelectionCore, navigateToItem, slots, setValidationErrors],
   );
 
   const openSlotForView = useCallback(
@@ -401,7 +405,7 @@ export function SlotsProvider({
         i.slot_time ? String(i.slot_time).slice(0, 10) : '',
       );
     },
-    [onCloseOtherPanels, navigateToItem, slots],
+    [onCloseOtherPanels, navigateToItem, slots, setValidationErrors],
   );
 
   const openSlotForViewRef = useRef(openSlotForView);
@@ -448,30 +452,14 @@ export function SlotsProvider({
     return () => registerSlotsNavigation(null);
   }, [registerSlotsNavigation, openSlotForViewBridge]);
 
-  const currentItemIndex = currentSlot ? slots.findIndex((s) => s.id === currentSlot.id) : -1;
-  const totalItems = slots.length;
-  const hasPrevItem = currentItemIndex > 0;
-  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) {
-      return;
-    }
-    const prev = slots[currentItemIndex - 1];
-    if (prev) {
-      openSlotForView(prev);
-    }
-  }, [hasPrevItem, currentItemIndex, slots, openSlotForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= slots.length - 1) {
-      return;
-    }
-    const next = slots[currentItemIndex + 1];
-    if (next) {
-      openSlotForView(next);
-    }
-  }, [hasNextItem, currentItemIndex, slots, openSlotForView]);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(slots, currentSlot, openSlotForView);
 
   // Clear quick-edit drafts when slot changes (e.g. navigate or after save)
   useEffect(() => {
@@ -571,8 +559,6 @@ export function SlotsProvider({
     setSlotsContentView('list');
   }, []);
 
-  const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
-
   const saveSlot = useCallback(
     async (data: Record<string, unknown>, slotId?: string): Promise<boolean> => {
       const errors = validateSlot(data);
@@ -604,7 +590,7 @@ export function SlotsProvider({
         return false;
       }
     },
-    [currentSlot, validateSlot, closeSlotPanel],
+    [currentSlot, validateSlot, closeSlotPanel, setValidationErrors],
   );
 
   const saveSlots = useCallback(
@@ -635,7 +621,7 @@ export function SlotsProvider({
         return false;
       }
     },
-    [validateSlot, closeSlotPanel],
+    [validateSlot, closeSlotPanel, setValidationErrors],
   );
 
   const onApplyQuickEdit = useCallback(async () => {
@@ -711,7 +697,7 @@ export function SlotsProvider({
         ]);
       }
     },
-    [currentSlot, closeSlotPanel, t],
+    [currentSlot, closeSlotPanel, t, setValidationErrors],
   );
 
   const deleteSlots = useCallback(
@@ -733,7 +719,7 @@ export function SlotsProvider({
         ]);
       }
     },
-    [currentSlot, closeSlotPanel, clearSlotSelectionCore],
+    [currentSlot, closeSlotPanel, clearSlotSelectionCore, setValidationErrors],
   );
 
   const getPanelTitle = useCallback(
@@ -792,67 +778,61 @@ export function SlotsProvider({
     [t],
   );
 
-  const getDuplicateConfig = useCallback((item: Slot | null) => {
-    if (!item) {
-      return null;
-    }
-    const baseName =
-      item.name?.trim() ||
-      item.location?.trim() ||
-      (item.slot_time ? new Date(item.slot_time).toLocaleString('sv-SE') : 'Slot');
-    return {
-      defaultName: `Copy of ${baseName}`,
-      nameLabel: 'Name',
-      confirmOnly: false,
+  const createSlotDuplicate = useCallback(async (item: Slot, newName: string): Promise<Slot> => {
+    const nextName = (newName ?? '').trim();
+    const copy = {
+      name: nextName || (item.name ?? null),
+      location: item.location ?? null,
+      slot_time: item.slot_time,
+      slot_end: item.slot_end ?? null,
+      address: item.address ?? null,
+      category: item.category ?? null,
+      capacity: item.capacity,
+      visible: item.visible,
+      notifications_enabled: item.notifications_enabled,
+      contact_id: item.contact_id ?? null,
+      mentions: item.mentions ?? [],
+      description: item.description ?? null,
     };
+    const newSlot = await slotsApi.createSlot(copy);
+    setSlots((prev) => [newSlot, ...prev]);
+    return newSlot;
   }, []);
 
-  const executeDuplicate = useCallback(
-    async (
-      item: Slot,
-      newName: string,
-    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
-      const nextName = (newName ?? '').trim();
-      const copy = {
-        name: nextName || (item.name ?? null),
-        location: item.location ?? null,
-        slot_time: item.slot_time,
-        slot_end: item.slot_end ?? null,
-        address: item.address ?? null,
-        category: item.category ?? null,
-        capacity: item.capacity,
-        visible: item.visible,
-        notifications_enabled: item.notifications_enabled,
-        contact_id: item.contact_id ?? null,
-        mentions: item.mentions ?? [],
-        description: item.description ?? null,
-      };
-      const newSlot = await slotsApi.createSlot(copy);
-      setSlots((prev) => [newSlot, ...prev]);
-      const highlightId =
-        newSlot?.id !== null && newSlot?.id !== undefined ? String(newSlot.id) : undefined;
-      return { closePanel: closeSlotPanel, highlightId };
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: Slot) => {
+      const base =
+        item.name?.trim() ||
+        item.location?.trim() ||
+        (item.slot_time ? new Date(item.slot_time).toLocaleString('sv-SE') : 'Slot');
+      return `Copy of ${base}`;
     },
-    [closeSlotPanel],
-  );
+    nameLabel: 'Name',
+    confirmOnly: false,
+    createDuplicate: createSlotDuplicate,
+    closePanel: closeSlotPanel,
+  });
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
 
-  const onExportItem = useCallback((format: ExportFormat, item: Slot) => {
-    const result = exportItems({
-      items: [item],
-      format,
-      config: slotExportConfig,
-      filename: getSlotExportBaseFilename(item),
-      title: 'Slots Export',
-    });
-    if (result && typeof (result as Promise<void>).then === 'function') {
-      (result as Promise<void>).catch((err) => {
-        console.error('Export failed:', err);
-        setValidationErrors([{ field: 'general', message: 'Export failed. Please try again.' }]);
+  const onExportItem = useCallback(
+    (format: ExportFormat, item: Slot) => {
+      const result = exportItems({
+        items: [item],
+        format,
+        config: slotExportConfig,
+        filename: getSlotExportBaseFilename(item),
+        title: 'Slots Export',
       });
-    }
-  }, []);
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        (result as Promise<void>).catch((err) => {
+          console.error('Export failed:', err);
+          setValidationErrors([{ field: 'general', message: 'Export failed. Please try again.' }]);
+        });
+      }
+    },
+    [setValidationErrors],
+  );
 
   const value: SlotsContextType = {
     isSlotsPanelOpen,
@@ -905,7 +885,7 @@ export function SlotsProvider({
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    currentItemIndex,
     totalItems,
 
     exportFormats,

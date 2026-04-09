@@ -25,6 +25,7 @@ export interface Contact {
   fTax: string;
   notes: string;
   tags?: string[];
+  isAssignable?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

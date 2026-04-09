@@ -16,6 +16,9 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
+import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
@@ -123,7 +126,8 @@ export function MatchProvider({
   const [isMatchPanelOpen, setIsMatchPanelOpen] = useState(false);
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const { validationErrors, setValidationErrors, clearValidationErrors } =
+    usePluginValidation<ValidationError>();
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchesContentView, setMatchesContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedMatchId, setRecentlyDuplicatedMatchId] = useState<string | null>(null);
@@ -150,7 +154,7 @@ export function MatchProvider({
     setMentionsDraft(null);
     setShowDiscardQuickEditDialog(false);
     navigateToBase();
-  }, [navigateToBase]);
+  }, [navigateToBase, setValidationErrors]);
 
   useEffect(() => {
     registerPanelCloseFunction('matches', closeMatchPanel);
@@ -165,7 +169,7 @@ export function MatchProvider({
       const msg = error?.message || error?.error || t('matches.loadFailed');
       setValidationErrors([{ field: 'general', message: msg }]);
     }
-  }, [t]);
+  }, [t, setValidationErrors]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -235,7 +239,7 @@ export function MatchProvider({
         navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
       }
     },
-    [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches],
+    [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches, setValidationErrors],
   );
 
   const openMatchForEdit = useCallback(
@@ -249,7 +253,7 @@ export function MatchProvider({
       onCloseOtherPanels();
       navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
     },
-    [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches],
+    [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches, setValidationErrors],
   );
 
   const openMatchForView = useCallback(
@@ -262,7 +266,7 @@ export function MatchProvider({
       onCloseOtherPanels();
       navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
     },
-    [onCloseOtherPanels, navigateToItem, matches],
+    [onCloseOtherPanels, navigateToItem, matches, setValidationErrors],
   );
 
   const openMatchForViewRef = useRef(openMatchForView);
@@ -278,30 +282,14 @@ export function MatchProvider({
     return () => registerMatchesNavigation(null);
   }, [registerMatchesNavigation, openMatchForViewBridge]);
 
-  const currentItemIndex = currentMatch ? matches.findIndex((m) => m.id === currentMatch.id) : -1;
-  const totalItems = matches.length;
-  const hasPrevItem = currentItemIndex > 0;
-  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
-
-  const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) {
-      return;
-    }
-    const prev = matches[currentItemIndex - 1];
-    if (prev) {
-      openMatchForView(prev);
-    }
-  }, [hasPrevItem, currentItemIndex, matches, openMatchForView]);
-
-  const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= matches.length - 1) {
-      return;
-    }
-    const next = matches[currentItemIndex + 1];
-    if (next) {
-      openMatchForView(next);
-    }
-  }, [hasNextItem, currentItemIndex, matches, openMatchForView]);
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(matches, currentMatch, openMatchForView);
 
   useEffect(() => {
     setMentionsDraft(null);
@@ -370,8 +358,6 @@ export function MatchProvider({
     setMatchesContentView('list');
   }, []);
 
-  const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
-
   const saveMatch = useCallback(
     async (data: any, matchId?: string): Promise<boolean> => {
       const errors = validateMatch(data);
@@ -400,7 +386,7 @@ export function MatchProvider({
         return false;
       }
     },
-    [currentMatch, validateMatch, closeMatchPanel],
+    [currentMatch, validateMatch, closeMatchPanel, setValidationErrors],
   );
 
   const onApplyQuickEdit = useCallback(async () => {
@@ -538,51 +524,39 @@ export function MatchProvider({
     [t],
   );
 
-  const getDuplicateConfig = useCallback(
-    (item: Match | null) => {
-      if (!item) {
-        return null;
-      }
+  const createMatchDuplicate = useCallback(async (item: Match, newName: string): Promise<Match> => {
+    const copy = {
+      name: (newName ?? '').trim() || null,
+      home_team: item.home_team,
+      away_team: item.away_team,
+      location: item.location || '',
+      start_time: item.start_time,
+      sport_type: item.sport_type,
+      format: item.format,
+      total_minutes: item.total_minutes,
+      match_number: item.match_number,
+      match_type: item.match_type,
+      referee_count: item.referee_count,
+      map_link: item.map_link,
+    };
+    const newMatch = await matchesApi.createMatch(copy);
+    setMatches((prev) => [newMatch, ...prev]);
+    return newMatch;
+  }, []);
+
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: Match) => {
       const displayName =
         item.name?.trim() ||
         [item.home_team, item.away_team].filter(Boolean).join(' – ').trim() ||
         t('matches.match');
-      return {
-        defaultName: `${t('matches.copy')} ${displayName}`,
-        nameLabel: t('matches.duplicateNameLabel'),
-        confirmOnly: false,
-      };
+      return `${t('matches.copy')} ${displayName}`;
     },
-    [t],
-  );
-
-  const executeDuplicate = useCallback(
-    async (
-      item: Match,
-      newName: string,
-    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
-      const copy = {
-        name: (newName ?? '').trim() || null,
-        home_team: item.home_team,
-        away_team: item.away_team,
-        location: item.location || '',
-        start_time: item.start_time,
-        sport_type: item.sport_type,
-        format: item.format,
-        total_minutes: item.total_minutes,
-        match_number: item.match_number,
-        match_type: item.match_type,
-        referee_count: item.referee_count,
-        map_link: item.map_link,
-      };
-      const newMatch = await matchesApi.createMatch(copy);
-      setMatches((prev) => [newMatch, ...prev]);
-      const highlightId =
-        newMatch?.id !== null && newMatch?.id !== undefined ? String(newMatch.id) : undefined;
-      return { closePanel: closeMatchPanel, highlightId };
-    },
-    [closeMatchPanel],
-  );
+    nameLabel: t('matches.duplicateNameLabel'),
+    confirmOnly: false,
+    createDuplicate: createMatchDuplicate,
+    closePanel: closeMatchPanel,
+  });
 
   const detailFooterActions = pluginActions
     .filter((action) => action.id !== 'create-slot-from-match' || hasSlotsPlugin)
@@ -608,7 +582,7 @@ export function MatchProvider({
             action.id === 'create-slot-from-match' && openToSlotDialog
               ? (m: Match) => openToSlotDialog(m)
               : (action.onClick as (m: Match) => void | Promise<void>);
-          const maybePromise = handler(match);
+          const maybePromise: unknown = handler(match);
           if (maybePromise && typeof (maybePromise as Promise<void>).catch === 'function') {
             (maybePromise as Promise<void>).catch((err: unknown) => {
               const msg =
@@ -683,7 +657,7 @@ export function MatchProvider({
     navigateToNextItem,
     hasPrevItem,
     hasNextItem,
-    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    currentItemIndex,
     totalItems,
   };
 
