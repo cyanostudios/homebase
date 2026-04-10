@@ -111,7 +111,7 @@
     "noSlotsMatch": "Inga slots matchar sökningen.",
     "noSlotsYet": "Inga slots än. Klicka \"Lägg till slot\" för att lägga till.",
     "sectionTitle": "Slot",
-    "nameLabel": "Namn (På slot)",
+    "nameLabel": "Namn",
     "namePlaceholder": "Lämna tomt för SLT-nummer",
     "startDateLabel": "Startdatum",
     "endDateLabel": "Slutdatum",
@@ -358,7 +358,16 @@
     "addAssigneePlaceholder": "Lägg till ansvarig…",
     "removeAssignee": "Ta bort ansvarig",
     "toTask": "Till uppgift",
-    "toTaskAndDelete": "Till uppgift och radera"
+    "toTaskAndDelete": "Till uppgift och radera",
+    "shareLinkExpired": "Delningslänken har gått ut",
+    "activeShareLink": "Aktiv delningslänk",
+    "expiredOn": "Gick ut",
+    "expiresOn": "Går ut",
+    "accessedCount": "Öppnad {{count}} gånger",
+    "revokeShare": "Återkalla länk",
+    "shareTask": "Dela uppgift",
+    "creatingShare": "Skapar…",
+    "viewShareLink": "Visa delning"
   },
   "notes": {
     "searchPlaceholder": "Sök {{count}} anteckningar...",
@@ -671,6 +680,7 @@
   "app": {
     "createTaskFromNote": "Skapa uppgift från anteckning",
     "createTaskFromNoteAndDelete": "Skapa uppgift och radera anteckning",
+    "createTaskAndDeleteNote": "Skapa och radera anteckning",
     "taskCreatedNoteDeleteFailed": "Uppgiften skapades, men anteckningen kunde inte raderas. Du kan ta bort den manuellt.",
     "taskTitle": "Uppgiftens titel",
     "create": "Skapa",

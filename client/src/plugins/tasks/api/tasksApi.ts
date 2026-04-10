@@ -1,4 +1,4 @@
-import { Task } from '../types/tasks';
+import type { CreateTaskShareRequest, PublicTask, Task, TaskShare } from '../types/tasks';
 
 class TasksApi {
   private normalizeAssignedToIds(task: any): string[] {
@@ -162,6 +162,71 @@ class TasksApi {
       method: 'DELETE',
     });
   }
+
+  async createShare(request: CreateTaskShareRequest): Promise<TaskShare> {
+    const share = await this.request('/tasks/shares', {
+      method: 'POST',
+      body: JSON.stringify({
+        taskId: request.taskId,
+        validUntil: request.validUntil.toISOString(),
+      }),
+    });
+    return {
+      ...share,
+      validUntil: new Date(share.validUntil),
+      createdAt: new Date(share.createdAt),
+      lastAccessedAt: share.lastAccessedAt ? new Date(share.lastAccessedAt) : undefined,
+    };
+  }
+
+  async getShares(taskId: string): Promise<TaskShare[]> {
+    const shares = await this.request(`/tasks/${taskId}/shares`);
+    return shares.map((share: any) => ({
+      ...share,
+      validUntil: new Date(share.validUntil),
+      createdAt: new Date(share.createdAt),
+      lastAccessedAt: share.lastAccessedAt ? new Date(share.lastAccessedAt) : undefined,
+    }));
+  }
+
+  async revokeShare(shareId: string): Promise<void> {
+    await this.request(`/tasks/shares/${shareId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPublicTask(token: string): Promise<PublicTask> {
+    const task = await this.request(`/tasks/public/${token}`);
+    return {
+      ...task,
+      assignedTo: task.assigned_to,
+      assignedToIds: this.normalizeAssignedToIds(task),
+      createdFromNote: task.created_from_note,
+      dueDate: task.due_date ? new Date(task.due_date) : null,
+      createdAt: new Date(task.created_at),
+      updatedAt: new Date(task.updated_at),
+      shareValidUntil: new Date(task.shareValidUntil),
+    };
+  }
 }
 
 export const tasksApi = new TasksApi();
+
+export const taskShareApi = {
+  async createShare(request: CreateTaskShareRequest): Promise<TaskShare> {
+    return tasksApi.createShare(request);
+  },
+  async getShares(taskId: string): Promise<TaskShare[]> {
+    return tasksApi.getShares(taskId);
+  },
+  async revokeShare(shareId: string): Promise<void> {
+    return tasksApi.revokeShare(shareId);
+  },
+  async getPublicTask(token: string): Promise<PublicTask> {
+    return tasksApi.getPublicTask(token);
+  },
+  generateShareUrl(token: string): string {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/public/task/${token}`;
+  },
+};

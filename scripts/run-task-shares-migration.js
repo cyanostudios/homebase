@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/run-note-shares-migration.js — server/migrations/067-note-shares.sql on all tenant DBs
+// scripts/run-task-shares-migration.js — server/migrations/068-task-shares.sql on all tenant DBs
 
 const { Pool } = require('pg');
 const fs = require('fs');
@@ -9,7 +9,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: '.env.local' });
 dotenv.config({ path: '.env' });
 
-const MIGRATION_FILE = path.join(__dirname, '../server/migrations/067-note-shares.sql');
+const MIGRATION_FILE = path.join(__dirname, '../server/migrations/068-task-shares.sql');
 
 async function runMigrationOnTenant(connectionString, tenantInfo) {
   const pool = new Pool({ connectionString });
@@ -19,7 +19,7 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
     const tenantLabel = tenantInfo.schemaName
       ? `${tenantInfo.email || tenantInfo.userId} (${tenantInfo.schemaName})`
       : tenantInfo.email || tenantInfo.userId;
-    console.log(`\n📦 note_shares migration: ${tenantLabel}...`);
+    console.log(`\n📦 task_shares migration: ${tenantLabel}...`);
 
     if (tenantInfo.schemaName) {
       await client.query(`SET search_path TO ${tenantInfo.schemaName}`);

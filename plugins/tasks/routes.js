@@ -12,6 +12,36 @@ function createTaskRoutes(controller, context) {
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name); // auth/enablement guard
 
+  // Public read-only task by share token (no auth; requires session tenant pool like notes)
+  router.get('/public/:token', (req, res) => {
+    controller.getPublicTask(req, res);
+  });
+
+  router.post(
+    '/shares',
+    gate,
+    commonRules.requiredId('taskId'),
+    commonRules.requiredDate('validUntil'),
+    validateRequest,
+    (req, res) => {
+      controller.createShare(req, res);
+    },
+  );
+
+  router.get('/:id/shares', gate, commonRules.id('id'), validateRequest, (req, res) => {
+    controller.getShares(req, res);
+  });
+
+  router.delete(
+    '/shares/:shareId',
+    gate,
+    commonRules.id('shareId'),
+    validateRequest,
+    (req, res) => {
+      controller.revokeShare(req, res);
+    },
+  );
+
   // GET /api/tasks
   router.get('/', gate, (req, res) => {
     controller.getAll(req, res);

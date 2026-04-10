@@ -21,7 +21,6 @@ import { slotsApi } from '../api/slotsApi';
 import { Slot, ValidationError, type SlotMention } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 import { getSlotExportBaseFilename, slotExportConfig } from '../utils/slotExportConfig';
-import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { SlotsContext } from './SlotsContext';
 import type { SlotsContextType } from './SlotsContext';
@@ -637,18 +636,10 @@ export function SlotsProvider({
     (mode: string, item: Slot | null) => {
       if (mode === 'view' && item) {
         const d = item.slot_time ? new Date(item.slot_time) : null;
-        const passed = isSlotTimePast(item.slot_time);
         return (
-          <span className="flex flex-col gap-1 items-start">
-            <span className="text-xs text-muted-foreground">
-              {item.location || '—'}
-              {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
-            </span>
-            {passed && (
-              <span className="text-xs font-semibold text-red-600 dark:text-red-400">
-                {t('slots.slotDatePassed')}
-              </span>
-            )}
+          <span className="text-xs text-muted-foreground">
+            {item.location || '—'}
+            {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
           </span>
         );
       }

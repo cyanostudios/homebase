@@ -16,7 +16,7 @@ interface ShareDialogProps {
   /** Label shown in copy (estimate number, note title, etc.) */
   entityLabel: string;
   /** Controls title and wording */
-  variant?: 'estimate' | 'note';
+  variant?: 'estimate' | 'note' | 'task';
 }
 
 export function ShareDialog({
@@ -44,8 +44,9 @@ export function ShareDialog({
     }
   };
 
-  const title = variant === 'note' ? 'Note Share' : 'Estimate Share';
-  const entityWord = variant === 'note' ? 'note' : 'estimate';
+  const title =
+    variant === 'note' ? 'Note Share' : variant === 'task' ? 'Task Share' : 'Estimate Share';
+  const entityWord = variant === 'note' ? 'note' : variant === 'task' ? 'task' : 'estimate';
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

@@ -2,7 +2,7 @@ import React, { createContext, useContext } from 'react';
 
 import type { ExportFormat } from '@/core/utils/exportUtils';
 
-import type { Task, ValidationError } from '../types/tasks';
+import type { Task, TaskShare, ValidationError } from '../types/tasks';
 
 export interface TaskContextType {
   isTaskPanelOpen: boolean;
@@ -74,6 +74,29 @@ export interface TaskContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+  detailFooterActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Task) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
+  /** Share / view public link — shown under Export options in task detail */
+  exportShareActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Task) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
+  taskShareExistingShare: TaskShare | null;
+  taskShareShowDialog: boolean;
+  setTaskShareShowDialog: (show: boolean) => void;
+  taskShareIsCreatingShare: boolean;
+  handleTaskCopyShareUrl: () => void;
+  handleTaskRevokeShare: () => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -134,6 +157,14 @@ const EMPTY_TASK_CONTEXT: TaskContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  detailFooterActions: [],
+  exportShareActions: [],
+  taskShareExistingShare: null,
+  taskShareShowDialog: false,
+  setTaskShareShowDialog: () => {},
+  taskShareIsCreatingShare: false,
+  handleTaskCopyShareUrl: () => {},
+  handleTaskRevokeShare: () => {},
 };
 
 export function TaskNullProvider({ children }: { children: React.ReactNode }) {

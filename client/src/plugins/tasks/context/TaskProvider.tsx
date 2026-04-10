@@ -1,5 +1,5 @@
-import { CheckSquare, ListChecks, User } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState, ReactNode } from 'react';
+import { CheckSquare, ExternalLink, Share, User } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
@@ -17,11 +17,12 @@ import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
-import { tasksApi } from '../api/tasksApi';
+import { taskShareApi, tasksApi } from '../api/tasksApi';
 import {
   Task,
   TASK_PRIORITY_COLORS,
   TASK_STATUS_COLORS,
+  TaskShare,
   ValidationError,
   formatStatusForDisplay,
 } from '../types/tasks';
@@ -450,20 +451,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       },
     });
 
-    const unregisterToTaskAndDelete = registerAction('note', {
-      id: 'create-task-from-note-and-delete',
-      label: t('tasks.toTaskAndDelete'),
-      icon: ListChecks,
-      variant: 'primary',
-      className: 'bg-amber-600 hover:bg-amber-700 text-white border-none',
-      onClick: async () => {
-        /* NoteContext routes to App dialog; registry entry supplies label/icon only. */
-      },
-    });
-
     return () => {
       unregisterToTask();
-      unregisterToTaskAndDelete();
     };
   }, [registerAction, saveTask, refreshData, t]);
 
@@ -553,6 +542,128 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     createDuplicate: createTaskDuplicate,
     closePanel: closeTaskPanel,
   });
+
+  const [taskShareExistingShare, setTaskShareExistingShare] = useState<TaskShare | null>(null);
+  const [taskShareShowDialog, setTaskShareShowDialog] = useState(false);
+  const [taskShareIsCreatingShare, setTaskShareIsCreatingShare] = useState(false);
+
+  useEffect(() => {
+    if (panelMode === 'view' && currentTask?.id) {
+      let cancelled = false;
+      taskShareApi
+        .getShares(currentTask.id)
+        .then((shares) => {
+          if (cancelled) {
+            return;
+          }
+          const active = shares.find((s) => new Date(s.validUntil) > new Date());
+          setTaskShareExistingShare(active || null);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setTaskShareExistingShare(null);
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    setTaskShareExistingShare(null);
+  }, [panelMode, currentTask?.id]);
+
+  const defaultTaskShareValidUntil = useCallback((): Date => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }, []);
+
+  const handleTaskShareClick = useCallback(
+    async (taskItem: Task) => {
+      if (taskShareExistingShare) {
+        setTaskShareShowDialog(true);
+        return;
+      }
+      setTaskShareIsCreatingShare(true);
+      try {
+        const share = await taskShareApi.createShare({
+          taskId: taskItem.id,
+          validUntil: defaultTaskShareValidUntil(),
+        });
+        setTaskShareExistingShare(share);
+        setTaskShareShowDialog(true);
+      } catch (error) {
+        console.error('Failed to create task share:', error);
+        alert(error instanceof Error ? error.message : 'Failed to create share link');
+      } finally {
+        setTaskShareIsCreatingShare(false);
+      }
+    },
+    [taskShareExistingShare, defaultTaskShareValidUntil],
+  );
+
+  const handleTaskCopyShareUrl = useCallback(() => {
+    if (!taskShareExistingShare) {
+      return;
+    }
+    const url = taskShareApi.generateShareUrl(taskShareExistingShare.shareToken);
+    navigator.clipboard.writeText(url).catch(() => {});
+  }, [taskShareExistingShare]);
+
+  const handleTaskRevokeShare = useCallback(async () => {
+    if (!taskShareExistingShare) {
+      return;
+    }
+    try {
+      await taskShareApi.revokeShare(taskShareExistingShare.id);
+      setTaskShareExistingShare(null);
+    } catch (error) {
+      console.error('Failed to revoke task share:', error);
+      alert('Failed to revoke share link');
+    }
+  }, [taskShareExistingShare]);
+
+  const shareDetailActions = useMemo(() => {
+    if (panelMode !== 'view' || !currentTask) {
+      return [];
+    }
+    const hasActiveShare =
+      taskShareExistingShare && new Date(taskShareExistingShare.validUntil) > new Date();
+    if (hasActiveShare && taskShareExistingShare) {
+      const shareUrl = taskShareApi.generateShareUrl(taskShareExistingShare.shareToken);
+      return [
+        {
+          id: 'view-share',
+          label: t('tasks.viewShareLink'),
+          icon: ExternalLink,
+          onClick: (_item: Task) => {
+            window.open(shareUrl, '_blank', 'noopener,noreferrer');
+          },
+          className: 'h-9 text-xs px-3',
+          disabled: false,
+        },
+      ];
+    }
+    return [
+      {
+        id: 'share',
+        label: taskShareIsCreatingShare ? t('tasks.creatingShare') : t('tasks.shareTask'),
+        icon: Share,
+        onClick: (taskItem: Task) => {
+          void handleTaskShareClick(taskItem);
+        },
+        className: 'h-9 text-xs px-3',
+        disabled: taskShareIsCreatingShare,
+      },
+    ];
+  }, [
+    panelMode,
+    currentTask,
+    taskShareExistingShare,
+    taskShareIsCreatingShare,
+    handleTaskShareClick,
+    t,
+  ]);
 
   const getPanelSubtitle = useCallback(
     (mode: string, item: Task | null) => {
@@ -751,6 +862,14 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     hasNextItem,
     currentItemIndex,
     totalItems,
+    detailFooterActions: [],
+    exportShareActions: shareDetailActions,
+    taskShareExistingShare,
+    taskShareShowDialog,
+    setTaskShareShowDialog,
+    taskShareIsCreatingShare,
+    handleTaskCopyShareUrl,
+    handleTaskRevokeShare,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

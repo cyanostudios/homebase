@@ -2,7 +2,7 @@
 
 Core (`panelHandlers`, `panelRendering`, `App.tsx`, etc.) resolves plugin behavior using **naming conventions** derived from the plugin `name` in `pluginRegistry.ts` and singularization in `pluginSingular.ts`.
 
-This document is the **single reference** for those names. See also `guides/core-architecture-review-for-cursor.md`.
+This document is the **single reference** for those names. See also `guides/core-architecture-review-for-cursor.md`, `guides/lazy-plugin-providers-architecture.md` (Context vs `*Provider.tsx`, `providerLoader`, pre-fetch on auth, Vite chunks), and `guides/notes-tasks-shares-and-ui-updates.md` (task/note shares, note→task dialog, slots/detail UI).
 
 ---
 

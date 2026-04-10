@@ -50,6 +50,8 @@
     "migrate:cups-visible": "node scripts/run-cups-visible-migration.js",
     "migrate:cups-featured": "node scripts/run-cups-featured-migration.js",
     "migrate:files-storage": "node scripts/run-files-storage-migrations.js",
+    "migrate:note-shares": "node scripts/run-note-shares-migration.js",
+    "migrate:task-shares": "node scripts/run-task-shares-migration.js",
     "puppeteer:install-chrome": "cross-env PUPPETEER_CACHE_DIR=.cache/puppeteer puppeteer browsers install chrome",
     "twilio": "npm install twilio"
   },

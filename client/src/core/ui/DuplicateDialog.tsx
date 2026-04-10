@@ -27,6 +27,9 @@ interface DuplicateDialogProps {
   title?: string;
   /** Optional confirm button text (default: "Save") */
   confirmText?: string;
+  /** Optional third action (e.g. create task and delete source note) */
+  secondActionText?: string;
+  onSecondAction?: (newName: string) => void;
 }
 
 export const DuplicateDialog: React.FC<DuplicateDialogProps> = ({
@@ -38,6 +41,8 @@ export const DuplicateDialog: React.FC<DuplicateDialogProps> = ({
   confirmOnly = false,
   title = 'Duplicate Item',
   confirmText = 'Save',
+  secondActionText,
+  onSecondAction,
 }) => {
   const [name, setName] = useState(defaultName);
 
@@ -50,6 +55,16 @@ export const DuplicateDialog: React.FC<DuplicateDialogProps> = ({
 
   const handleConfirm = () => {
     onConfirm(confirmOnly ? defaultName : name);
+  };
+
+  const resolvedName = confirmOnly ? defaultName : name;
+  const nameInvalid = !confirmOnly && !resolvedName.trim();
+
+  const handleSecondAction = () => {
+    if (!onSecondAction || nameInvalid) {
+      return;
+    }
+    onSecondAction(resolvedName);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -89,21 +104,27 @@ export const DuplicateDialog: React.FC<DuplicateDialogProps> = ({
           </div>
         )}
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <AlertDialogCancel asChild>
             <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <Button
-              variant="default"
-              onClick={handleConfirm}
-              disabled={!confirmOnly && !name.trim()}
-            >
+            <Button variant="default" onClick={handleConfirm} disabled={nameInvalid}>
               {confirmText}
             </Button>
           </AlertDialogAction>
+          {secondActionText && onSecondAction ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleSecondAction}
+              disabled={nameInvalid}
+            >
+              {secondActionText}
+            </Button>
+          ) : null}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

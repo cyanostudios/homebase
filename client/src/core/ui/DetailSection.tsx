@@ -25,6 +25,8 @@ interface DetailSectionProps {
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  /** Match slot detail headline: larger title (text-2xl) for main entity title rows. */
+  prominentTitle?: boolean;
 }
 
 export function DetailSection({
@@ -34,6 +36,7 @@ export function DetailSection({
   action,
   children,
   className,
+  prominentTitle = false,
 }: DetailSectionProps) {
   const iconColorClass =
     iconPlugin !== undefined && iconPlugin !== null
@@ -54,7 +57,11 @@ export function DetailSection({
               <Icon className="h-3.5 w-3.5" />
             </span>
           )}
-          <Heading level={3} className="text-sm font-semibold text-foreground truncate">
+          <Heading
+            level={3}
+            size={prominentTitle ? '2xl' : 'sm'}
+            className="font-semibold text-foreground truncate"
+          >
             {title}
           </Heading>
         </div>

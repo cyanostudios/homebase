@@ -50,6 +50,15 @@ export interface NoteContextType {
     className?: string;
     disabled?: boolean;
   }>;
+  /** Share / view public link — shown under Export options in note detail */
+  exportShareActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Note) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
   noteShareExistingShare: NoteShare | null;
   noteShareShowDialog: boolean;
   setNoteShareShowDialog: (show: boolean) => void;
@@ -108,6 +117,7 @@ const EMPTY_NOTE_CONTEXT: NoteContextType = {
   exportFormats: [],
   onExportItem: () => {},
   detailFooterActions: [],
+  exportShareActions: [],
   noteShareExistingShare: null,
   noteShareShowDialog: false,
   setNoteShareShowDialog: () => {},

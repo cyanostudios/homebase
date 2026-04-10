@@ -54,6 +54,11 @@ const PublicNoteView = React.lazy(() =>
     default: m.PublicNoteView,
   })),
 );
+const PublicTaskView = React.lazy(() =>
+  import('@/plugins/tasks/components/PublicTaskView').then((m) => ({
+    default: m.PublicTaskView,
+  })),
+);
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes.
 // Tenant filtering: enabled plugins use their real Provider (loaded lazily via providerLoader);
@@ -220,7 +225,6 @@ function AppContent() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showToTaskDialog, setShowToTaskDialog] = useState(false);
-  const [deleteNoteAfterTask, setDeleteNoteAfterTask] = useState(false);
   const [noteForTask, setNoteForTask] = useState<{
     id: string;
     title?: string;
@@ -258,9 +262,8 @@ function AppContent() {
 
   // Register "Create task from note" dialog opener so NoteContext footer can open it
   useEffect(() => {
-    registerOpenToTaskDialog((note, options) => {
+    registerOpenToTaskDialog((note) => {
       setNoteForTask(note);
-      setDeleteNoteAfterTask(Boolean(options?.deleteNoteAfter));
       setShowToTaskDialog(true);
     });
     return () => registerOpenToTaskDialog(null);
@@ -645,9 +648,7 @@ function AppContent() {
       {/* Create task from note – cross-plugin infrastructure (notes → tasks); kept in App by design */}
       <DuplicateDialog
         isOpen={showToTaskDialog}
-        title={
-          deleteNoteAfterTask ? t('app.createTaskFromNoteAndDelete') : t('app.createTaskFromNote')
-        }
+        title={t('app.createTaskFromNote')}
         nameLabel={t('app.taskTitle')}
         confirmText={t('app.create')}
         defaultName={noteForTask?.title ?? ''}
@@ -658,15 +659,25 @@ function AppContent() {
           setNoteForTask,
           attemptNavigation,
           navigate,
-          deleteNoteAfter: deleteNoteAfterTask,
+          deleteNoteAfter: false,
           deleteNote: deleteNoteFromNotesPlugin,
           deleteNoteFailedMessage: t('app.taskCreatedNoteDeleteFailed'),
-          setDeleteNoteAfterTask,
+        })}
+        secondActionText={t('app.createTaskAndDeleteNote')}
+        onSecondAction={buildNoteToTaskOnConfirm({
+          noteForTask,
+          pluginContexts,
+          setShowToTaskDialog,
+          setNoteForTask,
+          attemptNavigation,
+          navigate,
+          deleteNoteAfter: true,
+          deleteNote: deleteNoteFromNotesPlugin,
+          deleteNoteFailedMessage: t('app.taskCreatedNoteDeleteFailed'),
         })}
         onCancel={() => {
           setShowToTaskDialog(false);
           setNoteForTask(null);
-          setDeleteNoteAfterTask(false);
         }}
       />
 
@@ -720,6 +731,18 @@ function PublicNoteRoute() {
   );
 }
 
+function PublicTaskRoute() {
+  const { token } = useParams<{ token: string }>();
+  if (!token) {
+    return <div>Invalid link</div>;
+  }
+  return (
+    <React.Suspense fallback={null}>
+      <PublicTaskView token={token} />
+    </React.Suspense>
+  );
+}
+
 // Main App component
 function App() {
   return (
@@ -727,6 +750,7 @@ function App() {
       {/* Public routes – no auth / no providers needed */}
       <Route path="/public/estimate/:token" element={<PublicEstimateRoute />} />
       <Route path="/public/note/:token" element={<PublicNoteRoute />} />
+      <Route path="/public/task/:token" element={<PublicTaskRoute />} />
 
       {/* All private routes – wrapped in full provider stack */}
       <Route

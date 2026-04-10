@@ -1,4 +1,5 @@
 import {
+  AlertCircle,
   CalendarDays,
   Copy,
   Download,
@@ -299,6 +300,20 @@ function SlotMainInfoCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMai
           </div>
           <div className="text-2xl font-semibold text-foreground">{displayName}</div>
         </div>
+        {slotDatePassed ? (
+          <div
+            className="flex w-full max-w-full items-start gap-3 text-sm font-bold leading-snug text-red-600 dark:text-red-400"
+            role="alert"
+          >
+            <span
+              className="inline-flex h-[1lh] w-5 shrink-0 items-center justify-center self-start text-red-600 dark:text-red-400"
+              aria-hidden
+            >
+              <AlertCircle className="size-4 shrink-0" strokeWidth={2} />
+            </span>
+            <span className="min-w-0 flex-1 text-pretty">{t('slots.slotDatePassed')}</span>
+          </div>
+        ) : null}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
@@ -363,9 +378,6 @@ function SlotMainInfoCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMai
             </div>
           </div>
         </div>
-        {slotDatePassed && (
-          <p className="text-xs text-red-600 dark:text-red-400">{t('slots.slotDatePassed')}</p>
-        )}
         {hasMatch && (
           <div className="pt-5 border-t border-border/50">
             <div className="grid grid-cols-2 gap-4">

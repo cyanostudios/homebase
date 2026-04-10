@@ -13,6 +13,28 @@ export interface Task {
   updatedAt: Date;
 }
 
+/** Active share link metadata (API: /api/tasks/:id/shares) */
+export interface TaskShare {
+  id: string;
+  taskId: string;
+  shareToken: string;
+  validUntil: Date;
+  createdAt: Date;
+  accessedCount: number;
+  lastAccessedAt?: Date;
+}
+
+export interface CreateTaskShareRequest {
+  taskId: string;
+  validUntil: Date;
+}
+
+/** Task loaded via public share token */
+export interface PublicTask extends Task {
+  shareValidUntil: Date;
+  accessedCount: number;
+}
+
 export interface Mention {
   contactId: string;
   contactName: string;

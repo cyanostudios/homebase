@@ -1,44 +1,45 @@
 import { Copy, Check, ExternalLink } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { ShareDialog } from '@/plugins/estimates/components/ShareDialog';
 
-import { noteShareApi } from '../api/notesApi';
-import { useNotes } from '../hooks/useNotes';
-import type { Note } from '../types/notes';
+import { taskShareApi } from '../api/tasksApi';
+import { useTasks } from '../hooks/useTasks';
+import type { Task } from '../types/tasks';
 
-/** Active link panel + ShareDialog (below attachments in note view); Share / View in Export options. */
-export function NoteShareBlock({ note }: { note: Note }) {
+export function TaskShareBlock({ task }: { task: Task }) {
+  const { t } = useTranslation();
   const {
-    noteShareExistingShare,
-    noteShareShowDialog,
-    setNoteShareShowDialog,
-    handleNoteCopyShareUrl,
-    handleNoteRevokeShare,
-  } = useNotes();
+    taskShareExistingShare,
+    taskShareShowDialog,
+    setTaskShareShowDialog,
+    handleTaskCopyShareUrl,
+    handleTaskRevokeShare,
+  } = useTasks();
 
   const [copied, setCopied] = useState(false);
 
-  const shareUrl = noteShareExistingShare
-    ? noteShareApi.generateShareUrl(noteShareExistingShare.shareToken)
+  const shareUrl = taskShareExistingShare
+    ? taskShareApi.generateShareUrl(taskShareExistingShare.shareToken)
     : '';
-  const isShareExpired = noteShareExistingShare
-    ? new Date(noteShareExistingShare.validUntil) <= new Date()
+  const isShareExpired = taskShareExistingShare
+    ? new Date(taskShareExistingShare.validUntil) <= new Date()
     : false;
 
   const handleCopy = () => {
-    handleNoteCopyShareUrl();
+    handleTaskCopyShareUrl();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const entityLabel = (note.title || '').trim() || formatDisplayNumber('notes', note.id);
+  const entityLabel = (task.title || '').trim() || formatDisplayNumber('tasks', task.id);
 
   return (
     <>
-      {noteShareExistingShare && (
+      {taskShareExistingShare && (
         <div
           className={`p-4 rounded-lg border ${
             isShareExpired
@@ -51,7 +52,7 @@ export function NoteShareBlock({ note }: { note: Note }) {
               isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
             }`}
           >
-            {isShareExpired ? 'Share Link Expired' : 'Active Share Link'}
+            {isShareExpired ? t('tasks.shareLinkExpired') : t('tasks.activeShareLink')}
           </div>
 
           <div className="flex items-center gap-2 mb-2">
@@ -91,21 +92,21 @@ export function NoteShareBlock({ note }: { note: Note }) {
           >
             <div className="flex items-center justify-left">
               <div>
-                {isShareExpired ? 'Expired on' : 'Expires on'}{' '}
-                {new Date(noteShareExistingShare.validUntil).toLocaleDateString()}
-                {noteShareExistingShare.accessedCount > 0 && (
+                {isShareExpired ? t('tasks.expiredOn') : t('tasks.expiresOn')}{' '}
+                {new Date(taskShareExistingShare.validUntil).toLocaleDateString()}
+                {taskShareExistingShare.accessedCount > 0 && (
                   <span className="ml-2">
-                    • Accessed {noteShareExistingShare.accessedCount} times
+                    • {t('tasks.accessedCount', { count: taskShareExistingShare.accessedCount })}
                   </span>
                 )}
               </div>
               <Button
                 variant="link"
                 size="sm"
-                onClick={handleNoteRevokeShare}
+                onClick={handleTaskRevokeShare}
                 className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 h-auto p-0 underline decoration-red-600/30 font-normal ml-4"
               >
-                Revoke
+                {t('tasks.revokeShare')}
               </Button>
             </div>
           </div>
@@ -113,11 +114,11 @@ export function NoteShareBlock({ note }: { note: Note }) {
       )}
 
       <ShareDialog
-        isOpen={noteShareShowDialog}
-        onClose={() => setNoteShareShowDialog(false)}
+        isOpen={taskShareShowDialog}
+        onClose={() => setTaskShareShowDialog(false)}
         shareUrl={shareUrl}
         entityLabel={entityLabel}
-        variant="note"
+        variant="task"
       />
     </>
   );

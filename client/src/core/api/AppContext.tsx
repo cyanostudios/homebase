@@ -90,10 +90,8 @@ interface AppContextType {
   registerMatchesNavigation: (fn: ((match: Match) => void) | null) => void;
 
   /** Open "Create task from note" dialog (set by AppContent so note detail footer can trigger it). */
-  openToTaskDialog: ((note: Note, options?: { deleteNoteAfter?: boolean }) => void) | null;
-  registerOpenToTaskDialog: (
-    fn: ((note: Note, options?: { deleteNoteAfter?: boolean }) => void) | null,
-  ) => void;
+  openToTaskDialog: ((note: Note) => void) | null;
+  registerOpenToTaskDialog: (fn: ((note: Note) => void) | null) => void;
 
   /** Open "Create slot from match" dialog (set by App so match detail footer can trigger it). */
   openToSlotDialog:
@@ -265,15 +263,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     queueMicrotask(() => setOpenMatchForView(() => fn ?? undefined));
   }, []);
 
-  const [openToTaskDialog, setOpenToTaskDialog] = useState<
-    ((note: Note, options?: { deleteNoteAfter?: boolean }) => void) | null
-  >(null);
-  const registerOpenToTaskDialog = useCallback(
-    (fn: ((note: Note, options?: { deleteNoteAfter?: boolean }) => void) | null) => {
-      queueMicrotask(() => setOpenToTaskDialog(() => fn ?? null));
-    },
-    [],
-  );
+  const [openToTaskDialog, setOpenToTaskDialog] = useState<((note: Note) => void) | null>(null);
+  const registerOpenToTaskDialog = useCallback((fn: ((note: Note) => void) | null) => {
+    queueMicrotask(() => setOpenToTaskDialog(() => fn ?? null));
+  }, []);
 
   const [openToSlotDialog, setOpenToSlotDialog] = useState<
     | ((match: {

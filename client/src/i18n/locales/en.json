@@ -111,7 +111,7 @@
     "noSlotsMatch": "No slots match your search.",
     "noSlotsYet": "No slots yet. Click \"Add Slot\" to add one.",
     "sectionTitle": "Slot",
-    "nameLabel": "Name (På slot)",
+    "nameLabel": "Name",
     "namePlaceholder": "Leave empty for SLT number",
     "startDateLabel": "Start Date",
     "endDateLabel": "End Date",
@@ -358,7 +358,16 @@
     "addAssigneePlaceholder": "Add assignee…",
     "removeAssignee": "Remove assignee",
     "toTask": "To Task",
-    "toTaskAndDelete": "To Task and Delete"
+    "toTaskAndDelete": "To Task and Delete",
+    "shareLinkExpired": "Share link expired",
+    "activeShareLink": "Active share link",
+    "expiredOn": "Expired on",
+    "expiresOn": "Expires on",
+    "accessedCount": "Opened {{count}} times",
+    "revokeShare": "Revoke link",
+    "shareTask": "Share task",
+    "creatingShare": "Creating…",
+    "viewShareLink": "View share"
   },
   "notes": {
     "searchPlaceholder": "Search {{count}} notes...",
@@ -671,6 +680,7 @@
   "app": {
     "createTaskFromNote": "Create task from note",
     "createTaskFromNoteAndDelete": "Create task and delete note",
+    "createTaskAndDeleteNote": "Create and delete note",
     "taskCreatedNoteDeleteFailed": "The task was created, but the note could not be deleted. You can delete it manually.",
     "taskTitle": "Task title",
     "create": "Create",

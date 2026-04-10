@@ -1,5 +1,5 @@
 import { ExternalLink, Share } from 'lucide-react';
-import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
@@ -470,10 +470,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     () =>
       pluginActions
         .filter((action) => {
-          if (
-            action.id === 'create-task-from-note' ||
-            action.id === 'create-task-from-note-and-delete'
-          ) {
+          if (action.id === 'create-task-from-note-and-delete') {
+            return false;
+          }
+          if (action.id === 'create-task-from-note') {
             return hasTasksPlugin;
           }
           return true;
@@ -489,10 +489,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             }
             if (action.id === 'create-task-from-note') {
               openToTaskDialog(note);
-              return;
-            }
-            if (action.id === 'create-task-from-note-and-delete') {
-              openToTaskDialog(note, { deleteNoteAfter: true });
               return;
             }
             void action.onClick(note);
@@ -541,11 +537,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     noteShareIsCreatingShare,
     handleNoteShareClick,
   ]);
-
-  const mergedDetailFooterActions = useMemo(
-    () => [...shareDetailActions, ...pluginDetailActions],
-    [shareDetailActions, pluginDetailActions],
-  );
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
 
@@ -617,7 +608,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setRecentlyDuplicatedNoteId,
     exportFormats,
     onExportItem,
-    detailFooterActions: mergedDetailFooterActions,
+    detailFooterActions: pluginDetailActions,
+    exportShareActions: shareDetailActions,
     noteShareExistingShare,
     noteShareShowDialog,
     setNoteShareShowDialog,

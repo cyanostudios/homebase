@@ -1,5 +1,6 @@
 // plugins/tasks/model.js
 // Tasks model - V3 with @homebase/core SDK
+const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
@@ -24,6 +25,35 @@ let _supportsAssignedToIds = null;
 class TaskModel {
   constructor() {
     // No pool needed - ServiceManager provides database service
+  }
+
+  _getContext(req) {
+    if (!req) {
+      throw new Error('Request object is required');
+    }
+    const pool = req.tenantPool;
+    if (!pool) {
+      throw new Error('Tenant pool not found in request. Ensure auth middleware is applied.');
+    }
+    return { pool, userId: req.session?.currentTenantUserId || req.session?.user?.id };
+  }
+
+  async getById(req, taskId) {
+    try {
+      const db = Database.get(req);
+      const id = parseInt(String(taskId), 10);
+      if (Number.isNaN(id)) {
+        return null;
+      }
+      const rows = await db.query('SELECT * FROM tasks WHERE id = $1', [id]);
+      if (!rows.length) {
+        return null;
+      }
+      return this.transformRow(rows[0]);
+    } catch (error) {
+      Logger.error('Failed to get task by id', error, { taskId });
+      throw new AppError('Failed to get task', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
   async getAll(req) {
@@ -219,6 +249,206 @@ class TaskModel {
         throw error;
       }
       throw new AppError('Failed to delete task', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  generateShareToken() {
+    const bytes = crypto.randomBytes(24);
+    return this.base62Encode(bytes);
+  }
+
+  base62Encode(buffer) {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    let result = '';
+    let num = BigInt(`0x${buffer.toString('hex')}`);
+
+    while (num > 0n) {
+      result = chars[Number(num % 62n)] + result;
+      num = num / 62n;
+    }
+
+    return result.padStart(32, '0');
+  }
+
+  async createShare(req, taskId, validUntil) {
+    try {
+      const context = this._getContext(req);
+      const pool = context.pool;
+
+      const task = await this.getById(req, taskId);
+      if (!task) {
+        throw new AppError('Task not found or access denied', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const shareToken = this.generateShareToken();
+      const id = parseInt(String(taskId), 10);
+
+      const result = await pool.query(
+        `
+        INSERT INTO task_shares (task_id, share_token, valid_until)
+        VALUES ($1, $2, $3)
+        RETURNING *
+      `,
+        [id, shareToken, validUntil],
+      );
+
+      Logger.info('Task share created', { taskId: id, shareId: result.rows[0].id });
+
+      return {
+        id: result.rows[0].id.toString(),
+        taskId: result.rows[0].task_id.toString(),
+        shareToken: result.rows[0].share_token,
+        validUntil: result.rows[0].valid_until,
+        createdAt: result.rows[0].created_at,
+        accessedCount: result.rows[0].accessed_count,
+        lastAccessedAt: result.rows[0].last_accessed_at,
+      };
+    } catch (error) {
+      Logger.error('Failed to create task share', error, { taskId });
+
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to create share', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async getTaskByShareToken(req, shareToken) {
+    try {
+      const pool = req.tenantPool || this._getContext(req).pool;
+
+      const result = await pool.query(
+        `
+        SELECT
+          t.*,
+          ts.accessed_count,
+          ts.valid_until AS share_valid_until
+        FROM tasks t
+        JOIN task_shares ts ON t.id = ts.task_id
+        WHERE ts.share_token = $1 AND ts.valid_until > NOW()
+      `,
+        [shareToken],
+      );
+
+      if (!result.rows.length) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      const currentAccessCount = row.accessed_count;
+
+      await pool.query(
+        `
+        UPDATE task_shares
+        SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
+        WHERE share_token = $1
+      `,
+        [shareToken],
+      );
+
+      const task = this.transformRow(row);
+      task.shareValidUntil = row.share_valid_until;
+      task.accessedCount = currentAccessCount + 1;
+
+      return task;
+    } catch (error) {
+      Logger.error('Failed to get task by share token', error, {
+        shareToken: shareToken.substring(0, 10),
+      });
+      throw new AppError('Failed to get task by share token', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async getSharesForTask(req, taskId) {
+    try {
+      const context = this._getContext(req);
+      const pool = context.pool;
+
+      const task = await this.getById(req, taskId);
+      if (!task) {
+        throw new AppError('Task not found or access denied', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const id = parseInt(String(taskId), 10);
+      const result = await pool.query(
+        `
+        SELECT * FROM task_shares
+        WHERE task_id = $1
+        ORDER BY created_at DESC
+      `,
+        [id],
+      );
+
+      return result.rows.map((row) => ({
+        id: row.id.toString(),
+        taskId: row.task_id.toString(),
+        shareToken: row.share_token,
+        validUntil: row.valid_until,
+        createdAt: row.created_at,
+        accessedCount: row.accessed_count,
+        lastAccessedAt: row.last_accessed_at,
+      }));
+    } catch (error) {
+      Logger.error('Failed to get shares for task', error, { taskId });
+
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        throw new AppError(
+          'Shares table not found. Please run database migrations.',
+          500,
+          AppError.CODES.DATABASE_ERROR,
+        );
+      }
+
+      throw new AppError('Failed to get shares for task', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async revokeShare(req, shareId) {
+    try {
+      const context = this._getContext(req);
+      const pool = context.pool;
+
+      const shareCheck = await pool.query('SELECT task_id FROM task_shares WHERE id = $1', [
+        shareId,
+      ]);
+
+      if (!shareCheck.rows.length) {
+        throw new AppError('Share not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const taskId = shareCheck.rows[0].task_id;
+      const task = await this.getById(req, taskId);
+
+      if (!task) {
+        throw new AppError('Share not found or access denied', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const deleteResult = await pool.query('DELETE FROM task_shares WHERE id = $1 RETURNING *', [
+        shareId,
+      ]);
+
+      if (!deleteResult.rows.length) {
+        throw new AppError('Share not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      Logger.info('Task share revoked', { shareId, taskId });
+
+      return {
+        id: deleteResult.rows[0].id.toString(),
+        taskId: deleteResult.rows[0].task_id.toString(),
+        shareToken: deleteResult.rows[0].share_token,
+      };
+    } catch (error) {
+      Logger.error('Failed to revoke task share', error, { shareId });
+
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to revoke share', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 

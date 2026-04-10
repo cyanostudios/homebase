@@ -32,6 +32,7 @@ import { useTasks } from '../hooks/useTasks';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskDueDatePicker } from './TaskDueDatePicker';
 import { TaskPrioritySelect } from './TaskPrioritySelect';
+import { TaskShareBlock } from './TaskShareBlock';
 import { TaskStatusSelect } from './TaskStatusSelect';
 
 interface TaskViewProps {
@@ -122,11 +123,36 @@ interface TaskExportOptionsCardProps {
   task: any;
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: any) => void;
+  shareActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: any) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
 }
 
-function TaskExportOptionsCard({ task, exportFormats, onExportItem }: TaskExportOptionsCardProps) {
+function getTaskExportShareIconColorClass(actionId: string): string {
+  if (actionId === 'view-share') {
+    return 'text-blue-600 dark:text-blue-400';
+  }
+  if (actionId === 'share') {
+    return 'text-violet-600 dark:text-violet-400';
+  }
+  return '';
+}
+
+function TaskExportOptionsCard({
+  task,
+  exportFormats,
+  onExportItem,
+  shareActions,
+}: TaskExportOptionsCardProps) {
   const { t } = useTranslation();
-  if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
+  const hasFormats = Array.isArray(exportFormats) && exportFormats.length > 0;
+  const hasShareButtons = Array.isArray(shareActions) && shareActions.length > 0;
+  if (!hasFormats && !hasShareButtons) {
     return null;
   }
 
@@ -146,19 +172,44 @@ function TaskExportOptionsCard({ task, exportFormats, onExportItem }: TaskExport
         className="p-4"
       >
         <div className="flex flex-col items-start gap-1.5">
-          {exportFormats.map((format) => (
-            <Button
-              key={format}
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={Download}
-              className={quickActionButtonClass}
-              onClick={() => onExportItem(format, task)}
-            >
-              {exportLabelByFormat[format]}
-            </Button>
-          ))}
+          {hasFormats
+            ? exportFormats.map((format) => (
+                <Button
+                  key={format}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={Download}
+                  className={quickActionButtonClass}
+                  onClick={() => onExportItem(format, task)}
+                >
+                  {exportLabelByFormat[format]}
+                </Button>
+              ))
+            : null}
+          {hasShareButtons ? (
+            <>
+              {hasFormats ? <div className="w-full border-t border-border/60 pt-2 mt-0.5" /> : null}
+              {shareActions!.map((action) => {
+                const Icon = action.icon;
+                const iconTint = getTaskExportShareIconColorClass(action.id);
+                return (
+                  <Button
+                    key={action.id}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
+                    disabled={action.disabled}
+                    className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
+                    onClick={() => action.onClick(task)}
+                  >
+                    {action.label}
+                  </Button>
+                );
+              })}
+            </>
+          ) : null}
         </div>
       </DetailSection>
     </Card>
@@ -178,6 +229,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     getDeleteMessage,
     exportFormats,
     onExportItem,
+    exportShareActions,
     quickEditDraft,
     setQuickEditField,
     showDiscardQuickEditDialog,
@@ -338,6 +390,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
               task={task}
               exportFormats={exportFormats}
               onExportItem={onExportItem}
+              shareActions={exportShareActions}
             />
 
             {task.mentions && task.mentions.length > 0 && (
@@ -455,6 +508,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             <DetailSection
               title={String((displayTask ?? task)?.title || '').trim() || '—'}
               className="p-6"
+              prominentTitle
             >
               <RichTextContent
                 content={task.content}
@@ -493,6 +547,8 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
           </Card>
 
           <TaskAssigneeSelect task={displayTask ?? task} onAssigneeChange={handleAssigneeChange} />
+
+          <TaskShareBlock task={task} />
         </div>
       </DetailLayout>
       <ConfirmDialog

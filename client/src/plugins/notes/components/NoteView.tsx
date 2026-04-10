@@ -52,9 +52,10 @@ function getQuickActionIconColorClass(actionId: string): string {
   if (actionId === 'create-task-from-note') {
     return 'text-green-600 dark:text-green-400';
   }
-  if (actionId === 'create-task-from-note-and-delete') {
-    return 'text-amber-600 dark:text-amber-400';
-  }
+  return '';
+}
+
+function getExportShareIconColorClass(actionId: string): string {
   if (actionId === 'view-share') {
     return 'text-blue-600 dark:text-blue-400';
   }
@@ -159,11 +160,25 @@ interface NoteExportOptionsCardProps {
   note: Note;
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Note) => void;
+  shareActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Note) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
 }
 
-function NoteExportOptionsCard({ note, exportFormats, onExportItem }: NoteExportOptionsCardProps) {
+function NoteExportOptionsCard({
+  note,
+  exportFormats,
+  onExportItem,
+  shareActions,
+}: NoteExportOptionsCardProps) {
   const { t } = useTranslation();
-  if (exportFormats.length === 0) {
+  const hasShareButtons = Array.isArray(shareActions) && shareActions.length > 0;
+  if (exportFormats.length === 0 && !hasShareButtons) {
     return null;
   }
 
@@ -196,6 +211,31 @@ function NoteExportOptionsCard({ note, exportFormats, onExportItem }: NoteExport
               {exportLabelByFormat[format]}
             </Button>
           ))}
+          {hasShareButtons ? (
+            <>
+              {exportFormats.length > 0 ? (
+                <div className="w-full border-t border-border/60 pt-2 mt-0.5" />
+              ) : null}
+              {shareActions!.map((action) => {
+                const Icon = action.icon;
+                const iconTint = getExportShareIconColorClass(action.id);
+                return (
+                  <Button
+                    key={action.id}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
+                    disabled={action.disabled}
+                    className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
+                    onClick={() => action.onClick(note)}
+                  >
+                    {action.label}
+                  </Button>
+                );
+              })}
+            </>
+          ) : null}
         </div>
       </DetailSection>
     </Card>
@@ -213,6 +253,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     executeDuplicate,
     setRecentlyDuplicatedNoteId,
     detailFooterActions,
+    exportShareActions,
     exportFormats,
     onExportItem,
     getDeleteMessage,
@@ -319,6 +360,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                 note={note}
                 exportFormats={exportFormats}
                 onExportItem={onExportItem}
+                shareActions={exportShareActions}
               />
               {note.mentions && note.mentions.length > 0 && (
                 <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
@@ -423,6 +465,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                 title={(note.title || '').trim() || '—'}
                 iconPlugin="notes"
                 className="p-6"
+                prominentTitle
               >
                 <RichTextContent
                   content={note.content}
@@ -432,11 +475,11 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               </DetailSection>
             </Card>
 
-            <NoteShareBlock note={note} />
-
             {hasFilesPlugin ? (
               <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
             ) : null}
+
+            <NoteShareBlock note={note} />
           </div>
         </DetailLayout>
       </div>

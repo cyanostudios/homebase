@@ -127,6 +127,107 @@ class TaskController {
       res.status(500).json({ error: 'Failed to delete task' });
     }
   }
+
+  async createShare(req, res) {
+    try {
+      const { taskId, validUntil } = req.body;
+
+      if (!taskId || !validUntil) {
+        return res.status(400).json({
+          error: 'Task ID and valid until date are required',
+        });
+      }
+
+      const validUntilDate = new Date(validUntil);
+      if (validUntilDate <= new Date()) {
+        return res.status(400).json({
+          error: 'Valid until date must be in the future',
+        });
+      }
+
+      const share = await this.model.createShare(req, taskId, validUntilDate);
+      res.json(share);
+    } catch (error) {
+      Logger.error('Create task share failed', error, {
+        taskId: req.body.taskId,
+        userId: Context.getUserId(req),
+      });
+
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+
+      res.status(500).json({ error: 'Failed to create share link' });
+    }
+  }
+
+  async getPublicTask(req, res) {
+    try {
+      const { token } = req.params;
+
+      if (!token) {
+        return res.status(400).json({ error: 'Share token is required' });
+      }
+
+      const task = await this.model.getTaskByShareToken(req, token);
+
+      if (!task) {
+        return res.status(404).json({
+          error: 'Task not found or share link has expired',
+        });
+      }
+
+      res.json(task);
+    } catch (error) {
+      Logger.error('Get public task failed', error, {
+        token: req.params.token?.substring(0, 10),
+      });
+
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+
+      res.status(500).json({ error: 'Failed to load task' });
+    }
+  }
+
+  async getShares(req, res) {
+    try {
+      const { id } = req.params;
+      const shares = await this.model.getSharesForTask(req, id);
+      res.json(shares);
+    } catch (error) {
+      Logger.error('Get task shares failed', error, {
+        taskId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+
+      res.status(500).json({ error: 'Failed to get shares' });
+    }
+  }
+
+  async revokeShare(req, res) {
+    try {
+      const { shareId } = req.params;
+      const revokedShare = await this.model.revokeShare(req, shareId);
+      res.json({ message: 'Share revoked successfully', share: revokedShare });
+    } catch (error) {
+      Logger.error('Revoke task share failed', error, {
+        shareId: req.params.shareId,
+        userId: Context.getUserId(req),
+      });
+
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+
+      res.status(500).json({ error: 'Failed to revoke share' });
+    }
+  }
 }
 
 module.exports = TaskController;
