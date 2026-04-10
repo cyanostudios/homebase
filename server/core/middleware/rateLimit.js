@@ -3,17 +3,28 @@
 
 const rateLimit = require('express-rate-limit');
 
+const forceRateLimit =
+  process.env.FORCE_RATE_LIMIT === '1' || process.env.FORCE_RATE_LIMIT === 'true';
+
 /**
  * Global rate limiter
  * Applies to all API routes
+ *
+ * In non-production, limiting is skipped by default: the SPA mounts many plugin
+ * providers that fetch in parallel, and Vite HMR full reloads replay that burst
+ * repeatedly — a 1000/15m dev cap still produces 429 during normal work.
+ * Set FORCE_RATE_LIMIT=1 to test limits locally.
  */
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // More lenient in development
+  max: process.env.NODE_ENV === 'production' ? 100 : 5000,
   message: 'Too many requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
+    if (process.env.NODE_ENV !== 'production' && !forceRateLimit) {
+      return true;
+    }
     // app.use('/api', globalLimiter) strips "/api" from req.path, so support both prefixed and stripped paths.
     const path = req.path || '';
     return (

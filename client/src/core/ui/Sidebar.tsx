@@ -12,9 +12,9 @@ import {
   NavigationMenuList,
 } from '@/components/ui/navigation-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useApp } from '@/core/api/AppContext';
 import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 
 export type NavPage =
@@ -49,7 +49,7 @@ export function Sidebar({
   mobileOpen,
   onMobileOpenChange,
 }: SidebarProps) {
-  const { user } = useApp();
+  const enabledPlugins = useEnabledPlugins();
   const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set());
@@ -61,7 +61,7 @@ export function Sidebar({
     ]);
 
     PLUGIN_REGISTRY.forEach((plugin) => {
-      const isEnabled = plugin.name === 'settings' || (user?.plugins ?? []).includes(plugin.name);
+      const isEnabled = enabledPlugins.has(plugin.name);
       if (isEnabled && plugin.navigation) {
         const { category, icon, order, submenu, badge } = plugin.navigation;
         if (!categoriesMap.has(category)) {
@@ -100,7 +100,7 @@ export function Sidebar({
         title: t(`nav.${categoryToKey[category] || category.toLowerCase()}` as 'nav.main'),
         items: categoriesMap.get(category)!,
       }));
-  }, [user, t]);
+  }, [enabledPlugins, t]);
 
   // Auto-open submenu if current page is a submenu item
   useEffect(() => {

@@ -2,9 +2,9 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
-import { useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import type { NavPage } from '@/core/ui/Sidebar';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 
 interface DashboardProps {
@@ -12,7 +12,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onPageChange }: DashboardProps) {
-  const { user } = useApp();
+  const enabledPlugins = useEnabledPlugins();
   const { t } = useTranslation();
 
   const header = (
@@ -26,8 +26,8 @@ export function Dashboard({ onPageChange }: DashboardProps) {
   );
 
   const widgets = React.useMemo(
-    () => PLUGIN_REGISTRY.filter((p) => user?.plugins?.includes(p.name) && p.dashboardWidget),
-    [user?.plugins],
+    () => PLUGIN_REGISTRY.filter((p) => enabledPlugins.has(p.name) && p.dashboardWidget),
+    [enabledPlugins],
   );
 
   if (widgets.length === 0) {

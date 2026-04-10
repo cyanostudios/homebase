@@ -42,7 +42,8 @@ export interface DashboardWidgetProps {
  * docs/PLUGIN_RUNTIME_CONVENTIONS.md (e.g. `is{Entity}PanelOpen`, `current{Entity}`, `save{Entity}`).
  *
  * - **panelKey**: boolean on context, e.g. `isContactPanelOpen`.
- * - **Provider**: wraps app; receives auth + `onCloseOtherPanels`.
+ * - **Provider**: synchronous fallback provider (NullProvider or always-on Provider for settings).
+ * - **providerLoader**: async loader for the heavy Provider; called on auth to pre-fetch the chunk.
  * - **components.List | Form | View**: main page, panel form, panel detail view.
  */
 /** Accepts both eager and lazy (React.lazy) component types. */
@@ -50,13 +51,31 @@ type PluginComponent<P = Record<string, never>> =
   | React.ComponentType<P>
   | React.LazyExoticComponent<React.ComponentType<P>>;
 
+export type ProviderProps = {
+  children: React.ReactNode;
+  isAuthenticated: boolean;
+  onCloseOtherPanels: () => void;
+};
+
 export interface PluginRegistryEntry {
   name: string;
-  Provider: React.ComponentType<{
-    children: React.ReactNode;
-    isAuthenticated: boolean;
-    onCloseOtherPanels: () => void;
-  }>;
+  /**
+   * Synchronous fallback provider rendered until the real provider chunk is ready.
+   * For always-on plugins (settings) this IS the real Provider.
+   * For opt-in plugins this defaults to NullProvider.
+   */
+  Provider: React.ComponentType<ProviderProps>;
+  /**
+   * Dynamic loader for the heavy Provider implementation.
+   * When present, App.tsx pre-fetches this on authentication and swaps in the real Provider.
+   * Allows the Provider code to live in a separate async chunk, off the critical path.
+   */
+  providerLoader?: () => Promise<React.ComponentType<ProviderProps>>;
+  /**
+   * Lightweight no-op provider used when the tenant does not have access to this plugin.
+   * Provides an empty but valid context so hook() never throws, preserving hook call order.
+   */
+  NullProvider?: React.ComponentType<{ children: React.ReactNode }>;
   hook: () => any;
   panelKey: string;
   components: {
@@ -71,47 +90,48 @@ export interface PluginRegistryEntry {
   displayPrefix?: string;
 }
 
-// ─── Static imports: Providers and hooks must be eager (used at app init) ────
+// ─── Static imports: NullProviders + hooks (lean, eager – used at app init) ──
+// Heavy Provider implementations are loaded lazily via providerLoader below.
 
 // Contacts
-import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
+import { ContactNullProvider } from '@/plugins/contacts/context/ContactContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 // Cups
-import { CupsProvider } from '@/plugins/cups/context/CupsContext';
+import { CupsNullProvider } from '@/plugins/cups/context/CupsContext';
 import { useCups } from '@/plugins/cups/hooks/useCups';
 // Estimates
-import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
+import { EstimateNullProvider } from '@/plugins/estimates/context/EstimateContext';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 // Files
-import { FilesProvider } from '@/plugins/files/context/FilesContext';
+import { FilesNullProvider } from '@/plugins/files/context/FilesContext';
 import { useFiles } from '@/plugins/files/hooks/useFiles';
 // Ingest
-import { IngestProvider } from '@/plugins/ingest/context/IngestContext';
+import { IngestNullProvider } from '@/plugins/ingest/context/IngestContext';
 import { useIngest } from '@/plugins/ingest/hooks/useIngest';
 // Invoices
-import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
+import { InvoicesNullProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
 import { invoicesNavigation } from '@/plugins/invoices/navigation';
 // Mail
-import { MailProvider } from '@/plugins/mail/context/MailContext';
+import { MailNullProvider } from '@/plugins/mail/context/MailContext';
 import { useMail } from '@/plugins/mail/hooks/useMail';
 // Matches
-import { MatchProvider } from '@/plugins/matches/context/MatchContext';
+import { MatchNullProvider } from '@/plugins/matches/context/MatchContext';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
 // Notes
-import { NoteProvider } from '@/plugins/notes/context/NoteContext';
+import { NoteNullProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 // Pulses
-import { PulseProvider } from '@/plugins/pulses/context/PulseContext';
+import { PulseNullProvider } from '@/plugins/pulses/context/PulseContext';
 import { usePulses } from '@/plugins/pulses/hooks/usePulses';
-// Settings
+// Settings (always enabled – loaded eagerly, no NullProvider)
 import { SettingsProvider } from '@/plugins/settings/context/SettingsContext';
 import { useSettings } from '@/plugins/settings/hooks/useSettings';
 // Slots
-import { SlotsProvider } from '@/plugins/slots/context/SlotsContext';
+import { SlotsNullProvider } from '@/plugins/slots/context/SlotsContext';
 import { useSlotsContext as useSlots } from '@/plugins/slots/context/SlotsContext';
 // Tasks
-import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
+import { TaskNullProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 
 // ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
@@ -336,7 +356,10 @@ const TasksDashboardWidget = React.lazy(() =>
 export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {
     name: 'contacts',
-    Provider: ContactProvider,
+    Provider: ContactNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/contacts/context/ContactProvider').then((m) => m.ContactProvider),
+    NullProvider: ContactNullProvider,
     hook: useContacts,
     panelKey: 'isContactPanelOpen',
     components: {
@@ -355,7 +378,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'notes',
-    Provider: NoteProvider,
+    Provider: NoteNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/notes/context/NoteProvider').then((m) => m.NoteProvider),
+    NullProvider: NoteNullProvider,
     hook: useNotes,
     panelKey: 'isNotePanelOpen',
     components: {
@@ -374,7 +400,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'tasks',
-    Provider: TaskProvider,
+    Provider: TaskNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/tasks/context/TaskProvider').then((m) => m.TaskProvider),
+    NullProvider: TaskNullProvider,
     hook: useTasks,
     panelKey: 'isTaskPanelOpen',
     components: {
@@ -393,7 +422,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'estimates',
-    Provider: EstimateProvider,
+    Provider: EstimateNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/estimates/context/EstimateProvider').then((m) => m.EstimateProvider),
+    NullProvider: EstimateNullProvider,
     hook: useEstimates,
     panelKey: 'isEstimatePanelOpen',
     components: {
@@ -412,7 +444,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'invoices',
-    Provider: InvoicesProvider,
+    Provider: InvoicesNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/invoices/context/InvoicesProvider').then((m) => m.InvoicesProvider),
+    NullProvider: InvoicesNullProvider,
     hook: useInvoices,
     panelKey: 'isInvoicesPanelOpen',
     components: {
@@ -426,7 +461,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'files',
-    Provider: FilesProvider,
+    Provider: FilesNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/files/context/FilesProvider').then((m) => m.FilesProvider),
+    NullProvider: FilesNullProvider,
     hook: useFiles,
     panelKey: 'isFilesPanelOpen',
     components: {
@@ -445,7 +483,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'matches',
-    Provider: MatchProvider,
+    Provider: MatchNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/matches/context/MatchProvider').then((m) => m.MatchProvider),
+    NullProvider: MatchNullProvider,
     hook: useMatches,
     panelKey: 'isMatchPanelOpen',
     components: {
@@ -464,7 +505,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'slots',
-    Provider: SlotsProvider,
+    Provider: SlotsNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/slots/context/SlotsProvider').then((m) => m.SlotsProvider),
+    NullProvider: SlotsNullProvider,
     hook: useSlots,
     panelKey: 'isSlotsPanelOpen',
     components: {
@@ -483,7 +527,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'cups',
-    Provider: CupsProvider,
+    Provider: CupsNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () => import('@/plugins/cups/context/CupsProvider').then((m) => m.CupsProvider),
+    NullProvider: CupsNullProvider,
     hook: useCups,
     panelKey: 'isCupPanelOpen',
     components: {
@@ -502,7 +548,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'ingest',
-    Provider: IngestProvider,
+    Provider: IngestNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/ingest/context/IngestProvider').then((m) => m.IngestProvider),
+    NullProvider: IngestNullProvider,
     hook: useIngest,
     panelKey: 'isIngestPanelOpen',
     components: {
@@ -520,7 +569,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'mail',
-    Provider: MailProvider,
+    Provider: MailNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () => import('@/plugins/mail/context/MailProvider').then((m) => m.MailProvider),
+    NullProvider: MailNullProvider,
     hook: useMail,
     panelKey: 'isMailPanelOpen',
     components: {
@@ -538,7 +589,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'pulses',
-    Provider: PulseProvider,
+    Provider: PulseNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/pulses/context/PulseProvider').then((m) => m.PulseProvider),
+    NullProvider: PulseNullProvider,
     hook: usePulses,
     panelKey: 'isPulsesPanelOpen',
     components: {

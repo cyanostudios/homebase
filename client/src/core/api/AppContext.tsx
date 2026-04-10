@@ -42,12 +42,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 import i18n from '@/i18n';
-import { Contact } from '@/plugins/contacts/types/contacts';
-import { Estimate } from '@/plugins/estimates/types/estimate';
-import { Match } from '@/plugins/matches/types/match';
-import { Note } from '@/plugins/notes/types/notes';
-import { Slot } from '@/plugins/slots/types/slots';
-import { Task } from '@/plugins/tasks/types/tasks';
+import type { Contact, Estimate, Match, Note, Slot, Task } from '@/types/pluginTypes';
 
 interface User {
   id: number;
