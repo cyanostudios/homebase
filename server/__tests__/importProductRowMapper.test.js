@@ -2,7 +2,6 @@ const {
   deepMergeChannelSpecific,
   buildFlatIncomingFromRow,
   applyTextsAndChannelSpecific,
-  parseChannelSpecificJsonColumn,
   buildTextsExtendedPatchFromImportRow,
 } = require('../../plugins/products/importProductRowMapper');
 
@@ -33,13 +32,6 @@ describe('importProductRowMapper', () => {
     expect(inc.brandId).toBe(3);
     expect(inc.mainImage).toBe('https://a/b.jpg');
     expect(inc.images).toEqual(['https://a/1.jpg', 'https://a/2.jpg']);
-  });
-
-  it('parseChannelSpecificJsonColumn rejects unknown root keys', () => {
-    const r = { channelspecificjson: JSON.stringify({ textsExtended: {}, foo: 1 }) };
-    const p = parseChannelSpecificJsonColumn(r);
-    expect(p.ok).toBe(false);
-    expect(p.code).toBe('invalid_channelspecificjson');
   });
 
   it('buildTextsExtendedPatchFromImportRow includes SEO and bulletpoints (comma-separated)', () => {

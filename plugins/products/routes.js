@@ -130,6 +130,9 @@ function createProductRoutes(controller, context) {
   // GET /api/products/count — lightweight count for Dashboard (before '/')
   router.get('/count', gate, (req, res) => controller.getCount(req, res));
 
+  // POST /api/products/draft - Reserve a hidden draft row with a real product id
+  router.post('/draft', gate, csrfProtection, (req, res) => controller.createDraft(req, res));
+
   // GET /api/products - Paginated list { items, total }
   router.get(
     '/',

@@ -414,12 +414,20 @@ class ProductMediaService {
     return { asset, reused: false };
   }
 
-  async uploadPendingManualFiles(req, files) {
+  async uploadPendingManualFiles(req, files, options = {}) {
     const tenantId = req.session?.tenantId;
     if (!tenantId) {
       throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
     }
     const userId = Context.getUserId(req);
+    const productId =
+      options?.productId != null && Number.isFinite(Number(options.productId))
+        ? Number(options.productId)
+        : null;
+    const pendingScope =
+      productId != null
+        ? null
+        : `manual/${userId != null ? String(userId).trim() || 'user' : 'user'}`;
     const uploads = [];
     for (let i = 0; i < (Array.isArray(files) ? files.length : 0); i += 1) {
       const file = files[i];
@@ -429,8 +437,8 @@ class ProductMediaService {
         mimeType: file.mimetype,
       });
       const asset = await this.createAssetFromProcessed(req, {
-        productId: null,
-        pendingScope: `manual/${userId != null ? String(userId).trim() || 'user' : 'user'}`,
+        productId,
+        pendingScope,
         sourceKind: 'manual_upload',
         sourceUrl: null,
         position: i,
@@ -439,7 +447,7 @@ class ProductMediaService {
       uploads.push(asset);
     }
     Logger.info('Product media update success', {
-      productId: null,
+      productId: productId != null ? String(productId) : null,
       sourceKind: 'manual_upload',
       uploadCount: uploads.length,
       userId: userId != null ? String(userId) : null,

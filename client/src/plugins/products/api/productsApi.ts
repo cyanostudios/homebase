@@ -303,10 +303,13 @@ class ProductsApi {
     return Number.isFinite(n) ? n : 0;
   }
 
-  async uploadMediaFiles(files: File[]): Promise<ProductImageAsset[]> {
+  async uploadMediaFiles(files: File[], productId?: string | null): Promise<ProductImageAsset[]> {
     const fd = new FormData();
     for (const file of files) {
       fd.append('files', file, file.name);
+    }
+    if (productId != null && String(productId).trim() !== '') {
+      fd.append('productId', String(productId).trim());
     }
     const csrfToken = await this.getCsrfToken();
     const response = await fetch('/api/products/media/upload', {
@@ -328,6 +331,13 @@ class ProductsApi {
       throw err;
     }
     return Array.isArray(payload) ? payload : [];
+  }
+
+  async createDraftProduct(): Promise<Product> {
+    return this.request('/products/draft', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
   }
 
   async createProduct(data: any): Promise<Product> {

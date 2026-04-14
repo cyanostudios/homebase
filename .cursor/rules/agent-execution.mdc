@@ -18,6 +18,7 @@ Om uppgiften kräver att något körs → **kör det själv**. Innan du säger a
 
 # Neon MCP – DB-operationer
 
+- **MCP-servernamn (exakt):** `user-Neon` — använd detta i `call_mcp_tool` / MCP-anrop. Inte `Neon` eller andra varianter.
 - **Projekt:** Läs projectId från [.cursor/neon-homebase.md](.cursor/neon-homebase.md). Använd i alla Neon MCP-anrop (run_sql, describe_project, prepare_database_migration, etc.).
 - **Migrationer/SQL mot Neon:** Använd `run_sql` med projectId. Fråga inte användaren om projectId.
 - **Schema:** För tenant-scheman (t.ex. tenant_1) sätt `search_path` eller kör mot rätt schema.

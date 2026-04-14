@@ -100,6 +100,7 @@ class ProductModel {
           p.source_created_at,
           p.quantity_sold,
           p.last_sold_at,
+          p.is_draft,
           p.created_at,
           p.updated_at,
           b.name AS brand_name,
@@ -113,6 +114,7 @@ class ProductModel {
         LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
         LEFT JOIN product_list_items pli ON pli.product_id = p.id
         LEFT JOIN lists l ON l.id = pli.list_id
+        WHERE p.is_draft = FALSE
         ORDER BY p.id
       `;
       const result = await db.query(sql, []);
@@ -162,7 +164,7 @@ class ProductModel {
       };
       const orderCol = sortMap[sortKey] || 'p.id';
 
-      const clauses = [];
+      const clauses = ['p.is_draft = FALSE'];
       const params = [];
 
       if (listMode === 'main') {
@@ -298,7 +300,7 @@ class ProductModel {
    * @returns {string[]}
    */
   buildListFilterClauses(listMode, params) {
-    const clauses = [];
+    const clauses = ['p.is_draft = FALSE'];
     const mode = listMode != null ? String(listMode).trim().toLowerCase() : 'all';
     if (mode === 'main') {
       clauses.push(`NOT EXISTS (
@@ -434,6 +436,7 @@ class ProductModel {
           p.source_created_at,
           p.quantity_sold,
           p.last_sold_at,
+          p.is_draft,
           p.created_at,
           p.updated_at,
           b.name AS brand_name,
@@ -505,7 +508,7 @@ class ProductModel {
       if (!tenantId) {
         throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
-      const sql = `SELECT COUNT(*)::int AS c FROM ${ProductModel.TABLE}`;
+      const sql = `SELECT COUNT(*)::int AS c FROM ${ProductModel.TABLE} WHERE is_draft = FALSE`;
       const rows = await db.query(sql, []);
       const n = rows?.[0]?.c;
       return Number.isFinite(Number(n)) ? Number(n) : 0;
@@ -574,6 +577,7 @@ class ProductModel {
           p.source_created_at,
           p.quantity_sold,
           p.last_sold_at,
+          p.is_draft,
           p.created_at,
           p.updated_at,
           b.name AS brand_name,
@@ -1013,6 +1017,7 @@ class ProductModel {
           source_created_at,
           quantity_sold,
           last_sold_at,
+          is_draft,
           parent_product_id
         )
         VALUES (
@@ -1020,7 +1025,7 @@ class ProductModel {
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
           $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
-          $42, $43, $44, $45, $46
+          $42, $43, $44, $45, $46, $47
         )
         RETURNING
           id,
@@ -1063,6 +1068,7 @@ class ProductModel {
           source_created_at,
           quantity_sold,
           last_sold_at,
+          is_draft,
           created_at,
           updated_at
       `
@@ -1111,14 +1117,15 @@ class ProductModel {
           depth_cm,
           source_created_at,
           quantity_sold,
-          last_sold_at
+          last_sold_at,
+          is_draft
         )
         VALUES (
           $1,
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
           $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
-          $42, $43, $44
+          $42, $43, $44, $45
         )
         RETURNING
           id,
@@ -1166,6 +1173,7 @@ class ProductModel {
           source_created_at,
           quantity_sold,
           last_sold_at,
+          is_draft,
           created_at,
           updated_at
       `;
@@ -1215,9 +1223,9 @@ class ProductModel {
         d.sourceCreatedAt ?? null,
         d.quantitySold ?? null,
         d.lastSoldAt ?? null,
+        d.isDraft === true,
       ];
-      const params =
-        explicitId != null ? [explicitId, ...baseParams, null] : [null, ...baseParams].slice(1);
+      const params = explicitId != null ? [explicitId, ...baseParams, null] : baseParams;
 
       const result = await db.query(sql, params);
       Logger.info('Product created', { productId: result[0].id });
@@ -1236,6 +1244,23 @@ class ProductModel {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to create product', 500, AppError.CODES.DATABASE_ERROR);
     }
+  }
+
+  async createDraft(req) {
+    return this.create(req, {
+      title: '',
+      description: null,
+      status: 'for sale',
+      quantity: 0,
+      priceAmount: 0,
+      currency: 'SEK',
+      vatRate: 25,
+      mainImage: null,
+      images: [],
+      categories: [],
+      brand: null,
+      isDraft: true,
+    });
   }
 
   async update(req, productId, productData) {
@@ -1308,8 +1333,9 @@ class ProductModel {
           source_created_at = COALESCE($42, p.source_created_at),
           quantity_sold     = COALESCE($43, p.quantity_sold),
           last_sold_at      = COALESCE($44, p.last_sold_at),
+          is_draft         = $45,
           updated_at     = CURRENT_TIMESTAMP
-        WHERE p.id::text = $45
+        WHERE p.id::text = $46
         RETURNING
           id,
           sku,
@@ -1351,6 +1377,7 @@ class ProductModel {
           source_created_at,
           quantity_sold,
           last_sold_at,
+          is_draft,
           created_at,
           updated_at
       `;
@@ -1400,6 +1427,7 @@ class ProductModel {
         d.sourceCreatedAt ?? null,
         d.quantitySold ?? null,
         d.lastSoldAt ?? null,
+        d.isDraft === true,
         String(productId),
       ];
 
@@ -3051,6 +3079,7 @@ class ProductModel {
       sourceCreatedAt: normalized.sourceCreatedAt,
       quantitySold: normalized.quantitySold,
       lastSoldAt: normalized.lastSoldAt,
+      isDraft: normalized.isDraft,
     };
   }
 
@@ -3158,6 +3187,7 @@ class ProductModel {
           ? Number(data.quantitySold)
           : null,
       lastSoldAt: data.lastSoldAt != null ? String(data.lastSoldAt).trim() || null : null,
+      isDraft: data.isDraft === true,
     };
   }
 
@@ -3243,6 +3273,7 @@ class ProductModel {
       sourceCreatedAt: row.source_created_at ?? null,
       quantitySold: row.quantity_sold != null ? Number(row.quantity_sold) : null,
       lastSoldAt: row.last_sold_at ?? null,
+      isDraft: row.is_draft === true,
       createdAt: row.created_at ?? null,
       updatedAt: row.updated_at ?? null,
       listId: row.list_id != null ? String(row.list_id) : null,

@@ -319,9 +319,6 @@ function mergeForUpdate(existing, incoming) {
   if (incoming.images !== undefined && Array.isArray(incoming.images)) {
     merged.images = incoming.images;
   }
-  if (incoming.categories !== undefined && Array.isArray(incoming.categories)) {
-    merged.categories = incoming.categories;
-  }
   setIfNum('purchasePrice', incoming.purchasePrice);
   setIf('privateName', incoming.privateName);
   setIf('knNumber', incoming.knNumber);
@@ -393,7 +390,6 @@ function buildImportCreatePayload(sku, incoming) {
     gtin: incoming.gtin ?? '',
     ean: incoming.ean ?? '',
     images: incoming.images ?? [],
-    categories: incoming.categories ?? [],
     mainImage: incoming.mainImage ?? '',
     purchasePrice: incoming.purchasePrice ?? null,
     privateName: incoming.privateName ?? null,
@@ -1059,7 +1055,16 @@ class ProductController {
       if (!files.length) {
         return res.status(400).json({ error: 'No files uploaded', code: 'VALIDATION_ERROR' });
       }
-      const uploaded = await this.productMediaService.uploadPendingManualFiles(req, files);
+      const rawProductId = req.body?.productId;
+      const productId =
+        rawProductId != null &&
+        String(rawProductId).trim() !== '' &&
+        Number.isFinite(Number(rawProductId))
+          ? Number(rawProductId)
+          : null;
+      const uploaded = await this.productMediaService.uploadPendingManualFiles(req, files, {
+        productId,
+      });
       return res.json(uploaded);
     } catch (error) {
       Logger.error('Upload product media error', error, { userId: Context.getUserId(req) });
@@ -1891,6 +1896,19 @@ class ProductController {
     }
   }
 
+  async createDraft(req, res) {
+    try {
+      const draft = await this.model.createDraft(req);
+      return res.status(201).json(draft);
+    } catch (error) {
+      Logger.error('Create draft product error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to create draft product' });
+    }
+  }
+
   async create(req, res) {
     try {
       const data = this.requireSku(req, res);
@@ -1906,8 +1924,8 @@ class ProductController {
         mainImage: hostedMedia.mainImage,
         images: hostedMedia.images,
       });
-      await this.reconcileHostedProductMedia(req, product);
-      return res.json(product);
+      const reconciled = await this.reconcileHostedProductMedia(req, product);
+      return res.json(reconciled);
     } catch (error) {
       Logger.error('Create product error', error, { userId: Context.getUserId(req) });
 
@@ -1958,8 +1976,8 @@ class ProductController {
         mainImage: hostedMedia.mainImage,
         images: hostedMedia.images,
       });
-      await this.reconcileHostedProductMedia(req, product);
-      return res.json(product);
+      const reconciled = await this.reconcileHostedProductMedia(req, product);
+      return res.json(reconciled);
     } catch (error) {
       Logger.error('Update product error', error, { userId: Context.getUserId(req) });
 

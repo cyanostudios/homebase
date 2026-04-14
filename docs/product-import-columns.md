@@ -41,18 +41,17 @@ Rubriker normaliseras enligt `plugins/products/importParse.js`: gemener, mellans
 | `listid`                                                                                | Efter lyckad skrivning: produkt kopplas till listan (samma som API `PUT /api/products/:id/list`).                                 |
 | `mainimage`                                                                             | En http(s)-URL; **HEAD/GET** måste svara med `Content-Type` som `image/*`.                                                        |
 | `images`                                                                                | Kommaseparerade http(s)-URL:er; samma validering som ovan. Ogiltig URL → rad hoppas (`invalid_main_image` / `invalid_image_url`). |
-| `categories`                                                                            | Kommaseparerade strängar (som `categories: string[]` i UI).                                                                       |
 
 ## Texter per marknad (`se`, `dk`, `fi`, `no`)
 
-| Kolumn              | Innehåll                                                                                             |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
-| `title.<mk>`        | Produktnamn                                                                                          |
-| `description.<mk>`  | Beskrivning (HTML tillåtet)                                                                          |
-| `titleseo.<mk>`     | SEO-titel                                                                                            |
-| `metadesc.<mk>`     | Meta description                                                                                     |
-| `metakeywords.<mk>` | Meta keywords                                                                                        |
-| `bulletpoints.<mk>` | Flera punkter: **kommaseparerade** (som `categories`). En punkt utan komma räknas som en enda punkt. |
+| Kolumn              | Innehåll                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| `title.<mk>`        | Produktnamn                                                                                      |
+| `description.<mk>`  | Beskrivning (HTML tillåtet)                                                                      |
+| `titleseo.<mk>`     | SEO-titel                                                                                        |
+| `metadesc.<mk>`     | Meta description                                                                                 |
+| `metakeywords.<mk>` | Meta keywords                                                                                    |
+| `bulletpoints.<mk>` | Flera punkter: **kommaseparerade** (som `images`). En punkt utan komma räknas som en enda punkt. |
 
 **`textsstandard`**: `se` \| `dk` \| `fi` \| `no` — styr vilken marknad som används som **katalog** `title` / `description` när per-marknadstexter används. Standard: `se`. Krav: vald marknad måste ha **både** namn och icke-tom beskrivning (plain text efter HTML-strippning). Felkod: `standard_market_texts_incomplete`.
 
@@ -62,19 +61,15 @@ Rubriker normaliseras enligt `plugins/products/importParse.js`: gemener, mellans
 
 ## `channelSpecific`
 
-### Kolumn `channelspecificjson`
-
-Ett **JSON-objekt** (strikt). **Tillåtna topnivånycklar:** `textsExtended`, `textsStandard`, `weightUnit`, `cdon`, `fyndiq`, `woocommerce`. Övriga nycklar ger fel: `invalid_channelspecificjson`.
-
-**Merge-ordning:** befintligt `channelSpecific` → JSON från kolumnen → kolumn `weightunit` → per-marknadstextkolumner (som patchar `textsExtended`). Senare steg i den kedjan skriver över samma lövnivå som tidigare steg.
-
 ### Kolumn `weightunit`
 
 `kg` eller `g` → `channelSpecific.weightUnit`.
 
+**Merge-ordning:** befintligt `channelSpecific` → kolumn `weightunit` → per-marknadstextkolumner (som patchar `textsExtended`).
+
 ### Punktnotation kanalpriser (exempel)
 
-`cdon.se.price`, `cdon.se.active`, `fyndiq.<instance>.category`, `woocommerce.<shop>.categories`, … — samma som tidigare; **körs även när `issello` inte är 1** om kolumnen finns.
+`cdon.se.price`, `cdon.se.active`, `fyndiq.<instance>.category`, `woocommerce.<id>.category`, … — samma som tidigare; **körs även när `issello` inte är 1** om kolumnen finns.
 
 Se även API-referens / `GET /api/products/import/column-reference` för dynamiska kanalexempel.
 
@@ -83,7 +78,6 @@ Se även API-referens / `GET /api/products/import/column-reference` för dynamis
 | Kod                                | Situation                                                                   |
 | ---------------------------------- | --------------------------------------------------------------------------- |
 | `standard_market_texts_incomplete` | Standardmarknad saknar komplett namn+beskrivning                            |
-| `invalid_channelspecificjson`      | JSON saknas, ogiltig, fel typ, eller otillåten nyckel                       |
 | `invalid_main_image`               | Första bild-URL i valideringen är huvudbild och är inte en giltig image-URL |
 | `invalid_image_url`                | En extra bild-URL är ogiltig                                                |
 | `missing_title`                    | Create utan titel (varken flat eller via `textsExtended`-upplösning)        |

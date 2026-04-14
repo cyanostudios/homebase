@@ -20,10 +20,21 @@ B2_REGION=eu-central-003
 B2_BUCKET=your-bucket-name
 B2_KEY_ID=your-key-id
 B2_APPLICATION_KEY=your-application-key
-B2_PUBLIC_BASE_URL=https://f004.backblazeb2.com/file/your-bucket-name
+# Either Backblaze Friendly URL base (must include /file/<same-as-B2_BUCKET>):
+# B2_PUBLIC_BASE_URL=https://f004.backblazeb2.com/file/your-bucket-name
+# Or custom domain root (no /file/ segment) — public URLs are https://<host>/<object-key>
+B2_PUBLIC_BASE_URL=https://media.syncer.se
 MEDIA_MAX_FILE_BYTES=20971520
 PRODUCT_MEDIA_FETCH_TIMEOUT_MS=15000
 ```
+
+### Custom domain (e.g. `media.syncer.se`)
+
+With **`B2_PUBLIC_BASE_URL`** set to an HTTPS origin **without** a `/file/{bucket}` path, new uploads get public URLs like:
+
+`https://media.syncer.se/{tenantId}/products/{productId}/original/...`
+
+New object keys omit the legacy `tenants/` prefix and strip a `sello-` prefix from the product segment in the path only. Existing rows and URLs are not migrated; reconcile/delete still match keys extracted from both Friendly URLs and custom-domain URLs.
 
 ## Phase 2 Follow-up
 

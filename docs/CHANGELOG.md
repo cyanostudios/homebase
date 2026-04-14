@@ -4,6 +4,43 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-14 – Produkter: utkast (`is_draft`), import/export-kolumner, kanaletiketter
+
+### Databas
+
+- **`095-products-drafts.sql`:** kolumn **`is_draft`** på **`products`** (dolda utkast som reserverar ett riktigt produkt-id innan första sparning) samt partiellt index **`idx_products_is_draft_true`**.
+
+### API och modell
+
+- **`POST /api/products/draft`:** skapar utkast via **`createDraft`** (tom titel, **`is_draft: true`**).
+- **Listor och antal** i katalogen filtrerar **`is_draft = FALSE`** så utkast syns inte i den vanliga produktlistan.
+- **`plugins/products/model.js`**, **`controller.js`**, **`routes.js`:** stöd för utkast och **`isDraft`** i API-svar.
+- **`plugins/products/productMediaService.js`:** **`uploadPendingManualFiles`** tar valfritt **`options.productId`** så manuella filer kan laddas upp direkt till produktens lagringspath när id redan finns (annars pending **`manual/<userId>`** som tidigare).
+
+### Import och export
+
+- **Borttaget från filimport/export:** kolumnerna **`categories`** och **`channelSpecificJson`** (samt motsvarande parsning/validering i **`importProductRowMapper.js`**). **`applyTextsAndChannelSpecific`** slår ihop **`textsExtended`** och **`weightUnit`** utan bulk-JSON-kolumn.
+- **Export:** katalogpris-kolumnen heter **Baspris** med tydligare beskrivning (kanalpris via t.ex. **`woocommerce.<id>.price`**). **`exportColumnReference.js`** / **`productExportBuilder.js`** rensade i linje med borttagna fält.
+
+### Klient
+
+- **`ProductContext`**, **`productsApi`**, **`ProductForm`**, **`ProductImportPage`**, **`ProductExportPage`:** reservation av utkast-produkt (stabilt id innan sparning) och relaterad UI.
+- **`client/src/plugins/channels/utils/channelInstanceLabel.ts`:** **`formatChannelInstanceLabel`** / **`formatChannelTitle`** för läsbara kanalinstansetiketter i import/export (färre upprepningar som samma marknad flera gånger).
+
+### Dokumentation
+
+- **`docs/product-import-columns.md`**, **`docs/SELLO_CHANNEL_FIELD_MAPPING.md`**, **`docs/products-image-hosting-follow-up.md`:** uppdaterat mot kolumn- och flödesändringar.
+
+### Tester
+
+- **`server/__tests__/productMediaService.test.js`:** utökade fall.
+- **`server/__tests__/importProductRowMapper.test.js`:** uppdaterat efter borttagen **`channelSpecificJson`** / **`categories`**.
+
+### Övrigt
+
+- **`.cursor/rules/agent-execution.mdc`:** förtydligande om Neon-migrationer efter ny SQL-fil.
+- **`.cursor/TODO-potential-catalog-i18n.md`**, **`.cursor/todo-image_hosting.md`**, **`.cursor/todo-image_hosting_part_2_custom_domain.md`:** interna uppföljningsanteckningar.
+
 ## 2026-04-14 – Produkter, Sello/Woo, lagerhistorik, UI och bygg
 
 ### Sello-import och WooCommerce-kanalöverskridningar

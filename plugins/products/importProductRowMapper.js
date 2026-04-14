@@ -5,16 +5,6 @@
 
 const IMPORT_TEXT_MARKETS = ['se', 'dk', 'fi', 'no'];
 
-/** Top-level keys allowed in channelSpecificJson (strict merge). */
-const CHANNEL_SPECIFIC_JSON_ROOT_KEYS = new Set([
-  'textsExtended',
-  'textsStandard',
-  'weightUnit',
-  'cdon',
-  'fyndiq',
-  'woocommerce',
-]);
-
 function toIntOrUndef(v) {
   if (v === undefined || v === null || v === '') return undefined;
   const n = Number(v);
@@ -206,34 +196,6 @@ function seedSelloSwedenTextsIfNeeded(r, isSello, columnPatch) {
   return out;
 }
 
-/**
- * @returns {{ ok: true; patch: object } | { ok: false; code: 'invalid_channelspecificjson'; message?: string }}
- */
-function parseChannelSpecificJsonColumn(r) {
-  const raw = r.channelspecificjson;
-  if (raw === undefined || raw === null || String(raw).trim() === '') {
-    return { ok: true, patch: {} };
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(String(raw));
-  } catch {
-    return { ok: false, code: 'invalid_channelspecificjson', message: 'Invalid JSON' };
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return { ok: false, code: 'invalid_channelspecificjson', message: 'Expected a JSON object' };
-  }
-  const bad = Object.keys(parsed).filter((k) => !CHANNEL_SPECIFIC_JSON_ROOT_KEYS.has(k));
-  if (bad.length) {
-    return {
-      ok: false,
-      code: 'invalid_channelspecificjson',
-      message: `Disallowed keys: ${bad.join(', ')}`,
-    };
-  }
-  return { ok: true, patch: parsed };
-}
-
 function resolveStandardMarketPrimary(mergedTe, explicitRaw) {
   const standardMk = normalizeImportTextsStandard(explicitRaw) ?? 'se';
   const tx = mergedTe?.[standardMk];
@@ -300,7 +262,6 @@ function buildFlatIncomingFromRow(r, isSello) {
     manufacturerId: toPositiveIntOrUndef(r.manufacturerid),
     mainImage: toStrOrUndef(r.mainimage),
     images: parseCommaSeparatedStrings(r.images),
-    categories: parseCommaSeparatedStrings(r.categories),
   };
 
   return incoming;
@@ -313,17 +274,12 @@ function parseListId(r) {
 }
 
 /**
- * Merge textsExtended + channelSpecificJson + weightUnit column into existing.channelSpecific.
+ * Merge textsExtended + weightUnit column into existing.channelSpecific.
  * When per-market text columns produce a resolved primary title/description, returns them.
  *
  * @returns {{ ok: false; code: string; market?: string; message?: string } | { ok: true; channelSpecific?: object; title?: string; description?: string; usedTextsExtended: boolean }}
  */
 function applyTextsAndChannelSpecific(r, existing, isSello) {
-  const jsonResult = parseChannelSpecificJsonColumn(r);
-  if (!jsonResult.ok) {
-    return { ok: false, code: jsonResult.code, message: jsonResult.message };
-  }
-
   let textsPatch = buildTextsExtendedPatchFromImportRow(r);
   textsPatch = seedSelloSwedenTextsIfNeeded(r, isSello, textsPatch);
   const hasTextsPatch = Object.keys(textsPatch).length > 0;
@@ -333,10 +289,6 @@ function applyTextsAndChannelSpecific(r, existing, isSello) {
     existingCs && typeof existingCs === 'object' && !Array.isArray(existingCs) ? existingCs : null,
     {},
   );
-
-  if (jsonResult.patch && Object.keys(jsonResult.patch).length > 0) {
-    cs = deepMergeChannelSpecific(cs, jsonResult.patch);
-  }
 
   const wu = toStrOrUndef(r.weightunit);
   if (wu) {
@@ -367,8 +319,7 @@ function applyTextsAndChannelSpecific(r, existing, isSello) {
     };
   }
 
-  const touchedJson = jsonResult.patch && Object.keys(jsonResult.patch).length > 0;
-  if (touchedJson || wu) {
+  if (wu) {
     return {
       ok: true,
       channelSpecific: cs,
@@ -381,14 +332,12 @@ function applyTextsAndChannelSpecific(r, existing, isSello) {
 
 module.exports = {
   IMPORT_TEXT_MARKETS,
-  CHANNEL_SPECIFIC_JSON_ROOT_KEYS,
   deepMergeChannelSpecific,
   mergeTextsExtendedForImport,
   buildTextsExtendedPatchFromImportRow,
   buildFlatIncomingFromRow,
   parseListId,
   applyTextsAndChannelSpecific,
-  parseChannelSpecificJsonColumn,
   resolveStandardMarketPrimary,
   importDescPlainNonEmpty,
   toStrOrUndef,

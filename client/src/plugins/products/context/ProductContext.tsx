@@ -97,6 +97,8 @@ interface ProductContextType {
   openProductForEdit: (product: Product) => void;
   openProductPanelForBatch: (productIds: string[]) => void;
   closeProductPanel: () => void;
+  reserveDraftProduct: () => Promise<Product>;
+  discardDraftProduct: (id: string) => Promise<void>;
   /** When non-empty, panel is in batch-edit mode: same form, only filled fields are applied on save. */
   batchProductIds: string[];
 
@@ -232,6 +234,9 @@ export function ProductProvider({
   const [totalProducts, setTotalProducts] = useState(0);
   const [productSettings, setProductSettings] = useState<ProductSettings | null>(null);
   const lastListParamsRef = useRef<ProductListParams | null>(null);
+  const currentProductRef = useRef<Product | null>(null);
+  const isProductPanelOpenRef = useRef(false);
+  const draftReservationPromiseRef = useRef<Promise<Product> | null>(null);
 
   // selection
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -770,10 +775,56 @@ export function ProductProvider({
     }
     return {
       ...saved,
+      isDraft: saved.isDraft === true,
       status: normalizeProductStatus(saved.status),
       createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
       updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
     };
+  }, []);
+
+  useEffect(() => {
+    currentProductRef.current = currentProduct;
+  }, [currentProduct]);
+
+  useEffect(() => {
+    isProductPanelOpenRef.current = isProductPanelOpen;
+  }, [isProductPanelOpen]);
+
+  const reserveDraftProduct = useCallback(async (): Promise<Product> => {
+    const existing = currentProductRef.current;
+    if (existing?.id) {
+      return existing;
+    }
+    if (draftReservationPromiseRef.current) {
+      return draftReservationPromiseRef.current;
+    }
+    const promise = productsApi
+      .createDraftProduct()
+      .then((saved) => {
+        const normalized = normalizeProductRecord(saved);
+        if (isProductPanelOpenRef.current && !currentProductRef.current) {
+          setCurrentProduct(normalized);
+        }
+        return normalized;
+      })
+      .finally(() => {
+        draftReservationPromiseRef.current = null;
+      });
+    draftReservationPromiseRef.current = promise;
+    return promise;
+  }, [normalizeProductRecord]);
+
+  const discardDraftProduct = useCallback(async (id: string) => {
+    const cleanId = String(id || '').trim();
+    if (!cleanId) {
+      return;
+    }
+    await productsApi.deleteProduct(cleanId);
+    setSelectedProductIds((prev) => prev.filter((pid) => pid !== cleanId));
+    setProducts((prev) => prev.filter((p) => String(p.id) !== cleanId));
+    if (currentProductRef.current?.id === cleanId) {
+      setCurrentProduct(null);
+    }
   }, []);
 
   const openProductForEdit = useCallback(
@@ -1051,6 +1102,7 @@ export function ProductProvider({
 
     try {
       if (currentProduct) {
+        const wasDraft = currentProduct.isDraft === true;
         const changeSet = options?.changeSet;
         if (changeSet?.local.noChanges) {
           return true;
@@ -1060,7 +1112,11 @@ export function ProductProvider({
         if (changeSet?.local.productChanged ?? true) {
           const saved = await productsApi.updateProduct(currentProduct.id, data);
           const normalized = normalizeProductRecord(saved);
-          setProducts((prev) => prev.map((p) => (p.id === currentProduct.id ? normalized : p)));
+          if (wasDraft) {
+            await reloadProducts();
+          } else {
+            setProducts((prev) => prev.map((p) => (p.id === currentProduct.id ? normalized : p)));
+          }
           setCurrentProduct(normalized);
           productForSync = normalized;
         }
@@ -1704,6 +1760,8 @@ export function ProductProvider({
       openProductForEdit,
       openProductPanelForBatch,
       closeProductPanel,
+      reserveDraftProduct,
+      discardDraftProduct,
       batchProductIds,
       validateProductForm,
       saveProduct,
@@ -1756,6 +1814,8 @@ export function ProductProvider({
       groupProducts,
       validateProductForm,
       closeProductPanel,
+      reserveDraftProduct,
+      discardDraftProduct,
       openProductPanel,
       openProductForEdit,
       openProductPanelForBatch,

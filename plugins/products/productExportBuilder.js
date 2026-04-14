@@ -161,15 +161,6 @@ function serializeImages(images) {
   return urls.join(', ');
 }
 
-function serializeCategories(categories) {
-  if (!Array.isArray(categories)) return '';
-  try {
-    return JSON.stringify(categories);
-  } catch {
-    return '';
-  }
-}
-
 /**
  * @param {object} product transformed product row
  * @param {string} columnId
@@ -266,8 +257,6 @@ function getGeneralCell(product, columnId) {
       return product.mainImage ?? '';
     case 'images':
       return serializeImages(product.images);
-    case 'categories':
-      return serializeCategories(product.categories);
     case 'quantitySold':
       return product.quantitySold != null ? String(product.quantitySold) : '';
     case 'lastSoldAt':
@@ -296,15 +285,6 @@ function getGeneralCell(product, columnId) {
       const cs = product.channelSpecific;
       if (!cs || typeof cs !== 'object') return '';
       return cs.textsStandard != null ? String(cs.textsStandard) : '';
-    }
-    case 'channelSpecificJson': {
-      const cs = product.channelSpecific;
-      if (!cs || typeof cs !== 'object') return '';
-      try {
-        return JSON.stringify(cs);
-      } catch {
-        return '';
-      }
     }
     default:
       return '';

@@ -10,23 +10,13 @@ import { Label } from '@/components/ui/label';
 import { navigateToPage } from '@/core/navigation/navigateToPage';
 import { channelsApi } from '@/plugins/channels/api/channelsApi';
 import type { ChannelInstance } from '@/plugins/channels/types/channels';
+import { formatChannelInstanceLabel } from '@/plugins/channels/utils/channelInstanceLabel';
 
 import {
   productsApi,
   type ExportColumnReferenceResponse,
   type ProductExportRequestBody,
 } from '../api/productsApi';
-
-function instanceLabel(inst: {
-  channel: string;
-  instanceKey: string;
-  label: string | null;
-  market: string | null;
-  id: string;
-}): string {
-  const bits = [inst.channel, inst.instanceKey, inst.market, inst.label].filter(Boolean);
-  return bits.length ? `${bits.join(' · ')} (#${inst.id})` : `#${inst.id}`;
-}
 
 export const ProductExportPage: React.FC = () => {
   const [columnRef, setColumnRef] = useState<ExportColumnReferenceResponse | null>(null);
@@ -36,7 +26,7 @@ export const ProductExportPage: React.FC = () => {
   const [instances, setInstances] = useState<ChannelInstance[]>([]);
   const [listValue, setListValue] = useState<string>('all');
   const [selectedGeneral, setSelectedGeneral] = useState<Set<string>>(
-    () => new Set(['sku', 'id', 'title', 'quantity', 'priceAmount']),
+    () => new Set(['sku', 'id', 'title', 'quantity']),
   );
   const [selectedChannelHeaders, setSelectedChannelHeaders] = useState<Set<string>>(
     () => new Set(),
@@ -243,7 +233,7 @@ export const ProductExportPage: React.FC = () => {
                     htmlFor={`filter-${inst.id}`}
                     className="text-sm font-normal cursor-pointer"
                   >
-                    {instanceLabel(inst)}
+                    {formatChannelInstanceLabel(inst)}
                   </Label>
                 </div>
               );
@@ -303,7 +293,7 @@ export const ProductExportPage: React.FC = () => {
                 .map((row) => (
                   <div key={row.instanceId} className="rounded-md border p-3 space-y-2">
                     <div className="text-sm font-medium">
-                      {instanceLabel({
+                      {formatChannelInstanceLabel({
                         id: row.instanceId,
                         channel: row.channel,
                         instanceKey: row.instanceKey,

@@ -522,6 +522,121 @@ describe('ProductMediaService', () => {
     });
   });
 
+  it('uploads manual files directly into final product path when productId is known', async () => {
+    const mediaObjectModel = {
+      create: jest.fn().mockImplementation(async (_req, row) => ({
+        id: 'asset-final',
+        product_id: row.productId,
+        source_kind: row.sourceKind,
+        source_url: row.sourceUrl,
+        original_filename: row.originalFilename,
+        storage_key: row.storageKey,
+        url: row.url,
+        position: row.position,
+        content_hash: row.contentHash,
+        mime_type: row.mimeType,
+        size_bytes: row.sizeBytes,
+        width: row.width,
+        height: row.height,
+        variants: row.variants,
+      })),
+    };
+    const imageProcessingService = {
+      buildImageAssetVariants: jest.fn().mockResolvedValue({
+        originalFilename: 'manual.jpg',
+        hash: 'manual-hash',
+        mimeType: 'image/jpeg',
+        size: 123,
+        width: 1200,
+        height: 800,
+        variants: {
+          original: {
+            buffer: Buffer.from('original'),
+            mimeType: 'image/jpeg',
+            extension: 'jpg',
+            size: 123,
+            width: 1200,
+            height: 800,
+          },
+          preview: {
+            buffer: Buffer.from('preview'),
+            mimeType: 'image/webp',
+            extension: 'webp',
+            size: 45,
+            width: 600,
+            height: 400,
+          },
+          thumbnail: {
+            buffer: Buffer.from('thumb'),
+            mimeType: 'image/webp',
+            extension: 'webp',
+            size: 12,
+            width: 120,
+            height: 80,
+          },
+        },
+      }),
+    };
+    const mediaAssetService = {
+      createHostedAssetFromProcessed: jest
+        .fn()
+        .mockImplementation(async ({ tenantId, productId, pendingScope, assetId }) =>
+          makeAsset(
+            `https://media.syncer.se/${tenantId}/products/${productId}/original/0_${assetId}_manual-hash.jpg`,
+            {
+              assetId,
+              position: 0,
+              originalFilename: 'manual.jpg',
+              hash: 'manual-hash',
+              originalKey: `${tenantId}/products/${productId}/original/0_${assetId}_manual-hash.jpg`,
+              previewKey: `${tenantId}/products/${productId}/preview/0_${assetId}_manual-hash.webp`,
+              previewUrl: `https://media.syncer.se/${tenantId}/products/${productId}/preview/0_${assetId}_manual-hash.webp`,
+              thumbnailKey: `${tenantId}/products/${productId}/thumbnail/0_${assetId}_manual-hash.webp`,
+              thumbnailUrl: `https://media.syncer.se/${tenantId}/products/${productId}/thumbnail/0_${assetId}_manual-hash.webp`,
+              mimeType: 'image/jpeg',
+              size: 123,
+              width: 1200,
+              height: 800,
+              sourceUrl: null,
+              pendingScope,
+            },
+          ),
+        ),
+    };
+    const service = new ProductMediaService({
+      mediaObjectModel,
+      imageProcessingService,
+      mediaAssetService,
+    });
+
+    const result = await service.uploadPendingManualFiles(
+      { session: { tenantId: 9 } },
+      [{ buffer: Buffer.from('manual'), originalname: 'manual.jpg', mimetype: 'image/jpeg' }],
+      { productId: 321 },
+    );
+
+    expect(imageProcessingService.buildImageAssetVariants).toHaveBeenCalledTimes(1);
+    expect(mediaAssetService.createHostedAssetFromProcessed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: '9',
+        productId: '321',
+        pendingScope: null,
+        position: 0,
+      }),
+    );
+    expect(mediaObjectModel.create).toHaveBeenCalledWith(
+      { session: { tenantId: 9 } },
+      expect.objectContaining({
+        productId: 321,
+        sourceKind: 'manual_upload',
+        position: 0,
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].variants.original.url).toContain('/9/products/321/original/');
+    expect(result[0].variants.preview.url).toContain('/9/products/321/preview/');
+  });
+
   it('promotes pending manual B2 keys into the product folder after attach', async () => {
     const keyHelper = new B2ObjectStorage(b2KeyOpts);
     const assetId = 'f566aae7-c9d1-4388-a3c3-85ff832689ba';

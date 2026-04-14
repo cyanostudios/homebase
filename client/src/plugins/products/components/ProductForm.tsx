@@ -808,6 +808,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setChannelDataCache,
     getChannelCategories,
     setProductFormSaving,
+    reserveDraftProduct,
+    discardDraftProduct,
   } = useProducts();
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
@@ -817,6 +819,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
   const currentProduct = currentItem;
   const isBatchMode = batchProductIds.length > 0;
+  const suppressDraftHydrationRef = useRef(false);
+  const draftToDiscardRef = useRef<string | null>(null);
 
   const getDefaultDelivery = (market: MarketKey) =>
     productSettings?.defaultDeliveryCdon?.[market.toUpperCase() as 'SE' | 'DK' | 'NO' | 'FI'] ??
@@ -1332,7 +1336,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   // Statistik: GET /api/products/:id/stats?range=… (period, tidslinje, kanalöversikt)
   useEffect(() => {
-    if (isBatchMode || activeTab !== 'statistik' || !currentProduct?.id) {
+    if (isBatchMode || activeTab !== 'statistik' || !currentProduct?.id || currentProduct.isDraft) {
       return;
     }
     const productId = String(currentProduct.id);
@@ -1476,7 +1480,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           return;
         }
 
-        if (!currentProduct?.id) {
+        if (!currentProduct?.id || currentProduct.isDraft) {
           setChannelOverrides([]);
           setChannelOverridesLoaded(true);
           initialSelectedTargetKeysRef.current = new Set();
@@ -1715,6 +1719,34 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     hasSyncedOverridesRef.current = false;
   }, [currentProduct?.id, channelOverridesLoaded]);
 
+  useEffect(() => {
+    if (isBatchMode || currentProduct?.id) {
+      draftToDiscardRef.current =
+        currentProduct?.isDraft === true ? String(currentProduct.id) : null;
+      return;
+    }
+    let cancelled = false;
+    suppressDraftHydrationRef.current = true;
+    void reserveDraftProduct()
+      .then((draft) => {
+        if (cancelled) {
+          return;
+        }
+        draftToDiscardRef.current = draft?.isDraft === true ? String(draft.id) : null;
+      })
+      .catch((error) => {
+        suppressDraftHydrationRef.current = false;
+        if (cancelled) {
+          return;
+        }
+        console.error('Failed to reserve draft product', error);
+        setSaveNotice(getReadableErrorMessage(error, 'Kunde inte reservera produkt-ID.'));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentProduct?.id, currentProduct?.isDraft, isBatchMode, reserveDraftProduct]);
+
   // Register this form's unsaved changes state globally
   useEffect(() => {
     const formKey = isBatchMode
@@ -1742,6 +1774,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       setFormData(batchInitialState);
       setIsMpnAuto(true);
       markClean();
+      return;
+    }
+    if (currentProduct?.isDraft && suppressDraftHydrationRef.current) {
+      suppressDraftHydrationRef.current = false;
       return;
     }
     if (currentProduct) {
@@ -2949,6 +2985,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     buildOverrideRows,
   ]);
 
+  const handleCancel = useCallback(async () => {
+    let draftId = draftToDiscardRef.current;
+    if (!draftId && !isBatchMode && !currentProduct) {
+      try {
+        const pendingDraft = await reserveDraftProduct();
+        draftId = pendingDraft?.isDraft === true ? String(pendingDraft.id) : null;
+      } catch {
+        draftId = null;
+      }
+    }
+    if (draftId) {
+      try {
+        await discardDraftProduct(draftId);
+      } catch (error) {
+        console.error('Failed to discard draft product', error);
+        setSaveNotice(getReadableErrorMessage(error, 'Kunde inte rensa utkastet.'));
+        return;
+      }
+      draftToDiscardRef.current = null;
+    }
+    onCancel();
+  }, [currentProduct, discardDraftProduct, isBatchMode, onCancel, reserveDraftProduct]);
+
   const commitBatchSave = useCallback(async () => {
     const changes = batchPendingChanges;
     if (!changes || batchProductIds.length === 0) {
@@ -3001,14 +3060,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         (e instanceof CustomEvent && e.detail?.ignorePriceWarning) === true;
       handleSubmit();
     };
-    const onCancelEvent = () => onCancel();
+    const onCancelEvent = () => {
+      void handleCancel();
+    };
     window.addEventListener('submitProductForm', onSubmit);
     window.addEventListener('cancelProductForm', onCancelEvent);
     return () => {
       window.removeEventListener('submitProductForm', onSubmit);
       window.removeEventListener('cancelProductForm', onCancelEvent);
     };
-  }, [handleSubmit, onCancel]);
+  }, [handleSubmit, handleCancel]);
 
   const getFieldError = (fieldName: string) => validationErrors.find((e) => e.field === fieldName);
   const isWarningMessage = (message: string) =>
@@ -3137,7 +3198,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
     setMediaUploading(true);
     try {
-      const items = await productsApi.uploadMediaFiles(uploadSlice);
+      const productIdForUpload = currentProduct?.id
+        ? String(currentProduct.id)
+        : String((await reserveDraftProduct())?.id || '');
+      const items = await productsApi.uploadMediaFiles(
+        uploadSlice,
+        productIdForUpload || undefined,
+      );
       const toAdd = normalizeProductImages(items);
       setFormData((prev) => {
         const trimmed = prev.images.slice(0, Math.max(0, prev.images.length - take));

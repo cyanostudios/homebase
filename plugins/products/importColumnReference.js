@@ -73,7 +73,6 @@ const GENERAL_COLUMNS = [
   { name: 'listId', description: 'List-id i Homebase; sätts efter lyckad create/update.' },
   { name: 'mainImage', description: 'Huvudbild URL (http/https, valideras mot image/*).' },
   { name: 'images', description: 'Extra bilder, kommaseparerade URL:er (valideras).' },
-  { name: 'categories', description: 'Kategorier, kommaseparerade.' },
   {
     name: 'OBS: SEO per marknad',
     description:
@@ -94,12 +93,7 @@ const GENERAL_COLUMNS = [
   {
     name: 'bulletpoints.se',
     description:
-      'Flera punkter: kommaseparerade (samma som categories/images). En punkt utan komma i cellen = en enda punkt. Samma mönster för bulletpoints.dk / .fi / .no.',
-  },
-  {
-    name: 'channelSpecificJson',
-    description:
-      'JSON-objekt; tillåtna nycklar: textsExtended, textsStandard, weightUnit, cdon, fyndiq, woocommerce.',
+      'Flera punkter: kommaseparerade (samma som images). En punkt utan komma i cellen = en enda punkt. Samma mönster för bulletpoints.dk / .fi / .no.',
   },
 ];
 

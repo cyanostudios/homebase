@@ -18,6 +18,7 @@ import {
 import { navigateToPage } from '@/core/navigation/navigateToPage';
 import { channelsApi } from '@/plugins/channels/api/channelsApi';
 import type { ChannelInstance } from '@/plugins/channels/types/channels';
+import { formatChannelInstanceLabel } from '@/plugins/channels/utils/channelInstanceLabel';
 
 import {
   productsApi,
@@ -397,7 +398,13 @@ export const ProductImportPage: React.FC = () => {
             {columnRef.channels.map((ch) => (
               <RefCollapsible
                 key={`${ch.channel}-${ch.instanceKey}-${ch.numericId}`}
-                title={`${ch.channel} · ${ch.instanceKey}`}
+                title={formatChannelInstanceLabel({
+                  channel: ch.channel,
+                  instanceKey: ch.instanceKey,
+                  label: ch.label,
+                  market: ch.market,
+                  id: ch.numericId,
+                })}
               >
                 <div className="text-xs text-muted-foreground mb-2 space-y-1">
                   <div>

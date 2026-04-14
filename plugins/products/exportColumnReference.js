@@ -18,7 +18,13 @@ const EXPORT_GENERAL_COLUMNS = [
   },
   { id: 'status', label: 'Status', description: 'for sale eller paused', group: 'Grunddata' },
   { id: 'quantity', label: 'Lager', description: 'Antal i lager', group: 'Pris och lager' },
-  { id: 'priceAmount', label: 'Pris', description: 'Katalogpris', group: 'Pris och lager' },
+  {
+    id: 'priceAmount',
+    label: 'Baspris',
+    description:
+      'Standardpris som gäller om en kanal inte har eget pris. Kanalpris finns i kolumner som woocommerce.<id>.price.',
+    group: 'Pris och lager',
+  },
   { id: 'purchasePrice', label: 'Inköpspris', description: 'Inköpspris', group: 'Pris och lager' },
   { id: 'currency', label: 'Valuta', description: 'Valutakod', group: 'Pris och lager' },
   { id: 'vatRate', label: 'Momssats', description: 'Procent', group: 'Pris och lager' },
@@ -70,7 +76,6 @@ const EXPORT_GENERAL_COLUMNS = [
   { id: 'notes', label: 'Anteckningar', description: 'Anteckningar', group: 'Övrigt' },
   { id: 'mainImage', label: 'Huvudbild URL', description: 'Huvudbild', group: 'Media' },
   { id: 'images', label: 'Bilder', description: 'JSON-array / URL:er', group: 'Media' },
-  { id: 'categories', label: 'Kategorier', description: 'JSON-array', group: 'Övrigt' },
   { id: 'quantitySold', label: 'Sålda (antal)', description: 'Historik', group: 'Övrigt' },
   { id: 'lastSoldAt', label: 'Senast såld', description: 'Tidstämpel', group: 'Övrigt' },
   { id: 'createdAt', label: 'Skapad', description: 'Tidstämpel', group: 'Övrigt' },
@@ -128,12 +133,6 @@ const EXPORT_GENERAL_COLUMNS = [
     label: 'Standard marknad (texter)',
     description: 'textsStandard',
     group: 'Texter',
-  },
-  {
-    id: 'channelSpecificJson',
-    label: 'channelSpecific (JSON)',
-    description: 'Hela channel_specific som JSON-sträng',
-    group: 'Avancerat',
   },
 ];
 

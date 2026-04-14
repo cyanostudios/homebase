@@ -239,6 +239,7 @@ export function normalizeProductImages(raw: unknown): ProductImageAsset[] {
 
 export interface Product {
   id: string;
+  isDraft?: boolean;
 
   // MVP fields (camelCase for frontend)
   sku: string | null;
