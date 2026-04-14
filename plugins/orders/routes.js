@@ -35,11 +35,6 @@ function createOrdersRoutes(controller, context) {
     (req, res) => controller.list(req, res),
   );
 
-  // DELETE /api/orders (delete all orders for current user) - must be before /:id route
-  router.delete('/', gate, csrfProtection, validateRequest, (req, res) =>
-    controller.deleteAll(req, res),
-  );
-
   // POST /api/orders/sync - Trigger quick-sync (background). Returns { started, reason? }.
   router.post('/sync', gate, csrfProtection, validateRequest, (req, res) =>
     controller.quickSync(req, res),

@@ -992,9 +992,7 @@ class ChannelsModel {
             : null
           : (ex?.cat ?? null);
         const sale = has('salePrice')
-          ? o.salePrice != null &&
-            Number.isFinite(Number(o.salePrice)) &&
-            Number(o.salePrice) > 0
+          ? o.salePrice != null && Number.isFinite(Number(o.salePrice)) && Number(o.salePrice) > 0
             ? Number(o.salePrice)
             : null
           : (ex?.sale ?? null);
@@ -1117,8 +1115,7 @@ class ChannelsModel {
 
         instCols.push(`${ch}.${key}.active`);
         instCols.push(`${ch}.${key}.price`);
-        if (ch === 'woocommerce') instCols.push(`${ch}.${key}.categories`);
-        else instCols.push(`${ch}.${key}.category`);
+        instCols.push(`${ch}.${key}.category`);
       }
 
       const cols = [...baseCols, ...instCols];

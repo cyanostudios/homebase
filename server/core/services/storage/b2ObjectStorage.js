@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { Logger } = require('@homebase/core');
 const {
   PutObjectCommand,
+  CopyObjectCommand,
   DeleteObjectsCommand,
   ListObjectVersionsCommand,
   S3Client,
@@ -26,20 +27,43 @@ function trimTrailingSlash(value) {
 }
 
 /**
- * Extract S3 object key from a B2 "Friendly URL" path:
- * https://{host}/file/{bucket}/{key...} → key
- * Used so reconcile can match rows when only the download host (f003 vs f004) or base URL differs.
+ * Storage path segment for product id: strip legacy `sello-` prefix only here (not app identity).
+ */
+function normalizeProductIdForStorageKey(productId) {
+  const raw = String(productId || '').trim();
+  if (!raw) return '';
+  return raw.replace(/^sello-/i, '');
+}
+
+/**
+ * Extract S3 object key from:
+ * - B2 Friendly URL: https://{host}/file/{bucket}/{key...} → key
+ * - Custom domain root path: https://media.example/{key...} → key (pathname without leading slash)
+ *
+ * Used so reconcile can match rows when the public base URL shape differs (Friendly vs custom domain).
  */
 function objectKeyFromB2FileUrl(fileUrl, bucketName) {
   const b = String(bucketName || '').trim();
-  if (!b || !fileUrl) return null;
+  if (!fileUrl) return null;
   try {
     const u = new URL(String(fileUrl).trim());
-    const prefix = `/file/${b}/`;
     const p = u.pathname || '';
-    if (!p.startsWith(prefix)) return null;
-    const rest = p.slice(prefix.length).replace(/^\/+/, '');
-    return rest || null;
+
+    if (b && p.startsWith(`/file/${b}/`)) {
+      const rest = p.slice(`/file/${b}/`.length).replace(/^\/+/, '');
+      return rest || null;
+    }
+
+    const friendly = p.match(/^\/file\/[^/]+\/(.+)$/);
+    if (friendly) {
+      const rest = friendly[1].replace(/^\/+/, '');
+      return rest || null;
+    }
+
+    if (p.length > 1) {
+      return p.replace(/^\/+/, '') || null;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -61,6 +85,10 @@ function objectKeyFromB2FileUrl(fileUrl, bucketName) {
  * **Anonymous browser access:** For `<img src="https://f….backblazeb2.com/file/…">` to work, the bucket
  * must allow **public read** (B2: bucket type / “Files in Bucket are… Public” / public download caps).
  * A **Private** bucket returns 403 for those URLs — images will look broken in Homebase even after upload.
+ *
+ * **Custom domain (root path):** Set `B2_PUBLIC_BASE_URL` to `https://media.example` with no `/file/{bucket}`
+ * segment. Public URLs become `https://media.example/<object-key>` (Cloudflare/B2 custom domain in front
+ * of the same bucket). In that case this function does **not** inject `/file/{bucket}`.
  */
 function normalizeB2PublicBaseUrl(rawPublicBaseUrl, bucketName) {
   const bucket = String(bucketName || '').trim();
@@ -74,7 +102,15 @@ function normalizeB2PublicBaseUrl(rawPublicBaseUrl, bucketName) {
     return raw;
   }
 
-  const before = u.pathname;
+  const before = u.pathname || '';
+
+  if (!before.startsWith('/file/')) {
+    if (before === '/' || before === '') {
+      return trimTrailingSlash(u.origin);
+    }
+    return trimTrailingSlash(u.toString());
+  }
+
   const m = u.pathname.match(/^\/file\/([^/]+)\/?$/);
   if (m) {
     if (m[1] !== bucket) {
@@ -259,7 +295,7 @@ class B2ObjectStorage {
     const safeScope = sanitizePathSegment(scope, 'media');
     const info = normalizeUploadInfo(originalFilename, mimeType);
     const randomHex = crypto.randomBytes(16).toString('hex');
-    return `tenants/${safeTenantId}/products/${safeScope}/${info.safeBaseName}-${randomHex}.${info.extension}`;
+    return `${safeTenantId}/products/${safeScope}/${info.safeBaseName}-${randomHex}.${info.extension}`;
   }
 
   buildAssetVariantKey({
@@ -279,11 +315,16 @@ class B2ObjectStorage {
     const ext = sanitizePathSegment(extension, 'bin');
     const pos = Number.isFinite(Number(position)) ? Math.max(0, Math.trunc(Number(position))) : 0;
     if (productId != null && String(productId).trim() !== '') {
-      const safeProductId = sanitizePathSegment(productId, 'product');
-      return `tenants/${safeTenantId}/products/${safeProductId}/${safeVariant}/${pos}_${safeAssetId}_${safeHash}.${ext}`;
+      const pathProductId = normalizeProductIdForStorageKey(productId);
+      const safeProductId = sanitizePathSegment(pathProductId, 'product');
+      return `${safeTenantId}/products/${safeProductId}/${safeVariant}/${pos}_${safeAssetId}_${safeHash}.${ext}`;
     }
-    const safePending = sanitizePathSegment(pendingScope || 'pending', 'pending');
-    return `tenants/${safeTenantId}/products/${safePending}/${safeVariant}/${pos}_${safeAssetId}_${safeHash}.${ext}`;
+    const rawPending = String(pendingScope || 'pending')
+      .trim()
+      .replace(/\//g, '-');
+    const pathPending = normalizeProductIdForStorageKey(rawPending);
+    const safePending = sanitizePathSegment(pathPending || rawPending || 'pending', 'pending');
+    return `${safeTenantId}/products/${safePending}/${safeVariant}/${pos}_${safeAssetId}_${safeHash}.${ext}`;
   }
 
   getPublicUrl(key) {
@@ -337,6 +378,51 @@ class B2ObjectStorage {
         500,
         'PRODUCT_MEDIA_UPLOAD_FAILED',
       );
+    }
+  }
+
+  /**
+   * Server-side copy within the same bucket (B2 S3-compatible API).
+   * Preserves metadata/content-type from the source object.
+   */
+  async copyObjectWithinBucket({ sourceKey, destinationKey }) {
+    const src = String(sourceKey || '').trim();
+    const dst = String(destinationKey || '').trim();
+    if (!src || !dst) {
+      throw new AppError(
+        'copyObjectWithinBucket requires sourceKey and destinationKey',
+        500,
+        'PRODUCT_MEDIA_UPLOAD_FAILED',
+      );
+    }
+    if (src === dst) {
+      return {
+        key: dst,
+        publicUrl: this.getPublicUrl(dst),
+        versionId: null,
+      };
+    }
+    try {
+      const response = await this.client.send(
+        new CopyObjectCommand({
+          Bucket: this.bucket,
+          Key: dst,
+          CopySource: `${this.bucket}/${encodeURIComponent(src)}`,
+          MetadataDirective: 'COPY',
+        }),
+      );
+      return {
+        key: dst,
+        publicUrl: this.getPublicUrl(dst),
+        versionId: String(response?.VersionId || '').trim() || null,
+      };
+    } catch (error) {
+      Logger.error('B2 copy failed', error, {
+        bucket: this.bucket,
+        sourceKey: src,
+        destinationKey: dst,
+      });
+      throw new AppError('Failed to copy product media in B2', 500, 'PRODUCT_MEDIA_UPLOAD_FAILED');
     }
   }
 
@@ -452,5 +538,7 @@ module.exports = {
   ALLOWED_IMAGE_MIME,
   sanitizePathSegment,
   objectKeyFromB2FileUrl,
+  normalizeB2PublicBaseUrl,
+  normalizeProductIdForStorageKey,
   normalizeUploadInfo,
 };

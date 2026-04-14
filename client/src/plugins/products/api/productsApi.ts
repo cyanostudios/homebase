@@ -67,6 +67,41 @@ export type ImportColumnReferenceResponse = {
   }>;
 };
 
+export type ExportColumnDef = {
+  id: string;
+  label: string;
+  description: string;
+  group: string;
+};
+
+export type ExportColumnReferenceResponse = {
+  general: ExportColumnDef[];
+  instances: Array<{
+    id: string;
+    channel: string;
+    instanceKey: string;
+    market: string | null;
+    label: string | null;
+    enabled: boolean;
+  }>;
+  channelColumns: Array<{
+    instanceId: string;
+    channel: string;
+    instanceKey: string;
+    market: string | null;
+    label: string | null;
+    enabled: boolean;
+    fields: Array<{ headerKey: string; field: string; label: string }>;
+  }>;
+};
+
+export type ProductExportRequestBody = {
+  columnIds: string[];
+  list: string;
+  filterChannelInstanceIds: number[];
+  columnChannelInstanceIds: number[];
+};
+
 /** Finished import job (after background processing). */
 export type ProductImportResult = { ok: true; job: ProductImportJobSnapshot };
 
@@ -312,21 +347,38 @@ class ProductsApi {
   async getProductStats(
     productId: string,
     range?: '7d' | '30d' | '3m' | 'all',
+    timelineOpts?: { timelineLimit?: number; timelineOffset?: number },
   ): Promise<{
     soldCount: number;
     bestChannel: string | null;
     activeTargetsCount: number;
-    timeline: Array<{
-      type: string;
-      channel: string;
-      orderId: string;
-      quantity: number;
-      placedAt: string | null;
-    }>;
+    timeline: Array<
+      | {
+          type: 'sale';
+          channel: string;
+          orderId: string;
+          quantity: number;
+          placedAt: string | null;
+        }
+      | {
+          type: 'quantity_change';
+          previousQuantity: number | null;
+          newQuantity: number;
+          source: string;
+          placedAt: string | null;
+        }
+    >;
+    timelineHasMore: boolean;
   }> {
     const q = new URLSearchParams();
     if (range) {
       q.set('range', range);
+    }
+    if (timelineOpts?.timelineLimit != null) {
+      q.set('timelineLimit', String(timelineOpts.timelineLimit));
+    }
+    if (timelineOpts?.timelineOffset != null) {
+      q.set('timelineOffset', String(timelineOpts.timelineOffset));
     }
     const suffix = q.toString() ? `?${q.toString()}` : '';
     return this.request(`/products/${encodeURIComponent(productId)}/stats${suffix}`);
@@ -432,6 +484,41 @@ class ProductsApi {
 
   async getImportColumnReference(): Promise<ImportColumnReferenceResponse> {
     return this.request('/products/import/column-reference');
+  }
+
+  async getExportColumnReference(): Promise<ExportColumnReferenceResponse> {
+    return this.request('/products/export/column-reference');
+  }
+
+  /**
+   * POST /api/products/export — returns Excel blob; throws with .status and JSON body on error.
+   */
+  async exportProductsToExcel(body: ProductExportRequestBody): Promise<Blob> {
+    const csrf = await this.getCsrfToken();
+    const response = await fetch('/api/products/export', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      let payload: { error?: string; message?: string } | null = null;
+      try {
+        payload = await response.json();
+      } catch {
+        void 0;
+      }
+      const err: any = new Error(
+        payload?.error || payload?.message || response.statusText || 'Export failed',
+      );
+      err.status = response.status;
+      err.error = payload?.error;
+      throw err;
+    }
+    return response.blob();
   }
 
   async downloadImportFile(jobId: string): Promise<Blob> {

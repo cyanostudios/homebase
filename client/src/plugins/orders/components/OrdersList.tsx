@@ -5,16 +5,27 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  Pencil,
+  Plus,
   RefreshCw,
   Trash2,
   Download,
   Settings,
+  Truck,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/select';
 import {
@@ -29,6 +40,7 @@ import { useApp } from '@/core/api/AppContext';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/core/settings/listPageSizes';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { buildListPaginationItems } from '@/core/utils/listPagination';
+import { cn } from '@/lib/utils';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 import { useShipping } from '@/plugins/shipping/hooks/useShipping';
@@ -48,6 +60,11 @@ import { validateTrackingRequirement } from '../utils/validateTrackingRequiremen
 
 import { OrderDetailInline } from './OrderDetailInline';
 import { OrderListSettingsForm } from './OrderListSettingsForm';
+
+/** Roomier dropdowns in the Orders toolbar: larger type and padding. */
+const ORDERS_DROPDOWN_CONTENT_CLASS = 'min-w-[16rem] p-2 text-base';
+const ORDERS_DROPDOWN_ITEM_CLASS =
+  'text-base py-2.5 min-h-[2.75rem] gap-2 [&_svg]:size-5 [&_svg]:shrink-0';
 
 function fmtDate(d: any) {
   if (!d) {
@@ -155,6 +172,7 @@ export const OrdersList: React.FC = () => {
     reloadOrders,
     updateOrderInList,
     updateOrdersInList,
+    openOrderPanel,
   } = useOrders();
   const { openBookModal } = useShipping();
   const [searchTerm, setSearchTerm] = useState(() => filters.q ?? '');
@@ -167,7 +185,6 @@ export const OrdersList: React.FC = () => {
     skippedExisting: number;
     error?: string;
   }> | null>(null);
-  const [deletingAll, setDeletingAll] = useState(false);
   const [deletingSelected, setDeletingSelected] = useState(false);
   const [showOrderListSettings, setShowOrderListSettings] = useState(false);
 
@@ -519,25 +536,6 @@ export const OrdersList: React.FC = () => {
     [updateOrderInList],
   );
 
-  const handleDeleteAll = async () => {
-    if (!confirm('Är du säker på att du vill radera ALLA order? Detta går inte att ångra.')) {
-      return;
-    }
-    try {
-      setDeletingAll(true);
-      const result = await ordersApi.deleteAll();
-      alert(
-        `${result.deletedCount} order raderade. Du kan nu importera order på nytt från kanalerna.`,
-      );
-      void reloadOrders();
-    } catch (err: any) {
-      alert(`Kunde inte radera order: ${err.message || err}`);
-      console.error('Delete all error:', err);
-    } finally {
-      setDeletingAll(false);
-    }
-  };
-
   const handleToggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedIds((prev) => {
@@ -656,105 +654,105 @@ export const OrdersList: React.FC = () => {
     }
   };
 
+  const hasOrderSelection = selectedIds.size > 0;
+
   const toolbarActions = (
     <div className="flex items-center gap-2 flex-wrap">
-      {selectedIds.size > 0 && (
-        <>
-          <Button
-            onClick={() => openBookModal(Array.from(selectedIds))}
-            variant="outline"
-            size="sm"
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1">
+            Hantera
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className={ORDERS_DROPDOWN_CONTENT_CLASS}>
+          <DropdownMenuItem
+            disabled={!hasOrderSelection}
+            onSelect={() => openBookModal(Array.from(selectedIds))}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
           >
+            <Truck className="mr-2" aria-hidden />
             Boka frakt
-          </Button>
-          <Button
-            onClick={handleExportPlocklista}
-            disabled={exportingPlocklista}
-            variant="outline"
-            size="sm"
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasOrderSelection || exportingPlocklista}
+            onSelect={() => void handleExportPlocklista()}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
           >
-            <Download className="h-4 w-4" />
-            {exportingPlocklista ? 'Skapar PDF…' : 'Exportera plocklista (PDF)'}
-          </Button>
-          <Button
-            onClick={() => {
+            <Download className="mr-2" aria-hidden />
+            {exportingPlocklista ? 'Skapar PDF…' : 'Plocklista (PDF)'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasOrderSelection}
+            onSelect={() => {
               setBatchUpdateResult(null);
               setShowBatchDialog(true);
             }}
-            size="sm"
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
           >
-            Update {selectedIds.size} selected
-          </Button>
-          <Button
-            onClick={handleDeleteSelected}
-            disabled={deletingSelected}
-            variant="destructive"
-            size="sm"
+            <Pencil className="mr-2" aria-hidden />
+            Uppdatera valda ({selectedIds.size})
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="my-2" />
+          <DropdownMenuItem
+            disabled={!hasOrderSelection || deletingSelected}
+            onSelect={() => void handleDeleteSelected()}
+            className={cn(
+              ORDERS_DROPDOWN_ITEM_CLASS,
+              hasOrderSelection &&
+                !deletingSelected &&
+                'text-destructive focus:text-destructive focus:bg-destructive/10',
+            )}
           >
-            <Trash2 className="h-4 w-4" />
-            {deletingSelected ? 'Raderar…' : `Radera ${selectedIds.size} valda`}
+            <Trash2 className="mr-2" aria-hidden />
+            {deletingSelected ? 'Raderar…' : `Radera valda (${selectedIds.size})`}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1">
+            Alternativ
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
           </Button>
-        </>
-      )}
-      <Button variant="outline" size="sm" onClick={() => setShowOrderListSettings(true)}>
-        <Settings className="h-4 w-4 mr-2" />
-        Inställningar
-      </Button>
-      <Button
-        onClick={() => reloadOrders()}
-        variant="outline"
-        size="sm"
-        disabled={ordersListLoading}
-        aria-busy={ordersListLoading}
-      >
-        {ordersListLoading ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden />
-            Laddar…
-          </>
-        ) : (
-          <>
-            <RefreshCw className="h-4 w-4" />
-            Reload
-          </>
-        )}
-      </Button>
-      <Button
-        onClick={() => void handleSyncOrders()}
-        disabled={syncing}
-        variant="outline"
-        size="sm"
-      >
-        {syncing ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-            Syncing…
-          </>
-        ) : (
-          <>
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Sync orders
-          </>
-        )}
-      </Button>
-      <Button
-        onClick={handleDeleteAll}
-        disabled={deletingAll || orders.length === 0}
-        variant="destructive"
-        size="sm"
-      >
-        <Trash2 className="h-4 w-4" />
-        {deletingAll ? 'Rensar…' : 'Rensa alla order'}
-      </Button>
-      <Button
-        onClick={handleImportAll}
-        disabled={importing.channel !== null}
-        variant="outline"
-        size="sm"
-      >
-        <Download className="h-4 w-4" />
-        {importing.channel === 'all' ? 'Importing…' : 'Import orders'}
-      </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className={ORDERS_DROPDOWN_CONTENT_CLASS}>
+          <DropdownMenuItem
+            onSelect={() => setShowOrderListSettings(true)}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+          >
+            <Settings className="mr-2" aria-hidden />
+            Inställningar
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={syncing}
+            onSelect={() => void handleSyncOrders()}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+          >
+            {syncing ? (
+              <Loader2 className="mr-2 animate-spin" aria-hidden />
+            ) : (
+              <RefreshCw className="mr-2" aria-hidden />
+            )}
+            {syncing ? 'Synkar…' : 'Sync orders'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={importing.channel !== null}
+            onSelect={() => void handleImportAll()}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+          >
+            <Download className="mr-2" aria-hidden />
+            {importing.channel === 'all' ? 'Importerar…' : 'Import orders'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => openOrderPanel(null)}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+          >
+            <Plus className="mr-2" aria-hidden />
+            Lägg till order
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
@@ -818,6 +816,23 @@ export const OrdersList: React.FC = () => {
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Sök kund, ordernr, belopp, spårning, kanal…"
+          afterSearch={
+            selectedIds.size > 0 ? (
+              <>
+                <Badge variant="secondary">
+                  {selectedIds.size === 1 ? '1 vald' : `${selectedIds.size} valda`}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  Nollställ
+                </Button>
+              </>
+            ) : null
+          }
           rightActions={toolbarActions}
         />
       </div>

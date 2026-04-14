@@ -164,6 +164,13 @@ function createProductRoutes(controller, context) {
     controller.getImportColumnReference(req, res),
   );
 
+  router.get('/export/column-reference', gate, (req, res) =>
+    controller.getExportColumnReference(req, res),
+  );
+  router.post('/export', gate, uploadLimiter, csrfProtection, (req, res) =>
+    controller.exportProducts(req, res),
+  );
+
   // POST /api/products/import/sello - Pull products from Sello API
   router.post('/import/sello', gate, uploadLimiter, csrfProtection, (req, res) =>
     controller.importFromSelloApi(req, res),
@@ -292,7 +299,7 @@ function createProductRoutes(controller, context) {
     (req, res) => controller.bulkDelete(req, res),
   );
 
-  // GET /api/products/:id/stats?range=7d|30d|3m|all
+  // GET /api/products/:id/stats?range=7d|30d|3m|all&timelineLimit=10&timelineOffset=0
   router.get('/:id/stats', gate, (req, res) => controller.getStats(req, res));
 
   // PUT /api/products/:id/list - Set product list (body: listId or null for "Huvudlista")

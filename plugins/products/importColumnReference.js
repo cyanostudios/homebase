@@ -123,12 +123,10 @@ function buildChannelSections(instances) {
     const key = String(inst.instanceKey || '').trim();
     const id = String(inst.id || '').trim();
     const dotBase = key ? `${ch}.${key}` : ch;
-    const exampleColumns = [
-      `${dotBase}.price`,
-      `${dotBase}.active`,
-      `${dotBase}.category`,
-      `${dotBase}.categories`,
-    ];
+    const exampleColumns =
+      ch === 'woocommerce' && id
+        ? [`${ch}.${id}.price`, `${ch}.${id}.active`, `${ch}.${id}.category`]
+        : [`${dotBase}.price`, `${dotBase}.active`, `${dotBase}.category`];
     /** @type {string[]} */
     const legacyHints = [];
     if (ch === 'cdon' && ['se', 'dk', 'fi'].includes(key)) {
@@ -137,9 +135,6 @@ function buildChannelSections(instances) {
     if (ch === 'fyndiq' && /^\d+$/.test(String(inst.instanceKey || ''))) {
       const code = String(inst.instanceKey);
       legacyHints.push(`fyndiq3price${code}`, `fyndiq3active${code}`);
-    }
-    if (ch === 'woocommerce' && id) {
-      legacyHints.push(`woocommerceprice${id}`);
     }
     return {
       channel: inst.channel,

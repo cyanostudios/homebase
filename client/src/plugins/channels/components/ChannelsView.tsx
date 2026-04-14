@@ -12,12 +12,6 @@ interface ChannelsViewProps {
 }
 
 export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
-  if (!item) {
-    return null;
-  }
-
-  const updated = item.lastSyncedAt ? new Date(item.lastSyncedAt) : null;
-
   const [errors, setErrors] = useState<ChannelErrorLogItem[]>([]);
   const [loadingErrors, setLoadingErrors] = useState(false);
   const [instances, setInstances] = useState<ChannelInstance[]>([]);
@@ -25,12 +19,20 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
   const [creatingDefaults, setCreatingDefaults] = useState(false);
   const [savingInstanceId, setSavingInstanceId] = useState<string | null>(null);
 
+  const channelStr =
+    item?.channel === undefined || item?.channel === null ? '' : String(item.channel);
+  const isCdonOrFyndiq =
+    channelStr.toLowerCase() === 'cdon' || channelStr.toLowerCase() === 'fyndiq';
+
   useEffect(() => {
+    if (!channelStr) {
+      return;
+    }
     let cancelled = false;
     const run = async () => {
       setLoadingErrors(true);
       try {
-        const resp = await channelsApi.getErrors({ channel: String(item.channel), limit: 20 });
+        const resp = await channelsApi.getErrors({ channel: channelStr, limit: 20 });
         if (cancelled) {
           return;
         }
@@ -55,19 +57,18 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
     return () => {
       cancelled = true;
     };
-  }, [item.channel]);
-
-  const isCdonOrFyndiq =
-    String(item.channel).toLowerCase() === 'cdon' ||
-    String(item.channel).toLowerCase() === 'fyndiq';
+  }, [channelStr]);
 
   useEffect(() => {
+    if (!channelStr) {
+      return;
+    }
     let cancelled = false;
     const run = async () => {
       setLoadingInstances(true);
       try {
         const resp = await channelsApi.getInstances({
-          channel: String(item.channel),
+          channel: channelStr,
           includeDisabled: isCdonOrFyndiq,
         });
         if (cancelled) {
@@ -90,7 +91,13 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
     return () => {
       cancelled = true;
     };
-  }, [item.channel, isCdonOrFyndiq]);
+  }, [channelStr, isCdonOrFyndiq]);
+
+  if (!item) {
+    return null;
+  }
+
+  const updated = item.lastSyncedAt ? new Date(item.lastSyncedAt) : null;
 
   const ensureDefaults = async () => {
     const ch = String(item.channel).toLowerCase();
@@ -212,7 +219,8 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
         </div>
         <Text variant="caption" className="text-gray-600 mb-3">
           Instances represent markets/stores (e.g. <strong>cdon.se</strong>,{' '}
-          <strong>fyndiq.fi</strong>, <strong>woocommerce.shopA</strong>).
+          <strong>fyndiq.fi</strong>). WooCommerce import columns use{' '}
+          <strong>woocommerce.&lt;instance id&gt;</strong> (siffror = radens id i listan nedan).
         </Text>
         {isCdonOrFyndiq && instances.length > 0 && (
           <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-3">

@@ -34,6 +34,12 @@ const { runProductImportJob } = require('./importJobRunner');
 const ChannelsModel = require('../channels/model');
 const { buildImportColumnReferencePayload } = require('./importColumnReference');
 const {
+  EXPORT_GENERAL_COLUMNS,
+  buildExportColumnReferencePayload,
+  getExportGeneralColumnIdsSet,
+} = require('./exportColumnReference');
+const { MAX_EXPORT_ROWS, buildSheetBuffer } = require('./productExportBuilder');
+const {
   deepMergeChannelSpecific,
   buildFlatIncomingFromRow,
   parseListId,
@@ -50,6 +56,7 @@ const {
 } = require('./productImageAssets');
 
 const channelsModelForImportRef = new ChannelsModel();
+const ProductModelClass = require('./model');
 
 const { normalizeHeader, parseCsvBuffer, parseXlsxBuffer } = importParse;
 
@@ -58,6 +65,156 @@ const IMPORT_MAX_ROWS = importParse.IMPORT_MAX_ROWS;
 /** Max ids per PATCH/DELETE batch (aligned with catalog list page size cap). */
 const PRODUCTS_BATCH_MAX_IDS = 250;
 const SELLO_PAGE_SIZE = 100;
+
+/** Sello product history codes 106,110–115 — see docs/API-DOCS/SELLO-API.md */
+const SELLO_HISTORY_SALE_CHANNEL = {
+  106: 'Selloshop',
+  110: 'WooCommerce',
+  111: 'Tradera',
+  112: 'PrestaShop',
+  113: 'Fyndiq',
+  114: 'CDON',
+  115: 'Amazon',
+};
+
+function normalizeSelloHistoryParams(raw) {
+  if (raw == null || raw === '') return {};
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw);
+      if (p && typeof p === 'object' && !Array.isArray(p)) return p;
+    } catch {
+      return {};
+    }
+    return {};
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  return {};
+}
+
+/** Live API uses numeric codes (101) or string enums (CHANGE_QUANTITY); params may be object or [newQty]. */
+function getSelloHistoryQuantity(rawParams, paramsObj) {
+  if (Array.isArray(rawParams) && rawParams.length > 0) {
+    const q = Number(rawParams[0]);
+    if (Number.isFinite(q)) return Math.trunc(q);
+  }
+  if (paramsObj && paramsObj.quantity != null) {
+    const q = Number(paramsObj.quantity);
+    if (Number.isFinite(q)) return Math.trunc(q);
+  }
+  return null;
+}
+
+/** Sello docs use `time`; API may use aliases or numeric epoch. */
+function normalizeSelloEventTime(h) {
+  const raw = h?.time ?? h.created_at ?? h.timestamp;
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const ms = raw < 1e12 ? raw * 1000 : raw;
+    return new Date(ms).toISOString();
+  }
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t) return null;
+    if (/^\d+$/.test(t)) {
+      const n = Number(t);
+      if (!Number.isFinite(n)) return null;
+      const ms = n < 1e12 ? n * 1000 : n;
+      return new Date(ms).toISOString();
+    }
+    return t;
+  }
+  return String(raw);
+}
+
+function mapSelloHistoryItemsToImportRows(homebaseProductId, items) {
+  const pid = String(homebaseProductId || '').trim();
+  const rows = [];
+  if (!pid || !Array.isArray(items)) return rows;
+
+  const saleCodes = new Set([106, 110, 111, 112, 113, 114, 115]);
+  /** String codes from live API (docs show numeric only). Mapped to doc-equivalent sello_code for INT column. */
+  const STRING_QUANTITY_CODE = 'CHANGE_QUANTITY';
+
+  for (const h of items) {
+    const codeRaw = h?.code;
+    const time = normalizeSelloEventTime(h);
+    const rawParams = h?.params;
+    const params = normalizeSelloHistoryParams(Array.isArray(rawParams) ? undefined : rawParams);
+    const message = h?.message != null ? String(h.message) : '';
+
+    if (!time) continue;
+
+    const codeStr =
+      typeof codeRaw === 'string' && !/^\d+$/.test(String(codeRaw).trim())
+        ? String(codeRaw).trim().toUpperCase()
+        : null;
+    const codeNum = codeStr
+      ? NaN
+      : typeof codeRaw === 'string'
+        ? Number(String(codeRaw).trim())
+        : Number(codeRaw);
+
+    let eventKind;
+    let channelLabel = null;
+    let orderRef = null;
+    let saleQuantity = null;
+    let newQuantity = null;
+    /** Persisted INTEGER; string enums use doc-equivalent (e.g. CHANGE_QUANTITY → 101). */
+    let selloCodeForDb;
+
+    if (codeStr === STRING_QUANTITY_CODE) {
+      const q = getSelloHistoryQuantity(rawParams, params);
+      if (q == null) continue;
+      eventKind = 'quantity_change';
+      newQuantity = q;
+      selloCodeForDb = 101;
+    } else if (Number.isFinite(codeNum)) {
+      if (codeNum === 101) {
+        const q = getSelloHistoryQuantity(rawParams, params);
+        if (q == null) continue;
+        eventKind = 'quantity_change';
+        newQuantity = q;
+        selloCodeForDb = 101;
+      } else if (saleCodes.has(codeNum)) {
+        const q = getSelloHistoryQuantity(rawParams, params);
+        if (q == null) continue;
+        eventKind = 'sale';
+        saleQuantity = q;
+        if (params.id != null && String(params.id).trim() !== '') {
+          orderRef = String(params.id);
+        }
+        channelLabel = SELLO_HISTORY_SALE_CHANNEL[codeNum] || null;
+        selloCodeForDb = codeNum;
+      } else {
+        continue;
+      }
+    } else {
+      continue;
+    }
+
+    const paramsForDb =
+      rawParams !== undefined && rawParams !== null
+        ? rawParams
+        : Object.keys(params).length
+          ? params
+          : null;
+
+    rows.push({
+      product_id: pid,
+      event_at: time,
+      event_kind: eventKind,
+      channel_label: channelLabel,
+      order_ref: orderRef,
+      sale_quantity: saleQuantity,
+      new_quantity: newQuantity,
+      sello_code: selloCodeForDb,
+      message,
+      params: paramsForDb,
+    });
+  }
+  return rows;
+}
 
 function toIntOrUndef(v) {
   if (v === undefined || v === null || v === '') return undefined;
@@ -389,9 +546,14 @@ function getSelloStorePriceForInstance(product, integrationId, market) {
     .trim()
     .toLowerCase();
   const lang = marketToLang[normalizedMarket] || null;
+  const marketUpper = normalizedMarket ? normalizedMarket.toUpperCase() : null;
   if (lang) {
     const localized = toPositiveNumberOrNull(entry?.[lang]?.store);
     if (localized != null) return localized;
+  }
+  if (marketUpper && entry?.[marketUpper]) {
+    const v = toPositiveNumberOrNull(entry[marketUpper].store);
+    if (v != null) return v;
   }
 
   const defaultStore = toPositiveNumberOrNull(entry?.store);
@@ -442,9 +604,14 @@ function getSelloCampaignPriceForInstance(product, integrationId, market) {
     .trim()
     .toLowerCase();
   const lang = marketToLang[normalizedMarket] || null;
+  const marketUpper = normalizedMarket ? normalizedMarket.toUpperCase() : null;
   if (lang) {
     const localized = toPositiveNumberOrNull(entry?.[lang]?.campaign);
     if (localized != null) return localized;
+  }
+  if (marketUpper && entry?.[marketUpper]) {
+    const v = toPositiveNumberOrNull(entry[marketUpper].campaign);
+    if (v != null) return v;
   }
   const defaultCampaign = toPositiveNumberOrNull(entry?.campaign);
   if (defaultCampaign != null) return defaultCampaign;
@@ -700,6 +867,48 @@ function getSelloModel(product) {
   return getSelloPropertyValue(product, ['model', 'modell']);
 }
 
+/** Fill folderNameByFolderId from list rows that include folder_name (same API response we already have). */
+function seedSelloFolderNamesFromProductRows(rows, folderNameByFolderId) {
+  if (!Array.isArray(rows) || !folderNameByFolderId) return;
+  for (const p of rows) {
+    if (!p || typeof p !== 'object') continue;
+    const fid = p.folder_id != null && p.folder_id !== '' ? String(p.folder_id).trim() : '';
+    if (!fid || fid === '0') continue;
+    const fname = String(p.folder_name ?? '').trim();
+    if (fname) folderNameByFolderId.set(fid, fname);
+  }
+}
+
+/**
+ * Sello: single GET /v5/products/{id} does NOT return folder_name (see SELLO-API.md
+ * "Getting a single product" — folder_name is list-only). Product list responses include it.
+ * Prefer seedSelloFolderNamesFromProductRows from list payloads we already fetched (no extra HTTP).
+ * If still missing, GET /v5/products?filter[id][]=… once per folder_id (cached for the import).
+ */
+async function resolveSelloFolderNameForImport(selloModel, apiKey, raw, folderNameByFolderId) {
+  const fid = raw?.folder_id != null && raw?.folder_id !== '' ? String(raw.folder_id).trim() : '';
+  if (!fid || fid === '0') return String(raw?.folder_name ?? '').trim();
+  const fromRow = String(raw?.folder_name ?? '').trim();
+  if (fromRow) return fromRow;
+  if (folderNameByFolderId.has(fid)) return folderNameByFolderId.get(fid) || '';
+  const sku = String(raw?.id ?? '').trim();
+  if (!sku || !selloModel) return '';
+  try {
+    const listRes = await selloModel.fetchSelloJson({
+      apiKey,
+      path: `/v5/products?size=10&filter[id][]=${encodeURIComponent(sku)}`,
+    });
+    const products = Array.isArray(listRes?.products) ? listRes.products : [];
+    const row = products.find((p) => String(p?.id ?? '').trim() === sku) || products[0];
+    if (!row) return '';
+    const resolved = String(row.folder_name ?? '').trim();
+    folderNameByFolderId.set(fid, resolved);
+    return resolved;
+  } catch {
+    return '';
+  }
+}
+
 const MARKETS_FOR_SHIPPING = ['SE', 'DK', 'FI', 'NO'];
 
 /**
@@ -864,8 +1073,17 @@ class ProductController {
   async reconcileHostedProductMedia(req, product) {
     if (!product?.id) return product;
     const orderedAssets = reorderAssetsByMainImage(product.images, product.mainImage);
-    await this.productMediaService.reconcileAttachedProductMedia(req, product.id, orderedAssets);
-    return product;
+    const media = await this.productMediaService.reconcileAttachedProductMedia(
+      req,
+      product.id,
+      orderedAssets,
+    );
+    if (!media?.changed) return product;
+    return this.model.update(req, product.id, {
+      ...product,
+      mainImage: media.mainImage ?? product.mainImage,
+      images: media.images ?? product.images,
+    });
   }
 
   async upsertSelloProductWithHostedImages(req, payload) {
@@ -900,17 +1118,52 @@ class ProductController {
 
     const finalId = String(result?.product?.id || '').trim();
     if (finalId) {
-      await this.productMediaService.reconcileAttachedProductMedia(
+      const media = await this.productMediaService.reconcileAttachedProductMedia(
         req,
         finalId,
         hostedMedia.images,
       );
+      if (media?.changed) {
+        const refreshed = await this.model.update(req, finalId, {
+          ...result.product,
+          mainImage: media.mainImage ?? result.product?.mainImage,
+          images: media.images ?? result.product?.images,
+        });
+        result.product = refreshed;
+      }
     }
 
     return {
       ...result,
       media: hostedMedia,
     };
+  }
+
+  /**
+   * Fetches Sello /v5/products/{id}/history and replaces product_selio_import_history for the Homebase product.
+   * @returns {Promise<number>} rows written
+   */
+  async syncSelloImportHistoryForProduct(req, apiKey, selloProductId, homebaseProductId) {
+    const items = await this.selloModel.fetchProductHistory(
+      apiKey,
+      selloProductId,
+      ProductModelClass.MAX_SELIO_IMPORT_HISTORY_FETCH,
+    );
+    const rows = mapSelloHistoryItemsToImportRows(homebaseProductId, items);
+    const n = await this.model.replaceSelloImportHistory(req, homebaseProductId, rows);
+    Logger.info('Sello product history stored', {
+      selloProductId: String(selloProductId),
+      homebaseProductId: String(homebaseProductId),
+      fetched: items.length,
+      stored: n,
+    });
+    if (items.length > 0 && rows.length === 0) {
+      Logger.warn('Sello product history: fetched items but none mapped to stats rows', {
+        selloProductId: String(selloProductId),
+        sample: items[0],
+      });
+    }
+    return n;
   }
 
   /**
@@ -1335,25 +1588,49 @@ class ProductController {
     const instanceKey = String(instance || '').trim();
     if (!instanceKey) return;
 
-    // Ensure instance exists (future-proof: multiple stores / markets)
-    const inferredMarket =
-      (channelKey === 'cdon' || channelKey === 'fyndiq') &&
-      ['se', 'dk', 'fi', 'no'].includes(instanceKey.toLowerCase())
-        ? instanceKey.toLowerCase()
-        : null;
+    /** WooCommerce: `instance` is always channel_instances.id (digits). Persisted `instance` column = that row's instance_key. */
+    let instanceKeyForRow = instanceKey;
+    let channelInstanceId = null;
 
-    const instRows = await db.query(
-      `
-      INSERT INTO channel_instances (channel, instance_key, market, label, credentials, enabled, created_at, updated_at)
-      VALUES ($1, $2, $3, NULL, NULL, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (channel, instance_key) DO UPDATE SET
-        market = COALESCE(channel_instances.market, EXCLUDED.market),
-        updated_at = CURRENT_TIMESTAMP
-      RETURNING id
-      `,
-      [channelKey, instanceKey, inferredMarket],
-    );
-    const channelInstanceId = instRows?.[0]?.id;
+    if (channelKey === 'woocommerce') {
+      if (!/^[0-9]+$/.test(instanceKey)) {
+        return;
+      }
+      const resolved = await db.query(
+        `
+        SELECT id, instance_key
+        FROM channel_instances
+        WHERE channel = 'woocommerce'
+          AND id = $1::bigint
+        LIMIT 1
+        `,
+        [instanceKey],
+      );
+      if (resolved.length === 0) {
+        return;
+      }
+      channelInstanceId = resolved[0].id;
+      instanceKeyForRow = String(resolved[0].instance_key || '').trim() || instanceKey;
+    } else {
+      const inferredMarket =
+        (channelKey === 'cdon' || channelKey === 'fyndiq') &&
+        ['se', 'dk', 'fi', 'no'].includes(instanceKey.toLowerCase())
+          ? instanceKey.toLowerCase()
+          : null;
+
+      const instRows = await db.query(
+        `
+        INSERT INTO channel_instances (channel, instance_key, market, label, credentials, enabled, created_at, updated_at)
+        VALUES ($1, $2, $3, NULL, NULL, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (channel, instance_key) DO UPDATE SET
+          market = COALESCE(channel_instances.market, EXCLUDED.market),
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id
+        `,
+        [channelKey, instanceKey, inferredMarket],
+      );
+      channelInstanceId = instRows?.[0]?.id;
+    }
 
     const salePrice =
       saleAmount != null && Number.isFinite(Number(saleAmount)) && Number(saleAmount) > 0
@@ -1386,7 +1663,7 @@ class ProductController {
     await db.query(sql, [
       String(productId),
       channelKey,
-      instanceKey,
+      instanceKeyForRow,
       channelInstanceId || null,
       !!active,
       priceAmount != null && Number.isFinite(Number(priceAmount)) ? Number(priceAmount) : null,
@@ -1405,16 +1682,17 @@ class ProductController {
     const out = [];
 
     // Standard template format: "<channel>.<instance>.<field>"
-    // Examples:
-    // - cdon.se.price, cdon.se.active, cdon.se.category
-    // - fyndiq.fi.price, fyndiq.fi.active, fyndiq.fi.category
-    // - woocommerce.shopA.price, woocommerce.shopA.active, woocommerce.shopA.categories
+    // WooCommerce: <instance> MUST be digits only = channel_instances.id (single rule).
+    // Examples: cdon.se.price; fyndiq.fi.price; woocommerce.27.price
     for (const [k, v] of entries) {
-      const m = String(k).match(/^([a-z0-9]+)\.([a-z0-9]+)\.(price|active|category|categories)$/);
+      const m = String(k).match(/^([a-z0-9]+)\.([a-z0-9]+)\.(price|active|category)$/);
       if (!m) continue;
       const channel = m[1];
       const instance = m[2];
       const field = m[3];
+      if (channel === 'woocommerce' && !/^[0-9]+$/.test(instance)) {
+        continue;
+      }
 
       // Find existing aggregate for (channel, instance)
       let rec = out.find((x) => x.channel === channel && x.instance === instance);
@@ -1427,7 +1705,7 @@ class ProductController {
       if (field === 'active')
         rec.active =
           Number(v) === 1 || String(v).trim() === '1' || String(v).toLowerCase() === 'true';
-      if (field === 'category' || field === 'categories') rec.category = v;
+      if (field === 'category') rec.category = v;
     }
 
     // CDON: cdonseprice55616, cdonseactive55616, cdondkprice..., cdonfiprice...
@@ -1465,19 +1743,6 @@ class ProductController {
           Number(r[activeKey]) === 1 ||
           String(r[activeKey]).trim() === '1' ||
           String(r[activeKey]).toLowerCase() === 'true',
-      });
-    }
-
-    // WooCommerce: woocommerceprice55051 (store instance code)
-    for (const [k, v] of entries) {
-      const m = k.match(/^woocommerceprice(\d+)$/);
-      if (!m) continue;
-      const code = m[1];
-      out.push({
-        channel: 'woocommerce',
-        instance: code,
-        priceAmount: v,
-        active: true,
       });
     }
 
@@ -1667,7 +1932,10 @@ class ProductController {
       if (!productId) {
         return res.status(400).json({ error: 'Product ID required', code: 'VALIDATION_ERROR' });
       }
-      const stats = await this.model.getProductStats(req, productId, range);
+      const stats = await this.model.getProductStats(req, productId, range, {
+        timelineLimit: req.query?.timelineLimit,
+        timelineOffset: req.query?.timelineOffset,
+      });
       return res.json(stats);
     } catch (error) {
       Logger.error('Get product stats error', error, { userId: Context.getUserId(req) });
@@ -2456,6 +2724,156 @@ class ProductController {
     }
   }
 
+  async getExportColumnReference(req, res) {
+    try {
+      const instances = await channelsModelForImportRef.listInstances(req, {
+        includeDisabled: true,
+      });
+      const payload = buildExportColumnReferencePayload(instances);
+      return res.json(payload);
+    } catch (error) {
+      Logger.error('getExportColumnReference', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to load export column reference' });
+    }
+  }
+
+  async exportProducts(req, res) {
+    try {
+      const body = req.body || {};
+      const columnIds = Array.isArray(body.columnIds) ? body.columnIds.map((x) => String(x)) : [];
+      const list = body.list != null ? String(body.list).trim() : 'all';
+      const filterChannelInstanceIds = Array.isArray(body.filterChannelInstanceIds)
+        ? body.filterChannelInstanceIds
+            .map((x) => Number(x))
+            .filter((n) => Number.isFinite(n) && n > 0)
+        : [];
+      const columnChannelInstanceIds = Array.isArray(body.columnChannelInstanceIds)
+        ? body.columnChannelInstanceIds
+            .map((x) => Number(x))
+            .filter((n) => Number.isFinite(n) && n > 0)
+        : [];
+
+      if (!columnIds.length) {
+        return res.status(400).json({
+          error: 'columnIds is required and must be non-empty',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      const instances = await channelsModelForImportRef.listInstances(req, {
+        includeDisabled: true,
+      });
+      const instanceIdSet = new Set(instances.map((i) => Number(i.id)));
+      for (const id of filterChannelInstanceIds) {
+        if (!instanceIdSet.has(id)) {
+          return res.status(400).json({
+            error: `Unknown channel instance: ${id}`,
+            code: 'VALIDATION_ERROR',
+          });
+        }
+      }
+      for (const id of columnChannelInstanceIds) {
+        if (!instanceIdSet.has(id)) {
+          return res.status(400).json({
+            error: `Unknown channel instance: ${id}`,
+            code: 'VALIDATION_ERROR',
+          });
+        }
+      }
+
+      const payload = buildExportColumnReferencePayload(instances);
+      const generalSet = getExportGeneralColumnIdsSet();
+      const channelMeta = new Map();
+      for (const row of payload.channelColumns || []) {
+        const iid = Number(row.instanceId);
+        if (!Number.isFinite(iid)) continue;
+        for (const f of row.fields || []) {
+          if (f.headerKey) {
+            channelMeta.set(f.headerKey, { instanceId: iid });
+          }
+        }
+      }
+      const columnInstanceSet = new Set(columnChannelInstanceIds);
+
+      const resolvedColumns = [];
+      for (const cid of columnIds) {
+        if (generalSet.has(cid)) {
+          const def = EXPORT_GENERAL_COLUMNS.find((c) => c.id === cid);
+          resolvedColumns.push({
+            kind: 'general',
+            id: cid,
+            header: def ? def.label : cid,
+          });
+        } else if (channelMeta.has(cid)) {
+          const meta = channelMeta.get(cid);
+          if (!columnInstanceSet.has(meta.instanceId)) {
+            return res.status(400).json({
+              error:
+                'Each channel column requires its instance id in columnChannelInstanceIds: ' + cid,
+              code: 'VALIDATION_ERROR',
+            });
+          }
+          resolvedColumns.push({
+            kind: 'channel',
+            headerKey: cid,
+            header: cid,
+            instanceId: meta.instanceId,
+          });
+        } else {
+          return res.status(400).json({
+            error: `Unknown column: ${cid}`,
+            code: 'VALIDATION_ERROR',
+          });
+        }
+      }
+
+      const total = await this.model.countForExport(req, {
+        list,
+        filterChannelInstanceIds,
+      });
+      if (total > MAX_EXPORT_ROWS) {
+        return res.status(413).json({
+          error: `Too many rows (${total}); max ${MAX_EXPORT_ROWS}`,
+          code: 'PAYLOAD_TOO_LARGE',
+        });
+      }
+
+      const products = await this.model.listForExport(req, {
+        list,
+        filterChannelInstanceIds,
+      });
+      const productIds = products.map((p) => p.id);
+      const overrideRows = await this.model.listChannelOverridesForExport(
+        req,
+        productIds,
+        columnChannelInstanceIds,
+      );
+      const overrideMap = new Map();
+      for (const r of overrideRows) {
+        const key = `${String(r.product_id)}:${Number(r.channel_instance_id)}`;
+        overrideMap.set(key, r);
+      }
+
+      const buf = buildSheetBuffer(products, resolvedColumns, overrideMap);
+      const filename = `products-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.status(200).send(buf);
+    } catch (error) {
+      Logger.error('exportProducts', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Export failed' });
+    }
+  }
+
   /**
    * Build image URLs from Sello API response. Accepts either the full product object or a plain `images` array.
    * Sello may return:
@@ -2621,6 +3039,7 @@ class ProductController {
         image_downloaded: 0,
         image_failed: 0,
         overrides_updated: 0,
+        sello_history_rows: 0,
         rows: [],
       };
       const db = Database.get(req);
@@ -2660,6 +3079,7 @@ class ProductController {
       const selloProductIds = Array.isArray(req.body?.selloProductIds)
         ? req.body.selloProductIds.map((x) => String(x).trim()).filter(Boolean)
         : null;
+      const folderNameByFolderId = new Map();
 
       if (selloProductIds && selloProductIds.length > 0) {
         let groupsByGroupId = new Map();
@@ -2668,6 +3088,7 @@ class ProductController {
             .map((id) => `filter[id][]=${encodeURIComponent(id)}`)
             .join('&')}`;
           const listRes = await this.selloModel.fetchSelloJson({ apiKey, path: listPath });
+          seedSelloFolderNamesFromProductRows(listRes?.products, folderNameByFolderId);
           const groups = Array.isArray(listRes?.groups) ? listRes.groups : [];
           for (const g of groups) {
             const gid = g.id ?? g.group_id;
@@ -2772,11 +3193,17 @@ class ProductController {
             importedChannelSpecific.cdon.variational_properties = vp;
             importedChannelSpecific.fyndiq.variational_properties = vp;
           }
+          const resolvedFolderName = await resolveSelloFolderNameForImport(
+            this.selloModel,
+            apiKey,
+            raw,
+            folderNameByFolderId,
+          );
           const selloList = await listsModel.findOrCreateListForSelloFolder(
             req,
             'products',
             raw?.folder_id,
-            raw?.folder_name,
+            resolvedFolderName,
           );
           const selloBrand = await lookupsModel.findOrCreateBrandForSello(
             req,
@@ -2862,6 +3289,22 @@ class ProductController {
           summary.image_downloaded += Number(upsertResult?.media?.uploadedCount || 0);
           summary.image_failed += Number(upsertResult?.media?.failedCount || 0);
           const createdProductId = String(upsertResult?.product?.id || '').trim();
+          if (createdProductId) {
+            try {
+              const n = await this.syncSelloImportHistoryForProduct(
+                req,
+                apiKey,
+                sku,
+                createdProductId,
+              );
+              summary.sello_history_rows += n;
+            } catch (err) {
+              Logger.warn('Sello product history import failed', err, {
+                selloId: sku,
+                productId: createdProductId,
+              });
+            }
+          }
           if (createdProductId && groupIdRaw) {
             selloIdToHomebaseId.set(sku, { groupId: groupIdRaw, isMultiProductGroup });
           }
@@ -2904,7 +3347,10 @@ class ProductController {
                 await this.upsertChannelOverride(req, {
                   productId: createdProductId,
                   channel: inst.channel,
-                  instance: inst.instanceKey,
+                  instance:
+                    inst.channel === 'woocommerce'
+                      ? String(inst.id)
+                      : String(inst.instanceKey || '').trim(),
                   active,
                   priceAmount: perInstancePrice,
                   currency,
@@ -3024,6 +3470,7 @@ class ProductController {
           total = Number(page.duration.total_count);
         }
         if (!products.length) break;
+        seedSelloFolderNamesFromProductRows(products, folderNameByFolderId);
 
         const pageGroups = Array.isArray(page?.groups) ? page.groups : [];
         const pageGroupsByGroupId = new Map();
@@ -3104,11 +3551,17 @@ class ProductController {
             importedChannelSpecific.cdon.variational_properties = vp;
             importedChannelSpecific.fyndiq.variational_properties = vp;
           }
+          const resolvedFolderName = await resolveSelloFolderNameForImport(
+            this.selloModel,
+            apiKey,
+            raw,
+            folderNameByFolderId,
+          );
           const selloList = await listsModel.findOrCreateListForSelloFolder(
             req,
             'products',
             raw?.folder_id,
-            raw?.folder_name,
+            resolvedFolderName,
           );
           const selloBrand = await lookupsModel.findOrCreateBrandForSello(
             req,
@@ -3194,6 +3647,17 @@ class ProductController {
           summary.image_downloaded += Number(upsertResult?.media?.uploadedCount || 0);
           summary.image_failed += Number(upsertResult?.media?.failedCount || 0);
           const productId = String(upsertResult?.product?.id || '').trim();
+          if (productId) {
+            try {
+              const n = await this.syncSelloImportHistoryForProduct(req, apiKey, sku, productId);
+              summary.sello_history_rows += n;
+            } catch (err) {
+              Logger.warn('Sello product history import failed', err, {
+                selloId: sku,
+                productId,
+              });
+            }
+          }
           if (productId && groupIdRaw && groupInfo) {
             pageProductIdToGroupId.set(productId, {
               groupId: groupIdRaw,
@@ -3241,7 +3705,10 @@ class ProductController {
                 await this.upsertChannelOverride(req, {
                   productId,
                   channel: inst.channel,
-                  instance: inst.instanceKey,
+                  instance:
+                    inst.channel === 'woocommerce'
+                      ? String(inst.id)
+                      : String(inst.instanceKey || '').trim(),
                   active,
                   priceAmount: perInstancePrice,
                   currency,

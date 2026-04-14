@@ -27,6 +27,7 @@ import type {
   AnalyticsTimeSeriesItem,
   AnalyticsTopProductItem,
 } from '../types/analytics';
+import { getPresetRangeUtcIso } from '../utils/datePresets';
 
 interface AnalyticsContextType {
   isAnalyticsPanelOpen: boolean;
@@ -94,11 +95,13 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
   );
   const shouldFetchAnalytics = isAuthenticated && isAnalyticsBootstrapPage(activePage);
 
-  const [filters, setFiltersState] = useState<AnalyticsFilters>({
-    granularity: 'day',
+  const [filters, setFiltersState] = useState<AnalyticsFilters>(() => {
+    const { from, to } = getPresetRangeUtcIso('last30');
+    return { from, to, granularity: 'day' };
   });
-  const [debouncedFilters, setDebouncedFilters] = useState<AnalyticsFilters>({
-    granularity: 'day',
+  const [debouncedFilters, setDebouncedFilters] = useState<AnalyticsFilters>(() => {
+    const { from, to } = getPresetRangeUtcIso('last30');
+    return { from, to, granularity: 'day' };
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

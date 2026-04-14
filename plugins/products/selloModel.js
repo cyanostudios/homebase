@@ -162,6 +162,39 @@ class SelloModel {
       return null;
     }
   }
+
+  /**
+   * GET /v5/products/{id}/history — paginated (default page size per Sello API docs).
+   * @param {string} apiKey
+   * @param {string|number} selloProductId
+   * @param {number} [maxItems]
+   * @returns {Promise<object[]>}
+   */
+  async fetchProductHistory(apiKey, selloProductId, maxItems = 100) {
+    const sid = String(selloProductId ?? '').trim();
+    if (!sid) return [];
+    const cap = Math.min(Math.max(Number(maxItems) || 0, 1), 100);
+    const out = [];
+    let next = null;
+    while (out.length < cap) {
+      const query = next ? { next } : undefined;
+      const res = await this.fetchSelloJson({
+        apiKey,
+        path: `/v5/products/${encodeURIComponent(sid)}/history`,
+        query,
+      });
+      const hist = Array.isArray(res?.history) ? res.history : [];
+      for (const h of hist) {
+        if (out.length >= cap) break;
+        out.push(h);
+      }
+      const nextToken = res?.next;
+      if (!nextToken || !String(nextToken).trim()) break;
+      if (!hist.length) break;
+      next = String(nextToken).trim();
+    }
+    return out;
+  }
 }
 
 module.exports = SelloModel;

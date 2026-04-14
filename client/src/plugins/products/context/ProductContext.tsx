@@ -150,6 +150,8 @@ interface ProductContextType {
     ids: string[],
     updates: Record<string, unknown>,
   ) => Promise<{ updatedCount: number; jobId?: string; errors?: unknown[] }>;
+  /** Produktlistan +/- : visat saldo uppdateras direkt innan batch-jobbet är klart. */
+  applyOptimisticQuantity: (productId: string, quantity: number) => void;
   groupProducts: (
     productIds: string[],
     groupVariationType: 'color' | 'size' | 'model',
@@ -1515,6 +1517,18 @@ export function ProductProvider({
     }
   };
 
+  const applyOptimisticQuantity = useCallback((productId: string, quantity: number) => {
+    const q = Math.max(0, Math.trunc(Number(quantity)));
+    if (!Number.isFinite(q)) {
+      return;
+    }
+    const idStr = String(productId).trim();
+    if (!idStr) {
+      return;
+    }
+    setProducts((prev) => prev.map((p) => (String(p.id) === idStr ? { ...p, quantity: q } : p)));
+  }, []);
+
   const batchUpdateProducts = async (ids: string[], updates: Record<string, unknown>) => {
     const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
     if (!uniqueIds.length) {
@@ -1527,10 +1541,31 @@ export function ProductProvider({
       return { updatedCount: 0 };
     }
     try {
+      const mergeOpenProductFromRefreshedList = (refreshed: Product[] | undefined) => {
+        if (!refreshed?.length) {
+          return;
+        }
+        setCurrentProduct((prev) => {
+          if (!prev?.id) {
+            return prev;
+          }
+          const idStr = String(prev.id);
+          if (!uniqueIds.includes(idStr)) {
+            return prev;
+          }
+          const row = refreshed.find((p) => String(p.id) === idStr);
+          if (!row) {
+            return prev;
+          }
+          return { ...prev, ...row };
+        });
+      };
+
       const result = await productsApi.batchUpdate(uniqueIds, filtered);
       if (result?.jobId) {
         const job = await waitForProductBatchJob(result.jobId);
-        await reloadProducts();
+        const refreshed = await reloadProducts();
+        mergeOpenProductFromRefreshedList(refreshed);
         const errs = Array.isArray(job?.errors) ? job.errors : [];
         return {
           updatedCount: job?.processedDb ?? uniqueIds.length,
@@ -1538,7 +1573,8 @@ export function ProductProvider({
           errors: errs,
         };
       }
-      await reloadProducts();
+      const refreshed = await reloadProducts();
+      mergeOpenProductFromRefreshedList(refreshed);
       return { updatedCount: 0 };
     } catch (error: any) {
       console.error('Batch update failed:', error);
@@ -1675,6 +1711,7 @@ export function ProductProvider({
       deleteProduct,
       deleteProducts,
       batchUpdateProducts,
+      applyOptimisticQuantity,
       groupProducts,
       importProducts,
       clearValidationErrors,
@@ -1715,6 +1752,7 @@ export function ProductProvider({
       deleteProduct,
       deleteProducts,
       batchUpdateProducts,
+      applyOptimisticQuantity,
       groupProducts,
       validateProductForm,
       closeProductPanel,

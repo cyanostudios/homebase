@@ -973,51 +973,6 @@ class OrdersModel {
   }
 
   /**
-   * Delete all orders for the current user (including items and reset counter).
-   * Cleans both current tenant schema and public schema so no order data remains anywhere.
-   * Returns count of deleted orders (from current schema only for the number).
-   */
-  async deleteAll(req) {
-    try {
-      const db = Database.get(req);
-      const tenantId = req.session?.tenantId;
-      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
-
-      // Count in current schema first (search_path = tenant_X, public)
-      const countRes = await db.query(
-        `SELECT COUNT(*)::int AS count FROM ${OrdersModel.ORDERS_TABLE}`,
-        [],
-      );
-      const deletedCount = countRes[0]?.count || 0;
-
-      // --- Current schema (tenant or public depending on search_path) ---
-      await db.query(
-        `DELETE FROM ${OrdersModel.ITEMS_TABLE}
-         WHERE order_id IN (SELECT id FROM ${OrdersModel.ORDERS_TABLE})`,
-        [],
-      );
-      await db.query(`DELETE FROM ${OrdersModel.ORDERS_TABLE}`, []);
-      await db.query(`DELETE FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}`, []);
-
-      // --- Public schema: clear any leftover order data (e.g. after migration public → tenant) ---
-      await db.query(
-        `DELETE FROM public.${OrdersModel.ITEMS_TABLE}
-         WHERE order_id IN (SELECT id FROM public.${OrdersModel.ORDERS_TABLE})`,
-        [],
-      );
-      await db.query(`DELETE FROM public.${OrdersModel.ORDERS_TABLE}`, []);
-      await db.query(`DELETE FROM public.${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}`, []);
-
-      Logger.info('All orders deleted (tenant + public)', { deletedCount });
-      return { deletedCount };
-    } catch (error) {
-      Logger.error('Failed to delete all orders', error);
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to delete all orders', 500, AppError.CODES.DATABASE_ERROR);
-    }
-  }
-
-  /**
    * Delete selected orders for the current user (and their items). Does not reset order_number_counter.
    * @param {string[]} ids - order ids (must belong to user)
    * @returns {{ deletedCount: number }}

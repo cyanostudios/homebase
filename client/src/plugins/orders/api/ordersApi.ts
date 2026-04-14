@@ -140,11 +140,6 @@ class OrdersApi {
     return (await this.request('/ingest', { method: 'POST', body: JSON.stringify(data) })) as any;
   }
 
-  // Delete all orders for current user
-  async deleteAll(): Promise<{ ok: true; deletedCount: number }> {
-    return (await this.request('/', { method: 'DELETE' })) as any;
-  }
-
   // Delete selected orders (batch). Body: { ids: string[] }.
   async deleteByIds(ids: string[]): Promise<{ ok: true; deletedCount: number }> {
     return (await this.request('/batch', {

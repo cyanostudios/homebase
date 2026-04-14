@@ -228,6 +228,9 @@ function AppContent() {
     if (currentPage === 'products-import') {
       return 'Importera produkter';
     }
+    if (currentPage === 'products-export') {
+      return 'Exportera produkter';
+    }
 
     if (!currentPagePlugin?.navigation) {
       return currentPage;
@@ -243,6 +246,11 @@ function AppContent() {
 
   const primaryAction = useMemo(() => {
     if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
+      return null;
+    }
+
+    // Orders / Products: add-new lives in the list toolbar (Alternativ menu), not the header chip.
+    if (currentPagePlugin.name === 'orders' || currentPagePlugin.name === 'products') {
       return null;
     }
 
@@ -431,7 +439,7 @@ function AppContent() {
         contentIcon={
           currentPage === 'settings'
             ? undefined
-            : currentPage === 'products-import'
+            : currentPage === 'products-import' || currentPage === 'products-export'
               ? PLUGIN_REGISTRY.find((p) => p.name === 'products')?.navigation?.icon
               : currentPagePlugin?.navigation?.icon
         }

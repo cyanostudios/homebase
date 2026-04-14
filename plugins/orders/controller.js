@@ -859,19 +859,6 @@ class OrdersController {
     }
   }
 
-  // DELETE /api/orders (delete all orders for current user)
-  async deleteAll(req, res) {
-    try {
-      const result = await this.model.deleteAll(req);
-      this.invalidateAnalyticsCache(req);
-      return res.json({ ok: true, ...result });
-    } catch (error) {
-      Logger.error('Delete all orders error', error, { userId: Context.getUserId(req) });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      return res.status(500).json({ error: 'Failed to delete all orders' });
-    }
-  }
-
   // DELETE /api/orders/batch - Delete selected orders (body: { ids: string[] })
   async deleteByIds(req, res) {
     try {

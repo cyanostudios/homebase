@@ -14,6 +14,18 @@ const { AppError } = require('../../server/core/errors/AppError');
 class ProductModel {
   static TABLE = 'products';
 
+  /** Max rows in `product_stock_events` per product (older rows removed after each insert). */
+  static MAX_STOCK_EVENTS_PER_PRODUCT = 100;
+
+  /** Max rows returned in one GET /products/:id/stats timeline page. */
+  static MAX_TIMELINE_PAGE_SIZE = 100;
+
+  /** Max merged (sales + stock) timeline events per product in stats API (fair cap vs stock table). */
+  static MAX_TIMELINE_MERGED_EVENTS = 100;
+
+  /** Max Sello /products/{id}/history rows fetched per import (matches merged timeline cap). */
+  static MAX_SELIO_IMPORT_HISTORY_FETCH = 100;
+
   /** Canonical status: `for sale` | `paused`. */
   normalizeProductStatus(value) {
     const s = String(value ?? '')
@@ -277,6 +289,213 @@ class ProductModel {
       }
       throw new AppError('Failed to fetch products', 500, AppError.CODES.DATABASE_ERROR);
     }
+  }
+
+  /**
+   * Build WHERE clauses for catalog list filter (all | main | list id). Same rules as list().
+   * @param {string} listMode
+   * @param {unknown[]} params mutates
+   * @returns {string[]}
+   */
+  buildListFilterClauses(listMode, params) {
+    const clauses = [];
+    const mode = listMode != null ? String(listMode).trim().toLowerCase() : 'all';
+    if (mode === 'main') {
+      clauses.push(`NOT EXISTS (
+          SELECT 1 FROM product_list_items pli
+          WHERE pli.product_id = p.id
+        )`);
+    } else if (mode && mode !== 'all') {
+      const listId = parseInt(mode, 10);
+      if (!Number.isFinite(listId)) {
+        throw new AppError('Invalid list filter', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+      params.push(listId);
+      clauses.push(`EXISTS (
+          SELECT 1 FROM product_list_items pli
+          WHERE pli.product_id = p.id AND pli.list_id = $${params.length}
+        )`);
+    }
+    return clauses;
+  }
+
+  /**
+   * @param {object} req
+   * @param {{ list?: string; filterChannelInstanceIds?: number[] }} options
+   * @returns {Promise<number>}
+   */
+  async countForExport(req, options = {}) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const listMode = options.list != null ? String(options.list).trim().toLowerCase() : 'all';
+    const params = [];
+    const clauses = this.buildListFilterClauses(listMode, params);
+    const filterIds = Array.isArray(options.filterChannelInstanceIds)
+      ? options.filterChannelInstanceIds.filter((n) => Number.isFinite(n) && n > 0)
+      : [];
+    if (filterIds.length > 0) {
+      params.push(filterIds);
+      clauses.push(`EXISTS (
+        SELECT 1 FROM channel_product_map cpm
+        WHERE cpm.product_id = p.id::text
+          AND cpm.enabled = TRUE
+          AND cpm.channel_instance_id = ANY($${params.length}::int[])
+      )`);
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const sql = `
+      SELECT COUNT(DISTINCT p.id)::int AS total
+      FROM ${ProductModel.TABLE} p
+      ${where}
+    `;
+    const rows = await db.query(sql, params);
+    const n = rows?.[0]?.total;
+    return Number.isFinite(Number(n)) ? Number(n) : 0;
+  }
+
+  /**
+   * Full product rows for Excel export (no duplicates; one list membership picked deterministically).
+   * @param {object} req
+   * @param {{ list?: string; filterChannelInstanceIds?: number[] }} options
+   */
+  async listForExport(req, options = {}) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
+        throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+      }
+      const listMode = options.list != null ? String(options.list).trim().toLowerCase() : 'all';
+      const params = [];
+      const clauses = this.buildListFilterClauses(listMode, params);
+      const filterIds = Array.isArray(options.filterChannelInstanceIds)
+        ? options.filterChannelInstanceIds.filter((n) => Number.isFinite(n) && n > 0)
+        : [];
+      if (filterIds.length > 0) {
+        params.push(filterIds);
+        clauses.push(`EXISTS (
+        SELECT 1 FROM channel_product_map cpm
+        WHERE cpm.product_id = p.id::text
+          AND cpm.enabled = TRUE
+          AND cpm.channel_instance_id = ANY($${params.length}::int[])
+      )`);
+      }
+      const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+      const sql = `
+        SELECT DISTINCT ON (p.id)
+          p.id,
+          p.sku,
+          p.mpn,
+          p.title,
+          p.description,
+          p.status,
+          p.quantity,
+          p.price_amount,
+          p.currency,
+          p.vat_rate,
+          p.main_image,
+          p.images,
+          p.categories,
+          p.brand,
+          p.brand_id,
+          p.ean,
+          p.gtin,
+          p.kn_number,
+          p.supplier_id,
+          p.manufacturer_id,
+          p.channel_specific,
+          p.purchase_price,
+          p.lagerplats,
+          p.condition,
+          p.group_id,
+          p.volume,
+          p.volume_unit,
+          p.notes,
+          p.private_name,
+          p.color,
+          p.color_text,
+          p.size,
+          p.size_text,
+          p.pattern,
+          p.material,
+          p.pattern_text,
+          p.model,
+          p.parent_product_id,
+          p.group_variation_type,
+          p.weight,
+          p.length_cm,
+          p.width_cm,
+          p.height_cm,
+          p.depth_cm,
+          p.source_created_at,
+          p.quantity_sold,
+          p.last_sold_at,
+          p.created_at,
+          p.updated_at,
+          b.name AS brand_name,
+          s.name AS supplier_name,
+          m.name AS manufacturer_name,
+          pl.list_id AS list_id,
+          l.name AS list_name
+        FROM ${ProductModel.TABLE} p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+        LEFT JOIN LATERAL (
+          SELECT pli.list_id
+          FROM product_list_items pli
+          WHERE pli.product_id = p.id
+          ORDER BY pli.list_id ASC
+          LIMIT 1
+        ) pl ON true
+        LEFT JOIN lists l ON l.id = pl.list_id
+        ${where}
+        ORDER BY p.id ASC
+      `;
+
+      const dataRes = await db.query(sql, params);
+      return (dataRes || []).map((row) => this.transformRow(row));
+    } catch (error) {
+      Logger.error('Failed to list products for export', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch products for export', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * @param {object} req
+   * @param {string[]} productIds
+   * @param {number[]} channelInstanceIds
+   */
+  async listChannelOverridesForExport(req, productIds, channelInstanceIds) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const pids = Array.isArray(productIds)
+      ? productIds.map((x) => String(x).trim()).filter(Boolean)
+      : [];
+    const iids = Array.isArray(channelInstanceIds)
+      ? channelInstanceIds.filter((n) => Number.isFinite(n) && n > 0)
+      : [];
+    if (!pids.length || !iids.length) {
+      return [];
+    }
+    const sql = `
+      SELECT product_id, channel, channel_instance_id, active, price_amount, currency, vat_rate, category
+      FROM channel_product_overrides
+      WHERE product_id = ANY($1::varchar[])
+        AND channel_instance_id = ANY($2::int[])
+    `;
+    const rows = await db.query(sql, [pids, iids]);
+    return rows || [];
   }
 
   async countForUser(req) {
@@ -899,7 +1118,7 @@ class ProductModel {
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
           $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
-          $42, $43, $44, $45
+          $42, $43, $44
         )
         RETURNING
           id,
@@ -925,6 +1144,11 @@ class ProductModel {
           channel_specific,
           purchase_price,
           lagerplats,
+          condition,
+          group_id,
+          volume,
+          volume_unit,
+          notes,
           private_name,
           color,
           color_text,
@@ -1183,6 +1407,16 @@ class ProductModel {
       if (!result.length) {
         throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
       }
+      const oldQty = Number(existing.quantity ?? 0);
+      const newQty = Number(result[0].quantity ?? 0);
+      if (oldQty !== newQty) {
+        await this.insertProductStockEvent(req, {
+          productIdText: String(productId),
+          previousQuantity: oldQty,
+          newQuantity: newQty,
+          source: 'user_edit',
+        });
+      }
       Logger.info('Product updated', { productId });
       return this.transformRow(result[0]);
     } catch (error) {
@@ -1200,7 +1434,78 @@ class ProductModel {
     }
   }
 
-  async getProductStats(req, productId, range = '30d') {
+  /**
+   * Persists a quantity change for product stats timeline (manual edit, batch, order decrement).
+   */
+  async insertProductStockEvent(req, { productIdText, previousQuantity, newQuantity, source }) {
+    try {
+      const db = Database.get(req);
+      const prev =
+        previousQuantity != null && Number.isFinite(Number(previousQuantity))
+          ? Math.trunc(Number(previousQuantity))
+          : null;
+      const next = Math.trunc(Number(newQuantity));
+      if (!Number.isFinite(next)) return;
+      await db.query(
+        `INSERT INTO product_stock_events (product_id, previous_quantity, new_quantity, source) VALUES ($1, $2, $3, $4)`,
+        [String(productIdText), prev, next, String(source)],
+      );
+      await db.query(
+        `
+        DELETE FROM product_stock_events
+        WHERE id IN (
+          SELECT id FROM (
+            SELECT id
+            FROM product_stock_events
+            WHERE product_id = $1
+            ORDER BY created_at DESC, id DESC
+            OFFSET ${ProductModel.MAX_STOCK_EVENTS_PER_PRODUCT}
+          ) excess
+        )
+        `,
+        [String(productIdText)],
+      );
+    } catch (err) {
+      Logger.error('Failed to record product stock event', err, { productIdText, source });
+    }
+  }
+
+  /**
+   * Replace imported Sello product history rows for one Homebase product (from /v5/products/{id}/history).
+   */
+  async replaceSelloImportHistory(req, homebaseProductId, rows) {
+    const db = Database.get(req);
+    const pid = String(homebaseProductId || '').trim();
+    if (!pid) return 0;
+    await db.query(`DELETE FROM product_selio_import_history WHERE product_id = $1`, [pid]);
+    if (!Array.isArray(rows) || !rows.length) return 0;
+    let n = 0;
+    for (const r of rows) {
+      await db.query(
+        `
+        INSERT INTO product_selio_import_history
+          (product_id, event_at, event_kind, channel_label, order_ref, sale_quantity, new_quantity, sello_code, message, params)
+        VALUES ($1, $2::timestamptz, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+        `,
+        [
+          r.product_id,
+          r.event_at,
+          r.event_kind,
+          r.channel_label ?? null,
+          r.order_ref ?? null,
+          r.sale_quantity ?? null,
+          r.new_quantity ?? null,
+          r.sello_code,
+          r.message ?? null,
+          r.params != null ? JSON.stringify(r.params) : null,
+        ],
+      );
+      n += 1;
+    }
+    return n;
+  }
+
+  async getProductStats(req, productId, range = '30d', timelineOpts = {}) {
     try {
       const db = Database.get(req);
       const tenantId = req.session?.tenantId;
@@ -1210,7 +1515,24 @@ class ProductModel {
       }
 
       const pid = String(productId).trim();
-      if (!pid) return { soldCount: 0, bestChannel: null, activeTargetsCount: 0, timeline: [] };
+      if (!pid) {
+        return {
+          soldCount: 0,
+          bestChannel: null,
+          activeTargetsCount: 0,
+          timeline: [],
+          timelineHasMore: false,
+        };
+      }
+
+      const rawLimit = Number(timelineOpts.timelineLimit);
+      const rawOffset = Number(timelineOpts.timelineOffset);
+      const timelineLimit = Math.min(
+        ProductModel.MAX_TIMELINE_PAGE_SIZE,
+        Math.max(1, Number.isFinite(rawLimit) ? Math.trunc(rawLimit) : 10),
+      );
+      const timelineOffset = Math.max(0, Number.isFinite(rawOffset) ? Math.trunc(rawOffset) : 0);
+      const maxMerged = ProductModel.MAX_TIMELINE_MERGED_EVENTS;
 
       // Verify product belongs to user
       const prodCheck = await db.query(
@@ -1221,43 +1543,65 @@ class ProductModel {
         throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      // Date filter for range
-      let dateFilter = '';
+      let orderDateFilter = '';
+      let stockDateFilter = '';
       if (range === '7d') {
-        dateFilter = "AND o.placed_at >= CURRENT_DATE - INTERVAL '7 days'";
+        orderDateFilter = "AND COALESCE(o.placed_at, o.created_at) >= NOW() - INTERVAL '7 days'";
+        stockDateFilter = "AND created_at >= NOW() - INTERVAL '7 days'";
       } else if (range === '30d') {
-        dateFilter = "AND o.placed_at >= CURRENT_DATE - INTERVAL '30 days'";
+        orderDateFilter = "AND COALESCE(o.placed_at, o.created_at) >= NOW() - INTERVAL '30 days'";
+        stockDateFilter = "AND created_at >= NOW() - INTERVAL '30 days'";
       } else if (range === '3m') {
-        dateFilter = "AND o.placed_at >= CURRENT_DATE - INTERVAL '3 months'";
+        orderDateFilter = "AND COALESCE(o.placed_at, o.created_at) >= NOW() - INTERVAL '3 months'";
+        stockDateFilter = "AND created_at >= NOW() - INTERVAL '3 months'";
       }
-      // 'all' = no date filter
 
-      const productIdCondition = isNumId
-        ? 'oi.product_id = $2::int'
-        : '(oi.product_id::text = $1 OR oi.sku IN (SELECT sku FROM products WHERE id::text = $1 LIMIT 1))';
+      let selioDateFilter = '';
+      if (range === '7d') {
+        selioDateFilter = "AND h.event_at >= NOW() - INTERVAL '7 days'";
+      } else if (range === '30d') {
+        selioDateFilter = "AND h.event_at >= NOW() - INTERVAL '30 days'";
+      } else if (range === '3m') {
+        selioDateFilter = "AND h.event_at >= NOW() - INTERVAL '3 months'";
+      }
+
+      const lineMatch = `
+        (
+          (oi.product_id IS NOT NULL AND oi.product_id = p.id)
+          OR (
+            oi.product_id IS NULL
+            AND oi.sku IS NOT NULL
+            AND p.sku IS NOT NULL
+            AND LOWER(TRIM(oi.sku)) = LOWER(TRIM(p.sku))
+          )
+        )
+      `;
 
       const soldSql = `
         SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold_count
         FROM order_items oi
-        JOIN orders o ON o.id = oi.order_id
-        WHERE (oi.product_id::text = $1 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE id::text = $1 LIMIT 1)))
-        ${dateFilter}
+        INNER JOIN orders o ON o.id = oi.order_id
+        INNER JOIN ${ProductModel.TABLE} p ON p.id::text = $1
+        WHERE ${lineMatch}
+        ${orderDateFilter}
       `;
       const soldRes = await db.query(soldSql, [pid]);
       const soldCount = Number(soldRes[0]?.sold_count) || 0;
 
       const bestChannelSql = `
-        SELECT o.channel, SUM(oi.quantity)::int AS qty
+        SELECT COALESCE(NULLIF(TRIM(o.channel_label), ''), o.channel) AS channel_display,
+               SUM(oi.quantity)::int AS qty
         FROM order_items oi
-        JOIN orders o ON o.id = oi.order_id
-        WHERE (oi.product_id::text = $1 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE id::text = $1 LIMIT 1)))
-        ${dateFilter}
-        GROUP BY o.channel
+        INNER JOIN orders o ON o.id = oi.order_id
+        INNER JOIN ${ProductModel.TABLE} p ON p.id::text = $1
+        WHERE ${lineMatch}
+        ${orderDateFilter}
+        GROUP BY 1
         ORDER BY qty DESC
         LIMIT 1
       `;
       const bestRes = await db.query(bestChannelSql, [pid]);
-      const bestChannel = bestRes[0]?.channel || null;
+      const bestChannel = bestRes[0]?.channel_display || null;
 
       const targetsRes = await db.query(
         `SELECT COUNT(*)::int AS c FROM channel_product_map WHERE product_id = $1 AND (enabled = TRUE OR external_id IS NOT NULL)`,
@@ -1265,29 +1609,117 @@ class ProductModel {
       );
       const activeTargetsCount = Number(targetsRes[0]?.c) || 0;
 
-      const timelineSql = `
-        SELECT o.channel, o.channel_order_id, oi.quantity, o.placed_at
-        FROM order_items oi
-        JOIN orders o ON o.id = oi.order_id
-        WHERE (oi.product_id::text = $1 OR (oi.product_id IS NULL AND oi.sku IN (SELECT sku FROM products WHERE id::text = $1 LIMIT 1)))
-        ${dateFilter}
-        ORDER BY o.placed_at DESC NULLS LAST
-        LIMIT 50
+      const timelineUnionSql = `
+        WITH combined AS (
+          SELECT
+            'sale'::text AS ev_type,
+            COALESCE(NULLIF(TRIM(o.channel_label), ''), o.channel) AS channel_display,
+            o.channel_order_id::text AS order_ref,
+            oi.quantity::int AS sale_qty,
+            NULL::int AS prev_qty,
+            NULL::int AS new_qty,
+            NULL::varchar(32) AS src,
+            COALESCE(o.placed_at, o.created_at) AS event_at
+          FROM order_items oi
+          INNER JOIN orders o ON o.id = oi.order_id
+          INNER JOIN ${ProductModel.TABLE} p ON p.id::text = $1
+          WHERE ${lineMatch}
+          ${orderDateFilter}
+          UNION ALL
+          SELECT
+            'quantity_change'::text,
+            NULL::text,
+            NULL::text,
+            NULL::int,
+            previous_quantity::int,
+            new_quantity::int,
+            source::varchar(32),
+            created_at
+          FROM product_stock_events
+          WHERE product_id = $1
+          ${stockDateFilter}
+          UNION ALL
+          SELECT
+            CASE
+              WHEN h.event_kind = 'quantity_change' THEN 'quantity_change'::text
+              ELSE 'sale'::text
+            END AS ev_type,
+            CASE
+              WHEN h.event_kind = 'sale'
+              THEN COALESCE(NULLIF(TRIM(h.channel_label), ''), 'Sello'::text)
+              ELSE NULL::text
+            END AS channel_display,
+            CASE WHEN h.event_kind = 'sale' THEN h.order_ref::text ELSE NULL::text END AS order_ref,
+            CASE WHEN h.event_kind = 'sale' THEN h.sale_quantity::int ELSE NULL::int END AS sale_qty,
+            NULL::int AS prev_qty,
+            CASE
+              WHEN h.event_kind = 'quantity_change' THEN h.new_quantity::int
+              ELSE NULL::int
+            END AS new_qty,
+            CASE
+              WHEN h.event_kind = 'quantity_change' THEN 'sello_import'::varchar(32)
+              ELSE NULL::varchar(32)
+            END AS src,
+            h.event_at
+          FROM product_selio_import_history h
+          WHERE h.product_id = $1
+            AND h.event_kind IN ('sale', 'quantity_change')
+          ${selioDateFilter}
+        ),
+        ranked AS (
+          SELECT
+            combined.*,
+            ROW_NUMBER() OVER (ORDER BY combined.event_at DESC NULLS LAST) AS rn
+          FROM combined
+        ),
+        capped AS (
+          SELECT ev_type, channel_display, order_ref, sale_qty, prev_qty, new_qty, src, event_at, rn
+          FROM ranked
+          WHERE rn <= ${maxMerged}
+        )
+        SELECT ev_type, channel_display, order_ref, sale_qty, prev_qty, new_qty, src, event_at, rn
+        FROM capped
+        WHERE rn > $2 AND rn <= $2 + $3
       `;
-      const timelineRows = await db.query(timelineSql, [pid]);
-      const timeline = (timelineRows || []).map((r) => ({
-        type: 'sale',
-        channel: r.channel,
-        orderId: r.channel_order_id,
-        quantity: Number(r.quantity) || 0,
-        placedAt: r.placed_at,
-      }));
+
+      let timelineRows = [];
+      if (timelineOffset < maxMerged) {
+        const effectiveLimit = Math.min(timelineLimit, maxMerged - timelineOffset);
+        const fetchWindow = effectiveLimit + 1;
+        timelineRows = await db.query(timelineUnionSql, [pid, timelineOffset, fetchWindow]);
+      }
+      let timelineHasMore = false;
+      let pageRows = timelineRows || [];
+      if (pageRows.length > timelineLimit) {
+        timelineHasMore = true;
+        pageRows = pageRows.slice(0, timelineLimit);
+      }
+
+      const timeline = pageRows.map((r) => {
+        if (r.ev_type === 'quantity_change') {
+          return {
+            type: 'quantity_change',
+            previousQuantity: r.prev_qty != null ? Number(r.prev_qty) : null,
+            newQuantity: Number(r.new_qty) || 0,
+            source: r.src,
+            placedAt: r.event_at,
+          };
+        }
+        return {
+          type: 'sale',
+          channel: r.channel_display,
+          orderId: r.order_ref,
+          quantity: Number(r.sale_qty) || 0,
+          placedAt: r.event_at,
+        };
+      });
 
       return {
         soldCount,
         bestChannel,
         activeTargetsCount,
         timeline,
+        timelineHasMore,
       };
     } catch (error) {
       Logger.error('Failed to get product stats', error);
@@ -1322,6 +1754,13 @@ class ProductModel {
         ]);
       } catch (_err) {
         // Non-fatal cleanup; keep primary delete semantics
+        void _err;
+      }
+      try {
+        await db.query(`DELETE FROM product_selio_import_history WHERE product_id = $1`, [
+          String(productId),
+        ]);
+      } catch (_err) {
         void _err;
       }
 
@@ -1369,6 +1808,15 @@ class ProductModel {
           await db.query(`DELETE FROM channel_product_map WHERE product_id = ANY($1::text[])`, [
             deletedIds,
           ]);
+        } catch (_err) {
+          void _err;
+        }
+        try {
+          const deletedIds = rows.map((r) => r.id);
+          await db.query(
+            `DELETE FROM product_selio_import_history WHERE product_id = ANY($1::text[])`,
+            [deletedIds],
+          );
         } catch (_err) {
           void _err;
         }
@@ -1441,15 +1889,39 @@ class ProductModel {
       if (setParts.length === 0) {
         return { updatedCount: 0, updatedIds: [] };
       }
+      const quantityInPatch = updates.quantity !== undefined;
+      let prevQtyById = new Map();
+      if (quantityInPatch) {
+        const prevRows = await db.query(
+          `SELECT id::text AS id, quantity FROM ${ProductModel.TABLE} WHERE id::text = ANY($1::text[])`,
+          [ids],
+        );
+        prevQtyById = new Map((prevRows || []).map((r) => [String(r.id), Number(r.quantity ?? 0)]));
+      }
       setParts.push('updated_at = CURRENT_TIMESTAMP');
       params.push(ids);
       const sql = `
         UPDATE ${ProductModel.TABLE}
         SET ${setParts.join(', ')}
         WHERE id::text = ANY($${idx}::text[])
-        RETURNING id::text AS id
+        RETURNING id::text AS id, quantity
       `;
       const rows = await db.query(sql, params);
+      if (quantityInPatch) {
+        for (const r of rows || []) {
+          const idStr = String(r.id);
+          const oldQ = prevQtyById.has(idStr) ? prevQtyById.get(idStr) : null;
+          const newQ = Number(r.quantity ?? 0);
+          if (oldQ !== null && oldQ !== newQ) {
+            await this.insertProductStockEvent(req, {
+              productIdText: idStr,
+              previousQuantity: oldQ,
+              newQuantity: newQ,
+              source: 'batch',
+            });
+          }
+        }
+      }
       Logger.info('Products batch updated', { count: rows.length });
       return { updatedCount: rows.length, updatedIds: rows.map((r) => r.id) };
     } catch (error) {
@@ -1921,9 +2393,9 @@ class ProductModel {
       }
     }
 
-    return db.transaction(async (tx) => {
+    const txResult = await db.transaction(async (tx) => {
       const locked = await tx.query(
-        `SELECT id, channel_specific FROM ${ProductModel.TABLE} WHERE id::text = $1 FOR UPDATE`,
+        `SELECT id, quantity, channel_specific FROM ${ProductModel.TABLE} WHERE id::text = $1 FOR UPDATE`,
         [pid],
       );
       if (!locked.length) {
@@ -1977,8 +2449,12 @@ class ProductModel {
 
       const columns = this.buildBatchPatchColumns(patch);
       if (!Object.keys(columns).length) {
-        return { skipped: true };
+        return { skipped: true, stockEvent: null };
       }
+
+      const oldQtyForStock = Object.prototype.hasOwnProperty.call(columns, 'quantity')
+        ? Number(locked[0].quantity ?? 0)
+        : null;
 
       const setParts = [];
       const params = [];
@@ -1996,8 +2472,30 @@ class ProductModel {
         WHERE id::text = $${idx}
       `;
       await tx.query(sql, params);
-      return { skipped: false };
+
+      let stockEvent = null;
+      if (oldQtyForStock !== null) {
+        const newQty = Number(columns.quantity);
+        if (
+          Number.isFinite(oldQtyForStock) &&
+          Number.isFinite(newQty) &&
+          oldQtyForStock !== newQty
+        ) {
+          stockEvent = { previousQuantity: oldQtyForStock, newQuantity: newQty };
+        }
+      }
+      return { skipped: false, stockEvent };
     });
+
+    if (!txResult.skipped && txResult.stockEvent) {
+      await this.insertProductStockEvent(req, {
+        productIdText: pid,
+        previousQuantity: txResult.stockEvent.previousQuantity,
+        newQuantity: txResult.stockEvent.newQuantity,
+        source: 'batch',
+      });
+    }
+    return { skipped: txResult.skipped };
   }
 
   /**
@@ -2027,11 +2525,21 @@ class ProductModel {
           await tx.query(`SET LOCAL lock_timeout = '5s'`);
           return tx.query(
             `
-            UPDATE ${ProductModel.TABLE}
-            SET quantity = GREATEST(quantity - $2, 0),
-                updated_at = NOW()
-            WHERE id = $1
-            RETURNING id, sku, quantity
+            WITH prev AS (
+              SELECT id, quantity AS old_q
+              FROM ${ProductModel.TABLE}
+              WHERE id = $1
+              FOR UPDATE
+            ),
+            u AS (
+              UPDATE ${ProductModel.TABLE} p
+              SET quantity = GREATEST(p.quantity - $2, 0),
+                  updated_at = NOW()
+              FROM prev
+              WHERE p.id = prev.id
+              RETURNING p.id::text AS id, p.sku, p.quantity AS new_q, prev.old_q AS old_q
+            )
+            SELECT * FROM u
             `,
             [pid, q],
           );
@@ -2039,7 +2547,16 @@ class ProductModel {
         if (!rows.length) {
           return { ok: false, error: 'product_not_found' };
         }
-        return { ok: true, row: rows[0] };
+        const row = rows[0];
+        if (row.old_q !== row.new_q) {
+          await this.insertProductStockEvent(req, {
+            productIdText: String(row.id),
+            previousQuantity: row.old_q,
+            newQuantity: row.new_q,
+            source: 'order',
+          });
+        }
+        return { ok: true, row: { id: row.id, sku: row.sku, quantity: row.new_q } };
       } catch (err) {
         lastErr = err;
         const code = err?.code || err?.details?.code;
@@ -2084,11 +2601,21 @@ class ProductModel {
           await tx.query(`SET LOCAL lock_timeout = '5s'`);
           return tx.query(
             `
-            UPDATE ${ProductModel.TABLE}
-            SET quantity = GREATEST(quantity - $2, 0),
-                updated_at = NOW()
-            WHERE sku = $1
-            RETURNING id, sku, quantity
+            WITH prev AS (
+              SELECT id, quantity AS old_q
+              FROM ${ProductModel.TABLE}
+              WHERE sku = $1
+              FOR UPDATE
+            ),
+            u AS (
+              UPDATE ${ProductModel.TABLE} p
+              SET quantity = GREATEST(p.quantity - $2, 0),
+                  updated_at = NOW()
+              FROM prev
+              WHERE p.id = prev.id
+              RETURNING p.id::text AS id, p.sku, p.quantity AS new_q, prev.old_q AS old_q
+            )
+            SELECT * FROM u
             `,
             [sku, q],
           );
@@ -2096,7 +2623,16 @@ class ProductModel {
         if (!rows.length) {
           return { ok: false, error: 'product_not_found' };
         }
-        return { ok: true, row: rows[0] };
+        const row = rows[0];
+        if (row.old_q !== row.new_q) {
+          await this.insertProductStockEvent(req, {
+            productIdText: String(row.id),
+            previousQuantity: row.old_q,
+            newQuantity: row.new_q,
+            source: 'order',
+          });
+        }
+        return { ok: true, row: { id: row.id, sku: row.sku, quantity: row.new_q } };
       } catch (err) {
         lastErr = err;
         const code = err?.code || err?.details?.code;

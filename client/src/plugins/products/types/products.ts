@@ -86,6 +86,35 @@ export function getProductImagePreviewUrl(
   return asset?.variants?.preview?.url ?? asset?.variants?.original?.url ?? null;
 }
 
+export function getProductImageThumbnailUrl(
+  asset: ProductImageAsset | null | undefined,
+): string | null {
+  return asset?.variants?.thumbnail?.url ?? null;
+}
+
+/**
+ * Match `products.main_image` to an asset when the stored URL may be original, preview, or thumbnail
+ * (depending on how the row was written).
+ */
+export function findProductImageAssetByMainImageUrl(
+  assets: ProductImageAsset[],
+  mainImage: string | null | undefined,
+): ProductImageAsset | null {
+  const m = String(mainImage || '').trim();
+  if (!m) {
+    return null;
+  }
+  for (const asset of assets) {
+    const o = getProductImageOriginalUrl(asset);
+    const p = getProductImagePreviewUrl(asset);
+    const t = getProductImageThumbnailUrl(asset);
+    if (m === o || m === p || m === t) {
+      return asset;
+    }
+  }
+  return null;
+}
+
 export function getProductImageOriginalFilename(
   asset: ProductImageAsset | null | undefined,
 ): string | null {

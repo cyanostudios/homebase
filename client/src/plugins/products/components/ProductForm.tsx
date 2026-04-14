@@ -1,5 +1,5 @@
 /* eslint-disable eqeqeq, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps, react/no-array-index-key */
-import { ChevronDown, ChevronRight, Plus, Star, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Star, Trash2, Upload, ZoomIn } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -30,9 +30,11 @@ import type { ChannelInstance } from '@/plugins/channels/types/channels';
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
 import {
+  findProductImageAssetByMainImageUrl,
   getProductImageOriginalFilename,
   getProductImageOriginalUrl,
   getProductImagePreviewUrl,
+  getProductImageThumbnailUrl,
   normalizeProductImageAsset,
   normalizeProductImages,
   normalizeProductStatus,
@@ -683,6 +685,8 @@ type TextData = {
   metaDesc?: string;
   metaKeywords?: string;
   bulletpoints?: string;
+  /** WooCommerce product short description (endast om ifyllt; skickas som short_description). */
+  shortDescription?: string;
   /** For non-default languages: which channels get this text (cdon, fyndiq) */
   validFor?: { cdon?: boolean; fyndiq?: boolean };
 };
@@ -835,6 +839,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     metaDesc: '',
     metaKeywords: '',
     bulletpoints: '',
+    shortDescription: '',
   });
 
   const initialState: FormData = {
@@ -1258,15 +1263,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [manufacturers, setManufacturers] = useState<Array<{ id: string; name: string }>>([]);
   const [newImage, setNewImage] = useState('');
   const [mediaUploading, setMediaUploading] = useState(false);
-  const [statsRange, setStatsRange] = useState<'7d' | '30d' | '3m' | 'all'>('30d');
+  const [statsRange, setStatsRange] = useState<'7d' | '30d' | '3m' | 'all'>('all');
   const [selectedTextMarket, setSelectedTextMarket] = useState<MarketKey>('se');
   const [stats, setStats] = useState<{
     soldCount: number;
     bestChannel: string | null;
     activeTargetsCount: number;
     timeline: any[];
+    timelineHasMore: boolean;
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [statsLoadingMore, setStatsLoadingMore] = useState(false);
   const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
   // Kanaler tab: instances + targets + overrides (enabled only, for display)
   const [channelInstances, setChannelInstances] = useState<ChannelInstance[]>([]);
@@ -1322,6 +1329,45 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const m = inst.market?.trim()?.toLowerCase().slice(0, 2);
     return !!m && ['se', 'dk', 'fi', 'no'].includes(m);
   };
+
+  // Statistik: GET /api/products/:id/stats?range=… (period, tidslinje, kanalöversikt)
+  useEffect(() => {
+    if (isBatchMode || activeTab !== 'statistik' || !currentProduct?.id) {
+      return;
+    }
+    const productId = String(currentProduct.id);
+    let cancelled = false;
+    setStats(null);
+    setStatsLoading(true);
+    void productsApi
+      .getProductStats(productId, statsRange, { timelineLimit: 10, timelineOffset: 0 })
+      .then((data) => {
+        if (!cancelled) {
+          setStats(data);
+        }
+      })
+      .catch((err) => {
+        console.error('Product stats load failed', err);
+        if (!cancelled) {
+          setStats(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setStatsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeTab,
+    currentProduct?.id,
+    currentProduct?.quantity,
+    currentProduct?.updatedAt,
+    statsRange,
+    isBatchMode,
+  ]);
 
   // Load channel instances (for both new and existing products) and, when product exists, current targets + overrides.
   // Batch: only instances (available stores); never getProductTargets/getOverrides for any selected id — Kanaler starts empty.
@@ -1784,6 +1830,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 metaDesc: extended?.metaDesc ?? '',
                 metaKeywords: extended?.metaKeywords ?? '',
                 bulletpoints: bulletpointsStr,
+                shortDescription:
+                  (extended as { shortDescription?: string })?.shortDescription ?? '',
                 validFor,
               }
             : {
@@ -1793,6 +1841,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 metaDesc: '',
                 metaKeywords: '',
                 bulletpoints: '',
+                shortDescription: '',
                 validFor: { cdon: true, fyndiq: true },
               };
       }
@@ -2743,6 +2792,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           metaDesc?: string;
           metaKeywords?: string;
           bulletpoints?: string[];
+          shortDescription?: string;
         }
       > = {};
       for (const m of MARKETS) {
@@ -2760,6 +2810,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           (t?.titleSeo ?? '').trim() ||
           (t?.metaDesc ?? '').trim() ||
           (t?.metaKeywords ?? '').trim() ||
+          (t?.shortDescription ?? '').trim() ||
           (bulletpointsArr?.length ?? 0) > 0;
         if (hasContent) {
           textsExtended[m.key] = {
@@ -2768,6 +2819,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             ...((t?.titleSeo ?? '').trim() && { titleSeo: (t.titleSeo ?? '').trim() }),
             ...((t?.metaDesc ?? '').trim() && { metaDesc: (t.metaDesc ?? '').trim() }),
             ...((t?.metaKeywords ?? '').trim() && { metaKeywords: (t.metaKeywords ?? '').trim() }),
+            ...((t?.shortDescription ?? '').trim() && {
+              shortDescription: (t.shortDescription ?? '').trim(),
+            }),
             ...(bulletpointsArr && bulletpointsArr.length > 0 && { bulletpoints: bulletpointsArr }),
           };
         }
@@ -2962,18 +3016,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     /^warning\b/i.test(String(message || '').trim());
   const hasBlockingErrors = validationErrors.some((e) => !isWarningMessage(e.message));
   const orderedAssets = orderAssetsByMainImage(formData.images, formData.mainImage);
-  const mainImageAsset =
-    orderedAssets.find((asset) => getProductImageOriginalUrl(asset) === formData.mainImage) ?? null;
-  const galleryImages = orderedAssets.filter(
-    (asset) => getProductImageOriginalUrl(asset) !== formData.mainImage,
-  );
-  const openOriginalImage = (asset: ProductImageAsset | null | undefined, fallbackUrl?: string) => {
-    const url = getProductImageOriginalUrl(asset) || fallbackUrl || '';
-    if (!url) {
-      return;
+  const mainImageAsset = findProductImageAssetByMainImageUrl(orderedAssets, formData.mainImage);
+  const galleryImages = orderedAssets.filter((asset) => {
+    if (mainImageAsset) {
+      return asset !== mainImageAsset;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+    const m = String(formData.mainImage || '').trim();
+    if (!m) {
+      return true;
+    }
+    return (
+      getProductImageOriginalUrl(asset) !== m &&
+      getProductImagePreviewUrl(asset) !== m &&
+      getProductImageThumbnailUrl(asset) !== m
+    );
+  });
   const getReadableErrorMessage = (error: unknown, fallback: string) => {
     const err = error as
       | { error?: unknown; message?: unknown; errors?: Array<{ message?: unknown }> }
@@ -3052,13 +3109,49 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     if (!files?.length) {
       return;
     }
+    const fileArr = Array.from(files);
+    const room = Math.max(0, 11 - formData.images.length);
+    const take = Math.min(fileArr.length, room);
+    if (take <= 0) {
+      return;
+    }
+    const uploadSlice = fileArr.slice(0, take);
+    const blobUrls = uploadSlice.map((f) => URL.createObjectURL(f));
+    const optimistic = blobUrls
+      .map((url, i) => normalizeProductImageAsset(url, formData.images.length + i))
+      .filter(Boolean) as ProductImageAsset[];
+
+    setFormData((prev) => {
+      const r = Math.max(0, 11 - prev.images.length);
+      if (r < take) {
+        blobUrls.forEach((u) => URL.revokeObjectURL(u));
+        return prev;
+      }
+      let main = prev.mainImage;
+      if (!main && optimistic[0]) {
+        main = getProductImageOriginalUrl(optimistic[0]) || '';
+      }
+      const imgs = [...prev.images, ...optimistic];
+      return { ...prev, mainImage: main, images: orderAssetsByMainImage(imgs, main) };
+    });
+
     setMediaUploading(true);
     try {
-      const items = await productsApi.uploadMediaFiles(Array.from(files));
+      const items = await productsApi.uploadMediaFiles(uploadSlice);
       const toAdd = normalizeProductImages(items);
       setFormData((prev) => {
+        const trimmed = prev.images.slice(0, Math.max(0, prev.images.length - take));
         let main = prev.mainImage;
-        const imgs = [...prev.images];
+        const blobSet = new Set(blobUrls);
+        if (main && blobSet.has(main)) {
+          const first = toAdd[0];
+          main = first
+            ? getProductImageOriginalUrl(first) || ''
+            : trimmed[0]
+              ? getProductImageOriginalUrl(trimmed[0]) || ''
+              : '';
+        }
+        const imgs = [...trimmed];
         for (const asset of toAdd) {
           const url = getProductImageOriginalUrl(asset);
           if (!url) {
@@ -3074,8 +3167,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         }
         return { ...prev, mainImage: main, images: orderAssetsByMainImage(imgs, main) };
       });
+      queueMicrotask(() => blobUrls.forEach((u) => URL.revokeObjectURL(u)));
       markDirty();
     } catch (err) {
+      setFormData((prev) => {
+        const trimmed = prev.images.slice(0, Math.max(0, prev.images.length - take));
+        let main = prev.mainImage;
+        const blobSet = new Set(blobUrls);
+        if (main && blobSet.has(main)) {
+          main = trimmed[0] ? getProductImageOriginalUrl(trimmed[0]) || '' : '';
+        }
+        return { ...prev, mainImage: main, images: orderAssetsByMainImage(trimmed, main) };
+      });
+      queueMicrotask(() => blobUrls.forEach((u) => URL.revokeObjectURL(u)));
       console.error('Upload failed', err);
       setSaveNotice(getReadableErrorMessage(err, 'Kunde inte ladda upp bilderna.'));
     } finally {
@@ -3520,6 +3624,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                             />
                           </div>
                           <div>
+                            <Label className="mb-1 text-gray-600">
+                              Kort beskrivning (WooCommerce)
+                            </Label>
+                            <Textarea
+                              rows={3}
+                              value={t?.shortDescription ?? ''}
+                              onChange={(e) =>
+                                updateText(m.key, 'shortDescription', e.target.value)
+                              }
+                              placeholder="Valfritt. Skickas som produktens korta beskrivning i Woo. Lämna tom om ingen kort text ska sättas."
+                            />
+                          </div>
+                          <div>
                             <Label className="mb-1 text-gray-600">Meta-nyckelord</Label>
                             <Input
                               value={t?.metaKeywords ?? ''}
@@ -3583,11 +3700,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       <img
                         src={getProductImagePreviewUrl(mainImageAsset) || formData.mainImage}
                         alt="Huvudbild"
-                        className="w-full h-full object-cover cursor-zoom-in"
-                        onClick={() => openOriginalImage(mainImageAsset, formData.mainImage)}
-                        title="Öppna original"
+                        className="h-full w-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      {getProductImageOriginalUrl(mainImageAsset) ? (
+                        <a
+                          href={getProductImageOriginalUrl(mainImageAsset)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute right-2 top-2 z-[4] inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white/95 text-gray-800 shadow-sm hover:bg-white"
+                          aria-label="Öppna original i ny flik"
+                          title="Öppna original i ny flik"
+                        >
+                          <ZoomIn className="h-4 w-4" />
+                        </a>
+                      ) : null}
+                      <div className="pointer-events-none absolute inset-0 z-[2] bg-black/40 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 flex items-center justify-center gap-2">
                         <Button
                           type="button"
                           variant="secondary"
@@ -3601,7 +3728,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         </span>
                       </div>
                       {getProductImageOriginalFilename(mainImageAsset) ? (
-                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[11px] px-2 py-1 truncate">
+                        <div className="pointer-events-none absolute bottom-0 inset-x-0 z-[3] bg-black/60 text-white text-[11px] px-2 py-1 truncate">
                           {getProductImageOriginalFilename(mainImageAsset)}
                         </div>
                       ) : null}
@@ -3632,14 +3759,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   >
                     {img ? (
                       <>
-                        <img
-                          src={img}
-                          alt=""
-                          className="w-full h-full object-cover cursor-zoom-in"
-                          onClick={() => openOriginalImage(asset, img)}
-                          title="Öppna original"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                        <img src={img} alt="" className="h-full w-full object-cover" />
+                        {getProductImageOriginalUrl(asset) ? (
+                          <a
+                            href={getProductImageOriginalUrl(asset)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute right-1.5 top-1.5 z-[4] inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white/95 text-gray-800 shadow-sm hover:bg-white"
+                            aria-label="Öppna original i ny flik"
+                            title="Öppna original i ny flik"
+                          >
+                            <ZoomIn className="h-3.5 w-3.5" />
+                          </a>
+                        ) : null}
+                        <div className="pointer-events-none absolute inset-0 z-[2] bg-black/40 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 flex items-center justify-center gap-1">
                           <Button
                             type="button"
                             variant="secondary"
@@ -3661,7 +3794,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           </Button>
                         </div>
                         {getProductImageOriginalFilename(asset) ? (
-                          <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[11px] px-2 py-1 truncate">
+                          <div className="pointer-events-none absolute bottom-0 inset-x-0 z-[3] bg-black/60 text-white text-[11px] px-2 py-1 truncate">
                             {getProductImageOriginalFilename(asset)}
                           </div>
                         ) : null}
@@ -5067,27 +5200,105 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                     <div>
                       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                        Aktivitetstidslinje
+                        Historik
                       </div>
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                      <div className="max-h-72 overflow-y-auto pl-1">
                         {stats.timeline?.length ? (
-                          stats.timeline.map((ev, i) => (
-                            <div
-                              key={i}
-                              className="flex justify-between items-center py-2 border-b border-gray-100 text-sm"
-                            >
-                              <span>
-                                <strong>{ev.quantity} st såld</strong> på {ev.channel}, order{' '}
-                                {String(ev.orderId).slice(0, 8)}…
-                              </span>
-                              <span className="text-gray-500 text-xs">
-                                {ev.placedAt ? new Date(ev.placedAt).toLocaleString('sv-SE') : '—'}
-                              </span>
-                            </div>
-                          ))
+                          <ul className="relative border-l border-gray-200 ml-2 space-y-0">
+                            {stats.timeline.map((ev, i) => (
+                              <li
+                                key={`${ev.type}-${String(ev.placedAt ?? '')}-${i}`}
+                                className="pl-5 pb-4 last:pb-0 relative"
+                              >
+                                <span
+                                  className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-gray-400 ring-2 ring-white"
+                                  aria-hidden
+                                />
+                                {ev.type === 'quantity_change' ? (
+                                  <>
+                                    <div className="text-sm font-semibold text-gray-900">
+                                      Ändrade lager till {ev.newQuantity}
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-0.5">
+                                      {ev.placedAt
+                                        ? new Date(ev.placedAt).toLocaleString('sv-SE', {
+                                            year: 'numeric',
+                                            month: '2-digit',
+                                            day: '2-digit',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })
+                                        : '—'}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="text-sm font-semibold text-gray-900">
+                                      {ev.quantity} st sålda på {ev.channel}
+                                      {ev.orderId != null && String(ev.orderId).trim() !== ''
+                                        ? `, order ${String(ev.orderId)}`
+                                        : ''}
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-0.5">
+                                      {ev.placedAt
+                                        ? new Date(ev.placedAt).toLocaleString('sv-SE', {
+                                            year: 'numeric',
+                                            month: '2-digit',
+                                            day: '2-digit',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })
+                                        : '—'}
+                                    </div>
+                                  </>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
                         ) : (
                           <p className="text-sm text-gray-500">Ingen aktivitet i vald period.</p>
                         )}
+                        {stats.timelineHasMore ? (
+                          <div className="mt-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={statsLoadingMore}
+                              onClick={() => {
+                                if (!currentProduct?.id || statsLoadingMore) {
+                                  return;
+                                }
+                                const productId = String(currentProduct.id);
+                                setStatsLoadingMore(true);
+                                void productsApi
+                                  .getProductStats(productId, statsRange, {
+                                    timelineLimit: 10,
+                                    timelineOffset: stats.timeline.length,
+                                  })
+                                  .then((data) => {
+                                    setStats((s) =>
+                                      s
+                                        ? {
+                                            ...s,
+                                            timeline: [...s.timeline, ...data.timeline],
+                                            timelineHasMore: data.timelineHasMore,
+                                          }
+                                        : data,
+                                    );
+                                  })
+                                  .catch((err) => {
+                                    console.error('Product stats timeline load more failed', err);
+                                  })
+                                  .finally(() => {
+                                    setStatsLoadingMore(false);
+                                  });
+                              }}
+                            >
+                              {statsLoadingMore ? 'Laddar…' : 'Hämta fler'}
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>

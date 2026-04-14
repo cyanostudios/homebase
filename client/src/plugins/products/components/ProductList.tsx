@@ -3,11 +3,16 @@ import {
   ChevronUp,
   ChevronDown,
   Upload,
+  Download,
   Pencil,
   Settings,
   X,
   Minus,
   Plus,
+  Loader2,
+  RefreshCw,
+  Share2,
+  Layers,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 
@@ -22,7 +27,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -32,9 +45,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { navigateToPage } from '@/core/navigation/navigateToPage';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { buildListPaginationItems } from '@/core/utils/listPagination';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cn } from '@/lib/utils';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { useCdonProducts } from '@/plugins/cdon-products/context/CdonProductsContext';
 import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
@@ -48,6 +63,11 @@ import { normalizeCatalogPageSize } from '../types/products';
 
 import { ProductSettingsForm } from './ProductSettingsForm';
 import { ProductTitleWithLinksHover } from './ProductTitleWithLinksHover';
+
+/** Match Orders toolbar dropdown density. */
+const PRODUCTS_DROPDOWN_CONTENT_CLASS = 'min-w-[16rem] p-2 text-base';
+const PRODUCTS_DROPDOWN_ITEM_CLASS =
+  'text-base py-2.5 min-h-[2.75rem] gap-2 [&_svg]:size-5 [&_svg]:shrink-0';
 
 type SortField = 'id' | 'title' | 'quantity' | 'priceAmount' | 'sku';
 type SortOrder = 'asc' | 'desc';
@@ -306,6 +326,7 @@ export const ProductList: React.FC = () => {
     deleteProducts,
     // Batch update
     batchUpdateProducts,
+    applyOptimisticQuantity,
     resyncProducts,
     // Group products (variant group)
     groupProducts,
@@ -315,6 +336,7 @@ export const ProductList: React.FC = () => {
   const { settings: fyndiqSettings } = useFyndiqProducts();
 
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const { setHeaderTitleExtra } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [listFilter, setListFilter] = useState<string>('all');
   const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
@@ -524,6 +546,7 @@ export const ProductList: React.FC = () => {
     const { productId, currentQty, direction } = quantityDialog;
     const newQty = direction === 'plus' ? currentQty + delta : Math.max(0, currentQty - delta);
     setQuantityDialog(null);
+    applyOptimisticQuantity(productId, newQty);
     setQuantityUpdatingId(productId);
     try {
       await batchUpdateProducts([productId], { quantity: newQty });
@@ -710,6 +733,11 @@ export const ProductList: React.FC = () => {
   const _handleOpenPanel = () => attemptNavigation(() => openProductPanel(null));
 
   const totalResultCount = totalProducts;
+  useEffect(() => {
+    setHeaderTitleExtra(`${totalResultCount} produkter totalt`);
+    return () => setHeaderTitleExtra(null);
+  }, [totalResultCount, setHeaderTitleExtra]);
+
   const isWooConfigured = wooInstances.length > 0;
   const isCdonConfigured = !!(
     cdonSettings?.connected &&
@@ -824,143 +852,188 @@ export const ProductList: React.FC = () => {
     }
   };
 
+  const hasProductSelection = selectedProductIds.length > 0;
+
+  const productToolbarActions = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1">
+            Hantera
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className={PRODUCTS_DROPDOWN_CONTENT_CLASS}>
+          <DropdownMenuItem
+            disabled={!hasProductSelection}
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => {
+              setPublishWooInstanceIds(isWooConfigured ? wooInstances.map((i) => i.id) : []);
+              setPublishCdonMarkets(isCdonConfigured ? ['se'] : []);
+              setPublishFyndiqMarkets(isFyndiqConfigured ? ['se'] : []);
+              setLastPublishResult(null);
+              setLastPublishSkipped([]);
+              setShowPublishModal(true);
+            }}
+          >
+            <Share2 className="mr-2" aria-hidden />
+            Publish…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasProductSelection || resyncing}
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => {
+              void (async () => {
+                setLastResyncResult(null);
+                setResyncing(true);
+                try {
+                  const result = await resyncProducts(selectedProductIds);
+                  setLastResyncResult(result);
+                } catch (error: any) {
+                  console.error('Batch resync failed', error);
+                  setLastResyncResult(null);
+                  alert(error?.message || error?.error || 'Synka om misslyckades');
+                } finally {
+                  setResyncing(false);
+                }
+              })();
+            }}
+          >
+            {resyncing ? (
+              <Loader2 className="mr-2 animate-spin" aria-hidden />
+            ) : (
+              <RefreshCw className="mr-2" aria-hidden />
+            )}
+            {resyncing ? 'Synkar om…' : 'Synka om'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasProductSelection}
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            title="Öppnar produktpanelen. Endast ändrade fält och ikryssade kanalbutiker skrivs till alla markerade produkter. Efter förhandsgranskning köas synk (Homebase sedan Woo/CDON/Fyndiq); följ Synkstatus under Kanaler."
+            onSelect={() => attemptNavigation(() => openProductPanelForBatch(selectedProductIds))}
+          >
+            <Pencil className="mr-2" aria-hidden />
+            Redigera…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={selectedProductIds.length < 2}
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => {
+              setGroupVariationType('color');
+              setGroupMainProductId(selectedProductIds[0] ?? '');
+              setShowGroupModal(true);
+            }}
+          >
+            <Layers className="mr-2" aria-hidden />
+            Group…
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="my-2" />
+          <DropdownMenuItem
+            disabled={!hasProductSelection || deleting}
+            className={cn(
+              PRODUCTS_DROPDOWN_ITEM_CLASS,
+              hasProductSelection &&
+                !deleting &&
+                'text-destructive focus:text-destructive focus:bg-destructive/10',
+            )}
+            onSelect={() => {
+              setDeleteFromWooInstanceIds([]);
+              setDeleteFromCdonMarkets([]);
+              setDeleteFromFyndiqMarkets([]);
+              setAlsoDeleteFromPlatform(false);
+              setShowDeleteModal(true);
+            }}
+          >
+            <Trash2 className="mr-2" aria-hidden />
+            {deleting ? 'Raderar…' : 'Delete…'}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1">
+            Alternativ
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className={PRODUCTS_DROPDOWN_CONTENT_CLASS}>
+          <DropdownMenuItem
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => setShowProductSettings(true)}
+          >
+            <Settings className="mr-2" aria-hidden />
+            Inställningar
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => attemptNavigation(() => navigateToPage('products-import'))}
+          >
+            <Upload className="mr-2" aria-hidden />
+            Import
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => attemptNavigation(() => navigateToPage('products-export'))}
+          >
+            <Download className="mr-2" aria-hidden />
+            Export (Excel)
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => attemptNavigation(() => openProductPanel(null))}
+          >
+            <Plus className="mr-2" aria-hidden />
+            Lägg till produkt
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">{totalResultCount} produkter totalt</p>
-          {selectedProductIds.length > 0 && (
-            <div className="mt-2 text-sm flex items-center flex-wrap gap-2">
-              <Badge variant="secondary">{selectedProductIds.length} selected</Badge>
-              <Button variant="ghost" size="sm" onClick={() => clearProductSelection()}>
-                Clear selection
-              </Button>
-
-              {/* Publish… */}
-              <button
-                className="ml-1 inline-flex items-center px-3 py-1.5 rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50 text-sm"
-                onClick={() => {
-                  setPublishWooInstanceIds(isWooConfigured ? wooInstances.map((i) => i.id) : []);
-                  setPublishCdonMarkets(isCdonConfigured ? ['se'] : []);
-                  setPublishFyndiqMarkets(isFyndiqConfigured ? ['se'] : []);
-                  setLastPublishResult(null);
-                  setLastPublishSkipped([]);
-                  setShowPublishModal(true);
-                }}
-              >
-                Publish…
-              </button>
-
-              <button
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-sm disabled:opacity-50"
-                disabled={resyncing}
-                onClick={async () => {
-                  setLastResyncResult(null);
-                  setResyncing(true);
-                  try {
-                    const result = await resyncProducts(selectedProductIds);
-                    setLastResyncResult(result);
-                  } catch (error: any) {
-                    console.error('Batch resync failed', error);
-                    setLastResyncResult(null);
-                    alert(error?.message || error?.error || 'Synka om misslyckades');
-                  } finally {
-                    setResyncing(false);
-                  }
-                }}
-              >
-                Synka om
-              </button>
-
-              {/* Batch: samma produktform som vid enstaka redigering; dirty-only; förhandsgranskning; jobb DB→kanaler */}
-              <button
-                type="button"
-                title="Öppnar produktpanelen. Endast ändrade fält och ikryssade kanalbutiker skrivs till alla markerade produkter. Efter förhandsgranskning köas synk (Homebase sedan Woo/CDON/Fyndiq); följ Synkstatus under Kanaler."
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-amber-600 text-amber-700 hover:bg-amber-50 text-sm"
-                onClick={() =>
-                  attemptNavigation(() => openProductPanelForBatch(selectedProductIds))
-                }
-              >
-                <Pencil className="w-4 h-4 mr-1" />
-                Batch-redigera…
-              </button>
-
-              {/* Group… — set variant group (color/size/model) + parent */}
-              {selectedProductIds.length >= 2 && (
-                <button
-                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-violet-600 text-violet-700 hover:bg-violet-50 text-sm"
-                  onClick={() => {
-                    setGroupVariationType('color');
-                    setGroupMainProductId(selectedProductIds[0] ?? '');
-                    setShowGroupModal(true);
-                  }}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <ContentToolbar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Sök titel, SKU, nummer…"
+          searchRowTrailing={
+            <NativeSelect
+              value={listFilter}
+              onChange={(e) => setListFilter(e.target.value)}
+              aria-label="Filter by list"
+              className="h-10 w-full min-w-[11rem] max-w-[18rem] shrink-0 sm:w-[min(100%,16rem)]"
+            >
+              <option value="all">Alla produkter</option>
+              <option value="main">Huvudlista</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </NativeSelect>
+          }
+          afterSearch={
+            hasProductSelection ? (
+              <>
+                <Badge variant="secondary">
+                  {selectedProductIds.length === 1
+                    ? '1 vald'
+                    : `${selectedProductIds.length} valda`}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => clearProductSelection()}
                 >
-                  Group…
-                </button>
-              )}
-
-              {/* Delete… */}
-              <button
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-600 text-red-700 hover:bg-red-50 text-sm"
-                onClick={() => {
-                  setDeleteFromWooInstanceIds([]);
-                  setDeleteFromCdonMarkets([]);
-                  setDeleteFromFyndiqMarkets([]);
-                  setAlsoDeleteFromPlatform(false);
-                  setShowDeleteModal(true);
-                }}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Delete…
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search by title, SKU or number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-4 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <select
-            value={listFilter}
-            onChange={(e) => setListFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            aria-label="Filter by list"
-          >
-            <option value="all">Alla produkter</option>
-            <option value="main">Huvudlista</option>
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowProductSettings(true)}
-              title="Produktinställningar"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Inställningar
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                attemptNavigation(() => navigateToPage('products-import'));
-              }}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Import
-            </Button>
-          </div>
-        </div>
+                  Nollställ
+                </Button>
+              </>
+            ) : null
+          }
+          rightActions={productToolbarActions}
+        />
       </div>
 
       {/* Publish-feedback after execution */}
@@ -1181,12 +1254,6 @@ export const ProductList: React.FC = () => {
           </div>
         </div>
       )}
-
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search products..."
-      />
 
       <Card className="shadow-none">
         {!isMobileView ? (

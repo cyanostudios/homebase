@@ -192,7 +192,17 @@ async function findOrCreateListForSelloFolder(req, namespace, folderId, folderNa
       [ns, fid],
     );
     if (byId && byId.length > 0) {
-      return { id: String(byId[0].id), name: byId[0].name ?? '' };
+      const row = byId[0];
+      const currentName = row.name ?? '';
+      const fallbackName = `Sello mapp ${fid}`;
+      if (fname && currentName === fallbackName && fname !== currentName) {
+        await db.query(
+          `UPDATE ${TABLE} SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [fname, row.id],
+        );
+        return { id: String(row.id), name: fname };
+      }
+      return { id: String(row.id), name: currentName };
     }
   }
   if (fname) {

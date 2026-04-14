@@ -16,13 +16,21 @@ import {
 } from 'recharts';
 
 import { Button } from '@/components/ui/button';
-import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 import { useOrders } from '@/plugins/orders/hooks/useOrders';
 
 import { analyticsApi } from '../api/analyticsApi';
 import { useAnalytics } from '../hooks/useAnalytics';
 import type { AnalyticsDrilldownOrderItem, AnalyticsFilters } from '../types/analytics';
+import type { AnalyticsDatePresetId } from '../utils/datePresets';
+import {
+  ANALYTICS_DATE_PRESET_OPTIONS,
+  dateInputValueFromIso,
+  endOfDayUtcIso,
+  getPresetRangeUtcIso,
+  startOfDayUtcIso,
+} from '../utils/datePresets';
 import {
   buildOrderChartData,
   buildRevenueChartData,
@@ -176,6 +184,8 @@ export function AnalyticsList() {
     exportTopProductsCsv,
   } = useAnalytics();
   const { openOrderForView } = useOrders();
+
+  const [datePreset, setDatePreset] = React.useState<AnalyticsDatePresetId>('last30');
 
   const revenueChartData = React.useMemo(() => buildRevenueChartData(timeSeries), [timeSeries]);
   const orderChartData = React.useMemo(() => buildOrderChartData(timeSeries), [timeSeries]);
@@ -347,19 +357,49 @@ export function AnalyticsList() {
     [],
   );
 
+  const fromInputValue = React.useMemo(() => dateInputValueFromIso(filters.from), [filters.from]);
+  const toInputValue = React.useMemo(() => dateInputValueFromIso(filters.to), [filters.to]);
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+        <select
+          value={datePreset}
+          onChange={(e) => {
+            const next = (e.target.value as AnalyticsDatePresetId) || 'custom';
+            setDatePreset(next);
+            if (next === 'custom') {
+              return;
+            }
+            const { from, to } = getPresetRangeUtcIso(next);
+            setFilters({ ...filters, from, to });
+          }}
+          className="px-3 py-2 border rounded-md text-sm"
+        >
+          {ANALYTICS_DATE_PRESET_OPTIONS.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
         <input
           type="date"
-          value={filters.from ?? ''}
-          onChange={(e) => setFilters({ ...filters, from: e.target.value || undefined })}
+          value={fromInputValue}
+          onChange={(e) => {
+            const v = e.target.value || '';
+            setDatePreset('custom');
+            setFilters({ ...filters, from: v ? startOfDayUtcIso(v) : undefined });
+          }}
           className="px-3 py-2 border rounded-md text-sm"
         />
         <input
           type="date"
-          value={filters.to ?? ''}
-          onChange={(e) => setFilters({ ...filters, to: e.target.value || undefined })}
+          value={toInputValue}
+          onChange={(e) => {
+            const v = e.target.value || '';
+            setDatePreset('custom');
+            setFilters({ ...filters, to: v ? endOfDayUtcIso(v) : undefined });
+          }}
           className="px-3 py-2 border rounded-md text-sm"
         />
         <select

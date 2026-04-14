@@ -7,6 +7,8 @@ const { AppError } = require('../../server/core/errors/AppError');
 const {
   B2ObjectStorage,
   objectKeyFromB2FileUrl,
+  normalizeProductIdForStorageKey,
+  sanitizePathSegment,
 } = require('../../server/core/services/storage/b2ObjectStorage');
 const {
   ImageProcessingService,
@@ -63,6 +65,33 @@ function toProductMediaError(error, { message, statusCode = 500, code, details =
     return new AppError(finalMessage, finalStatus, finalCode, finalDetails);
   }
   return new AppError(message, statusCode, code, mergeDetails(null, details));
+}
+
+function hostedProductObjectPrefix(tenantId, productId) {
+  const tenantSeg = sanitizePathSegment(tenantId, 'tenant');
+  const productSeg = sanitizePathSegment(
+    normalizeProductIdForStorageKey(String(productId)),
+    'product',
+  );
+  return `${tenantSeg}/products/${productSeg}/`;
+}
+
+function isManagedTenantProductsKey(key, tenantId) {
+  const tenantSeg = sanitizePathSegment(tenantId, 'tenant');
+  return String(key || '').startsWith(`${tenantSeg}/products/`);
+}
+
+function hostedVariantFromObjectKey(key) {
+  const s = String(key || '');
+  if (s.includes('/original/')) return 'original';
+  if (s.includes('/preview/')) return 'preview';
+  if (s.includes('/thumbnail/')) return 'thumbnail';
+  return null;
+}
+
+function extensionFromVariantKey(key) {
+  const m = String(key || '').match(/\.([^.]+)$/);
+  return m ? String(m[1]).trim() : '';
 }
 
 async function mapPool(length, concurrency, worker) {
@@ -426,6 +455,151 @@ class ProductMediaService {
     return this.mediaObjectModel.attachPendingIdsToProduct(req, productId, assetIds);
   }
 
+  buildCanonicalHostedImagesFromRows(rows) {
+    const list = (Array.isArray(rows) ? rows : [])
+      .map((row) => this.rowToAsset(row))
+      .filter(Boolean)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    const mainImage = list.length ? getAssetOriginalUrl(list[0]) : null;
+    return { mainImage, images: list };
+  }
+
+  /**
+   * When media was uploaded before a Homebase product id existed, objects live under a pending
+   * prefix (e.g. manual-user-<id>). After attach, copy them under tenant/products/<productId>/…
+   * and update DB + delete old objects. Returns true if this row was promoted.
+   */
+  async promoteProductMediaRowIfNeeded(req, row, productId) {
+    const tenantId = req.session?.tenantId;
+    const pid = Number(productId);
+    if (!tenantId || !Number.isFinite(pid)) return false;
+    const rowProductId =
+      row?.product_id != null && Number.isFinite(Number(row.product_id))
+        ? Number(row.product_id)
+        : null;
+    if (rowProductId !== pid) return false;
+
+    const storage = this.getStorage();
+    const asset = this.rowToAsset(row);
+    const keys = collectAssetVariantKeys(asset);
+    if (!keys.length) return false;
+
+    const expectedPrefix = hostedProductObjectPrefix(tenantId, pid);
+    if (keys.every((k) => String(k).startsWith(expectedPrefix))) return false;
+    if (!keys.every((k) => isManagedTenantProductsKey(k, tenantId))) return false;
+
+    const hash = toTrimmedString(row.content_hash);
+    if (!hash) return false;
+
+    const safeAssetId = String(row.id || '').trim();
+    if (!safeAssetId) return false;
+
+    const position =
+      row.position != null && Number.isFinite(Number(row.position))
+        ? Math.trunc(Number(row.position))
+        : 0;
+
+    const variantNames = ['original', 'preview', 'thumbnail'];
+    const oldKeysToCopy = new Set();
+    for (const vn of variantNames) {
+      const oldKey = toTrimmedString(asset?.variants?.[vn]?.key);
+      if (!oldKey) return false;
+      if (!oldKey.startsWith(expectedPrefix)) oldKeysToCopy.add(oldKey);
+    }
+    if (!oldKeysToCopy.size) return false;
+
+    const oldDeleteTargets = collectAssetVariantDeleteTargets(asset);
+    const copiedOldKeys = new Set();
+    const newKeysCreated = [];
+
+    try {
+      const keyMap = new Map();
+      for (const oldKey of oldKeysToCopy) {
+        const variant = hostedVariantFromObjectKey(oldKey);
+        if (!variant) {
+          throw new AppError(
+            'Invalid hosted media object key layout',
+            500,
+            'PRODUCT_MEDIA_SCHEMA_INVALID',
+          );
+        }
+        const ext = extensionFromVariantKey(oldKey) || 'bin';
+        const newKey = storage.buildAssetVariantKey({
+          tenantId: String(tenantId),
+          productId: String(pid),
+          pendingScope: null,
+          assetId: safeAssetId,
+          position,
+          variant,
+          hash,
+          extension: ext,
+        });
+        if (newKey === oldKey) continue;
+        const uploaded = await storage.copyObjectWithinBucket({
+          sourceKey: oldKey,
+          destinationKey: newKey,
+        });
+        copiedOldKeys.add(oldKey);
+        newKeysCreated.push(newKey);
+        keyMap.set(oldKey, uploaded);
+      }
+
+      const nextVariants = { ...asset.variants };
+      for (const vn of variantNames) {
+        const prev = nextVariants[vn];
+        const prevKey = toTrimmedString(prev?.key);
+        if (!prevKey) continue;
+        const mapped = keyMap.get(prevKey);
+        if (!mapped) continue;
+        nextVariants[vn] = {
+          ...prev,
+          key: mapped.key,
+          url: mapped.publicUrl,
+          versionId: mapped.versionId,
+        };
+      }
+
+      const merged = normalizeProductImageAsset(
+        {
+          ...asset,
+          variants: nextVariants,
+        },
+        position,
+      );
+      if (!merged) {
+        throw new AppError(
+          'Failed to normalize promoted media asset',
+          500,
+          'PRODUCT_MEDIA_SCHEMA_INVALID',
+        );
+      }
+
+      await this.mediaObjectModel.updateById(req, row.id, {
+        ...this.buildRowPayloadFromAsset(merged, {
+          productId: pid,
+          sourceKind: row.source_kind,
+        }),
+      });
+
+      const deleteTargets = oldDeleteTargets.filter((t) =>
+        copiedOldKeys.has(String(t.key || '').trim()),
+      );
+      if (deleteTargets.length) {
+        await storage.deleteObjects(deleteTargets);
+      }
+      return true;
+    } catch (error) {
+      if (newKeysCreated.length) {
+        try {
+          await storage.deleteObjects(newKeysCreated.map((key) => ({ key })));
+        } catch {
+          /* best-effort rollback */
+        }
+      }
+      throw error;
+    }
+  }
+
   async syncAssetPositions(req, productId, assets) {
     const ordered = normalizeProductImages(assets);
     const rows = await this.mediaObjectModel.listByProductId(req, productId);
@@ -494,11 +668,29 @@ class ProductMediaService {
       );
     }
     await this.syncAssetPositions(req, productId, normalizedAssets);
+
+    let rowsLive = await this.mediaObjectModel.listByProductId(req, productId);
+    let promotedAny = false;
+    for (const row of rowsLive) {
+      const did = await this.promoteProductMediaRowIfNeeded(req, row, productId);
+      if (did) promotedAny = true;
+    }
+    if (promotedAny) {
+      rowsLive = await this.mediaObjectModel.listByProductId(req, productId);
+    }
+
+    const canonical = this.buildCanonicalHostedImagesFromRows(rowsLive);
     Logger.info('Product media update success', {
       productId: String(productId || '').trim() || null,
       assetCount: normalizedAssets.length,
       deletedAssetCount: stale.length,
+      promotedAny,
     });
+    return {
+      changed: promotedAny,
+      mainImage: canonical.mainImage,
+      images: canonical.images,
+    };
   }
 
   async ensureHostedSelloMedia(req, { productId, selloId, sourceUrls }) {
@@ -543,7 +735,7 @@ class ProductMediaService {
         try {
           const { asset, reused } = await this.ensureAssetFromExternalUrl(req, {
             productId: pid,
-            pendingScope: `sello/${String(selloId || '').trim() || 'unknown'}`,
+            pendingScope: String(selloId || '').trim() || 'unknown',
             sourceKind: 'sello_import',
             sourceUrl,
             position: i,

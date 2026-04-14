@@ -2,6 +2,7 @@
 
 import React from 'react';
 
+import { ProductExportPage } from '@/plugins/products/components/ProductExportPage';
 import { ProductImportPage } from '@/plugins/products/components/ProductImportPage';
 
 // --- helpers: hyphen-safe singular + capitalization ---
@@ -81,6 +82,9 @@ export const createPanelRenderers = (
   const renderCurrentPage = (currentPage: string, PLUGIN_REGISTRY: any[]) => {
     if (currentPage === 'products-import') {
       return <ProductImportPage />;
+    }
+    if (currentPage === 'products-export') {
+      return <ProductExportPage />;
     }
 
     const plugin = PLUGIN_REGISTRY.find((p) => p.name === currentPage);

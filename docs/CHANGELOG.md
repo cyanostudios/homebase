@@ -4,20 +4,73 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
-## 2026-04-08 – Produktmedia: strikt delete-policy, felkoder och loggning
+## 2026-04-14 – Produkter, Sello/Woo, lagerhistorik, UI och bygg
 
-### Delete-policy (B2 ↔ DB)
+### Sello-import och WooCommerce-kanalöverskridningar
+
+- **Woo-instansidentifierare:** Vid import från Sello API skickas för `channel === 'woocommerce'` **`String(channel_instances.id)`** till `upsertChannelOverride` (samma semantik som filimportens kolumnprefix `woocommerce.<numerisktId>.*`). Tidigare användes `instance_key`, vilket inte matchade `upsertChannelOverride`-vägens lookup mot **`channel_instances.id`** (`bigint`), så pris, kategori och övriga Woo-specifika fält kunde utebli i **`channel_product_overrides`**.
+- **Store- och kampanjpris:** `getSelloStorePriceForInstance` och `getSelloCampaignPriceForInstance` läser efter språk/marknad även **versalerade marknadsnycklar** (`SE`, `DK`, …) i Sello `prices`-data, i linje med `getSelloRegularPriceForInstance`, så t.ex. Merchbutik/store-priser inte tappas när payload använder stora bokstäver.
+
+### Produkter: modell, export och media
+
+- **`plugins/products/model.js`**, **`controller.js`**, **`routes.js`**, **`selloModel.js`**, **`importColumnReference.js`**, **`productMediaService.js`:** utökad affärslogik (bl.a. lagerhändelser, Sello-historik vid import, exportstöd).
+- **Produktexport:** `plugins/products/productExportBuilder.js`, `plugins/products/exportColumnReference.js`; klient **`ProductExportPage.tsx`**, **`productsApi.ts`**, **`ProductContext.tsx`**, **`products.ts`**.
+
+### Databas (migrationer 091–094)
+
+- **`091-product-stock-events.sql`:** tabell **`product_stock_events`** (tidigare/on-hand kvantitet, källa, tidsstämpel) med index per produkt.
+- **`092-prune-product-stock-events-per-product.sql`:** rensning av befintliga rader till max **50** per produkt (första retention-steget).
+- **`093-product-stock-events-cap-100.sql`:** höjd retention till **100** rader per produkt (`ProductModel.MAX_STOCK_EVENTS_PER_PRODUCT`).
+- **`094-product-sello-import-history.sql`:** tabell för **Sello-produkthistorik** (`/v5/products/{id}/history`) vid import — händelsetyp, kanal, orderreferens, saldo m.m. för tidslinje/statistik.
+
+### Klient: layout, produkter, ordrar, analytics
+
+- **App-shell:** `ContentToolbar`, `ContentHeader`, `ContentLayoutContext`, `MainLayout`, `Sidebar`, `TopBar`, `panelRendering`, `App`, `appCurrentPageStore` — verktygsrad, rubriker och panelrendering.
+- **Produkter:** `ProductList`, `ProductForm` (omfattande uppdateringar).
+- **Ordrar:** `OrdersList`, `ordersApi` (förenklad klient och borttag av oanvänd backend-yta i **`plugins/orders/*`**).
+- **Analytics:** `AnalyticsList`, `AnalyticsContext`, ny **`datePresets.ts`**.
+- **Kanaler:** `ChannelsView` (fel- och instanslista; **React hooks** flyttade före `item`-guard så `eslint`/`react-hooks/rules-of-hooks` uppfylls). **Woo (server):** **`plugins/woocommerce-products/controller.js`** — t.ex. **GTIN/EAN** som `global_unique_id` och `meta_data`, samt **`short_description`** från `wooTexts` istället för auto-trunkerad `description`.
+
+### Server och lagring
+
+- **`server/core/services/storage/b2ObjectStorage.js`**, **`server/core/lists/listsModel.js`:** kompletteringar.
+
+### Tester
+
+- **`server/__tests__/productMediaService.test.js`:** utökade fall.
+- **Nya:** **`server/__tests__/b2ObjectStorage.test.js`**, **`server/__tests__/productExport.test.js`**.
+
+### Bygg
+
+- **`package.json`:** byggsteg **`copy:artifacts`** via **`scripts/copy-build-artifacts.js`**.
+
+## 2026-04-08 – Produktmedia
+
+### B2 custom domain: root-path-URL:er och nya object keys (nya uploads)
+
+- **`B2_PUBLIC_BASE_URL`:** Om basen **inte** börjar med `/file/` (t.ex. `https://media.syncer.se`) normaliseras den till **root-path** — ingen injektion av `/file/{B2_BUCKET}`. Publika länkar blir `https://media.syncer.se/<object-key>` (samma bucket bakom Cloudflare/custom domain som i B2).
+- **Nya B2-nycklar** (endast nya uppladdningar, ingen backfill):  
+  `{tenantId}/products/{productId}/{variant}/{position}_{assetId}_{hash}.{ext}`
+  - utan prefixet `tenants/`
+  - `productId` i path: **`sello-<id>` → `<id>`** via `normalizeProductIdForStorageKey` (endast lagringspath).
+  - **Sello-import innan produktrad finns:** `pendingScope` använder bara Sello-id (inte `sello/…` som tidigare blev `sello-<id>` i path); pending-segment normaliseras också med samma `sello-`-strippning om `/` ersätts med `-`.
+- **`objectKeyFromB2FileUrl`:** kan härleda samma object key från **Friendly URL** (`/file/<bucket>/…`) och från **custom domain** (`/<key>`), så reconcile/delete fortsätter fungera vid blandade URL-format.
+- **Tester:** `server/__tests__/b2ObjectStorage.test.js`; utökade fall i `server/__tests__/productMediaService.test.js`.
+
+### Strikt delete-policy, felkoder och loggning
+
+#### Delete-policy (B2 ↔ DB)
 
 - **Strikt per produkt:** produkt tas **inte** bort ur databasen om associerad media inte kunde raderas från B2.
 - **Bulk delete är partial:** `DELETE /api/products/batch` raderar de produkter vars media-delete lyckas och returnerar en tydlig fel-lista för resten.
   - Se ny doc: **`docs/products-bulk-delete.md`**
 
-### Felkoder (PRODUCT*MEDIA*\*) och tydligare kontrakt
+#### Felkoder (PRODUCT*MEDIA*\*) och tydligare kontrakt
 
 - **`PRODUCT_MEDIA_MISSING_FOR_CHANNEL`:** används när CDON/Fyndiq saknar giltig huvudbild (t.ex. missing/invalid `main_image`).
 - Standardiserad error-wrapping i produktmedia så att mediafel alltid får en tydlig `PRODUCT_MEDIA_*`-kod vid delete/fetch/process/upload.
 
-### Loggning (utan credential-läckage)
+#### Loggning (utan credential-läckage)
 
 - Strukturerade loggar för:
   - fetch start/success/fail
@@ -26,7 +79,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
   - delete start/success/fail (inkl. counts + productId)
   - Woo export: valda bild-URL:er (original)
 
-### Tester
+#### Tester (delete / kanaler)
 
 - Nya/utökade tester för:
   - strict delete och partial bulk delete (**`server/__tests__/productDeletePolicy.test.js`**, samt nya fall i **`productMediaService.test.js`**)

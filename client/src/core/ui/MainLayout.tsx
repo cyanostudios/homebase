@@ -47,6 +47,7 @@ export function MainLayout({
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
+  const [headerTitleExtra, setHeaderTitleExtra] = useState<React.ReactNode>(null);
 
   // Navigation: only trigger App's handlePageChange (guard + close panel handled there)
   const handlePageChange = (page: NavPage) => {
@@ -90,11 +91,15 @@ export function MainLayout({
           </ContentSurface>
         ) : (
           <ContentSurface>
-            <ContentLayoutProvider onTrailingChange={setHeaderTrailing}>
+            <ContentLayoutProvider
+              onTrailingChange={setHeaderTrailing}
+              onTitleExtraChange={setHeaderTitleExtra}
+            >
               <div className="flex h-full flex-col gap-4">
                 <ContentHeader
                   title={contentTitle}
                   icon={contentIcon}
+                  titleExtra={headerTitleExtra}
                   actionLabel={contentActionLabel}
                   actionIcon={contentActionIcon}
                   onAction={onContentAction}

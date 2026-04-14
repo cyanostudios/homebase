@@ -1860,6 +1860,12 @@ class WooCommerceController {
       options.salePrice != null && Number.isFinite(options.salePrice) && options.salePrice > 0
         ? String(options.salePrice)
         : undefined;
+    const gtin = String(p?.gtin ?? '').trim();
+    const ean = String(p?.ean ?? '').trim();
+    const barcodeForWooCore = gtin || ean;
+    const meta = [];
+    if (ean) meta.push({ key: 'ean', value: ean });
+    if (gtin) meta.push({ key: 'gtin', value: gtin });
     const payload = {
       sku: `V${p?.id ?? ''}`,
       attributes: [{ name: attrName, option: attrValue }],
@@ -1867,6 +1873,8 @@ class WooCommerceController {
       ...(salePrice != null ? { sale_price: salePrice } : {}),
       manage_stock: true,
       stock_quantity: p?.quantity != null ? Math.max(0, Math.floor(Number(p.quantity))) : 0,
+      ...(meta.length ? { meta_data: meta } : {}),
+      ...(barcodeForWooCore ? { global_unique_id: barcodeForWooCore } : {}),
     };
     if (p?.mainImage && isValidImageUrl(p.mainImage)) {
       payload.image = { src: p.mainImage };
@@ -2031,9 +2039,10 @@ class WooCommerceController {
     const description = String(wooTexts.description ?? '').trim();
 
     const metaData = [];
-    const ean = (p?.ean ?? '').trim();
-    const gtin = (p?.gtin ?? '').trim();
-    const mpn = (p?.mpn ?? '').trim();
+    const gtin = String(p?.gtin ?? '').trim();
+    const ean = String(p?.ean ?? '').trim();
+    const barcodeForWooCore = gtin || ean;
+    const mpn = String(p?.mpn ?? '').trim();
     if (ean) metaData.push({ key: 'ean', value: ean });
     if (gtin) metaData.push({ key: 'gtin', value: gtin });
     if (mpn) metaData.push({ key: 'mpn', value: mpn });
@@ -2058,8 +2067,7 @@ class WooCommerceController {
         ? String(options.salePrice)
         : undefined;
 
-    const shortDescription =
-      metaDesc || (description.length > 160 ? description.slice(0, 157) + '...' : description);
+    const shortDescription = String(wooTexts.shortDescription ?? '').trim();
 
     const weightUnit = (p?.channelSpecific?.weightUnit ?? 'g').toString().trim().toLowerCase();
     const weightKg =
@@ -2101,7 +2109,8 @@ class WooCommerceController {
       backorders,
       stock_quantity: p?.quantity != null ? Number(p.quantity) : undefined,
       description: description || '',
-      short_description: shortDescription || undefined,
+      ...(barcodeForWooCore ? { global_unique_id: barcodeForWooCore } : {}),
+      ...(shortDescription ? { short_description: shortDescription } : {}),
       ...(weightKg != null ? { weight: weightKg } : {}),
       ...(dimensions ? { dimensions } : {}),
       categories:

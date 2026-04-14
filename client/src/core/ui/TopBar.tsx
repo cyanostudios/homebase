@@ -238,6 +238,9 @@ export function TopBar({
     if (currentPage === 'products-import') {
       return 'Importera produkter';
     }
+    if (currentPage === 'products-export') {
+      return 'Exportera produkter';
+    }
 
     for (const plugin of PLUGIN_REGISTRY) {
       if (plugin.name === currentPage && plugin.navigation?.label) {

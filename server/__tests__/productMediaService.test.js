@@ -7,8 +7,21 @@ const {
   ProductMediaService,
   collectProductImageUrls,
 } = require('../../plugins/products/productMediaService');
-const { objectKeyFromB2FileUrl } = require('../../server/core/services/storage/b2ObjectStorage');
+const {
+  objectKeyFromB2FileUrl,
+  B2ObjectStorage,
+} = require('../../server/core/services/storage/b2ObjectStorage');
 const { AppError } = require('../../server/core/errors/AppError');
+
+const b2KeyOpts = {
+  driver: 'b2',
+  bucket: 'homebase-media-01',
+  endpoint: 'https://s3.eu-central-003.backblazeb2.com',
+  region: 'eu-central-003',
+  accessKeyId: 'test-key-id',
+  secretAccessKey: 'test-secret',
+  publicBaseUrl: 'https://media.syncer.se',
+};
 
 function makeAsset(url, overrides = {}) {
   return {
@@ -75,6 +88,15 @@ describe('objectKeyFromB2FileUrl', () => {
       ),
     ).toBe('tenants/1/products/x.jpg');
   });
+
+  it('extracts key from custom domain root-path URL', () => {
+    expect(
+      objectKeyFromB2FileUrl(
+        'https://media.syncer.se/1/products/58324746/original/0_x_h.jpg',
+        'homebase-media-01',
+      ),
+    ).toBe('1/products/58324746/original/0_x_h.jpg');
+  });
 });
 
 describe('ProductMediaService', () => {
@@ -107,6 +129,42 @@ describe('ProductMediaService', () => {
 
     await service.reconcileAttachedProductMedia({}, '123', [
       makeAsset('https://f003.backblazeb2.com/file/my-bucket/tenants/1/a.jpg'),
+    ]);
+
+    expect(storage.deleteObjects).not.toHaveBeenCalled();
+    expect(mediaObjectModel.deleteByIds).not.toHaveBeenCalled();
+  });
+
+  it('reconcile does not delete when keep URL is custom domain but object key matches row', async () => {
+    const rowKey = '1/products/58324746/original/0_a_h.jpg';
+    const mediaObjectModel = {
+      attachPendingIdsToProduct: jest.fn().mockResolvedValue([]),
+      updateById: jest.fn().mockResolvedValue(null),
+      listByProductId: jest.fn().mockResolvedValue([
+        {
+          id: 'keep-id',
+          url: `https://media.syncer.se/${rowKey}`,
+          storage_key: rowKey,
+          position: 0,
+          variants: {
+            original: {
+              key: rowKey,
+              url: `https://media.syncer.se/${rowKey}`,
+            },
+          },
+        },
+      ]),
+      deleteByIds: jest.fn().mockResolvedValue([]),
+    };
+    const storage = {
+      bucket: 'homebase-media-01',
+      getPublicUrl: (key) => `https://f003.backblazeb2.com/file/homebase-media-01/${key}`,
+      deleteObjects: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = new ProductMediaService({ storage, mediaObjectModel });
+
+    await service.reconcileAttachedProductMedia({}, '123', [
+      makeAsset(`https://f003.backblazeb2.com/file/homebase-media-01/${rowKey}`),
     ]);
 
     expect(storage.deleteObjects).not.toHaveBeenCalled();
@@ -462,5 +520,111 @@ describe('ProductMediaService', () => {
         }),
       ],
     });
+  });
+
+  it('promotes pending manual B2 keys into the product folder after attach', async () => {
+    const keyHelper = new B2ObjectStorage(b2KeyOpts);
+    const assetId = 'f566aae7-c9d1-4388-a3c3-85ff832689ba';
+    const hash = '0281acc8cfe209a1e2849597aab4a1e8f74ae46b78243bd791250a5cc175db4e';
+    const tenantId = 2;
+    const productId = 99;
+    const pendingBase = `2/products/manual-user-1`;
+    const origKey = `${pendingBase}/original/0_${assetId}_${hash}.jpg`;
+    const prevKey = `${pendingBase}/preview/0_${assetId}_${hash}.webp`;
+    const thumbKey = `${pendingBase}/thumbnail/0_${assetId}_${hash}.webp`;
+
+    const row = {
+      id: assetId,
+      product_id: productId,
+      position: 0,
+      content_hash: hash,
+      source_kind: 'manual_upload',
+      storage_key: origKey,
+      url: `https://media.syncer.se/${origKey}`,
+      variants: {
+        original: {
+          key: origKey,
+          url: `https://media.syncer.se/${origKey}`,
+          mimeType: 'image/jpeg',
+        },
+        preview: {
+          key: prevKey,
+          url: `https://media.syncer.se/${prevKey}`,
+          mimeType: 'image/webp',
+        },
+        thumbnail: {
+          key: thumbKey,
+          url: `https://media.syncer.se/${thumbKey}`,
+          mimeType: 'image/webp',
+        },
+      },
+    };
+
+    const expectedOriginalKey = keyHelper.buildAssetVariantKey({
+      tenantId,
+      productId: String(productId),
+      assetId,
+      position: 0,
+      variant: 'original',
+      hash,
+      extension: 'jpg',
+    });
+    const expectedPreviewKey = keyHelper.buildAssetVariantKey({
+      tenantId,
+      productId: String(productId),
+      assetId,
+      position: 0,
+      variant: 'preview',
+      hash,
+      extension: 'webp',
+    });
+    const expectedThumbKey = keyHelper.buildAssetVariantKey({
+      tenantId,
+      productId: String(productId),
+      assetId,
+      position: 0,
+      variant: 'thumbnail',
+      hash,
+      extension: 'webp',
+    });
+
+    const storage = {
+      bucket: keyHelper.bucket,
+      getPublicUrl: (k) => keyHelper.getPublicUrl(k),
+      buildAssetVariantKey: (opts) => keyHelper.buildAssetVariantKey(opts),
+      copyObjectWithinBucket: jest.fn(async ({ destinationKey }) => ({
+        key: destinationKey,
+        publicUrl: keyHelper.getPublicUrl(destinationKey),
+        versionId: null,
+      })),
+      deleteObjects: jest.fn().mockResolvedValue(undefined),
+    };
+    const mediaObjectModel = {
+      updateById: jest.fn().mockResolvedValue({ ...row }),
+    };
+    const service = new ProductMediaService({ storage, mediaObjectModel });
+
+    const did = await service.promoteProductMediaRowIfNeeded(
+      { session: { tenantId } },
+      row,
+      productId,
+    );
+
+    expect(did).toBe(true);
+    expect(storage.copyObjectWithinBucket).toHaveBeenCalledTimes(3);
+    expect(storage.copyObjectWithinBucket).toHaveBeenCalledWith({
+      sourceKey: origKey,
+      destinationKey: expectedOriginalKey,
+    });
+    expect(storage.copyObjectWithinBucket).toHaveBeenCalledWith({
+      sourceKey: prevKey,
+      destinationKey: expectedPreviewKey,
+    });
+    expect(storage.copyObjectWithinBucket).toHaveBeenCalledWith({
+      sourceKey: thumbKey,
+      destinationKey: expectedThumbKey,
+    });
+    expect(mediaObjectModel.updateById).toHaveBeenCalled();
+    expect(storage.deleteObjects).toHaveBeenCalled();
   });
 });
