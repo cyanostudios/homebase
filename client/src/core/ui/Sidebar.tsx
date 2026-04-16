@@ -51,6 +51,7 @@ export type NavPage =
   | 'cdon-products'
   | 'fyndiq-products'
   | 'orders'
+  | 'orders-export'
   | 'shipping'
   | 'analytics'
   | 'settings';
@@ -183,7 +184,8 @@ export function Sidebar({
       item.page === currentPage ||
       item.submenu?.some((sub: any) => sub.page === currentPage) ||
       ((currentPage === 'products-import' || currentPage === 'products-export') &&
-        item.page === 'products');
+        item.page === 'products') ||
+      (currentPage === 'orders-export' && item.page === 'orders');
     const hasSubmenu = item.submenu && item.submenu.length > 0;
     const isSubmenuOpen = openSubmenus.has(item.label);
 

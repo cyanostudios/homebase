@@ -120,6 +120,39 @@ class OrdersApi {
     return (await this.request(`/${encodeURIComponent(id)}`)) as OrderDetails;
   }
 
+  /** Lazy-loaded staff note only (no order lines). */
+  async getNote(id: string): Promise<{ note: string | null }> {
+    return (await this.request(`/${encodeURIComponent(id)}/note`)) as { note: string | null };
+  }
+
+  async updateNote(id: string, note: string): Promise<{ ok: true; hasStaffNote: boolean }> {
+    return (await this.request(`/${encodeURIComponent(id)}/note`, {
+      method: 'PUT',
+      body: JSON.stringify({ note }),
+    })) as { ok: true; hasStaffNote: boolean };
+  }
+
+  /** Samma anteckning på flera order (ersätter befintlig per order). */
+  async updateNotesBatch(
+    ids: string[],
+    note: string,
+  ): Promise<{
+    ok: true;
+    updated: number;
+    updatedIds: string[];
+    hasStaffNote: boolean;
+  }> {
+    return (await this.request('/batch/note', {
+      method: 'PUT',
+      body: JSON.stringify({ ids, note }),
+    })) as {
+      ok: true;
+      updated: number;
+      updatedIds: string[];
+      hasStaffNote: boolean;
+    };
+  }
+
   async updateStatus(
     id: string,
     data: { status: OrderStatus; carrier?: string; trackingNumber?: string },
@@ -213,6 +246,138 @@ class OrdersApi {
     const contentType = response.headers.get('Content-Type') || '';
     if (!contentType.toLowerCase().includes('application/pdf')) {
       const err: any = new Error('Server did not return a PDF (got ' + contentType + ')');
+      err.status = response.status;
+      throw err;
+    }
+    return response.blob();
+  }
+
+  /** Download receipt PDF: one page per order, same order as ids[]. */
+  async downloadKvittoPdf(ids: string[], channelLabels?: Record<string, string>): Promise<Blob> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': await this.getCsrfToken(),
+    };
+    const response = await fetch(`${this.basePath}/kvitto/pdf`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify({ ids, channelLabels: channelLabels ?? undefined }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to download kvitto PDF';
+      try {
+        const payload = text ? JSON.parse(text) : null;
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch {
+        /* use default message if JSON parse fails */
+      }
+      const err: any = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+    const contentType = response.headers.get('Content-Type') || '';
+    if (!contentType.toLowerCase().includes('application/pdf')) {
+      const err: any = new Error('Server did not return a PDF (got ' + contentType + ')');
+      err.status = response.status;
+      throw err;
+    }
+    return response.blob();
+  }
+
+  /** Bokföringsunderlag (Excel). Same channelLabels semantics as plocklista/kvitto. */
+  async downloadAccountingExcel(
+    ids: string[],
+    channelLabels?: Record<string, string>,
+  ): Promise<Blob> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': await this.getCsrfToken(),
+    };
+    const response = await fetch(`${this.basePath}/accounting/xlsx`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify({ ids, channelLabels: channelLabels ?? undefined }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to download accounting export';
+      try {
+        const payload = text ? JSON.parse(text) : null;
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch {
+        /* use default message if JSON parse fails */
+      }
+      const err: any = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+    const contentType = response.headers.get('Content-Type') || '';
+    const ct = contentType.toLowerCase();
+    if (
+      !ct.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') &&
+      !ct.includes('application/octet-stream')
+    ) {
+      const err: any = new Error('Server did not return an Excel file (got ' + contentType + ')');
+      err.status = response.status;
+      throw err;
+    }
+    return response.blob();
+  }
+
+  /** Kolumn-id:n för anpassad orderexport (GET). */
+  async getOrderExportFields(): Promise<{ orderFields: string[]; lineFields: string[] }> {
+    return (await this.request('/export/fields')) as {
+      orderFields: string[];
+      lineFields: string[];
+    };
+  }
+
+  /** Tvåblads-Excel (Order + Rader), filtrerat på placed_at. */
+  async downloadOrdersExportExcel(body: {
+    from: string;
+    to: string;
+    orderFields: string[];
+    lineFields: string[];
+  }): Promise<Blob> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': await this.getCsrfToken(),
+    };
+    const response = await fetch(`${this.basePath}/export/xlsx`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to download order export';
+      try {
+        const payload = text ? JSON.parse(text) : null;
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch {
+        /* use default message if JSON parse fails */
+      }
+      const err: any = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+    const contentType = response.headers.get('Content-Type') || '';
+    const ct = contentType.toLowerCase();
+    if (
+      !ct.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') &&
+      !ct.includes('application/octet-stream')
+    ) {
+      const err: any = new Error('Server did not return an Excel file (got ' + contentType + ')');
       err.status = response.status;
       throw err;
     }

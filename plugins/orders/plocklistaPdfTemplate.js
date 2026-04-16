@@ -1,76 +1,20 @@
 // plugins/orders/plocklistaPdfTemplate.js
 // PDF template for plocklista (pick list): compact horizontal sections per order, lines between orders.
 
-function formatAddress(addr) {
-  if (!addr || typeof addr !== 'object') return [];
-  const parts = [];
-
-  if (addr.full_name || addr.fullName) {
-    parts.push(addr.full_name || addr.fullName);
-  } else {
-    const name = [addr.first_name, addr.last_name].filter(Boolean).join(' ').trim();
-    if (name) parts.push(name);
-    if (addr.company) parts.push(addr.company);
-  }
-
-  if (addr.street_address || addr.streetAddress) {
-    parts.push(addr.street_address || addr.streetAddress);
-  } else {
-    if (addr.address_1) parts.push(addr.address_1);
-    if (addr.address_2) parts.push(addr.address_2);
-  }
-
-  const cityState = [addr.city, addr.state].filter(Boolean).join(', ').trim();
-  const postal = addr.postcode || addr.postal_code || addr.postalCode;
-  const location = [postal, cityState].filter(Boolean).join(' ').trim();
-  if (location) parts.push(location);
-  if (addr.country) parts.push(addr.country);
-
-  return parts;
-}
-
-function formatCurrency(amount, currency = 'SEK') {
-  const n = Number.isFinite(Number(amount)) ? Number(amount) : 0;
-  return new Intl.NumberFormat('sv-SE', { style: 'currency', currency }).format(n);
-}
-
-function getCustomerPhone(customer) {
-  if (!customer || typeof customer !== 'object') return '';
-  return customer.phone || customer.phone_mobile || customer.phoneMobile || '';
-}
-
-function getCustomerEmail(customer) {
-  if (!customer || typeof customer !== 'object') return '';
-  return customer.email || customer.email_address || '';
-}
-
-function formatChannelLabel(channel, channelLabel) {
-  const ch = String(channel || '').toLowerCase();
-  // WooCommerce: use persisted channel_label only; no fallback to "WooCommerce"
-  if (ch === 'woocommerce') {
-    const label = channelLabel != null ? String(channelLabel).trim() : '';
-    return label !== '' ? label : '—';
-  }
-  if (ch === 'cdon') return 'CDON';
-  if (ch === 'fyndiq') return 'Fyndiq';
-  return ch || '—';
-}
+const {
+  formatAddress,
+  formatCurrency,
+  getCustomerPhone,
+  getCustomerEmail,
+  formatChannelLabel,
+  escapeHtml,
+} = require('./ordersPdfCommon');
 
 /**
  * Generate HTML for plocklista PDF. Each order in orders has: order fields (id, orderNumber, platformOrderNumber, channelOrderId, shippingAddress, customer, totalAmount, currency, items) plus ordersumma and frakt (numbers).
  * @param {Array<{ order: object, ordersumma: number, frakt: number|null }>} orders
  * @returns {string} HTML string
  */
-function escapeHtml(s) {
-  if (s == null) return '';
-  const str = String(s);
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 function generatePlocklistaHTML(orders) {
   if (!Array.isArray(orders) || orders.length === 0) {
     return `

@@ -26,6 +26,8 @@ export interface ValidationError {
 
 export interface OrderListItem {
   id: string;
+  /** True when order has non-empty internal staff note (list endpoint; text is lazy-loaded). */
+  hasStaffNote?: boolean;
   channel: string;
   channelOrderId: string;
   /** Resolved store/channel display name (e.g. "Mobilhallen"). Set by server for WooCommerce; client uses for CDON/Fyndiq from raw. */
@@ -62,5 +64,7 @@ export interface OrderDetails extends OrderListItem {
   shippingAddress?: any;
   billingAddress?: any;
   customer?: any;
+  /** Full staff note when order was loaded with detail (`GET /api/orders/:id`). */
+  staffNote?: string | null;
   items: OrderItem[];
 }

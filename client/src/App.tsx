@@ -231,6 +231,9 @@ function AppContent() {
     if (currentPage === 'products-export') {
       return 'Exportera produkter';
     }
+    if (currentPage === 'orders-export') {
+      return 'Exportera order';
+    }
 
     if (!currentPagePlugin?.navigation) {
       return currentPage;
@@ -441,7 +444,9 @@ function AppContent() {
             ? undefined
             : currentPage === 'products-import' || currentPage === 'products-export'
               ? PLUGIN_REGISTRY.find((p) => p.name === 'products')?.navigation?.icon
-              : currentPagePlugin?.navigation?.icon
+              : currentPage === 'orders-export'
+                ? PLUGIN_REGISTRY.find((p) => p.name === 'orders')?.navigation?.icon
+                : currentPagePlugin?.navigation?.icon
         }
         contentActionLabel={currentPage === 'settings' ? 'Close' : primaryAction?.label}
         contentActionIcon={currentPage === 'settings' ? undefined : primaryAction?.icon}

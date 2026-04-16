@@ -4,6 +4,26 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-16 – Ordrar: bokföringsexport, anpassad Excel-export, PDF (plocklista/kvitto), interna anteckningar
+
+### Databas
+
+- **`096-orders-staff-note.sql`:** kolumn **`staff_note`** på **`orders`** (intern personalanteckning, max **2000** tecken via **`chk_orders_staff_note_len`**).
+
+### Backend (`plugins/orders`)
+
+- **Bokföringsunderlag (Excel):** **`accountingExportBuilder.js`**, **`POST /api/orders/accounting/xlsx`** — kolumner enligt bokföringsunderlag (frakt m.m.), sortering på **Homebase ordernummer** (**`order_number`**). **`getAccountingExportLineRows`** i modellen.
+- **Anpassad orderexport:** **`orderExportBuilder.js`**, **`GET /api/orders/export/fields`**, **`POST /api/orders/export/xlsx`** — två blad (**Order** / **Rader**), valbara fält, datumintervall på **`placed_at`**, max **731** dagar, tak **100 000** rader.
+- **Intern anteckning:** **`GET/PUT /api/orders/:id/note`** (lazy), **`PUT /api/orders/batch/note`** — samma text på flera order (upp till **500** id:n per anrop).
+- **PDF:** plocklista (**`POST /api/orders/plocklista/pdf`**), kvitto (**`POST /api/orders/kvitto/pdf`**), delade hjälpare **`orderPdfPayload.js`**, **`ordersPdfCommon.js`**, mallar **`plocklistaPdfTemplate.js`**, **`kvittoPdfTemplate.js`**.
+
+### Klient
+
+- **Hel sida `orders-export`:** **`OrderExportPage.tsx`** (period, snabbval, kryssrutor Orderfält/Radfält, nedladdning) — samma navigationsmönster som produktimport/export.
+- **`ordersApi`:** bokföring Excel, anpassad export, fältreferens, batch-anteckning.
+- **`OrdersList`:** Hantera (bl.a. bokföring, kvitto, plocklista), **Alternativ → Exportera order**, anteckning för **en eller flera** valda order via **`OrderStaffNoteDialog`**.
+- **App-shell:** **`App.tsx`**, **`Sidebar`** (nav **`orders-export`**, aktiv under Ordrar), **`TopBar`**, **`panelRendering`**, **`appCurrentPageStore`** (bootstrap ordrar även på export-sidan).
+
 ## 2026-04-14 – Produkter: utkast (`is_draft`), import/export-kolumner, kanaletiketter
 
 ### Databas

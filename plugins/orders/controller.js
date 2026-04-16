@@ -19,6 +19,16 @@ const orderSyncState = require('./orderSyncState');
 const orderSyncService = require('./orderSyncService');
 const puppeteer = require('puppeteer');
 const { generatePlocklistaHTML } = require('./plocklistaPdfTemplate');
+const { generateKvittoHTML } = require('./kvittoPdfTemplate');
+const { buildOrderPdfPayloads } = require('./orderPdfPayload');
+const { buildAccountingRows, buildAccountingXlsxBuffer } = require('./accountingExportBuilder');
+const {
+  ORDER_HEADERS,
+  LINE_HEADERS,
+  buildCustomOrderExportXlsx,
+  isValidOrderFieldId,
+  isValidLineFieldId,
+} = require('./orderExportBuilder');
 const analyticsCache = require('../analytics/cache');
 
 class OrdersController {
@@ -402,6 +412,55 @@ class OrdersController {
     }
   }
 
+  async getStaffNote(req, res) {
+    try {
+      const data = await this.model.getStaffNote(req, req.params.id);
+      return res.json(data);
+    } catch (error) {
+      Logger.error('Orders staff note get error', error, {
+        userId: Context.getUserId(req),
+        id: req.params.id,
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to fetch order note' });
+    }
+  }
+
+  async updateStaffNote(req, res) {
+    try {
+      const data = await this.model.updateStaffNote(req, req.params.id, req.body?.note);
+      return res.json(data);
+    } catch (error) {
+      Logger.error('Orders staff note update error', error, {
+        userId: Context.getUserId(req),
+        id: req.params.id,
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to update order note' });
+    }
+  }
+
+  /** PUT /api/orders/batch/note — same staff note on many orders */
+  async batchUpdateStaffNote(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      const result = await this.model.batchUpdateStaffNote(req, idsRaw, req.body?.note);
+      if (result.updated === 0) {
+        return res.status(404).json({ error: 'Ingen order uppdaterades (kontrollera valda id).' });
+      }
+      return res.json({
+        ok: true,
+        updated: result.updated,
+        updatedIds: result.updatedIds,
+        hasStaffNote: result.hasStaffNote,
+      });
+    } catch (error) {
+      Logger.error('Orders batch staff note error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to update order notes' });
+    }
+  }
+
   async getById(req, res) {
     try {
       const order = await this.model.getById(req, req.params.id);
@@ -445,54 +504,7 @@ class OrdersController {
           ? req.body.channelLabels
           : null;
 
-      const payload = orders.map((order) => {
-        const items = Array.isArray(order.items) ? order.items : [];
-        const channel = String(order.channel || '').toLowerCase();
-
-        const isWooShippingItem = (it) => {
-          if (channel !== 'woocommerce') return false;
-          const hasProductId = it.productId != null || it.product_id != null;
-          if (hasProductId) return false;
-          const raw = it.raw && typeof it.raw === 'object' ? it.raw : {};
-          return raw.method_id != null;
-        };
-
-        const productItems = items.filter((it) => !isWooShippingItem(it));
-        const shippingItems = items.filter(isWooShippingItem);
-
-        let ordersumma = 0;
-        for (const it of productItems) {
-          const qty = Number(it.quantity);
-          const unit = it.unitPrice != null ? Number(it.unitPrice) : 0;
-          if (Number.isFinite(qty) && Number.isFinite(unit)) ordersumma += qty * unit;
-        }
-
-        const total = order.totalAmount != null ? Number(order.totalAmount) : null;
-        let frakt = null;
-        if (channel === 'woocommerce' && shippingItems.length > 0) {
-          let shippingSum = 0;
-          for (const it of shippingItems) {
-            const qty = Number(it.quantity);
-            const unit = it.unitPrice != null ? Number(it.unitPrice) : 0;
-            if (Number.isFinite(qty) && Number.isFinite(unit)) shippingSum += qty * unit;
-          }
-          frakt = Number.isFinite(shippingSum) ? shippingSum : null;
-        } else if (total != null && Number.isFinite(total)) {
-          frakt = total - ordersumma;
-          if (frakt < 0) frakt = 0;
-        }
-
-        const platformLabel =
-          channelLabels != null && order.id != null
-            ? (channelLabels[String(order.id)] ?? null)
-            : null;
-        const orderForTemplate = {
-          ...order,
-          items: productItems,
-          platformLabel: platformLabel || undefined,
-        };
-        return { order: orderForTemplate, ordersumma, frakt };
-      });
+      const payload = buildOrderPdfPayloads(orders, channelLabels);
 
       const html = generatePlocklistaHTML(payload);
 
@@ -529,6 +541,187 @@ class OrdersController {
           await browser.close();
         } catch {}
       }
+    }
+  }
+
+  /** POST /api/orders/kvitto/pdf - Receipt PDF: one full page per order. */
+  async generateKvittoPdf(req, res) {
+    let browser = null;
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw) || idsRaw.length === 0) {
+        return res.status(400).json({ error: 'ids[] required (non-empty array)' });
+      }
+
+      const orders = [];
+      for (const id of idsRaw) {
+        try {
+          const order = await this.model.getById(req, id);
+          if (order) orders.push(order);
+        } catch (err) {
+          if (err instanceof AppError && err.statusCode === 404) continue;
+          throw err;
+        }
+      }
+
+      if (orders.length === 0) {
+        return res.status(404).json({ error: 'No orders found for the given ids' });
+      }
+
+      const channelLabels =
+        req.body?.channelLabels && typeof req.body.channelLabels === 'object'
+          ? req.body.channelLabels
+          : null;
+
+      const payload = buildOrderPdfPayloads(orders, channelLabels);
+      const html = generateKvittoHTML(payload);
+
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+      });
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      Logger.info('Kvitto PDF generated', {
+        userId: Context.getUserId(req),
+        orderCount: orders.length,
+      });
+
+      const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="kvitto-${dateStr}.pdf"`);
+      res.setHeader('Content-Length', buffer.length);
+      res.end(buffer);
+    } catch (error) {
+      Logger.error('Kvitto PDF generation failed', error, { userId: Context.getUserId(req) });
+      return res.status(500).json({ error: 'Failed to generate kvitto PDF' });
+    } finally {
+      if (browser) {
+        try {
+          await browser.close();
+        } catch {}
+      }
+    }
+  }
+
+  /** POST /api/orders/accounting/xlsx - Bokföringsunderlag (Excel) for selected orders. */
+  async exportAccountingExcel(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw) || idsRaw.length === 0) {
+        return res.status(400).json({ error: 'ids[] required (non-empty array)' });
+      }
+
+      const flatRows = await this.model.getAccountingExportLineRows(req, idsRaw);
+      if (flatRows.length === 0) {
+        return res.status(404).json({ error: 'No order lines found for the given ids' });
+      }
+
+      const channelLabels =
+        req.body?.channelLabels && typeof req.body.channelLabels === 'object'
+          ? req.body.channelLabels
+          : null;
+
+      const rows = buildAccountingRows(flatRows, channelLabels);
+      const buffer = buildAccountingXlsxBuffer(rows);
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      Logger.info('Accounting Excel generated', {
+        userId: Context.getUserId(req),
+        rowCount: rows.length,
+      });
+
+      const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader('Content-Disposition', `attachment; filename="bokforing-${dateStr}.xlsx"`);
+      res.setHeader('Content-Length', buf.length);
+      res.end(buf);
+    } catch (error) {
+      Logger.error('Accounting Excel export failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to generate accounting export' });
+    }
+  }
+
+  /** GET /api/orders/export/fields — column ids for custom order export UI. */
+  getOrderExportFields(req, res) {
+    return res.json({ orderFields: ORDER_HEADERS, lineFields: LINE_HEADERS });
+  }
+
+  /** POST /api/orders/export/xlsx — two-sheet Excel (Order + Rader), date range on placed_at. */
+  async exportOrdersCustomExcel(req, res) {
+    try {
+      const from = req.body?.from;
+      const to = req.body?.to;
+      if (typeof from !== 'string' || typeof to !== 'string') {
+        return res.status(400).json({ error: 'from and to (YYYY-MM-DD) are required' });
+      }
+
+      const orderFieldsRaw = req.body?.orderFields;
+      const lineFieldsRaw = req.body?.lineFields;
+      const orderFields = Array.isArray(orderFieldsRaw)
+        ? orderFieldsRaw.filter(isValidOrderFieldId)
+        : [];
+      const lineFields = Array.isArray(lineFieldsRaw)
+        ? lineFieldsRaw.filter(isValidLineFieldId)
+        : [];
+
+      if (orderFields.length === 0 && lineFields.length === 0) {
+        return res.status(400).json({ error: 'Välj minst ett fält i Orderfält eller Radfält.' });
+      }
+
+      const fromDay = new Date(`${from.trim()}T00:00:00.000Z`);
+      const toDay = new Date(`${to.trim()}T23:59:59.999Z`);
+      if (Number.isNaN(fromDay.getTime()) || Number.isNaN(toDay.getTime())) {
+        return res.status(400).json({ error: 'Ogiltigt datum' });
+      }
+      if (fromDay.getTime() > toDay.getTime()) {
+        return res.status(400).json({ error: 'from måste vara på eller före to' });
+      }
+
+      const inclusiveDays = Math.floor((toDay.getTime() - fromDay.getTime()) / 86400000) + 1;
+      if (inclusiveDays > 731) {
+        return res.status(400).json({ error: 'Datumintervall får vara max 731 dagar.' });
+      }
+
+      const flatRows = await this.model.getOrderExportFlatRowsByDateRange(req, from, to);
+
+      const channelLabels =
+        req.body?.channelLabels && typeof req.body.channelLabels === 'object'
+          ? req.body.channelLabels
+          : null;
+
+      const buffer = buildCustomOrderExportXlsx(flatRows, channelLabels, orderFields, lineFields);
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      Logger.info('Custom order Excel generated', {
+        userId: Context.getUserId(req),
+        lineCount: flatRows.length,
+      });
+
+      const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader('Content-Disposition', `attachment; filename="order-export-${dateStr}.xlsx"`);
+      res.setHeader('Content-Length', buf.length);
+      res.end(buf);
+    } catch (error) {
+      Logger.error('Custom order Excel export failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to generate order export' });
     }
   }
 

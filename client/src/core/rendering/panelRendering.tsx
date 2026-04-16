@@ -2,6 +2,7 @@
 
 import React from 'react';
 
+import { OrderExportPage } from '@/plugins/orders/components/OrderExportPage';
 import { ProductExportPage } from '@/plugins/products/components/ProductExportPage';
 import { ProductImportPage } from '@/plugins/products/components/ProductImportPage';
 
@@ -85,6 +86,9 @@ export const createPanelRenderers = (
     }
     if (currentPage === 'products-export') {
       return <ProductExportPage />;
+    }
+    if (currentPage === 'orders-export') {
+      return <OrderExportPage />;
     }
 
     const plugin = PLUGIN_REGISTRY.find((p) => p.name === currentPage);

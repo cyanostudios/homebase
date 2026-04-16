@@ -77,6 +77,26 @@ function createOrdersRoutes(controller, context) {
     (req, res) => controller.batchUpdateStatus(req, res),
   );
 
+  // PUT /api/orders/batch/note — same internal staff note on multiple orders
+  router.put(
+    '/batch/note',
+    gate,
+    csrfProtection,
+    [
+      body('ids')
+        .isArray({ min: 1, max: 500 })
+        .withMessage('ids must be a non-empty array (max 500)'),
+      body('note')
+        .customSanitizer((v) => (v === undefined || v === null ? '' : v))
+        .isString()
+        .withMessage('note must be a string')
+        .isLength({ max: 2000 })
+        .withMessage('note must not exceed 2000 characters'),
+    ],
+    validateRequest,
+    (req, res) => controller.batchUpdateStaffNote(req, res),
+  );
+
   // POST /api/orders/plocklista/pdf - Export pick list PDF for selected orders (body: { ids: string[] })
   router.post(
     '/plocklista/pdf',
@@ -85,6 +105,73 @@ function createOrdersRoutes(controller, context) {
     [commonRules.array('ids', 200)],
     validateRequest,
     (req, res) => controller.generatePlocklistaPdf(req, res),
+  );
+
+  // POST /api/orders/kvitto/pdf - Receipt PDF (one page per order)
+  router.post(
+    '/kvitto/pdf',
+    gate,
+    csrfProtection,
+    [commonRules.array('ids', 200)],
+    validateRequest,
+    (req, res) => controller.generateKvittoPdf(req, res),
+  );
+
+  // POST /api/orders/accounting/xlsx - Bokföringsunderlag (Excel)
+  router.post(
+    '/accounting/xlsx',
+    gate,
+    csrfProtection,
+    [commonRules.array('ids', 200)],
+    validateRequest,
+    (req, res) => controller.exportAccountingExcel(req, res),
+  );
+
+  // GET /api/orders/export/fields — order vs line column ids for custom export UI
+  router.get('/export/fields', gate, validateRequest, (req, res) =>
+    controller.getOrderExportFields(req, res),
+  );
+
+  // POST /api/orders/export/xlsx — custom two-sheet export (date range on placed_at)
+  router.post(
+    '/export/xlsx',
+    gate,
+    csrfProtection,
+    [
+      body('from')
+        .matches(/^\d{4}-\d{2}-\d{2}$/)
+        .withMessage('from must be YYYY-MM-DD'),
+      body('to')
+        .matches(/^\d{4}-\d{2}-\d{2}$/)
+        .withMessage('to must be YYYY-MM-DD'),
+      body('orderFields').isArray({ max: 32 }),
+      body('lineFields').isArray({ max: 32 }),
+    ],
+    validateRequest,
+    (req, res) => controller.exportOrdersCustomExcel(req, res),
+  );
+
+  // GET /api/orders/:id/note — staff note only (lazy load; avoids full order + items)
+  router.get('/:id/note', gate, [commonRules.id('id')], validateRequest, (req, res) =>
+    controller.getStaffNote(req, res),
+  );
+
+  // PUT /api/orders/:id/note — internal staff note (max 2000 chars; empty clears)
+  router.put(
+    '/:id/note',
+    gate,
+    csrfProtection,
+    [
+      commonRules.id('id'),
+      body('note')
+        .customSanitizer((v) => (v === undefined || v === null ? '' : v))
+        .isString()
+        .withMessage('note must be a string')
+        .isLength({ max: 2000 })
+        .withMessage('note must not exceed 2000 characters'),
+    ],
+    validateRequest,
+    (req, res) => controller.updateStaffNote(req, res),
   );
 
   // GET /api/orders/:id

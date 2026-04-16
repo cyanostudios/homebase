@@ -739,10 +739,11 @@ class OrdersModel {
       params.push(Math.max(Number(offset) || 0, 0));
       const offsetIdx = params.length;
 
+      const whereSql = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '';
+
       const countSql = `
         SELECT COUNT(*)::int AS total
-        FROM ${OrdersModel.ORDERS_TABLE}
-        WHERE ${clauses.join(' AND ')}
+        FROM ${OrdersModel.ORDERS_TABLE}${whereSql}
       `;
       const dataSql = `
         SELECT
@@ -763,9 +764,9 @@ class OrdersModel {
           customer,
           raw,
           created_at,
-          updated_at
-        FROM ${OrdersModel.ORDERS_TABLE}
-        WHERE ${clauses.join(' AND ')}
+          updated_at,
+          (staff_note IS NOT NULL AND trim(staff_note) <> '') AS has_staff_note
+        FROM ${OrdersModel.ORDERS_TABLE}${whereSql}
         ORDER BY ${orderBySql}
         LIMIT $${limitIdx}
         OFFSET $${offsetIdx}
@@ -781,6 +782,140 @@ class OrdersModel {
       Logger.error('Failed to list orders', error);
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to list orders', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async getStaffNote(req, id) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+      const res = await db.query(
+        `SELECT staff_note FROM ${OrdersModel.ORDERS_TABLE} WHERE id = $1 LIMIT 1`,
+        [Number(id)],
+      );
+      if (!res.length) throw new AppError('Order not found', 404, AppError.CODES.NOT_FOUND);
+      const raw = res[0].staff_note;
+      const note = raw != null && String(raw).trim() !== '' ? String(raw) : null;
+      return { note };
+    } catch (error) {
+      Logger.error('Failed to fetch order staff note', error, { id });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to fetch order staff note', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updateStaffNote(req, id, noteInput) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+      const normalized =
+        noteInput == null
+          ? null
+          : String(noteInput).trim() === ''
+            ? null
+            : String(noteInput).trim();
+      if (normalized != null && normalized.length > 2000) {
+        throw new AppError(
+          'Note must not exceed 2000 characters',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      const res = await db.query(
+        `
+        UPDATE ${OrdersModel.ORDERS_TABLE}
+        SET staff_note = $2, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id
+        `,
+        [Number(id), normalized],
+      );
+      if (!res.length) throw new AppError('Order not found', 404, AppError.CODES.NOT_FOUND);
+      return { ok: true, hasStaffNote: normalized != null };
+    } catch (error) {
+      Logger.error('Failed to update order staff note', error, { id });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to update order staff note', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * Set the same staff note on many orders (replaces existing note on each).
+   * @param {string[]|number[]} ids
+   * @returns {Promise<{ updated: number; updatedIds: string[]; hasStaffNote: boolean }>}
+   */
+  async batchUpdateStaffNote(req, ids, noteInput) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+      const normalized =
+        noteInput == null
+          ? null
+          : String(noteInput).trim() === ''
+            ? null
+            : String(noteInput).trim();
+      if (normalized != null && normalized.length > 2000) {
+        throw new AppError(
+          'Note must not exceed 2000 characters',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return { updated: 0, updatedIds: [], hasStaffNote: false };
+      }
+
+      const validIds = ids
+        .map((id) => {
+          const num = Number(id);
+          return Number.isFinite(num) && num > 0 ? num : null;
+        })
+        .filter((id) => id !== null);
+
+      if (validIds.length === 0) {
+        return { updated: 0, updatedIds: [], hasStaffNote: false };
+      }
+
+      if (validIds.length > 500) {
+        throw new AppError(
+          'Too many orders (max 500 per request)',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      const res = await db.query(
+        `
+        UPDATE ${OrdersModel.ORDERS_TABLE}
+        SET staff_note = $1, updated_at = NOW()
+        WHERE id = ANY($2::int[])
+        RETURNING id
+        `,
+        [normalized, validIds],
+      );
+
+      const updatedIds = res.map((row) => String(row.id));
+      return {
+        updated: updatedIds.length,
+        updatedIds,
+        hasStaffNote: normalized != null,
+      };
+    } catch (error) {
+      Logger.error('Failed to batch update order staff notes', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        'Failed to batch update order staff notes',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -815,6 +950,159 @@ class OrdersModel {
       Logger.error('Failed to fetch order', error, { id });
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to fetch order', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * Flat rows for bokföringsunderlag (Excel): one row per order line, orders + items + product fields.
+   * @param {string[]|number[]} ids - order ids
+   * @returns {Promise<object[]>}
+   */
+  async getAccountingExportLineRows(req, ids) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return [];
+      }
+
+      const validIds = ids
+        .map((id) => {
+          const num = Number(id);
+          return Number.isFinite(num) && num > 0 ? num : null;
+        })
+        .filter((id) => id !== null);
+
+      if (validIds.length === 0) {
+        return [];
+      }
+
+      if (validIds.length > 200) {
+        throw new AppError(
+          'Too many orders (max 200 per request)',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      const sql = `
+        SELECT
+          o.id AS order_id,
+          o.channel,
+          o.channel_label,
+          o.platform_order_number,
+          o.channel_order_id,
+          o.order_number,
+          o.status,
+          o.currency,
+          o.total_amount,
+          o.shipping_address,
+          o.billing_address,
+          o.customer,
+          o.raw AS order_raw,
+          o.created_at,
+          oi.sku AS item_sku,
+          oi.product_id,
+          oi.title AS item_title,
+          oi.quantity,
+          oi.unit_price,
+          oi.vat_rate,
+          oi.raw AS line_raw,
+          p.id AS product_table_id,
+          p.sku AS product_catalog_sku,
+          p.private_name,
+          p.purchase_price,
+          p.lagerplats
+        FROM ${OrdersModel.ORDERS_TABLE} o
+        INNER JOIN ${OrdersModel.ITEMS_TABLE} oi ON oi.order_id = o.id
+        LEFT JOIN products p ON p.id = oi.product_id
+        WHERE o.id = ANY($1::int[])
+        ORDER BY o.order_number ASC NULLS LAST, o.id ASC, oi.id ASC
+      `;
+
+      return await db.query(sql, [validIds]);
+    } catch (error) {
+      Logger.error('Failed to load accounting export rows', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        'Failed to load accounting export rows',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Same row shape as getAccountingExportLineRows, filtered by placed_at (inclusive date range, UTC bounds).
+   * @param {string} fromDateStr - YYYY-MM-DD
+   * @param {string} toDateStr - YYYY-MM-DD
+   */
+  async getOrderExportFlatRowsByDateRange(req, fromDateStr, toDateStr) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+      const from = `${String(fromDateStr).trim()}T00:00:00.000Z`;
+      const to = `${String(toDateStr).trim()}T23:59:59.999Z`;
+      const fromD = new Date(from);
+      const toD = new Date(to);
+      if (Number.isNaN(fromD.getTime()) || Number.isNaN(toD.getTime())) {
+        throw new AppError('Invalid date range', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+      if (fromD.getTime() > toD.getTime()) {
+        throw new AppError('from must be on or before to', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+
+      const sql = `
+        SELECT
+          o.id AS order_id,
+          o.channel,
+          o.channel_label,
+          o.platform_order_number,
+          o.channel_order_id,
+          o.order_number,
+          o.status,
+          o.currency,
+          o.total_amount,
+          o.shipping_address,
+          o.billing_address,
+          o.customer,
+          o.raw AS order_raw,
+          o.created_at,
+          oi.sku AS item_sku,
+          oi.product_id,
+          oi.title AS item_title,
+          oi.quantity,
+          oi.unit_price,
+          oi.vat_rate,
+          oi.raw AS line_raw,
+          p.id AS product_table_id,
+          p.sku AS product_catalog_sku,
+          p.private_name,
+          p.purchase_price,
+          p.lagerplats
+        FROM ${OrdersModel.ORDERS_TABLE} o
+        INNER JOIN ${OrdersModel.ITEMS_TABLE} oi ON oi.order_id = o.id
+        LEFT JOIN products p ON p.id = oi.product_id
+        WHERE o.placed_at IS NOT NULL
+          AND o.placed_at >= $1::timestamptz
+          AND o.placed_at <= $2::timestamptz
+        ORDER BY o.order_number ASC NULLS LAST, o.id ASC, oi.id ASC
+        LIMIT 100000
+      `;
+
+      return await db.query(sql, [from, to]);
+    } catch (error) {
+      Logger.error('Failed to load order export rows by date range', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        'Failed to load order export rows by date range',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -1080,7 +1368,11 @@ class OrdersModel {
       row.channel_label != null && String(row.channel_label).trim() !== ''
         ? String(row.channel_label).trim()
         : null;
-    return {
+    const hasStaffNote =
+      row.has_staff_note != null
+        ? Boolean(row.has_staff_note)
+        : row.staff_note != null && String(row.staff_note).trim() !== '';
+    const out = {
       id: String(row.id),
       channel: row.channel,
       channelOrderId: row.channel_order_id,
@@ -1100,7 +1392,15 @@ class OrdersModel {
       raw: row.raw || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      hasStaffNote,
     };
+    if (row.staff_note !== undefined) {
+      out.staffNote =
+        row.staff_note != null && String(row.staff_note).trim() !== ''
+          ? String(row.staff_note)
+          : null;
+    }
+    return out;
   }
 
   transformItemRow(row) {

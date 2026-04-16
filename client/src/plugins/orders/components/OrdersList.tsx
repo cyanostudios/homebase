@@ -8,8 +8,11 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  StickyNote,
   Trash2,
   Download,
+  FileSpreadsheet,
+  Receipt,
   Settings,
   Truck,
 } from 'lucide-react';
@@ -37,6 +40,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { navigateToPage } from '@/core/navigation/navigateToPage';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/core/settings/listPageSizes';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { buildListPaginationItems } from '@/core/utils/listPagination';
@@ -60,6 +64,7 @@ import { validateTrackingRequirement } from '../utils/validateTrackingRequiremen
 
 import { OrderDetailInline } from './OrderDetailInline';
 import { OrderListSettingsForm } from './OrderListSettingsForm';
+import { OrderStaffNoteDialog } from './OrderStaffNoteDialog';
 
 /** Roomier dropdowns in the Orders toolbar: larger type and padding. */
 const ORDERS_DROPDOWN_CONTENT_CLASS = 'min-w-[16rem] p-2 text-base';
@@ -199,9 +204,13 @@ export const OrdersList: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const syncPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [exportingPlocklista, setExportingPlocklista] = useState(false);
+  const [exportingKvitto, setExportingKvitto] = useState(false);
+  const [exportingAccounting, setExportingAccounting] = useState(false);
   const [batchUpdateResult, setBatchUpdateResult] = useState<
     { updated: number; requested: number } | { error: string; trackingValidation?: boolean } | null
   >(null);
+  const [staffNoteOpen, setStaffNoteOpen] = useState(false);
+  const [staffNoteTargetIds, setStaffNoteTargetIds] = useState<string[] | null>(null);
 
   const handleSyncOrders = useCallback(async () => {
     if (syncPollIntervalRef.current) {
@@ -654,7 +663,103 @@ export const OrdersList: React.FC = () => {
     }
   };
 
+  const handleExportKvitto = async () => {
+    if (selectedIds.size === 0) {
+      return;
+    }
+    setExportingKvitto(true);
+    try {
+      const selectedSet = selectedIds;
+      const idsOnPageInListOrder = orders
+        .filter((o) => selectedSet.has(String(o.id)))
+        .map((o) => String(o.id));
+      const onPage = new Set(idsOnPageInListOrder);
+      const idsNotOnPage = Array.from(selectedIds).filter((id) => !onPage.has(id));
+      const idsInListOrder = [...idsOnPageInListOrder, ...idsNotOnPage];
+      const channelLabels: Record<string, string> = {};
+      idsInListOrder.forEach((id) => {
+        const order = orders.find((o) => String(o.id) === id);
+        if (order) {
+          channelLabels[id] = formatChannelName(order);
+        }
+      });
+      const blob = await ordersApi.downloadKvittoPdf(idsInListOrder, channelLabels);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kvitto-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      const msg = err?.message || err?.toString?.() || 'Kunde inte skapa kvitto-PDF.';
+      setBatchUpdateResult({ error: msg });
+      console.error('Kvitto PDF export error:', err);
+    } finally {
+      setExportingKvitto(false);
+    }
+  };
+
+  const handleExportAccounting = async () => {
+    if (selectedIds.size === 0) {
+      return;
+    }
+    setExportingAccounting(true);
+    try {
+      const selectedSet = selectedIds;
+      const idsOnPageInListOrder = orders
+        .filter((o) => selectedSet.has(String(o.id)))
+        .map((o) => String(o.id));
+      const onPage = new Set(idsOnPageInListOrder);
+      const idsNotOnPage = Array.from(selectedIds).filter((id) => !onPage.has(id));
+      const idsInListOrder = [...idsOnPageInListOrder, ...idsNotOnPage];
+      const channelLabels: Record<string, string> = {};
+      idsInListOrder.forEach((id) => {
+        const order = orders.find((o) => String(o.id) === id);
+        if (order) {
+          channelLabels[id] = formatChannelName(order);
+        }
+      });
+      const blob = await ordersApi.downloadAccountingExcel(idsInListOrder, channelLabels);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bokforing-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      const msg = err?.message || err?.toString?.() || 'Kunde inte skapa bokföringsunderlag.';
+      setBatchUpdateResult({ error: msg });
+      console.error('Accounting Excel export error:', err);
+    } finally {
+      setExportingAccounting(false);
+    }
+  };
+
   const hasOrderSelection = selectedIds.size > 0;
+
+  /** Valda order i listordning (synliga rader först), samma som kvitto-export. */
+  const orderedSelectedIds = useMemo(() => {
+    if (selectedIds.size === 0) {
+      return [];
+    }
+    const selectedSet = selectedIds;
+    const onPage = orders.filter((o) => selectedSet.has(String(o.id))).map((o) => String(o.id));
+    const onPageSet = new Set(onPage);
+    const rest = Array.from(selectedIds).filter((id) => !onPageSet.has(id));
+    return [...onPage, ...rest];
+  }, [selectedIds, orders]);
+
+  const staffNoteDialogTitle = useMemo(() => {
+    const ids = staffNoteTargetIds;
+    if (!ids?.length) {
+      return 'Anteckning';
+    }
+    if (ids.length === 1) {
+      const o = orders.find((x) => String(x.id) === ids[0]);
+      return o?.hasStaffNote ? 'Redigera anteckning' : 'Lägg till anteckning';
+    }
+    return `Anteckning (${ids.length} order)`;
+  }, [staffNoteTargetIds, orders]);
 
   const toolbarActions = (
     <div className="flex items-center gap-2 flex-wrap">
@@ -681,6 +786,40 @@ export const OrdersList: React.FC = () => {
           >
             <Download className="mr-2" aria-hidden />
             {exportingPlocklista ? 'Skapar PDF…' : 'Plocklista (PDF)'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasOrderSelection || exportingKvitto}
+            onSelect={() => void handleExportKvitto()}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+          >
+            <Receipt className="mr-2" aria-hidden />
+            {exportingKvitto ? 'Skapar PDF…' : 'Kvitto (PDF)'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasOrderSelection || exportingAccounting}
+            onSelect={() => void handleExportAccounting()}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+          >
+            <FileSpreadsheet className="mr-2" aria-hidden />
+            {exportingAccounting ? 'Exporterar…' : 'Bokföringsunderlag (Excel)'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasOrderSelection}
+            onSelect={() => {
+              // Defer opening the Dialog until after the dropdown has closed/unmounted.
+              window.setTimeout(() => {
+                setStaffNoteTargetIds(orderedSelectedIds);
+                setStaffNoteOpen(true);
+              }, 50);
+            }}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+          >
+            <StickyNote className="mr-2" aria-hidden />
+            {selectedIds.size <= 1
+              ? orders.find((o) => selectedIds.has(String(o.id)))?.hasStaffNote
+                ? 'Redigera anteckning'
+                : 'Lägg till anteckning'
+              : `Anteckning (${selectedIds.size} order)`}
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!hasOrderSelection}
@@ -717,6 +856,13 @@ export const OrdersList: React.FC = () => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className={ORDERS_DROPDOWN_CONTENT_CLASS}>
+          <DropdownMenuItem
+            onSelect={() => navigateToPage('orders-export')}
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+          >
+            <Download className="mr-2" aria-hidden />
+            Exportera order
+          </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => setShowOrderListSettings(true)}
             className={ORDERS_DROPDOWN_ITEM_CLASS}
@@ -1027,6 +1173,9 @@ export const OrdersList: React.FC = () => {
                     currentOrder={sortOrder}
                     onSort={handleSortClick}
                   />
+                  <TableHead className="w-10 p-1 text-center">
+                    <span className="sr-only">Anteckning</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1130,6 +1279,25 @@ export const OrdersList: React.FC = () => {
                         <TableCell className={groupInfo ? 'pl-3' : ''}>
                           {statusDisplayLabel(o.status)}
                         </TableCell>
+                        <TableCell
+                          className={`w-10 p-1 align-middle ${groupInfo ? 'pl-3' : ''}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {o.hasStaffNote ? (
+                            <button
+                              type="button"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                              aria-label="Visa anteckning"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStaffNoteTargetIds([id]);
+                                setStaffNoteOpen(true);
+                              }}
+                            >
+                              <StickyNote className="h-4 w-4 shrink-0" aria-hidden />
+                            </button>
+                          ) : null}
+                        </TableCell>
                       </TableRow>
                       {isExpanded && (
                         <TableRow>
@@ -1140,7 +1308,7 @@ export const OrdersList: React.FC = () => {
                             />
                           ) : null}
                           <TableCell
-                            colSpan={groupInfo ? 7 : 8}
+                            colSpan={groupInfo ? 8 : 9}
                             className={`p-0 align-top ${groupInfo ? 'pl-3' : ''}`}
                           >
                             {loading ? (
@@ -1231,6 +1399,21 @@ export const OrdersList: React.FC = () => {
           <OrderListSettingsForm onClose={() => setShowOrderListSettings(false)} />
         </DialogContent>
       </Dialog>
+
+      <OrderStaffNoteDialog
+        open={staffNoteOpen}
+        orderIds={staffNoteTargetIds}
+        title={staffNoteDialogTitle}
+        onOpenChange={(o) => {
+          setStaffNoteOpen(o);
+          if (!o) {
+            setStaffNoteTargetIds(null);
+          }
+        }}
+        onSaved={(ids, hasStaffNote) => {
+          updateOrdersInList(ids, { hasStaffNote });
+        }}
+      />
     </div>
   );
 };

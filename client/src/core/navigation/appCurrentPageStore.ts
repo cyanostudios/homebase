@@ -59,7 +59,7 @@ export function isInvoicesBootstrapPage(page: NavPage): boolean {
 
 /** Orders list: Orders page only (not needed for product stock; server applies inventory). */
 export function isOrdersBootstrapPage(page: NavPage): boolean {
-  return page === 'orders';
+  return page === 'orders' || page === 'orders-export';
 }
 
 /** PostNord settings/senders/services: Orders (booking) + Frakt settings page. */
