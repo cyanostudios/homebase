@@ -1,3 +1,5 @@
+import { apiFetch } from '@/core/api/apiFetch';
+
 // Mail API
 class MailApi {
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
@@ -6,9 +8,8 @@ class MailApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(`/api/mail${endpoint}`, {
+    const response = await apiFetch(`/api/mail${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 

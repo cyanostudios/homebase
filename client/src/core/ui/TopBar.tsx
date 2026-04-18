@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
+import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getTopBarWidgets } from '@/core/widgets';
@@ -188,7 +189,7 @@ export function TopBar({
 
   const loadCurrentTenant = async () => {
     try {
-      const response = await fetch('/api/auth/me', { credentials: 'include' });
+      const response = await apiFetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
         setCurrentTenantUserId(data.currentTenantUserId);
@@ -201,7 +202,7 @@ export function TopBar({
   const loadTenants = async () => {
     try {
       setIsLoadingTenants(true);
-      const response = await fetch('/api/admin/tenants', { credentials: 'include' });
+      const response = await apiFetch('/api/admin/tenants');
       if (response.ok) {
         const data = await response.json();
         setTenants(data.tenants || []); // Ensure it's always an array
@@ -218,13 +219,13 @@ export function TopBar({
 
   const switchTenant = async (userId: number) => {
     try {
-      const response = await fetch('/api/admin/switch-tenant', {
+      const response = await apiFetch('/api/admin/switch-tenant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ userId }),
       });
       if (response.ok) {
+        invalidateCsrfToken();
         window.location.reload();
       } else {
         console.error('Failed to switch tenant');

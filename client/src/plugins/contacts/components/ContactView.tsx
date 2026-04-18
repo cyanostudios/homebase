@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
@@ -321,9 +322,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     }
     const loadTimeEntries = async () => {
       try {
-        const response = await fetch(`/api/contacts/${contact.id}/time-entries`, {
-          credentials: 'include',
-        });
+        const response = await apiFetch(`/api/contacts/${contact.id}/time-entries`);
         if (!response.ok) {
           setTimeEntries([]);
           return;
@@ -386,9 +385,8 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
       }
       setDeletingEntryId(entryId);
       try {
-        const response = await fetch(`/api/contacts/${contact.id}/time-entries/${entryId}`, {
+        const response = await apiFetch(`/api/contacts/${contact.id}/time-entries/${entryId}`, {
           method: 'DELETE',
-          credentials: 'include',
         });
         if (response.ok) {
           setTimeEntries((prev) => prev.filter((entry) => entry.id !== entryId));

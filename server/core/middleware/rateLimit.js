@@ -6,6 +6,9 @@ const rateLimit = require('express-rate-limit');
 const forceRateLimit =
   process.env.FORCE_RATE_LIMIT === '1' || process.env.FORCE_RATE_LIMIT === 'true';
 
+/** When false, global + auth limiters are skipped outside production (unless FORCE_RATE_LIMIT). */
+const enforceRateLimits = process.env.NODE_ENV === 'production' || forceRateLimit;
+
 /**
  * Global rate limiter
  * Applies to all API routes
@@ -22,7 +25,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    if (process.env.NODE_ENV !== 'production' && !forceRateLimit) {
+    if (!enforceRateLimits) {
       return true;
     }
     // app.use('/api', globalLimiter) strips "/api" from req.path, so support both prefixed and stripped paths.
@@ -51,7 +54,7 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => process.env.NODE_ENV !== 'production', // Only enforce in production; dev/local login never blocked
+  skip: () => !enforceRateLimits,
 });
 
 /**
@@ -82,4 +85,5 @@ module.exports = {
   authLimiter,
   emailLimiter,
   uploadLimiter,
+  enforceRateLimits,
 };

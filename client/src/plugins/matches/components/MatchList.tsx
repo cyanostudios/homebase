@@ -362,7 +362,7 @@ export function MatchList() {
                       {match.format ? ` · ${match.format}` : ''}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold">
+                  <h3 className="line-clamp-1 text-base font-semibold">
                     {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
                   </h3>
                   <div className="mt-1 text-xs text-muted-foreground">
@@ -520,10 +520,8 @@ export function MatchList() {
                         aria-label={isSelected(match.id) ? 'Unselect match' : 'Select match'}
                       />
                     </TableCell>
-                    <TableCell>
-                      <span className="font-medium">
-                        {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
-                      </span>
+                    <TableCell className="font-semibold">
+                      {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {match.sport_type}

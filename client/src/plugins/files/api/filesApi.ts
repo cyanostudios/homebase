@@ -1,56 +1,13 @@
 // client/src/plugins/files/api/filesApi.ts
-// Files API - V2 with CSRF protection
+// Files API — mutating calls use apiFetch (CSRF when ENABLE_CSRF=true)
+import { apiFetch } from '@/core/api/apiFetch';
+
 import type { FileAttachmentEntry, FileItem } from '../types/files';
 
 export type ApiFieldError = { field: string; message: string };
 
 export class FilesApi {
-  private csrfToken: string | null = null;
-
   constructor(private basePath: string = '/api/files') {}
-
-  async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-
-    try {
-      const response = await fetch('/api/csrf-token', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('CSRF token fetch failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        });
-
-        if (response.status === 401) {
-          throw new Error('Session required. Please log in again.');
-        } else if (response.status === 503) {
-          throw new Error('CSRF protection not configured on server');
-        } else {
-          throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
-        }
-      }
-
-      const data = await response.json();
-      if (!data.csrfToken) {
-        throw new Error('CSRF token not found in response');
-      }
-
-      this.csrfToken = data.csrfToken;
-      return this.csrfToken;
-    } catch (error: any) {
-      console.error('CSRF token fetch failed:', error);
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Failed to get CSRF token');
-    }
-  }
 
   private async request(path: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
@@ -58,12 +15,10 @@ export class FilesApi {
     };
 
     if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      const token = await this.getCsrfToken();
-      headers['X-CSRF-Token'] = token;
       if (!(options.body instanceof FormData)) {
         const isDeleteWithoutBody =
           options.method === 'DELETE' && (options.body === undefined || options.body === null);
-        if (!isDeleteWithoutBody) {
+        if (!isDeleteWithoutBody && !headers['Content-Type']) {
           headers['Content-Type'] = 'application/json';
         }
       }
@@ -71,9 +26,8 @@ export class FilesApi {
 
     let response: Response;
     try {
-      response = await fetch(`${this.basePath}${path}`, {
+      response = await apiFetch(`${this.basePath}${path}`, {
         headers,
-        credentials: 'include',
         ...options,
       });
     } catch {

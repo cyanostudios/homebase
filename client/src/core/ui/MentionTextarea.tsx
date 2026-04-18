@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { apiFetch } from '@/core/api/apiFetch';
 import type { Mention } from '@/core/types/mention';
 
 interface MentionTextareaProps {
@@ -30,9 +31,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   useEffect(() => {
     const loadContacts = async () => {
       try {
-        const response = await fetch('/api/contacts', {
-          credentials: 'include',
-        });
+        const response = await apiFetch('/api/contacts');
         if (response.ok) {
           const contactsData = await response.json();
           setContacts(contactsData);

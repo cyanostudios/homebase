@@ -1,3 +1,5 @@
+import { apiFetch } from '@/core/api/apiFetch';
+
 import type { CreateNoteShareRequest, NoteShare, PublicNote } from '../types/notes';
 
 class NotesApi {
@@ -7,9 +9,8 @@ class NotesApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(`/api${endpoint}`, {
+    const response = await apiFetch(`/api${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 

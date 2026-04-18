@@ -3,6 +3,11 @@
 const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const {
+  registerPublicShareRoute,
+  unregisterPublicShareRoute,
+  RESOURCE_TASK,
+} = require('../../server/core/services/publicShareRouting');
 
 /**
  * PostgreSQLAdapter wraps pg errors in AppError (top-level code is DATABASE_ERROR).
@@ -294,6 +299,22 @@ class TaskModel {
 
       Logger.info('Task share created', { taskId: id, shareId: result.rows[0].id });
 
+      const createdToken = result.rows[0].share_token;
+      if (req.session?.tenantConnectionString) {
+        try {
+          await registerPublicShareRoute(
+            createdToken,
+            RESOURCE_TASK,
+            req.session.tenantConnectionString,
+          );
+        } catch (routeErr) {
+          Logger.error('public_share_routing register failed', routeErr, {
+            taskId: id,
+            tokenPrefix: createdToken.substring(0, 8),
+          });
+        }
+      }
+
       return {
         id: result.rows[0].id.toString(),
         taskId: result.rows[0].task_id.toString(),
@@ -436,6 +457,16 @@ class TaskModel {
       }
 
       Logger.info('Task share revoked', { shareId, taskId });
+
+      const revokedToken = deleteResult.rows[0].share_token;
+      try {
+        await unregisterPublicShareRoute(revokedToken);
+      } catch (routeErr) {
+        Logger.error('public_share_routing unregister failed', routeErr, {
+          shareId,
+          tokenPrefix: revokedToken.substring(0, 8),
+        });
+      }
 
       return {
         id: deleteResult.rows[0].id.toString(),

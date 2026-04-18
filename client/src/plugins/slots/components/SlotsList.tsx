@@ -469,7 +469,7 @@ export function SlotsList() {
           </Card>
         ) : viewMode === 'grid' ? (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredAndSorted.map((slot) => {
+            {filteredAndSorted.map((slot, index) => {
               const selected = isSelected(slot.id);
               return (
                 <Card
@@ -505,7 +505,12 @@ export function SlotsList() {
                       </Badge>
                     )}
                   </div>
-                  <h3 className="text-sm font-semibold">{slot.location || '—'}</h3>
+                  <h3 className="line-clamp-1 text-base font-semibold">
+                    {slot.name?.trim() || `SLT ${slot.id}`}
+                  </h3>
+                  <div className="mt-1 truncate text-xs text-muted-foreground">
+                    {slot.location?.trim() || '—'}
+                  </div>
                   <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
                     <span
                       className={cn(
@@ -647,9 +652,9 @@ export function SlotsList() {
                         }
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="font-semibold">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{slot.name?.trim() || `SLT ${slot.id}`}</span>
+                        <span className="truncate">{slot.name?.trim() || `SLT ${slot.id}`}</span>
                       </div>
                     </TableCell>
                     <TableCell>

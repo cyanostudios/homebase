@@ -1,26 +1,9 @@
-// client/src/plugins/ingest/api/ingestApi.ts — CSRF on mutations (guide §9 / §12)
+// client/src/plugins/ingest/api/ingestApi.ts — CSRF on mutations via apiFetch
+import { apiFetch } from '@/core/api/apiFetch';
+
 import type { IngestRun, IngestSource } from '../types/ingest';
 
 class IngestApi {
-  private csrfToken: string | null = null;
-
-  private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-    const response = await fetch('/api/csrf-token', { credentials: 'include' });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error || `CSRF token failed: ${response.statusText}`);
-    }
-    const data = await response.json();
-    if (!data.csrfToken) {
-      throw new Error('CSRF token missing in response');
-    }
-    this.csrfToken = data.csrfToken;
-    return this.csrfToken;
-  }
-
   private async request(endpoint: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
       ...((options.headers as Record<string, string>) || {}),
@@ -28,12 +11,10 @@ class IngestApi {
 
     if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
       headers['Content-Type'] = 'application/json';
-      headers['X-CSRF-Token'] = await this.getCsrfToken();
     }
 
-    const response = await fetch(`/api${endpoint}`, {
+    const response = await apiFetch(`/api${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 

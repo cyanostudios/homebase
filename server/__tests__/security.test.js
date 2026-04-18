@@ -1,117 +1,102 @@
 // server/__tests__/security.test.js
-// Security tests for V2 features (CSRF, Validation, Rate Limiting)
+// Regression tests for rate-limit env toggles, CSRF no-op mode, and public-share routing constants.
 
-// Note: This is an example test file. You'll need to:
-// 1. Install test dependencies: npm install --save-dev jest supertest
-// 2. Configure jest in package.json or jest.config.js
-// 3. Set up test environment with proper app initialization
-
+const express = require('express');
 const request = require('supertest');
-// const app = require('../index'); // Your Express app
 
-describe('Security Tests', () => {
-  describe('Authentication', () => {
-    it('should require authentication for protected routes', async () => {
-      // Example: Test that unauthenticated requests are rejected
-      // const response = await request(app).get('/api/notes');
-      // expect(response.status).toBe(401);
-      // expect(response.body.error).toBe('Authentication required');
-    });
+describe('Security: rate limiting env', () => {
+  const saved = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...saved };
+    jest.resetModules();
   });
 
-  describe('CSRF Protection', () => {
-    it('should reject POST requests without CSRF token', async () => {
-      // Example: Test CSRF protection
-      // const response = await request(app)
-      //   .post('/api/notes')
-      //   .send({ title: 'Test', content: 'Content' });
-      // expect(response.status).toBe(403);
-      // expect(response.body.code).toBe('INVALID_CSRF_TOKEN');
-    });
-
-    it('should accept requests with valid CSRF token', async () => {
-      // Example: Test successful request with CSRF token
-      // First, get CSRF token (requires session)
-      // const { csrfToken } = await request(app)
-      //   .get('/api/csrf-token')
-      //   .then(r => r.body);
-      //
-      // const response = await request(app)
-      //   .post('/api/notes')
-      //   .set('X-CSRF-Token', csrfToken)
-      //   .send({ title: 'Test', content: 'Content' });
-      //
-      // expect(response.status).toBe(201);
-    });
+  it('enforceRateLimits is false in development without FORCE_RATE_LIMIT', () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.FORCE_RATE_LIMIT;
+    jest.resetModules();
+    const { enforceRateLimits } = require('../core/middleware/rateLimit');
+    expect(enforceRateLimits).toBe(false);
   });
 
-  describe('Input Validation', () => {
-    it('should reject empty title', async () => {
-      // Example: Test validation
-      // const { csrfToken } = await request(app)
-      //   .get('/api/csrf-token')
-      //   .then(r => r.body);
-      //
-      // const response = await request(app)
-      //   .post('/api/notes')
-      //   .set('X-CSRF-Token', csrfToken)
-      //   .send({ title: '', content: 'Content' });
-      //
-      // expect(response.status).toBe(400);
-      // expect(response.body.error).toBe('Validation failed');
-      // expect(response.body.details).toBeDefined();
-    });
-
-    it('should reject title too long', async () => {
-      // Example: Test max length validation
-      // const longTitle = 'a'.repeat(256);
-      // const { csrfToken } = await request(app)
-      //   .get('/api/csrf-token')
-      //   .then(r => r.body);
-      //
-      // const response = await request(app)
-      //   .post('/api/notes')
-      //   .set('X-CSRF-Token', csrfToken)
-      //   .send({ title: longTitle, content: 'Content' });
-      //
-      // expect(response.status).toBe(400);
-    });
+  it('enforceRateLimits is true when FORCE_RATE_LIMIT=1 in development', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.FORCE_RATE_LIMIT = '1';
+    jest.resetModules();
+    const { enforceRateLimits } = require('../core/middleware/rateLimit');
+    expect(enforceRateLimits).toBe(true);
   });
 
-  describe('Rate Limiting', () => {
-    it('should rate limit requests', async () => {
-      // Example: Test rate limiting
-      // Note: This test might be slow due to rate limiting
-      // const { csrfToken } = await request(app)
-      //   .get('/api/csrf-token')
-      //   .then(r => r.body);
-      //
-      // // Make requests up to the limit
-      // for (let i = 0; i < 10; i++) {
-      //   const response = await request(app)
-      //     .post('/api/notes')
-      //     .set('X-CSRF-Token', csrfToken)
-      //     .send({ title: `Test ${i}`, content: 'Content' });
-      //   expect(response.status).toBe(201);
-      // }
-      //
-      // // Next request should be rate limited
-      // const rateLimitedResponse = await request(app)
-      //   .post('/api/notes')
-      //   .set('X-CSRF-Token', csrfToken)
-      //   .send({ title: 'Rate Limited', content: 'Content' });
-      // expect(rateLimitedResponse.status).toBe(429);
-    });
+  it('enforceRateLimits is true in production without FORCE_RATE_LIMIT', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.FORCE_RATE_LIMIT;
+    jest.resetModules();
+    const { enforceRateLimits } = require('../core/middleware/rateLimit');
+    expect(enforceRateLimits).toBe(true);
   });
 
-  describe('Error Handling', () => {
-    it('should return standardized error format', async () => {
-      // Example: Test error format
-      // const response = await request(app).get('/api/nonexistent');
-      // expect(response.status).toBe(404);
-      // expect(response.body).toHaveProperty('error');
-      // expect(response.body).toHaveProperty('code');
-      // expect(response.body).not.toHaveProperty('stack'); // In production
+  it('express-rate-limit returns 429 after max (smoke)', async () => {
+    const rateLimit = require('express-rate-limit');
+    const limiter = rateLimit({
+      windowMs: 60_000,
+      max: 2,
+      skip: () => false,
+      standardHeaders: true,
+      legacyHeaders: false,
     });
+    const app = express();
+    app.set('trust proxy', 1);
+    app.use(limiter);
+    app.get('/t', (_req, res) => res.sendStatus(200));
+    await request(app).get('/t').expect(200);
+    await request(app).get('/t').expect(200);
+    await request(app).get('/t').expect(429);
+  });
+});
+
+describe('Security: CSRF middleware', () => {
+  const saved = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...saved };
+    jest.resetModules();
+  });
+
+  it('csrfProtection invokes next when ENABLE_CSRF is not true', (done) => {
+    delete process.env.ENABLE_CSRF;
+    jest.resetModules();
+    const { csrfProtection } = require('../core/middleware/csrf');
+    csrfProtection({}, {}, () => done());
+  });
+
+  it('csrfTokenHandler returns csrf-disabled when CSRF off', () => {
+    return new Promise((resolve, reject) => {
+      delete process.env.ENABLE_CSRF;
+      jest.resetModules();
+      const { csrfTokenHandler } = require('../core/middleware/csrf');
+      const req = {};
+      const res = {
+        json(body) {
+          try {
+            expect(body.csrfToken).toBe('csrf-disabled');
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        },
+      };
+      csrfTokenHandler(req, res, (err) => {
+        if (err) reject(err);
+      });
+    });
+  });
+});
+
+describe('Security: public share routing module', () => {
+  it('exports resource type constants', () => {
+    const { RESOURCE_TASK, RESOURCE_NOTE } = require('../core/services/publicShareRouting');
+    expect(RESOURCE_TASK).toBe('task');
+    expect(RESOURCE_NOTE).toBe('note');
   });
 });

@@ -1,4 +1,6 @@
 // Pulse API
+import { apiFetch } from '@/core/api/apiFetch';
+
 import type { PulseHistoryResponse, PulseSettings } from '../types/pulse';
 
 class PulseApi {
@@ -8,9 +10,8 @@ class PulseApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(`/api/pulses${endpoint}`, {
+    const response = await apiFetch(`/api/pulses${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 

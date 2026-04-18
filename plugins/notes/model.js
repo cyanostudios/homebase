@@ -3,6 +3,11 @@
 const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const {
+  registerPublicShareRoute,
+  unregisterPublicShareRoute,
+  RESOURCE_NOTE,
+} = require('../../server/core/services/publicShareRouting');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 class NoteModel {
@@ -208,6 +213,22 @@ class NoteModel {
 
       Logger.info('Note share created', { noteId: id, shareId: result.rows[0].id });
 
+      const createdToken = result.rows[0].share_token;
+      if (req.session?.tenantConnectionString) {
+        try {
+          await registerPublicShareRoute(
+            createdToken,
+            RESOURCE_NOTE,
+            req.session.tenantConnectionString,
+          );
+        } catch (routeErr) {
+          Logger.error('public_share_routing register failed', routeErr, {
+            noteId: id,
+            tokenPrefix: createdToken.substring(0, 8),
+          });
+        }
+      }
+
       return {
         id: result.rows[0].id.toString(),
         noteId: result.rows[0].note_id.toString(),
@@ -350,6 +371,16 @@ class NoteModel {
       }
 
       Logger.info('Note share revoked', { shareId, noteId });
+
+      const revokedToken = deleteResult.rows[0].share_token;
+      try {
+        await unregisterPublicShareRoute(revokedToken);
+      } catch (routeErr) {
+        Logger.error('public_share_routing unregister failed', routeErr, {
+          shareId,
+          tokenPrefix: revokedToken.substring(0, 8),
+        });
+      }
 
       return {
         id: deleteResult.rows[0].id.toString(),

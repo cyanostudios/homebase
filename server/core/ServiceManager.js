@@ -142,6 +142,15 @@ class ServiceManager {
   }
 
   /**
+   * PostgreSQL pool for the main (auth / metadata) database — not tenant search_path.
+   * Use for public-share routing and similar system queries.
+   */
+  getMainPool() {
+    this.initialize();
+    return this._getDefaultPool();
+  }
+
+  /**
    * Get a service by name
    * @param {string} serviceName - Name of the service
    * @param {Object} req - Optional request object for tenant context

@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
+import { apiFetch } from '@/core/api/apiFetch';
 import type { Mention } from '@/core/types/mention';
 
 interface MentionContentProps {
@@ -21,9 +22,7 @@ export const MentionContent: React.FC<MentionContentProps> = ({
   React.useEffect(() => {
     const loadContacts = async () => {
       try {
-        const response = await fetch('/api/contacts', {
-          credentials: 'include',
-        });
+        const response = await apiFetch('/api/contacts');
 
         if (response.ok) {
           const data = await response.json();

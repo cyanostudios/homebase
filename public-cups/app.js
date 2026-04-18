@@ -527,7 +527,10 @@ function renderJsonLd(cups) {
               name: normalizeText(cup.organizer),
             }
           : undefined,
-        url: toAbsolutePublicUrl(cup.registration_url) || undefined,
+        url: (() => {
+          const abs = toAbsolutePublicUrl(cup.registration_url);
+          return abs ? withCupappenUtm(abs) : undefined;
+        })(),
         description: normalizeText(cup.description || cup.categories) || undefined,
         isAccessibleForFree: true,
       },
@@ -730,18 +733,21 @@ function matchesCategoryGroup(categoriesText, groupValue) {
   return true;
 }
 
+/** Outbound links from Cupappen always attribute traffic with utm_source=cupappen. */
 function withCupappenUtm(urlValue) {
   const raw = String(urlValue || '').trim();
   if (!raw) return raw;
   try {
-    const url = new URL(raw);
-    if (!url.searchParams.has('utm_source')) {
-      url.searchParams.set('utm_source', 'cupappen');
-    }
+    const url = new URL(raw, window.location.origin);
+    url.searchParams.set('utm_source', 'cupappen');
     return url.toString();
   } catch {
-    const join = raw.includes('?') ? '&' : '?';
-    return `${raw}${join}utm_source=cupappen`;
+    let out = String(raw);
+    if (/[?&]utm_source=/i.test(out)) {
+      out = out.replace(/([?&])utm_source=[^&]*/i, '$1utm_source=cupappen');
+      return out.replace('?&', '?');
+    }
+    return `${out}${out.includes('?') ? '&' : '?'}utm_source=cupappen`;
   }
 }
 

@@ -1,3 +1,5 @@
+import { apiFetch } from '@/core/api/apiFetch';
+
 import type { CreateTaskShareRequest, PublicTask, Task, TaskShare } from '../types/tasks';
 
 class TasksApi {
@@ -17,9 +19,8 @@ class TasksApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(`/api${endpoint}`, {
+    const response = await apiFetch(`/api${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 

@@ -1,5 +1,7 @@
 // Activity Log API - Fetch activity logs
 
+import { apiFetch } from '@/core/api/apiFetch';
+
 export interface ActivityLogEntry {
   id: number;
   userId: number;
@@ -42,10 +44,9 @@ class ActivityLogApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(endpoint, {
+    const response = await apiFetch(endpoint, {
       ...options,
       headers,
-      credentials: 'include',
     });
 
     if (!response.ok) {

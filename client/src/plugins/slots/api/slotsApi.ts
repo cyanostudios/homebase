@@ -1,3 +1,5 @@
+import { apiFetch } from '@/core/api/apiFetch';
+
 import { Slot, SlotMention, SlotBooking } from '../types/slots';
 
 function parseMentions(row: Record<string, unknown>): SlotMention[] {
@@ -56,9 +58,8 @@ class SlotsApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(`/api${endpoint}`, {
+    const response = await apiFetch(`/api${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 

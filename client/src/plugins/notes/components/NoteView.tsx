@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
@@ -276,9 +277,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   useEffect(() => {
     const fetchContactsData = async () => {
       try {
-        const response = await fetch('/api/contacts', {
-          credentials: 'include',
-        });
+        const response = await apiFetch('/api/contacts');
 
         if (response.ok) {
           const data = await response.json();
@@ -298,9 +297,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     await refreshData();
 
     try {
-      const response = await fetch('/api/contacts', {
-        credentials: 'include',
-      });
+      const response = await apiFetch('/api/contacts');
 
       if (response.ok) {
         const contactsData = await response.json();

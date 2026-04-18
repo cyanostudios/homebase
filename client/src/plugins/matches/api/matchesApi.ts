@@ -1,3 +1,5 @@
+import { apiFetch } from '@/core/api/apiFetch';
+
 import { Match, MatchMention } from '../types/match';
 
 function parseMentions(row: Record<string, unknown>): MatchMention[] {
@@ -58,13 +60,8 @@ class MatchesApi {
       'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
     };
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      // CSRF temporarily disabled
-    }
-
-    const response = await fetch(`/api${endpoint}`, {
+    const response = await apiFetch(`/api${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 

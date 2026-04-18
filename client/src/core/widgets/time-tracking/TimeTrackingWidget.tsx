@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { Heading, Text } from '@/core/ui/Typography';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -117,9 +118,8 @@ export function TimeTrackingWidget({
     try {
       const seconds = isManual ? minutes * 60 : elapsedSeconds;
       const loggedAt = isManual ? manualDate.toISOString() : new Date().toISOString();
-      const res = await fetch(`/api/contacts/${selectedContactId}/time-entries`, {
+      const res = await apiFetch(`/api/contacts/${selectedContactId}/time-entries`, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seconds, loggedAt }),
       });

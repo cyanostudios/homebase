@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
@@ -252,7 +253,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       }
 
       try {
-        const response = await fetch('/api/contacts', { credentials: 'include' });
+        const response = await apiFetch('/api/contacts');
         if (response.ok) {
           const contactsData = await response.json();
           const mentionContactsMap: { [key: string]: any } = {};
@@ -280,7 +281,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       }
 
       try {
-        const response = await fetch('/api/notes', { credentials: 'include' });
+        const response = await apiFetch('/api/notes');
         if (response.ok) {
           const notesData = await response.json();
           const note = notesData.find(
@@ -302,7 +303,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   const handleContactClick = async (contactId: string) => {
     await refreshData();
     try {
-      const response = await fetch('/api/contacts', { credentials: 'include' });
+      const response = await apiFetch('/api/contacts');
       if (response.ok) {
         const contactsData = await response.json();
         const contact = contactsData.find((c: any) => c.id === contactId);

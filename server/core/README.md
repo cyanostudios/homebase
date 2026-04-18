@@ -117,3 +117,20 @@ Service configuration is in `config/services.js` and can be overridden via envir
 - `DATABASE_PROVIDER` - Database provider (default: 'postgres')
 - `LOGGER_PROVIDER` - Logger provider (default: 'console')
 - `LOG_LEVEL` - Log level (default: 'info')
+
+### Security-related environment variables
+
+| Variable                                 | Purpose                                                                                                                  |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `SESSION_SECRET`                         | Signing session cookies. **Required** in production (server exits if missing or default).                                |
+| `ENABLE_CSRF`                            | Set to `true` to enforce CSRF on protected routes; client should use `apiFetch` (see `client/src/core/api/apiFetch.ts`). |
+| `FORCE_RATE_LIMIT`                       | Set to `1` or `true` to apply global and auth rate limits outside production (staging / local testing).                  |
+| `FRONTEND_URL`                           | Allowed CORS origin for the SPA in production.                                                                           |
+| `PUBLIC_BOOKING_URL` / `PUBLIC_CUPS_URL` | Optional extra CORS origins for public mini-apps.                                                                        |
+
+Public task/note share links resolve the tenant DB via the `public_share_routing` table on the main database (`npm run migrate:public-share-routing`).
+
+### Dependency and upload review
+
+- Run `npm audit` before releases. Typical flags include `axios`, `jspdf` / `html2pdf.js`, `express-rate-limit` (upgrade when a patched minor is available), `dompurify`, and transitive `cookie` via deprecated `csurf` — plan upgrades; avoid `npm audit fix --force` without testing.
+- File uploads (`plugins/files/routes.js`): `uploadLimiter`, size cap, MIME allow-list, `path.basename` on stored names, and authenticated `gate` on upload/raw routes (except where intentionally public).

@@ -39,6 +39,7 @@ const { errorHandler } = require('./core/middleware/errorHandler');
 const { globalLimiter, authLimiter } = require('./core/middleware/rateLimit');
 const { setupCoreRoutes } = require('./core/routes');
 const ServiceManager = require('./core/ServiceManager');
+const { attachPublicShareTenantPool } = require('./core/services/publicShareRouting');
 
 // Initialize Bootstrap (loads all service providers)
 Bootstrap.initializeServices();
@@ -153,14 +154,24 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Tenant Pool Middleware
-app.use((req: any, res: any, next: any) => {
-  if (req.session && req.session.tenantConnectionString) {
-    const connectionPool = ServiceManager.get('connectionPool');
-    req.tenantPool = connectionPool.getTenantPool(req.session.tenantConnectionString);
+// Tenant pool: public task/note share GET resolves tenant via main-DB routing (no session).
+// Other requests use the logged-in user's tenant.
+app.use(async (req: any, res: any, next: any) => {
+  try {
+    const p = req.path || '';
+    const isPublicShareGet =
+      req.method === 'GET' && /^\/api\/(tasks|notes)\/public\/[^/]+\/?$/.test(p);
+    if (isPublicShareGet) {
+      await attachPublicShareTenantPool(req);
+    } else if (req.session && req.session.tenantConnectionString) {
+      const connectionPool = ServiceManager.get('connectionPool');
+      req.tenantPool = connectionPool.getTenantPool(req.session.tenantConnectionString);
+    }
+    ServiceManager.initialize(req);
+    next();
+  } catch (err) {
+    next(err);
   }
-  ServiceManager.initialize(req);
-  next();
 });
 
 // Auth middleware

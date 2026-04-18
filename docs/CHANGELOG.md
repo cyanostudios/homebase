@@ -4,6 +4,62 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-04 – Säkerhetsgranskning, CSRF-klient, publika delningslänkar, lazy plugin-providers
+
+**Sammanfattning:** Genomgång av säkerhetslager (CSRF, rate limits, upload/serving), enhetlig klient för muterande API-anrop, routing för **anonyma** publika task-/note-delningar utan session, samt frontend-förbättringar (lazy providers, listtypografi, Cupappen UTM).
+
+### Klient: `apiFetch` och CSRF
+
+- **`client/src/core/api/apiFetch.ts`:** Wrapper runt `fetch` som för **POST/PUT/PATCH/DELETE** hämtar CSRF-token via `GET /api/csrf-token`, skickar `X-CSRF-Token` och `credentials: 'include'`, samt vid 403 från CSRF kastar bort cachad token och försöker en gång till.
+- **Invalidation:** `invalidateCsrfToken()` vid utloggning, inloggning, registrering och **tenant-byte** (`TopBar.tsx` m.fl.).
+- **Anrop som går via `apiFetch`:** Bland annat plugin-API:er för tasks, notes, mail, ingest, files, invoices, estimates, slots, matches, cups, contacts, pulses; samt core (`bulkApi`, `activityLogApi`, `teamApi`) och utvalda vyer/widgets (`TaskView`, `NoteView`, `ContactView`, `MentionContent`, `MentionTextarea`, `TimeTrackingWidget`).
+
+### Miljövariabler och dokumentation
+
+- **`.env.example`:** `ENABLE_CSRF`, `FORCE_RATE_LIMIT`, `SESSION_SECRET`, CORS-URL:er (`CORS_ORIGIN`, `CORS_ORIGINS`) med korta kommentarer.
+- **`server/core/README.md`:** Tabell över säkerhetsrelaterade variabler och notis om `npm audit` / beroenden.
+
+### Rate limiting
+
+- **`server/core/middleware/rateLimit.js`:** `enforceRateLimits` styr både generell limiter och **auth-limiter** när `FORCE_RATE_LIMIT=true` (så staging kan tvinga 429 utan att sätta `NODE_ENV=production`).
+
+### Publika task- och note-delningar (ingen session)
+
+- **Problem:** Middleware krävde inloggning för `GET /api/tasks/public/:token` och `GET /api/notes/public/:token`, vilket gav 401 för anonyma mottagare.
+- **Lösning:** Migration **`069-public-share-routing.sql`** (`tasks_public_share_route`, `notes_public_share_route`), core-tjänst **`server/core/services/publicShareRouting.js`** (registrering per tenant, `ServiceManager.getMainPool()`), middleware i **`server/index.ts`** som före auth matchar dessa paths och sätter `req.tenantId` + `req.tenantPool`. Plugins registrerar routing i model init (`plugins/tasks/model.js`, `plugins/notes/model.js`).
+- **Kör migration:** `npm run migrate:public-share-routing` (wrapper: `scripts/run-public-share-routing-migration.js`).
+
+### Tester
+
+- **`server/__tests__/security.test.js`:** Integrationstester för CSRF (GET tillåten, muterande utan token nekad), rate limit under `FORCE_RATE_LIMIT`, samt kontroll att publika share-URL:er kan svara utan session när routing och data finns.
+
+### Publik Cupappen: UTM och JSON-LD
+
+- **`public-cups/app.js`:** `withCupappenUtm()` sätter `utm_source=cupappen` på utlänkar (t.ex. anmälan); `renderJsonLd()` sätter **Event.url** till samma URL som kortets länk (`toAbsolutePublicUrl` + `withCupappenUtm`) så strukturerad data och klick spårar likadant.
+
+### UI: listor och slots
+
+- **`MatchList.tsx`, `SlotsList.tsx`:** Rubrik/kolumnstyling i linje med notes/tasks (`font-semibold text-base`).
+- **`SlotsList.tsx`:** Rutnät visar **namn** och **plats** på två rader (`truncate` där det behövs).
+
+### Frontend: lazy plugin-providers och registry
+
+- **`client/src/core/pluginRegistry.ts`:** `providerLoader` – tunga providers laddas när plugin är aktivt (`App.tsx`).
+- **`client/src/hooks/useEnabledPlugins.ts`:** Härleder aktiva plugin-id från feature-flaggor och användarinställningar.
+- **Context / Provider:** För contacts, cups, estimates, files, ingest, invoices, mail, matches, notes, pulses, slots, tasks: `*Context.tsx` (hook + typer) och `*Provider.tsx` (implementation) – minskar initial bundle när plugin är avstängt.
+- **`client/src/types/pluginTypes.ts`:** Barrel för plugin-relaterade typer.
+- **`vite.config.ts`:** `build.rollupOptions.output.manualChunks` delar ut **Provider**- och **plugin-UI**-moduler i separata chunks (namn `plugin-*-provider` / `plugin-*`) så lazy loading och cache fungerar förutsägbart.
+
+### Övriga produktändringar (commits, april)
+
+- **Tasks / notes / slots:** Delnings-URL:er i task-header; anteckning → uppgift-dialog; slots-header och listpolish; m.m. (`899b92c` och närstående).
+- **Bundles / notes:** Publika delningslänkar och relaterad logik (`88962d4`).
+- **Estimates:** UX-förbättringar (`5ab8eeb`).
+- **Cups:** Föregående/nästa-cup via id, publikt kort med distrikt (`14bcfdf`); filter Östergötland + Futsal (`e7f71ad`).
+- **Contacts:** `ContactView`-memoization och delade plugin-hooks (`2ab07d0`).
+
+---
+
 ## 2026-04 – Cups: SvFF-import (`parseCupSource`), formulär och publik sajt
 
 Sammanfattning av ändringar som bygger vidare på cups/ingest efter mars-dokumentationen, inklusive regional HTML-import, import-UX och `public-cups`.

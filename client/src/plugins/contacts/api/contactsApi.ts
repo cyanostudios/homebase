@@ -1,3 +1,5 @@
+import { apiFetch } from '@/core/api/apiFetch';
+
 class ContactsApi {
   private async request(endpoint: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
@@ -5,9 +7,8 @@ class ContactsApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(`/api${endpoint}`, {
+    const response = await apiFetch(`/api${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 

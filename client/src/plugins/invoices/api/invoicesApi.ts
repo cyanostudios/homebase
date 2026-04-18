@@ -1,54 +1,11 @@
 // client/src/plugins/invoices/api/invoicesApi.ts
-// Invoices API - V2 with CSRF protection
+// Invoices API — mutating calls use apiFetch (CSRF when ENABLE_CSRF=true)
+import { apiFetch } from '@/core/api/apiFetch';
+
 export type ApiFieldError = { field: string; message: string };
 
 export class InvoicesApi {
-  private csrfToken: string | null = null;
-
   constructor(private basePath: string) {}
-
-  async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-
-    try {
-      const response = await fetch('/api/csrf-token', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('CSRF token fetch failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        });
-
-        if (response.status === 401) {
-          throw new Error('Session required. Please log in again.');
-        } else if (response.status === 503) {
-          throw new Error('CSRF protection not configured on server');
-        } else {
-          throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
-        }
-      }
-
-      const data = await response.json();
-      if (!data.csrfToken) {
-        throw new Error('CSRF token not found in response');
-      }
-
-      this.csrfToken = data.csrfToken;
-      return this.csrfToken;
-    } catch (error: any) {
-      console.error('CSRF token fetch failed:', error);
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Failed to get CSRF token');
-    }
-  }
 
   private async request(path: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
@@ -56,16 +13,10 @@ export class InvoicesApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    // Add CSRF token for mutations
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      // CSRF temporarily disabled: headers["X-CSRF-Token"] = await this.getCsrfToken();
-    }
-
     let response: Response;
     try {
-      response = await fetch(`${this.basePath}${path}`, {
+      response = await apiFetch(`${this.basePath}${path}`, {
         headers,
-        credentials: 'include',
         ...options,
       });
     } catch {
@@ -82,7 +33,6 @@ export class InvoicesApi {
         // Ignore JSON parse errors - payload will remain null
       }
 
-      // Handle standardized error format from backend
       const errorMessage =
         payload?.error || payload?.message || response.statusText || 'Request failed';
       const errorCode = payload?.code;
@@ -106,7 +56,6 @@ export class InvoicesApi {
     return text ? JSON.parse(text) : {};
   }
 
-  // === CRUD ===
   getItems() {
     return this.request('/');
   }
@@ -123,12 +72,10 @@ export class InvoicesApi {
     return this.request(`/${id}`, { method: 'DELETE' });
   }
 
-  // === Numbering ===
   getNextNumber() {
     return this.request('/number/next');
   }
 
-  // === Shares ===
   createShare(invoiceId: string, validUntil: string) {
     return this.request('/shares', {
       method: 'POST',
@@ -144,17 +91,13 @@ export class InvoicesApi {
     return this.request(`/shares/${shareId}`, { method: 'DELETE' });
   }
 
-  // === Public ===
   getPublicInvoice(token: string) {
-    // Note: no credentials on public route
     return fetch(`${this.basePath}/public/${token}`).then((r) => r.json());
   }
 
-  // === PDF ===
   async downloadPdf(id: string): Promise<Blob> {
-    const response = await fetch(`${this.basePath}/${id}/pdf`, {
+    const response = await apiFetch(`${this.basePath}/${id}/pdf`, {
       method: 'GET',
-      credentials: 'include',
     });
     if (!response.ok) {
       const err: any = new Error('Failed to download PDF');
@@ -165,5 +108,4 @@ export class InvoicesApi {
   }
 }
 
-// Default instance pointing at /api/invoices
 export const invoicesApi = new InvoicesApi('/api/invoices');

@@ -41,6 +41,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
+import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
 import i18n from '@/i18n';
 import type { Contact, Estimate, Match, Note, Slot, Task } from '@/types/pluginTypes';
 
@@ -140,9 +141,8 @@ const api = {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(`/api${endpoint}`, {
+    const response = await apiFetch(`/api${endpoint}`, {
       headers,
-      credentials: 'include',
       ...options,
     });
 
@@ -166,21 +166,29 @@ const api = {
   },
 
   async login(email: string, password: string) {
-    return this.request('/auth/login', {
+    const out = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    invalidateCsrfToken();
+    return out;
   },
 
   async signup(email: string, password: string) {
-    return this.request('/auth/signup', {
+    const out = await this.request('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    invalidateCsrfToken();
+    return out;
   },
 
   async logout() {
-    return this.request('/auth/logout', { method: 'POST' });
+    try {
+      return await this.request('/auth/logout', { method: 'POST' });
+    } finally {
+      invalidateCsrfToken();
+    }
   },
 
   async getMe() {

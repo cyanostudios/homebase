@@ -1,3 +1,5 @@
+import { apiFetch } from '@/core/api/apiFetch';
+
 import type { Cup } from '../types/cups';
 
 function decodeHtmlEntities(value: string): string {
@@ -62,8 +64,7 @@ function rowToCup(row: Record<string, unknown>): Cup {
 
 class CupsApi {
   private async request(endpoint: string, options: RequestInit = {}) {
-    const response = await fetch(`/api${endpoint}`, {
-      credentials: 'include',
+    const response = await apiFetch(`/api${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(options.headers || {}),

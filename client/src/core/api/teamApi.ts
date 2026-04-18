@@ -1,5 +1,7 @@
 // Team API - List/add/update/remove account members (credentials: include for session cookies)
 
+import { apiFetch } from '@/core/api/apiFetch';
+
 export interface TeamMember {
   id: number;
   email: string;
@@ -25,10 +27,9 @@ class TeamApi {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    const response = await fetch(endpoint, {
+    const response = await apiFetch(endpoint, {
       ...options,
       headers,
-      credentials: 'include',
     });
 
     if (!response.ok) {

@@ -4,7 +4,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 
 ### Aktuell kodrad
 
-- **`homebase-V3.5`** – long-lived branch för V3.5-arbete (`origin/homebase-V3.5`). Se `CHANGELOG.md`: **2026-04** (cups/SvFF-import inkl. Östergötland, `public-cups`, files/notes-bilagor, bundle-analys, files-layout).
+- **`homebase-V3.5`** – long-lived branch för V3.5-arbete (`origin/homebase-V3.5`). Se `CHANGELOG.md`: **2026-04** – första blocket (säkerhet, CSRF/`apiFetch`, publika task/note-delningar, lazy providers, Cupappen UTM); därefter cups/SvFF-import (Östergötland, `public-cups`), files/notes-bilagor, bundle-analys, files-layout.
 
 ## Snabbstart (ny utvecklare)
 

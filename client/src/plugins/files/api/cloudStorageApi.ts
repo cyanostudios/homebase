@@ -1,6 +1,8 @@
 // client/src/plugins/files/api/cloudStorageApi.ts
 // Cloud storage API client for OneDrive, Dropbox, and Google Drive
 
+import { apiFetch } from '@/core/api/apiFetch';
+
 export type CloudStorageService = 'onedrive' | 'dropbox' | 'googledrive';
 
 export interface CloudStorageSettings {
@@ -14,21 +16,6 @@ export interface CloudStorageSettings {
 export type ApiFieldError = { field: string; message: string };
 
 class CloudStorageApi {
-  private csrfToken: string | null = null;
-
-  private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-
-    const response = await fetch('/api/csrf-token', {
-      credentials: 'include',
-    });
-    const data = await response.json();
-    this.csrfToken = (data.csrfToken as string) ?? null;
-    return this.csrfToken as string;
-  }
-
   private async request(path: string, options: RequestInit = {}) {
     let response: Response;
     try {
@@ -37,14 +24,8 @@ class CloudStorageApi {
         ...((options.headers as Record<string, string>) || {}),
       };
 
-      // Add CSRF token for mutations
-      if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-        headers['X-CSRF-Token'] = await this.getCsrfToken();
-      }
-
-      response = await fetch(`/api/files${path}`, {
+      response = await apiFetch(`/api/files${path}`, {
         headers,
-        credentials: 'include',
         ...options,
       });
     } catch {
