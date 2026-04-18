@@ -389,15 +389,14 @@ export const NoteList: React.FC = () => {
             {searchTerm ? t('notes.noMatch') : t('notes.noYet')}
           </Card>
         ) : viewMode === 'grid' ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {sortedNotes.map((note, index) => {
               const noteIsSelected = isSelected(note.id);
               return (
                 <Card
                   key={note.id}
                   className={cn(
-                    'relative min-h-[160px] cursor-pointer border border-border/70 bg-card p-5 shadow-sm transition-all',
-                    'flex flex-col',
+                    'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
                     noteIsSelected
                       ? 'plugin-notes border-plugin-subtle bg-plugin-subtle ring-1 ring-plugin-subtle/50'
                       : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md',
@@ -415,7 +414,7 @@ export const NoteList: React.FC = () => {
                   role="button"
                   aria-label={`Open note ${note.title}`}
                 >
-                  <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <input
                       type="checkbox"
                       checked={noteIsSelected}
@@ -429,12 +428,12 @@ export const NoteList: React.FC = () => {
                       {note.mentions?.length ?? 0} {String(t('notes.mentions')).toLowerCase()}
                     </span>
                   </div>
-                  <h3 className="mb-3 line-clamp-1 text-base font-semibold">{note.title}</h3>
-                  <div className="border-t pt-3">
-                    <p className="line-clamp-3 text-xs text-muted-foreground">
-                      {truncateContent(note.content, 150)}
-                    </p>
-                    <div className="mt-3 text-[10px] text-muted-foreground">
+                  <h3 className="line-clamp-1 text-base font-semibold leading-snug">
+                    {note.title}
+                  </h3>
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs text-muted-foreground">
+                    <p className="line-clamp-3">{truncateContent(note.content, 150)}</p>
+                    <div className="text-[10px]">
                       {note.mentions && note.mentions.length > 0 ? (
                         <span className="font-medium plugin-contacts text-plugin">
                           @{note.mentions[0].contactName}
@@ -445,14 +444,12 @@ export const NoteList: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="mt-auto border-t pt-4">
-                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                      <div>
-                        {t('common.updated')}: {new Date(note.updatedAt).toLocaleDateString()}
-                      </div>
-                      <div>
-                        {t('slots.created')}: {new Date(note.createdAt).toLocaleDateString()}
-                      </div>
+                  <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
+                    <div>
+                      {t('common.updated')}: {new Date(note.updatedAt).toLocaleDateString()}
+                    </div>
+                    <div>
+                      {t('slots.created')}: {new Date(note.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </Card>

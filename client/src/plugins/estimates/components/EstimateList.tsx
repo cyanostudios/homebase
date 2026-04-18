@@ -401,7 +401,7 @@ export function EstimateList() {
                   <Card
                     key={estimate.id}
                     className={cn(
-                      'relative min-h-[180px] cursor-pointer border border-border/70 bg-card p-5 shadow-sm transition-all',
+                      'relative flex h-full min-h-[180px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
                       estimateIsSelected
                         ? 'plugin-estimates bg-plugin-subtle border-plugin-subtle ring-1 border-plugin-subtle'
                         : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md',
@@ -420,7 +420,7 @@ export function EstimateList() {
                     role="button"
                     aria-label={`Open estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}`}
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -437,15 +437,15 @@ export function EstimateList() {
                       </div>
                       {getStatusBadge(estimate.status)}
                     </div>
-                    <h3 className="font-semibold text-base mb-1 line-clamp-1">
+                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
                       {estimate.contactName}
                     </h3>
-                    <div className="text-xs text-muted-foreground mb-4">
-                      {estimate.organizationNumber && (
+                    {estimate.organizationNumber ? (
+                      <div className="text-xs text-muted-foreground">
                         <span>Org: {estimate.organizationNumber}</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
+                      </div>
+                    ) : null}
+                    <div className="mt-auto flex flex-col gap-2">
                       <div className="flex items-center justify-between text-sm font-medium">
                         <span>
                           {totals.total.toFixed(2)} {estimate.currency}
@@ -455,7 +455,7 @@ export function EstimateList() {
                           {estimate.lineItems.length !== 1 ? 's' : ''}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                      <div className="flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
                         <div>Created: {new Date(estimate.createdAt).toLocaleDateString()}</div>
                         <div>Valid to: {new Date(estimate.validTo).toLocaleDateString()}</div>
                       </div>

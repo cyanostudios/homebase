@@ -334,7 +334,7 @@ export const FileList: React.FC = () => {
                     <Card
                       key={row.id}
                       className={cn(
-                        'relative flex h-fit min-h-[140px] cursor-pointer flex-col border border-border/60 bg-card p-5 transition-all',
+                        'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 border border-border/60 bg-card p-5 transition-all',
                         isSelected
                           ? 'plugin-files bg-plugin-subtle ring-1 ring-plugin-subtle/50'
                           : 'hover:border-plugin-subtle hover:plugin-files hover:shadow-md',
@@ -351,7 +351,7 @@ export const FileList: React.FC = () => {
                       role="button"
                       aria-label={`Open file ${row.name}`}
                     >
-                      <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-start justify-between">
                         <input
                           type="checkbox"
                           className="h-4 w-4 cursor-pointer shrink-0"
@@ -362,7 +362,7 @@ export const FileList: React.FC = () => {
                           aria-label={isSelected ? 'Unselect file' : 'Select file'}
                         />
                       </div>
-                      <div className="flex flex-col items-center text-center flex-1 min-h-[80px] justify-center">
+                      <div className="flex min-h-[80px] flex-1 flex-col items-center justify-center text-center">
                         {isImage && row.url ? (
                           <img
                             src={row.url}

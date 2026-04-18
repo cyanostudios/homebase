@@ -464,7 +464,7 @@ export const TaskList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {sortedTasks.map((task, index) => {
                 const taskIsSelected = isSelected(task.id);
                 const assignedContacts = getAssignedContacts(task);
@@ -472,7 +472,7 @@ export const TaskList: React.FC = () => {
                   <Card
                     key={task.id}
                     className={cn(
-                      'relative p-5 cursor-pointer transition-all flex flex-col min-h-[160px] border border-border/70 bg-card shadow-sm',
+                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
                       taskIsSelected
                         ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
                         : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
@@ -490,7 +490,7 @@ export const TaskList: React.FC = () => {
                     role="button"
                     aria-label={`Open task ${task.title}`}
                   >
-                    <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <input
                         type="checkbox"
                         checked={taskIsSelected}
@@ -509,26 +509,24 @@ export const TaskList: React.FC = () => {
                         </Badge>
                       </div>
                     </div>
-                    <h3 className="mb-3 line-clamp-1 text-base font-semibold">{task.title}</h3>
-                    <div className="border-t pt-3">
-                      <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                        {assignedContacts.length > 0 && (
-                          <div className="plugin-contacts truncate font-medium text-plugin">
-                            Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
-                          </div>
-                        )}
-                        {task.dueDate && (
-                          <div className={formatDueDate(task.dueDate)?.className || ''}>
-                            {formatDueDate(task.dueDate)?.text}
-                          </div>
-                        )}
-                      </div>
+                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
+                      {task.title}
+                    </h3>
+                    <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
+                      {assignedContacts.length > 0 && (
+                        <div className="plugin-contacts truncate font-medium text-plugin">
+                          Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
+                        </div>
+                      )}
+                      {task.dueDate && (
+                        <div className={formatDueDate(task.dueDate)?.className || ''}>
+                          {formatDueDate(task.dueDate)?.text}
+                        </div>
+                      )}
                     </div>
-                    <div className="mt-auto border-t pt-4">
-                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                        <div>Updated: {new Date(task.updatedAt).toLocaleDateString()}</div>
-                        <div>Created: {new Date(task.createdAt).toLocaleDateString()}</div>
-                      </div>
+                    <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
+                      <div>Updated: {new Date(task.updatedAt).toLocaleDateString()}</div>
+                      <div>Created: {new Date(task.createdAt).toLocaleDateString()}</div>
                     </div>
                   </Card>
                 );

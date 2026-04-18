@@ -316,14 +316,14 @@ export const IngestSourceList: React.FC = () => {
             {searchTerm.trim() ? t('ingest.noMatch') : t('ingest.noYet')}
           </Card>
         ) : viewMode === 'grid' ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredAndSorted.map((row, index) => {
               const selected = isSelected(row.id);
               return (
                 <Card
                   key={row.id}
                   className={cn(
-                    'relative flex min-h-[140px] cursor-pointer flex-col border border-border/70 bg-card p-5 shadow-sm transition-all',
+                    'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
                     selected
                       ? 'plugin-ingest bg-plugin-subtle ring-1 border-plugin-subtle'
                       : 'hover:border-plugin-subtle hover:plugin-ingest hover:shadow-md',
@@ -339,7 +339,7 @@ export const IngestSourceList: React.FC = () => {
                   role="button"
                   aria-label={`Open ${row.name}`}
                 >
-                  <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -359,14 +359,14 @@ export const IngestSourceList: React.FC = () => {
                       {row.lastFetchStatus}
                     </Badge>
                   </div>
-                  <h3 className="line-clamp-2 text-sm font-semibold">{row.name}</h3>
-                  <div className="mt-1 truncate text-xs text-muted-foreground">{row.sourceUrl}</div>
-                  <div className="mt-2">
+                  <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{row.name}</h3>
+                  <div className="truncate text-xs text-muted-foreground">{row.sourceUrl}</div>
+                  <div>
                     <Badge variant="outline" className="text-[10px] font-normal uppercase">
                       {row.sourceType}
                     </Badge>
                   </div>
-                  <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+                  <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
                     <div>
                       {t('ingest.colLastFetched')}: {formatDateTimeShort(row.lastFetchedAt)}
                     </div>
@@ -374,14 +374,12 @@ export const IngestSourceList: React.FC = () => {
                       {t('ingest.active')}: {row.isActive ? t('common.yes') : t('common.no')}
                     </div>
                   </div>
-                  <div className="mt-auto border-t pt-4">
-                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                      <div>
-                        {t('common.updated')}: {new Date(row.updatedAt).toLocaleDateString()}
-                      </div>
-                      <div>
-                        {t('common.created')}: {new Date(row.createdAt).toLocaleDateString()}
-                      </div>
+                  <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
+                    <div>
+                      {t('common.updated')}: {new Date(row.updatedAt).toLocaleDateString()}
+                    </div>
+                    <div>
+                      {t('common.created')}: {new Date(row.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </Card>

@@ -469,14 +469,14 @@ export const ContactList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {sortedContacts.map((contact, index) => {
                 const contactIsSelected = isSelected(contact.id);
                 return (
                   <Card
                     key={contact.id}
                     className={cn(
-                      'relative p-5 cursor-pointer transition-all flex flex-col min-h-[160px] border border-border/70 bg-card shadow-sm',
+                      'relative h-full min-h-[160px] cursor-pointer transition-all flex flex-col gap-3 p-5 border border-border/70 bg-card shadow-sm',
                       contactIsSelected
                         ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
                         : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
@@ -494,7 +494,7 @@ export const ContactList: React.FC = () => {
                     role="button"
                     aria-label={`Open contact ${contact.companyName}`}
                   >
-                    <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <input
                         type="checkbox"
                         checked={contactIsSelected}
@@ -513,11 +513,11 @@ export const ContactList: React.FC = () => {
                         </Badge>
                       </div>
                     </div>
-                    <h3 className="mb-2 line-clamp-1 text-base font-semibold">
+                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
                       {contact.companyName}
                     </h3>
                     {(contact.organizationNumber || contact.personalNumber) && (
-                      <div className="mb-3 text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground leading-snug">
                         {contact.contactType === 'company' && contact.organizationNumber && (
                           <span>Org: {contact.organizationNumber}</span>
                         )}
@@ -526,25 +526,21 @@ export const ContactList: React.FC = () => {
                         )}
                       </div>
                     )}
-                    <div className="border-t pt-3">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-xs">
-                          <Mail className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                          <span className="truncate">{contact.email}</span>
+                    <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                        <span className="truncate">{contact.email}</span>
+                      </div>
+                      {contact.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                          <span>{contact.phone}</span>
                         </div>
-                        {contact.phone && (
-                          <div className="flex items-center gap-2 text-xs">
-                            <Phone className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                            <span>{contact.phone}</span>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
-                    <div className="mt-auto border-t pt-4">
-                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                        <div>Updated: {new Date(contact.updatedAt).toLocaleDateString()}</div>
-                        <div>Created: {new Date(contact.createdAt).toLocaleDateString()}</div>
-                      </div>
+                    <div className="mt-auto flex flex-col gap-1 text-[10px] text-muted-foreground leading-snug">
+                      <div>Updated: {new Date(contact.updatedAt).toLocaleDateString()}</div>
+                      <div>Created: {new Date(contact.createdAt).toLocaleDateString()}</div>
                     </div>
                   </Card>
                 );

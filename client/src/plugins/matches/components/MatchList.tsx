@@ -322,14 +322,14 @@ export function MatchList() {
               : 'No matches yet. Click "Add match" to add one.'}
           </Card>
         ) : viewMode === 'grid' ? (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredAndSorted.map((match, index) => {
               const selected = isSelected(match.id);
               return (
                 <Card
                   key={match.id}
                   className={cn(
-                    'relative p-5 cursor-pointer transition-all flex flex-col min-h-[140px] border border-border/70 bg-card shadow-sm',
+                    'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
                     selected
                       ? 'plugin-matches bg-plugin-subtle ring-1 border-plugin-subtle'
                       : 'hover:border-plugin-subtle hover:plugin-matches hover:shadow-md',
@@ -347,7 +347,7 @@ export function MatchList() {
                   role="button"
                   aria-label={`Open ${match.home_team} – ${match.away_team}`}
                 >
-                  <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -362,26 +362,24 @@ export function MatchList() {
                       {match.format ? ` · ${match.format}` : ''}
                     </span>
                   </div>
-                  <h3 className="line-clamp-1 text-base font-semibold">
+                  <h3 className="line-clamp-1 text-base font-semibold leading-snug">
                     {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
                   </h3>
-                  <div className="mt-1 text-xs text-muted-foreground">
+                  <div className="text-xs leading-snug text-muted-foreground">
                     {match.home_team} – {match.away_team}
                   </div>
                   {match.location && (
                     <div className="truncate text-xs text-muted-foreground">{match.location}</div>
                   )}
-                  <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+                  <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
                     <div>{formatDateTime(match.start_time)}</div>
                     {match.total_minutes !== null && match.total_minutes !== undefined && (
                       <div>{match.total_minutes} min</div>
                     )}
                   </div>
-                  <div className="mt-auto border-t pt-4">
-                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                      <div>Updated: {new Date(match.updated_at).toLocaleDateString('sv-SE')}</div>
-                      <div>Created: {new Date(match.created_at).toLocaleDateString('sv-SE')}</div>
-                    </div>
+                  <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
+                    <div>Updated: {new Date(match.updated_at).toLocaleDateString('sv-SE')}</div>
+                    <div>Created: {new Date(match.created_at).toLocaleDateString('sv-SE')}</div>
                   </div>
                 </Card>
               );

@@ -468,14 +468,14 @@ export function SlotsList() {
             {searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
           </Card>
         ) : viewMode === 'grid' ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredAndSorted.map((slot, index) => {
               const selected = isSelected(slot.id);
               return (
                 <Card
                   key={slot.id}
                   className={cn(
-                    'relative min-h-[140px] cursor-pointer border border-border/70 bg-card p-5 shadow-sm transition-all',
+                    'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
                     selected
                       ? 'plugin-slots bg-plugin-subtle ring-1 border-plugin-subtle'
                       : 'hover:border-plugin-subtle hover:plugin-slots hover:shadow-md',
@@ -489,7 +489,7 @@ export function SlotsList() {
                   }}
                   role="button"
                 >
-                  <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -505,13 +505,13 @@ export function SlotsList() {
                       </Badge>
                     )}
                   </div>
-                  <h3 className="line-clamp-1 text-base font-semibold">
+                  <h3 className="line-clamp-1 text-base font-semibold leading-snug">
                     {slot.name?.trim() || `SLT ${slot.id}`}
                   </h3>
-                  <div className="mt-1 truncate text-xs text-muted-foreground">
+                  <div className="truncate text-xs text-muted-foreground">
                     {slot.location?.trim() || '—'}
                   </div>
-                  <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+                  <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
                     <span
                       className={cn(
                         isSlotTimePast(slot.slot_time) &&
@@ -520,18 +520,17 @@ export function SlotsList() {
                     >
                       {formatDateTime(slot.slot_time)}
                     </span>
-                    {' · '}
-                    {t('common.capacity')} {slot.capacity}{' '}
-                    <CapacityAssignedDots
-                      capacity={slot.capacity}
-                      assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
-                    />
+                    <span>
+                      {t('common.capacity')} {slot.capacity}{' '}
+                      <CapacityAssignedDots
+                        capacity={slot.capacity}
+                        assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
+                      />
+                    </span>
                   </div>
-                  <div className="mt-auto border-t pt-4">
-                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                      <div>Updated: {new Date(slot.updated_at).toLocaleDateString('sv-SE')}</div>
-                      <div>Created: {new Date(slot.created_at).toLocaleDateString('sv-SE')}</div>
-                    </div>
+                  <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
+                    <div>Updated: {new Date(slot.updated_at).toLocaleDateString('sv-SE')}</div>
+                    <div>Created: {new Date(slot.created_at).toLocaleDateString('sv-SE')}</div>
                   </div>
                 </Card>
               );

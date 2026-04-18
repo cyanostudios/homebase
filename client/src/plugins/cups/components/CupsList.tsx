@@ -448,12 +448,12 @@ export function CupsList() {
               : 'No cups yet. Add a cup or import from ingest.'}
           </Card>
         ) : viewMode === 'grid' ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredAndSorted.map((cup, index) => (
               <Card
                 key={cup.id}
                 className={cn(
-                  'relative min-h-[140px] cursor-pointer border border-border/70 bg-card p-5 shadow-sm transition-all',
+                  'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
                   isSelected(cup.id)
                     ? 'plugin-cups bg-plugin-subtle ring-1 border-plugin-subtle'
                     : 'hover:border-plugin-subtle hover:plugin-cups hover:shadow-md',
@@ -466,7 +466,7 @@ export function CupsList() {
                 }}
                 role="button"
               >
-                <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <input
                     type="checkbox"
                     checked={isSelected(cup.id)}
@@ -476,25 +476,23 @@ export function CupsList() {
                     className="h-4 w-4 cursor-pointer"
                   />
                 </div>
-                <h3 className="text-sm font-semibold">{cup.name || '—'}</h3>
-                <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
-                  {cup.location || '—'}
-                  {' · '}
-                  {cup.start_date ? new Date(cup.start_date).toLocaleDateString('sv-SE') : '—'}
-                  {' · '}
-                  {cup.visible ? 'Visible' : 'Hidden'}
-                  {' · '}
-                  {cup.featured ? 'Featured' : 'Not featured'}
+                <h3 className="text-sm font-semibold leading-snug">{cup.name || '—'}</h3>
+                <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs text-muted-foreground">
+                  <div>
+                    {cup.location || '—'}
+                    {' · '}
+                    {cup.start_date ? new Date(cup.start_date).toLocaleDateString('sv-SE') : '—'}
+                    {' · '}
+                    {cup.visible ? 'Visible' : 'Hidden'}
+                    {' · '}
+                    {cup.featured ? 'Featured' : 'Not featured'}
+                  </div>
+                  {ingestTitleForCup(cup.ingest_source_id) ? (
+                    <div>Ingest: {ingestTitleForCup(cup.ingest_source_id)}</div>
+                  ) : null}
                 </div>
-                {ingestTitleForCup(cup.ingest_source_id) ? (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Ingest: {ingestTitleForCup(cup.ingest_source_id)}
-                  </div>
-                ) : null}
-                <div className="mt-auto border-t pt-4">
-                  <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                    <div>Updated: {new Date(cup.updated_at).toLocaleDateString('sv-SE')}</div>
-                  </div>
+                <div className="mt-auto text-[10px] leading-snug text-muted-foreground">
+                  Updated: {new Date(cup.updated_at).toLocaleDateString('sv-SE')}
                 </div>
               </Card>
             ))}
