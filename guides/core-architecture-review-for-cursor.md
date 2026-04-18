@@ -26,8 +26,8 @@ Files reviewed:
 
 ### Core frontend
 
-- `App.tsx`
-- `AppContext.tsx`
+- `App.tsx` (thin entry; routes live in `core/app/AppRoutes.tsx`)
+- `AppContext.tsx` (`client/src/core/api/AppContext.tsx`; memoized provider value)
 - `pluginRegistry.ts`
 - `panelHandlers.ts`
 - `panelRendering.tsx`

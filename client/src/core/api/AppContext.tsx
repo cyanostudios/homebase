@@ -39,7 +39,16 @@
  * Last Modified: August 2025 - Critical Rules Added
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  ReactNode,
+} from 'react';
 
 import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
 import i18n from '@/i18n';
@@ -235,9 +244,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  const [panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(
+  const [_panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(
     new Map(),
   );
+  const panelCloseFunctionsRef = useRef<Map<string, () => void>>(new Map());
 
   const [openNoteForView, setOpenNoteForView] = useState<((note: Note) => void) | undefined>(
     undefined,
@@ -378,42 +388,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, loadData]);
 
-  const login = async (
-    email: string,
-    password: string,
-  ): Promise<{ success: boolean; error?: string }> => {
-    try {
-      await api.login(email, password);
-      const me = await api.getMe();
-      setUser(me.user);
-      setIsAuthenticated(true);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Login failed:', error.message || 'Unknown error');
-      const errorMessage =
-        error?.message || (error?.status === 401 ? 'Invalid email or password' : 'Login failed');
-      return { success: false, error: errorMessage };
-    }
-  };
+  const login = useCallback(
+    async (
+      email: string,
+      password: string,
+    ): Promise<{
+      success: boolean;
+      error?: string;
+    }> => {
+      try {
+        await api.login(email, password);
+        const me = await api.getMe();
+        setUser(me.user);
+        setIsAuthenticated(true);
+        return { success: true };
+      } catch (error: any) {
+        console.error('Login failed:', error.message || 'Unknown error');
+        const errorMessage =
+          error?.message || (error?.status === 401 ? 'Invalid email or password' : 'Login failed');
+        return { success: false, error: errorMessage };
+      }
+    },
+    [],
+  );
 
-  const signup = async (
-    email: string,
-    password: string,
-  ): Promise<{ success: boolean; error?: string }> => {
-    try {
-      await api.signup(email, password);
-      const me = await api.getMe();
-      setUser(me.user);
-      setIsAuthenticated(true);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Signup failed:', error);
-      const errorMessage = error.message || 'Failed to create account. Please try again.';
-      return { success: false, error: errorMessage };
-    }
-  };
+  const signup = useCallback(
+    async (
+      email: string,
+      password: string,
+    ): Promise<{
+      success: boolean;
+      error?: string;
+    }> => {
+      try {
+        await api.signup(email, password);
+        const me = await api.getMe();
+        setUser(me.user);
+        setIsAuthenticated(true);
+        return { success: true };
+      } catch (error: any) {
+        console.error('Signup failed:', error);
+        const errorMessage = error.message || 'Failed to create account. Please try again.';
+        return { success: false, error: errorMessage };
+      }
+    },
+    [],
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.logout();
     } catch (error) {
@@ -425,13 +447,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setNotes([]);
       setTasks([]);
     }
-  };
+  }, []);
 
   const registerPanelCloseFunction = useCallback(
     (pluginName: string, closeFunction: () => void) => {
       setPanelCloseFunctions((prev) => {
         const newMap = new Map(prev);
         newMap.set(pluginName, closeFunction);
+        panelCloseFunctionsRef.current = newMap;
         return newMap;
       });
     },
@@ -442,17 +465,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPanelCloseFunctions((prev) => {
       const newMap = new Map(prev);
       newMap.delete(pluginName);
+      panelCloseFunctionsRef.current = newMap;
       return newMap;
     });
   }, []);
 
-  const closeOtherPanels = (except?: PluginNameUnion) => {
-    panelCloseFunctions.forEach((closeFunction, pluginName) => {
+  const closeOtherPanels = useCallback((except?: PluginNameUnion) => {
+    panelCloseFunctionsRef.current.forEach((closeFunction, pluginName) => {
       if (pluginName !== except) {
         closeFunction();
       }
     });
-  };
+  }, []);
 
   const getNotesForContact = useCallback(
     async (contactId: string): Promise<Note[]> => {
@@ -578,7 +602,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [user?.plugins, tasks],
   );
 
-  const getSettings = async (category?: string) => {
+  const getSettings = useCallback(async (category?: string) => {
     try {
       const response = await api.getSettings(category);
       return response.settings;
@@ -586,11 +610,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Failed to fetch settings:', error);
       return {};
     }
-  };
+  }, []);
 
   const [settingsVersion, setSettingsVersion] = useState(0);
 
-  const updateSettings = async (category: string, settings: any) => {
+  const updateSettings = useCallback(async (category: string, settings: any) => {
     try {
       const response = await api.updateSettings(category, settings);
       setSettingsVersion((prev) => prev + 1);
@@ -602,7 +626,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Failed to update settings:', error);
       throw error;
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -615,64 +639,100 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {});
-  }, [isAuthenticated]);
+  }, [isAuthenticated, getSettings]);
 
   /**
    * AppContext scope (guardrail): keep **global**, **cross-plugin**, or **shell** concerns here.
    * Prefer plugin modules or small helpers for plugin-specific behavior; do not use this as a
    * default dumping ground. See guides/core-architecture-review-for-cursor.md.
    */
-  return (
-    <AppContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        login,
-        signup,
-        logout,
-        isLoading,
+  const contextValue = useMemo(
+    () => ({
+      user,
+      isAuthenticated,
+      login,
+      signup,
+      logout,
+      isLoading,
 
-        contacts,
-        notes,
+      contacts,
+      notes,
 
-        getNotesForContact,
-        getContactsForNote,
-        getEstimatesForContact,
-        getTasksForContact,
-        getTasksWithMentionsForContact,
-        getSlotsForContact,
-        getMatchesForContact,
+      getNotesForContact,
+      getContactsForNote,
+      getEstimatesForContact,
+      getTasksForContact,
+      getTasksWithMentionsForContact,
+      getSlotsForContact,
+      getMatchesForContact,
 
-        openNoteForView,
-        openTaskForView,
-        openEstimateForView,
-        openSlotForView,
-        openMatchForView,
-        registerNotesNavigation,
-        registerTasksNavigation,
-        registerEstimatesNavigation,
-        registerSlotsNavigation,
-        registerMatchesNavigation,
+      openNoteForView,
+      openTaskForView,
+      openEstimateForView,
+      openSlotForView,
+      openMatchForView,
+      registerNotesNavigation,
+      registerTasksNavigation,
+      registerEstimatesNavigation,
+      registerSlotsNavigation,
+      registerMatchesNavigation,
 
-        openToTaskDialog,
-        registerOpenToTaskDialog,
-        openToSlotDialog,
-        registerOpenToSlotDialog,
+      openToTaskDialog,
+      registerOpenToTaskDialog,
+      openToSlotDialog,
+      registerOpenToSlotDialog,
 
-        closeOtherPanels,
-        registerPanelCloseFunction,
-        unregisterPanelCloseFunction,
+      closeOtherPanels,
+      registerPanelCloseFunction,
+      unregisterPanelCloseFunction,
 
-        refreshData,
+      refreshData,
 
-        getSettings,
-        updateSettings,
-        settingsVersion,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+      getSettings,
+      updateSettings,
+      settingsVersion,
+    }),
+    [
+      user,
+      isAuthenticated,
+      login,
+      signup,
+      logout,
+      isLoading,
+      contacts,
+      notes,
+      getNotesForContact,
+      getContactsForNote,
+      getEstimatesForContact,
+      getTasksForContact,
+      getTasksWithMentionsForContact,
+      getSlotsForContact,
+      getMatchesForContact,
+      openNoteForView,
+      openTaskForView,
+      openEstimateForView,
+      openSlotForView,
+      openMatchForView,
+      registerNotesNavigation,
+      registerTasksNavigation,
+      registerEstimatesNavigation,
+      registerSlotsNavigation,
+      registerMatchesNavigation,
+      openToTaskDialog,
+      registerOpenToTaskDialog,
+      openToSlotDialog,
+      registerOpenToSlotDialog,
+      closeOtherPanels,
+      registerPanelCloseFunction,
+      unregisterPanelCloseFunction,
+      refreshData,
+      getSettings,
+      updateSettings,
+      settingsVersion,
+    ],
   );
+
+  return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 }
 
 export function useApp() {

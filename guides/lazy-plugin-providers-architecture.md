@@ -9,7 +9,7 @@ This document describes the frontend architecture introduced in the commit that:
 - Adds **Vite `manualChunks`** so each heavy `*Provider` module becomes its own chunk (e.g. `plugin-notes-provider`).
 - Adjusts **API `rateLimit`** behaviour in non-production to avoid 429s during heavy parallel client loads and HMR.
 
-Related: [`docs/PLUGIN_RUNTIME_CONVENTIONS.md`](../docs/PLUGIN_RUNTIME_CONVENTIONS.md), [`guides/app-tsx-refactor-guide-for-cursor.md`](app-tsx-refactor-guide-for-cursor.md).
+Related: [`docs/PLUGIN_RUNTIME_CONVENTIONS.md`](../docs/PLUGIN_RUNTIME_CONVENTIONS.md), [`guides/app-tsx-refactor-guide-for-cursor.md`](app-tsx-refactor-guide-for-cursor.md), [`guides/app-shell-and-appcontext.md`](app-shell-and-appcontext.md).
 
 ---
 
@@ -42,14 +42,14 @@ Hooks stay in `hooks/useXxx.ts` and typically call `useXxxContext()` from the le
 Each opt-in entry includes:
 
 - **`Provider`**: Synchronous fallback — for lazy plugins this is the **`NullProvider`** from `*Context.tsx`. Until the async chunk resolves, the tree uses this.
-- **`providerLoader`**: Optional `() => import('…/XxxProvider').then(m => m.XxxProvider)`. When defined, `App.tsx` invokes it after auth for enabled plugins.
+- **`providerLoader`**: Optional `() => import('…/XxxProvider').then(m => m.XxxProvider)`. When defined, [`PluginProviders`](../client/src/core/app/PluginProviders.tsx) invokes it after auth for enabled plugins.
 - **`NullProvider`**: Used when the tenant **does not** have the plugin; the provider stack skips loading the real implementation entirely.
 
 Eager imports at the top of `pluginRegistry.ts` are limited to **NullProviders + hooks** so the registry module stays light. **List / Form / View / dashboardWidget** remain `React.lazy` as before.
 
 ---
 
-## 4. `PluginProviders` in `App.tsx`
+## 4. `PluginProviders` (`client/src/core/app/PluginProviders.tsx`)
 
 Behaviour:
 

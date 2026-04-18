@@ -1,5 +1,5 @@
 import { LucideIcon } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
@@ -74,9 +74,16 @@ export function MainLayout({
   }, [currentPage]);
 
   // Navigation (including close behavior) is handled upstream in App.tsx.
-  const handlePageChange = (page: NavPage) => {
-    onPageChange(page);
-  };
+  const handlePageChange = useCallback(
+    (page: NavPage) => {
+      onPageChange(page);
+    },
+    [onPageChange],
+  );
+
+  const openMobileNav = useCallback(() => {
+    setMobileNavOpen(true);
+  }, []);
   const shouldShowContentHeader = Boolean(
     contentTitle || contentIcon || headerTitleSuffix || contentActionLabel || headerTrailing,
   );
@@ -93,7 +100,7 @@ export function MainLayout({
       <TopBar
         currentPage={currentPage}
         onPageChange={handlePageChange}
-        onOpenMobileNav={() => setMobileNavOpen(true)}
+        onOpenMobileNav={openMobileNav}
         detailPanelTitle={detailPanelOpen ? detailPanelTitle : undefined}
         onDetailPanelClose={detailPanelOpen ? onDetailPanelClose : undefined}
         detailPanelPluginName={detailPanelOpen ? detailPanelPluginName : undefined}
