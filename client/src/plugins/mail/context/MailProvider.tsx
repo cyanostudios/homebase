@@ -38,19 +38,6 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- register once on mount
   }, []);
 
-  useEffect(() => {
-    (window as any).submitMailForm = () => {
-      window.dispatchEvent(new CustomEvent('submitMailForm'));
-    };
-    (window as any).cancelMailForm = () => {
-      window.dispatchEvent(new CustomEvent('cancelMailForm'));
-    };
-    return () => {
-      delete (window as any).submitMailForm;
-      delete (window as any).cancelMailForm;
-    };
-  }, []);
-
   const loadHistory = useCallback(
     async (params?: { limit?: number; offset?: number; pluginSource?: string }) => {
       if (!isAuthenticated) {

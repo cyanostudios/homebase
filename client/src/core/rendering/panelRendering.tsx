@@ -3,6 +3,7 @@
 import React from 'react';
 
 import { getSingular, getSingularCap } from '@/core/pluginSingular';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 
 // Accepts both regular React components (functions) and React.lazy exotic components (objects).
 // React.isValidElementType is an internal API not exported from the react package.
@@ -17,6 +18,7 @@ export const createPanelRenderers = (
   currentItem: any,
   handleSave: (data: any) => Promise<boolean>,
   handleCancel: () => void,
+  formRef: React.RefObject<PanelFormHandle | null>,
 ) => {
   const renderPanelContent = () => {
     if (!currentPlugin || !currentPluginContext) {
@@ -42,19 +44,11 @@ export const createPanelRenderers = (
       // Also pass generic 'item' prop for plugins that might use it
       const finalProps = { ...props, item: currentItem };
 
-      const ingestRunImport =
-        currentPlugin.name === 'ingest' &&
-        typeof currentPluginContext?.runIngestImport === 'function'
-          ? {
-              runIngestImport: currentPluginContext.runIngestImport as (
-                id: string,
-              ) => Promise<void>,
-            }
-          : {};
+      const viewExtraProps = currentPlugin.getViewExtraProps?.(currentPluginContext) ?? {};
 
       return (
         <React.Suspense fallback={null}>
-          <ViewComponent {...finalProps} {...ingestRunImport} />
+          <ViewComponent {...finalProps} {...viewExtraProps} />
         </React.Suspense>
       );
     }
@@ -77,14 +71,12 @@ export const createPanelRenderers = (
       currentItem: currentItem, // Fallback generic prop
       onSave: handleSave,
       onCancel: handleCancel,
-      ...(typeof currentPluginContext?.saveSlots === 'function'
-        ? { onSaveSlots: currentPluginContext.saveSlots }
-        : {}),
+      ...(currentPlugin.getFormExtraProps?.(currentPluginContext) ?? {}),
     };
 
     return (
       <React.Suspense fallback={null}>
-        <FormComponent {...formProps} />
+        <FormComponent {...formProps} ref={formRef} />
       </React.Suspense>
     );
   };

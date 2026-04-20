@@ -244,9 +244,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  const [_panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(
-    new Map(),
-  );
   const panelCloseFunctionsRef = useRef<Map<string, () => void>>(new Map());
 
   const [openNoteForView, setOpenNoteForView] = useState<((note: Note) => void) | undefined>(
@@ -451,23 +448,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const registerPanelCloseFunction = useCallback(
     (pluginName: string, closeFunction: () => void) => {
-      setPanelCloseFunctions((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(pluginName, closeFunction);
-        panelCloseFunctionsRef.current = newMap;
-        return newMap;
-      });
+      const newMap = new Map(panelCloseFunctionsRef.current);
+      newMap.set(pluginName, closeFunction);
+      panelCloseFunctionsRef.current = newMap;
     },
     [],
   );
 
   const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
-    setPanelCloseFunctions((prev) => {
-      const newMap = new Map(prev);
-      newMap.delete(pluginName);
-      panelCloseFunctionsRef.current = newMap;
-      return newMap;
-    });
+    const newMap = new Map(panelCloseFunctionsRef.current);
+    newMap.delete(pluginName);
+    panelCloseFunctionsRef.current = newMap;
   }, []);
 
   const closeOtherPanels = useCallback((except?: PluginNameUnion) => {

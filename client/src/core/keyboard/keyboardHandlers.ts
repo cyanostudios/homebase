@@ -2,17 +2,6 @@
 
 import { getSingularCap } from '@/core/pluginSingular';
 
-// Utility function to find plugin functions dynamically
-function _findPluginFunction(context: any, action: string, pluginName?: string): any {
-  if (!context || !pluginName) {
-    return null;
-  }
-
-  // Generic: action + SingularCap
-  const fnName = `${action}${getSingularCap(pluginName)}`;
-  return typeof context[fnName] === 'function' ? context[fnName] : null;
-}
-
 // Utility function to find panel functions dynamically
 function findPanelFunction(context: any, action: string, pluginName?: string): any {
   if (!context || !pluginName) {

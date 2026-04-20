@@ -1,5 +1,12 @@
 import { Info, Search, SlidersHorizontal, Trash2, User, Users } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -17,6 +24,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
@@ -119,7 +127,10 @@ function toDatetimeLocal(iso: string | null | undefined): string {
   return `${y}-${mo}-${day}T${h}:${min}`;
 }
 
-export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFormProps) {
+export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(function SlotForm(
+  { currentSlot, onSave, onSaveSlots, onCancel },
+  ref,
+) {
   const { t } = useTranslation();
   const { contacts, getSettings, settingsVersion } = useApp();
   const { validationErrors, clearValidationErrors, panelMode } = useSlots();
@@ -415,18 +426,14 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
     attemptAction(() => onCancel());
   }, [attemptAction, hasActualChanges, onCancel]);
 
-  useEffect(() => {
-    window.submitSlotsForm = () => handleSubmit();
-    (window as any).submitSlotForm = window.submitSlotsForm;
-    window.cancelSlotsForm = () => handleCancel();
-    (window as any).cancelSlotForm = window.cancelSlotsForm;
-    return () => {
-      delete window.submitSlotsForm;
-      delete (window as any).submitSlotForm;
-      delete window.cancelSlotsForm;
-      delete (window as any).cancelSlotForm;
-    };
-  }, [handleSubmit, handleCancel]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => handleSubmit(),
+      cancel: handleCancel,
+    }),
+    [handleSubmit, handleCancel],
+  );
 
   if (panelMode === 'settings') {
     return <SlotsSettingsForm onCancel={onCancel} />;
@@ -940,4 +947,4 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
       />
     </>
   );
-}
+});

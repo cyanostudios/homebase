@@ -4,7 +4,7 @@
 // (`current{SingularCap}`, `open{SingularCap}ForView`, …). See docs/PLUGIN_RUNTIME_CONVENTIONS.md.
 
 const IRREGULAR: Record<string, string> = { matches: 'match', slots: 'slot' };
-const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+export const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 
 export function getSingular(pluginName: string): string {
   const camel = toCamel(pluginName);

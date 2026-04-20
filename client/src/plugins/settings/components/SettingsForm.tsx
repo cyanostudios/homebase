@@ -1,8 +1,9 @@
 // Renders Profile / Preferences / ActivityLog form based on selected category.
-// Buttons live in panel footer; Save is triggered via window.submitSettingsForm.
+// Buttons live in panel footer and invoke the form handle.
 
-import React, { useEffect } from 'react';
+import React, { useImperativeHandle } from 'react';
 
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ActivityLogForm } from '@/core/ui/SettingsForms/ActivityLogForm';
 import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
 import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
@@ -17,32 +18,35 @@ interface SettingsFormProps {
   onSave?: (data: any) => Promise<boolean>;
 }
 
-export function SettingsForm({ currentSetting, currentItem, onCancel }: SettingsFormProps) {
-  const { submitSave } = useSettingsContext();
+export const SettingsForm = React.forwardRef<PanelFormHandle, SettingsFormProps>(
+  function SettingsForm({ currentSetting, currentItem, onCancel }, ref) {
+    const { submitSave } = useSettingsContext();
 
-  useEffect(() => {
-    (window as unknown as { submitSettingsForm?: () => Promise<void> }).submitSettingsForm =
-      submitSave;
-    return () => {
-      (window as unknown as { submitSettingsForm?: null }).submitSettingsForm = null;
-    };
-  }, [submitSave]);
+    useImperativeHandle(
+      ref,
+      () => ({
+        submit: () => submitSave(),
+        cancel: onCancel,
+      }),
+      [submitSave, onCancel],
+    );
 
-  const category = currentSetting?.category ?? currentItem?.category;
-  if (!category) {
+    const category = currentSetting?.category ?? currentItem?.category;
+    if (!category) {
+      return null;
+    }
+    if (category === 'profile') {
+      return <ProfileSettingsForm onCancel={onCancel} />;
+    }
+    if (category === 'preferences') {
+      return <PreferencesSettingsForm onCancel={onCancel} />;
+    }
+    if (category === 'activity-log') {
+      return <ActivityLogForm onCancel={onCancel} />;
+    }
+    if (category === 'team') {
+      return <TeamSettingsForm onCancel={onCancel} />;
+    }
     return null;
-  }
-  if (category === 'profile') {
-    return <ProfileSettingsForm onCancel={onCancel} />;
-  }
-  if (category === 'preferences') {
-    return <PreferencesSettingsForm onCancel={onCancel} />;
-  }
-  if (category === 'activity-log') {
-    return <ActivityLogForm onCancel={onCancel} />;
-  }
-  if (category === 'team') {
-    return <TeamSettingsForm onCancel={onCancel} />;
-  }
-  return null;
-}
+  },
+);

@@ -1,10 +1,11 @@
 // client/src/plugins/files/components/FileForm.tsx
 import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +22,10 @@ interface FileFormProps {
 
 type Picked = { id: string; file: File };
 
-export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCancel }) => {
+export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(function FileForm(
+  { currentItem, onSave, onCancel },
+  ref,
+) {
   const { validationErrors, clearValidationErrors, panelMode } = useFiles();
   const isEdit = !!currentItem; // edit-läge om vi har ett item
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -190,18 +194,14 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
     onCancel();
   }, [onCancel]);
 
-  useEffect(() => {
-    window.submitFilesForm = () => handleSubmit();
-    (window as any).submitFileForm = window.submitFilesForm;
-    window.cancelFilesForm = () => handleCancel();
-    (window as any).cancelFileForm = window.cancelFilesForm;
-    return () => {
-      delete window.submitFilesForm;
-      delete (window as any).submitFileForm;
-      delete window.cancelFilesForm;
-      delete (window as any).cancelFileForm;
-    };
-  }, [handleSubmit, handleCancel]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => handleSubmit(),
+      cancel: handleCancel,
+    }),
+    [handleSubmit, handleCancel],
+  );
 
   // Settings: render settings form (after all hooks so rules-of-hooks are satisfied)
   if (panelMode === 'settings') {
@@ -316,4 +316,4 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
       </DetailSection>
     </div>
   );
-};
+});

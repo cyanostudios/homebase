@@ -1,11 +1,12 @@
 import { Info } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -39,12 +40,10 @@ interface NoteFormProps {
   isSubmitting?: boolean;
 }
 
-export const NoteForm: React.FC<NoteFormProps> = ({
-  currentNote,
-  onSave,
-  onCancel,
-  isSubmitting: externalIsSubmitting = false,
-}) => {
+export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(function NoteForm(
+  { currentNote, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+  ref,
+) {
   const { t } = useTranslation();
   const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
@@ -128,18 +127,14 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  useEffect(() => {
-    window.submitNotesForm = () => handleSubmit();
-    (window as any).submitNoteForm = window.submitNotesForm;
-    window.cancelNotesForm = () => handleCancel();
-    (window as any).cancelNoteForm = window.cancelNotesForm;
-    return () => {
-      delete window.submitNotesForm;
-      delete (window as any).submitNoteForm;
-      delete window.cancelNotesForm;
-      delete (window as any).cancelNoteForm;
-    };
-  }, [handleSubmit, handleCancel]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => handleSubmit(),
+      cancel: handleCancel,
+    }),
+    [handleSubmit, handleCancel],
+  );
 
   const handleDiscardChanges = () => {
     if (!currentNote) {
@@ -311,4 +306,4 @@ export const NoteForm: React.FC<NoteFormProps> = ({
       />
     </>
   );
-};
+});

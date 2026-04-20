@@ -1,5 +1,5 @@
 import { Info, X } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -71,7 +72,10 @@ function toDatetimeLocal(iso: string | null): string {
   return `${y}-${m}-${day}T${h}:${min}`;
 }
 
-export function MatchForm({ currentMatch, onSave, onCancel }: MatchFormProps) {
+export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(function MatchForm(
+  { currentMatch, onSave, onCancel },
+  ref,
+) {
   const { t } = useTranslation();
   const { contacts } = useApp();
   const assignableContacts = (contacts as AssignableContact[]).filter(
@@ -239,18 +243,14 @@ export function MatchForm({ currentMatch, onSave, onCancel }: MatchFormProps) {
     attemptAction(() => onCancel());
   }, [attemptAction, onCancel]);
 
-  useEffect(() => {
-    window.submitMatchesForm = () => handleSubmit();
-    (window as any).submitMatchForm = window.submitMatchesForm;
-    window.cancelMatchesForm = () => handleCancel();
-    (window as any).cancelMatchForm = window.cancelMatchesForm;
-    return () => {
-      delete window.submitMatchesForm;
-      delete (window as any).submitMatchForm;
-      delete window.cancelMatchesForm;
-      delete (window as any).cancelMatchForm;
-    };
-  }, [handleSubmit, handleCancel]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => handleSubmit(),
+      cancel: handleCancel,
+    }),
+    [handleSubmit, handleCancel],
+  );
 
   if (panelMode === 'settings') {
     return <MatchSettingsForm onCancel={onCancel} />;
@@ -657,4 +657,4 @@ export function MatchForm({ currentMatch, onSave, onCancel }: MatchFormProps) {
       />
     </div>
   );
-}
+});

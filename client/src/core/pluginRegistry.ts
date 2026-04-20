@@ -88,6 +88,18 @@ export interface PluginRegistryEntry {
   dashboardWidget?: PluginComponent<DashboardWidgetProps>;
   /** Prefix för visning av entitetsnummer (t.ex. CNT-1, EST-2025-001). */
   displayPrefix?: string;
+  /** If true, plugin pages render edge-to-edge without inner content padding. */
+  contentFlush?: boolean;
+  /** Field (or resolver) used to derive human-friendly URL slugs. */
+  slugField?: string | ((item: any) => string);
+  /** Optional context key that stores plugin content view state (e.g. list/settings). */
+  contentViewKey?: string;
+  /** If true, content header should not render an Add/create primary action. */
+  noPrimaryAction?: true;
+  /** Optional provider for extra props passed to plugin View component. */
+  getViewExtraProps?: (context: any) => Record<string, unknown>;
+  /** Optional provider for extra props passed to plugin Form component. */
+  getFormExtraProps?: (context: any) => Record<string, unknown>;
 }
 
 // ─── Static imports: NullProviders + hooks (lean, eager – used at app init) ──
@@ -375,6 +387,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: ContactsDashboardWidget,
     displayPrefix: 'CNT',
+    contentFlush: true,
+    slugField: 'companyName',
+    contentViewKey: 'contactsContentView',
   },
   {
     name: 'notes',
@@ -397,6 +412,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: NotesDashboardWidget,
     displayPrefix: 'NTS',
+    contentFlush: true,
+    slugField: 'title',
+    noPrimaryAction: true,
   },
   {
     name: 'tasks',
@@ -419,6 +437,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: TasksDashboardWidget,
     displayPrefix: 'TSK',
+    contentFlush: true,
+    slugField: 'title',
+    contentViewKey: 'tasksContentView',
   },
   {
     name: 'estimates',
@@ -441,6 +462,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: EstimatesDashboardWidget,
     displayPrefix: 'EST',
+    contentFlush: true,
+    slugField: 'estimateNumber',
+    contentViewKey: 'estimatesContentView',
   },
   {
     name: 'invoices',
@@ -458,6 +482,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     navigation: invoicesNavigation,
     dashboardWidget: InvoicesDashboardWidget,
     displayPrefix: 'INV',
+    slugField: 'invoiceNumber',
   },
   {
     name: 'files',
@@ -480,6 +505,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: FilesDashboardWidget,
     displayPrefix: 'FLS',
+    contentFlush: true,
+    slugField: 'name',
+    contentViewKey: 'filesContentView',
   },
   {
     name: 'matches',
@@ -502,6 +530,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: MatchesDashboardWidget,
     displayPrefix: 'MAT',
+    contentFlush: true,
+    slugField: (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
+    contentViewKey: 'matchesContentView',
   },
   {
     name: 'slots',
@@ -524,6 +555,11 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
+    contentFlush: true,
+    slugField: (i: any) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
+    noPrimaryAction: true,
+    getFormExtraProps: (context: any) =>
+      typeof context?.saveSlots === 'function' ? { onSaveSlots: context.saveSlots } : {},
   },
   {
     name: 'cups',
@@ -545,6 +581,8 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: CupsDashboardWidget,
     displayPrefix: 'CUP',
+    contentFlush: true,
+    noPrimaryAction: true,
   },
   {
     name: 'ingest',
@@ -566,6 +604,13 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 3,
     },
     displayPrefix: 'ING',
+    contentFlush: true,
+    slugField: 'name',
+    noPrimaryAction: true,
+    getViewExtraProps: (context: any) =>
+      typeof context?.runIngestImport === 'function'
+        ? { runIngestImport: context.runIngestImport as (id: string) => Promise<void> }
+        : {},
   },
   {
     name: 'mail',
@@ -586,6 +631,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: MailDashboardWidget,
     displayPrefix: 'MAIL',
+    contentFlush: true,
+    slugField: 'id',
+    contentViewKey: 'mailContentView',
   },
   {
     name: 'pulses',
@@ -607,6 +655,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: PulsesDashboardWidget,
     displayPrefix: 'PULSE',
+    contentFlush: true,
+    slugField: 'id',
+    contentViewKey: 'pulsesContentView',
   },
   {
     name: 'settings',

@@ -27,39 +27,14 @@ const PublicTaskView = React.lazy(() =>
   })),
 );
 
-// Thin wrapper that reads :token from URL and renders the public estimate page
-function PublicEstimateRoute() {
+function PublicTokenRoute({ Component }: { Component: React.ComponentType<{ token: string }> }) {
   const { token } = useParams<{ token: string }>();
   if (!token) {
     return <div>Invalid link</div>;
   }
   return (
     <React.Suspense fallback={null}>
-      <PublicEstimateView token={token} />
-    </React.Suspense>
-  );
-}
-
-function PublicNoteRoute() {
-  const { token } = useParams<{ token: string }>();
-  if (!token) {
-    return <div>Invalid link</div>;
-  }
-  return (
-    <React.Suspense fallback={null}>
-      <PublicNoteView token={token} />
-    </React.Suspense>
-  );
-}
-
-function PublicTaskRoute() {
-  const { token } = useParams<{ token: string }>();
-  if (!token) {
-    return <div>Invalid link</div>;
-  }
-  return (
-    <React.Suspense fallback={null}>
-      <PublicTaskView token={token} />
+      <Component token={token} />
     </React.Suspense>
   );
 }
@@ -68,9 +43,12 @@ export function AppRoutes() {
   return (
     <Routes>
       {/* Public routes – no auth / no providers needed */}
-      <Route path="/public/estimate/:token" element={<PublicEstimateRoute />} />
-      <Route path="/public/note/:token" element={<PublicNoteRoute />} />
-      <Route path="/public/task/:token" element={<PublicTaskRoute />} />
+      <Route
+        path="/public/estimate/:token"
+        element={<PublicTokenRoute Component={PublicEstimateView} />}
+      />
+      <Route path="/public/note/:token" element={<PublicTokenRoute Component={PublicNoteView} />} />
+      <Route path="/public/task/:token" element={<PublicTokenRoute Component={PublicTaskView} />} />
 
       {/* All private routes – wrapped in full provider stack */}
       <Route

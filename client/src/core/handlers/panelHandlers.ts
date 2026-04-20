@@ -1,10 +1,11 @@
 // client/src/core/handlers/panelHandlers.ts
 // Resolves save/close/open via naming conventions. See docs/PLUGIN_RUNTIME_CONVENTIONS.md.
 
+import type { RefObject } from 'react';
+
 import { PLUGIN_REGISTRY, type PluginRegistryEntry } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
-
-const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 
 const isDev = import.meta.env.DEV;
 
@@ -44,6 +45,7 @@ export const createPanelHandlers = (
   currentPluginContext: any,
   currentMode: string,
   currentItem: any,
+  formRef: RefObject<PanelFormHandle | null>,
 ) => {
   const handleSave = async (data: any) => {
     if (currentPluginContext && currentPlugin) {
@@ -91,17 +93,11 @@ export const createPanelHandlers = (
     if (!currentPlugin) {
       return;
     }
-    // Settings plugin: submitSettingsForm is registered by SettingsForm and calls context.submitSave
-    const pluginNameCapitalized = toCamel(currentPlugin.name);
-    const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
-    const singularCap = getSingularCap(currentPlugin.name);
-    const submitFunction =
-      (window as any)[`submit${cap}Form`] ?? (window as any)[`submit${singularCap}Form`];
-    if (submitFunction) {
-      submitFunction();
+    if (formRef.current) {
+      void formRef.current.submit();
     } else if (isDev && currentPlugin.name !== 'settings') {
       console.warn(
-        `[panelHandlers] Header Save: no window.submit*Form registered for plugin "${currentPlugin.name}" (tried submit${cap}Form / submit${singularCap}Form). See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+        `[panelHandlers] Header Save: no form handle registered for plugin "${currentPlugin.name}". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
       );
     }
   };
@@ -110,21 +106,11 @@ export const createPanelHandlers = (
     if (!currentPlugin) {
       return;
     }
-    // Settings plugin: use context close directly (no window globals)
-    if (currentPlugin.name === 'settings' && currentPluginContext?.closeSettingsPanel) {
-      currentPluginContext.closeSettingsPanel();
-      return;
-    }
-    const pluginNameCapitalized = toCamel(currentPlugin.name);
-    const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
-    const singularCap = getSingularCap(currentPlugin.name);
-    const cancelFunction =
-      (window as any)[`cancel${cap}Form`] ?? (window as any)[`cancel${singularCap}Form`];
-    if (cancelFunction) {
-      cancelFunction();
+    if (formRef.current) {
+      formRef.current.cancel();
     } else if (isDev && currentPlugin.name !== 'settings') {
       console.warn(
-        `[panelHandlers] Header Cancel: no window.cancel*Form registered for plugin "${currentPlugin.name}" (tried cancel${cap}Form / cancel${singularCap}Form). See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+        `[panelHandlers] Header Cancel: no form handle registered for plugin "${currentPlugin.name}". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
       );
     }
   };

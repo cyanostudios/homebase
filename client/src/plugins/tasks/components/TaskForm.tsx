@@ -1,11 +1,12 @@
 import { Info, SlidersHorizontal } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -46,12 +47,10 @@ interface TaskFormProps {
   isSubmitting?: boolean;
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({
-  currentTask,
-  onSave,
-  onCancel,
-  isSubmitting: externalIsSubmitting = false,
-}) => {
+export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(function TaskForm(
+  { currentTask, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+  ref,
+) {
   const { t } = useTranslation();
   const { validationErrors, clearValidationErrors, panelMode } = useTasks();
   const {
@@ -149,18 +148,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  useEffect(() => {
-    window.submitTasksForm = () => handleSubmit();
-    (window as any).submitTaskForm = window.submitTasksForm;
-    window.cancelTasksForm = () => handleCancel();
-    (window as any).cancelTaskForm = window.cancelTasksForm;
-    return () => {
-      delete window.submitTasksForm;
-      delete (window as any).submitTaskForm;
-      delete window.cancelTasksForm;
-      delete (window as any).cancelTaskForm;
-    };
-  }, [handleSubmit, handleCancel]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => handleSubmit(),
+      cancel: handleCancel,
+    }),
+    [handleSubmit, handleCancel],
+  );
 
   const handleDiscardChanges = () => {
     if (!currentTask) {
@@ -406,4 +401,4 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       />
     </>
   );
-};
+});

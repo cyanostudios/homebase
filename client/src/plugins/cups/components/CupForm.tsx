@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
 
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -20,7 +21,10 @@ type Props = {
   onCancel: () => void;
 };
 
-export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
+export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm(
+  { currentCup, currentItem, onSave, onCancel },
+  ref,
+) {
   const { validationErrors, clearValidationErrors } = useCups();
   const item = currentCup ?? currentItem ?? null;
   const [form, setForm] = useState({
@@ -84,7 +88,7 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
     return v;
   };
 
-  const submit = async () => {
+  const submit = useCallback(async () => {
     const ok = await onSave({
       ...form,
       name: form.name.trim(),
@@ -105,16 +109,16 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
     if (ok) {
       markClean();
     }
-  };
+  }, [form, markClean, onSave]);
 
-  useEffect(() => {
-    (window as any).submitCupForm = submit;
-    (window as any).cancelCupForm = () => attemptAction(onCancel);
-    return () => {
-      delete (window as any).submitCupForm;
-      delete (window as any).cancelCupForm;
-    };
-  });
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => submit(),
+      cancel: () => attemptAction(onCancel),
+    }),
+    [submit, attemptAction, onCancel],
+  );
 
   return (
     <>
@@ -300,4 +304,4 @@ export function CupForm({ currentCup, currentItem, onSave, onCancel }: Props) {
       />
     </>
   );
-}
+});

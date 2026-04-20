@@ -1,5 +1,5 @@
 import { Building, Info, Plus, SlidersHorizontal, Tag, Trash2, User, X } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -56,17 +57,15 @@ interface Address {
 
 interface ContactFormProps {
   currentContact?: any;
-  onSave: (data: any) => void;
+  onSave: (data: any) => Promise<boolean> | boolean | void;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
 
-export const ContactForm: React.FC<ContactFormProps> = ({
-  currentContact,
-  onSave,
-  onCancel,
-  isSubmitting: externalIsSubmitting = false,
-}) => {
+export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(function ContactForm(
+  { currentContact, onSave, onCancel, isSubmitting: externalIsSubmitting = false },
+  ref,
+) {
   const { t } = useTranslation();
   const { validationErrors, clearValidationErrors, panelMode } = useContacts();
   const { getSettings, settingsVersion } = useApp();
@@ -244,18 +243,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  useEffect(() => {
-    window.submitContactsForm = () => handleSubmit();
-    (window as any).submitContactForm = window.submitContactsForm;
-    window.cancelContactsForm = () => handleCancel();
-    (window as any).cancelContactForm = window.cancelContactsForm;
-    return () => {
-      delete window.submitContactsForm;
-      delete (window as any).submitContactForm;
-      delete window.cancelContactsForm;
-      delete (window as any).cancelContactForm;
-    };
-  }, [handleSubmit, handleCancel]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => handleSubmit(),
+      cancel: handleCancel,
+    }),
+    [handleSubmit, handleCancel],
+  );
 
   const handleDiscardChanges = () => {
     if (!currentContact) {
@@ -1076,4 +1071,4 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       />
     </>
   );
-};
+});

@@ -44,21 +44,6 @@ export function PulseProvider({
     return () => unregisterPanelCloseFunction('pulses');
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closePulsePanel]);
 
-  useEffect(() => {
-    const submitFn = () => window.dispatchEvent(new CustomEvent('submitPulseForm'));
-    const cancelFn = () => window.dispatchEvent(new CustomEvent('cancelPulseForm'));
-    (window as any).submitPulseForm = submitFn;
-    (window as any).submitPulsesForm = submitFn;
-    (window as any).cancelPulseForm = cancelFn;
-    (window as any).cancelPulsesForm = cancelFn;
-    return () => {
-      delete (window as any).submitPulseForm;
-      delete (window as any).submitPulsesForm;
-      delete (window as any).cancelPulseForm;
-      delete (window as any).cancelPulsesForm;
-    };
-  }, []);
-
   const loadHistory = useCallback(
     async (params?: { limit?: number; offset?: number; pluginSource?: string }) => {
       if (!isAuthenticated) {

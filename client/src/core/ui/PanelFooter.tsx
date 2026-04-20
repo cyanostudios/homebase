@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 
 interface PanelFooterProps {
   currentMode: string;
-  currentPluginContext: any;
   currentPlugin?: { name: string } | null;
   validationErrors: any[];
   onClosePanel: () => void;
@@ -100,19 +99,13 @@ export const createPanelFooter = (
 ) => {
   const baseClose = handlers.getCloseHandler();
   const onClosePanel =
-    typeof currentPluginContext?.getCloseHandler === 'function' &&
-    (handlers.currentPlugin?.name === 'tasks' ||
-      handlers.currentPlugin?.name === 'contacts' ||
-      handlers.currentPlugin?.name === 'estimates' ||
-      handlers.currentPlugin?.name === 'slots' ||
-      handlers.currentPlugin?.name === 'matches')
+    typeof currentPluginContext?.getCloseHandler === 'function'
       ? currentPluginContext.getCloseHandler(baseClose)
       : baseClose;
 
   return (
     <PanelFooter
       currentMode={currentMode}
-      currentPluginContext={currentPluginContext}
       currentPlugin={handlers.currentPlugin}
       validationErrors={validationErrors}
       onClosePanel={onClosePanel}

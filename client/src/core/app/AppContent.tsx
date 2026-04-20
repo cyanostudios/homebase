@@ -24,6 +24,7 @@ import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import { navPageToPath, pathToNavPage } from '@/core/routing/routeMap';
+import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
@@ -109,13 +110,14 @@ export function AppContent() {
   // Plugin contexts - automatically load all registered plugins
   const pluginContexts = PLUGIN_REGISTRY.map((plugin) => {
     try {
-      return { plugin, context: plugin.hook(), isOpen: false };
+      return { plugin, context: plugin.hook() };
     } catch {
-      return { plugin, context: null, isOpen: false };
+      return { plugin, context: null };
     }
   });
   const pluginContextsRef = useRef(pluginContexts);
   pluginContextsRef.current = pluginContexts;
+  const formRef = useRef<PanelFormHandle | null>(null);
 
   // State
   const [isMobileView, setIsMobileView] = useState(false);
@@ -215,22 +217,6 @@ export function AppContent() {
     [attemptNavigation, closeOtherPanels, isAnyPanelOpen, navigate],
   );
 
-  // Name field used to build/resolve slugs per plugin.
-  // Matches are composed from two fields; a function handles those cases.
-  const PLUGIN_SLUG_FIELD: Record<string, string | ((i: any) => string)> = {
-    notes: 'title',
-    contacts: 'companyName',
-    tasks: 'title',
-    estimates: 'estimateNumber',
-    invoices: 'invoiceNumber',
-    files: 'name',
-    matches: (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
-    slots: (i: any) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
-    mail: 'id',
-    pulses: 'id',
-    ingest: 'name',
-  };
-
   // URL → panel sync: back/forward button support.
   // When the URL changes to /plugin/slug, open that item's panel.
   // When the URL changes to /plugin (no slug), close the panel.
@@ -261,7 +247,7 @@ export function AppContent() {
     const capName = getSingularCap(plugin.name);
     const isOpen = Boolean(context[plugin.panelKey]);
     const currentItem = context[`current${capName}`] as { id?: string | number } | null;
-    const nameField = PLUGIN_SLUG_FIELD[plugin.name] ?? 'id';
+    const nameField = plugin.slugField ?? 'id';
 
     if (itemSlug) {
       // URL has a slug – resolve it then open panel if not already showing that item
@@ -312,31 +298,18 @@ export function AppContent() {
   }, [currentPage]);
 
   const contentTitle = useMemo(() => {
-    if (
-      currentPage === 'dashboard' ||
-      currentPage === 'mail' ||
-      currentPage === 'pulses' ||
-      currentPage === 'slots' ||
-      currentPage === 'cups' ||
-      currentPage === 'notes' ||
-      currentPage === 'contacts' ||
-      currentPage === 'tasks' ||
-      currentPage === 'matches' ||
-      currentPage === 'ingest' ||
-      currentPage === 'files' ||
-      currentPage === 'estimates'
-    ) {
+    if (currentPage === 'dashboard') {
       return '';
     }
     if (currentPage === 'settings') {
       return 'Settings';
     }
     if (!currentPagePlugin?.navigation) {
-      return currentPage;
+      return '';
     }
 
     if (currentPagePlugin.name === currentPage) {
-      return currentPagePlugin.navigation.label;
+      return '';
     }
 
     const sub = currentPagePlugin.navigation.submenu?.find((item) => item.page === currentPage);
@@ -344,20 +317,7 @@ export function AppContent() {
   }, [currentPage, currentPagePlugin]);
 
   const contentIcon = useMemo(() => {
-    if (
-      currentPage === 'dashboard' ||
-      currentPage === 'mail' ||
-      currentPage === 'pulses' ||
-      currentPage === 'slots' ||
-      currentPage === 'cups' ||
-      currentPage === 'notes' ||
-      currentPage === 'contacts' ||
-      currentPage === 'tasks' ||
-      currentPage === 'matches' ||
-      currentPage === 'ingest' ||
-      currentPage === 'files' ||
-      currentPage === 'estimates'
-    ) {
+    if (currentPage === 'dashboard') {
       return undefined;
     }
     if (currentPage === 'settings') {
@@ -368,7 +328,7 @@ export function AppContent() {
     }
 
     if (currentPagePlugin.name === currentPage) {
-      return currentPagePlugin.navigation.icon;
+      return undefined;
     }
 
     const sub = currentPagePlugin.navigation.submenu?.find((item) => item.page === currentPage);
@@ -377,8 +337,8 @@ export function AppContent() {
 
   const primaryAction = useMemo(
     () =>
-      resolvePrimaryAction(currentPage, currentPagePlugin, pluginContexts, attemptNavigation, t),
-    [currentPage, currentPagePlugin, pluginContexts, attemptNavigation, t],
+      resolvePrimaryAction(currentPage, currentPagePlugin, currentPluginContext, attemptNavigation),
+    [currentPage, currentPagePlugin, currentPluginContext, attemptNavigation],
   );
 
   if (isLoading) {
@@ -403,6 +363,7 @@ export function AppContent() {
     currentPluginContext,
     currentMode,
     currentItem,
+    formRef,
   );
   const renderers = createPanelRenderers(
     currentPlugin,
@@ -411,6 +372,7 @@ export function AppContent() {
     currentItem,
     handlers.handleSave,
     handlers.handleCancel,
+    formRef,
   );
   const panelTitles = createPanelTitles(
     currentPlugin,
@@ -484,20 +446,7 @@ export function AppContent() {
         detailPanelShowCloseButton={!useHeaderActionButtons}
         onDetailPanelClose={onDetailPanelClose}
         detailPanelPluginName={currentPlugin?.name}
-        contentFlush={
-          currentPage === 'dashboard' ||
-          currentPage === 'slots' ||
-          currentPage === 'notes' ||
-          currentPage === 'contacts' ||
-          currentPage === 'tasks' ||
-          currentPage === 'matches' ||
-          currentPage === 'ingest' ||
-          currentPage === 'mail' ||
-          currentPage === 'pulses' ||
-          currentPage === 'cups' ||
-          currentPage === 'files' ||
-          currentPage === 'estimates'
-        }
+        contentFlush={currentPage === 'dashboard' || (currentPagePlugin?.contentFlush ?? false)}
       >
         {currentPage === 'dashboard' ? (
           <Dashboard onPageChange={handlePageChange} />
