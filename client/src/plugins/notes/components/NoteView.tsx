@@ -23,7 +23,6 @@ import type { Note } from '@/plugins/notes/types/notes';
 import { NoteShareBlock } from './NoteShareBlock';
 
 const NOTE_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
-const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 interface NoteQuickActionsCardProps {
   note: Note;
@@ -335,151 +334,140 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
   return (
     <>
-      <div
-        className={cn(
-          'plugin-notes min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-        )}
-      >
-        <DetailLayout
-          mainClassName={PANEL_MAX_WIDTH}
-          sidebar={
-            <div className="space-y-4">
-              <NoteQuickActionsCard
-                note={note}
-                onEdit={openNoteForEdit}
-                onDeleteClick={() => setShowDeleteNoteConfirm(true)}
-                onDuplicate={() => setShowDuplicateDialog(true)}
-                getDuplicateConfig={getDuplicateConfig}
-                detailFooterActions={detailFooterActions}
-              />
-              <NoteExportOptionsCard
-                note={note}
-                exportFormats={exportFormats}
-                onExportItem={onExportItem}
-                shareActions={exportShareActions}
-              />
-              {note.mentions && note.mentions.length > 0 && (
-                <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
-                  <div className="space-y-1.5 p-3 sm:p-4">
-                    <div className="mb-0.5 flex min-w-0 items-center gap-2">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                        <Users className="h-3.5 w-3.5" />
-                      </span>
-                      <span className="truncate text-sm font-semibold text-foreground">
-                        {t('notes.mentionedContacts')}
-                      </span>
-                    </div>
-                    <div className="space-y-1.5 pt-0">
-                      {uniqueMentions.map(
-                        (mention: { contactId: string; contactName?: string }) => {
-                          const contactData = contactsData.find(
-                            (c: { id: string | number }) =>
-                              String(c.id) === String(mention.contactId),
-                          ) as { id: string; companyName?: string } | undefined;
-
-                          const name =
-                            contactData?.companyName ?? mention.contactName ?? mention.contactId;
-
-                          return (
-                            <div
-                              key={`mention-${mention.contactId}`}
-                              className="rounded-lg border border-border px-3 py-2"
-                            >
-                              <div className="flex min-w-0 items-center justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <span className="truncate text-sm font-medium">{name}</span>
-                                </div>
-                                <div className="shrink-0">
-                                  {contactData ? (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      icon={ExternalLink}
-                                      className="h-9 w-9 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
-                                      onClick={() => handleContactClick(mention.contactId)}
-                                      aria-label={`${t('common.open')} ${name}`}
-                                    >
-                                      <span className="sr-only">{t('common.open')}</span>
-                                    </Button>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        },
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              )}
-
-              <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
-                <DetailSection
-                  title={t('notes.information')}
-                  icon={Info}
-                  iconPlugin="notes"
-                  className="p-4"
-                >
-                  <div className="space-y-4 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">ID</span>
-                      <span className="font-mono font-medium">
-                        {formatDisplayNumber('notes', note.id)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Created</span>
-                      <span className="font-medium">
-                        {new Date(note.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Updated</span>
-                      <span className="font-medium">
-                        {new Date(note.updatedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                </DetailSection>
-              </Card>
-
-              <DetailActivityLog
-                entityType="note"
-                entityId={note.id}
-                limit={30}
-                title={t('notes.activity')}
-                showClearButton
-                refreshKey={String(note.updatedAt ?? note.id)}
-              />
-            </div>
-          }
-        >
+      <DetailLayout
+        sidebar={
           <div className="space-y-4">
+            <NoteQuickActionsCard
+              note={note}
+              onEdit={openNoteForEdit}
+              onDeleteClick={() => setShowDeleteNoteConfirm(true)}
+              onDuplicate={() => setShowDuplicateDialog(true)}
+              getDuplicateConfig={getDuplicateConfig}
+              detailFooterActions={detailFooterActions}
+            />
+            <NoteExportOptionsCard
+              note={note}
+              exportFormats={exportFormats}
+              onExportItem={onExportItem}
+              shareActions={exportShareActions}
+            />
+            {note.mentions && note.mentions.length > 0 && (
+              <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
+                <div className="space-y-1.5 p-3 sm:p-4">
+                  <div className="mb-0.5 flex min-w-0 items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="truncate text-sm font-semibold text-foreground">
+                      {t('notes.mentionedContacts')}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 pt-0">
+                    {uniqueMentions.map((mention: { contactId: string; contactName?: string }) => {
+                      const contactData = contactsData.find(
+                        (c: { id: string | number }) => String(c.id) === String(mention.contactId),
+                      ) as { id: string; companyName?: string } | undefined;
+
+                      const name =
+                        contactData?.companyName ?? mention.contactName ?? mention.contactId;
+
+                      return (
+                        <div
+                          key={`mention-${mention.contactId}`}
+                          className="rounded-lg border border-border px-3 py-2"
+                        >
+                          <div className="flex min-w-0 items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <span className="truncate text-sm font-medium">{name}</span>
+                            </div>
+                            <div className="shrink-0">
+                              {contactData ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={ExternalLink}
+                                  className="h-9 w-9 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
+                                  onClick={() => handleContactClick(mention.contactId)}
+                                  aria-label={`${t('common.open')} ${name}`}
+                                >
+                                  <span className="sr-only">{t('common.open')}</span>
+                                </Button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </Card>
+            )}
+
             <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
               <DetailSection
-                title={(note.title || '').trim() || '—'}
+                title={t('notes.information')}
+                icon={Info}
                 iconPlugin="notes"
-                className="p-6"
-                prominentTitle
+                className="p-4"
               >
-                <RichTextContent
-                  content={note.content}
-                  mentions={note.mentions || []}
-                  onMentionClick={handleContactClick}
-                />
+                <div className="space-y-4 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">ID</span>
+                    <span className="font-mono font-medium">
+                      {formatDisplayNumber('notes', note.id)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Created</span>
+                    <span className="font-medium">
+                      {new Date(note.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Updated</span>
+                    <span className="font-medium">
+                      {new Date(note.updatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
               </DetailSection>
             </Card>
 
-            {hasFilesPlugin ? (
-              <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
-            ) : null}
-
-            <NoteShareBlock note={note} />
+            <DetailActivityLog
+              entityType="note"
+              entityId={note.id}
+              limit={30}
+              title={t('notes.activity')}
+              showClearButton
+              refreshKey={String(note.updatedAt ?? note.id)}
+            />
           </div>
-        </DetailLayout>
-      </div>
+        }
+      >
+        <div className="space-y-4">
+          <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
+            <DetailSection
+              title={(note.title || '').trim() || '—'}
+              iconPlugin="notes"
+              className="p-6"
+              prominentTitle
+            >
+              <RichTextContent
+                content={note.content}
+                mentions={note.mentions || []}
+                onMentionClick={handleContactClick}
+              />
+            </DetailSection>
+          </Card>
+
+          {hasFilesPlugin ? (
+            <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
+          ) : null}
+
+          <NoteShareBlock note={note} />
+        </div>
+      </DetailLayout>
 
       <ConfirmDialog
         isOpen={showDeleteNoteConfirm}

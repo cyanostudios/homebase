@@ -20,7 +20,6 @@ import { EstimateStatusSelect } from './EstimateStatusSelect';
 import { StatusReasonModal } from './StatusReasonModal';
 
 const ESTIMATE_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
-const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 interface EstimateQuickActionsCardProps {
   estimate: Estimate;
@@ -224,14 +223,8 @@ export function EstimateView({ estimate }: EstimateViewProps) {
   };
 
   return (
-    <div
-      className={cn(
-        'plugin-estimates min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-        'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-      )}
-    >
+    <>
       <DetailLayout
-        mainClassName={PANEL_MAX_WIDTH}
         sidebar={
           <div className="space-y-6">
             <EstimateQuickActionsCard
@@ -508,6 +501,6 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         nameLabel={getDuplicateConfig(estimate)?.nameLabel ?? t('nav.estimate')}
         confirmOnly={Boolean(getDuplicateConfig(estimate)?.confirmOnly)}
       />
-    </div>
+    </>
   );
 }

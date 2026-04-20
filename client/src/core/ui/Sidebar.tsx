@@ -89,15 +89,13 @@ const NavSubItem = React.memo(function NavSubItem({
       onClick={handleClick}
       className={cn(
         'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors justify-start h-auto',
-        'text-muted-foreground hover:text-foreground hover:bg-accent',
+        isActive
+          ? 'text-foreground hover:text-foreground hover:bg-accent'
+          : 'text-muted-foreground/80 hover:text-muted-foreground hover:bg-accent',
       )}
     >
-      <SubIcon
-        className={cn('h-4 w-4 flex-shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')}
-      />
-      <span className={cn('truncate', isActive ? 'text-primary font-medium' : '')}>
-        {item.label}
-      </span>
+      <SubIcon className="h-4 w-4 flex-shrink-0 text-current" />
+      <span className={cn('truncate', isActive ? 'font-medium' : '')}>{item.label}</span>
     </Button>
   );
 });
@@ -132,20 +130,15 @@ const NavItem = React.memo(function NavItem({
   const buttonClass = cn(
     'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors',
     'justify-start',
-    'text-muted-foreground hover:text-foreground hover:bg-accent',
+    isActive
+      ? 'bg-accent text-foreground hover:text-foreground hover:bg-accent'
+      : 'text-muted-foreground/80 hover:text-muted-foreground hover:bg-accent',
   );
 
   const content = (
-    <div className={buttonClass}>
-      <Icon
-        className={cn(
-          'h-4 w-4 flex-shrink-0 transition-colors',
-          isActive ? 'text-primary' : `plugin-${item.page} text-plugin`,
-        )}
-      />
-      <span className={cn('truncate', isActive ? 'text-primary font-medium' : '')}>
-        {item.label}
-      </span>
+    <>
+      <Icon className="h-4 w-4 flex-shrink-0 transition-colors text-current" />
+      <span className={cn('truncate', isActive ? 'font-medium' : '')}>{item.label}</span>
       {item.badge && (
         <Badge variant={item.badge.variant} className="ml-auto">
           {item.badge.label}
@@ -157,19 +150,15 @@ const NavItem = React.memo(function NavItem({
         ) : (
           <ChevronRight className={cn('h-3.5 w-3.5', item.badge ? '' : 'ml-auto')} />
         ))}
-    </div>
+    </>
   );
 
   if (hasSubmenu && item.submenu) {
     return (
-      <NavigationMenuItem>
+      <NavigationMenuItem className="w-full">
         <Collapsible open={isSubmenuOpen} onOpenChange={handleToggle}>
           <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              type="button"
-              className="w-full justify-start h-auto p-0 hover:bg-transparent"
-            >
+            <Button variant="ghost" type="button" className={cn(buttonClass, 'h-auto')}>
               {content}
             </Button>
           </CollapsibleTrigger>
@@ -196,14 +185,14 @@ const NavItem = React.memo(function NavItem({
         variant="ghost"
         type="button"
         onClick={handleNavigateTop}
-        className="w-full justify-start h-auto p-0 hover:bg-transparent"
+        className={cn(buttonClass, 'h-auto')}
       >
         {content}
       </Button>
     </NavigationMenuLink>
   );
 
-  return <NavigationMenuItem>{link}</NavigationMenuItem>;
+  return <NavigationMenuItem className="w-full">{link}</NavigationMenuItem>;
 });
 
 const SidebarNavContent = React.memo(function SidebarNavContent({

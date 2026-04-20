@@ -71,7 +71,6 @@ function formatTimeOnly(s: string | null): string {
 
 /** White card shell for properties, info, metadata, bookings, activity (detail area has gray bg) */
 const SLOT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
-const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
 
@@ -854,68 +853,60 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
 
   return (
     <>
-      <div
-        className={cn(
-          'plugin-slots min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-        )}
-      >
-        <DetailLayout
-          mainClassName={PANEL_MAX_WIDTH}
-          sidebar={
-            <div className="space-y-4">
-              <SlotQuickActionsCard
-                slot={slot}
-                onDeleteClick={() => setShowDeleteSlotConfirm(true)}
-                onDuplicate={() => setShowDuplicateDialog(true)}
-                getDuplicateConfig={getDuplicateConfig}
-                detailFooterActions={detailFooterActions}
-              />
-              <SlotExportOptionsCard
-                slot={slot}
-                exportFormats={exportFormats}
-                onExportItem={onExportItem}
-              />
-              <SlotMetadataCard
-                slot={slot}
-                hasMatch={hasMatch}
-                sourceMatch={sourceMatch}
-                onMatchClick={handleMatchClick}
-              />
-              <DetailActivityLog
-                entityType="slot"
-                entityId={slot.id}
-                limit={30}
-                title={t('slots.activity')}
-                showClearButton
-                refreshKey={slot.updated_at ?? slot.id}
-              />
-            </div>
-          }
-        >
+      <DetailLayout
+        sidebar={
           <div className="space-y-4">
-            <SlotMainInfoCard
+            <SlotQuickActionsCard
+              slot={slot}
+              onDeleteClick={() => setShowDeleteSlotConfirm(true)}
+              onDuplicate={() => setShowDuplicateDialog(true)}
+              getDuplicateConfig={getDuplicateConfig}
+              detailFooterActions={detailFooterActions}
+            />
+            <SlotExportOptionsCard
+              slot={slot}
+              exportFormats={exportFormats}
+              onExportItem={onExportItem}
+            />
+            <SlotMetadataCard
               slot={slot}
               hasMatch={hasMatch}
               sourceMatch={sourceMatch}
               onMatchClick={handleMatchClick}
             />
-            <SlotSettingsCard
-              slot={slot}
-              displaySlot={displaySlot!}
-              displayMentions={displayMentions}
-              addContactToDraft={addContactToDraft}
-              removeContactFromDraft={removeContactFromDraft}
-              setPropertyDraftField={setPropertyDraftField}
-              assignableContacts={assignableContacts}
-              contacts={contacts}
-              bookings={bookings}
-              bookingsLoading={bookingsLoading}
-              onRequestDeleteBooking={setBookingToDelete}
+            <DetailActivityLog
+              entityType="slot"
+              entityId={slot.id}
+              limit={30}
+              title={t('slots.activity')}
+              showClearButton
+              refreshKey={slot.updated_at ?? slot.id}
             />
           </div>
-        </DetailLayout>
-      </div>
+        }
+      >
+        <div className="space-y-4">
+          <SlotMainInfoCard
+            slot={slot}
+            hasMatch={hasMatch}
+            sourceMatch={sourceMatch}
+            onMatchClick={handleMatchClick}
+          />
+          <SlotSettingsCard
+            slot={slot}
+            displaySlot={displaySlot!}
+            displayMentions={displayMentions}
+            addContactToDraft={addContactToDraft}
+            removeContactFromDraft={removeContactFromDraft}
+            setPropertyDraftField={setPropertyDraftField}
+            assignableContacts={assignableContacts}
+            contacts={contacts}
+            bookings={bookings}
+            bookingsLoading={bookingsLoading}
+            onRequestDeleteBooking={setBookingToDelete}
+          />
+        </div>
+      </DetailLayout>
 
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}

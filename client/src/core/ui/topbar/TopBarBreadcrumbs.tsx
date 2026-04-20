@@ -52,23 +52,27 @@ export const TopBarBreadcrumbs = React.memo(function TopBarBreadcrumbs({
                 {activeBreadcrumbLabel}
               </Button>
             </BreadcrumbLink>
-            {detailPanelTitle ? (
-              <span className="inline-flex items-center gap-1 sm:gap-1.5 min-w-0 px-1.5 sm:px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20">
-                <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-primary flex-shrink-0"></span>
-                <span className="truncate max-w-[120px] sm:max-w-[200px]">{detailPanelTitle}</span>
+          </BreadcrumbPage>
+        </BreadcrumbItem>
+        {detailPanelTitle ? (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem className="min-w-0">
+              <BreadcrumbPage className="inline-flex items-center gap-1 sm:gap-1.5 min-w-0 px-1.5 sm:px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20">
+                <span className="truncate max-w-[120px] sm:max-w-[220px]">{detailPanelTitle}</span>
                 <Button
                   variant="ghost"
                   type="button"
                   onClick={onDetailChipClose}
-                  className="ml-0.5 h-6 w-6 p-0 hover:bg-primary/20 rounded transition-colors flex-shrink-0"
+                  className="h-5 w-5 p-0 hover:bg-primary/20 rounded-sm transition-colors flex-shrink-0"
                   aria-label="Close detail panel"
                 >
                   <X className="h-3 w-3" />
                 </Button>
-              </span>
-            ) : null}
-          </BreadcrumbPage>
-        </BreadcrumbItem>
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </>
+        ) : null}
       </BreadcrumbList>
     </Breadcrumb>
   );

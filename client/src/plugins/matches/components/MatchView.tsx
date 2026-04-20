@@ -487,12 +487,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   }
 
   return (
-    <div
-      className={cn(
-        'plugin-matches min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-        'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-      )}
-    >
+    <>
       <DetailLayout
         sidebar={
           <div className="space-y-4">
@@ -781,6 +776,6 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
         }}
         variant="danger"
       />
-    </div>
+    </>
   );
 }

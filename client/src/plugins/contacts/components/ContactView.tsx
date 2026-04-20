@@ -42,7 +42,6 @@ interface ContactViewProps {
 }
 
 const CONTACT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
-const PANEL_MAX_WIDTH = 'max-w-[920px]';
 const FIELD_LABEL_CLASS =
   'text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5';
 
@@ -483,14 +482,8 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   const duplicateConfig = getDuplicateConfig(contact);
 
   return (
-    <div
-      className={cn(
-        'plugin-contacts min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-        'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-      )}
-    >
+    <>
       <DetailLayout
-        mainClassName={PANEL_MAX_WIDTH}
         sidebar={
           <div className="space-y-6">
             <ContactQuickActionsCard
@@ -951,6 +944,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         recipients={sendEmailRecipients}
         pluginSource="contacts"
       />
-    </div>
+    </>
   );
 });
