@@ -38,6 +38,26 @@ type SortField = 'name' | 'updatedAt' | 'id';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
+function StatCard({
+  label,
+  value,
+  dotClassName,
+}: {
+  label: string;
+  value: number;
+  dotClassName: string;
+}) {
+  return (
+    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
+        <span>{label}</span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+    </Card>
+  );
+}
+
 function humanSize(bytes?: number | null) {
   if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) {
     return '—';
@@ -150,6 +170,18 @@ export const FileList: React.FC = () => {
 
     return filtered.sort(cmp);
   }, [files, searchTerm, sortField, sortOrder]);
+  const stats = useMemo(
+    () => ({
+      total: files.length,
+      images: files.filter((f: any) => String(f?.mimeType || '').startsWith('image/')).length,
+      withSize: files.filter((f: any) => typeof f?.size === 'number' && f.size > 0).length,
+      updated7d: files.filter((f: any) => {
+        const date = f?.updatedAt ? new Date(f.updatedAt).getTime() : NaN;
+        return Number.isFinite(date) && Date.now() - date <= 7 * 24 * 60 * 60 * 1000;
+      }).length,
+    }),
+    [files],
+  );
 
   // Selection helpers
   const visibleIds = useMemo(
@@ -245,51 +277,13 @@ export const FileList: React.FC = () => {
   };
 
   return (
-    <div className="plugin-files min-h-full bg-background">
-      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-        <div className="mr-4 flex min-w-0 flex-1 items-center gap-4">
-          <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
-            {t('nav.files')}
-          </h2>
-          <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('files.searchPlaceholder')}
-              className="h-9 bg-background pl-9 text-xs"
-            />
+    <div className="plugin-files min-h-full bg-background px-6 py-4">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.files')}</h2>
+            <p className="text-sm text-muted-foreground">{t('files.listDescription')}</p>
           </div>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Settings}
-            className="h-9 px-3 text-xs"
-            onClick={() => openFileSettings()}
-            title={t('common.settings')}
-          >
-            {t('common.settings')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Grid3x3}
-            className={cn('h-9 px-3 text-xs', viewMode === 'grid' && 'text-primary')}
-            onClick={() => setViewMode('grid')}
-          >
-            {t('slots.grid')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={ListIcon}
-            className={cn('h-9 px-3 text-xs', viewMode === 'list' && 'text-primary')}
-            onClick={() => setViewMode('list')}
-          >
-            {t('slots.list')}
-          </Button>
           <Button
             variant="primary"
             size="sm"
@@ -300,9 +294,14 @@ export const FileList: React.FC = () => {
             {t('files.addFile')}
           </Button>
         </div>
-      </div>
 
-      <div className="space-y-4 px-6 pb-6">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
+          <StatCard label="Images" value={stats.images} dotClassName="bg-emerald-500" />
+          <StatCard label="With Size" value={stats.withSize} dotClassName="bg-amber-500" />
+          <StatCard label="Updated 7d" value={stats.updated7d} dotClassName="bg-violet-500" />
+        </div>
+
         {selectedCount > 0 && (
           <BulkActionBar
             selectedCount={selectedCount}
@@ -318,12 +317,77 @@ export const FileList: React.FC = () => {
           />
         )}
 
-        <Card className="shadow-none plugin-files">
+        <BulkDeleteModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={runDeleteFlow}
+          itemCount={selectedCount}
+          itemLabel="files"
+          isLoading={deleting}
+          warningMessage={t('files.bulkDeleteWarning')}
+        />
+
+        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+            <div className="relative w-full max-w-sm md:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t('files.searchPlaceholder')}
+                className="h-8 bg-background pl-9 text-xs"
+              />
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Settings}
+                className="h-8 px-2.5 text-xs"
+                onClick={() => openFileSettings()}
+                title={t('common.settings')}
+              >
+                {t('common.settings')}
+              </Button>
+              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Grid3x3}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'grid'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('grid')}
+                >
+                  {t('slots.grid')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={ListIcon}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'list'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('list')}
+                >
+                  {t('slots.list')}
+                </Button>
+              </div>
+            </div>
+          </div>
           {viewMode === 'grid' ? (
             filteredAndSorted.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                {searchTerm ? t('files.noMatch') : t('files.noYet')}
-              </div>
+              <Card className="shadow-none">
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  {searchTerm ? t('files.noMatch') : t('files.noYet')}
+                </div>
+              </Card>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                 {filteredAndSorted.map((row: any, index: number) => {
@@ -334,7 +398,7 @@ export const FileList: React.FC = () => {
                     <Card
                       key={row.id}
                       className={cn(
-                        'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 border border-border/60 bg-card p-5 transition-all',
+                        'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-card p-5 shadow-sm transition-all',
                         isSelected
                           ? 'plugin-files bg-plugin-subtle ring-1 ring-plugin-subtle/50'
                           : 'hover:border-plugin-subtle hover:plugin-files hover:shadow-md',
@@ -390,120 +454,115 @@ export const FileList: React.FC = () => {
               </div>
             )
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12 text-xs">
-                    <input
-                      ref={headerCheckboxRef}
-                      type="checkbox"
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
-                      checked={allVisibleSelected}
-                      onChange={onToggleAllVisible}
-                    />
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{t('files.columnName')}</span>
-                      {sortField === 'name' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="inline h-3 w-3" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-xs">{t('files.columnType')}</TableHead>
-                  <TableHead className="text-xs">{t('files.columnSize')}</TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                    onClick={() => handleSort('updatedAt')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{t('files.columnUpdated')}</span>
-                      {sortField === 'updatedAt' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="inline h-3 w-3" />
-                        ))}
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAndSorted.length === 0 ? (
+            <Card className="shadow-none">
+              <Table rowBorders={false}>
+                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="py-12 text-center text-sm text-muted-foreground"
+                    <TableHead className="w-12 text-xs">
+                      <input
+                        ref={headerCheckboxRef}
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                        checked={allVisibleSelected}
+                        onChange={onToggleAllVisible}
+                      />
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
+                      onClick={() => handleSort('name')}
                     >
-                      {searchTerm ? t('files.noMatch') : t('files.noYet')}
-                    </TableCell>
+                      <div className="flex items-center gap-2">
+                        <span>{t('files.columnName')}</span>
+                        {sortField === 'name' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="inline h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="inline h-3 w-3" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-xs">{t('files.columnType')}</TableHead>
+                    <TableHead className="text-xs">{t('files.columnSize')}</TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
+                      onClick={() => handleSort('updatedAt')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{t('files.columnUpdated')}</span>
+                        {sortField === 'updatedAt' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="inline h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="inline h-3 w-3" />
+                          ))}
+                      </div>
+                    </TableHead>
                   </TableRow>
-                ) : (
-                  filteredAndSorted.map((row: any, index: number) => {
-                    const isSelected = selectedFileIds.includes(row.id);
-                    return (
-                      <TableRow
-                        key={row.id}
-                        className="cursor-pointer hover:bg-muted/50 plugin-files hover:bg-plugin-subtle/50 transition-colors"
-                        tabIndex={0}
-                        data-list-item={JSON.stringify(row.raw)}
-                        data-plugin-name="files"
-                        role="button"
-                        aria-label={`Open file ${row.name}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleOpenForView(row.raw);
-                        }}
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSorted.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="py-12 text-center text-sm text-muted-foreground"
                       >
-                        <TableCell className="text-xs" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 cursor-pointer"
-                            checked={isSelected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={() => onVisibleRowCheckboxChange(row.id)}
-                            aria-label={isSelected ? 'Unselect file' : 'Select file'}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <File className="w-4 h-4 text-muted-foreground shrink-0" />
-                            <span className="font-medium">{row.name || '—'}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-xs">
-                          {row.mimeType || '—'}
-                        </TableCell>
-                        <TableCell className="text-xs">{humanSize(row.size)}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs">
-                          {row.updatedAt ? row.updatedAt.toLocaleDateString() : '—'}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                        {searchTerm ? t('files.noMatch') : t('files.noYet')}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredAndSorted.map((row: any, index: number) => {
+                      const isSelected = selectedFileIds.includes(row.id);
+                      return (
+                        <TableRow
+                          key={row.id}
+                          className={cn(
+                            'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80 plugin-files transition-colors',
+                            isSelected && 'bg-plugin-subtle',
+                          )}
+                          tabIndex={0}
+                          data-list-item={JSON.stringify(row.raw)}
+                          data-plugin-name="files"
+                          role="button"
+                          aria-label={`Open file ${row.name}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleOpenForView(row.raw);
+                          }}
+                        >
+                          <TableCell className="text-xs" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 cursor-pointer"
+                              checked={isSelected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={() => onVisibleRowCheckboxChange(row.id)}
+                              aria-label={isSelected ? 'Unselect file' : 'Select file'}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <File className="w-4 h-4 text-muted-foreground shrink-0" />
+                              <span className="font-medium">{row.name || '—'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {row.mimeType || '—'}
+                          </TableCell>
+                          <TableCell className="text-xs">{humanSize(row.size)}</TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {row.updatedAt ? row.updatedAt.toLocaleDateString() : '—'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
           )}
         </Card>
-
-        <BulkDeleteModal
-          isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={runDeleteFlow}
-          itemCount={selectedCount}
-          itemLabel="files"
-          isLoading={deleting}
-          warningMessage={t('files.bulkDeleteWarning')}
-        />
       </div>
     </div>
   );

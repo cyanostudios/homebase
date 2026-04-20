@@ -41,6 +41,26 @@ import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsVi
 const NOTES_SETTINGS_KEY = 'notes';
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 
+function StatCard({
+  label,
+  value,
+  dotClassName,
+}: {
+  label: string;
+  value: number;
+  dotClassName: string;
+}) {
+  return (
+    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
+        <span>{label}</span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+    </Card>
+  );
+}
+
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
@@ -172,6 +192,17 @@ export const NoteList: React.FC = () => {
   }, [notes, searchTerm, sortField, sortOrder]);
 
   const visibleNoteIds = useMemo(() => sortedNotes.map((note) => String(note.id)), [sortedNotes]);
+  const stats = useMemo(
+    () => ({
+      total: notes.length,
+      withMentions: notes.filter((n) => (n.mentions?.length ?? 0) > 0).length,
+      withContent: notes.filter((n) => stripHtml(n.content || '').trim().length > 0).length,
+      recentlyUpdated: notes.filter(
+        (n) => Date.now() - new Date(n.updatedAt).getTime() <= 7 * 24 * 60 * 60 * 1000,
+      ).length,
+    }),
+    [notes],
+  );
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -299,51 +330,13 @@ export const NoteList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-notes min-h-full bg-background">
-      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-        <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-          <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-            {t('nav.notes')}
-          </h2>
-          <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('notes.searchPlaceholder', { count: notes.length })}
-              className="h-9 bg-background pl-9 text-xs"
-            />
+    <div className="plugin-notes min-h-full bg-background px-6 py-4">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.notes')}</h2>
+            <p className="text-sm text-muted-foreground">{t('notes.listDescription')}</p>
           </div>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Settings}
-            className="h-9 px-3 text-xs"
-            onClick={() => openNoteSettings()}
-            title={t('notes.settings')}
-          >
-            {t('notes.settings')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Grid3x3}
-            className={cn('h-9 px-3 text-xs', viewMode === 'grid' && 'text-primary')}
-            onClick={() => setViewMode('grid')}
-          >
-            {t('slots.grid')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={List}
-            className={cn('h-9 px-3 text-xs', viewMode === 'list' && 'text-primary')}
-            onClick={() => setViewMode('list')}
-          >
-            {t('slots.list')}
-          </Button>
           <Button
             variant="primary"
             size="sm"
@@ -354,9 +347,18 @@ export const NoteList: React.FC = () => {
             {t('notes.addNote')}
           </Button>
         </div>
-      </div>
 
-      <div className="px-6 pb-6 space-y-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
+          <StatCard
+            label="With Mentions"
+            value={stats.withMentions}
+            dotClassName="bg-emerald-500"
+          />
+          <StatCard label="With Content" value={stats.withContent} dotClassName="bg-amber-500" />
+          <StatCard label="Updated 7d" value={stats.recentlyUpdated} dotClassName="bg-violet-500" />
+        </div>
+
         {selectedCount > 0 && (
           <BulkActionBar
             selectedCount={selectedCount}
@@ -384,218 +386,278 @@ export const NoteList: React.FC = () => {
           />
         )}
 
-        {sortedNotes.length === 0 ? (
-          <Card className="mt-4 border border-border/70 bg-card p-6 text-center text-muted-foreground shadow-sm">
-            {searchTerm ? t('notes.noMatch') : t('notes.noYet')}
-          </Card>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {sortedNotes.map((note, index) => {
-              const noteIsSelected = isSelected(note.id);
-              return (
-                <Card
-                  key={note.id}
-                  className={cn(
-                    'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
-                    noteIsSelected
-                      ? 'plugin-notes border-plugin-subtle bg-plugin-subtle ring-1 ring-plugin-subtle/50'
-                      : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md',
-                    recentlyDuplicatedNoteId === String(note.id) && HIGHLIGHT_CLASS,
-                  )}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                      return;
-                    }
-                    e.preventDefault();
-                    handleOpenForView(note);
-                  }}
-                  data-list-item={JSON.stringify(note)}
-                  data-plugin-name="notes"
-                  role="button"
-                  aria-label={`Open note ${note.title}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <input
-                      type="checkbox"
-                      checked={noteIsSelected}
-                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                      onChange={() => onVisibleRowCheckboxChange(note.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')}
-                    />
-                    <span className="text-[10px] text-muted-foreground">
-                      {note.mentions?.length ?? 0} {String(t('notes.mentions')).toLowerCase()}
-                    </span>
-                  </div>
-                  <h3 className="line-clamp-1 text-base font-semibold leading-snug">
-                    {note.title}
-                  </h3>
-                  <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs text-muted-foreground">
-                    <p className="line-clamp-3">{truncateContent(note.content, 150)}</p>
-                    <div className="text-[10px]">
-                      {note.mentions && note.mentions.length > 0 ? (
-                        <span className="font-medium plugin-contacts text-plugin">
-                          @{note.mentions[0].contactName}
-                          {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
-                        </span>
-                      ) : (
-                        <span>{t('notes.noMentions')}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
-                    <div>
-                      {t('common.updated')}: {new Date(note.updatedAt).toLocaleDateString()}
-                    </div>
-                    <div>
-                      {t('slots.created')}: {new Date(note.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card className="mt-4 overflow-hidden border border-border/70 bg-card shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12 text-xs">
-                    <input
-                      ref={headerCheckboxRef}
-                      type="checkbox"
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={
-                        allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
-                      }
-                      checked={allVisibleSelected}
-                      onChange={onToggleAllVisible}
-                    />
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                    onClick={() => handleSort('title')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{t('notes.title')}</span>
-                      {sortField === 'title' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="inline h-3 w-3" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-xs">{t('notes.content')}</TableHead>
-                  <TableHead className="text-xs">{t('notes.mentions')}</TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                    onClick={() => handleSort('updatedAt')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{t('common.updated')}</span>
-                      {sortField === 'updatedAt' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="inline h-3 w-3" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                    onClick={() => handleSort('createdAt')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{t('slots.created')}</span>
-                      {sortField === 'createdAt' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="inline h-3 w-3" />
-                        ))}
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedNotes.map((note, index) => {
-                  const noteIsSelected = isSelected(note.id);
-                  return (
-                    <TableRow
-                      key={note.id}
-                      className={cn(
-                        'cursor-pointer hover:bg-muted/50',
-                        noteIsSelected && 'bg-plugin-subtle',
-                        recentlyDuplicatedNoteId === String(note.id) && HIGHLIGHT_CLASS,
-                      )}
-                      tabIndex={0}
-                      data-list-item={JSON.stringify(note)}
-                      data-plugin-name="notes"
-                      role="button"
-                      aria-label={`Open note ${note.title}`}
-                      onClick={(e) => {
-                        if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                          return;
-                        }
-                        e.preventDefault();
-                        handleOpenForView(note);
-                      }}
-                    >
-                      <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 cursor-pointer"
-                          checked={noteIsSelected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(note.id)}
-                          aria-label={
-                            noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="font-semibold">{note.title}</TableCell>
-                      <TableCell>
-                        <div className="max-w-[300px] line-clamp-2 text-xs text-muted-foreground">
-                          {truncateContent(note.content, 100)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {note.mentions && note.mentions.length > 0 ? (
-                          <div className="text-sm">
-                            <span>
-                              @{note.mentions[0].contactName}
-                              {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {new Date(note.updatedAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {new Date(note.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
-        )}
-      </div>
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          itemCount={selectedCount}
+          itemLabel="notes"
+          isLoading={deleting}
+        />
 
-      <BulkDeleteModal
-        isOpen={showBulkDeleteModal}
-        onClose={() => setShowBulkDeleteModal(false)}
-        onConfirm={handleBulkDelete}
-        itemCount={selectedCount}
-        itemLabel="notes"
-        isLoading={deleting}
-      />
+        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+            <div className="relative w-full max-w-sm md:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t('notes.searchPlaceholder', { count: notes.length })}
+                className="h-8 bg-background pl-9 text-xs"
+              />
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Settings}
+                className="h-8 px-2.5 text-xs"
+                onClick={() => openNoteSettings()}
+                title={t('notes.settings')}
+              >
+                {t('notes.settings')}
+              </Button>
+              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Grid3x3}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'grid'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('grid')}
+                >
+                  {t('slots.grid')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={List}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'list'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('list')}
+                >
+                  {t('slots.list')}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {sortedNotes.length === 0 ? (
+            <Card className="shadow-none">
+              <div className="p-6 text-center text-muted-foreground">
+                {searchTerm ? t('notes.noMatch') : t('notes.noYet')}
+              </div>
+            </Card>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {sortedNotes.map((note, index) => {
+                const noteIsSelected = isSelected(note.id);
+                return (
+                  <Card
+                    key={note.id}
+                    className={cn(
+                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-card p-5 shadow-sm transition-all',
+                      noteIsSelected
+                        ? 'plugin-notes border-plugin-subtle bg-plugin-subtle ring-1 ring-plugin-subtle/50'
+                        : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md',
+                      recentlyDuplicatedNoteId === String(note.id) && HIGHLIGHT_CLASS,
+                    )}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                        return;
+                      }
+                      e.preventDefault();
+                      handleOpenForView(note);
+                    }}
+                    data-list-item={JSON.stringify(note)}
+                    data-plugin-name="notes"
+                    role="button"
+                    aria-label={`Open note ${note.title}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <input
+                        type="checkbox"
+                        checked={noteIsSelected}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(note.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={
+                          noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
+                        }
+                      />
+                      <span className="text-[10px] text-muted-foreground">
+                        {note.mentions?.length ?? 0} {String(t('notes.mentions')).toLowerCase()}
+                      </span>
+                    </div>
+                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
+                      {note.title}
+                    </h3>
+                    <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs text-muted-foreground">
+                      <p className="line-clamp-3">{truncateContent(note.content, 150)}</p>
+                      <div className="text-[10px]">
+                        {note.mentions && note.mentions.length > 0 ? (
+                          <span className="font-medium plugin-contacts text-plugin">
+                            @{note.mentions[0].contactName}
+                            {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
+                          </span>
+                        ) : (
+                          <span>{t('notes.noMentions')}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
+                      <div>
+                        {t('common.updated')}: {new Date(note.updatedAt).toLocaleDateString()}
+                      </div>
+                      <div>
+                        {t('slots.created')}: {new Date(note.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="shadow-none">
+              <Table rowBorders={false}>
+                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
+                  <TableRow>
+                    <TableHead className="w-12 text-xs">
+                      <input
+                        ref={headerCheckboxRef}
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={
+                          allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
+                        }
+                        checked={allVisibleSelected}
+                        onChange={onToggleAllVisible}
+                      />
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
+                      onClick={() => handleSort('title')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{t('notes.title')}</span>
+                        {sortField === 'title' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="inline h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="inline h-3 w-3" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-xs">{t('notes.content')}</TableHead>
+                    <TableHead className="text-xs">{t('notes.mentions')}</TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
+                      onClick={() => handleSort('updatedAt')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{t('common.updated')}</span>
+                        {sortField === 'updatedAt' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="inline h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="inline h-3 w-3" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
+                      onClick={() => handleSort('createdAt')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{t('slots.created')}</span>
+                        {sortField === 'createdAt' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="inline h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="inline h-3 w-3" />
+                          ))}
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedNotes.map((note, index) => {
+                    const noteIsSelected = isSelected(note.id);
+                    return (
+                      <TableRow
+                        key={note.id}
+                        className={cn(
+                          'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
+                          noteIsSelected && 'bg-plugin-subtle',
+                          recentlyDuplicatedNoteId === String(note.id) && HIGHLIGHT_CLASS,
+                        )}
+                        tabIndex={0}
+                        data-list-item={JSON.stringify(note)}
+                        data-plugin-name="notes"
+                        role="button"
+                        aria-label={`Open note ${note.title}`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                            return;
+                          }
+                          e.preventDefault();
+                          handleOpenForView(note);
+                        }}
+                      >
+                        <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer"
+                            checked={noteIsSelected}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(note.id)}
+                            aria-label={
+                              noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="font-semibold">{note.title}</TableCell>
+                        <TableCell>
+                          <div className="max-w-[300px] line-clamp-2 text-xs text-muted-foreground">
+                            {truncateContent(note.content, 100)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {note.mentions && note.mentions.length > 0 ? (
+                            <div className="text-sm">
+                              <span>
+                                @{note.mentions[0].contactName}
+                                {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {new Date(note.updatedAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(note.createdAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </Card>
+      </div>
     </div>
   );
 };

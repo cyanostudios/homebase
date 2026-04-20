@@ -673,7 +673,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                           'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
                           isCompany
                             ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
-                            : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                            : 'bg-green-50/50 text-green-700 dark:text-green-300 dark:bg-green-950/30',
                         )}
                       >
                         {isCompany ? 'Company' : 'Private'}

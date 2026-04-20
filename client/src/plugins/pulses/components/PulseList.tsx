@@ -24,6 +24,26 @@ import { usePulses } from '../hooks/usePulses';
 
 import { PulseSettingsView } from './PulseSettingsView';
 
+function StatCard({
+  label,
+  value,
+  dotClassName,
+}: {
+  label: string;
+  value: number;
+  dotClassName: string;
+}) {
+  return (
+    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
+        <span>{label}</span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+    </Card>
+  );
+}
+
 export const PulseList: React.FC = () => {
   const { t } = useTranslation();
   const {
@@ -68,6 +88,20 @@ export const PulseList: React.FC = () => {
         new Set(pulseHistory.map((e) => e.pluginSource).filter((ps): ps is string => !!ps)),
       ),
     [pulseHistory],
+  );
+  const stats = useMemo(
+    () => ({
+      total: pulseHistory.length,
+      filtered: filtered.length,
+      failed: pulseHistory.filter((p) => String(p.status || '').toLowerCase() === 'failed').length,
+      today: pulseHistory.filter((p) => {
+        if (!p.sentAt) {
+          return false;
+        }
+        return new Date(p.sentAt).toDateString() === new Date().toDateString();
+      }).length,
+    }),
+    [pulseHistory, filtered.length],
   );
 
   const statusBadge = useMemo(() => {
@@ -168,78 +202,74 @@ export const PulseList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-pulses min-h-full bg-background">
-      <div className="flex flex-shrink-0 flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="mr-0 flex min-w-0 flex-1 flex-col gap-3 sm:mr-4 sm:flex-row sm:items-center">
-          <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
-            {t('nav.pulses')}
-          </h2>
-          <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t('pulses.searchPlaceholder')}
-              className="h-9 bg-background pl-9 text-xs"
-            />
+    <div className="plugin-pulses min-h-full bg-background px-6 py-4">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.pulses')}</h2>
+            <p className="text-sm text-muted-foreground">{t('pulses.listDescription')}</p>
+          </div>
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
+            <Badge
+              variant="secondary"
+              className="border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-secondary/50 text-secondary-foreground"
+            >
+              {totalCount} {t('pulses.total')}
+            </Badge>
+            <Badge
+              className={cn(
+                'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
+                statusBadge.isOk
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+              )}
+            >
+              {statusBadge.label}
+            </Badge>
+            {pluginSources.length > 0 && (
+              <select
+                value={pluginFilter}
+                onChange={(e) => setPluginFilter(e.target.value)}
+                className="h-9 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
+              >
+                <option value="">{t('pulses.allPlugins')}</option>
+                {pluginSources.map((ps: string) => (
+                  <option key={ps} value={ps}>
+                    {ps}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Settings}
+              onClick={() => openPulsesSettings()}
+              title={t('common.settings')}
+              className="h-9 px-3 text-xs"
+            >
+              {t('common.settings')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={RefreshCw}
+              onClick={() => loadHistory()}
+              disabled={loading}
+              className={cn('h-9 px-3 text-xs', loading && '[&>svg]:animate-spin')}
+            >
+              {t('pulses.refresh')}
+            </Button>
           </div>
         </div>
-        <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
-          <Badge
-            variant="secondary"
-            className="border-transparent bg-secondary/50 font-medium text-[10px] text-secondary-foreground"
-          >
-            {totalCount} {t('pulses.total')}
-          </Badge>
-          <Badge
-            variant="outline"
-            className={cn(
-              'font-medium text-[10px]',
-              statusBadge.isOk
-                ? 'border-green-200 bg-green-100 text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300'
-                : 'border-red-200 bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300',
-            )}
-          >
-            {statusBadge.label}
-          </Badge>
-          {pluginSources.length > 0 && (
-            <select
-              value={pluginFilter}
-              onChange={(e) => setPluginFilter(e.target.value)}
-              className="h-9 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
-            >
-              <option value="">{t('pulses.allPlugins')}</option>
-              {pluginSources.map((ps: string) => (
-                <option key={ps} value={ps}>
-                  {ps}
-                </option>
-              ))}
-            </select>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Settings}
-            onClick={() => openPulsesSettings()}
-            title={t('common.settings')}
-            className="h-9 px-3 text-xs"
-          >
-            {t('common.settings')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={RefreshCw}
-            onClick={() => loadHistory()}
-            disabled={loading}
-            className={cn('h-9 px-3 text-xs', loading && '[&>svg]:animate-spin')}
-          >
-            {t('pulses.refresh')}
-          </Button>
-        </div>
-      </div>
 
-      <div className="space-y-4 px-6 pb-6">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
+          <StatCard label="Filtered" value={stats.filtered} dotClassName="bg-emerald-500" />
+          <StatCard label="Failed" value={stats.failed} dotClassName="bg-rose-500" />
+          <StatCard label="Sent Today" value={stats.today} dotClassName="bg-violet-500" />
+        </div>
+
         {selectedCount > 0 && (
           <BulkActionBar
             selectedCount={selectedCount}
@@ -264,101 +294,120 @@ export const PulseList: React.FC = () => {
           isLoading={deleting}
         />
 
-        <Card className="shadow-none plugin-pulses">
+        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+            <div className="relative w-full max-w-sm md:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={t('pulses.searchPlaceholder')}
+                className="h-8 bg-background pl-9 text-xs"
+              />
+            </div>
+          </div>
           {loading && pulseHistory.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              {t('common.loading')}
-            </div>
+            <Card className="shadow-none">
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                {t('common.loading')}
+              </div>
+            </Card>
           ) : filtered.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              {t('pulses.emptyHistory')}
-            </div>
+            <Card className="shadow-none">
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                {t('pulses.emptyHistory')}
+              </div>
+            </Card>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12 text-xs">
-                    <input
-                      ref={headerCheckboxRef}
-                      type="checkbox"
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
-                      checked={allVisibleSelected}
-                      onChange={onToggleAllVisible}
-                    />
-                  </TableHead>
-                  <TableHead className="text-xs">{t('pulses.date')}</TableHead>
-                  <TableHead className="text-xs">{t('pulses.recipient')}</TableHead>
-                  <TableHead className="text-xs">{t('pulses.body')}</TableHead>
-                  <TableHead className="text-xs">{t('pulses.status')}</TableHead>
-                  <TableHead className="text-xs">{t('pulses.source')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((entry, index) => (
-                  <TableRow
-                    key={entry.id}
-                    className={cn(
-                      'transition-colors hover:bg-muted/50',
-                      isSelected(entry.id) && 'bg-plugin-subtle',
-                    )}
-                  >
-                    <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
+            <Card className="shadow-none">
+              <Table rowBorders={false}>
+                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
+                  <TableRow>
+                    <TableHead className="w-12 text-xs">
                       <input
+                        ref={headerCheckboxRef}
                         type="checkbox"
                         className="h-4 w-4 cursor-pointer"
-                        checked={isSelected(entry.id)}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(entry.id)}
-                        aria-label={isSelected(entry.id) ? 'Deselect row' : 'Select row'}
+                        aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                        checked={allVisibleSelected}
+                        onChange={onToggleAllVisible}
                       />
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
-                    </TableCell>
-                    <TableCell className="max-w-[180px] truncate text-xs" title={entry.recipient}>
-                      {entry.recipient}
-                    </TableCell>
-                    <TableCell className="max-w-[240px] truncate text-xs" title={entry.body || ''}>
-                      {entry.body || '—'}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      <Badge variant="outline" className="text-[10px] font-medium">
-                        {entry.status || '—'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {entry.pluginSource ? (
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[10px] font-medium capitalize',
-                            entry.pluginSource === 'notes' &&
-                              'plugin-notes border-plugin-subtle bg-plugin-subtle text-plugin',
-                            entry.pluginSource === 'contacts' &&
-                              'plugin-contacts border-plugin-subtle bg-plugin-subtle text-plugin',
-                            entry.pluginSource === 'tasks' &&
-                              'plugin-tasks border-plugin-subtle bg-plugin-subtle text-plugin',
-                            entry.pluginSource === 'estimates' &&
-                              'plugin-estimates border-plugin-subtle bg-plugin-subtle text-plugin',
-                            entry.pluginSource === 'invoices' &&
-                              'plugin-invoices border-plugin-subtle bg-plugin-subtle text-plugin',
-                            entry.pluginSource === 'files' &&
-                              'plugin-files border-plugin-subtle bg-plugin-subtle text-plugin',
-                            entry.pluginSource === 'ingest' &&
-                              'plugin-ingest border-plugin-subtle bg-plugin-subtle text-plugin',
-                          )}
-                        >
-                          {entry.pluginSource}
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
+                    </TableHead>
+                    <TableHead className="text-xs">{t('pulses.date')}</TableHead>
+                    <TableHead className="text-xs">{t('pulses.recipient')}</TableHead>
+                    <TableHead className="text-xs">{t('pulses.body')}</TableHead>
+                    <TableHead className="text-xs">{t('pulses.status')}</TableHead>
+                    <TableHead className="text-xs">{t('pulses.source')}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((entry, index) => (
+                    <TableRow
+                      key={entry.id}
+                      className={cn(
+                        'bg-white transition-colors hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
+                        isSelected(entry.id) && 'bg-plugin-subtle',
+                      )}
+                    >
+                      <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 cursor-pointer"
+                          checked={isSelected(entry.id)}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(entry.id)}
+                          aria-label={isSelected(entry.id) ? 'Deselect row' : 'Select row'}
+                        />
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
+                      </TableCell>
+                      <TableCell className="max-w-[180px] truncate text-xs" title={entry.recipient}>
+                        {entry.recipient}
+                      </TableCell>
+                      <TableCell
+                        className="max-w-[240px] truncate text-xs"
+                        title={entry.body || ''}
+                      >
+                        {entry.body || '—'}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <Badge className="border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                          {entry.status || '—'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {entry.pluginSource ? (
+                          <Badge
+                            className={cn(
+                              'border-0 rounded-md px-2 py-0.5 text-xs font-semibold capitalize',
+                              entry.pluginSource === 'notes' &&
+                                'plugin-notes bg-plugin-subtle text-plugin',
+                              entry.pluginSource === 'contacts' &&
+                                'plugin-contacts bg-plugin-subtle text-plugin',
+                              entry.pluginSource === 'tasks' &&
+                                'plugin-tasks bg-plugin-subtle text-plugin',
+                              entry.pluginSource === 'estimates' &&
+                                'plugin-estimates bg-plugin-subtle text-plugin',
+                              entry.pluginSource === 'invoices' &&
+                                'plugin-invoices bg-plugin-subtle text-plugin',
+                              entry.pluginSource === 'files' &&
+                                'plugin-files bg-plugin-subtle text-plugin',
+                              entry.pluginSource === 'ingest' &&
+                                'plugin-ingest bg-plugin-subtle text-plugin',
+                            )}
+                          >
+                            {entry.pluginSource}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
           )}
         </Card>
       </div>

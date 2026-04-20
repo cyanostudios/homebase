@@ -43,7 +43,6 @@ import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
-import { CONTACT_TYPE_COLORS } from '../types/contacts';
 import { contactExportConfig } from '../utils/contactExportConfig';
 
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
@@ -87,10 +86,15 @@ function ContactAvatar({ contact }: { contact: Contact }) {
 }
 
 function TypeBadge({ type }: { type: 'company' | 'private' }) {
-  const dotColor = type === 'company' ? 'bg-blue-500' : 'bg-amber-500';
   return (
-    <Badge className={cn('inline-flex items-center gap-1.5', CONTACT_TYPE_COLORS[type])}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', dotColor)} aria-hidden />
+    <Badge
+      className={cn(
+        'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
+        type === 'company'
+          ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
+          : 'bg-green-50/50 text-green-700 dark:text-green-300 dark:bg-green-950/30',
+      )}
+    >
       {type === 'company' ? 'Company' : 'Private'}
     </Badge>
   );

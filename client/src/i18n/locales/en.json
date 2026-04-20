@@ -102,6 +102,7 @@
     "showPomodoro": "Show Pomodoro clock in top bar"
   },
   "slots": {
+    "listDescription": "Plan bookable slots, visibility, and categories.",
     "title": "Slots",
     "addSlot": "Add Slot",
     "newSlot": "New slot",
@@ -178,6 +179,7 @@
     "dateTimePickerTime": "Time"
   },
   "matches": {
+    "listDescription": "Schedule games, venues, and match formats.",
     "match": "Match",
     "nameLabel": "Name",
     "namePlaceholder": "Leave empty to use Home team + Away team",
@@ -342,6 +344,7 @@
     "discardTagsMessage": "You have unsaved changes to tags. Do you want to discard them?"
   },
   "tasks": {
+    "listDescription": "Track work, deadlines, assignees, and priorities.",
     "searchPlaceholder": "Search {{count}} tasks...",
     "noMatch": "No tasks found matching your search.",
     "noYet": "No tasks yet. Click \"Add Task\" to get started.",
@@ -377,6 +380,7 @@
     "viewShareLink": "View share"
   },
   "notes": {
+    "listDescription": "Capture ideas with mentions and rich context.",
     "searchPlaceholder": "Search {{count}} notes...",
     "noMatch": "No notes found matching your search.",
     "noYet": "No notes yet. Click \"Add Note\" to get started.",
@@ -406,6 +410,7 @@
     "noteContent": "Note Content"
   },
   "invoices": {
+    "listDescription": "Review drafts, payments, and overdue balances.",
     "searchPlaceholder": "Search invoices...",
     "noMatch": "No invoices found matching your search.",
     "noYet": "No invoices yet. Click \"Add Invoice\" to get started.",
@@ -423,6 +428,7 @@
     "pricingSummary": "Pricing Summary"
   },
   "estimates": {
+    "listDescription": "Draft, send, and track quotes through acceptance.",
     "searchPlaceholder": "Search estimates...",
     "noMatch": "No estimates found matching your search.",
     "noYet": "No estimates yet. Click \"Add Estimate\" to get started.",
@@ -457,6 +463,7 @@
     "discardQuickEditMessage": "You have unsaved status change. Do you want to discard it?"
   },
   "ingest": {
+    "listDescription": "Connect URLs and monitor fetch runs and errors.",
     "searchPlaceholder": "Search {{count}} sources...",
     "noMatch": "No sources match your search.",
     "noYet": "No sources yet. Add a URL source to fetch content and keep an import history.",
@@ -512,6 +519,7 @@
     }
   },
   "files": {
+    "listDescription": "Browse uploads, previews, and file metadata.",
     "searchPlaceholder": "Search by name, id, or type...",
     "noMatch": "No files found matching your search.",
     "noYet": "No files yet. Click \"Add File\" to get started.",
@@ -587,6 +595,7 @@
     "attachmentsRemoveDialogMessage": "\"{{name}}\" will be removed from this item. The file stays in Files."
   },
   "mail": {
+    "listDescription": "Review sent mail, filters, and delivery status.",
     "panelTitle": "Mail settings",
     "searchPlaceholder": "Search by recipient or subject...",
     "allPlugins": "All plugins",
@@ -631,6 +640,7 @@
     "credentials": "Credentials"
   },
   "pulses": {
+    "listDescription": "Monitor SMS and message traffic from plugins.",
     "panelTitle": "Pulse settings",
     "searchPlaceholder": "Search by recipient or message...",
     "allPlugins": "All plugins",
@@ -670,6 +680,24 @@
     "pluginSources": "Plugin sources",
     "pluginSourcesHint": "Plugins that have sent messages via Pulse.",
     "noPluginSources": "No plugins have sent messages yet."
+  },
+  "cups": {
+    "listDescription": "Manage cups, visibility, and imports from ingest.",
+    "addCup": "Add Cup",
+    "importFromIngest": "Import from Ingest",
+    "searchPlaceholder": "Search cups ({{count}})",
+    "noMatch": "No cups match your search.",
+    "noYet": "No cups yet. Add a cup or import from ingest.",
+    "columnName": "Name",
+    "columnOrganizer": "Organizer",
+    "columnVisible": "Visible",
+    "columnFeatured": "Featured",
+    "columnLocation": "Location",
+    "columnIngest": "Ingest",
+    "columnStart": "Start",
+    "featured": "Featured",
+    "notFeatured": "Not featured",
+    "ingestLine": "Ingest: {{title}}"
   },
   "dashboard": {
     "noWidgets": "No widgets available. Enable plugins to see widgets here."

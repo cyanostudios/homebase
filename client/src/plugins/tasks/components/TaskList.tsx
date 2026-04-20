@@ -55,6 +55,26 @@ function getInitialViewMode(): ViewMode {
 const TASKS_SETTINGS_KEY = 'tasks';
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 
+function StatCard({
+  label,
+  value,
+  dotClassName,
+}: {
+  label: string;
+  value: number;
+  dotClassName: string;
+}) {
+  return (
+    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
+        <span>{label}</span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+    </Card>
+  );
+}
+
 export const TaskList: React.FC = () => {
   const { t } = useTranslation();
   const {
@@ -233,6 +253,21 @@ export const TaskList: React.FC = () => {
   }, [tasks, searchTerm, sortField, sortOrder, contacts, getAssignedContacts]);
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
+  const stats = useMemo(
+    () => ({
+      total: tasks.length,
+      open: tasks.filter((task) => task.status !== 'completed' && task.status !== 'cancelled')
+        .length,
+      completed: tasks.filter((task) => task.status === 'completed').length,
+      overdue: tasks.filter((task) => {
+        if (!task.dueDate || task.status === 'completed' || task.status === 'cancelled') {
+          return false;
+        }
+        return new Date(task.dueDate).getTime() < Date.now();
+      }).length,
+    }),
+    [tasks],
+  );
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -376,51 +411,13 @@ export const TaskList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-tasks min-h-full bg-background">
-      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-        <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-          <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-            {t('nav.tasks')}
-          </h2>
-          <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t('tasks.searchPlaceholder', { count: tasks.length })}
-              className="h-9 bg-background pl-9 text-xs"
-            />
+    <div className="plugin-tasks min-h-full bg-background px-6 py-4">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.tasks')}</h2>
+            <p className="text-sm text-muted-foreground">{t('tasks.listDescription')}</p>
           </div>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Settings}
-            className="h-9 px-3 text-xs"
-            onClick={() => openTaskSettings()}
-            title={t('common.settings')}
-          >
-            {t('common.settings')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Grid3x3}
-            className={cn('h-9 px-3 text-xs', viewMode === 'grid' && 'text-primary')}
-            onClick={() => setViewMode('grid')}
-          >
-            {t('slots.grid')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={ListIcon}
-            className={cn('h-9 px-3 text-xs', viewMode === 'list' && 'text-primary')}
-            onClick={() => setViewMode('list')}
-          >
-            {t('slots.list')}
-          </Button>
           <Button
             variant="primary"
             size="sm"
@@ -431,9 +428,14 @@ export const TaskList: React.FC = () => {
             {t('tasks.addTask')}
           </Button>
         </div>
-      </div>
 
-      <div className="px-6 pb-6 space-y-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
+          <StatCard label="Open" value={stats.open} dotClassName="bg-amber-500" />
+          <StatCard label="Completed" value={stats.completed} dotClassName="bg-emerald-500" />
+          <StatCard label="Overdue" value={stats.overdue} dotClassName="bg-rose-500" />
+        </div>
+
         {selectedCount > 0 && (
           <BulkActionBar
             selectedCount={selectedCount}
@@ -456,9 +458,71 @@ export const TaskList: React.FC = () => {
           />
         )}
 
-        <Card className="shadow-none border-none bg-transparent">
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          itemCount={selectedCount}
+          itemLabel="tasks"
+          isLoading={deleting}
+        />
+
+        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+            <div className="relative w-full max-w-sm md:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={t('tasks.searchPlaceholder', { count: tasks.length })}
+                className="h-8 bg-background pl-9 text-xs"
+              />
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Settings}
+                className="h-8 px-2.5 text-xs"
+                onClick={() => openTaskSettings()}
+                title={t('common.settings')}
+              >
+                {t('common.settings')}
+              </Button>
+              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Grid3x3}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'grid'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('grid')}
+                >
+                  {t('slots.grid')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={ListIcon}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'list'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('list')}
+                >
+                  {t('slots.list')}
+                </Button>
+              </div>
+            </div>
+          </div>
           {sortedTasks.length === 0 ? (
-            <Card className="shadow-none">
+            <Card className="border-0 shadow-none">
               <div className="p-6 text-center text-muted-foreground">
                 {searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
               </div>
@@ -472,7 +536,7 @@ export const TaskList: React.FC = () => {
                   <Card
                     key={task.id}
                     className={cn(
-                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
+                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-card p-5 shadow-sm transition-all',
                       taskIsSelected
                         ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
                         : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
@@ -533,7 +597,7 @@ export const TaskList: React.FC = () => {
               })}
             </div>
           ) : isMobile ? (
-            <Card className="shadow-none">
+            <Card className="border-0 shadow-none">
               <div className="space-y-2 p-4">
                 {sortedTasks.map((task, index) => {
                   const taskIsSelected = isSelected(task.id);
@@ -602,9 +666,9 @@ export const TaskList: React.FC = () => {
               </div>
             </Card>
           ) : (
-            <Card className="shadow-none">
-              <Table>
-                <TableHeader>
+            <Card className="border-0 shadow-none">
+              <Table rowBorders={false}>
+                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
                   <TableRow>
                     <TableHead className="w-12 text-xs">
                       <input
@@ -696,7 +760,8 @@ export const TaskList: React.FC = () => {
                       <TableRow
                         key={task.id}
                         className={cn(
-                          'cursor-pointer hover:bg-accent',
+                          'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
+                          taskIsSelected && 'bg-plugin-subtle',
                           recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
                         )}
                         tabIndex={0}
@@ -766,15 +831,6 @@ export const TaskList: React.FC = () => {
             </Card>
           )}
         </Card>
-
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel="tasks"
-          isLoading={deleting}
-        />
       </div>
     </div>
   );

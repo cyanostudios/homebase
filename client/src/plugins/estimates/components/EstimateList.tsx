@@ -43,6 +43,26 @@ type SortField = 'estimateNumber' | 'contactName' | 'total' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
+function StatCard({
+  label,
+  value,
+  dotClassName,
+}: {
+  label: string;
+  value: number;
+  dotClassName: string;
+}) {
+  return (
+    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
+        <span>{label}</span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+    </Card>
+  );
+}
+
 export function EstimateList() {
   const { t } = useTranslation();
   const {
@@ -95,7 +115,6 @@ export function EstimateList() {
   );
 
   const [isMobile, setIsMobile] = useState(false);
-  const ESTIMATE_LIST_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 
   // Detect mobile screen size
   useEffect(() => {
@@ -143,13 +162,25 @@ export function EstimateList() {
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
   }, [estimates, searchTerm, sortField, sortOrder]);
+  const stats = useMemo(
+    () => ({
+      total: estimates.length,
+      draft: estimates.filter((e) => e.status === 'draft').length,
+      accepted: estimates.filter((e) => e.status === 'accepted').length,
+      sent: estimates.filter((e) => e.status === 'sent').length,
+    }),
+    [estimates],
+  );
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
-      draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-      sent: 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle font-medium',
-      accepted: 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle font-medium',
-      rejected: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
+      draft:
+        'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-secondary/50 text-secondary-foreground',
+      sent: 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold plugin-contacts bg-plugin-subtle text-plugin',
+      accepted:
+        'border-0 rounded-md px-2 py-0.5 text-xs font-semibold plugin-invoices bg-plugin-subtle text-plugin',
+      rejected:
+        'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-rose-50/50 text-rose-700 dark:text-rose-300',
     };
 
     const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
@@ -298,51 +329,13 @@ export function EstimateList() {
   }
 
   return (
-    <div className="plugin-estimates min-h-full bg-background">
-      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-        <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-          <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-            {t('nav.estimates')}
-          </h2>
-          <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('estimates.searchPlaceholder')}
-              className="h-9 bg-background pl-9 text-xs"
-            />
+    <div className="plugin-estimates min-h-full bg-background px-6 py-4">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.estimates')}</h2>
+            <p className="text-sm text-muted-foreground">{t('estimates.listDescription')}</p>
           </div>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Settings}
-            onClick={() => openEstimateSettings()}
-            className="h-9 px-3 text-xs"
-            title={t('common.settings')}
-          >
-            {t('common.settings')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Grid3x3}
-            onClick={() => setViewMode('grid')}
-            className={cn('h-9 px-3 text-xs', viewMode === 'grid' && 'text-primary')}
-          >
-            {t('slots.grid')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={ListIcon}
-            onClick={() => setViewMode('list')}
-            className={cn('h-9 px-3 text-xs', viewMode === 'list' && 'text-primary')}
-          >
-            {t('slots.list')}
-          </Button>
           <Button
             variant="primary"
             size="sm"
@@ -353,38 +346,107 @@ export function EstimateList() {
             {t('estimates.addEstimate')}
           </Button>
         </div>
-      </div>
 
-      <div className="px-6 pb-6 space-y-4">
-        {/* Bulk Action Bar */}
-        <BulkActionBar
-          selectedCount={selectedCount}
-          onClearSelection={clearEstimateSelection}
-          actions={[
-            {
-              label: t('common.exportCsv'),
-              icon: FileSpreadsheet,
-              onClick: handleExportCSV,
-              variant: 'default',
-            },
-            {
-              label: t('common.exportPdf'),
-              icon: FileText,
-              onClick: handleExportPDF,
-              variant: 'default',
-            },
-            {
-              label: t('common.delete'),
-              icon: Trash2,
-              onClick: () => setShowBulkDeleteModal(true),
-              variant: 'destructive',
-            },
-          ]}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
+          <StatCard label="Draft" value={stats.draft} dotClassName="bg-slate-500" />
+          <StatCard label="Sent" value={stats.sent} dotClassName="bg-amber-500" />
+          <StatCard label="Accepted" value={stats.accepted} dotClassName="bg-emerald-500" />
+        </div>
+
+        {selectedCount > 0 && (
+          <BulkActionBar
+            selectedCount={selectedCount}
+            onClearSelection={clearEstimateSelection}
+            actions={[
+              {
+                label: t('common.exportCsv'),
+                icon: FileSpreadsheet,
+                onClick: handleExportCSV,
+                variant: 'default',
+              },
+              {
+                label: t('common.exportPdf'),
+                icon: FileText,
+                onClick: handleExportPDF,
+                variant: 'default',
+              },
+              {
+                label: t('common.delete'),
+                icon: Trash2,
+                onClick: () => setShowBulkDeleteModal(true),
+                variant: 'destructive',
+              },
+            ]}
+          />
+        )}
+
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          itemCount={selectedCount}
+          itemLabel="estimates"
+          isLoading={deleting}
         />
 
-        <div>
+        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+            <div className="relative w-full max-w-sm md:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t('estimates.searchPlaceholder')}
+                className="h-8 bg-background pl-9 text-xs"
+              />
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Settings}
+                onClick={() => openEstimateSettings()}
+                className="h-8 px-2.5 text-xs"
+                title={t('common.settings')}
+              >
+                {t('common.settings')}
+              </Button>
+              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Grid3x3}
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'grid'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t('slots.grid')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={ListIcon}
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'list'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t('slots.list')}
+                </Button>
+              </div>
+            </div>
+          </div>
+
           {sortedEstimates.length === 0 ? (
-            <Card className={ESTIMATE_LIST_CARD_CLASS}>
+            <Card className="shadow-none">
               <div className="p-6 text-center text-muted-foreground">
                 {searchTerm ? t('estimates.noMatch') : t('estimates.noYet')}
               </div>
@@ -401,7 +463,7 @@ export function EstimateList() {
                   <Card
                     key={estimate.id}
                     className={cn(
-                      'relative flex h-full min-h-[180px] cursor-pointer flex-col gap-3 border border-border/70 bg-card p-5 shadow-sm transition-all',
+                      'relative flex h-full min-h-[180px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-card p-5 shadow-sm transition-all',
                       estimateIsSelected
                         ? 'plugin-estimates bg-plugin-subtle border-plugin-subtle ring-1 border-plugin-subtle'
                         : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md',
@@ -466,7 +528,7 @@ export function EstimateList() {
             </div>
           ) : isMobile ? (
             // Mobile: Card layout
-            <Card className={ESTIMATE_LIST_CARD_CLASS}>
+            <Card className="shadow-none">
               <div className="space-y-2 p-4">
                 {sortedEstimates.map((estimate, index) => {
                   const estimateIsSelected = isSelected(estimate.id);
@@ -478,7 +540,7 @@ export function EstimateList() {
                     <Card
                       key={estimate.id}
                       className={cn(
-                        'border border-border/70 bg-card p-4 shadow-sm cursor-pointer hover:bg-muted/50 transition-colors',
+                        'rounded-xl border-0 bg-card p-4 shadow-sm cursor-pointer hover:bg-muted/50 transition-colors',
                         recentlyDuplicatedEstimateId === String(estimate.id) &&
                           'bg-green-50 dark:bg-green-950/30',
                       )}
@@ -545,9 +607,9 @@ export function EstimateList() {
             </Card>
           ) : (
             // Desktop: Table layout
-            <Card className={ESTIMATE_LIST_CARD_CLASS}>
-              <Table>
-                <TableHeader>
+            <Card className="shadow-none">
+              <Table rowBorders={false}>
+                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
                   <TableRow>
                     <TableHead className="w-12 text-xs">
                       <input
@@ -633,7 +695,7 @@ export function EstimateList() {
                       <TableRow
                         key={estimate.id}
                         className={cn(
-                          'cursor-pointer hover:bg-muted/50',
+                          'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
                           estimateIsSelected && 'bg-plugin-subtle',
                           recentlyDuplicatedEstimateId === String(estimate.id) &&
                             'bg-green-50 dark:bg-green-950/30',
@@ -703,17 +765,7 @@ export function EstimateList() {
               </Table>
             </Card>
           )}
-        </div>
-
-        {/* Bulk Delete Modal */}
-        <BulkDeleteModal
-          isOpen={showBulkDeleteModal}
-          onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={handleBulkDelete}
-          itemCount={selectedCount}
-          itemLabel="estimates"
-          isLoading={deleting}
-        />
+        </Card>
       </div>
     </div>
   );
