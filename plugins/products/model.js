@@ -11,6 +11,93 @@ function sleep(ms) {
 }
 const { AppError } = require('../../server/core/errors/AppError');
 
+const CATALOG_SEARCH_SCOPES = new Set([
+  'all',
+  'productId',
+  'groupId',
+  'sku',
+  'title',
+  'privateName',
+  'lagerplats',
+  'ean',
+  'gtin',
+]);
+
+/**
+ * Catalog list search: `q` + `searchIn` scope. Mutates `params` (one lowercased needle).
+ * @param {string} [scopeRaw]
+ * @param {string|null} qRaw
+ * @param {unknown[]} params
+ * @returns {string|null} SQL boolean expression or null if no q
+ */
+function buildCatalogSearchWhereFragment(scopeRaw, qRaw, params) {
+  if (qRaw == null || String(qRaw).trim() === '') {
+    return null;
+  }
+  const ql = String(qRaw).trim().toLowerCase();
+  params.push(ql);
+  const qi = params.length;
+
+  const contains = (sqlExpr) => `position($${qi} in lower(coalesce(${sqlExpr}, ''))) > 0`;
+  const prefix = (sqlExpr) => `starts_with(lower(coalesce(${sqlExpr}, '')), $${qi})`;
+
+  const titleMain = contains('p.title');
+  const titleI18n = `EXISTS (
+    SELECT 1
+    FROM jsonb_each(COALESCE(p.channel_specific->'textsExtended', '{}'::jsonb)) AS te(k, v)
+    WHERE jsonb_typeof(v) = 'object'
+      AND (
+        position($${qi} IN lower(COALESCE(v->>'name', ''))) > 0
+        OR position($${qi} IN lower(COALESCE(v->>'titleSeo', ''))) > 0
+      )
+  )`;
+  const titleClause = `(${titleMain} OR ${titleI18n})`;
+
+  const productIdClause = prefix('cast(p.id as text)');
+  const groupIdClause = contains('cast(p.group_id as text)');
+  const skuClause = contains('p.sku');
+  const privateNameClause = contains('p.private_name');
+  const lagerplatsClause = contains('p.lagerplats');
+  const eanClause = prefix('p.ean');
+  const gtinClause = prefix('p.gtin');
+
+  const scopeStr = String(scopeRaw ?? '').trim();
+  const scope = CATALOG_SEARCH_SCOPES.has(scopeStr) ? scopeStr : 'all';
+
+  const allClause = [
+    productIdClause,
+    groupIdClause,
+    skuClause,
+    titleClause,
+    privateNameClause,
+    lagerplatsClause,
+    eanClause,
+    gtinClause,
+  ].join(' OR ');
+
+  switch (scope) {
+    case 'productId':
+      return productIdClause;
+    case 'groupId':
+      return groupIdClause;
+    case 'sku':
+      return skuClause;
+    case 'title':
+      return titleClause;
+    case 'privateName':
+      return privateNameClause;
+    case 'lagerplats':
+      return lagerplatsClause;
+    case 'ean':
+      return eanClause;
+    case 'gtin':
+      return gtinClause;
+    case 'all':
+    default:
+      return `(${allClause})`;
+  }
+}
+
 class ProductModel {
   static TABLE = 'products';
 
@@ -136,6 +223,7 @@ class ProductModel {
    * @param {string} [options.sort]
    * @param {string} [options.order] asc|desc
    * @param {string|null} [options.q]
+   * @param {string} [options.searchIn] all|productId|groupId|sku|title|privateName|lagerplats|ean|gtin
    * @param {string} [options.list] all|main|<listId>
    */
   async list(req, options = {}) {
@@ -153,6 +241,10 @@ class ProductModel {
       const orderSql = orderAsc ? 'ASC' : 'DESC';
       const qRaw =
         options.q != null && String(options.q).trim() !== '' ? String(options.q).trim() : null;
+      const searchInRaw =
+        options.searchIn != null && String(options.searchIn).trim() !== ''
+          ? String(options.searchIn).trim()
+          : 'all';
       const listMode = options.list != null ? String(options.list).trim().toLowerCase() : 'all';
 
       const sortMap = {
@@ -185,16 +277,9 @@ class ProductModel {
         )`);
       }
 
-      if (qRaw) {
-        const ql = String(qRaw).toLowerCase();
-        params.push(ql);
-        const qIdx = params.length;
-        clauses.push(`(
-          position($${qIdx} in lower(coalesce(p.title, ''))) > 0 OR
-          position($${qIdx} in lower(coalesce(p.sku, ''))) > 0 OR
-          position($${qIdx} in lower(coalesce(p.mpn, ''))) > 0 OR
-          position($${qIdx} in lower(cast(p.id as text))) > 0
-        )`);
+      const searchFrag = buildCatalogSearchWhereFragment(searchInRaw, qRaw, params);
+      if (searchFrag) {
+        clauses.push(`(${searchFrag})`);
       }
 
       params.push(limit);
@@ -2859,7 +2944,6 @@ class ProductModel {
         volumeUnit: volumeUnit != null ? String(volumeUnit).trim() || null : undefined,
         weight: weight != null && Number.isFinite(Number(weight)) ? Number(weight) : undefined,
         notes: notes != null ? String(notes).trim() || null : undefined,
-        privateName: privateName != null ? String(privateName).trim() || null : undefined,
         sourceCreatedAt:
           sourceCreatedAt != null ? String(sourceCreatedAt).trim() || null : undefined,
         quantitySold:

@@ -249,6 +249,8 @@ export interface Product {
   status: ProductStatus;
   quantity: number;
   priceAmount: number; // maps to price_amount
+  /** Inköpspris när det finns i API-svar (lista/detalj). */
+  purchasePrice?: number | null;
   currency: string; // ISO-4217, e.g. "SEK"
   vatRate: number; // e.g. 25
   mainImage: string | null; // URL

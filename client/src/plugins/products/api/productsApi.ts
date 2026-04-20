@@ -3,6 +3,7 @@
 
 import { getSharedCsrfToken } from '@/core/api/csrf';
 
+import type { ProductCatalogSearchScope } from '../constants/productCatalogSearchScopes';
 import type { Product, ProductImageAsset } from '../types/products';
 
 export type ProductListSortField = 'id' | 'title' | 'quantity' | 'priceAmount' | 'sku';
@@ -13,6 +14,8 @@ export type ProductListParams = {
   sort: ProductListSortField;
   order: 'asc' | 'desc';
   q?: string;
+  /** Catalog search scope; default all on server. */
+  searchIn?: ProductCatalogSearchScope;
   /** all | main | list id */
   list: string;
 };
@@ -288,6 +291,10 @@ class ProductsApi {
     qs.set('order', params.order);
     if (params.q != null && String(params.q).trim() !== '') {
       qs.set('q', String(params.q).trim());
+    }
+    const searchIn = params.searchIn != null ? String(params.searchIn).trim() : 'all';
+    if (searchIn !== '') {
+      qs.set('searchIn', searchIn);
     }
     qs.set('list', params.list);
     return this.request(`/products?${qs.toString()}`) as Promise<{

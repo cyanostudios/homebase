@@ -2,6 +2,7 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
+  Columns2,
   Upload,
   Download,
   Pencil,
@@ -30,6 +31,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -44,6 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useApp } from '@/core/api/AppContext';
 import { navigateToPage } from '@/core/navigation/navigateToPage';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
@@ -58,9 +61,27 @@ import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceAp
 
 import { productsApi } from '../api/productsApi';
 import type { ProductListParams } from '../api/productsApi';
+import {
+  DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
+  isProductCatalogSearchScope,
+  PRODUCT_CATALOG_SEARCH_PLACEHOLDERS,
+  PRODUCT_CATALOG_SEARCH_SCOPE_LABELS,
+  PRODUCT_CATALOG_SEARCH_SCOPES,
+  type ProductCatalogSearchScope,
+} from '../constants/productCatalogSearchScopes';
 import { useProducts } from '../hooks/useProducts';
+import type { Product } from '../types/products';
 import { normalizeCatalogPageSize } from '../types/products';
 
+import {
+  DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS,
+  formatProductListPlainColumn,
+  normalizeVisibleColumnSelection,
+  parseStoredProductListColumns,
+  PRODUCT_LIST_COLUMN_META,
+  type ProductListDataColumnId,
+  storageKeyProductListColumns,
+} from './productListColumns';
 import { ProductSettingsForm } from './ProductSettingsForm';
 import { ProductTitleWithLinksHover } from './ProductTitleWithLinksHover';
 
@@ -332,17 +353,26 @@ export const ProductList: React.FC = () => {
     groupProducts,
   } = useProducts();
 
+  const { activeTenantId } = useApp();
+
   const { settings: cdonSettings } = useCdonProducts();
   const { settings: fyndiqSettings } = useFyndiqProducts();
 
   const { attemptNavigation } = useGlobalNavigationGuard();
   const { setHeaderTitleExtra } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchScope, setSearchScope] = useState<ProductCatalogSearchScope>(
+    DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
+  );
   const [listFilter, setListFilter] = useState<string>('all');
   const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
   const [sortField, setSortField] = useState<SortField>('id');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [isMobileView, setIsMobileView] = useState(false);
+  const [visibleColumnIds, setVisibleColumnIds] = useState<ProductListDataColumnId[]>(() => [
+    ...DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS,
+  ]);
+  const [catalogColumnsHydrated, setCatalogColumnsHydrated] = useState(false);
 
   const [offset, setOffset] = useState(0);
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -357,7 +387,7 @@ export const ProductList: React.FC = () => {
 
   useEffect(() => {
     setOffset(0);
-  }, [debouncedSearch, listFilter, sortField, sortOrder, limit]);
+  }, [debouncedSearch, searchScope, listFilter, sortField, sortOrder, limit]);
 
   const listApiParam = useMemo(
     () => (listFilter === 'all' ? 'all' : listFilter === 'main' ? 'main' : String(listFilter)),
@@ -371,10 +401,13 @@ export const ProductList: React.FC = () => {
       sort: sortField,
       order: sortOrder,
       q: debouncedSearch ? debouncedSearch : undefined,
+      searchIn: searchScope,
       list: listApiParam,
     }),
-    [limit, offset, sortField, sortOrder, debouncedSearch, listApiParam],
+    [limit, offset, sortField, sortOrder, debouncedSearch, searchScope, listApiParam],
   );
+
+  const catalogSearchPlaceholder = PRODUCT_CATALOG_SEARCH_PLACEHOLDERS[searchScope];
 
   useEffect(() => {
     if (!isProductCatalogBootstrap) {
@@ -516,6 +549,57 @@ export const ProductList: React.FC = () => {
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
+
+  useEffect(() => {
+    setCatalogColumnsHydrated(false);
+    if (activeTenantId === null) {
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(storageKeyProductListColumns(activeTenantId));
+      const parsed = parseStoredProductListColumns(raw);
+      setVisibleColumnIds(normalizeVisibleColumnSelection(parsed));
+    } catch {
+      setVisibleColumnIds([...DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS]);
+    } finally {
+      setCatalogColumnsHydrated(true);
+    }
+  }, [activeTenantId]);
+
+  useEffect(() => {
+    if (activeTenantId === null || !catalogColumnsHydrated) {
+      return;
+    }
+    try {
+      localStorage.setItem(
+        storageKeyProductListColumns(activeTenantId),
+        JSON.stringify(visibleColumnIds),
+      );
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [activeTenantId, visibleColumnIds, catalogColumnsHydrated]);
+
+  const toggleCatalogColumn = useCallback((id: ProductListDataColumnId, checked: boolean) => {
+    setVisibleColumnIds((prev) => {
+      if (checked) {
+        if (prev.includes(id)) {
+          return prev;
+        }
+        return normalizeVisibleColumnSelection([...prev, id]);
+      }
+      if (prev.length <= 1) {
+        return prev;
+      }
+      return normalizeVisibleColumnSelection(prev.filter((x) => x !== id));
+    });
+  }, []);
+
+  const resetCatalogColumns = useCallback(() => {
+    setVisibleColumnIds([...DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS]);
+  }, []);
+
+  const totalTableColSpan = 2 + visibleColumnIds.length + 1;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -726,6 +810,104 @@ export const ProductList: React.FC = () => {
     ) : (
       <ChevronDown className="w-4 h-4" />
     );
+  };
+
+  type CatalogGroupInfo = ReturnType<typeof getGroupInfo>;
+
+  const renderDesktopCatalogCell = (
+    columnId: ProductListDataColumnId,
+    p: ReturnType<typeof normalize>,
+    groupInfo: CatalogGroupInfo,
+  ) => {
+    const product = p.raw as Product;
+    const pad = groupInfo ? 'pl-3' : '';
+    const giForTitle = groupInfo
+      ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
+      : undefined;
+
+    switch (columnId) {
+      case 'id':
+        return (
+          <TableCell className={pad}>
+            <div className="text-sm font-mono font-medium">#{p.id}</div>
+          </TableCell>
+        );
+      case 'title':
+        return (
+          <TableCell className={pad}>
+            <ProductTitleWithLinksHover productId={p.id} title={p.title} groupInfo={giForTitle} />
+          </TableCell>
+        );
+      case 'sku':
+        return (
+          <TableCell className={pad}>
+            <div className="text-sm text-muted-foreground">{p.sku || '—'}</div>
+          </TableCell>
+        );
+      case 'quantity':
+        return (
+          <TableCell className={pad}>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                disabled={quantityUpdatingId === p.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                  openQuantityDialog(p.id, current, 'minus');
+                }}
+                aria-label="Minska antal"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </Button>
+              <span className="min-w-[1.5rem] text-center text-sm tabular-nums">{p.quantity}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                disabled={quantityUpdatingId === p.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                  openQuantityDialog(p.id, current, 'plus');
+                }}
+                aria-label="Öka antal"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </TableCell>
+        );
+      case 'priceAmount':
+        return (
+          <TableCell className={pad}>
+            <div className="text-sm">
+              {p.priceAmount?.toFixed
+                ? p.priceAmount.toFixed(2)
+                : Number(p.priceAmount || 0).toFixed(2)}{' '}
+              {p.currency}
+            </div>
+          </TableCell>
+        );
+      case 'status':
+        return (
+          <TableCell className={pad}>
+            <Badge variant={product.status === 'paused' ? 'secondary' : 'default'}>
+              {formatProductListPlainColumn('status', product)}
+            </Badge>
+          </TableCell>
+        );
+      default:
+        return (
+          <TableCell className={pad}>
+            <div className="text-sm text-muted-foreground">
+              {formatProductListPlainColumn(columnId, product)}
+            </div>
+          </TableCell>
+        );
+    }
   };
 
   // Protected navigation handlers
@@ -951,6 +1133,38 @@ export const ProductList: React.FC = () => {
       </DropdownMenu>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1" type="button">
+            <Columns2 className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+            Kolumner
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-[min(70vh,28rem)] overflow-y-auto p-2">
+          <div className="px-2 pb-1 text-xs font-medium text-muted-foreground">
+            Synliga kolumner
+          </div>
+          {PRODUCT_LIST_COLUMN_META.map((col) => (
+            <DropdownMenuCheckboxItem
+              key={col.id}
+              className="text-sm"
+              checked={visibleColumnIds.includes(col.id)}
+              onCheckedChange={(c) => toggleCatalogColumn(col.id, c === true)}
+              onSelect={(e) => e.preventDefault()}
+            >
+              {col.label}
+            </DropdownMenuCheckboxItem>
+          ))}
+          <DropdownMenuSeparator className="my-2" />
+          <DropdownMenuItem
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => resetCatalogColumns()}
+          >
+            Återställ standard
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1">
             Alternativ
             <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
@@ -996,7 +1210,26 @@ export const ProductList: React.FC = () => {
         <ContentToolbar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Sök titel, SKU, nummer…"
+          searchPlaceholder={catalogSearchPlaceholder}
+          searchLeading={
+            <NativeSelect
+              value={searchScope}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSearchScope(
+                  isProductCatalogSearchScope(v) ? v : DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
+                );
+              }}
+              aria-label="Begränsa sökningen"
+              className="h-10 min-w-[9.5rem] max-w-[40vw] shrink-0 bg-muted/30 pl-2 pr-8 text-sm sm:min-w-[10.5rem] sm:max-w-none"
+            >
+              {PRODUCT_CATALOG_SEARCH_SCOPES.map((scope) => (
+                <option key={scope} value={scope}>
+                  {PRODUCT_CATALOG_SEARCH_SCOPE_LABELS[scope]}
+                </option>
+              ))}
+            </NativeSelect>
+          }
           searchRowTrailing={
             <NativeSelect
               value={listFilter}
@@ -1271,63 +1504,45 @@ export const ProductList: React.FC = () => {
                     onChange={onToggleAllVisible}
                   />
                 </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('id')}
-                >
-                  <div className="flex items-center gap-2">
-                    #<SortIcon field="id" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('title')}
-                >
-                  <div className="flex items-center gap-2">
-                    Title
-                    <SortIcon field="title" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('sku')}
-                >
-                  <div className="flex items-center gap-2">
-                    SKU
-                    <SortIcon field="sku" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('quantity')}
-                >
-                  <div className="flex items-center gap-2">
-                    Qty
-                    <SortIcon field="quantity" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('priceAmount')}
-                >
-                  <div className="flex items-center gap-2">
-                    Price
-                    <SortIcon field="priceAmount" />
-                  </div>
-                </TableHead>
+                {visibleColumnIds.map((colId) => {
+                  const meta = PRODUCT_LIST_COLUMN_META.find((m) => m.id === colId);
+                  const label = meta?.label ?? colId;
+                  const sf = meta?.sortField;
+                  if (sf) {
+                    return (
+                      <TableHead
+                        key={colId}
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort(sf)}
+                      >
+                        <div className="flex items-center gap-2">
+                          {label}
+                          <SortIcon field={sf} />
+                        </div>
+                      </TableHead>
+                    );
+                  }
+                  return <TableHead key={colId}>{label}</TableHead>;
+                })}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {listLoading && displayRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="p-6 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={totalTableColSpan}
+                    className="p-6 text-center text-muted-foreground"
+                  >
                     Laddar…
                   </TableCell>
                 </TableRow>
               ) : displayRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="p-6 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={totalTableColSpan}
+                    className="p-6 text-center text-muted-foreground"
+                  >
                     {debouncedSearch
                       ? 'No products found matching your search.'
                       : 'No products yet. Click "Add Product" to get started.'}
@@ -1356,7 +1571,10 @@ export const ProductList: React.FC = () => {
                           className="h-2.5 border-0 hover:bg-transparent pointer-events-none"
                           aria-hidden
                         >
-                          <TableCell colSpan={8} className="h-2.5 border-0 bg-transparent p-0" />
+                          <TableCell
+                            colSpan={totalTableColSpan}
+                            className="h-2.5 border-0 bg-transparent p-0"
+                          />
                         </TableRow>
                       ) : null}
                       <TableRow
@@ -1379,66 +1597,11 @@ export const ProductList: React.FC = () => {
                             aria-label={isSelected ? 'Unselect product' : 'Select product'}
                           />
                         </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          <div className="text-sm font-mono font-medium">#{p.id}</div>
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          <ProductTitleWithLinksHover
-                            productId={p.id}
-                            title={p.title}
-                            groupInfo={
-                              groupInfo
-                                ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
-                                : undefined
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          <div className="text-sm text-muted-foreground">{p.sku || '—'}</div>
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 shrink-0"
-                              disabled={quantityUpdatingId === p.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const current = Number.isFinite(p.quantity) ? p.quantity : 0;
-                                openQuantityDialog(p.id, current, 'minus');
-                              }}
-                              aria-label="Minska antal"
-                            >
-                              <Minus className="h-3.5 w-3.5" />
-                            </Button>
-                            <span className="min-w-[1.5rem] text-center text-sm tabular-nums">
-                              {p.quantity}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 shrink-0"
-                              disabled={quantityUpdatingId === p.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const current = Number.isFinite(p.quantity) ? p.quantity : 0;
-                                openQuantityDialog(p.id, current, 'plus');
-                              }}
-                              aria-label="Öka antal"
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          <div className="text-sm">
-                            {p.priceAmount?.toFixed
-                              ? p.priceAmount.toFixed(2)
-                              : Number(p.priceAmount || 0).toFixed(2)}{' '}
-                            {p.currency}
-                          </div>
-                        </TableCell>
+                        {visibleColumnIds.map((colId) => (
+                          <React.Fragment key={colId}>
+                            {renderDesktopCatalogCell(colId, p, groupInfo)}
+                          </React.Fragment>
+                        ))}
                         <TableCell className={`text-right ${groupInfo ? 'pl-3' : ''}`}>
                           <div className="flex justify-end gap-2">
                             <Button
@@ -1499,59 +1662,115 @@ export const ProductList: React.FC = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <ProductTitleWithLinksHover
-                              productId={p.id}
-                              title={p.title}
-                              groupInfo={
-                                groupInfo
-                                  ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
-                                  : undefined
-                              }
-                            />
+                            {visibleColumnIds.includes('title') ? (
+                              <ProductTitleWithLinksHover
+                                productId={p.id}
+                                title={p.title}
+                                groupInfo={
+                                  groupInfo
+                                    ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
+                                    : undefined
+                                }
+                              />
+                            ) : (
+                              <div className="text-sm font-mono font-medium">
+                                #{p.id}
+                                {visibleColumnIds.includes('sku') ? null : (
+                                  <span className="text-muted-foreground font-normal">
+                                    {' '}
+                                    · {p.sku || '—'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div className="mt-1 space-y-1">
-                            <div className="text-xs text-muted-foreground">
-                              #{p.id} · {p.sku || '—'}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 shrink-0"
-                                disabled={quantityUpdatingId === p.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const current = Number.isFinite(p.quantity) ? p.quantity : 0;
-                                  openQuantityDialog(p.id, current, 'minus');
-                                }}
-                                aria-label="Minska antal"
-                              >
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="min-w-[1.25rem] text-center text-xs tabular-nums">
-                                {p.quantity}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 shrink-0"
-                                disabled={quantityUpdatingId === p.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const current = Number.isFinite(p.quantity) ? p.quantity : 0;
-                                  openQuantityDialog(p.id, current, 'plus');
-                                }}
-                                aria-label="Öka antal"
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {p.priceAmount?.toFixed
-                                ? p.priceAmount.toFixed(2)
-                                : Number(p.priceAmount || 0).toFixed(2)}{' '}
-                              {p.currency}
-                            </div>
+                            {visibleColumnIds
+                              .filter((colId) => colId !== 'title')
+                              .map((colId) => {
+                                const meta = PRODUCT_LIST_COLUMN_META.find((m) => m.id === colId);
+                                const label = meta?.label ?? colId;
+                                const product = p.raw as Product;
+                                if (colId === 'quantity') {
+                                  return (
+                                    <div key={colId} className="flex items-center gap-1">
+                                      <span className="text-xs text-muted-foreground w-14 shrink-0">
+                                        {label}
+                                      </span>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 shrink-0"
+                                        disabled={quantityUpdatingId === p.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const current = Number.isFinite(p.quantity)
+                                            ? p.quantity
+                                            : 0;
+                                          openQuantityDialog(p.id, current, 'minus');
+                                        }}
+                                        aria-label="Minska antal"
+                                      >
+                                        <Minus className="h-3 w-3" />
+                                      </Button>
+                                      <span className="min-w-[1.25rem] text-center text-xs tabular-nums">
+                                        {p.quantity}
+                                      </span>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 shrink-0"
+                                        disabled={quantityUpdatingId === p.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const current = Number.isFinite(p.quantity)
+                                            ? p.quantity
+                                            : 0;
+                                          openQuantityDialog(p.id, current, 'plus');
+                                        }}
+                                        aria-label="Öka antal"
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  );
+                                }
+                                if (colId === 'priceAmount') {
+                                  return (
+                                    <div key={colId} className="text-xs text-muted-foreground">
+                                      <span className="font-medium text-foreground/80">
+                                        {label}:
+                                      </span>{' '}
+                                      {p.priceAmount?.toFixed
+                                        ? p.priceAmount.toFixed(2)
+                                        : Number(p.priceAmount || 0).toFixed(2)}{' '}
+                                      {p.currency}
+                                    </div>
+                                  );
+                                }
+                                if (colId === 'status') {
+                                  return (
+                                    <div key={colId} className="flex items-center gap-2 text-xs">
+                                      <span className="font-medium text-foreground/80">
+                                        {label}
+                                      </span>
+                                      <Badge
+                                        variant={
+                                          product.status === 'paused' ? 'secondary' : 'default'
+                                        }
+                                      >
+                                        {formatProductListPlainColumn('status', product)}
+                                      </Badge>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div key={colId} className="text-xs text-muted-foreground">
+                                    <span className="font-medium text-foreground/80">{label}:</span>{' '}
+                                    {formatProductListPlainColumn(colId, product)}
+                                  </div>
+                                );
+                              })}
                           </div>
                         </div>
                         <div>

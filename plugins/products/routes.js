@@ -143,6 +143,20 @@ function createProductRoutes(controller, context) {
       query('sort').optional().isIn(['id', 'title', 'quantity', 'priceAmount', 'sku']),
       query('order').optional().isIn(['asc', 'desc']),
       query('q').optional().trim().isLength({ max: 500 }),
+      query('searchIn')
+        .optional()
+        .trim()
+        .isIn([
+          'all',
+          'productId',
+          'groupId',
+          'sku',
+          'title',
+          'privateName',
+          'lagerplats',
+          'ean',
+          'gtin',
+        ]),
       query('list').optional().trim().isLength({ max: 64 }),
     ],
     validateRequest,

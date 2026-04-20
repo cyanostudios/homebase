@@ -4,6 +4,20 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-21 – Produkter: scoped sök i katalogen
+
+### API (`plugins/products`)
+
+- **`GET /api/products`:** valfri query **`searchIn`** (`all` \| `productId` \| `groupId` \| `sku` \| `title` \| `privateName` \| `lagerplats` \| `ean` \| `gtin`), tillsammans med befintlig **`q`**.
+- **`model.js`:** sökning byggs per scope; **`Sök allt`** OR:ar alla scope. **Prefix** för artikelnummer/id, **EAN** och **GTIN**; **innehåller** för övriga. **Titel** inkluderar `p.title` samt marknadstitlar i **`channel_specific.textsExtended`** (`name`, `titleSeo`).
+
+### Klient
+
+- **`ProductList`:** dropdown **Sök allt** / fältval kopplad till vänster om sökfältet; **`ContentToolbar`** stödjer valfri **`searchLeading`**.
+- **`productCatalogSearchScopes.ts`:** etiketter och placeholders.
+
+---
+
 ## 2026-04-20 – Leveranslogg: lokala commits före push till origin
 
 Branch **`Homebase-V3.2.2`** kan ligga **flera commits före** `origin/Homebase-V3.2.2`. Nedan en **översikt** av vad som ingick i den leveransen (fullständiga beskrivningar finns under respektive datum längre ned i filen):

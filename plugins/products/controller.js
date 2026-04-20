@@ -1858,6 +1858,10 @@ class ProductController {
       const order = req.query?.order ? String(req.query.order) : 'asc';
       const q =
         req.query?.q != null && String(req.query.q).trim() !== '' ? String(req.query.q) : null;
+      const searchIn =
+        req.query?.searchIn != null && String(req.query.searchIn).trim() !== ''
+          ? String(req.query.searchIn).trim()
+          : 'all';
       const list =
         req.query?.list != null && String(req.query.list).trim() !== ''
           ? String(req.query.list).trim()
@@ -1869,6 +1873,7 @@ class ProductController {
         sort,
         order,
         q,
+        searchIn,
         list,
       });
       return res.json({ items, total });

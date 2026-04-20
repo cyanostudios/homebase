@@ -60,6 +60,7 @@ const CATALOG_RELOAD_FALLBACK: ProductListParams = {
   offset: 0,
   sort: 'id',
   order: 'asc',
+  searchIn: 'all',
   list: 'all',
 };
 
