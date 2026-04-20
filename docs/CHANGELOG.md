@@ -4,6 +4,21 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-20 – Leveranslogg: lokala commits före push till origin
+
+Branch **`Homebase-V3.2.2`** kan ligga **flera commits före** `origin/Homebase-V3.2.2`. Nedan en **översikt** av vad som ingick i den leveransen (fullständiga beskrivningar finns under respektive datum längre ned i filen):
+
+- **Ordrar:** bokföringsexport, anpassad Excel-export, PDF (plocklista/kvitto), interna anteckningar — se **2026-04-16**.
+- **Produkter:** utkast, import/export-kolumner, kanaletiketter — se **2026-04-14** (första blocket).
+- **Produkter:** Sello/Woo-överskridningar, export, lagerhändelser m.m. — se **2026-04-14** (andra blocket).
+- **Media:** strikt delete-policy, felkoder, loggning — se **2026-04-08**.
+- **Produktmedia:** asset-modell (varianter), batch-pipeline — se **2026-04-04**.
+- **Backblaze B2**, Sello-hosting, importpipeline — se **2026-04-03**.
+- **Kodstil:** ESLint i `ProductList` (eqeqeq m.m.) — ingen separat produktrelease.
+- **Woo `textMarket` per butik**, dedikerad produktimport-vy — se **2026-04-02**.
+
+---
+
 ## 2026-04-16 – Ordrar: bokföringsexport, anpassad Excel-export, PDF (plocklista/kvitto), interna anteckningar
 
 ### Databas
