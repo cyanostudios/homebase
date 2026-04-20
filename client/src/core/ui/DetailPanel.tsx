@@ -111,7 +111,7 @@ export function DetailPanel({
           {/* Scrollable Content */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 min-h-0 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none"
+            className="flex-1 min-h-0 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none"
           >
             {children}
           </div>
@@ -169,7 +169,7 @@ export function DetailPanel({
       {/* Scrollable Content */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none"
+        className="flex-1 min-h-0 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none"
       >
         {children}
       </div>

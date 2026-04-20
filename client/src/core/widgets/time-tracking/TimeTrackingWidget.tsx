@@ -152,51 +152,62 @@ export function TimeTrackingWidget({
   }
 
   const timeDisplay = formatTime(elapsedSeconds);
-  const timerTextColor = isRunning
-    ? 'text-blue-600 dark:text-blue-400'
-    : 'text-blue-600/80 dark:text-blue-400/80';
+
+  const handlePillToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onToggle?.();
+  };
+
+  const handlePlayStop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isRunning) {
+      handleStop();
+    } else {
+      handleStart();
+    }
+  };
 
   return (
-    <div className="flex items-center gap-2 relative">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onToggle}
-        className={cn('flex items-center gap-1 h-9 text-xs px-3', timerTextColor)}
+    <div className="relative flex items-center">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handlePillToggle}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle?.();
+          }
+        }}
         aria-label="Toggle time tracking panel"
         title="Time tracking"
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 font-mono text-slate-700 transition-colors hover:bg-slate-200 dark:bg-muted dark:text-slate-200 dark:hover:bg-muted/70"
       >
-        {settings.compactMode ? (
-          <Timer className="w-4 h-4 flex-shrink-0" />
-        ) : (
-          <>
-            <Timer className="w-4 h-4 flex-shrink-0" />
-            <span className="font-medium tabular-nums min-w-[5ch] text-right">{timeDisplay}</span>
-          </>
+        <Timer className="h-3.5 w-3.5 shrink-0 text-slate-500 dark:text-slate-400" />
+        {!settings.compactMode && (
+          <span className="min-w-[4ch] text-center text-xs font-medium tabular-nums">
+            {timeDisplay}
+          </span>
         )}
-      </Button>
-
-      {!isRunning ? (
-        <Button
-          onClick={handleStart}
-          variant="ghost"
-          size="sm"
-          icon={Play}
-          className="h-9 text-xs px-3 text-green-600 dark:text-green-400"
-          aria-label="Start timer"
-          title="Start timer"
-        />
-      ) : (
-        <Button
-          onClick={handleStop}
-          variant="ghost"
-          size="sm"
-          icon={Square}
-          className="h-9 text-xs px-3 text-orange-600 dark:text-orange-400"
-          aria-label="Stop timer"
-          title="Stop timer"
-        />
-      )}
+        <button
+          type="button"
+          onClick={handlePlayStop}
+          aria-label={isRunning ? 'Stop timer' : 'Start timer'}
+          title={isRunning ? 'Stop timer' : 'Start timer'}
+          className={cn(
+            'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors',
+            isRunning
+              ? 'text-orange-500 hover:text-orange-600 dark:text-orange-400'
+              : 'text-emerald-500 hover:text-emerald-600 dark:text-emerald-400',
+          )}
+        >
+          {isRunning ? (
+            <Square className="h-3 w-3 fill-current" />
+          ) : (
+            <Play className="h-3 w-3 fill-current" />
+          )}
+        </button>
+      </div>
 
       {isExpanded && !showSettings && (
         <div className="absolute top-full right-0 mt-2 w-[320px] min-w-[320px] max-w-[320px] overflow-hidden bg-card border border-border rounded-lg shadow-lg p-4 z-[60] box-border">

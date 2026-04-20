@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Settings,
+  Store,
   X,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -41,6 +42,7 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
+import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_COLORS } from '../types/contacts';
 import { contactExportConfig } from '../utils/contactExportConfig';
 
@@ -60,6 +62,59 @@ function getInitialViewMode(): ViewMode {
 
 const CONTACTS_SETTINGS_KEY = 'contacts';
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
+
+function ContactAvatar({ contact }: { contact: Contact }) {
+  const initials = contact.companyName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+
+  if (contact.contactType === 'company') {
+    return (
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+        <Store className="h-3.5 w-3.5" aria-hidden />
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-amber-100 text-[10px] font-semibold tracking-[0.08em] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+      {initials || 'NA'}
+    </span>
+  );
+}
+
+function TypeBadge({ type }: { type: 'company' | 'private' }) {
+  const dotColor = type === 'company' ? 'bg-blue-500' : 'bg-amber-500';
+  return (
+    <Badge className={cn('inline-flex items-center gap-1.5', CONTACT_TYPE_COLORS[type])}>
+      <span className={cn('h-1.5 w-1.5 rounded-full', dotColor)} aria-hidden />
+      {type === 'company' ? 'Company' : 'Private'}
+    </Badge>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  dotClassName,
+}: {
+  label: string;
+  value: number;
+  dotClassName: string;
+}) {
+  return (
+    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
+        <span>{label}</span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+    </Card>
+  );
+}
 
 export const ContactList: React.FC = () => {
   const { t } = useTranslation();
@@ -316,6 +371,16 @@ export const ContactList: React.FC = () => {
     [contacts, selectedContactIds],
   );
 
+  const stats = useMemo(
+    () => ({
+      total: contacts.length,
+      companies: contacts.filter((c) => c.contactType === 'company').length,
+      private: contacts.filter((c) => c.contactType === 'private').length,
+      withTags: contacts.filter((c) => Array.isArray(c.tags) && c.tags.length > 0).length,
+    }),
+    [contacts],
+  );
+
   // Full-page settings view (like Core Settings) instead of list
   if (contactsContentView === 'settings') {
     return (
@@ -344,51 +409,13 @@ export const ContactList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-contacts min-h-full bg-background">
-      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-        <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-          <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-            {t('nav.contacts')}
-          </h2>
-          <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
-              className="h-9 bg-background pl-9 text-xs"
-            />
+    <div className="plugin-contacts min-h-full bg-background px-6 py-4">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.contacts')}</h2>
+            <p className="text-sm text-muted-foreground">{t('contacts.description')}</p>
           </div>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Settings}
-            className="h-9 px-3 text-xs"
-            onClick={() => openContactSettings()}
-            title={t('contacts.settings')}
-          >
-            {t('contacts.settings')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={Grid3x3}
-            className={cn('h-9 px-3 text-xs', viewMode === 'grid' && 'text-primary')}
-            onClick={() => setViewMode('grid')}
-          >
-            {t('contacts.grid')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={ListIcon}
-            className={cn('h-9 px-3 text-xs', viewMode === 'list' && 'text-primary')}
-            onClick={() => setViewMode('list')}
-          >
-            {t('contacts.list')}
-          </Button>
           <Button
             variant="primary"
             size="sm"
@@ -399,9 +426,30 @@ export const ContactList: React.FC = () => {
             {t('contacts.addContact')}
           </Button>
         </div>
-      </div>
 
-      <div className="px-6 pb-6 space-y-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard
+            label={t('contacts.stats.total')}
+            value={stats.total}
+            dotClassName="bg-blue-500"
+          />
+          <StatCard
+            label={t('contacts.stats.companies')}
+            value={stats.companies}
+            dotClassName="bg-amber-500"
+          />
+          <StatCard
+            label={t('contacts.stats.private')}
+            value={stats.private}
+            dotClassName="bg-emerald-500"
+          />
+          <StatCard
+            label={t('contacts.stats.withTags')}
+            value={stats.withTags}
+            dotClassName="bg-orange-500"
+          />
+        </div>
+
         {selectedCount > 0 && (
           <BulkActionBar
             selectedCount={selectedCount}
@@ -461,7 +509,61 @@ export const ContactList: React.FC = () => {
           pluginSource="contacts"
         />
 
-        <Card className="shadow-none border-none bg-transparent">
+        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+            <div className="relative w-full max-w-sm md:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
+                className="h-8 bg-background pl-9 text-xs"
+              />
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Settings}
+                className="h-8 px-2.5 text-xs"
+                onClick={() => openContactSettings()}
+                title={t('contacts.settings')}
+              >
+                {t('contacts.settings')}
+              </Button>
+              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Grid3x3}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'grid'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('grid')}
+                >
+                  {t('contacts.grid')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={ListIcon}
+                  className={cn(
+                    'h-7 rounded-[6px] px-2 text-xs',
+                    viewMode === 'list'
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setViewMode('list')}
+                >
+                  {t('contacts.list')}
+                </Button>
+              </div>
+            </div>
+          </div>
+
           {sortedContacts.length === 0 ? (
             <Card className="shadow-none">
               <div className="p-6 text-center text-muted-foreground">
@@ -476,7 +578,7 @@ export const ContactList: React.FC = () => {
                   <Card
                     key={contact.id}
                     className={cn(
-                      'relative h-full min-h-[160px] cursor-pointer transition-all flex flex-col gap-3 p-5 border border-border/70 bg-card shadow-sm',
+                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-card p-5 shadow-sm transition-all',
                       contactIsSelected
                         ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
                         : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
@@ -505,12 +607,8 @@ export const ContactList: React.FC = () => {
                         aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                       />
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {formatDisplayNumber('contacts', contact.id)}
-                        </span>
-                        <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
-                          {contact.contactType === 'company' ? 'Company' : 'Private'}
-                        </Badge>
+                        <ContactAvatar contact={contact} />
+                        <TypeBadge type={contact.contactType} />
                       </div>
                     </div>
                     <h3 className="line-clamp-1 text-base font-semibold leading-snug">
@@ -539,6 +637,7 @@ export const ContactList: React.FC = () => {
                       )}
                     </div>
                     <div className="mt-auto flex flex-col gap-1 text-[10px] text-muted-foreground leading-snug">
+                      <div className="font-mono">{formatDisplayNumber('contacts', contact.id)}</div>
                       <div>Updated: {new Date(contact.updatedAt).toLocaleDateString()}</div>
                       <div>Created: {new Date(contact.createdAt).toLocaleDateString()}</div>
                     </div>
@@ -569,7 +668,7 @@ export const ContactList: React.FC = () => {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="mb-2 flex items-center gap-2">
                             <input
                               type="checkbox"
                               checked={contactIsSelected}
@@ -579,12 +678,8 @@ export const ContactList: React.FC = () => {
                               className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
                               aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                             />
-                            <span className="font-mono text-xs text-muted-foreground">
-                              {formatDisplayNumber('contacts', contact.id)}
-                            </span>
-                            <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
-                              {contact.contactType === 'company' ? 'Company' : 'Private'}
-                            </Badge>
+                            <ContactAvatar contact={contact} />
+                            <TypeBadge type={contact.contactType} />
                           </div>
                           <h3 className="font-semibold text-base mb-1 truncate">
                             {contact.companyName}
@@ -620,8 +715,8 @@ export const ContactList: React.FC = () => {
             </Card>
           ) : (
             <Card className="shadow-none">
-              <Table>
-                <TableHeader>
+              <Table rowBorders={false}>
+                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
                   <TableRow>
                     <TableHead className="w-12 text-xs">
                       <input
@@ -635,6 +730,7 @@ export const ContactList: React.FC = () => {
                         }
                       />
                     </TableHead>
+                    <TableHead className="w-12 text-xs" />
                     <TableHead
                       className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => handleSort('name')}
@@ -688,7 +784,7 @@ export const ContactList: React.FC = () => {
                       <TableRow
                         key={contact.id}
                         className={cn(
-                          'cursor-pointer hover:bg-accent',
+                          'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
                           recentlyDuplicatedContactId === String(contact.id) && HIGHLIGHT_CLASS,
                         )}
                         tabIndex={0}
@@ -715,24 +811,25 @@ export const ContactList: React.FC = () => {
                           />
                         </TableCell>
                         <TableCell>
+                          <ContactAvatar contact={contact} />
+                        </TableCell>
+                        <TableCell>
                           <div className="flex flex-col gap-0.5">
-                            <span className="font-semibold">{contact.companyName}</span>
+                            <span className="text-sm font-semibold">{contact.companyName}</span>
                             {contact.contactType === 'company' && contact.organizationNumber && (
                               <span className="text-xs text-muted-foreground">
-                                Org: {contact.organizationNumber}
+                                Org. {contact.organizationNumber}
                               </span>
                             )}
-                            {contact.contactType === 'private' && contact.personalNumber && (
+                            {contact.contactType === 'private' && contact.phone && (
                               <span className="text-xs text-muted-foreground">
-                                PN: {contact.personalNumber.substring(0, 9)}XXXX
+                                Ph. {contact.phone}
                               </span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
-                            {contact.contactType === 'company' ? 'Company' : 'Private'}
-                          </Badge>
+                          <TypeBadge type={contact.contactType} />
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
@@ -740,8 +837,8 @@ export const ContactList: React.FC = () => {
                               ? contact.tags.map((t: string) => (
                                   <Badge
                                     key={t}
-                                    variant="secondary"
-                                    className="text-[10px] font-normal"
+                                    variant="outline"
+                                    className="h-5 px-1.5 text-[10px] font-normal"
                                   >
                                     {t}
                                   </Badge>

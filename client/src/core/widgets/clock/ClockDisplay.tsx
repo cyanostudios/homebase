@@ -37,29 +37,28 @@ export function ClockDisplay({
   if (compact) {
     return (
       <div className="flex items-center gap-2 relative">
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
+          type="button"
           onClick={handleToggle}
-          className="h-auto px-2 py-1 flex flex-col items-end gap-0 transition-colors"
+          aria-label="Toggle clock panel"
+          title="Clock"
+          className="flex flex-col items-end gap-0 rounded-md px-2 py-1 text-right leading-[1.25] transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {settings.showClock ? (
             <>
-              <div className="text-sm font-medium text-foreground tabular-nums min-w-[11ch] text-right">
+              <div className="font-mono text-[13px] font-semibold tabular-nums text-foreground">
                 {formattedTime}
               </div>
               {settings.showDate && (
-                <div className="text-xs text-muted-foreground tabular-nums min-w-[9ch] text-right">
+                <div className="text-[11px] tabular-nums text-muted-foreground">
                   {formattedDate}
                 </div>
               )}
             </>
           ) : (
-            <div className="flex items-center justify-center p-1">
-              <Clock className="w-5 h-5 text-muted-foreground" />
-            </div>
+            <Clock className="h-5 w-5 text-muted-foreground" />
           )}
-        </Button>
+        </button>
 
         {expanded && !showSettings && (
           <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-[60]">

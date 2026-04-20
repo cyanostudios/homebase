@@ -4,6 +4,48 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-04 – Homebase v3.6: Contacts design alignment (list, detail, panel primitives)
+
+**Sammanfattning:** Stor designjustering av Contacts enligt referensfiler (`guides/homebase-contact.README.md`, `guides/homebase-contact.css`) med fokus på listvy, detail cards, sidebar/topbar-element och renare UI-primitiver utan lokala workarounds.
+
+### Contacts list (`client/src/plugins/contacts/components/ContactList.tsx`)
+
+- **Ny list-headerstruktur:** Rubrik + beskrivning + Add-knapp, statsrad och sammanhållen toolbar/list-panel i samma visuella block.
+- **Statskort i topp:** Total, Företag, Privata, Med taggar med ny `StatCard`-byggsten.
+- **Nya små byggstenar i listan:** `ContactAvatar` (företagsikon/initialer), `TypeBadge` (pill med prick), `StatCard`.
+- **Toolbar redesign:** Search + Settings + Grid/List i samma kortpanel som tabellen; proportions- och padding-justeringar mot referensbild.
+- **Grid/List-toggle:** Ombyggd till segmenterad kontroll med tydlig aktiv state.
+- **Listtabellens visual polish:** Kolumnstruktur uppdaterad (checkbox/avatar/name/type/tags/email/phone), vit radbas, subtil hover, grå header utan linjer.
+- **Border cleanup:** Tabellinnehåll gjort borderless i listvyn, i linje med topprutornas card-känsla.
+
+### Contacts detail (`client/src/plugins/contacts/components/ContactView.tsx`)
+
+- **Detailkort harmoniserade:** Kort använder nu explicit card-surface (`bg-white` + shadow) med samma visuella “lyft” som listans kort.
+- **Interna rader i kort:** Time log och related items använder nu mjuk surface-bakgrund i stället för border-boxar för en mer borderless look.
+- **Tidigare designleveranser i samma period:**
+  - Header/subtitle-justeringar (Contact #, Updated, Type/Private-badge i panelheader).
+  - Label/icon-finputs i Contact Content/Addresses/Contact Persons enligt guide.
+  - Time log flyttad till sidebar och anpassad stil.
+  - Previous/Next (`ItemNavigation`) stylad enligt `hb-pager`.
+
+### Core UI-primitiver (root-cause fixes)
+
+- **`client/src/components/ui/table.tsx`:**
+  - Nytt API `rowBorders?: boolean` (default `true`) för strukturerad kontroll av tabellborders.
+  - `TableHeader`, `TableBody`, `TableRow` läser gemensam context i stället för att kräva lokala override-hacks.
+  - När `rowBorders={false}` nollas borders konsekvent på `thead/tbody/tr/th/td`.
+- **`client/src/components/ui/card.tsx`:**
+  - Central fix: `shadow-none` innebär nu även `border-0` (inte bara transparent bakgrund), vilket tar bort behov av återkommande lokala border-workarounds.
+- **`client/src/core/ui/DetailPanel.tsx`:**
+  - Borttagna descendant-regler som tidigare nollade `shadow-sm` i detail-content och gjorde att kort såg “platta” ut trots shadow-klasser.
+
+### Sidebar / Topbar / shared UI i samma designspår
+
+- **Sidebar:** Fullbredds-nav som “Estimates”, enhetliga hover/active-states, och konsekvent ikon/text-färgförhållande.
+- **Topbar:** Timer-pill och vanlig klocka redesignade enligt guide.
+- **DetailSection:** Subtle title-läge renderar titelikoner utan bakgrundsplatta.
+- **DetailActivityLog:** Aktivitetkort redesignat mot guide (spacing, empty state, färger).
+
 ## 2026-04 – Säkerhetsgranskning, CSRF-klient, publika delningslänkar, lazy plugin-providers
 
 **Sammanfattning:** Genomgång av säkerhetslager (CSRF, rate limits, upload/serving), enhetlig klient för muterande API-anrop, routing för **anonyma** publika task-/note-delningar utan session, samt frontend-förbättringar (lazy providers, listtypografi, Cupappen UTM).
@@ -714,4 +756,4 @@ _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slo
 
 ---
 
-**Senast uppdaterad:** 2026-03-20
+**Senast uppdaterad:** 2026-04-20

@@ -27,6 +27,8 @@ interface DetailSectionProps {
   className?: string;
   /** Match slot detail headline: larger title (text-2xl) for main entity title rows. */
   prominentTitle?: boolean;
+  /** Render the section title as a small uppercase category label (11px, bold, 0.1em tracking) per hb-section-title pattern. */
+  subtleTitle?: boolean;
 }
 
 export function DetailSection({
@@ -37,6 +39,7 @@ export function DetailSection({
   children,
   className,
   prominentTitle = false,
+  subtleTitle = false,
 }: DetailSectionProps) {
   const iconColorClass =
     iconPlugin !== undefined && iconPlugin !== null
@@ -47,20 +50,28 @@ export function DetailSection({
     <section className={cn('space-y-3', className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          {Icon && (
-            <span
-              className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80',
-                iconColorClass,
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-            </span>
-          )}
+          {Icon &&
+            (subtleTitle ? (
+              <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
+            ) : (
+              <span
+                className={cn(
+                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80',
+                  iconColorClass,
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </span>
+            ))}
           <Heading
             level={3}
-            size={prominentTitle ? '2xl' : 'sm'}
-            className="font-semibold text-foreground truncate"
+            size={prominentTitle ? '2xl' : subtleTitle ? 'xs' : 'sm'}
+            className={cn(
+              'truncate',
+              subtleTitle
+                ? 'uppercase tracking-[0.1em] font-bold text-slate-500 dark:text-slate-400'
+                : 'font-semibold text-foreground',
+            )}
           >
             {title}
           </Heading>

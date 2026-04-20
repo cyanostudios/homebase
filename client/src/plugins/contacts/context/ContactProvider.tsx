@@ -1,4 +1,4 @@
-import { Mail, MessageCircle } from 'lucide-react';
+import { Mail, MessageCircle, Timer } from 'lucide-react';
 import React, { useCallback, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
@@ -14,6 +14,7 @@ import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
@@ -60,6 +61,29 @@ export function ContactProvider({
   const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [sendEmailRecipients, setSendEmailRecipients] = useState<BulkEmailRecipient[]>([]);
+  const [contactIdsWithTimeEntries, setContactIdsWithTimeEntries] = useState<Set<string | number>>(
+    () => new Set(),
+  );
+
+  const setContactHasTimeEntries = useCallback(
+    (contactId: string | number, hasEntries: boolean) => {
+      setContactIdsWithTimeEntries((prev) => {
+        const has = prev.has(contactId);
+        if (has === hasEntries) {
+          return prev;
+        }
+        const next = new Set(prev);
+        if (hasEntries) {
+          next.add(contactId);
+        } else {
+          next.delete(contactId);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
   const [recentlyDuplicatedContactId, setRecentlyDuplicatedContactId] = useState<string | null>(
     null,
   );
@@ -567,7 +591,16 @@ export function ContactProvider({
           'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
       };
       const color = isCompany ? typeColors.company : typeColors.personal;
-      const label = isCompany ? 'Company' : 'Personal';
+      const label = isCompany ? 'Company' : 'Private';
+      const contactIdLabel = formatDisplayNumber('contacts', item.id);
+      const updatedLabel = item.updatedAt
+        ? new Date(item.updatedAt).toLocaleDateString(undefined, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })
+        : null;
+      const hasTimeEntries = contactIdsWithTimeEntries.has(item.id);
       return (
         <div className="flex items-center gap-1.5">
           <Badge
@@ -576,6 +609,21 @@ export function ContactProvider({
           >
             {label}
           </Badge>
+          {(contactIdLabel || updatedLabel) && (
+            <span className="text-xs text-muted-foreground truncate">
+              {contactIdLabel}
+              {updatedLabel ? ` · Updated ${updatedLabel}` : ''}
+            </span>
+          )}
+          {hasTimeEntries && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 h-5 shrink-0 font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 dark:text-amber-300 border-amber-200/60"
+            >
+              <Timer className="h-2.5 w-2.5" aria-hidden />
+              Time logged
+            </Badge>
+          )}
         </div>
       );
     }
@@ -721,6 +769,8 @@ export function ContactProvider({
     showSendEmailDialog,
     sendEmailRecipients,
     closeSendEmailDialog,
+    contactIdsWithTimeEntries,
+    setContactHasTimeEntries,
   };
 
   return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;

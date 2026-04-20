@@ -302,6 +302,13 @@
   },
   "contacts": {
     "searchPlaceholder": "Sök {{count}} kontakter...",
+    "description": "Hantera dina företag och personliga kontakter",
+    "stats": {
+      "total": "Totalt",
+      "companies": "Företag",
+      "private": "Privata",
+      "withTags": "Med taggar"
+    },
     "noMatch": "Inga kontakter matchar sökningen.",
     "noYet": "Inga kontakter än. Klicka \"Lägg till kontakt\" för att komma igång.",
     "addContact": "Lägg till kontakt",

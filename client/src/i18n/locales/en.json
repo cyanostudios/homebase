@@ -302,6 +302,13 @@
   },
   "contacts": {
     "searchPlaceholder": "Search {{count}} contacts...",
+    "description": "Manage your companies and personal contacts",
+    "stats": {
+      "total": "Total",
+      "companies": "Companies",
+      "private": "Private",
+      "withTags": "With tags"
+    },
     "noMatch": "No contacts found matching your search.",
     "noYet": "No contacts yet. Click \"Add Contact\" to get started.",
     "addContact": "Add Contact",

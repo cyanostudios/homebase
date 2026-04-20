@@ -87,21 +87,19 @@ export function DetailActivityLog({
 
   return (
     <>
-      <Card
-        padding="none"
-        className={cn('overflow-hidden border border-border/70 bg-card shadow-sm', className)}
-      >
+      <Card padding="none" className={cn('rounded-xl border-0 shadow-sm', className)}>
         <DetailSection
           title={title ?? t('activityLog.title', 'Activity')}
           icon={History}
-          className="p-4"
+          subtleTitle
+          className="p-5"
           action={
             showClearButton ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="h-7 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20"
                 onClick={() => setShowResetConfirm(true)}
                 disabled={loading || logs.length === 0}
               >
@@ -114,9 +112,12 @@ export function DetailActivityLog({
           {loading ? (
             <p className="text-sm text-muted-foreground">{t('common.loading', 'Loading...')}</p>
           ) : logs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('activityLog.noActivity', 'No activity yet')}
-            </p>
+            <div className="mt-1 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
+              <History className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {t('activityLog.noActivity', 'No activity yet')}
+              </p>
+            </div>
           ) : (
             <ul className="space-y-3 text-xs">
               {logs.map((entry) => (

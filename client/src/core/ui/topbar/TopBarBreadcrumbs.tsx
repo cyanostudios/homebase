@@ -58,7 +58,7 @@ export const TopBarBreadcrumbs = React.memo(function TopBarBreadcrumbs({
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem className="min-w-0">
-              <BreadcrumbPage className="inline-flex items-center gap-1 sm:gap-1.5 min-w-0 px-1.5 sm:px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20">
+              <BreadcrumbPage className="inline-flex items-center gap-1 sm:gap-1.5 min-w-0 px-2 sm:px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
                 <span className="truncate max-w-[120px] sm:max-w-[220px]">{detailPanelTitle}</span>
                 <Button
                   variant="ghost"

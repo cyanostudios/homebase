@@ -15,15 +15,17 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
       lg: 'p-6',
     };
 
-    // Use transparent background when shadow-none is present (streamlined panels)
+    // Streamlined panels using shadow-none should not inherit default card chrome.
     const hasShadowNone = className?.includes('shadow-none');
     const bgClass = hasShadowNone ? 'bg-transparent' : 'bg-card';
+    const borderClass = hasShadowNone ? 'border-0' : 'border';
 
     return (
       <div
         ref={ref}
         className={cn(
-          'rounded-lg border',
+          'rounded-lg',
+          borderClass,
           bgClass,
           'text-card-foreground shadow-sm',
           paddingStyles[padding],

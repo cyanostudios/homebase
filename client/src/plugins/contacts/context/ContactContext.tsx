@@ -74,6 +74,9 @@ export interface ContactContextType {
   showSendEmailDialog: boolean;
   sendEmailRecipients: BulkEmailRecipient[];
   closeSendEmailDialog: () => void;
+  /** Contacts known to have one or more time-log entries (populated when a contact panel opens). */
+  contactIdsWithTimeEntries: ReadonlySet<string | number>;
+  setContactHasTimeEntries: (contactId: string | number, hasEntries: boolean) => void;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -142,6 +145,8 @@ const EMPTY_CONTACT_CONTEXT: ContactContextType = {
   showSendEmailDialog: false,
   sendEmailRecipients: [],
   closeSendEmailDialog: () => {},
+  contactIdsWithTimeEntries: new Set<string | number>(),
+  setContactHasTimeEntries: () => {},
 };
 
 export function ContactNullProvider({ children }: { children: React.ReactNode }) {

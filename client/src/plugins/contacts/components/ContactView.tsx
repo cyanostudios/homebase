@@ -6,13 +6,20 @@ import {
   Edit,
   ExternalLink,
   FileText,
+  Globe,
   Info,
+  Mail,
+  MapPin,
+  Phone,
   SlidersHorizontal,
+  Star,
   StickyNote,
   Store,
   Tag,
   Trash2,
   Trophy,
+  User,
+  Users,
   Zap,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -41,9 +48,24 @@ interface ContactViewProps {
   contact: Contact;
 }
 
-const CONTACT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
+/* -------------------------------------------------------------------------
+   Design tokens mapped to Tailwind classes (from homebase-contact guide)
+   ------------------------------------------------------------------------- */
+const CARD_CLASS = 'rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950';
 const FIELD_LABEL_CLASS =
-  'text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5';
+  'inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] font-semibold text-slate-400 dark:text-slate-500 mb-0.5';
+const FIELD_LABEL_ICON_CLASS = 'h-3 w-3 shrink-0';
+const FIELD_VALUE_CLASS = 'text-[14px] font-medium text-foreground';
+const PROP_ROW_CLASS =
+  'flex items-center justify-between py-3 border-b border-border/50 last:border-0';
+const NOTE_CLASS =
+  'flex items-start gap-3 p-3.5 rounded-md border-l-4 border-amber-400 bg-amber-50/70 mt-4 dark:bg-amber-950/20 dark:border-amber-600';
+const EMPTY_STATE_CLASS =
+  'text-center border border-dashed border-border rounded-lg p-8 bg-muted/30 mt-3';
+const INFO_ROW_CLASS =
+  'flex items-center justify-between py-2 border-b border-border/50 last:border-0 text-xs';
+const SURFACE_ROW_CLASS =
+  'flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 dark:bg-muted/25';
 
 type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
 
@@ -73,7 +95,8 @@ function ContactQuickActionsCard({
 }) {
   const { t } = useTranslation();
   const canDuplicate = Boolean(getDuplicateConfig(contact));
-  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
+  const actionRowClass =
+    'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted/50 transition-colors';
 
   const getActionIconColorClass = (actionId: string): string => {
     if (actionId === 'send-message') {
@@ -86,14 +109,15 @@ function ContactQuickActionsCard({
   };
 
   return (
-    <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={CARD_CLASS}>
       <DetailSection
         title={t('contacts.quickActions')}
         icon={Zap}
         iconPlugin="contacts"
+        subtleTitle
         className="p-4"
       >
-        <div className="flex flex-col items-start gap-1.5">
+        <div className="flex flex-col items-start gap-1">
           <Button
             type="button"
             variant="ghost"
@@ -104,7 +128,7 @@ function ContactQuickActionsCard({
                 className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
               />
             )}
-            className={quickActionButtonClass}
+            className={actionRowClass}
             onClick={() => onEdit(contact)}
           >
             {t('contacts.edit')}
@@ -119,7 +143,7 @@ function ContactQuickActionsCard({
                 className={cn(props.className, 'text-red-600 dark:text-red-400')}
               />
             )}
-            className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
             onClick={onDeleteClick}
           >
             {t('contacts.delete')}
@@ -135,7 +159,7 @@ function ContactQuickActionsCard({
                   className={cn(props.className, 'text-green-600 dark:text-green-400')}
                 />
               )}
-              className={quickActionButtonClass}
+              className={actionRowClass}
               onClick={() => onDuplicate(contact)}
             >
               {t('contacts.duplicate')}
@@ -157,7 +181,7 @@ function ContactQuickActionsCard({
                     />
                   )}
                   disabled={action.disabled}
-                  className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
+                  className={cn(actionRowClass, 'disabled:opacity-50', action.className)}
                   onClick={() => action.onClick(contact)}
                 >
                   {action.label}
@@ -183,7 +207,8 @@ function ContactExportOptionsCard({
   if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
     return null;
   }
-  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
+  const actionRowClass =
+    'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted/50 transition-colors';
   const exportLabelByFormat: Record<ExportFormat, string> = {
     txt: t('contacts.exportTxt'),
     csv: t('contacts.exportCsv'),
@@ -191,14 +216,15 @@ function ContactExportOptionsCard({
   };
 
   return (
-    <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={CARD_CLASS}>
       <DetailSection
         title={t('contacts.exportOptions')}
         icon={Download}
         iconPlugin="contacts"
+        subtleTitle
         className="p-4"
       >
-        <div className="flex flex-col items-start gap-1.5">
+        <div className="flex flex-col items-start gap-1">
           {exportFormats.map((format) => (
             <Button
               key={format}
@@ -206,7 +232,7 @@ function ContactExportOptionsCard({
               variant="ghost"
               size="sm"
               icon={Download}
-              className={quickActionButtonClass}
+              className={actionRowClass}
               onClick={() => onExportItem(format, contact)}
             >
               {exportLabelByFormat[format]}
@@ -234,24 +260,18 @@ function RelatedItemsCard({
   }
 
   return (
-    <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
-      <DetailSection title={title} icon={Icon} iconPlugin={iconPlugin} className="p-4">
-        <div className="space-y-2">
+    <Card padding="none" className={CARD_CLASS}>
+      <DetailSection title={title} icon={Icon} iconPlugin={iconPlugin} subtleTitle className="p-4">
+        <div className="space-y-1.5">
           {items.map((item) => (
-            <div
-              key={`${title}-${item.id}`}
-              className={cn(
-                'flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2',
-                item.pluginClass,
-              )}
-            >
+            <div key={`${title}-${item.id}`} className={cn(SURFACE_ROW_CLASS, item.pluginClass)}>
               <span className="truncate text-xs text-muted-foreground">{item.label}</span>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 icon={ExternalLink}
-                className="h-9 w-9 shrink-0 p-0 hover:bg-accent"
+                className="h-7 w-7 shrink-0 p-0 hover:bg-accent"
                 onClick={item.onOpen}
               >
                 <span className="sr-only">Open</span>
@@ -298,6 +318,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     getDuplicateConfig,
     executeDuplicate,
     setRecentlyDuplicatedContactId,
+    setContactHasTimeEntries,
   } = useContacts();
 
   const [mentionedInNotes, setMentionedInNotes] = useState<any[]>([]);
@@ -319,9 +340,10 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
       setTimeEntries([]);
       return;
     }
+    const contactId = contact.id;
     const loadTimeEntries = async () => {
       try {
-        const response = await apiFetch(`/api/contacts/${contact.id}/time-entries`);
+        const response = await apiFetch(`/api/contacts/${contactId}/time-entries`);
         if (!response.ok) {
           setTimeEntries([]);
           return;
@@ -334,6 +356,13 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     };
     loadTimeEntries();
   }, [contact?.id]);
+
+  useEffect(() => {
+    if (!contact?.id) {
+      return;
+    }
+    setContactHasTimeEntries(contact.id, timeEntries.length > 0);
+  }, [contact?.id, timeEntries.length, setContactHasTimeEntries]);
 
   useEffect(() => {
     if (!contact?.id) {
@@ -481,11 +510,14 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   }
   const duplicateConfig = getDuplicateConfig(contact);
 
+  const isCompany = contact.contactType === 'company';
+  const contactIdLabel = formatDisplayNumber('contacts', contact.id);
+
   return (
     <>
       <DetailLayout
         sidebar={
-          <div className="space-y-6">
+          <div className="space-y-4">
             <ContactQuickActionsCard
               contact={contact}
               onEdit={openContactForEdit}
@@ -530,24 +562,64 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               />
             )}
 
-            <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
-              <DetailSection title={t('contacts.information')} icon={Info} className="p-4">
-                <div className="space-y-4 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">ID</span>
-                    <span className="font-mono font-medium">
-                      {formatDisplayNumber('contacts', contact.id)}
+            {/* Time log card */}
+            <Card padding="none" className={CARD_CLASS}>
+              <DetailSection title="Time log" icon={Clock} subtleTitle className="p-4">
+                {timeEntries.length === 0 ? (
+                  <div className={EMPTY_STATE_CLASS}>
+                    <Clock className="mx-auto h-5 w-5 text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">No time entries</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {timeEntries.map((entry) => (
+                      <div key={entry.id} className={SURFACE_ROW_CLASS}>
+                        <span className="text-xs text-foreground">
+                          {formatDuration(entry.seconds)} -{' '}
+                          {new Date(entry.loggedAt).toLocaleDateString()}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          icon={Trash2}
+                          className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                          onClick={() => setConfirmDeleteEntryId(entry.id)}
+                          disabled={deletingEntryId === entry.id}
+                        >
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </DetailSection>
+            </Card>
+
+            {/* Information card — divider-row pattern */}
+            <Card padding="none" className={CARD_CLASS}>
+              <DetailSection
+                title={t('contacts.information')}
+                icon={Info}
+                subtleTitle
+                className="p-4"
+              >
+                <div>
+                  <div className={INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">ID</span>
+                    <span className="font-mono font-semibold text-foreground">
+                      {contactIdLabel}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium">
+                  <div className={INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Created</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {new Date(contact.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Updated</span>
-                    <span className="font-medium">
+                  <div className={INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {new Date(contact.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -566,152 +638,164 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
           </div>
         }
       >
-        <div className="space-y-6">
-          <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+        <div className="space-y-4">
+          {/* Contact Content card */}
+          <Card padding="none" className={CARD_CLASS}>
             <DetailSection
               title={t('contacts.contactContent')}
               iconPlugin="contacts"
+              subtleTitle
               className="p-6"
             >
               <div className="space-y-5">
+                {/* Name */}
                 <div>
-                  <div className={FIELD_LABEL_CLASS}>Name</div>
-                  <div className="text-2xl font-semibold text-foreground">
+                  <div className={FIELD_LABEL_CLASS}>
+                    <User className={FIELD_LABEL_ICON_CLASS} />
+                    Name
+                  </div>
+                  <div className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em] text-foreground">
                     {contact.companyName || '—'}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* 2-column field grid */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-5">
                   <div>
                     <div className={FIELD_LABEL_CLASS}>Contact #</div>
-                    <div className="text-sm font-medium">{contact.contactNumber || '—'}</div>
+                    <div className={FIELD_VALUE_CLASS}>{contact.contactNumber || '—'}</div>
                   </div>
                   <div>
                     <div className={FIELD_LABEL_CLASS}>Type</div>
-                    <div className="text-sm font-medium">
-                      {contact.contactType === 'company' ? 'Company' : 'Private'}
+                    <div>
+                      <Badge
+                        className={cn(
+                          'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
+                          isCompany
+                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                        )}
+                      >
+                        {isCompany ? 'Company' : 'Private'}
+                      </Badge>
                     </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                      Organization Number
-                    </div>
-                    <div className="text-sm font-medium">{contact.organizationNumber || '—'}</div>
+                    <div className={FIELD_LABEL_CLASS}>Organization Number</div>
+                    <div className={FIELD_VALUE_CLASS}>{contact.organizationNumber || '—'}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                      VAT Number
-                    </div>
-                    <div className="text-sm font-medium">{contact.vatNumber || '—'}</div>
+                    <div className={FIELD_LABEL_CLASS}>VAT Number</div>
+                    <div className={FIELD_VALUE_CLASS}>{contact.vatNumber || '—'}</div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                    <div className={FIELD_LABEL_CLASS}>
+                      <Mail className={FIELD_LABEL_ICON_CLASS} />
                       Email
                     </div>
-                    <div className="text-sm font-medium">{contact.email || '—'}</div>
+                    <div className={FIELD_VALUE_CLASS}>{contact.email || '—'}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                    <div className={FIELD_LABEL_CLASS}>
+                      <Globe className={FIELD_LABEL_ICON_CLASS} />
                       Website
                     </div>
-                    <div className="text-sm font-medium">{contact.website || '—'}</div>
+                    <div className={FIELD_VALUE_CLASS}>{contact.website || '—'}</div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                    <div className={FIELD_LABEL_CLASS}>
+                      <Phone className={FIELD_LABEL_ICON_CLASS} />
                       Phone 1
                     </div>
-                    <div className="text-sm font-medium">{contact.phone || '—'}</div>
+                    <div className={FIELD_VALUE_CLASS}>{contact.phone || '—'}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                    <div className={FIELD_LABEL_CLASS}>
+                      <Phone className={FIELD_LABEL_ICON_CLASS} />
                       Phone 2
                     </div>
-                    <div className="text-sm font-medium">{contact.phone2 || '—'}</div>
+                    <div className={FIELD_VALUE_CLASS}>{contact.phone2 || '—'}</div>
                   </div>
                 </div>
+
+                {/* Notes — amber left-border callout */}
                 {contact.notes ? (
-                  <div className="border-t border-border pt-5">
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                      Notes
+                  <div className={NOTE_CLASS}>
+                    <Star className="h-4 w-4 mt-0.5 text-amber-500 fill-amber-400 shrink-0 dark:text-amber-400" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.1em] font-semibold text-amber-800 dark:text-amber-400">
+                        Notes
+                      </div>
+                      <div className="mt-0.5 text-sm font-medium text-amber-950 dark:text-amber-200">
+                        {contact.notes}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">{contact.notes}</div>
                   </div>
                 ) : null}
               </div>
             </DetailSection>
           </Card>
 
-          <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
-            <div className="space-y-2 p-6">
-              <div className="mb-1 flex min-w-0 items-center gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                </span>
-                <span className="truncate text-sm font-semibold text-foreground">
-                  {t('contacts.contactProperties')}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">Tax rate</div>
-                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
-                      {contact.taxRate || '—'}%
-                    </div>
-                  </div>
+          {/* Contact Properties — divider list with colored pills */}
+          <Card padding="none" className={CARD_CLASS}>
+            <DetailSection
+              title={t('contacts.contactProperties')}
+              icon={SlidersHorizontal}
+              subtleTitle
+              className="p-6"
+            >
+              <div>
+                <div className={PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Tax rate</span>
+                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                    {contact.taxRate ? `${contact.taxRate}%` : '—'}
+                  </Badge>
                 </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">Payment terms</div>
-                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
-                      {contact.paymentTerms || '—'} days
-                    </div>
-                  </div>
+                <div className={PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Payment terms</span>
+                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                    {contact.paymentTerms ? `${contact.paymentTerms} days` : '—'}
+                  </Badge>
                 </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">Currency</div>
-                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
-                      {contact.currency || '—'}
-                    </div>
-                  </div>
+                <div className={PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Currency</span>
+                  <Badge className="border-0 rounded-md bg-indigo-50 text-indigo-700 font-semibold dark:bg-indigo-950/40 dark:text-indigo-300">
+                    {contact.currency || '—'}
+                  </Badge>
                 </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">F-tax</div>
-                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
-                      {contact.fTax === 'yes' ? 'Registered' : 'No'}
-                    </div>
-                  </div>
+                <div className={PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">F-tax</span>
+                  {contact.fTax === 'yes' ? (
+                    <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
+                      Registered
+                    </Badge>
+                  ) : (
+                    <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                      No
+                    </Badge>
+                  )}
                 </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">Assignable</div>
-                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
-                      {contact.isAssignable ? 'Yes' : 'No'}
-                    </div>
-                  </div>
+                <div className={PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Assignable</span>
+                  {contact.isAssignable ? (
+                    <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
+                      Yes
+                    </Badge>
+                  ) : (
+                    <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                      No
+                    </Badge>
+                  )}
                 </div>
-
-                <div className="rounded-lg border border-border p-4 md:col-span-2">
-                  <div className="text-sm font-medium mb-2">Tags</div>
+                {/* Tags row */}
+                <div className="pt-3">
+                  <div className={FIELD_LABEL_CLASS}>Tags</div>
                   {Array.isArray(contact.tags) && contact.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {contact.tags.map((item: string) => (
                         <Badge
                           key={item}
-                          variant="secondary"
-                          className="flex items-center gap-1 text-xs"
+                          className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1 text-xs"
                         >
                           <Tag className="h-3 w-3" />
                           {item}
@@ -719,75 +803,62 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs italic text-muted-foreground">No tags</span>
+                    <span className="text-xs text-muted-foreground mt-1 block">No tags</span>
                   )}
                 </div>
               </div>
-            </div>
+            </DetailSection>
           </Card>
 
+          {/* Addresses card */}
           {Array.isArray(contact.addresses) && contact.addresses.length > 0 && (
-            <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
-              <DetailSection title="Addresses" className="p-6">
-                <div className="space-y-5">
+            <Card padding="none" className={CARD_CLASS}>
+              <DetailSection title="Addresses" icon={MapPin} subtleTitle className="p-6">
+                <div className="space-y-6">
                   {contact.addresses.map((address: any, idx: number) => (
                     <div
                       key={address.id}
-                      className={cn('space-y-5', idx > 0 && 'border-t border-border pt-5')}
+                      className={cn('space-y-4', idx > 0 && 'border-t border-border/50 pt-6')}
                     >
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                          Type
-                        </div>
-                        <div className="text-2xl font-semibold text-foreground">
-                          {address.type || 'Address'}
-                        </div>
-                      </div>
-                      {address.addressLine1 && (
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                            Address
+                      {/* Address type as badge pill */}
+                      <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                        {address.type || 'Address'}
+                      </Badge>
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                        {address.addressLine1 && (
+                          <div className="col-span-2">
+                            <div className={FIELD_LABEL_CLASS}>Address</div>
+                            <div className={FIELD_VALUE_CLASS}>
+                              {[address.addressLine1, address.addressLine2]
+                                .filter(Boolean)
+                                .join(', ')}
+                            </div>
                           </div>
-                          <div className="text-sm font-medium">
-                            {[address.addressLine1, address.addressLine2]
-                              .filter(Boolean)
-                              .join(', ')}
-                          </div>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-2 gap-4">
+                        )}
                         {(address.postalCode || address.city) && (
                           <div>
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Postal Code / City
-                            </div>
-                            <div className="text-sm font-medium">
+                            <div className={FIELD_LABEL_CLASS}>Postal Code / City</div>
+                            <div className={FIELD_VALUE_CLASS}>
                               {[address.postalCode, address.city].filter(Boolean).join(' ')}
                             </div>
                           </div>
                         )}
                         {address.region && (
                           <div>
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Region
-                            </div>
-                            <div className="text-sm font-medium">{address.region}</div>
+                            <div className={FIELD_LABEL_CLASS}>Region</div>
+                            <div className={FIELD_VALUE_CLASS}>{address.region}</div>
                           </div>
                         )}
                         {address.country && (
                           <div>
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Country
-                            </div>
-                            <div className="text-sm font-medium">{address.country}</div>
+                            <div className={FIELD_LABEL_CLASS}>Country</div>
+                            <div className={FIELD_VALUE_CLASS}>{address.country}</div>
                           </div>
                         )}
                         {address.email && (
                           <div>
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Email
-                            </div>
-                            <div className="text-sm font-medium">{address.email}</div>
+                            <div className={FIELD_LABEL_CLASS}>Email</div>
+                            <div className={FIELD_VALUE_CLASS}>{address.email}</div>
                           </div>
                         )}
                       </div>
@@ -798,88 +869,61 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
             </Card>
           )}
 
+          {/* Contact Persons card */}
           {Array.isArray(contact.contactPersons) && contact.contactPersons.length > 0 && (
-            <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
-              <DetailSection title="Contact Persons" className="p-6">
-                <div className="space-y-5">
-                  {contact.contactPersons.map((person: any, idx: number) => (
-                    <div
-                      key={person.id}
-                      className={cn('space-y-5', idx > 0 && 'border-t border-border pt-5')}
-                    >
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                          Name
+            <Card padding="none" className={CARD_CLASS}>
+              <DetailSection title="Contact Persons" icon={Users} subtleTitle className="p-6">
+                <div className="space-y-6">
+                  {contact.contactPersons.map((person: any, idx: number) => {
+                    const personInitials = (person.name || '')
+                      .split(' ')
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((n: string) => n[0].toUpperCase())
+                      .join('');
+                    return (
+                      <div
+                        key={person.id}
+                        className={cn(
+                          'flex items-start gap-4',
+                          idx > 0 && 'border-t border-border/50 pt-6',
+                        )}
+                      >
+                        {/* Avatar bubble */}
+                        <div className="h-11 w-11 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-slate-700 dark:from-slate-700 dark:to-slate-600 dark:text-slate-300 flex items-center justify-center text-sm font-semibold shrink-0">
+                          {personInitials || <User className="h-4 w-4" />}
                         </div>
-                        <div className="text-2xl font-semibold text-foreground">
-                          {person.name || '—'}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-lg font-semibold tracking-tight text-foreground leading-tight">
+                            {person.name || '—'}
+                          </div>
+                          {person.title && (
+                            <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                              {person.title}
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-4 mt-4">
+                            {person.email && (
+                              <div>
+                                <div className={FIELD_LABEL_CLASS}>Email</div>
+                                <div className={FIELD_VALUE_CLASS}>{person.email}</div>
+                              </div>
+                            )}
+                            {person.phone && (
+                              <div>
+                                <div className={FIELD_LABEL_CLASS}>Phone</div>
+                                <div className={FIELD_VALUE_CLASS}>{person.phone}</div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        {person.title && (
-                          <div>
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Title
-                            </div>
-                            <div className="text-sm font-medium">{person.title}</div>
-                          </div>
-                        )}
-                        {person.email && (
-                          <div>
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Email
-                            </div>
-                            <div className="text-sm font-medium">{person.email}</div>
-                          </div>
-                        )}
-                        {person.phone && (
-                          <div>
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Phone
-                            </div>
-                            <div className="text-sm font-medium">{person.phone}</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </DetailSection>
             </Card>
           )}
-
-          <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
-            <DetailSection title="Time log" icon={Clock} className="p-4">
-              <div className="space-y-2">
-                {timeEntries.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No time entries</p>
-                ) : (
-                  timeEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                    >
-                      <span className="text-xs text-foreground">
-                        {formatDuration(entry.seconds)} -{' '}
-                        {new Date(entry.loggedAt).toLocaleDateString()}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        icon={Trash2}
-                        className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                        onClick={() => setConfirmDeleteEntryId(entry.id)}
-                        disabled={deletingEntryId === entry.id}
-                      >
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </DetailSection>
-          </Card>
         </div>
       </DetailLayout>
 
