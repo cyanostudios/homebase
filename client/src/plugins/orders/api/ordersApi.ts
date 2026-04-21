@@ -1,5 +1,9 @@
 import { DEFAULT_LIST_PAGE_SIZE } from '@/core/settings/listPageSizes';
 
+import {
+  DEFAULT_ORDER_LIST_SEARCH_SCOPE,
+  type OrderListSearchScope,
+} from '../constants/orderListSearchScopes';
 import type {
   OrderDetails,
   OrderListItem,
@@ -13,10 +17,14 @@ export type ApiFieldError = { field: string; message: string };
 export interface OrdersListFilters {
   status?: string;
   channel?: string;
+  /** With `channel`: match `orders.channel_instance_id` (enabled channel_instances row). */
+  channelInstanceId?: number;
   from?: string;
   to?: string;
-  /** Server-side search: customer, order numbers, amounts, tracking, channel, raw JSON, etc. */
+  /** Server-side search: order fields + orderrader/produkter (titel, artikelnr, SKU, EAN, GTIN) enligt `searchIn`. */
   q?: string;
+  /** When `q` is set: narrow which columns are searched (default all). */
+  searchIn?: OrderListSearchScope;
   sort?: OrdersListSortField;
   order?: OrdersListSortOrder;
   limit?: number;
@@ -93,6 +101,14 @@ class OrdersApi {
     if (filters.channel) {
       qs.set('channel', filters.channel);
     }
+    if (
+      filters.channel &&
+      filters.channelInstanceId !== null &&
+      filters.channelInstanceId !== undefined &&
+      Number.isFinite(Number(filters.channelInstanceId))
+    ) {
+      qs.set('channelInstanceId', String(Math.trunc(Number(filters.channelInstanceId))));
+    }
     if (filters.from) {
       qs.set('from', filters.from);
     }
@@ -101,6 +117,13 @@ class OrdersApi {
     }
     if (filters.q !== undefined && filters.q !== null && String(filters.q).trim() !== '') {
       qs.set('q', String(filters.q).trim());
+      const searchIn =
+        filters.searchIn !== null && filters.searchIn !== undefined
+          ? String(filters.searchIn).trim()
+          : DEFAULT_ORDER_LIST_SEARCH_SCOPE;
+      if (searchIn !== '') {
+        qs.set('searchIn', searchIn);
+      }
     }
     if (filters.sort) {
       qs.set('sort', filters.sort);

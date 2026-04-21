@@ -2124,6 +2124,7 @@ class FyndiqProductsController {
         unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
         vatRate: Number.isFinite(vatRatePct) ? vatRatePct : null,
         raw: o,
+        lineKind: 'product',
       },
     ];
 

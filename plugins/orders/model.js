@@ -14,6 +14,19 @@ class OrdersModel {
   static CUSTOMER_FIRST_ORDERS_TABLE = 'customer_first_orders';
   static SYNC_BATCH_SIZE = 100;
 
+  /**
+   * Maps incoming `line_kind` for storage. WooCommerce: `product` (line_items) or `shipping` (shipping_lines).
+   * Fyndiq/CDON: always `product` (one article per order; no separate shipping rows in that payload).
+   * Missing/empty string is stored as `product` — same meaning as `order_items.line_kind` DEFAULT.
+   * @returns {'product'|'shipping'|'fee'|'other'}
+   */
+  static normalizeLineKind(value) {
+    const allowed = new Set(['product', 'shipping', 'fee', 'other']);
+    if (value == null || value === '') return 'product';
+    const s = String(value).trim().toLowerCase();
+    return allowed.has(s) ? s : 'product';
+  }
+
   getChannelMarket(raw) {
     if (!raw || typeof raw !== 'object') return null;
     const marketRaw = raw.market != null ? String(raw.market).trim().toLowerCase() : '';
@@ -126,6 +139,7 @@ class OrdersModel {
               unitPrice: Number.isFinite(unitPrice) ? unitPrice : null,
               vatRate: Number.isFinite(vatRate) ? vatRate : null,
               raw: item?.raw ?? null,
+              lineKind: OrdersModel.normalizeLineKind(item?.lineKind ?? item?.line_kind),
             };
           })
           .filter(Boolean)
@@ -270,17 +284,19 @@ class OrdersModel {
         Math.trunc(item.quantity),
         item.unitPrice != null ? item.unitPrice : null,
         item.vatRate != null ? item.vatRate : null,
+        OrdersModel.normalizeLineKind(item.lineKind),
         item.raw ? JSON.stringify(item.raw) : null,
       );
-      const offset = params.length - 7;
+      const n = 9;
+      const p0 = params.length - n + 1;
       values.push(
-        `($${offset}, $${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, NOW())`,
+        `($${p0}, $${p0 + 1}, $${p0 + 2}, $${p0 + 3}, $${p0 + 4}, $${p0 + 5}, $${p0 + 6}, $${p0 + 7}, $${p0 + 8}, NOW())`,
       );
     }
     await tx.query(
       `
       INSERT INTO ${OrdersModel.ITEMS_TABLE} (
-        order_id, sku, product_id, title, quantity, unit_price, vat_rate, raw, created_at
+        order_id, sku, product_id, title, quantity, unit_price, vat_rate, line_kind, raw, created_at
       )
       VALUES ${values.join(', ')}
       `,
@@ -513,6 +529,9 @@ class OrdersModel {
             const orderId = Number(createRes[0].id);
             await this.insertOrderItems(tx, orderId, item.items);
             for (const orderItem of item.items) {
+              if (OrdersModel.normalizeLineKind(orderItem.lineKind) === 'shipping') {
+                continue;
+              }
               const pid =
                 orderItem.productId != null && Number.isFinite(Number(orderItem.productId))
                   ? Number(orderItem.productId)
@@ -621,28 +640,101 @@ class OrdersModel {
    * @param {'placed'|'channel'|'order_number'|'customer'|'total'|'status'} sortKey
    * @param {'asc'|'desc'} orderDir
    */
-  static buildListOrderBy(sortKey, orderDir) {
+  /**
+   * @param {string|null} tableAlias Optional alias for outer SELECT (e.g. list rows as `b`).
+   */
+  static buildListOrderBy(sortKey, orderDir, tableAlias = null) {
     const dir = orderDir === 'asc' ? 'ASC' : 'DESC';
     const idDir = orderDir === 'asc' ? 'ASC' : 'DESC';
+    const a = tableAlias ? `${tableAlias}.` : '';
     switch (sortKey) {
       case 'channel':
-        return `lower(coalesce(nullif(trim(channel_label::text), ''), channel::text)) ${dir}, id ${idDir}`;
+        return `lower(coalesce(nullif(trim(${a}channel_label::text), ''), ${a}channel::text)) ${dir}, ${a}id ${idDir}`;
       case 'order_number':
-        return `order_number ${dir}, id ${idDir}`;
+        return `${a}order_number ${dir}, ${a}id ${idDir}`;
       case 'customer':
         return `lower(coalesce(
-          nullif(trim(shipping_address->>'full_name'), ''),
-          nullif(trim(concat_ws(' ', shipping_address->>'first_name', shipping_address->>'last_name')), ''),
-          nullif(trim(customer->>'email'), ''),
+          nullif(trim(${a}shipping_address->>'full_name'), ''),
+          nullif(trim(concat_ws(' ', ${a}shipping_address->>'first_name', ${a}shipping_address->>'last_name')), ''),
+          nullif(trim(${a}customer->>'email'), ''),
           ''
-        )) ${dir} NULLS LAST, id ${idDir}`;
+        )) ${dir} NULLS LAST, ${a}id ${idDir}`;
       case 'total':
-        return `total_amount ${dir} NULLS LAST, id ${idDir}`;
+        return `${a}total_amount ${dir} NULLS LAST, ${a}id ${idDir}`;
       case 'status':
-        return `status ${dir}, id ${idDir}`;
+        return `${a}status ${dir}, ${a}id ${idDir}`;
       case 'placed':
       default:
-        return `placed_at ${dir} NULLS LAST, id ${idDir}`;
+        return `${a}placed_at ${dir} NULLS LAST, ${a}id ${idDir}`;
+    }
+  }
+
+  /**
+   * Scoped substring search for order list `q` + `searchIn`.
+   * Kanalnamn / channel_label / raw ingår inte i fritext — använd kanalfiltret.
+   * Produktdata: order_items + products via EXISTS.
+   * @param {string} searchInScope
+   * @param {number} qIdx 1-based SQL param index for the lowercased needle
+   */
+  static buildOrderListSearchWhereFragment(searchInScope, qIdx) {
+    const p = (expr) => `position($${qIdx}::text in lower(${expr})) > 0`;
+    const co = (col) => `coalesce(${col}::text, '')`;
+    const ot = OrdersModel.ORDERS_TABLE;
+    const it = OrdersModel.ITEMS_TABLE;
+
+    const existsOrderLines = (innerAnd) =>
+      `EXISTS (
+        SELECT 1
+        FROM ${it} oi
+        LEFT JOIN products p ON p.id = oi.product_id
+        WHERE oi.order_id = ${ot}.id
+          AND (${innerAnd})
+      )`;
+
+    const productFieldsOr = [
+      p(`coalesce(oi.title::text, '')`),
+      p(`coalesce(oi.product_id::text, '')`),
+      p(`coalesce(p.sku::text, '')`),
+      p(`coalesce(p.ean::text, '')`),
+      p(`coalesce(p.gtin::text, '')`),
+    ].join(' OR ');
+
+    const ordersOnlyAll = [
+      p(co('channel_order_id')),
+      p(co('platform_order_number')),
+      p(co('order_number')),
+      p(co('shipping_tracking_number')),
+      p(co('status')),
+      p(co('currency')),
+      p(co('shipping_carrier')),
+      p(co('total_amount')),
+      p(co('customer')),
+      p(co('shipping_address')),
+      p(co('billing_address')),
+    ].join(' OR ');
+
+    switch (searchInScope) {
+      case 'productTitle':
+        return existsOrderLines(p(`coalesce(oi.title::text, '')`));
+      case 'articleNumber':
+        return existsOrderLines(p(`coalesce(oi.product_id::text, '')`));
+      case 'sku':
+        return existsOrderLines(p(`coalesce(p.sku::text, '')`));
+      case 'ean':
+        return existsOrderLines(p(`coalesce(p.ean::text, '')`));
+      case 'gtin':
+        return existsOrderLines(p(`coalesce(p.gtin::text, '')`));
+      case 'orderNumber':
+        return `(${p(co('channel_order_id'))} OR ${p(co('platform_order_number'))} OR ${p(co('order_number'))})`;
+      case 'customer':
+        return `(${p(co('customer'))} OR ${p(co('shipping_address'))} OR ${p(co('billing_address'))})`;
+      case 'placedDate':
+        return `(${p(co('placed_at'))})`;
+      case 'total':
+        return `(${p(co('total_amount'))} OR ${p(co('currency'))})`;
+      case 'all':
+      default:
+        return `(${ordersOnlyAll} OR ${existsOrderLines(productFieldsOr)})`;
     }
   }
 
@@ -655,11 +747,15 @@ class OrdersModel {
     {
       status,
       channel,
+      channelInstanceId: channelInstanceIdRaw = null,
+      /** undefined = not cdon/fyndiq instance filter; false = invalid instance id; string|null = instance.market */
+      cdonFyndiqInstanceMarketNorm = undefined,
       from,
       to,
       limit = 100,
       offset = 0,
       q: qRaw = null,
+      searchIn: searchInRaw = null,
       sort: sortRaw = 'placed',
       order: orderRaw = 'desc',
     } = {},
@@ -684,6 +780,43 @@ class OrdersModel {
         params.push(String(channel));
         clauses.push(`channel = $${params.length}`);
       }
+      if (
+        channelInstanceIdRaw != null &&
+        Number.isFinite(Number(channelInstanceIdRaw)) &&
+        Number(channelInstanceIdRaw) >= 0
+      ) {
+        const cid = Number(channelInstanceIdRaw);
+        const ch = String(channel || '').toLowerCase();
+        const isMp = ch === 'cdon' || ch === 'fyndiq';
+
+        if (isMp && cdonFyndiqInstanceMarketNorm !== undefined) {
+          if (cdonFyndiqInstanceMarketNorm === false) {
+            clauses.push('1 = 0');
+          } else if (
+            cdonFyndiqInstanceMarketNorm != null &&
+            String(cdonFyndiqInstanceMarketNorm).trim() !== ''
+          ) {
+            const mkt = String(cdonFyndiqInstanceMarketNorm).trim().toLowerCase();
+            params.push(cid);
+            const pInst = params.length;
+            params.push(mkt);
+            const pMkt = params.length;
+            clauses.push(`(
+              channel_instance_id = $${pInst}
+              OR (
+                channel_instance_id IS NULL
+                AND lower(trim(coalesce(channel_market_norm::text, ''))) = $${pMkt}
+              )
+            )`);
+          } else {
+            params.push(cid);
+            clauses.push(`channel_instance_id = $${params.length}`);
+          }
+        } else {
+          params.push(cid);
+          clauses.push(`channel_instance_id = $${params.length}`);
+        }
+      }
       if (from) {
         params.push(from);
         clauses.push(`placed_at >= $${params.length}`);
@@ -705,30 +838,28 @@ class OrdersModel {
         ? String(sortRaw).trim().toLowerCase()
         : 'placed';
       const orderDir = String(orderRaw).trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
-      const orderBySql = OrdersModel.buildListOrderBy(sortKey, orderDir);
+      const orderBySqlAliased = OrdersModel.buildListOrderBy(sortKey, orderDir, 'b');
 
       const qStr = qRaw != null ? String(qRaw).trim() : '';
       if (qStr.length > 0) {
         const needle = qStr.slice(0, 200).toLowerCase();
         params.push(needle);
         const qIdx = params.length;
-        clauses.push(`(
-          position($${qIdx}::text in lower(coalesce(channel_order_id::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(platform_order_number::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(order_number::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(shipping_tracking_number::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(channel_label::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(status::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(channel::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(currency::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(shipping_carrier::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(total_amount::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(customer::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(shipping_address::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(billing_address::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(raw::text, ''))) > 0
-          OR position($${qIdx}::text in lower(coalesce(channel_instance_id::text, ''))) > 0
-        )`);
+        const ALLOWED_SEARCH_IN = new Set([
+          'all',
+          'orderNumber',
+          'customer',
+          'placedDate',
+          'total',
+          'productTitle',
+          'articleNumber',
+          'sku',
+          'ean',
+          'gtin',
+        ]);
+        const searchInTrim = String(searchInRaw || '').trim();
+        const searchInScope = ALLOWED_SEARCH_IN.has(searchInTrim) ? searchInTrim : 'all';
+        clauses.push(OrdersModel.buildOrderListSearchWhereFragment(searchInScope, qIdx));
       }
 
       const allowedLimits = new Set([25, 50, 100, 150, 200, 250]);
@@ -747,27 +878,121 @@ class OrdersModel {
       `;
       const dataSql = `
         SELECT
-          id,
-          channel,
-          channel_order_id,
-          channel_instance_id,
-          channel_label,
-          platform_order_number,
-          order_number,
-          placed_at,
-          total_amount,
-          currency,
-          status,
-          shipping_carrier,
-          shipping_tracking_number,
-          shipping_address,
-          customer,
-          raw,
-          created_at,
-          updated_at,
-          (staff_note IS NOT NULL AND trim(staff_note) <> '') AS has_staff_note
-        FROM ${OrdersModel.ORDERS_TABLE}${whereSql}
-        ORDER BY ${orderBySql}
+          b.id,
+          b.channel,
+          b.channel_order_id,
+          b.channel_instance_id,
+          b.channel_label,
+          b.platform_order_number,
+          b.order_number,
+          b.placed_at,
+          b.total_amount,
+          b.currency,
+          b.status,
+          b.shipping_carrier,
+          b.shipping_tracking_number,
+          b.shipping_address,
+          b.customer,
+          b.raw,
+          b.created_at,
+          b.updated_at,
+          b.has_staff_note,
+          COALESCE(agg.product_line_count, 0)::int AS product_line_count,
+          agg.order_weight,
+          agg.article_numbers_list,
+          agg.sku_list,
+          agg.ean_list,
+          agg.gtin_list,
+          agg.lagerplats_list
+        FROM (
+          SELECT
+            id,
+            channel,
+            channel_order_id,
+            channel_instance_id,
+            channel_label,
+            platform_order_number,
+            order_number,
+            placed_at,
+            total_amount,
+            currency,
+            status,
+            shipping_carrier,
+            shipping_tracking_number,
+            shipping_address,
+            customer,
+            raw,
+            created_at,
+            updated_at,
+            (staff_note IS NOT NULL AND trim(staff_note) <> '') AS has_staff_note
+          FROM ${OrdersModel.ORDERS_TABLE}
+          ${whereSql}
+        ) b
+        LEFT JOIN (
+          SELECT
+            oi.order_id,
+            COUNT(*) FILTER (
+              WHERE oi.quantity > 0
+                AND COALESCE(oi.line_kind, 'product') <> 'shipping'
+            )::int AS product_line_count,
+            COALESCE(
+              SUM(
+                CASE
+                  WHEN oi.product_id IS NOT NULL AND p.weight IS NOT NULL
+                  THEN oi.quantity::numeric * p.weight
+                  ELSE 0::numeric
+                END
+              ),
+              0::numeric
+            ) AS order_weight,
+            NULLIF(
+              string_agg(
+                DISTINCT CASE WHEN oi.product_id IS NOT NULL THEN oi.product_id::text END,
+                ', '
+              ),
+              ''
+            ) AS article_numbers_list,
+            NULLIF(
+              string_agg(
+                DISTINCT CASE
+                  WHEN NULLIF(trim(p.sku), '') IS NOT NULL THEN trim(p.sku)
+                END,
+                ', '
+              ),
+              ''
+            ) AS sku_list,
+            NULLIF(
+              string_agg(
+                DISTINCT CASE
+                  WHEN NULLIF(trim(p.ean), '') IS NOT NULL THEN trim(p.ean)
+                END,
+                ', '
+              ),
+              ''
+            ) AS ean_list,
+            NULLIF(
+              string_agg(
+                DISTINCT CASE
+                  WHEN NULLIF(trim(p.gtin), '') IS NOT NULL THEN trim(p.gtin)
+                END,
+                ', '
+              ),
+              ''
+            ) AS gtin_list,
+            NULLIF(
+              string_agg(
+                DISTINCT CASE
+                  WHEN NULLIF(trim(p.lagerplats), '') IS NOT NULL THEN trim(p.lagerplats)
+                END,
+                ', '
+              ),
+              ''
+            ) AS lagerplats_list
+          FROM ${OrdersModel.ITEMS_TABLE} oi
+          LEFT JOIN products p ON p.id = oi.product_id
+          GROUP BY oi.order_id
+        ) agg ON agg.order_id = b.id
+        ORDER BY ${orderBySqlAliased}
         LIMIT $${limitIdx}
         OFFSET $${offsetIdx}
       `;
@@ -1400,6 +1625,44 @@ class OrdersModel {
           ? String(row.staff_note)
           : null;
     }
+    if (row.product_line_count !== undefined) {
+      const lc = Number(row.product_line_count);
+      out.lineCount = Number.isFinite(lc) ? Math.trunc(lc) : 0;
+    }
+    if (row.order_weight !== undefined) {
+      const ow = row.order_weight != null ? Number(row.order_weight) : null;
+      out.orderWeight = ow !== null && Number.isFinite(ow) ? ow : null;
+    }
+    if (row.article_numbers_list !== undefined) {
+      out.articleNumberList =
+        row.article_numbers_list != null && String(row.article_numbers_list).trim() !== ''
+          ? String(row.article_numbers_list).trim()
+          : null;
+    }
+    if (row.sku_list !== undefined) {
+      out.skuList =
+        row.sku_list != null && String(row.sku_list).trim() !== ''
+          ? String(row.sku_list).trim()
+          : null;
+    }
+    if (row.ean_list !== undefined) {
+      out.eanList =
+        row.ean_list != null && String(row.ean_list).trim() !== ''
+          ? String(row.ean_list).trim()
+          : null;
+    }
+    if (row.gtin_list !== undefined) {
+      out.gtinList =
+        row.gtin_list != null && String(row.gtin_list).trim() !== ''
+          ? String(row.gtin_list).trim()
+          : null;
+    }
+    if (row.lagerplats_list !== undefined) {
+      out.lagerplatsList =
+        row.lagerplats_list != null && String(row.lagerplats_list).trim() !== ''
+          ? String(row.lagerplats_list).trim()
+          : null;
+    }
     return out;
   }
 
@@ -1418,6 +1681,7 @@ class OrdersModel {
       quantity: row.quantity != null ? Number(row.quantity) : 0,
       unitPrice: row.unit_price != null ? Number(row.unit_price) : null,
       vatRate: row.vat_rate != null ? Number(row.vat_rate) : null,
+      lineKind: OrdersModel.normalizeLineKind(row.line_kind),
       raw: row.raw || null,
       createdAt: row.created_at,
     };

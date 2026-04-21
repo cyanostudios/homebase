@@ -45,7 +45,19 @@ export interface OrderListItem {
   raw?: any;
   createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
+  /** Antal orderrader med kopplat product_id (exkl. fraktrader utan product_id). */
+  lineCount?: number | null;
+  /** Summa quantity × produktvikt (kg) för rader med product_id och vikt. */
+  orderWeight?: number | null;
+  /** Unika Homebase product_id per order, kommaseparerade. */
+  articleNumberList?: string | null;
+  skuList?: string | null;
+  eanList?: string | null;
+  gtinList?: string | null;
+  lagerplatsList?: string | null;
 }
+
+export type OrderLineKind = 'product' | 'shipping' | 'fee' | 'other';
 
 export interface OrderItem {
   id: string;
@@ -56,6 +68,8 @@ export interface OrderItem {
   quantity: number;
   unitPrice?: number | null;
   vatRate?: number | null;
+  /** product = varurad; shipping = t.ex. WooCommerce shipping_lines; fee/other reserverat */
+  lineKind?: OrderLineKind;
   raw?: any;
   createdAt?: Date | string | null;
 }

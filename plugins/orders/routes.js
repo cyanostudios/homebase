@@ -13,16 +13,32 @@ function createOrdersRoutes(controller, context) {
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin('orders');
 
-  // GET /api/orders?status=&channel=&from=&to=&q=&sort=&order=&limit=&offset=
+  // GET /api/orders?status=&channel=&channelInstanceId=&from=&to=&q=&searchIn=&sort=&order=&limit=&offset=
   router.get(
     '/',
     gate,
     [
       query('status').optional().trim().isLength({ max: 50 }),
       query('channel').optional().trim().isLength({ max: 50 }),
+      query('channelInstanceId').optional().isInt({ min: 0, max: 2147483647 }),
       query('from').optional().isISO8601(),
       query('to').optional().isISO8601(),
       query('q').optional().trim().isLength({ max: 200 }),
+      query('searchIn')
+        .optional()
+        .trim()
+        .isIn([
+          'all',
+          'orderNumber',
+          'customer',
+          'placedDate',
+          'total',
+          'productTitle',
+          'articleNumber',
+          'sku',
+          'ean',
+          'gtin',
+        ]),
       query('sort')
         .optional()
         .trim()

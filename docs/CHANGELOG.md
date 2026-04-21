@@ -18,6 +18,41 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-21 – Ordrar: dynamiska kolumner, aggregerad radinfo, utökad sökning, `line_kind`
+
+### Databas
+
+- **`097-order-items-line-kind.sql`:** kolumn **`line_kind`** på **`order_items`** (`product` \| `shipping` \| `fee` \| `other`, default **`product`**). Ingen backfill av historik.
+
+### Backend (`plugins/orders`)
+
+- **`GET /api/orders` (list):** vänsterjoin mot aggregerad vy per order från **`order_items`** + **`products`** — bland annat **Rader** (antal rader exkl. **`line_kind = 'shipping'`**), **Ordervikt**, **Lagerplats**, kommaseparerade **Artikelnummer** / SKU / EAN / GTIN.
+- **`searchIn`:** nya scopes **`productTitle`**, **`articleNumber`**, **`sku`**, **`ean`**, **`gtin`**; **`all`** inkluderar orderrader/produkter via `EXISTS` utan kanalnamn i fritext.
+- **`routes.js`:** whitelist för nya **`searchIn`**-värden.
+- **`normalizeLineKind`**, **`insertOrderItems`:** sparar **`line_kind`**; **platshållare** för batch-INSERT korrigerade (**`$1`…`$n`**, inte **`$0`**).
+- **`transformItemRow`:** **`lineKind`** i orderdetalj-svar. Lagerjustering vid import hoppar **`shipping`**-rader.
+
+### WooCommerce (`plugins/woocommerce-products`)
+
+- **`normalizeWooOrderToHomebase`:** **`line_items`** → **`lineKind: 'product'`**, **`shipping_lines`** → **`lineKind: 'shipping'`**.
+
+### CDON / Fyndiq
+
+- Normaliserade ordrar sätter explicit **`lineKind: 'product'`** (en artikelrad per order; ingen separat fraktmodell i payload).
+
+### Klient (`client/src/plugins/orders`)
+
+- **`orderListColumns.ts`:** kolumnmetadata, standard synliga kolumner, **`localStorage`** per tenant (samma mönster som produktkatalogen).
+- **`OrdersList.tsx`:** dynamiska kolumner, **Kolumner**-meny, expand-ikon i smal kolumn.
+- **`orderListSearchScopes.ts`**, **`types/orders.ts`**, **`ordersApi.ts`:** nya fält och scope-etiketter.
+
+### Övrigt (samma leverans)
+
+- **`plugins/channels/model.js`:** hjälpfunktioner för CDON/Fyndiq **storefront article id** (hex-slug m.m.).
+- **`ProductList`**, **`productCatalogSearchScopes`**, **`ContentToolbar`:** scoped katalogsökning (se även blocket **Produkter: scoped sök** ovan).
+
+---
+
 ## 2026-04-20 – Leveranslogg: lokala commits före push till origin
 
 Branch **`Homebase-V3.2.2`** kan ligga **flera commits före** `origin/Homebase-V3.2.2`. Nedan en **översikt** av vad som ingick i den leveransen (fullständiga beskrivningar finns under respektive datum längre ned i filen):

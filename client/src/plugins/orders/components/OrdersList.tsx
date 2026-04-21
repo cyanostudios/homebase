@@ -4,6 +4,7 @@ import {
   ArrowUpDown,
   ChevronDown,
   ChevronRight,
+  Columns2,
   Loader2,
   Pencil,
   Plus,
@@ -24,13 +25,21 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/select';
+import {
+  NativeSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -46,12 +55,21 @@ import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { buildListPaginationItems } from '@/core/utils/listPagination';
 import { cn } from '@/lib/utils';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
+import { channelsApi } from '@/plugins/channels/api/channelsApi';
+import type { ChannelInstance } from '@/plugins/channels/types/channels';
 import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 import { useShipping } from '@/plugins/shipping/hooks/useShipping';
 import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 
-import { ordersApi } from '../api/ordersApi';
+import { ordersApi, type OrdersListFilters } from '../api/ordersApi';
 import { BATCH_CARRIERS } from '../constants/carriers';
+import {
+  DEFAULT_ORDER_LIST_SEARCH_SCOPE,
+  isOrderListSearchScope,
+  ORDER_LIST_SEARCH_INPUT_PLACEHOLDER,
+  ORDER_LIST_SEARCH_SCOPE_LABELS,
+  ORDER_LIST_SEARCH_SCOPES,
+} from '../constants/orderListSearchScopes';
 import { useOrders } from '../hooks/useOrders';
 import type {
   OrderDetails,
@@ -63,6 +81,15 @@ import { statusDisplayLabel } from '../utils/statusDisplay';
 import { validateTrackingRequirement } from '../utils/validateTrackingRequirement';
 
 import { OrderDetailInline } from './OrderDetailInline';
+import {
+  DEFAULT_VISIBLE_ORDER_LIST_COLUMNS,
+  formatOrderListPlainColumn,
+  normalizeVisibleOrderColumnSelection,
+  ORDER_LIST_COLUMN_META,
+  parseStoredOrderListColumns,
+  storageKeyOrderListColumns,
+  type OrderListDataColumnId,
+} from './orderListColumns';
 import { OrderListSettingsForm } from './OrderListSettingsForm';
 import { OrderStaffNoteDialog } from './OrderStaffNoteDialog';
 
@@ -70,6 +97,48 @@ import { OrderStaffNoteDialog } from './OrderStaffNoteDialog';
 const ORDERS_DROPDOWN_CONTENT_CLASS = 'min-w-[16rem] p-2 text-base';
 const ORDERS_DROPDOWN_ITEM_CLASS =
   'text-base py-2.5 min-h-[2.75rem] gap-2 [&_svg]:size-5 [&_svg]:shrink-0';
+
+const ORDER_LIST_CHANNEL_GROUPS = ['woocommerce', 'cdon', 'fyndiq'] as const;
+
+function formatChannelInstanceOptionLabel(inst: ChannelInstance): string {
+  const ch = String(inst.channel || '').toLowerCase();
+  const label = inst.label?.trim();
+  const market = inst.market?.trim();
+  if (ch === 'woocommerce') {
+    return label || inst.instanceKey || `Butik ${inst.id}`;
+  }
+  if (ch === 'cdon') {
+    return market
+      ? `CDON ${market.toUpperCase()}`
+      : label || `CDON (${inst.instanceKey || inst.id})`;
+  }
+  if (ch === 'fyndiq') {
+    return market
+      ? `Fyndiq ${market.toUpperCase()}`
+      : label || `Fyndiq (${inst.instanceKey || inst.id})`;
+  }
+  return label || `${inst.channel} (${inst.id})`;
+}
+
+function channelGroupTitle(ch: (typeof ORDER_LIST_CHANNEL_GROUPS)[number]): string {
+  if (ch === 'woocommerce') {
+    return 'WooCommerce';
+  }
+  if (ch === 'cdon') {
+    return 'CDON';
+  }
+  return 'Fyndiq';
+}
+
+function channelAllLabel(ch: (typeof ORDER_LIST_CHANNEL_GROUPS)[number]): string {
+  if (ch === 'woocommerce') {
+    return 'Alla WooCommerce-butiker';
+  }
+  if (ch === 'cdon') {
+    return 'Alla CDON';
+  }
+  return 'Alla Fyndiq';
+}
 
 function fmtDate(d: any) {
   if (!d) {
@@ -151,6 +220,34 @@ function SortableOrderHead({
   );
 }
 
+function OrderColumnHead({
+  colId,
+  currentSort,
+  currentOrder,
+  onSort,
+}: {
+  colId: OrderListDataColumnId;
+  currentSort: OrdersListSortField;
+  currentOrder: 'asc' | 'desc';
+  onSort: (field: OrdersListSortField) => void;
+}) {
+  const meta = ORDER_LIST_COLUMN_META.find((m) => m.id === colId);
+  const label = meta?.label ?? String(colId);
+  const sf = meta?.sortField;
+  if (sf) {
+    return (
+      <SortableOrderHead
+        label={label}
+        field={sf}
+        currentSort={currentSort}
+        currentOrder={currentOrder}
+        onSort={onSort}
+      />
+    );
+  }
+  return <TableHead>{label}</TableHead>;
+}
+
 function normalizeDetails(raw: any): OrderDetails {
   return {
     ...raw,
@@ -167,7 +264,7 @@ function normalizeDetails(raw: any): OrderDetails {
 }
 
 export const OrdersList: React.FC = () => {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, activeTenantId } = useApp();
   const {
     orders,
     totalOrders,
@@ -211,6 +308,11 @@ export const OrdersList: React.FC = () => {
   >(null);
   const [staffNoteOpen, setStaffNoteOpen] = useState(false);
   const [staffNoteTargetIds, setStaffNoteTargetIds] = useState<string[] | null>(null);
+  const [channelInstances, setChannelInstances] = useState<ChannelInstance[]>([]);
+  const [visibleColumnIds, setVisibleColumnIds] = useState<OrderListDataColumnId[]>(() => [
+    ...DEFAULT_VISIBLE_ORDER_LIST_COLUMNS,
+  ]);
+  const [ordersColumnsHydrated, setOrdersColumnsHydrated] = useState(false);
 
   const handleSyncOrders = useCallback(async () => {
     if (syncPollIntervalRef.current) {
@@ -250,6 +352,78 @@ export const OrdersList: React.FC = () => {
         syncPollIntervalRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setChannelInstances([]);
+      return;
+    }
+    let cancelled = false;
+    void channelsApi
+      .getInstances({ includeDisabled: false })
+      .then((res) => {
+        if (!cancelled && Array.isArray(res?.items)) {
+          setChannelInstances(res.items);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setChannelInstances([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    setOrdersColumnsHydrated(false);
+    if (activeTenantId === null) {
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(storageKeyOrderListColumns(activeTenantId));
+      const parsed = parseStoredOrderListColumns(raw);
+      setVisibleColumnIds(normalizeVisibleOrderColumnSelection(parsed));
+    } catch {
+      setVisibleColumnIds([...DEFAULT_VISIBLE_ORDER_LIST_COLUMNS]);
+    } finally {
+      setOrdersColumnsHydrated(true);
+    }
+  }, [activeTenantId]);
+
+  useEffect(() => {
+    if (activeTenantId === null || !ordersColumnsHydrated) {
+      return;
+    }
+    try {
+      localStorage.setItem(
+        storageKeyOrderListColumns(activeTenantId),
+        JSON.stringify(visibleColumnIds),
+      );
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [activeTenantId, visibleColumnIds, ordersColumnsHydrated]);
+
+  const toggleOrderListColumn = useCallback((id: OrderListDataColumnId, checked: boolean) => {
+    setVisibleColumnIds((prev) => {
+      if (checked) {
+        if (prev.includes(id)) {
+          return prev;
+        }
+        return normalizeVisibleOrderColumnSelection([...prev, id]);
+      }
+      if (prev.length <= 1) {
+        return prev;
+      }
+      return normalizeVisibleOrderColumnSelection(prev.filter((x) => x !== id));
+    });
+  }, []);
+
+  const resetOrderListColumns = useCallback(() => {
+    setVisibleColumnIds([...DEFAULT_VISIBLE_ORDER_LIST_COLUMNS]);
   }, []);
 
   useEffect(() => {
@@ -317,6 +491,60 @@ export const OrdersList: React.FC = () => {
 
     return channel ? channel.charAt(0).toUpperCase() + channel.slice(1) : '';
   }, []);
+
+  const renderOrderDataCell = useCallback(
+    (colId: OrderListDataColumnId, o: OrderListItem) => {
+      const plainOpts = {
+        channelDisplay: formatChannelName(o),
+        orderNumberSummary: `${o.orderNumber ?? '—'} · ${o.platformOrderNumber || o.channelOrderId || '—'}`,
+      };
+      switch (colId) {
+        case 'channel':
+          return <span className="inline-flex items-center gap-1">{formatChannelName(o)}</span>;
+        case 'orderNumber': {
+          const orderNum =
+            o.orderNumber !== null && o.orderNumber !== undefined ? o.orderNumber : null;
+          return (
+            <>
+              <div className="font-medium">{orderNum ?? '—'}</div>
+              <div className="text-xs text-muted-foreground">
+                {o.platformOrderNumber || o.channelOrderId || '—'}
+              </div>
+            </>
+          );
+        }
+        case 'customer':
+          return (
+            <div className="font-medium text-sm">
+              {(() => {
+                const s = o.shippingAddress as any;
+                const full = s?.full_name || s?.fullName || s?.name;
+                if (full) {
+                  return full;
+                }
+                if (s?.first_name || s?.last_name) {
+                  return `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim();
+                }
+                return '—';
+              })()}
+            </div>
+          );
+        case 'placed':
+          return fmtDate(o.placedAt);
+        case 'total':
+          return fmtMoney(o.totalAmount, o.currency);
+        case 'status':
+          return statusDisplayLabel(o.status);
+        default:
+          return (
+            <span className="text-sm whitespace-pre-wrap break-words">
+              {formatOrderListPlainColumn(colId, o, plainOpts)}
+            </span>
+          );
+      }
+    },
+    [formatChannelName],
+  );
 
   const fetchDetail = useCallback(
     async (id: string) => {
@@ -422,6 +650,81 @@ export const OrdersList: React.FC = () => {
       return next;
     });
   };
+
+  const channelFilterSelectValue = useMemo(() => {
+    if (!filters.channel) {
+      return '';
+    }
+    if (
+      filters.channelInstanceId !== null &&
+      filters.channelInstanceId !== undefined &&
+      Number.isFinite(Number(filters.channelInstanceId))
+    ) {
+      return `${filters.channel}:${Math.trunc(Number(filters.channelInstanceId))}`;
+    }
+    return filters.channel;
+  }, [filters.channel, filters.channelInstanceId]);
+
+  const resolvedOrderSearchScope = useMemo(
+    () =>
+      filters.searchIn !== null &&
+      filters.searchIn !== undefined &&
+      isOrderListSearchScope(filters.searchIn)
+        ? filters.searchIn
+        : DEFAULT_ORDER_LIST_SEARCH_SCOPE,
+    [filters.searchIn],
+  );
+
+  const instancesByChannel = useMemo(() => {
+    const m = new Map<string, ChannelInstance[]>();
+    for (const inst of channelInstances) {
+      const c = String(inst.channel || '').toLowerCase();
+      if (!(ORDER_LIST_CHANNEL_GROUPS as readonly string[]).includes(c)) {
+        continue;
+      }
+      if (!m.has(c)) {
+        m.set(c, []);
+      }
+      m.get(c)!.push(inst);
+    }
+    for (const list of m.values()) {
+      list.sort((a, b) =>
+        formatChannelInstanceOptionLabel(a).localeCompare(
+          formatChannelInstanceOptionLabel(b),
+          'sv',
+        ),
+      );
+    }
+    return m;
+  }, [channelInstances]);
+
+  const onChannelFilterChange = useCallback(
+    (value: string) => {
+      setFilters((prev) => {
+        const next: OrdersListFilters = { ...prev, offset: 0 };
+        if (!value) {
+          delete next.channel;
+          delete next.channelInstanceId;
+          return next;
+        }
+        const colon = value.indexOf(':');
+        if (colon === -1) {
+          next.channel = value;
+          delete next.channelInstanceId;
+          return next;
+        }
+        next.channel = value.slice(0, colon);
+        const id = Number(value.slice(colon + 1));
+        if (Number.isFinite(id)) {
+          next.channelInstanceId = Math.trunc(id);
+        } else {
+          delete next.channelInstanceId;
+        }
+        return next;
+      });
+    },
+    [setFilters],
+  );
 
   const handleSortClick = useCallback(
     (field: OrdersListSortField) => {
@@ -761,6 +1064,8 @@ export const OrdersList: React.FC = () => {
     return `Anteckning (${ids.length} order)`;
   }, [staffNoteTargetIds, orders]);
 
+  const totalOrderTableColSpan = 2 + visibleColumnIds.length + 1;
+
   const toolbarActions = (
     <div className="flex items-center gap-2 flex-wrap">
       <DropdownMenu>
@@ -845,6 +1150,38 @@ export const OrdersList: React.FC = () => {
           >
             <Trash2 className="mr-2" aria-hidden />
             {deletingSelected ? 'Raderar…' : `Radera valda (${selectedIds.size})`}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1" type="button">
+            <Columns2 className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+            Kolumner
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-[min(70vh,28rem)] overflow-y-auto p-2">
+          <div className="px-2 pb-1 text-xs font-medium text-muted-foreground">
+            Synliga kolumner
+          </div>
+          {ORDER_LIST_COLUMN_META.map((col) => (
+            <DropdownMenuCheckboxItem
+              key={col.id}
+              className="text-sm"
+              checked={visibleColumnIds.includes(col.id)}
+              onCheckedChange={(c) => toggleOrderListColumn(col.id, c === true)}
+              onSelect={(e) => e.preventDefault()}
+            >
+              {col.label}
+            </DropdownMenuCheckboxItem>
+          ))}
+          <DropdownMenuSeparator className="my-2" />
+          <DropdownMenuItem
+            className={ORDERS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => resetOrderListColumns()}
+          >
+            Återställ standard
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -961,7 +1298,38 @@ export const OrdersList: React.FC = () => {
         <ContentToolbar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Sök kund, ordernr, belopp, spårning, kanal…"
+          searchPlaceholder={ORDER_LIST_SEARCH_INPUT_PLACEHOLDER}
+          showSearchIcon={false}
+          searchLeading={
+            <Select
+              value={resolvedOrderSearchScope}
+              onValueChange={(v) => {
+                setFilters((prev) => ({
+                  ...prev,
+                  searchIn: isOrderListSearchScope(v) ? v : DEFAULT_ORDER_LIST_SEARCH_SCOPE,
+                  offset: 0,
+                }));
+              }}
+            >
+              <SelectTrigger
+                aria-label="Begränsa sökningen"
+                title={ORDER_LIST_SEARCH_SCOPE_LABELS[resolvedOrderSearchScope]}
+                className="h-10 w-full min-w-0 justify-start gap-1.5 rounded-r-none border-r-0 bg-muted/30 px-2 text-left text-sm [&>span]:line-clamp-none [&>span]:min-w-0 [&>span]:shrink [&>span]:truncate"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                className="min-w-0 max-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
+              >
+                {ORDER_LIST_SEARCH_SCOPES.map((scope) => (
+                  <SelectItem key={scope} value={scope} className="pr-8">
+                    {ORDER_LIST_SEARCH_SCOPE_LABELS[scope]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
           afterSearch={
             selectedIds.size > 0 ? (
               <>
@@ -994,13 +1362,21 @@ export const OrdersList: React.FC = () => {
           <option value="cancelled">Cancelled</option>
         </NativeSelect>
         <NativeSelect
-          value={filters.channel || ''}
-          onChange={(e) => onChangeFilter('channel', e.target.value)}
+          value={channelFilterSelectValue}
+          onChange={(e) => onChannelFilterChange(e.target.value)}
+          aria-label="Filtrera på kanal"
         >
-          <option value="">All channels</option>
-          <option value="woocommerce">WooCommerce</option>
-          <option value="cdon">CDON</option>
-          <option value="fyndiq">Fyndiq</option>
+          <option value="">Alla kanaler</option>
+          {ORDER_LIST_CHANNEL_GROUPS.map((ch) => (
+            <optgroup key={ch} label={channelGroupTitle(ch)}>
+              <option value={ch}>{channelAllLabel(ch)}</option>
+              {(instancesByChannel.get(ch) ?? []).map((inst) => (
+                <option key={`${ch}:${inst.id}`} value={`${ch}:${inst.id}`}>
+                  {formatChannelInstanceOptionLabel(inst)}
+                </option>
+              ))}
+            </optgroup>
+          ))}
         </NativeSelect>
       </div>
 
@@ -1131,48 +1507,15 @@ export const OrdersList: React.FC = () => {
                       }
                     />
                   </TableHead>
-                  <SortableOrderHead
-                    label="Channel"
-                    field="channel"
-                    currentSort={sortField}
-                    currentOrder={sortOrder}
-                    onSort={handleSortClick}
-                  />
-                  <SortableOrderHead
-                    label="Order #"
-                    field="order_number"
-                    currentSort={sortField}
-                    currentOrder={sortOrder}
-                    onSort={handleSortClick}
-                  />
-                  <SortableOrderHead
-                    label="Customer"
-                    field="customer"
-                    currentSort={sortField}
-                    currentOrder={sortOrder}
-                    onSort={handleSortClick}
-                  />
-                  <SortableOrderHead
-                    label="Placed"
-                    field="placed"
-                    currentSort={sortField}
-                    currentOrder={sortOrder}
-                    onSort={handleSortClick}
-                  />
-                  <SortableOrderHead
-                    label="Total"
-                    field="total"
-                    currentSort={sortField}
-                    currentOrder={sortOrder}
-                    onSort={handleSortClick}
-                  />
-                  <SortableOrderHead
-                    label="Status"
-                    field="status"
-                    currentSort={sortField}
-                    currentOrder={sortOrder}
-                    onSort={handleSortClick}
-                  />
+                  {visibleColumnIds.map((colId) => (
+                    <OrderColumnHead
+                      key={colId}
+                      colId={colId}
+                      currentSort={sortField}
+                      currentOrder={sortOrder}
+                      onSort={handleSortClick}
+                    />
+                  ))}
                   <TableHead className="w-10 p-1 text-center">
                     <span className="sr-only">Anteckning</span>
                   </TableHead>
@@ -1214,8 +1557,18 @@ export const OrdersList: React.FC = () => {
                       >
                         <TableCell
                           className={`w-5 p-0 align-top ${groupInfo ? 'border-l-2 border-emerald-400' : ''}`}
-                          aria-hidden
-                        />
+                        >
+                          <span
+                            className="flex min-h-[2.5rem] items-start justify-center pt-1.5"
+                            aria-hidden
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                            )}
+                          </span>
+                        </TableCell>
                         <TableCell
                           className={`w-12 ${groupInfo ? 'pl-3' : ''}`}
                           onClick={(e) => handleToggleSelect(id, e)}
@@ -1239,46 +1592,11 @@ export const OrdersList: React.FC = () => {
                             aria-label={isSelected ? 'Unselect order' : 'Select order'}
                           />
                         </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          <span className="inline-flex items-center gap-1">
-                            {isExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                            )}
-                            {formatChannelName(o)}
-                          </span>
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          <div className="font-medium">{orderNum ?? '—'}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {o.platformOrderNumber || o.channelOrderId || '—'}
-                          </div>
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          <div className="font-medium text-sm">
-                            {(() => {
-                              const s = o.shippingAddress as any;
-                              const full = s?.full_name || s?.fullName || s?.name;
-                              if (full) {
-                                return full;
-                              }
-                              if (s?.first_name || s?.last_name) {
-                                return `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim();
-                              }
-                              return '—';
-                            })()}
-                          </div>
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          {fmtDate(o.placedAt)}
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          {fmtMoney(o.totalAmount, o.currency)}
-                        </TableCell>
-                        <TableCell className={groupInfo ? 'pl-3' : ''}>
-                          {statusDisplayLabel(o.status)}
-                        </TableCell>
+                        {visibleColumnIds.map((colId) => (
+                          <TableCell key={colId} className={groupInfo ? 'pl-3' : ''}>
+                            {renderOrderDataCell(colId, o)}
+                          </TableCell>
+                        ))}
                         <TableCell
                           className={`w-10 p-1 align-middle ${groupInfo ? 'pl-3' : ''}`}
                           onClick={(e) => e.stopPropagation()}
@@ -1308,7 +1626,9 @@ export const OrdersList: React.FC = () => {
                             />
                           ) : null}
                           <TableCell
-                            colSpan={groupInfo ? 8 : 9}
+                            colSpan={
+                              groupInfo ? totalOrderTableColSpan - 1 : totalOrderTableColSpan
+                            }
                             className={`p-0 align-top ${groupInfo ? 'pl-3' : ''}`}
                           >
                             {loading ? (

@@ -37,7 +37,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/select';
+import {
+  NativeSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -62,9 +69,9 @@ import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceAp
 import { productsApi } from '../api/productsApi';
 import type { ProductListParams } from '../api/productsApi';
 import {
+  CATALOG_SEARCH_INPUT_PLACEHOLDER,
   DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
   isProductCatalogSearchScope,
-  PRODUCT_CATALOG_SEARCH_PLACEHOLDERS,
   PRODUCT_CATALOG_SEARCH_SCOPE_LABELS,
   PRODUCT_CATALOG_SEARCH_SCOPES,
   type ProductCatalogSearchScope,
@@ -406,8 +413,6 @@ export const ProductList: React.FC = () => {
     }),
     [limit, offset, sortField, sortOrder, debouncedSearch, searchScope, listApiParam],
   );
-
-  const catalogSearchPlaceholder = PRODUCT_CATALOG_SEARCH_PLACEHOLDERS[searchScope];
 
   useEffect(() => {
     if (!isProductCatalogBootstrap) {
@@ -1210,25 +1215,35 @@ export const ProductList: React.FC = () => {
         <ContentToolbar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder={catalogSearchPlaceholder}
+          searchPlaceholder={CATALOG_SEARCH_INPUT_PLACEHOLDER}
+          showSearchIcon={false}
           searchLeading={
-            <NativeSelect
+            <Select
               value={searchScope}
-              onChange={(e) => {
-                const v = e.target.value;
+              onValueChange={(v) => {
                 setSearchScope(
                   isProductCatalogSearchScope(v) ? v : DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
                 );
               }}
-              aria-label="Begränsa sökningen"
-              className="h-10 min-w-[9.5rem] max-w-[40vw] shrink-0 bg-muted/30 pl-2 pr-8 text-sm sm:min-w-[10.5rem] sm:max-w-none"
             >
-              {PRODUCT_CATALOG_SEARCH_SCOPES.map((scope) => (
-                <option key={scope} value={scope}>
-                  {PRODUCT_CATALOG_SEARCH_SCOPE_LABELS[scope]}
-                </option>
-              ))}
-            </NativeSelect>
+              <SelectTrigger
+                aria-label="Begränsa sökningen"
+                title={PRODUCT_CATALOG_SEARCH_SCOPE_LABELS[searchScope]}
+                className="h-10 w-full min-w-0 justify-start gap-1.5 rounded-r-none border-r-0 bg-muted/30 px-2 text-left text-sm [&>span]:line-clamp-none [&>span]:min-w-0 [&>span]:shrink [&>span]:truncate"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                className="min-w-0 max-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
+              >
+                {PRODUCT_CATALOG_SEARCH_SCOPES.map((scope) => (
+                  <SelectItem key={scope} value={scope} className="pr-8">
+                    {PRODUCT_CATALOG_SEARCH_SCOPE_LABELS[scope]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           }
           searchRowTrailing={
             <NativeSelect

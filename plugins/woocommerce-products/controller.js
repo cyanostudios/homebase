@@ -1181,6 +1181,7 @@ class WooCommerceController {
         unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
         vatRate: Number.isFinite(vatRate) ? vatRate : null,
         raw: li,
+        lineKind: 'product',
       });
     }
 
@@ -1201,6 +1202,7 @@ class WooCommerceController {
           unitPrice: shippingTotalInclVat,
           vatRate: 25,
           raw: sl,
+          lineKind: 'shipping',
         });
       }
     }

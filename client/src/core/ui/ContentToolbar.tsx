@@ -10,6 +10,8 @@ interface ContentToolbarProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
+  /** When false, no left search icon (use placeholder text instead). Default true. */
+  showSearchIcon?: boolean;
   /** Renders before the search input (e.g. scope dropdown); input gets merged left border radius. */
   searchLeading?: React.ReactNode;
   /** Same row as search, after the input (e.g. list filter). */
@@ -23,6 +25,7 @@ export function ContentToolbar({
   searchValue,
   onSearchChange,
   searchPlaceholder = 'Search...',
+  showSearchIcon = true,
   searchLeading,
   searchRowTrailing,
   afterSearch,
@@ -35,26 +38,38 @@ export function ContentToolbar({
   return (
     <div className="flex flex-col gap-3 w-full">
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full min-w-0">
-        <div className="flex min-w-0 w-full flex-row flex-nowrap items-center gap-2 overflow-x-auto sm:w-auto sm:overflow-visible sm:gap-3 sm:shrink-0">
+        <div
+          className={cn(
+            'flex min-w-0 w-full flex-row flex-nowrap items-center gap-2 overflow-x-auto sm:overflow-visible sm:gap-3',
+            searchLeading ? 'min-w-0 flex-1 sm:min-w-0' : 'sm:w-auto sm:shrink-0',
+          )}
+        >
           <div
             className={cn(
-              'flex min-w-[12rem] w-full max-w-full shrink-0 sm:w-80 sm:min-w-0',
+              'flex min-w-0 w-full max-w-full',
+              searchLeading ? 'min-w-0 flex-1' : 'shrink-0 sm:w-80 sm:min-w-0',
               searchLeading && 'items-stretch gap-0',
             )}
           >
             {searchLeading ? (
-              <div className="flex shrink-0 items-stretch [&_select]:h-10 [&_select]:rounded-r-none [&_select]:border-r-0">
+              <div className="flex w-[10.5rem] max-w-[10.5rem] shrink-0 flex-none overflow-hidden [&_select]:box-border [&_select]:h-10 [&_select]:min-w-0 [&_select]:w-full [&_select]:max-w-full [&_select]:rounded-r-none [&_select]:border-r-0 [&_button]:box-border [&_button]:h-10 [&_button]:min-w-0 [&_button]:w-full [&_button]:max-w-full [&_button]:rounded-r-none [&_button]:border-r-0">
                 {searchLeading}
               </div>
             ) : null}
             <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
+              {showSearchIcon ? (
+                <Search className="absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
+              ) : null}
               <Input
                 type="text"
                 placeholder={searchPlaceholder}
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
-                className={cn('w-full pl-10', searchLeading && 'rounded-l-none border-l-0')}
+                className={cn(
+                  'w-full',
+                  showSearchIcon ? 'pl-10' : 'pl-3',
+                  searchLeading && 'rounded-l-none',
+                )}
               />
             </div>
           </div>

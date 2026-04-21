@@ -555,6 +555,41 @@ class ChannelsModel {
   }
 
   // ---------- Channel instances ----------
+  /**
+   * Resolve channel + market for order list filtering (tenant-scoped via DB session).
+   */
+  async getInstanceChannelAndMarketById(req, id) {
+    try {
+      const db = Database.get(req);
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+      const instanceId = Number(id);
+      if (!Number.isFinite(instanceId) || instanceId < 0) {
+        return null;
+      }
+
+      const rows = await db.query(
+        `SELECT channel, market FROM ${ChannelsModel.CHANNEL_INSTANCES_TABLE} WHERE id = $1 LIMIT 1`,
+        [instanceId],
+      );
+      if (!rows.length) {
+        return null;
+      }
+      const r = rows[0];
+      const ch = String(r.channel || '')
+        .trim()
+        .toLowerCase();
+      const marketRaw = r.market != null ? String(r.market).trim() : '';
+      const market = marketRaw !== '' ? marketRaw.toLowerCase() : null;
+      return { channel: ch, market };
+    } catch (error) {
+      Logger.error('Failed to load channel instance for filter', error, { id });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to load channel instance', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async listInstances(req, { channel, includeDisabled } = {}) {
     try {
       const db = Database.get(req);

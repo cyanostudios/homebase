@@ -30,12 +30,14 @@ const {
   isValidLineFieldId,
 } = require('./orderExportBuilder');
 const analyticsCache = require('../analytics/cache');
+const ChannelsModel = require('../channels/model');
 
 class OrdersController {
   constructor(model) {
     this.model = model;
 
     // Cross-plugin helpers (server-side only)
+    this.channelsModel = new ChannelsModel();
     this.wooModel = new WooCommerceModel();
     this.wooController = new WooCommerceController(this.wooModel);
     this.cdonModel = new CdonProductsModel();
@@ -381,6 +383,15 @@ class OrdersController {
     try {
       const status = req.query?.status ? String(req.query.status).trim().toLowerCase() : null;
       const channel = req.query?.channel ? String(req.query.channel).trim().toLowerCase() : null;
+      const channelInstanceIdRaw = req.query?.channelInstanceId;
+      const channelInstanceId =
+        channelInstanceIdRaw != null && String(channelInstanceIdRaw).trim() !== ''
+          ? Number.parseInt(String(channelInstanceIdRaw).trim(), 10)
+          : null;
+      const channelInstanceIdNorm =
+        channelInstanceId != null && Number.isFinite(channelInstanceId) && channelInstanceId >= 0
+          ? channelInstanceId
+          : null;
       const from = req.query?.from ? new Date(String(req.query.from)) : null;
       const to = req.query?.to ? new Date(String(req.query.to)) : null;
       const ALLOWED_LIMITS = new Set([25, 50, 100, 150, 200, 250]);
@@ -389,18 +400,46 @@ class OrdersController {
       const offset = req.query?.offset != null ? Number(req.query.offset) : undefined;
       const qRaw = req.query?.q != null ? String(req.query.q).trim() : '';
       const q = qRaw.length > 0 ? qRaw.slice(0, 200) : null;
+      const searchInRaw =
+        req.query?.searchIn != null && String(req.query.searchIn).trim() !== ''
+          ? String(req.query.searchIn).trim()
+          : null;
       const sort = req.query?.sort != null ? String(req.query.sort).trim().toLowerCase() : 'placed';
       const order =
         req.query?.order != null ? String(req.query.order).trim().toLowerCase() : 'desc';
 
+      const channelInstanceIdForModel =
+        channel && channelInstanceIdNorm != null ? channelInstanceIdNorm : null;
+
+      /** CDON/Fyndiq orders often have channel_instance_id NULL; market is in channel_market_norm. */
+      let cdonFyndiqInstanceMarketNorm = undefined;
+      if (
+        channel &&
+        channelInstanceIdNorm != null &&
+        (channel === 'cdon' || channel === 'fyndiq')
+      ) {
+        const inst = await this.channelsModel.getInstanceChannelAndMarketById(
+          req,
+          channelInstanceIdNorm,
+        );
+        if (!inst || inst.channel !== channel) {
+          cdonFyndiqInstanceMarketNorm = false;
+        } else {
+          cdonFyndiqInstanceMarketNorm = inst.market;
+        }
+      }
+
       const { items, total } = await this.model.list(req, {
         status,
         channel,
+        channelInstanceId: channelInstanceIdForModel,
+        cdonFyndiqInstanceMarketNorm,
         from,
         to,
         limit,
         offset,
         q,
+        searchIn: searchInRaw,
         sort,
         order,
       });

@@ -38,15 +38,5 @@ export const PRODUCT_CATALOG_SEARCH_SCOPE_LABELS: Record<ProductCatalogSearchSco
   gtin: 'GTIN',
 };
 
-/** Input placeholder hints per scope (Swedish). */
-export const PRODUCT_CATALOG_SEARCH_PLACEHOLDERS: Record<ProductCatalogSearchScope, string> = {
-  all: 'Sök artikelnr, SKU, titel, EAN…',
-  productId: 'Artikelnummer (id), prefix…',
-  groupId: 'Grupp-id…',
-  sku: 'SKU / referens…',
-  title: 'Titel (alla språk)…',
-  privateName: 'Eget namn…',
-  lagerplats: 'Lagerplats…',
-  ean: 'EAN, prefix…',
-  gtin: 'GTIN, prefix…',
-};
+/** Enkel placeholder i sökfältet (ingen ikon). */
+export const CATALOG_SEARCH_INPUT_PLACEHOLDER = 'Sök';
