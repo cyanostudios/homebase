@@ -52,7 +52,7 @@ export function ContentToolbar({
             )}
           >
             {searchLeading ? (
-              <div className="flex w-[10.5rem] max-w-[10.5rem] shrink-0 flex-none overflow-hidden [&_select]:box-border [&_select]:h-10 [&_select]:min-w-0 [&_select]:w-full [&_select]:max-w-full [&_select]:rounded-r-none [&_select]:border-r-0 [&_button]:box-border [&_button]:h-10 [&_button]:min-w-0 [&_button]:w-full [&_button]:max-w-full [&_button]:rounded-r-none [&_button]:border-r-0">
+              <div className="flex w-[9.5rem] max-w-[9.5rem] shrink-0 flex-none overflow-hidden [&_select]:box-border [&_select]:h-10 [&_select]:min-w-0 [&_select]:w-full [&_select]:max-w-full [&_select]:rounded-r-none [&_select]:border-r-0 [&_button]:box-border [&_button]:h-10 [&_button]:min-w-0 [&_button]:w-full [&_button]:max-w-full [&_button]:rounded-r-none [&_button]:border-r-0">
                 {searchLeading}
               </div>
             ) : null}

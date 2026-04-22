@@ -1066,8 +1066,52 @@ export const OrdersList: React.FC = () => {
 
   const totalOrderTableColSpan = 2 + visibleColumnIds.length + 1;
 
+  const toolbarFilters = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <NativeSelect
+        value={filters.status || ''}
+        onChange={(e) => onChangeFilter('status', e.target.value)}
+        className="w-[8rem] min-w-[7rem]"
+        aria-label="Filtrera på status"
+      >
+        <option value="">All statuses</option>
+        <option value="processing">Processing</option>
+        <option value="delivered">Delivered</option>
+        <option value="cancelled">Cancelled</option>
+      </NativeSelect>
+      <NativeSelect
+        value={channelFilterSelectValue}
+        onChange={(e) => onChannelFilterChange(e.target.value)}
+        className="w-[16rem] min-w-[12rem]"
+        aria-label="Filtrera på kanal"
+      >
+        <option value="">Alla kanaler</option>
+        {ORDER_LIST_CHANNEL_GROUPS.map((ch) => (
+          <optgroup key={ch} label={channelGroupTitle(ch)}>
+            <option value={ch}>{channelAllLabel(ch)}</option>
+            {(instancesByChannel.get(ch) ?? []).map((inst) => (
+              <option key={`${ch}:${inst.id}`} value={`${ch}:${inst.id}`}>
+                {formatChannelInstanceOptionLabel(inst)}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </NativeSelect>
+    </div>
+  );
+
   const toolbarActions = (
     <div className="flex items-center gap-2 flex-wrap">
+      {selectedIds.size > 0 ? (
+        <>
+          <Badge variant="secondary">
+            {selectedIds.size === 1 ? '1 vald' : `${selectedIds.size} valda`}
+          </Badge>
+          <Button variant="ghost" size="sm" type="button" onClick={() => setSelectedIds(new Set())}>
+            Nollställ
+          </Button>
+        </>
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1">
@@ -1294,90 +1338,47 @@ export const OrdersList: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <ContentToolbar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder={ORDER_LIST_SEARCH_INPUT_PLACEHOLDER}
-          showSearchIcon={false}
-          searchLeading={
-            <Select
-              value={resolvedOrderSearchScope}
-              onValueChange={(v) => {
-                setFilters((prev) => ({
-                  ...prev,
-                  searchIn: isOrderListSearchScope(v) ? v : DEFAULT_ORDER_LIST_SEARCH_SCOPE,
-                  offset: 0,
-                }));
-              }}
-            >
-              <SelectTrigger
-                aria-label="Begränsa sökningen"
-                title={ORDER_LIST_SEARCH_SCOPE_LABELS[resolvedOrderSearchScope]}
-                className="h-10 w-full min-w-0 justify-start gap-1.5 rounded-r-none border-r-0 bg-muted/30 px-2 text-left text-sm [&>span]:line-clamp-none [&>span]:min-w-0 [&>span]:shrink [&>span]:truncate"
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pb-3">
+        <div className="flex flex-col sm:flex-row gap-3 pt-3">
+          <ContentToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder={ORDER_LIST_SEARCH_INPUT_PLACEHOLDER}
+            showSearchIcon={false}
+            searchLeading={
+              <Select
+                value={resolvedOrderSearchScope}
+                onValueChange={(v) => {
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchIn: isOrderListSearchScope(v) ? v : DEFAULT_ORDER_LIST_SEARCH_SCOPE,
+                    offset: 0,
+                  }));
+                }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                className="min-w-0 max-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
-              >
-                {ORDER_LIST_SEARCH_SCOPES.map((scope) => (
-                  <SelectItem key={scope} value={scope} className="pr-8">
-                    {ORDER_LIST_SEARCH_SCOPE_LABELS[scope]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          }
-          afterSearch={
-            selectedIds.size > 0 ? (
-              <>
-                <Badge variant="secondary">
-                  {selectedIds.size === 1 ? '1 vald' : `${selectedIds.size} valda`}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  onClick={() => setSelectedIds(new Set())}
+                <SelectTrigger
+                  aria-label="Begränsa sökningen"
+                  title={ORDER_LIST_SEARCH_SCOPE_LABELS[resolvedOrderSearchScope]}
+                  className="h-10 w-full min-w-0 justify-start gap-1.5 rounded-r-none border-r-0 bg-muted/30 px-2 text-left text-sm [&>span]:line-clamp-none [&>span]:min-w-0 [&>span]:shrink [&>span]:truncate"
                 >
-                  Nollställ
-                </Button>
-              </>
-            ) : null
-          }
-          rightActions={toolbarActions}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <NativeSelect
-          value={filters.status || ''}
-          onChange={(e) => onChangeFilter('status', e.target.value)}
-        >
-          <option value="">All statuses</option>
-          <option value="processing">Processing</option>
-          <option value="delivered">Delivered</option>
-          <option value="cancelled">Cancelled</option>
-        </NativeSelect>
-        <NativeSelect
-          value={channelFilterSelectValue}
-          onChange={(e) => onChannelFilterChange(e.target.value)}
-          aria-label="Filtrera på kanal"
-        >
-          <option value="">Alla kanaler</option>
-          {ORDER_LIST_CHANNEL_GROUPS.map((ch) => (
-            <optgroup key={ch} label={channelGroupTitle(ch)}>
-              <option value={ch}>{channelAllLabel(ch)}</option>
-              {(instancesByChannel.get(ch) ?? []).map((inst) => (
-                <option key={`${ch}:${inst.id}`} value={`${ch}:${inst.id}`}>
-                  {formatChannelInstanceOptionLabel(inst)}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </NativeSelect>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  className="min-w-0 max-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
+                >
+                  {ORDER_LIST_SEARCH_SCOPES.map((scope) => (
+                    <SelectItem key={scope} value={scope} className="pr-8">
+                      {ORDER_LIST_SEARCH_SCOPE_LABELS[scope]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
+            afterSearch={<div className="flex items-center gap-2 flex-wrap">{toolbarFilters}</div>}
+            rightActions={toolbarActions}
+          />
+        </div>
       </div>
 
       {showBatchDialog && (

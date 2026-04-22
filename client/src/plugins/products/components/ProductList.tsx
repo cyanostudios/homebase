@@ -1240,6 +1240,16 @@ export const ProductList: React.FC = () => {
 
   const productToolbarActions = (
     <div className="flex items-center gap-2 flex-wrap">
+      {hasProductSelection ? (
+        <>
+          <Badge variant="secondary">
+            {selectedProductIds.length === 1 ? '1 vald' : `${selectedProductIds.length} valda`}
+          </Badge>
+          <Button variant="ghost" size="sm" type="button" onClick={() => clearProductSelection()}>
+            Nollställ
+          </Button>
+        </>
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1">
@@ -1433,77 +1443,60 @@ export const ProductList: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3">
-        <ContentToolbar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder={CATALOG_SEARCH_INPUT_PLACEHOLDER}
-          showSearchIcon={false}
-          searchLeading={
-            <Select
-              value={searchScope}
-              onValueChange={(v) => {
-                setSearchScope(
-                  isProductCatalogSearchScope(v) ? v : DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
-                );
-              }}
-            >
-              <SelectTrigger
-                aria-label="Begränsa sökningen"
-                title={PRODUCT_CATALOG_SEARCH_SCOPE_LABELS[searchScope]}
-                className="h-10 w-full min-w-0 justify-start gap-1.5 rounded-r-none border-r-0 bg-muted/30 px-2 text-left text-sm [&>span]:line-clamp-none [&>span]:min-w-0 [&>span]:shrink [&>span]:truncate"
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pb-3">
+        <div className="flex flex-col sm:flex-row gap-3 pt-3">
+          <ContentToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder={CATALOG_SEARCH_INPUT_PLACEHOLDER}
+            showSearchIcon={false}
+            searchLeading={
+              <Select
+                value={searchScope}
+                onValueChange={(v) => {
+                  setSearchScope(
+                    isProductCatalogSearchScope(v) ? v : DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
+                  );
+                }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                position="popper"
-                className="min-w-0 max-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
-              >
-                {PRODUCT_CATALOG_SEARCH_SCOPES.map((scope) => (
-                  <SelectItem key={scope} value={scope} className="pr-8">
-                    {PRODUCT_CATALOG_SEARCH_SCOPE_LABELS[scope]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          }
-          searchRowTrailing={
-            <NativeSelect
-              value={listFilter}
-              onChange={(e) => setListFilter(e.target.value)}
-              aria-label="Filter by list"
-              className="h-10 w-full min-w-[11rem] max-w-[18rem] shrink-0 sm:w-[min(100%,16rem)]"
-            >
-              <option value="all">Alla produkter</option>
-              <option value="main">Huvudlista</option>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </NativeSelect>
-          }
-          afterSearch={
-            hasProductSelection ? (
-              <>
-                <Badge variant="secondary">
-                  {selectedProductIds.length === 1
-                    ? '1 vald'
-                    : `${selectedProductIds.length} valda`}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  onClick={() => clearProductSelection()}
+                <SelectTrigger
+                  aria-label="Begränsa sökningen"
+                  title={PRODUCT_CATALOG_SEARCH_SCOPE_LABELS[searchScope]}
+                  className="h-10 w-full min-w-0 justify-start gap-1.5 rounded-r-none border-r-0 bg-muted/30 px-2 text-left text-sm [&>span]:line-clamp-none [&>span]:min-w-0 [&>span]:shrink [&>span]:truncate"
                 >
-                  Nollställ
-                </Button>
-              </>
-            ) : null
-          }
-          rightActions={productToolbarActions}
-        />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  className="min-w-0 max-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
+                >
+                  {PRODUCT_CATALOG_SEARCH_SCOPES.map((scope) => (
+                    <SelectItem key={scope} value={scope} className="pr-8">
+                      {PRODUCT_CATALOG_SEARCH_SCOPE_LABELS[scope]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
+            searchRowTrailing={
+              <NativeSelect
+                value={listFilter}
+                onChange={(e) => setListFilter(e.target.value)}
+                aria-label="Filter by list"
+                className="h-10 w-full min-w-[11rem] max-w-[18rem] shrink-0 sm:w-[min(100%,16rem)]"
+              >
+                <option value="all">Alla produkter</option>
+                <option value="main">Huvudlista</option>
+                {lists.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            }
+            rightActions={productToolbarActions}
+          />
+        </div>
       </div>
 
       {/* Publish-feedback after execution */}

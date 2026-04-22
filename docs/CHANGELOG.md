@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-22 – Orders och Produkter: sticky toolbar, filterrad och valda
+
+### Klient
+
+- **`ContentToolbar`:** smalare bredd på **scope**-dropdownen när **`searchLeading`** används (`9.5rem` i stället för `10.5rem`).
+- **`OrdersList`:** **Status** och **Kanal** i samma vänstra rad som sökningen (till höger om sökrutan); **valda / Nollställ** flyttad till **högra kolumnen** till vänster om **Hantera**; hela toolbar-raden är **sticky** med bakgrund och underkant så den följer vid scroll i listan.
+- **`ProductList`:** samma **sticky** toolbar-rad; **valda / Nollställ** till vänster om **Hantera** i högra kolumnen (tidigare bredvid sökraden).
+
+---
+
 ## 2026-04-21 – Produkter: Uppskjuten mediaduplicering (duplicate jobs)
 
 ### Databas
