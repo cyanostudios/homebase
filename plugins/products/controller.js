@@ -31,6 +31,7 @@ const { runBatchSyncJob } = require('./batchSyncJobRunner');
 const importStorage = require('./importStorage');
 const importParse = require('./importParse');
 const { runProductImportJob } = require('./importJobRunner');
+const { runProductDuplicateJob } = require('./duplicateJobRunner');
 const ChannelsModel = require('../channels/model');
 const { buildImportColumnReferencePayload } = require('./importColumnReference');
 const {
@@ -2197,6 +2198,188 @@ class ProductController {
       Logger.error('Set product group error', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       return res.status(500).json({ error: 'Failed to group products' });
+    }
+  }
+
+  // PUT /api/products/batch/list — move products to a list (Huvudlista = null)
+  async batchSetProductList(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw)) {
+        return res
+          .status(400)
+          .json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+      }
+      const ids = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
+      if (!ids.length) {
+        return res.json({ ok: true, updatedCount: 0 });
+      }
+      if (ids.length > PRODUCTS_BATCH_MAX_IDS) {
+        return res.status(400).json({
+          error: `Too many ids (max ${PRODUCTS_BATCH_MAX_IDS} per request)`,
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const listId = req.body?.listId ?? null;
+      const result = await this.model.batchSetProductList(req, ids, listId);
+      return res.json({ ok: true, updatedCount: result.updatedCount });
+    } catch (error) {
+      Logger.error('batchSetProductList', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to move products to list' });
+    }
+  }
+
+  /**
+   * POST /api/products/duplicate/precheck — variant groups not fully selected.
+   */
+  async duplicatePrecheck(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw)) {
+        return res
+          .status(400)
+          .json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+      }
+      const normalized = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
+      if (normalized.length > PRODUCTS_BATCH_MAX_IDS) {
+        return res.status(400).json({
+          error: `Too many ids (max ${PRODUCTS_BATCH_MAX_IDS} per request)`,
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const incompleteGroups = [];
+      const seenGroup = new Set();
+      for (const id of normalized) {
+        const p = await this.model.getById(req, id);
+        const gid =
+          p?.groupId != null && String(p.groupId).trim() !== '' ? String(p.groupId).trim() : null;
+        if (!gid || seenGroup.has(gid)) {
+          continue;
+        }
+        seenGroup.add(gid);
+        const members = await this.model.listByGroupId(req, gid);
+        const sel = new Set(normalized.map(String));
+        const allSelected = members.every((m) => sel.has(String(m.id)));
+        if (!allSelected) {
+          incompleteGroups.push({
+            groupId: gid,
+            memberIds: members.map((m) => String(m.id)),
+          });
+        }
+      }
+      return res.json({ incompleteGroups });
+    } catch (error) {
+      Logger.error('duplicatePrecheck', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Precheck failed' });
+    }
+  }
+
+  mapDuplicateJobRow(row) {
+    if (!row) return null;
+    let payload = row.payload;
+    if (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload);
+      } catch {
+        payload = {};
+      }
+    }
+    let result = row.result;
+    if (typeof result === 'string') {
+      try {
+        result = JSON.parse(result);
+      } catch {
+        result = {};
+      }
+    }
+    return {
+      id: String(row.id),
+      status: row.status,
+      phase:
+        row.phase != null && String(row.phase).trim() !== ''
+          ? String(row.phase).trim()
+          : 'products',
+      totalProducts: row.total_products,
+      processedProducts: row.processed_products,
+      createdCount: row.created_count,
+      errorCount: row.error_count,
+      lastError: row.last_error,
+      productsCompletedAt: row.products_completed_at ?? null,
+      mediaTotal: row.media_total != null ? Number(row.media_total) : 0,
+      mediaProcessed: row.media_processed != null ? Number(row.media_processed) : 0,
+      mediaErrorCount: row.media_error_count != null ? Number(row.media_error_count) : 0,
+      payload: payload && typeof payload === 'object' ? payload : {},
+      result: result && typeof result === 'object' ? result : {},
+      createdAt: row.created_at,
+      completedAt: row.completed_at,
+    };
+  }
+
+  async startDuplicateJob(req, res) {
+    try {
+      const idsRaw = Array.isArray(req.body?.productIds)
+        ? req.body.productIds
+        : Array.isArray(req.body?.ids)
+          ? req.body.ids
+          : null;
+      if (!Array.isArray(idsRaw)) {
+        return res.status(400).json({
+          error: 'productIds or ids array required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const ids = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
+      if (!ids.length) {
+        return res.status(400).json({ error: 'No products selected', code: 'VALIDATION_ERROR' });
+      }
+      if (ids.length > PRODUCTS_BATCH_MAX_IDS) {
+        return res.status(400).json({
+          error: `Too many ids (max ${PRODUCTS_BATCH_MAX_IDS} per request)`,
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const copyMedia = req.body?.copyMedia === true;
+      const jobRow = await this.model.insertProductDuplicateJob(req, {
+        productIds: ids,
+        copyMedia,
+      });
+      const jobId = String(jobRow.id);
+      setImmediate(() => {
+        runProductDuplicateJob(this, req, jobId).catch((err) => {
+          Logger.error('Product duplicate job failed', err, { jobId });
+        });
+      });
+      return res.status(202).json({
+        ok: true,
+        jobId,
+        accepted: true,
+        totalProducts: ids.length,
+        copyMedia,
+      });
+    } catch (error) {
+      Logger.error('startDuplicateJob', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to start duplicate job' });
+    }
+  }
+
+  async getDuplicateJob(req, res) {
+    try {
+      const jobId = String(req.params.jobId || '').trim();
+      if (!jobId) {
+        return res.status(400).json({ error: 'Missing job id', code: 'VALIDATION_ERROR' });
+      }
+      const job = await this.model.getProductDuplicateJob(req, jobId);
+      if (!job) {
+        return res.status(404).json({ error: 'Duplicate job not found', code: 'NOT_FOUND' });
+      }
+      return res.json({ job: this.mapDuplicateJobRow(job) });
+    } catch (error) {
+      Logger.error('getDuplicateJob', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to load duplicate job' });
     }
   }
 

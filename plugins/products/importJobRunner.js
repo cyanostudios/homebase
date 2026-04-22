@@ -130,4 +130,4 @@ async function runProductImportJob(controller, req, jobId) {
   }
 }
 
-module.exports = { runProductImportJob };
+module.exports = { runProductImportJob, waitForBatchSyncIdle };

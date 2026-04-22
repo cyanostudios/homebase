@@ -91,6 +91,8 @@ interface ProductContextType {
   selectedProductIds: string[];
   toggleProductSelected: (id: string) => void;
   selectAllProducts: (ids: string[]) => void;
+  /** Lägger till id:n i markeringen utan att ta bort befintliga (unik per id). */
+  extendProductSelection: (ids: string[]) => void;
   clearProductSelection: () => void;
 
   // Panel actions (single product or batch: same panel, always editable)
@@ -1684,6 +1686,21 @@ export function ProductProvider({
     setSelectedProductIds(norm);
   }, []);
 
+  const extendProductSelection = useCallback((ids: string[]) => {
+    const extra = Array.isArray(ids) ? ids.map(String) : [];
+    setSelectedProductIds((prev) => {
+      const seen = new Set(prev.map(String));
+      const out = [...prev.map(String)];
+      for (const id of extra) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          out.push(id);
+        }
+      }
+      return out;
+    });
+  }, []);
+
   const clearProductSelection = useCallback(() => {
     setSelectedProductIds([]);
   }, []);
@@ -1754,6 +1771,7 @@ export function ProductProvider({
       selectedProductIds,
       toggleProductSelected,
       selectAllProducts,
+      extendProductSelection,
       clearProductSelection,
 
       // actions
@@ -1804,6 +1822,7 @@ export function ProductProvider({
       selectedProductIds,
       toggleProductSelected,
       selectAllProducts,
+      extendProductSelection,
       clearProductSelection,
       importProducts,
       saveProduct,

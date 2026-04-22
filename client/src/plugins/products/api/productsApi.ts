@@ -108,6 +108,34 @@ export type ProductExportRequestBody = {
 /** Finished import job (after background processing). */
 export type ProductImportResult = { ok: true; job: ProductImportJobSnapshot };
 
+export type ProductDuplicateIncompleteGroup = {
+  groupId: string;
+  memberIds: string[];
+};
+
+export type ProductDuplicateJobSnapshot = {
+  id: string;
+  status: string;
+  /** products | media | done */
+  phase: string;
+  totalProducts: number;
+  processedProducts: number;
+  createdCount: number;
+  errorCount: number;
+  lastError: string | null;
+  productsCompletedAt: string | null;
+  mediaTotal: number;
+  mediaProcessed: number;
+  mediaErrorCount: number;
+  payload: { productIds?: string[]; copyMedia?: boolean };
+  result: {
+    createdIds?: Array<{ sourceId: string; newId: string }>;
+    errors?: Array<{ sourceId: string; error: string }>;
+  };
+  createdAt: string;
+  completedAt: string | null;
+};
+
 export type SelloSettings = {
   id?: string;
   apiKey: string;
@@ -278,6 +306,64 @@ class ProductsApi {
       method: 'PUT',
       body: JSON.stringify({ listId }),
     });
+  }
+
+  /** PUT /api/products/batch/list — move many products to Huvudlista (listId null) or a named list. */
+  async batchSetProductList(
+    ids: string[],
+    listId: string | null,
+  ): Promise<{ ok: true; updatedCount: number }> {
+    return this.request('/products/batch/list', {
+      method: 'PUT',
+      body: JSON.stringify({ ids, listId }),
+    });
+  }
+
+  /** POST /api/products/duplicate/precheck — variant groups where not all members are selected. */
+  async duplicatePrecheck(
+    ids: string[],
+  ): Promise<{ incompleteGroups: ProductDuplicateIncompleteGroup[] }> {
+    return this.request('/products/duplicate/precheck', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+  }
+
+  /**
+   * POST /api/products/duplicate/jobs — 202, background duplicate with optional media copy.
+   */
+  async startDuplicateJob(
+    productIds: string[],
+    copyMedia: boolean,
+  ): Promise<{
+    ok: true;
+    jobId: string;
+    accepted: boolean;
+    totalProducts: number;
+    copyMedia: boolean;
+  }> {
+    return this.request('/products/duplicate/jobs', {
+      method: 'POST',
+      body: JSON.stringify({ productIds, copyMedia }),
+    });
+  }
+
+  async getDuplicateJob(jobId: string): Promise<{ job: ProductDuplicateJobSnapshot }> {
+    return this.request(`/products/duplicate/jobs/${encodeURIComponent(jobId)}`);
+  }
+
+  async waitForDuplicateJob(jobId: string, intervalMs = 750): Promise<ProductDuplicateJobSnapshot> {
+    const deadline = Date.now() + 30 * 60 * 1000;
+    while (Date.now() < deadline) {
+      const { job } = await this.getDuplicateJob(jobId);
+      if (job.status === 'completed' || job.status === 'failed') {
+        return job;
+      }
+      await this.sleep(intervalMs);
+    }
+    const err: any = new Error('Produktkopiering tog för lång tid');
+    err.code = 'DUPLICATE_TIMEOUT';
+    throw err;
   }
 
   // ---- CRUD ----

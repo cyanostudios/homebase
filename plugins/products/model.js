@@ -10,6 +10,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 const { AppError } = require('../../server/core/errors/AppError');
+const duplicateMediaTaskModel = require('./duplicateMediaTaskModel');
 
 const CATALOG_SEARCH_SCOPES = new Set([
   'all',
@@ -1850,6 +1851,11 @@ class ProductModel {
         throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
       }
 
+      await duplicateMediaTaskModel.assertSourceNotLockedForActiveDuplicateMediaTask(
+        req,
+        productId,
+      );
+
       const sql = `
         DELETE FROM ${ProductModel.TABLE}
         WHERE id::text = $1
@@ -1904,6 +1910,10 @@ class ProductModel {
 
       if (!ids.length) {
         return { deletedCount: 0, deletedIds: [] };
+      }
+
+      for (const id of ids) {
+        await duplicateMediaTaskModel.assertSourceNotLockedForActiveDuplicateMediaTask(req, id);
       }
 
       const sql = `
@@ -3363,6 +3373,502 @@ class ProductModel {
       listId: row.list_id != null ? String(row.list_id) : null,
       listName: row.list_name ?? null,
     };
+  }
+
+  /**
+   * Move many products to the same list (transaction). Same rules as setProductList per id.
+   * @param {string[]|number[]} productIds
+   * @param {string|null|undefined} listId - numeric list id string or null/empty for Huvudlista
+   */
+  async batchSetProductList(req, productIds, listId) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    const userId = Context.getUserId(req);
+    if (!userId) {
+      throw new AppError('User not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+
+    const ids = Array.from(
+      new Set(
+        (Array.isArray(productIds) ? productIds : [])
+          .map((x) => String(x ?? '').trim())
+          .filter(Boolean),
+      ),
+    );
+    if (!ids.length) {
+      throw new AppError('Inga produkter valda', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+
+    const normalizedNextListId =
+      listId != null && String(listId).trim() !== '' ? String(parseInt(String(listId), 10)) : null;
+    if (normalizedNextListId !== null && !Number.isFinite(Number(normalizedNextListId))) {
+      throw new AppError('Ogiltig lista', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+
+    await db.transaction(async (tx) => {
+      for (const idText of ids) {
+        const idNum = parseInt(String(idText), 10);
+        if (!Number.isFinite(idNum)) {
+          throw new AppError('Ogiltigt produkt-id', 400, AppError.CODES.VALIDATION_ERROR);
+        }
+        const rows = await tx.query(`SELECT id FROM ${ProductModel.TABLE} WHERE id = $1 LIMIT 1`, [
+          idNum,
+        ]);
+        if (!rows.length) {
+          throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
+        }
+        await tx.query(`DELETE FROM product_list_items WHERE product_id = $1 AND user_id = $2`, [
+          idNum,
+          userId,
+        ]);
+        if (normalizedNextListId !== null) {
+          await tx.query(
+            `INSERT INTO product_list_items (list_id, product_id, user_id) VALUES ($1, $2, $3)`,
+            [parseInt(normalizedNextListId, 10), idNum, userId],
+          );
+        }
+      }
+    });
+
+    return { updatedCount: ids.length };
+  }
+
+  async pruneProductDuplicateJobs(req) {
+    const db = Database.get(req);
+    await db.query(`
+      DELETE FROM product_duplicate_jobs
+      WHERE id NOT IN (
+        SELECT id FROM (
+          SELECT id FROM product_duplicate_jobs
+          ORDER BY created_at DESC
+          LIMIT 50
+        ) k
+      )
+    `);
+  }
+
+  async insertProductDuplicateJob(req, { productIds, copyMedia }) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const ids = Array.isArray(productIds)
+      ? Array.from(new Set(productIds.map((x) => String(x).trim()).filter(Boolean)))
+      : [];
+    if (!ids.length) {
+      throw new AppError('Inga produkter valda', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    const payload = { productIds: ids, copyMedia: copyMedia === true };
+    const rows = await db.query(
+      `
+      INSERT INTO product_duplicate_jobs
+        (status, phase, total_products, processed_products, created_count, error_count, payload, result)
+      VALUES ($1, 'products', $2, 0, 0, 0, $3::jsonb, '{}'::jsonb)
+      RETURNING *
+      `,
+      ['queued', ids.length, JSON.stringify(payload)],
+    );
+    await this.pruneProductDuplicateJobs(req);
+    return rows[0];
+  }
+
+  async updateProductDuplicateJob(req, jobId, fields) {
+    const db = Database.get(req);
+    const jid = String(jobId || '').trim();
+    if (!jid) return;
+    const allowed = [
+      'status',
+      'phase',
+      'products_completed_at',
+      'media_total',
+      'media_processed',
+      'media_error_count',
+      'total_products',
+      'processed_products',
+      'created_count',
+      'error_count',
+      'last_error',
+      'payload',
+      'result',
+      'completed_at',
+    ];
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    for (const key of allowed) {
+      if (fields[key] === undefined) continue;
+      if (key === 'payload' || key === 'result') {
+        sets.push(`${key} = $${idx}::jsonb`);
+        params.push(JSON.stringify(fields[key]));
+      } else if (key === 'completed_at' || key === 'products_completed_at') {
+        sets.push(`${key} = $${idx}::timestamptz`);
+        params.push(fields[key]);
+      } else {
+        sets.push(`${key} = $${idx}`);
+        params.push(fields[key]);
+      }
+      idx += 1;
+    }
+    if (!sets.length) return;
+    params.push(jid);
+    await db.query(
+      `UPDATE product_duplicate_jobs SET ${sets.join(', ')} WHERE id::text = $${idx}`,
+      params,
+    );
+  }
+
+  async getProductDuplicateJob(req, jobId) {
+    const db = Database.get(req);
+    const jid = String(jobId || '').trim();
+    if (!jid) return null;
+    const rows = await db.query(
+      `SELECT * FROM product_duplicate_jobs WHERE id::text = $1 LIMIT 1`,
+      [jid],
+    );
+    return rows[0] || null;
+  }
+
+  /**
+   * After deferred duplicate media copy: write canonical hosted images to the product row.
+   * @param {object} canonical Return value from duplicateManagedMediaBetweenProducts
+   */
+  async updateProductCanonicalImagesAfterMediaDuplicate(req, productId, canonical) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    const pid = Number(productId);
+    if (!Number.isFinite(pid)) {
+      throw new AppError('Invalid product id', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    const mainImage = canonical?.mainImage != null ? canonical.mainImage : null;
+    const images = Array.isArray(canonical?.images) ? canonical.images : [];
+    await db.query(
+      `UPDATE ${ProductModel.TABLE}
+       SET main_image = $1,
+           images = $2::jsonb,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3`,
+      [mainImage, JSON.stringify(images), pid],
+    );
+  }
+
+  /**
+   * Next free SKU as base-1, base-2, … for duplicate products (per tenant schema).
+   */
+  async allocateDuplicateSku(req, baseSku) {
+    const db = Database.get(req);
+    const base = String(baseSku ?? '').trim();
+    if (!base) return null;
+    let n = 1;
+    while (n < 50000) {
+      const candidate = `${base}-${n}`;
+      const rows = await db.query(`SELECT 1 FROM ${ProductModel.TABLE} WHERE sku = $1 LIMIT 1`, [
+        candidate,
+      ]);
+      if (!rows.length) {
+        return candidate;
+      }
+      n += 1;
+    }
+    throw new AppError('Kunde inte hitta ledigt artikelnummer', 409, AppError.CODES.CONFLICT);
+  }
+
+  async copyProductListMembershipFromSource(req, sourceProductId, destProductId) {
+    const db = Database.get(req);
+    const userId = Context.getUserId(req);
+    if (!userId) {
+      throw new AppError('User not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+    const src = parseInt(String(sourceProductId), 10);
+    const dst = parseInt(String(destProductId), 10);
+    if (!Number.isFinite(src) || !Number.isFinite(dst)) return;
+    const rows = await db.query(
+      `SELECT list_id FROM product_list_items WHERE product_id = $1 AND user_id = $2 LIMIT 1`,
+      [src, userId],
+    );
+    if (!rows.length) {
+      return;
+    }
+    const listId = rows[0].list_id;
+    await db.query(
+      `INSERT INTO product_list_items (list_id, product_id, user_id) VALUES ($1, $2, $3)`,
+      [listId, dst, userId],
+    );
+  }
+
+  async copyChannelOverridesForDuplicate(req, sourceProductId, destProductId) {
+    const db = Database.get(req);
+    const src = String(sourceProductId ?? '').trim();
+    const dst = String(destProductId ?? '').trim();
+    if (!src || !dst) return;
+    const rows = await db.query(`SELECT * FROM channel_product_overrides WHERE product_id = $1`, [
+      src,
+    ]);
+    for (const r of rows || []) {
+      await db.query(
+        `
+        INSERT INTO channel_product_overrides (
+          product_id, channel, instance, channel_instance_id, active,
+          price_amount, currency, vat_rate, category, sale_price, original_price
+        )
+        VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7, $8, $9, $10)
+        `,
+        [
+          dst,
+          r.channel,
+          r.instance,
+          r.channel_instance_id != null ? r.channel_instance_id : null,
+          r.price_amount != null ? r.price_amount : null,
+          r.currency != null ? r.currency : null,
+          r.vat_rate != null ? r.vat_rate : null,
+          r.category != null ? r.category : null,
+          r.sale_price != null ? r.sale_price : null,
+          r.original_price != null ? r.original_price : null,
+        ],
+      );
+    }
+  }
+
+  /** After duplicating group main: set group_id to own id (same as setProductGroup anchor). */
+  async setDuplicateMainGroupAnchor(req, productId) {
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    const id = parseInt(String(productId), 10);
+    if (!Number.isFinite(id)) return;
+    await db.query(
+      `UPDATE ${ProductModel.TABLE}
+       SET group_id = CAST(id AS text), updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [id],
+    );
+  }
+
+  /**
+   * Deep duplicate one product (new row). Does not copy channel_product_map.
+   * @param {object} opts
+   * @param {boolean} opts.copyMedia
+   * @param {boolean} opts.stripAllGroup - clear group_id, parent, variation type
+   * @param {boolean} [opts.stripGroupLinksOnly] - clear group_id and parent only; keep variation type on row via update
+   * @param {string|null} [opts.groupId] - force group_id on insert (children)
+   * @param {string|null} [opts.parentProductId] - set via updateProductGroupRelation after create
+   * @param {string|null} [opts.groupVariationType] - set via updateProductGroupRelation
+   * @param {object|null} [opts.mediaService] ProductMediaService instance
+   * @param {boolean} [opts.deferMediaCopy] When true with copyMedia, seed images on the new row but skip duplicateManagedMediaBetweenProducts (background job handles it).
+   */
+  async duplicateProductFromSource(req, sourceProductId, opts = {}) {
+    const copyMedia = opts.copyMedia === true;
+    const deferMediaCopy = opts.deferMediaCopy === true;
+    const stripAllGroup = opts.stripAllGroup === true;
+    const stripLinksOnly = opts.stripGroupLinksOnly === true;
+    const forcedGroupId =
+      opts.groupId !== undefined && opts.groupId != null && String(opts.groupId).trim() !== ''
+        ? String(opts.groupId).trim()
+        : null;
+
+    const db = Database.get(req);
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+    const srcId = parseInt(String(sourceProductId).trim(), 10);
+    if (!Number.isFinite(srcId)) {
+      throw new AppError('Invalid product id', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+
+    const srcPeek = await db.query(
+      `SELECT sku, group_variation_type FROM ${ProductModel.TABLE} WHERE id = $1`,
+      [srcId],
+    );
+    if (!srcPeek.length) {
+      throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
+    }
+
+    const baseSku =
+      srcPeek[0].sku != null && String(srcPeek[0].sku).trim() !== ''
+        ? String(srcPeek[0].sku).trim()
+        : null;
+    const newSku = baseSku ? await this.allocateDuplicateSku(req, baseSku) : null;
+
+    let groupVariationForRelation = srcPeek[0].group_variation_type ?? null;
+    if (stripAllGroup) {
+      groupVariationForRelation = null;
+    }
+
+    let groupIdSql;
+    let parentSql;
+    let groupVarSql;
+    const insertParams = [newSku, copyMedia, srcId];
+    if (stripAllGroup) {
+      groupIdSql = 'NULL';
+      parentSql = 'NULL';
+      groupVarSql = 'NULL';
+    } else if (forcedGroupId != null) {
+      groupIdSql = '$4::varchar(100)';
+      parentSql = 'NULL';
+      groupVarSql = 'NULL';
+      insertParams.push(forcedGroupId);
+    } else if (stripLinksOnly) {
+      groupIdSql = 'NULL';
+      parentSql = 'NULL';
+      groupVarSql = 'src.group_variation_type';
+    } else {
+      groupIdSql = 'src.group_id';
+      parentSql = 'src.parent_product_id';
+      groupVarSql = 'src.group_variation_type';
+    }
+
+    const insertSql = `
+      INSERT INTO ${ProductModel.TABLE} (
+        sku,
+        mpn,
+        title,
+        description,
+        status,
+        quantity,
+        price_amount,
+        currency,
+        vat_rate,
+        main_image,
+        images,
+        categories,
+        brand,
+        brand_id,
+        ean,
+        gtin,
+        kn_number,
+        supplier_id,
+        manufacturer_id,
+        channel_specific,
+        purchase_price,
+        lagerplats,
+        condition,
+        group_id,
+        volume,
+        volume_unit,
+        notes,
+        private_name,
+        color,
+        color_text,
+        size,
+        size_text,
+        pattern,
+        material,
+        pattern_text,
+        model,
+        weight,
+        length_cm,
+        width_cm,
+        height_cm,
+        depth_cm,
+        source_created_at,
+        quantity_sold,
+        last_sold_at,
+        is_draft,
+        parent_product_id,
+        group_variation_type
+      )
+      SELECT
+        $1::varchar(255),
+        src.mpn,
+        src.title,
+        src.description,
+        src.status,
+        src.quantity,
+        src.price_amount,
+        src.currency,
+        src.vat_rate,
+        CASE WHEN $2::boolean THEN src.main_image ELSE NULL END,
+        CASE
+          WHEN $2::boolean THEN COALESCE(src.images, '[]'::jsonb)
+          ELSE '[]'::jsonb
+        END,
+        COALESCE(src.categories, '[]'::jsonb),
+        src.brand,
+        src.brand_id,
+        src.ean,
+        src.gtin,
+        src.kn_number,
+        src.supplier_id,
+        src.manufacturer_id,
+        src.channel_specific,
+        src.purchase_price,
+        src.lagerplats,
+        src.condition,
+        ${groupIdSql},
+        src.volume,
+        src.volume_unit,
+        src.notes,
+        src.private_name,
+        src.color,
+        src.color_text,
+        src.size,
+        src.size_text,
+        src.pattern,
+        src.material,
+        src.pattern_text,
+        src.model,
+        src.weight,
+        src.length_cm,
+        src.width_cm,
+        src.height_cm,
+        src.depth_cm,
+        src.source_created_at,
+        src.quantity_sold,
+        src.last_sold_at,
+        FALSE,
+        ${parentSql},
+        ${groupVarSql}
+      FROM ${ProductModel.TABLE} AS src
+      WHERE src.id = $3::int
+      RETURNING *
+    `;
+
+    const ins = await db.query(insertSql, insertParams);
+    const createdRow = ins[0];
+    if (!createdRow) {
+      throw new AppError('Failed to duplicate product', 500, AppError.CODES.DATABASE_ERROR);
+    }
+    const newId = createdRow.id;
+
+    await this.copyProductListMembershipFromSource(req, sourceProductId, newId);
+    await this.copyChannelOverridesForDuplicate(req, sourceProductId, newId);
+
+    const gvFinal =
+      opts.groupVariationType !== undefined ? opts.groupVariationType : groupVariationForRelation;
+
+    if (!stripAllGroup) {
+      if (stripLinksOnly) {
+        await this.updateProductGroupRelation(req, newId, {
+          parentProductId: null,
+          groupVariationType: gvFinal,
+        });
+      } else if (opts.parentProductId !== undefined) {
+        await this.updateProductGroupRelation(req, newId, {
+          parentProductId: opts.parentProductId,
+          groupVariationType: gvFinal,
+        });
+      }
+    }
+
+    if (copyMedia && opts.mediaService && !deferMediaCopy) {
+      const canonical = await opts.mediaService.duplicateManagedMediaBetweenProducts(
+        req,
+        sourceProductId,
+        newId,
+      );
+      await db.query(
+        `UPDATE ${ProductModel.TABLE}
+         SET main_image = $1,
+             images = $2::jsonb,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [canonical.mainImage ?? null, JSON.stringify(canonical.images || []), newId],
+      );
+    }
+
+    return this.getById(req, newId);
   }
 
   async setProductList(req, productId, listId) {

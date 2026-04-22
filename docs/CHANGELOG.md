@@ -4,6 +4,47 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-21 – Produkter: Uppskjuten mediaduplicering (duplicate jobs)
+
+### Databas
+
+- **`099-product-duplicate-deferred-media.sql`:** kolumner på **`product_duplicate_jobs`** (`phase`, `products_completed_at`, `media_total`, `media_processed`, `media_error_count`); tabell **`product_duplicate_media_tasks`** (käll-/mål-produkt per jobb, status, fel).
+
+### API / worker
+
+- **`duplicateJobRunner`:** fas 1 skapar produkter med källans `main_image`/`images` utan att vänta på B2; fas 2 kopierar **`product_media_objects`** via befintlig **`duplicateManagedMediaBetweenProducts`** och uppdaterar målprodukten med kanoniska bilder.
+- **`model.duplicateProductFromSource`:** flagga **`deferMediaCopy`** hoppar över omedelbar mediakopia när `copyMedia` är sann.
+- **Spärr:** så länge en produkt är **`source_product_id`** i en aktiv task (`queued`/`running`) blockeras produktdelete (**`model.delete`** / **`bulkDelete`**) och B2-rensning via **`ProductMediaService.deleteManagedRows`** (inkl. reconcile).
+
+### Klient
+
+- **`GET .../duplicate/jobs/:id`:** utökat svar med **`phase`**, **`mediaTotal`**, **`mediaProcessed`**, **`mediaErrorCount`**, **`productsCompletedAt`**.
+- **`ProductList`:** refresh av listan när jobbet går till **`phase === 'media'`**; alert vid **`mediaErrorCount`**.
+
+---
+
+## 2026-04-21 – Produkter: Flytta och Kopiera (Hantera-menyn)
+
+### Databas
+
+- **`098-product-duplicate-jobs.sql`:** tabell **`product_duplicate_jobs`** för asynkron masskopiering (status, räknare, payload, resultat).
+
+### API (`plugins/products`)
+
+- **`PUT /api/products/batch/list`:** flyttar upp till batch-gränsen av produkter till **Huvudlista** (`listId: null`) eller vald lista (`product_list_items`).
+- **`POST /api/products/duplicate/precheck`:** returnerar variantgrupper där inte alla medlemmar är markerade.
+- **`POST /api/products/duplicate/jobs`:** startar bakgrundsjobb (202) med `productIds` / `ids` och **`copyMedia`**.
+- **`GET /api/products/duplicate/jobs/:jobId`:** jobbstatus för polling.
+- **`duplicateJobRunner`**, **`model.duplicateProductFromSource`** m.m.: kloning enligt plan (tom **`channel_product_map`**, deep copy **`channel_specific`**, **`channel_product_overrides`** med **`active=false`**, samma lista som källa, valfri mediaduplicering, SKU-suffix / NULL).
+
+### Klient
+
+- **`ProductList`:** **Flytta…** (modal med mållista), **Kopiera…** (gruppvarning med tre val, bekräftelse + _Kopiera media_, polling tills jobb klart).
+- **`productsApi`:** `batchSetProductList`, `duplicatePrecheck`, `startDuplicateJob`, `getDuplicateJob`, `waitForDuplicateJob`.
+- **`ProductContext`:** **`extendProductSelection`** för att utöka markering till hela variantgruppen.
+
+---
+
 ## 2026-04-21 – Produkter: scoped sök i katalogen
 
 ### API (`plugins/products`)

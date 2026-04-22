@@ -106,6 +106,55 @@ class ProductMediaObjectModel {
     return rows[0] || null;
   }
 
+  /** Insert with fixed UUID so storage keys (path) match row id / assetId. */
+  async createWithExplicitId(req, explicitId, row) {
+    const db = Database.get(req);
+    const input = this.normalizeRowInput(req, row);
+    const id = String(explicitId || '').trim();
+    if (!id) return null;
+    const rows = await db.query(
+      `
+      INSERT INTO product_media_objects (
+        id,
+        product_id,
+        created_by_user_id,
+        source_kind,
+        source_url,
+        original_filename,
+        storage_key,
+        url,
+        position,
+        content_hash,
+        mime_type,
+        size_bytes,
+        width,
+        height,
+        variants
+      )
+      VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+      RETURNING *
+      `,
+      [
+        id,
+        input.productId,
+        input.createdByUserId,
+        input.sourceKind,
+        input.sourceUrl,
+        input.originalFilename,
+        input.storageKey,
+        input.url,
+        input.position,
+        input.contentHash,
+        input.mimeType,
+        input.sizeBytes,
+        input.width,
+        input.height,
+        JSON.stringify(input.variants || {}),
+      ],
+    );
+    return rows[0] || null;
+  }
+
   async updateById(req, id, row) {
     const db = Database.get(req);
     const cleanId = String(id || '').trim();

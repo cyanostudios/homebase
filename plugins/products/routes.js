@@ -306,6 +306,52 @@ function createProductRoutes(controller, context) {
     (req, res) => controller.setProductGroup(req, res),
   );
 
+  // PUT /api/products/batch/list — move products to list (MUST be before '/:id')
+  router.put(
+    '/batch/list',
+    gate,
+    csrfProtection,
+    [
+      commonRules.array('ids', 250),
+      body('listId')
+        .optional({ values: 'null' })
+        .custom((v) => {
+          if (v === null || v === undefined || v === '') return true;
+          if (typeof v === 'string' && /^\d+$/.test(v.trim())) return true;
+          if (typeof v === 'number' && Number.isFinite(v)) return true;
+          throw new Error('listId must be null, empty, or a numeric list id');
+        }),
+    ],
+    validateRequest,
+    (req, res) => controller.batchSetProductList(req, res),
+  );
+
+  // POST /api/products/duplicate/precheck — incomplete variant groups
+  router.post(
+    '/duplicate/precheck',
+    gate,
+    csrfProtection,
+    [commonRules.array('ids', 250)],
+    validateRequest,
+    (req, res) => controller.duplicatePrecheck(req, res),
+  );
+
+  // POST /api/products/duplicate/jobs — async duplicate
+  router.post(
+    '/duplicate/jobs',
+    gate,
+    csrfProtection,
+    [
+      body('productIds').optional().isArray(),
+      body('ids').optional().isArray(),
+      body('copyMedia').optional().isBoolean(),
+    ],
+    validateRequest,
+    (req, res) => controller.startDuplicateJob(req, res),
+  );
+
+  router.get('/duplicate/jobs/:jobId', gate, (req, res) => controller.getDuplicateJob(req, res));
+
   // DELETE /api/products/batch - Bulk delete (MUST be before '/:id' route)
   router.delete(
     '/batch',

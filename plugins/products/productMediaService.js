@@ -15,6 +15,7 @@ const {
 } = require('../../server/core/services/storage/imageProcessingService');
 const { MediaAssetService } = require('../../server/core/services/storage/mediaAssetService');
 const ProductMediaObjectModel = require('./productMediaObjectModel');
+const duplicateMediaTaskModel = require('./duplicateMediaTaskModel');
 const {
   collectAssetVariantDeleteTargets,
   collectAssetVariantKeys,
@@ -608,6 +609,91 @@ class ProductMediaService {
     }
   }
 
+  /**
+   * Copy managed media from source product to destination: new B2 keys + new product_media_objects rows.
+   */
+  async duplicateManagedMediaBetweenProducts(req, sourceProductId, destProductId) {
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    const srcPid = Number(sourceProductId);
+    const dstPid = Number(destProductId);
+    if (!Number.isFinite(srcPid) || !Number.isFinite(dstPid)) {
+      throw new AppError('Invalid product id', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    const storage = this.getStorage();
+    const rows = await this.mediaObjectModel.listByProductId(req, srcPid);
+    for (const row of rows) {
+      const asset = this.rowToAsset(row);
+      const hash = toTrimmedString(row.content_hash);
+      if (!hash) {
+        Logger.warn('duplicateManagedMediaBetweenProducts: skip row without content_hash', {
+          rowId: row?.id ?? null,
+        });
+        continue;
+      }
+      const position =
+        row.position != null && Number.isFinite(Number(row.position))
+          ? Math.trunc(Number(row.position))
+          : 0;
+      const newAssetId = crypto.randomUUID();
+      const variantNames = ['original', 'preview', 'thumbnail'];
+      const keyMap = new Map();
+      for (const vn of variantNames) {
+        const prevKey = toTrimmedString(asset?.variants?.[vn]?.key);
+        if (!prevKey) continue;
+        const ext = extensionFromVariantKey(prevKey) || 'bin';
+        const newKey = storage.buildAssetVariantKey({
+          tenantId: String(tenantId),
+          productId: String(dstPid),
+          pendingScope: null,
+          assetId: newAssetId,
+          position,
+          variant: vn,
+          hash,
+          extension: ext,
+        });
+        const uploaded = await storage.copyObjectWithinBucket({
+          sourceKey: prevKey,
+          destinationKey: newKey,
+        });
+        keyMap.set(prevKey, uploaded);
+      }
+      const nextVariants = { ...asset.variants };
+      for (const vn of variantNames) {
+        const prev = nextVariants[vn];
+        const prevKey = toTrimmedString(prev?.key);
+        if (!prevKey) continue;
+        const mapped = keyMap.get(prevKey);
+        if (!mapped) continue;
+        nextVariants[vn] = {
+          ...prev,
+          key: mapped.key,
+          url: mapped.publicUrl,
+          versionId: mapped.versionId,
+        };
+      }
+      const merged = normalizeProductImageAsset(
+        {
+          ...asset,
+          assetId: newAssetId,
+          variants: nextVariants,
+        },
+        position,
+      );
+      if (!merged) continue;
+      await this.mediaObjectModel.createWithExplicitId(
+        req,
+        newAssetId,
+        this.buildRowPayloadFromAsset(merged, {
+          productId: dstPid,
+          sourceKind: row.source_kind,
+        }),
+      );
+    }
+    const rowsLive = await this.mediaObjectModel.listByProductId(req, dstPid);
+    return this.buildCanonicalHostedImagesFromRows(rowsLive);
+  }
+
   async syncAssetPositions(req, productId, assets) {
     const ordered = normalizeProductImages(assets);
     const rows = await this.mediaObjectModel.listByProductId(req, productId);
@@ -666,7 +752,7 @@ class ProductMediaService {
       (row) => !this.rowMatchesAsset(row, keepAssetIds, keepKeys, keepUrls),
     );
     if (stale.length) {
-      await this.deleteManagedRows(stale, {
+      await this.deleteManagedRows(req, stale, {
         productId: String(productId || '').trim() || null,
         reason: 'reconcile_stale_assets',
       });
@@ -876,7 +962,7 @@ class ProductMediaService {
 
     if (duplicatePendingIds.length) {
       const rows = await this.mediaObjectModel.findByIds(req, duplicatePendingIds);
-      await this.deleteManagedRows(rows);
+      await this.deleteManagedRows(req, rows, { reason: 'dedupe_pending_rows' });
       await this.mediaObjectModel.deleteByIds(req, duplicatePendingIds);
     }
 
@@ -890,7 +976,20 @@ class ProductMediaService {
     return { mainImage: finalMain, images: ordered };
   }
 
-  async deleteManagedRows(rows, context = {}) {
+  async deleteManagedRows(req, rows, context = {}) {
+    const seenPid = new Set();
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const pid = row?.product_id;
+      if (pid == null || !Number.isFinite(Number(pid))) {
+        continue;
+      }
+      const n = Number(pid);
+      if (seenPid.has(n)) {
+        continue;
+      }
+      seenPid.add(n);
+      await duplicateMediaTaskModel.assertSourceNotLockedForActiveDuplicateMediaTask(req, n);
+    }
     const deleteTargets = this.buildDeleteTargets(rows);
     const assetCount = Array.isArray(rows) ? rows.length : 0;
     const details = {
@@ -922,7 +1021,7 @@ class ProductMediaService {
   async deleteProductMediaStrict(req, productId) {
     const productIdText = String(productId || '').trim();
     const rows = await this.mediaObjectModel.listByProductId(req, productId);
-    return this.deleteManagedRows(rows, {
+    return this.deleteManagedRows(req, rows, {
       productId: productIdText || null,
       reason: 'delete_product',
     });
@@ -966,7 +1065,7 @@ class ProductMediaService {
 
   async deleteProductsMedia(req, productIds) {
     const rows = await this.mediaObjectModel.listByProductIds(req, productIds);
-    return this.deleteManagedRows(rows, {
+    return this.deleteManagedRows(req, rows, {
       reason: 'delete_products_batch',
       productId: null,
     });

@@ -14,12 +14,15 @@ import {
   RefreshCw,
   Share2,
   Layers,
+  Copy,
+  FolderInput,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   NativeSelect,
   Select,
@@ -67,7 +71,7 @@ import { useFyndiqProducts } from '@/plugins/fyndiq-products/context/FyndiqProdu
 import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 
 import { productsApi } from '../api/productsApi';
-import type { ProductListParams } from '../api/productsApi';
+import type { ProductDuplicateJobSnapshot, ProductListParams } from '../api/productsApi';
 import {
   CATALOG_SEARCH_INPUT_PLACEHOLDER,
   DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
@@ -349,6 +353,7 @@ export const ProductList: React.FC = () => {
     selectedProductIds,
     toggleProductSelected,
     selectAllProducts,
+    extendProductSelection,
     clearProductSelection,
     // Bulk delete
     deleteProducts,
@@ -413,6 +418,9 @@ export const ProductList: React.FC = () => {
     }),
     [limit, offset, sortField, sortOrder, debouncedSearch, searchScope, listApiParam],
   );
+
+  const loadParamsRef = useRef(loadParams);
+  loadParamsRef.current = loadParams;
 
   useEffect(() => {
     if (!isProductCatalogBootstrap) {
@@ -548,11 +556,42 @@ export const ProductList: React.FC = () => {
 
   const [showProductSettings, setShowProductSettings] = useState(false);
 
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [moveTargetList, setMoveTargetList] = useState<string>('main');
+  const [moving, setMoving] = useState(false);
+
+  const [copyVariantWarning, setCopyVariantWarning] = useState<{
+    incompleteGroups: Array<{ groupId: string; memberIds: string[] }>;
+  } | null>(null);
+  const [showCopyConfirmModal, setShowCopyConfirmModal] = useState(false);
+  const [copyConfirmIds, setCopyConfirmIds] = useState<string[]>([]);
+  const [copyMediaChoice, setCopyMediaChoice] = useState(true);
+  const [copyPrecheckLoading, setCopyPrecheckLoading] = useState(false);
+  /** Kort väntan medan POST start duplicate körs (modal kan fortfarande visas). */
+  const [duplicateJobSubmitting, setDuplicateJobSubmitting] = useState(false);
+  /** Bakgrundspollning efter att modalen stängts. */
+  const [duplicateJobPolling, setDuplicateJobPolling] = useState(false);
+  const duplicateJobPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const duplicateJobPollMountedRef = useRef(true);
+  /** Efter produktfas: en refresh när jobbet går till mediafas så nya rader syns innan B2-kopian är klar. */
+  const duplicateJobMediaPhaseRefreshedRef = useRef(false);
+
   useEffect(() => {
     const checkScreenSize = () => setIsMobileView(window.innerWidth < 768);
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  useEffect(() => {
+    duplicateJobPollMountedRef.current = true;
+    return () => {
+      duplicateJobPollMountedRef.current = false;
+      if (duplicateJobPollRef.current) {
+        clearInterval(duplicateJobPollRef.current);
+        duplicateJobPollRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -1041,6 +1080,164 @@ export const ProductList: React.FC = () => {
 
   const hasProductSelection = selectedProductIds.length > 0;
 
+  const confirmMoveProducts = useCallback(async () => {
+    if (!selectedProductIds.length) {
+      return;
+    }
+    setMoving(true);
+    try {
+      await productsApi.batchSetProductList(
+        selectedProductIds,
+        moveTargetList === 'main' ? null : moveTargetList,
+      );
+      setShowMoveModal(false);
+      clearProductSelection();
+      await loadProducts(loadParams);
+    } catch (err: any) {
+      console.error('Move to list failed', err);
+      alert(err?.message || err?.error || 'Kunde inte flytta produkter');
+    } finally {
+      setMoving(false);
+    }
+  }, [selectedProductIds, moveTargetList, clearProductSelection, loadProducts, loadParams]);
+
+  const startCopyPrecheck = useCallback(async () => {
+    if (!selectedProductIds.length) {
+      return;
+    }
+    setCopyPrecheckLoading(true);
+    try {
+      const pre = await productsApi.duplicatePrecheck(selectedProductIds);
+      if (pre.incompleteGroups?.length) {
+        setCopyVariantWarning({ incompleteGroups: pre.incompleteGroups });
+      } else {
+        setCopyConfirmIds([...selectedProductIds]);
+        setCopyMediaChoice(true);
+        setShowCopyConfirmModal(true);
+      }
+    } catch (err: any) {
+      console.error('Duplicate precheck failed', err);
+      alert(err?.message || err?.error || 'Kunde inte förbereda kopiering');
+    } finally {
+      setCopyPrecheckLoading(false);
+    }
+  }, [selectedProductIds]);
+
+  const stopDuplicateJobPolling = useCallback(() => {
+    if (duplicateJobPollRef.current) {
+      clearInterval(duplicateJobPollRef.current);
+      duplicateJobPollRef.current = null;
+    }
+  }, []);
+
+  const startDuplicateJobPolling = useCallback(
+    (jobId: string) => {
+      stopDuplicateJobPolling();
+      duplicateJobMediaPhaseRefreshedRef.current = false;
+      const deadline = Date.now() + 30 * 60 * 1000;
+      let inFlight = false;
+
+      const handleTerminalJob = async (job: ProductDuplicateJobSnapshot) => {
+        if (!duplicateJobPollMountedRef.current) {
+          return;
+        }
+        setDuplicateJobPolling(false);
+        if (job.status === 'failed') {
+          alert(job.lastError || 'Kopiering misslyckades');
+          return;
+        }
+        const mediaErr = Number(job.mediaErrorCount) || 0;
+        if (job.errorCount > 0 || mediaErr > 0) {
+          const parts: string[] = [];
+          if (job.errorCount > 0) {
+            parts.push(`${job.errorCount} produktfel`);
+          }
+          if (mediaErr > 0) {
+            parts.push(`${mediaErr} mediafel`);
+          }
+          alert(
+            `Kopiering klar med ${parts.join(' och ')}.${job.lastError ? ` ${job.lastError}` : ''}`,
+          );
+          await loadProducts(loadParamsRef.current);
+          return;
+        }
+        clearProductSelection();
+        await loadProducts(loadParamsRef.current);
+      };
+
+      const tick = async () => {
+        if (!duplicateJobPollMountedRef.current) {
+          return;
+        }
+        if (inFlight) {
+          return;
+        }
+        if (Date.now() > deadline) {
+          stopDuplicateJobPolling();
+          if (duplicateJobPollMountedRef.current) {
+            setDuplicateJobPolling(false);
+            alert('Produktkopiering tog för lång tid');
+          }
+          return;
+        }
+        inFlight = true;
+        try {
+          const { job } = await productsApi.getDuplicateJob(jobId);
+          if (
+            job.phase === 'media' &&
+            !duplicateJobMediaPhaseRefreshedRef.current &&
+            duplicateJobPollMountedRef.current
+          ) {
+            duplicateJobMediaPhaseRefreshedRef.current = true;
+            clearProductSelection();
+            await loadProducts(loadParamsRef.current);
+          }
+          if (job.status === 'completed' || job.status === 'failed') {
+            stopDuplicateJobPolling();
+            await handleTerminalJob(job);
+          }
+        } catch (err: any) {
+          stopDuplicateJobPolling();
+          if (duplicateJobPollMountedRef.current) {
+            setDuplicateJobPolling(false);
+            console.error('Duplicate job poll failed', err);
+            alert(err?.message || err?.error || 'Kopiering misslyckades');
+          }
+        } finally {
+          inFlight = false;
+        }
+      };
+
+      void tick();
+      duplicateJobPollRef.current = setInterval(() => {
+        void tick();
+      }, 750);
+    },
+    [clearProductSelection, loadProducts, stopDuplicateJobPolling],
+  );
+
+  const executeDuplicateConfirm = useCallback(async () => {
+    if (!copyConfirmIds.length) {
+      return;
+    }
+    setDuplicateJobSubmitting(true);
+    try {
+      const started = await productsApi.startDuplicateJob(copyConfirmIds, copyMediaChoice);
+      setShowCopyConfirmModal(false);
+      setCopyVariantWarning(null);
+      setDuplicateJobSubmitting(false);
+      setDuplicateJobPolling(true);
+      startDuplicateJobPolling(started.jobId);
+    } catch (err: any) {
+      console.error('Duplicate job start failed', err);
+      alert(err?.message || err?.error || 'Kopiering misslyckades');
+      setDuplicateJobSubmitting(false);
+    }
+  }, [copyConfirmIds, copyMediaChoice, startDuplicateJobPolling]);
+
+  const duplicateCopyMenuBusy =
+    copyPrecheckLoading || duplicateJobSubmitting || duplicateJobPolling;
+
   const productToolbarActions = (
     <div className="flex items-center gap-2 flex-wrap">
       <DropdownMenu>
@@ -1101,6 +1298,31 @@ export const ProductList: React.FC = () => {
           >
             <Pencil className="mr-2" aria-hidden />
             Redigera…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasProductSelection || moving}
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => {
+              setMoveTargetList(listFilter === 'all' ? 'main' : listFilter);
+              setShowMoveModal(true);
+            }}
+          >
+            <FolderInput className="mr-2" aria-hidden />
+            {moving ? 'Flyttar…' : 'Flytta…'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasProductSelection || duplicateCopyMenuBusy}
+            className={PRODUCTS_DROPDOWN_ITEM_CLASS}
+            onSelect={() => {
+              void startCopyPrecheck();
+            }}
+          >
+            {duplicateCopyMenuBusy ? (
+              <Loader2 className="mr-2 animate-spin" aria-hidden />
+            ) : (
+              <Copy className="mr-2" aria-hidden />
+            )}
+            {duplicateJobSubmitting || duplicateJobPolling ? 'Kopierar…' : 'Kopiera…'}
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={selectedProductIds.length < 2}
@@ -2131,6 +2353,188 @@ export const ProductList: React.FC = () => {
                   }}
                 >
                   {publishing ? 'Publishing…' : 'Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Flytta till lista */}
+      {showMoveModal && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !moving && setShowMoveModal(false)}
+          />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md">
+            <div className="bg-white rounded-xl shadow-xl border">
+              <div className="p-4 border-b">
+                <h3 className="mb-0 text-lg font-semibold">Flytta produkter</h3>
+                <div className="text-xs text-gray-500">
+                  {selectedProductIds.length}{' '}
+                  {selectedProductIds.length === 1 ? 'produkt' : 'produkter'} flyttas till vald
+                  lista (samma som i katalogfiltret: Huvudlista eller namngiven lista).
+                </div>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="text-sm font-medium block mb-1">Mållista</label>
+                  <select
+                    value={moveTargetList}
+                    onChange={(e) => setMoveTargetList(e.target.value)}
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    disabled={moving}
+                  >
+                    <option value="main">Huvudlista</option>
+                    {lists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="p-4 border-t flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-md border text-sm"
+                  onClick={() => setShowMoveModal(false)}
+                  disabled={moving}
+                >
+                  Avbryt
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-md bg-violet-600 text-white text-sm disabled:opacity-50"
+                  disabled={moving || !selectedProductIds.length}
+                  onClick={() => {
+                    void confirmMoveProducts();
+                  }}
+                >
+                  {moving ? 'Flyttar…' : 'Flytta'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kopiera: varning vid ofullständig variantgrupp */}
+      {copyVariantWarning && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-lg">
+            <div className="bg-white rounded-xl shadow-xl border">
+              <div className="p-4 border-b">
+                <h3 className="mb-0 text-lg font-semibold">Ofullständig variantgrupp</h3>
+                <div className="text-xs text-gray-500 mt-1">
+                  Minst en markerad produkt ingår i en variantgrupp där inte alla varianter är
+                  markerade. Du kan kopiera bara det du markerat (varje kopia blir en fristående
+                  produkt), utöka markeringen till hela gruppen, eller avbryta.
+                </div>
+              </div>
+              <div className="p-4 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-md border text-sm order-3 sm:order-1"
+                  onClick={() => setCopyVariantWarning(null)}
+                >
+                  Avbryt
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-md border text-sm order-2"
+                  onClick={() => {
+                    setCopyConfirmIds([...selectedProductIds]);
+                    setCopyMediaChoice(true);
+                    setCopyVariantWarning(null);
+                    setShowCopyConfirmModal(true);
+                  }}
+                >
+                  Fortsätt med endast markerade
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-md bg-violet-600 text-white text-sm order-1 sm:order-3"
+                  onClick={() => {
+                    const extra: string[] = [];
+                    const have = new Set(selectedProductIds.map(String));
+                    for (const g of copyVariantWarning.incompleteGroups) {
+                      for (const mid of g.memberIds) {
+                        const id = String(mid);
+                        if (!have.has(id)) {
+                          have.add(id);
+                          extra.push(id);
+                        }
+                      }
+                    }
+                    extendProductSelection(extra);
+                    setCopyConfirmIds([...selectedProductIds, ...extra]);
+                    setCopyMediaChoice(true);
+                    setCopyVariantWarning(null);
+                    setShowCopyConfirmModal(true);
+                  }}
+                >
+                  Utöka markering till hela gruppen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kopiera: bekräftelse + media */}
+      {showCopyConfirmModal && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !duplicateJobSubmitting && setShowCopyConfirmModal(false)}
+          />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md">
+            <div className="bg-white rounded-xl shadow-xl border">
+              <div className="p-4 border-b">
+                <h3 className="mb-0 text-lg font-semibold">Kopiera produkter</h3>
+                <div className="text-xs text-gray-500">
+                  {copyConfirmIds.length} {copyConfirmIds.length === 1 ? 'produkt' : 'produkter'}{' '}
+                  kopieras asynkront. Nya rader får nya id och ev. unika SKU-suffix; kanalkopplingar
+                  i Homebase kopieras inte till nya produkter.
+                </div>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="copy-product-media"
+                    checked={copyMediaChoice}
+                    onCheckedChange={(c) => setCopyMediaChoice(c === true)}
+                    disabled={duplicateJobSubmitting}
+                  />
+                  <Label
+                    htmlFor="copy-product-media"
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Kopiera media (nya filer i lagring; annars tomt galleri)
+                  </Label>
+                </div>
+              </div>
+              <div className="p-4 border-t flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-md border text-sm"
+                  onClick={() => !duplicateJobSubmitting && setShowCopyConfirmModal(false)}
+                  disabled={duplicateJobSubmitting}
+                >
+                  Avbryt
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-md bg-violet-600 text-white text-sm disabled:opacity-50"
+                  disabled={duplicateJobSubmitting || !copyConfirmIds.length}
+                  onClick={() => {
+                    void executeDuplicateConfirm();
+                  }}
+                >
+                  {duplicateJobSubmitting ? 'Startar…' : 'Bekräfta'}
                 </button>
               </div>
             </div>
