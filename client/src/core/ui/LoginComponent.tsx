@@ -159,7 +159,7 @@ export function LoginComponent() {
                     placeholder="000000"
                     value={mfaCode}
                     onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                    className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+                    className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
                   />
                 </div>
               </div>
@@ -204,7 +204,7 @@ export function LoginComponent() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+                    className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
                     placeholder="Enter your email"
                   />
                 </div>
@@ -223,7 +223,7 @@ export function LoginComponent() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+                    className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
                     placeholder={
                       mode === 'signup' ? 'At least 8 characters' : 'Enter your password'
                     }
@@ -248,7 +248,7 @@ export function LoginComponent() {
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+                      className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
                       placeholder="Confirm your password"
                     />
                   </div>

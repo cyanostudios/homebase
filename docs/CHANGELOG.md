@@ -4,6 +4,28 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-04-22 – UI: fokus utan blå ringar; grå, tunnare fokus på textrutor
+
+### Klient
+
+- **Knappar och liknande:** `Button`, `Toggle`, `Badge`, `Switch`, `Checkbox`, stäng-knappar i `Dialog`/`Sheet`, sidebar-menyer, `Select`/`SelectTrigger`/`NativeSelect`, samt fristående klickytor (t.ex. `Dashboard`-kort, orderlistans sorteringsknappar, klickbara rader i `SettingsList`/`InvoicesList`) visar **ingen** blå fokusring längre (`ring-0` / borttagen `ring-2`).
+- **Textrutor:** `Input`, `Textarea` och motsvarande fält (inloggning, inställningsformulär, Pomodoro, m.m.) använder CSS-variabel **`--input-focus-ring`** (grå), **`ring-1`** och mindre **ring-offset** i stället för tjock blå `ring-ring`.
+
+---
+
+## 2026-04-22 – Produkter: instansspecifika titel- och priskolumner i katalogen
+
+### API / backend
+
+- **`POST /api/products/search`:** valfri **`dynamicColumns`** (`t:se`|`t:dk`|`t:fi`|`t:no`, `p:{channel_instance_id}`) — validerad lista; svaret kan innehålla **`dynamicColumnValues`** (kompakt nyckel→värde per produkt).
+- **`model.list`:** vid begäran projiceras titlar från **`channel_specific.textsExtended`**, instanspriser från **`channel_product_overrides`**.
+
+### Klient
+
+- **`ProductList` / `productListColumns`:** kolumnväljaren med sektioner (marknadstitlar, CDON/Fyndiq/Woo per instans för pris); localStorage sparar blandade statiska + dynamiska id; nätverkspayload inkluderar **`dynamicColumns`** endast när sådana kolumner är valda. (Ingen separat Woo-titelkolumn — språk/marknad styrs via **`t:se`** m.fl.)
+
+---
+
 ## 2026-04-22 – Produkter: katalogfilter, sparade vyer, sök, sticky toolbar
 
 ### Databas
@@ -17,7 +39,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ### Klient
 
-- **`ProductList`:** **Filtrera** (expandbar filterpanel, utkast vs. tillämpat), **Sparade** / spara vyn, **Uppdatera lista**; sticky toolbar, **valda** till vänster om **Hantera**; kanal- och mängdfält; **Filtrera** alltid **secondary** med tunn **ring** när filterpanelen är öppen (ingen primärfärg som «påslagen»-läge).
+- **`ProductList`:** **Filtrera** (expandbar filterpanel, utkast vs. tillämpat), **Sparade** / spara vyn, **Uppdatera lista**; sticky toolbar, **valda** till vänster om **Hantera**; kanal- och mängdfält; **Filtrera** med **outline** (samma stil som **Hantera** / **Kolumner**).
 - **`ProductCatalogFilterPanel` + `productCatalogFilterTypes`:** rader per attributtyp, **Attribut** vänster + övriga åtgärder längst **ned** samma nederkant, **0** i talfält (lagerantal & kanalpris) markieras vid fokus så nästa siffra ersätter nollan.
 - **Kanal (filterkriterium):** endast **Aktiv** (rad i `channel_product_map` med `enabled = true`) respektive **Inte aktiv** (saknas aktiv mappning — utan fyrfaldig «kopplad/mappad/men av»-uppdelning i UI).
 - **`formatChannelInstanceLabel`:** **WooCommerce** visar endast **`label`** (ingen sammanslagen nyckel).

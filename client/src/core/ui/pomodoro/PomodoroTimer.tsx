@@ -238,7 +238,7 @@ export function PomodoroTimer({
               max="120"
               value={settings.workDuration}
               onChange={(e) => handleSettingsChange('workDuration', parseInt(e.target.value) || 25)}
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
             />
           </div>
           <div>
@@ -253,7 +253,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('shortBreakDuration', parseInt(e.target.value) || 5)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
             />
           </div>
           <div>
@@ -268,7 +268,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('longBreakDuration', parseInt(e.target.value) || 15)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
             />
           </div>
           <div>
@@ -283,7 +283,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('sessionsUntilLongBreak', parseInt(e.target.value) || 4)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
             />
           </div>
         </div>
@@ -475,7 +475,7 @@ export function PomodoroTimer({
               max="120"
               value={settings.workDuration}
               onChange={(e) => handleSettingsChange('workDuration', parseInt(e.target.value) || 25)}
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
             />
           </div>
 
@@ -491,7 +491,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('shortBreakDuration', parseInt(e.target.value) || 5)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
             />
           </div>
 
@@ -507,7 +507,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('longBreakDuration', parseInt(e.target.value) || 15)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
             />
           </div>
 
@@ -523,7 +523,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('sessionsUntilLongBreak', parseInt(e.target.value) || 4)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
             />
           </div>
         </div>

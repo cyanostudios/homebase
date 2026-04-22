@@ -301,6 +301,9 @@ export interface Product {
 
   createdAt: Date | null;
   updatedAt: Date | null;
+
+  /** När katalogsök begär @see dynamicColumns: värden per kolumn (t.ex. t:se, p:5). */
+  dynamicColumnValues?: Record<string, string | number | null> | null;
 }
 
 export type ProductSettingsMarketKey = 'se' | 'dk' | 'fi' | 'no';

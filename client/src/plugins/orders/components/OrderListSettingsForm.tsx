@@ -82,7 +82,7 @@ export const OrderListSettingsForm: React.FC<OrderListSettingsFormProps> = ({ on
           <Label htmlFor="orders-list-page-size">Order per sida</Label>
           <select
             id="orders-list-page-size"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background"
             value={listPageSize}
             onChange={(e) => setListPageSize(normalizeListPageSize(Number(e.target.value)))}
           >

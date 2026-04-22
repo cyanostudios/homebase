@@ -338,7 +338,7 @@ export function InvoicesList() {
           renderItem={(invoice, idx) => (
             <div
               key={invoice.id}
-              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-gray-50 dark:hover:bg-gray-900/50 focus:bg-gray-50 dark:focus:bg-gray-900/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3 flex items-start gap-2`}
+              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-gray-50 dark:hover:bg-gray-900/50 focus:bg-gray-50 dark:focus:bg-gray-900/50 focus:outline-none focus:ring-0 focus:ring-inset cursor-pointer transition-colors px-4 py-3 flex items-start gap-2`}
               tabIndex={0}
               data-list-item={JSON.stringify(invoice)}
               data-plugin-name="invoices"

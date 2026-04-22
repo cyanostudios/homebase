@@ -66,6 +66,9 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { useCdonProducts } from '@/plugins/cdon-products/context/CdonProductsContext';
+import { channelsApi } from '@/plugins/channels/api/channelsApi';
+import type { ChannelInstance } from '@/plugins/channels/types/channels';
+import { formatChannelInstanceLabel } from '@/plugins/channels/utils/formatChannelInstanceLabel';
 import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 import { useFyndiqProducts } from '@/plugins/fyndiq-products/context/FyndiqProductsContext';
 import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
@@ -96,7 +99,14 @@ import { normalizeCatalogPageSize } from '../types/products';
 
 import {
   DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS,
+  DYNAMIC_TITLE_MARKET_KEYS,
+  DYNAMIC_TITLE_MARKET_LABEL,
+  formatDynamicListColumnValue,
   formatProductListPlainColumn,
+  isValidListColumnSpec,
+  isValidListDynamicSpec,
+  labelForListColumnSpec,
+  listDynamicRequestSpecs,
   normalizeVisibleColumnSelection,
   parseStoredProductListColumns,
   PRODUCT_LIST_COLUMN_META,
@@ -399,10 +409,11 @@ export const ProductList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('id');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [isMobileView, setIsMobileView] = useState(false);
-  const [visibleColumnIds, setVisibleColumnIds] = useState<ProductListDataColumnId[]>(() => [
+  const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>(() => [
     ...DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS,
   ]);
   const [catalogColumnsHydrated, setCatalogColumnsHydrated] = useState(false);
+  const [channelInstances, setChannelInstances] = useState<ChannelInstance[]>([]);
 
   const [offset, setOffset] = useState(0);
   const [listLoading, setListLoading] = useState(false);
@@ -424,7 +435,42 @@ export const ProductList: React.FC = () => {
     sortOrder,
     limit,
     appliedFiltersJson,
+    visibleColumnIds,
   ]);
+
+  useEffect(() => {
+    void channelsApi
+      .getInstances({ includeDisabled: true })
+      .then((r) => {
+        if (r?.ok && Array.isArray(r.items)) {
+          setChannelInstances(r.items);
+        }
+      })
+      .catch(() => {
+        setChannelInstances([]);
+      });
+  }, []);
+
+  const instanceLabelById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const inst of channelInstances) {
+      m.set(String(inst.id), formatChannelInstanceLabel(inst));
+    }
+    return m;
+  }, [channelInstances]);
+
+  const cdonInstancesForColumns = useMemo(
+    () => channelInstances.filter((i) => String(i.channel).toLowerCase() === 'cdon'),
+    [channelInstances],
+  );
+  const fyndiqInstancesForColumns = useMemo(
+    () => channelInstances.filter((i) => String(i.channel).toLowerCase() === 'fyndiq'),
+    [channelInstances],
+  );
+  const wooInstancesForColumns = useMemo(
+    () => channelInstances.filter((i) => String(i.channel).toLowerCase() === 'woocommerce'),
+    [channelInstances],
+  );
 
   const listApiParam = useMemo(
     () =>
@@ -436,8 +482,9 @@ export const ProductList: React.FC = () => {
     [appliedListFilter],
   );
 
-  const loadParams: ProductListParams = useMemo(
-    () => ({
+  const loadParams: ProductListParams = useMemo(() => {
+    const dyn = listDynamicRequestSpecs(visibleColumnIds);
+    return {
       limit,
       offset,
       sort: sortField,
@@ -446,18 +493,19 @@ export const ProductList: React.FC = () => {
       searchIn: appliedSearchScope,
       list: listApiParam,
       filters: rulesForApi(appliedFilters),
-    }),
-    [
-      limit,
-      offset,
-      sortField,
-      sortOrder,
-      appliedSearch,
-      appliedSearchScope,
-      listApiParam,
-      appliedFilters,
-    ],
-  );
+      ...(dyn.length > 0 ? { dynamicColumns: dyn } : {}),
+    };
+  }, [
+    limit,
+    offset,
+    sortField,
+    sortOrder,
+    appliedSearch,
+    appliedSearchScope,
+    listApiParam,
+    appliedFilters,
+    visibleColumnIds,
+  ]);
 
   const applyCatalogFilters = useCallback(() => {
     setAppliedSearch(searchTerm.trim());
@@ -723,7 +771,10 @@ export const ProductList: React.FC = () => {
     }
   }, [activeTenantId, visibleColumnIds, catalogColumnsHydrated]);
 
-  const toggleCatalogColumn = useCallback((id: ProductListDataColumnId, checked: boolean) => {
+  const toggleCatalogColumn = useCallback((id: string, checked: boolean) => {
+    if (!isValidListColumnSpec(id)) {
+      return;
+    }
     setVisibleColumnIds((prev) => {
       if (checked) {
         if (prev.includes(id)) {
@@ -958,7 +1009,7 @@ export const ProductList: React.FC = () => {
   type CatalogGroupInfo = ReturnType<typeof getGroupInfo>;
 
   const renderDesktopCatalogCell = (
-    columnId: ProductListDataColumnId,
+    columnId: string,
     p: ReturnType<typeof normalize>,
     groupInfo: CatalogGroupInfo,
   ) => {
@@ -968,7 +1019,18 @@ export const ProductList: React.FC = () => {
       ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
       : undefined;
 
-    switch (columnId) {
+    if (isValidListDynamicSpec(columnId)) {
+      return (
+        <TableCell className={pad}>
+          <div className="text-sm text-muted-foreground">
+            {formatDynamicListColumnValue(columnId, product, product.currency)}
+          </div>
+        </TableCell>
+      );
+    }
+
+    const staticId = columnId as ProductListDataColumnId;
+    switch (staticId) {
       case 'id':
         return (
           <TableCell className={pad}>
@@ -1046,7 +1108,7 @@ export const ProductList: React.FC = () => {
         return (
           <TableCell className={pad}>
             <div className="text-sm text-muted-foreground">
-              {formatProductListPlainColumn(columnId, product)}
+              {formatProductListPlainColumn(staticId, product)}
             </div>
           </TableCell>
         );
@@ -1491,6 +1553,83 @@ export const ProductList: React.FC = () => {
             </DropdownMenuCheckboxItem>
           ))}
           <DropdownMenuSeparator className="my-2" />
+          <div className="px-2 pb-1 text-xs font-medium text-muted-foreground">
+            Marknadstitlar (textsExtended)
+          </div>
+          {DYNAMIC_TITLE_MARKET_KEYS.map((mk) => {
+            const spec = `t:${mk}`;
+            return (
+              <DropdownMenuCheckboxItem
+                key={spec}
+                className="text-sm"
+                checked={visibleColumnIds.includes(spec)}
+                onCheckedChange={(c) => toggleCatalogColumn(spec, c === true)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                Titel — {DYNAMIC_TITLE_MARKET_LABEL[mk]} ({mk.toUpperCase()})
+              </DropdownMenuCheckboxItem>
+            );
+          })}
+          {cdonInstancesForColumns.length > 0 ? (
+            <>
+              <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">CDON</div>
+              {cdonInstancesForColumns.map((inst) => {
+                const spec = `p:${inst.id}`;
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={`cdon-${spec}`}
+                    className="text-sm"
+                    checked={visibleColumnIds.includes(spec)}
+                    onCheckedChange={(c) => toggleCatalogColumn(spec, c === true)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    Pris — {formatChannelInstanceLabel(inst)}
+                  </DropdownMenuCheckboxItem>
+                );
+              })}
+            </>
+          ) : null}
+          {fyndiqInstancesForColumns.length > 0 ? (
+            <>
+              <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">Fyndiq</div>
+              {fyndiqInstancesForColumns.map((inst) => {
+                const spec = `p:${inst.id}`;
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={`fyndiq-${spec}`}
+                    className="text-sm"
+                    checked={visibleColumnIds.includes(spec)}
+                    onCheckedChange={(c) => toggleCatalogColumn(spec, c === true)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    Pris — {formatChannelInstanceLabel(inst)}
+                  </DropdownMenuCheckboxItem>
+                );
+              })}
+            </>
+          ) : null}
+          {wooInstancesForColumns.length > 0 ? (
+            <>
+              <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">
+                WooCommerce
+              </div>
+              {wooInstancesForColumns.map((inst) => {
+                const priceSpec = `p:${inst.id}`;
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={`woo-${priceSpec}`}
+                    className="text-sm"
+                    checked={visibleColumnIds.includes(priceSpec)}
+                    onCheckedChange={(c) => toggleCatalogColumn(priceSpec, c === true)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    Pris — {formatChannelInstanceLabel(inst)}
+                  </DropdownMenuCheckboxItem>
+                );
+              })}
+            </>
+          ) : null}
+          <DropdownMenuSeparator className="my-2" />
           <DropdownMenuItem
             className={PRODUCTS_DROPDOWN_ITEM_CLASS}
             onSelect={() => resetCatalogColumns()}
@@ -1595,11 +1734,8 @@ export const ProductList: React.FC = () => {
                 </NativeSelect>
                 <Button
                   type="button"
-                  variant="secondary"
-                  className={cn(
-                    'h-10 shrink-0 px-3',
-                    filterBuilderOpen && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
-                  )}
+                  variant="outline"
+                  className="h-10 shrink-0 px-3"
                   onClick={() => setFilterBuilderOpen((o) => !o)}
                 >
                   Filtrera
@@ -1857,6 +1993,13 @@ export const ProductList: React.FC = () => {
                   />
                 </TableHead>
                 {visibleColumnIds.map((colId) => {
+                  if (isValidListDynamicSpec(colId)) {
+                    return (
+                      <TableHead key={colId}>
+                        {labelForListColumnSpec(colId, { instanceLabelById })}
+                      </TableHead>
+                    );
+                  }
                   const meta = PRODUCT_LIST_COLUMN_META.find((m) => m.id === colId);
                   const label = meta?.label ?? colId;
                   const sf = meta?.sortField;
@@ -2040,9 +2183,25 @@ export const ProductList: React.FC = () => {
                             {visibleColumnIds
                               .filter((colId) => colId !== 'title')
                               .map((colId) => {
-                                const meta = PRODUCT_LIST_COLUMN_META.find((m) => m.id === colId);
-                                const label = meta?.label ?? colId;
                                 const product = p.raw as Product;
+                                const label = isValidListDynamicSpec(colId)
+                                  ? labelForListColumnSpec(colId, { instanceLabelById })
+                                  : (PRODUCT_LIST_COLUMN_META.find((m) => m.id === colId)?.label ??
+                                    colId);
+                                if (isValidListDynamicSpec(colId)) {
+                                  return (
+                                    <div key={colId} className="text-xs text-muted-foreground">
+                                      <span className="font-medium text-foreground/80">
+                                        {label}:
+                                      </span>{' '}
+                                      {formatDynamicListColumnValue(
+                                        colId,
+                                        product,
+                                        product.currency,
+                                      )}
+                                    </div>
+                                  );
+                                }
                                 if (colId === 'quantity') {
                                   return (
                                     <div key={colId} className="flex items-center gap-1">

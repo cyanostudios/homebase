@@ -167,7 +167,7 @@ export function ClockDisplay({
                 <select
                   value={settings.dateFormat}
                   onChange={(e) => handleSettingsChange('dateFormat', e.target.value)}
-                  className="w-full px-3 py-1.5 text-base border border-border rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  className="w-full px-3 py-1.5 text-base border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
                 >
                   <option value="sv-SE">Swedish (måndag 22 juli 2025)</option>
                   <option value="en-US">English (Monday, July 22, 2025)</option>
@@ -181,7 +181,7 @@ export function ClockDisplay({
                 <select
                   value={settings.timezone}
                   onChange={(e) => handleSettingsChange('timezone', e.target.value)}
-                  className="w-full px-3 py-1.5 text-base border border-border rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  className="w-full px-3 py-1.5 text-base border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
                 >
                   {COMMON_TIMEZONES.map((tz) => (
                     <option key={tz.value} value={tz.value}>

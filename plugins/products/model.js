@@ -100,6 +100,95 @@ function buildCatalogSearchWhereFragment(scopeRaw, qRaw, params) {
   }
 }
 
+const LIST_DYNAMIC_TITLE_MARKETS = new Set(['se', 'dk', 'fi', 'no']);
+const LIST_DYNAMIC_MAX_SPECS = 32;
+
+/**
+ * Kompakt jsonb per rad för katalog: nycklar t:se, p:12 — endast när klienten begär kolumner.
+ * @param {unknown} dynamicColumns
+ * @param {number} paramOffset - nästa parameterindex är paramOffset+1
+ * @returns {{ sql: string, params: number[] }}
+ */
+function buildListDynamicColumnProjection(dynamicColumns, paramOffset) {
+  const outParams = [];
+  if (!Array.isArray(dynamicColumns) || dynamicColumns.length === 0) {
+    return { sql: '', params: outParams };
+  }
+  const seen = new Set();
+  const pieces = [];
+  for (const raw of dynamicColumns) {
+    if (typeof raw !== 'string') continue;
+    const s = raw.trim();
+    if (!s || s.length > 48 || seen.has(s) || pieces.length >= LIST_DYNAMIC_MAX_SPECS) continue;
+
+    const titleM = s.match(/^t:(se|dk|fi|no)$/);
+    if (titleM) {
+      const m = titleM[1];
+      if (!LIST_DYNAMIC_TITLE_MARKETS.has(m)) continue;
+      seen.add(s);
+      const keyEsc = s.replace(/'/g, "''");
+      pieces.push(
+        `'${keyEsc}', NULLIF(BTRIM(COALESCE(p.channel_specific->'textsExtended'->'${m}'->>'name', '')), '')::text`,
+      );
+      continue;
+    }
+
+    const priceM = s.match(/^p:(\d+)$/);
+    if (priceM) {
+      const id = parseInt(priceM[1], 10);
+      if (!Number.isFinite(id) || id <= 0) continue;
+      seen.add(s);
+      outParams.push(id);
+      const idx = paramOffset + outParams.length;
+      const keyEsc = s.replace(/'/g, "''");
+      pieces.push(
+        `'${keyEsc}', (SELECT o.price_amount FROM channel_product_overrides o WHERE o.product_id = p.id::text AND o.channel_instance_id = $${idx} LIMIT 1)`,
+      );
+      continue;
+    }
+  }
+
+  if (pieces.length === 0) {
+    return { sql: '', params: outParams };
+  }
+  return {
+    sql: `, jsonb_strip_nulls(jsonb_build_object(${pieces.join(', ')})) AS dcv`,
+    params: outParams,
+  };
+}
+
+/**
+ * @param {unknown} dcv
+ * @returns {Record<string, string|number|null>|undefined}
+ */
+function normalizeDcvForApi(dcv) {
+  if (dcv == null || dcv === undefined) {
+    return undefined;
+  }
+  let obj = dcv;
+  if (typeof dcv === 'string') {
+    try {
+      obj = JSON.parse(dcv);
+    } catch {
+      return undefined;
+    }
+  }
+  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+    return undefined;
+  }
+  /** @type {Record<string, string|number|null>} */
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (k.startsWith('p:') && v != null && v !== '' && typeof v !== 'object') {
+      const n = Number(v);
+      out[k] = Number.isFinite(n) ? n : null;
+    } else {
+      out[k] = v === undefined ? null : v;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 class ProductModel {
   static TABLE = 'products';
 
@@ -228,6 +317,7 @@ class ProductModel {
    * @param {string} [options.searchIn] all|productId|groupId|sku|title|privateName|lagerplats|ean|gtin
    * @param {string} [options.list] all|main|<listId>
    * @param {unknown} [options.filters] whitelist-structured filter rules (AND); may include type `list` to override `list`
+   * @param {string[]} [options.dynamicColumns] t:se|t:dk|…, p:instanceId — valfri projektion till `dynamicColumnValues`
    */
   async list(req, options = {}) {
     try {
@@ -313,10 +403,11 @@ class ProductModel {
         }
       }
 
-      params.push(limit);
-      const limitIdx = params.length;
-      params.push(offset);
-      const offsetIdx = params.length;
+      const whereParams = [...params];
+      const dcvProj = buildListDynamicColumnProjection(options.dynamicColumns, whereParams.length);
+      const limitIdx = whereParams.length + dcvProj.params.length + 1;
+      const offsetIdx = whereParams.length + dcvProj.params.length + 2;
+      const dataParams = [...whereParams, ...dcvProj.params, limit, offset];
 
       const countSql = `
         SELECT COUNT(*)::int AS total
@@ -380,6 +471,7 @@ class ProductModel {
           m.name AS manufacturer_name,
           pli.list_id AS list_id,
           l.name AS list_name
+          ${dcvProj.sql}
         FROM ${ProductModel.TABLE} p
         LEFT JOIN brands b ON b.id = p.brand_id
         LEFT JOIN suppliers s ON s.id = p.supplier_id
@@ -392,10 +484,9 @@ class ProductModel {
         OFFSET $${offsetIdx}
       `;
 
-      const countParams = params.slice(0, params.length - 2);
       const [countRes, dataRes] = await Promise.all([
-        db.query(countSql, countParams),
-        db.query(dataSql, params),
+        db.query(countSql, whereParams),
+        db.query(dataSql, dataParams),
       ]);
       const total = (countRes[0]?.total ?? 0) || 0;
       const items = dataRes.map((row) => this.transformRow(row));
@@ -3402,6 +3493,7 @@ class ProductModel {
       updatedAt: row.updated_at ?? null,
       listId: row.list_id != null ? String(row.list_id) : null,
       listName: row.list_name ?? null,
+      dynamicColumnValues: normalizeDcvForApi(row.dcv),
     };
   }
 

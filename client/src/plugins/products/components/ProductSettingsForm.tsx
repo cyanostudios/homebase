@@ -242,7 +242,7 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
           <Label htmlFor="catalog-page-size">Produkter per sida</Label>
           <select
             id="catalog-page-size"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background"
             value={catalogPageSize}
             onChange={(e) => {
               const v = Number(e.target.value);
@@ -272,7 +272,7 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
           <Label htmlFor="category-language">Språk</Label>
           <select
             id="category-language"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 mt-1"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background mt-1"
             value={categoryLanguage}
             onChange={(e) => {
               const v = e.target.value as CategoryLanguage;

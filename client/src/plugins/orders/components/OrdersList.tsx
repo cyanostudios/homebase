@@ -201,7 +201,7 @@ function SortableOrderHead({
     <TableHead>
       <button
         type="button"
-        className="inline-flex w-full min-w-0 items-center gap-1 text-left font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+        className="inline-flex w-full min-w-0 items-center gap-1 text-left font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-0 rounded-sm"
         onClick={() => onSort(field)}
         aria-sort={ariaSort}
       >

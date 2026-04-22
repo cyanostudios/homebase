@@ -36,7 +36,7 @@ export function Dashboard({ onPageChange }: DashboardProps) {
             key={plugin.name}
             className={cn(
               'cursor-pointer border transition-all duration-200 hover:shadow-md',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'focus-visible:outline-none focus-visible:ring-0',
             )}
             tabIndex={0}
             role="button"

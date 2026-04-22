@@ -98,19 +98,57 @@ export const DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS: ProductListDataColumnId[] = [
   'priceAmount',
 ];
 
+/** Per-marknads-titel (textsExtended.name). */
+export const DYNAMIC_TITLE_MARKET_KEYS = ['se', 'dk', 'fi', 'no'] as const;
+export type DynamicTitleMarketKey = (typeof DYNAMIC_TITLE_MARKET_KEYS)[number];
+
+/** Etiketter för marknads-titelkolumner (t:se …) i kolumnväljaren. */
+export const DYNAMIC_TITLE_MARKET_LABEL: Record<DynamicTitleMarketKey, string> = {
+  se: 'Sverige',
+  dk: 'Danmark',
+  fi: 'Finland',
+  no: 'Norge',
+};
+
 const VALID_ID = new Set<ProductListDataColumnId>(PRODUCT_LIST_DATA_COLUMN_ORDER);
 
 export function isProductListDataColumnId(value: unknown): value is ProductListDataColumnId {
   return typeof value === 'string' && VALID_ID.has(value as ProductListDataColumnId);
 }
 
+const RX_TITLE_MARKET = /^t:(se|dk|fi|no)$/;
+const RX_INST_PRICE = /^p:(\d+)$/;
+
+/** Tillåtna dynamiska kolumn-id i katalog-API. */
+export function isValidListDynamicSpec(value: string): boolean {
+  return RX_TITLE_MARKET.test(value) || RX_INST_PRICE.test(value);
+}
+
+/** Sann om strängen är en statisk kolumn eller en giltig dynamisk spec. */
+export function isValidListColumnSpec(value: string): boolean {
+  return isProductListDataColumnId(value) || isValidListDynamicSpec(value);
+}
+
+/**
+ * För att skicka i `dynamicColumns` (bara dynamiska, inga statiska kolumn-id).
+ */
+export function listDynamicRequestSpecs(visible: readonly string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const s of visible) {
+    if (isValidListDynamicSpec(s) && !seen.has(s)) {
+      seen.add(s);
+      out.push(s);
+    }
+  }
+  return out;
+}
+
 export function storageKeyProductListColumns(tenantId: number): string {
   return `homebase:products:catalogColumns:${tenantId}`;
 }
 
-export function parseStoredProductListColumns(
-  raw: string | null,
-): ProductListDataColumnId[] | null {
+export function parseStoredProductListColumns(raw: string | null): string[] | null {
   if (raw === null || raw === undefined || raw === '') {
     return null;
   }
@@ -119,9 +157,14 @@ export function parseStoredProductListColumns(
     if (!Array.isArray(parsed)) {
       return null;
     }
-    const out: ProductListDataColumnId[] = [];
+    const out: string[] = [];
+    const seen = new Set<string>();
     for (const item of parsed) {
-      if (isProductListDataColumnId(item) && !out.includes(item)) {
+      if (typeof item !== 'string' || item === '') {
+        continue;
+      }
+      if (isValidListColumnSpec(item) && !seen.has(item)) {
+        seen.add(item);
         out.push(item);
       }
     }
@@ -131,19 +174,29 @@ export function parseStoredProductListColumns(
   }
 }
 
-export function normalizeVisibleColumnSelection(
-  ids: ProductListDataColumnId[] | null | undefined,
-): ProductListDataColumnId[] {
+/**
+ * Sortera om: valda statiska (fast ordning) + dynamiska (behåll ordningen i `ids` för dynamiska steg).
+ */
+export function normalizeVisibleColumnSelection(ids: string[] | null | undefined): string[] {
   if (!ids?.length) {
     return [...DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS];
   }
-  const ordered: ProductListDataColumnId[] = [];
+  const staticPicked: ProductListDataColumnId[] = [];
   for (const id of PRODUCT_LIST_DATA_COLUMN_ORDER) {
-    if (ids.includes(id)) {
-      ordered.push(id);
+    if (ids.includes(id) && isProductListDataColumnId(id)) {
+      staticPicked.push(id);
     }
   }
-  return ordered.length > 0 ? ordered : [...DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS];
+  const dyn: string[] = [];
+  const seenD = new Set<string>();
+  for (const x of ids) {
+    if (isValidListDynamicSpec(x) && !seenD.has(x)) {
+      seenD.add(x);
+      dyn.push(x);
+    }
+  }
+  const out = [...staticPicked, ...dyn];
+  return out.length > 0 ? out : [...DEFAULT_VISIBLE_PRODUCT_LIST_COLUMNS];
 }
 
 function formatMoney(
@@ -224,4 +277,48 @@ export function formatProductListPlainColumn(
     default:
       return '—';
   }
+}
+
+export function labelForListColumnSpec(
+  spec: string,
+  opts: {
+    instanceLabelById: Map<string, string>;
+  },
+): string {
+  if (isProductListDataColumnId(spec)) {
+    return PRODUCT_LIST_COLUMN_LABELS[spec];
+  }
+  if (RX_TITLE_MARKET.test(spec)) {
+    const m = spec.slice(2) as DynamicTitleMarketKey;
+    return `Titel (${DYNAMIC_TITLE_MARKET_LABEL[m] ?? m.toUpperCase()})`;
+  }
+  const p = RX_INST_PRICE.exec(spec);
+  if (p) {
+    const id = p[1];
+    const name = opts.instanceLabelById.get(id) || `Instans #${id}`;
+    return `Pris · ${name}`;
+  }
+  return spec;
+}
+
+export function formatDynamicListColumnValue(
+  spec: string,
+  product: Product,
+  currencyFallback: string | null | undefined,
+): string {
+  const dcv = product.dynamicColumnValues;
+  if (!dcv || typeof dcv !== 'object') {
+    return '—';
+  }
+  const raw = dcv[spec];
+  if (raw === null || raw === undefined || raw === '') {
+    return '—';
+  }
+  if (
+    spec.startsWith('p:') &&
+    (typeof raw === 'number' || (typeof raw === 'string' && raw !== ''))
+  ) {
+    return formatMoney(typeof raw === 'number' ? raw : Number(raw), currencyFallback);
+  }
+  return String(raw);
 }

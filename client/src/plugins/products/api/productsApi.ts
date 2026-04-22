@@ -27,6 +27,10 @@ export type ProductListParams = {
   list: string;
   /** Whitelist structured filters; applied only via POST /products/search. */
   filters?: ProductCatalogFilterRule[];
+  /**
+   * Valda dynamiska kolumner (t.ex. t:se, p:5). Endast dessa värden projiceras i svaret; tom/utebliven när bara statiska kolumner visas.
+   */
+  dynamicColumns?: string[];
 };
 
 export type ProductFilterDefinitionsResponse = {
@@ -413,18 +417,22 @@ class ProductsApi {
    */
   async listProducts(params: ProductListParams): Promise<{ items: Product[]; total: number }> {
     const filters = (params.filters || []).map(({ type, op, value }) => ({ type, op, value }));
+    const body: Record<string, unknown> = {
+      limit: params.limit,
+      offset: params.offset,
+      sort: params.sort,
+      order: params.order,
+      q: params.q,
+      searchIn: params.searchIn ?? 'all',
+      list: params.list,
+      filters,
+    };
+    if (params.dynamicColumns && params.dynamicColumns.length > 0) {
+      body.dynamicColumns = params.dynamicColumns;
+    }
     return this.request('/products/search', {
       method: 'POST',
-      body: JSON.stringify({
-        limit: params.limit,
-        offset: params.offset,
-        sort: params.sort,
-        order: params.order,
-        q: params.q,
-        searchIn: params.searchIn ?? 'all',
-        list: params.list,
-        filters,
-      }),
+      body: JSON.stringify(body),
     }) as Promise<{
       items: Product[];
       total: number;

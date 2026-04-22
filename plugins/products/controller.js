@@ -95,6 +95,59 @@ function normalizeSelloHistoryParams(raw) {
   return {};
 }
 
+const CATALOG_DYNAMIC_COLUMNS_MAX = 32;
+
+/**
+ * @param {unknown} body
+ * @returns {string[]|undefined}
+ */
+function normalizeProductCatalogDynamicColumns(body) {
+  const raw = body?.dynamicColumns;
+  if (raw == null || raw === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(raw)) {
+    throw new AppError('Invalid dynamicColumns', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  const out = [];
+  const seen = new Set();
+  for (const item of raw) {
+    if (typeof item !== 'string') {
+      throw new AppError('Invalid dynamicColumns', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    const s = item.trim();
+    if (!s || s.length > 48) {
+      throw new AppError('Invalid dynamicColumns', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    if (seen.has(s)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    if (out.length >= CATALOG_DYNAMIC_COLUMNS_MAX) {
+      break;
+    }
+    if (/^t:(se|dk|fi|no)$/.test(s)) {
+      seen.add(s);
+      out.push(s);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    const pm = s.match(/^p:(\d+)$/);
+    if (pm) {
+      const id = parseInt(pm[1], 10);
+      if (!Number.isFinite(id) || id <= 0) {
+        throw new AppError('Invalid dynamicColumns', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+      seen.add(s);
+      out.push(s);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    throw new AppError('Invalid dynamicColumns', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 /** Live API uses numeric codes (101) or string enums (CHANGE_QUANTITY); params may be object or [newQty]. */
 function getSelloHistoryQuantity(rawParams, paramsObj) {
   if (Array.isArray(rawParams) && rawParams.length > 0) {
@@ -1910,6 +1963,7 @@ class ProductController {
           ? String(req.body.list).trim()
           : 'all';
       const filters = req.body?.filters;
+      const dynamicColumns = normalizeProductCatalogDynamicColumns(req.body);
 
       const { items, total } = await this.model.list(req, {
         limit,
@@ -1920,6 +1974,7 @@ class ProductController {
         searchIn,
         list,
         filters,
+        dynamicColumns,
       });
       return res.json({ items, total });
     } catch (error) {

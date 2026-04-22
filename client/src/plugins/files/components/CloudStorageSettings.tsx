@@ -142,7 +142,7 @@ export const CloudStorageSettings: React.FC = () => {
                         })
                       }
                       placeholder="Enter your OAuth Client ID"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
                     />
                   </div>
                   <div>
@@ -159,7 +159,7 @@ export const CloudStorageSettings: React.FC = () => {
                         })
                       }
                       placeholder="Enter your OAuth Client Secret"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:border-[hsl(var(--input-focus-ring))]"
                     />
                   </div>
                   <div className="flex gap-2">

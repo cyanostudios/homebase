@@ -287,7 +287,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         rows={rows}
-        className={`w-full px-3 py-2 text-base border border-input bg-background text-foreground placeholder:text-muted-foreground rounded-md focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none resize-vertical ${className}`}
+        className={`w-full px-3 py-2 text-base border border-input bg-background text-foreground placeholder:text-muted-foreground rounded-md focus:ring-1 focus:ring-[hsl(var(--input-focus-ring))] focus:ring-offset-1 focus:ring-offset-background focus:outline-none resize-vertical ${className}`}
       />
 
       {showSuggestions && suggestions.length > 0 && (

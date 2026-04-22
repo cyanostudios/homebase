@@ -86,7 +86,7 @@ export function SettingsList({ onCategoryClick }: SettingsListProps) {
                 <div key={category.id}>
                   <div
                     data-category-id={category.id}
-                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-0 focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
                     tabIndex={0}
                     role="button"
                     aria-label={`Open ${category.label} settings`}
