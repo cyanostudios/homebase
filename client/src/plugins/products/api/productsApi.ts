@@ -8,6 +8,13 @@ import type { Product, ProductImageAsset } from '../types/products';
 
 export type ProductListSortField = 'id' | 'title' | 'quantity' | 'priceAmount' | 'sku';
 
+/** One catalog filter rule (AND with others; validated server-side). */
+export type ProductCatalogFilterRule = {
+  type: string;
+  op: string;
+  value: unknown;
+};
+
 export type ProductListParams = {
   limit: number;
   offset: number;
@@ -18,6 +25,38 @@ export type ProductListParams = {
   searchIn?: ProductCatalogSearchScope;
   /** all | main | list id */
   list: string;
+  /** Whitelist structured filters; applied only via POST /products/search. */
+  filters?: ProductCatalogFilterRule[];
+};
+
+export type ProductFilterDefinitionsResponse = {
+  version: number;
+  maxFilters: number;
+  andOnly: boolean;
+  quickFilterTypes: string[];
+  filterTypes: Array<{
+    type: string;
+    quick: boolean;
+    label: string;
+    operators: string[];
+  }>;
+};
+
+export type ProductCatalogFacetItem = { id: string; name: string };
+
+export type ProductCatalogViewDefinition = {
+  q?: string;
+  searchIn?: ProductCatalogSearchScope;
+  list: string;
+  filters: ProductCatalogFilterRule[];
+};
+
+export type ProductSavedFilter = {
+  id: string;
+  name: string;
+  definition: ProductCatalogViewDefinition;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ApiFieldError = { field: string; message: string };
@@ -368,25 +407,73 @@ class ProductsApi {
 
   // ---- CRUD ----
 
-  /** Paginated catalog list; GET /api/products returns { items, total }. */
+  /**
+   * Paginated catalog list; POST /api/products/search (JSON body) so structured filters
+   * stay on the server and the query string stays small.
+   */
   async listProducts(params: ProductListParams): Promise<{ items: Product[]; total: number }> {
-    const qs = new URLSearchParams();
-    qs.set('limit', String(params.limit));
-    qs.set('offset', String(params.offset));
-    qs.set('sort', params.sort);
-    qs.set('order', params.order);
-    if (params.q != null && String(params.q).trim() !== '') {
-      qs.set('q', String(params.q).trim());
-    }
-    const searchIn = params.searchIn != null ? String(params.searchIn).trim() : 'all';
-    if (searchIn !== '') {
-      qs.set('searchIn', searchIn);
-    }
-    qs.set('list', params.list);
-    return this.request(`/products?${qs.toString()}`) as Promise<{
+    const filters = (params.filters || []).map(({ type, op, value }) => ({ type, op, value }));
+    return this.request('/products/search', {
+      method: 'POST',
+      body: JSON.stringify({
+        limit: params.limit,
+        offset: params.offset,
+        sort: params.sort,
+        order: params.order,
+        q: params.q,
+        searchIn: params.searchIn ?? 'all',
+        list: params.list,
+        filters,
+      }),
+    }) as Promise<{
       items: Product[];
       total: number;
     }>;
+  }
+
+  async getFilterDefinitions(): Promise<ProductFilterDefinitionsResponse> {
+    return this.request('/products/filter-definitions');
+  }
+
+  async postFilterFacets(body: {
+    field: 'brand' | 'supplier' | 'manufacturer';
+    q?: string;
+    limit?: number;
+  }): Promise<{ items: ProductCatalogFacetItem[] }> {
+    return this.request('/products/filter-facets', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async listSavedProductFilters(): Promise<{ items: ProductSavedFilter[] }> {
+    return this.request('/products/saved-filters');
+  }
+
+  async createSavedProductFilter(body: {
+    name: string;
+    definition: ProductCatalogViewDefinition;
+  }): Promise<ProductSavedFilter> {
+    return this.request('/products/saved-filters', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async updateSavedProductFilter(
+    id: string,
+    body: { name?: string; definition?: ProductCatalogViewDefinition },
+  ): Promise<ProductSavedFilter> {
+    return this.request(`/products/saved-filters/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async deleteSavedProductFilter(id: string): Promise<void> {
+    await this.request(`/products/saved-filters/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   }
 
   /** Tenant-scoped product row count; does not load full catalog. */

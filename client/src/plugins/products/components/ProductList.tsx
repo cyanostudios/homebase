@@ -71,7 +71,11 @@ import { useFyndiqProducts } from '@/plugins/fyndiq-products/context/FyndiqProdu
 import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 
 import { productsApi } from '../api/productsApi';
-import type { ProductDuplicateJobSnapshot, ProductListParams } from '../api/productsApi';
+import type {
+  ProductDuplicateJobSnapshot,
+  ProductListParams,
+  ProductCatalogViewDefinition,
+} from '../api/productsApi';
 import {
   CATALOG_SEARCH_INPUT_PLACEHOLDER,
   DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
@@ -80,6 +84,12 @@ import {
   PRODUCT_CATALOG_SEARCH_SCOPES,
   type ProductCatalogSearchScope,
 } from '../constants/productCatalogSearchScopes';
+import { ProductCatalogFilterPanel } from '../filters/ProductCatalogFilterPanel';
+import {
+  rulesForApi,
+  rowsFromSavedRules,
+  type ProductCatalogFilterRow,
+} from '../filters/productCatalogFilterTypes';
 import { useProducts } from '../hooks/useProducts';
 import type { Product } from '../types/products';
 import { normalizeCatalogPageSize } from '../types/products';
@@ -377,6 +387,14 @@ export const ProductList: React.FC = () => {
     DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
   );
   const [listFilter, setListFilter] = useState<string>('all');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedSearchScope, setAppliedSearchScope] = useState<ProductCatalogSearchScope>(
+    DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE,
+  );
+  const [appliedListFilter, setAppliedListFilter] = useState('all');
+  const [draftFilters, setDraftFilters] = useState<ProductCatalogFilterRow[]>([]);
+  const [appliedFilters, setAppliedFilters] = useState<ProductCatalogFilterRow[]>([]);
+  const [filterBuilderOpen, setFilterBuilderOpen] = useState(false);
   const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
   const [sortField, setSortField] = useState<SortField>('id');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -387,23 +405,35 @@ export const ProductList: React.FC = () => {
   const [catalogColumnsHydrated, setCatalogColumnsHydrated] = useState(false);
 
   const [offset, setOffset] = useState(0);
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [listLoading, setListLoading] = useState(false);
 
   const limit = normalizeCatalogPageSize(productSettings?.catalogPageSize);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
-    return () => window.clearTimeout(t);
-  }, [searchTerm]);
+  const appliedFiltersJson = useMemo(
+    () => JSON.stringify(rulesForApi(appliedFilters)),
+    [appliedFilters],
+  );
 
   useEffect(() => {
     setOffset(0);
-  }, [debouncedSearch, searchScope, listFilter, sortField, sortOrder, limit]);
+  }, [
+    appliedSearch,
+    appliedSearchScope,
+    appliedListFilter,
+    sortField,
+    sortOrder,
+    limit,
+    appliedFiltersJson,
+  ]);
 
   const listApiParam = useMemo(
-    () => (listFilter === 'all' ? 'all' : listFilter === 'main' ? 'main' : String(listFilter)),
-    [listFilter],
+    () =>
+      appliedListFilter === 'all'
+        ? 'all'
+        : appliedListFilter === 'main'
+          ? 'main'
+          : String(appliedListFilter),
+    [appliedListFilter],
   );
 
   const loadParams: ProductListParams = useMemo(
@@ -412,12 +442,81 @@ export const ProductList: React.FC = () => {
       offset,
       sort: sortField,
       order: sortOrder,
-      q: debouncedSearch ? debouncedSearch : undefined,
-      searchIn: searchScope,
+      q: appliedSearch ? appliedSearch : undefined,
+      searchIn: appliedSearchScope,
       list: listApiParam,
+      filters: rulesForApi(appliedFilters),
     }),
-    [limit, offset, sortField, sortOrder, debouncedSearch, searchScope, listApiParam],
+    [
+      limit,
+      offset,
+      sortField,
+      sortOrder,
+      appliedSearch,
+      appliedSearchScope,
+      listApiParam,
+      appliedFilters,
+    ],
   );
+
+  const applyCatalogFilters = useCallback(() => {
+    setAppliedSearch(searchTerm.trim());
+    setAppliedSearchScope(searchScope);
+    setAppliedListFilter(listFilter);
+    setAppliedFilters(draftFilters.map((r) => ({ ...r })));
+    setOffset(0);
+  }, [searchTerm, searchScope, listFilter, draftFilters]);
+
+  const clearCatalogFilters = useCallback(() => {
+    setSearchTerm('');
+    setSearchScope(DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE);
+    setListFilter('all');
+    setDraftFilters([]);
+    setAppliedSearch('');
+    setAppliedSearchScope(DEFAULT_PRODUCT_CATALOG_SEARCH_SCOPE);
+    setAppliedListFilter('all');
+    setAppliedFilters([]);
+    setOffset(0);
+    setFilterBuilderOpen(false);
+  }, []);
+
+  const loadCatalogViewDefinition = useCallback((d: ProductCatalogViewDefinition) => {
+    if (d.q !== null && d.q !== undefined) {
+      setSearchTerm(d.q);
+    }
+    if (
+      d.searchIn !== null &&
+      d.searchIn !== undefined &&
+      isProductCatalogSearchScope(d.searchIn)
+    ) {
+      setSearchScope(d.searchIn);
+    }
+    setListFilter(d.list && d.list !== '' ? d.list : 'all');
+    setDraftFilters(rowsFromSavedRules(d.filters));
+    setFilterBuilderOpen(true);
+  }, []);
+
+  const buildCatalogViewDefinition = useCallback((): ProductCatalogViewDefinition => {
+    return {
+      q: searchTerm.trim() || undefined,
+      searchIn: searchScope,
+      list: listFilter,
+      filters: rulesForApi(draftFilters),
+    };
+  }, [searchTerm, searchScope, listFilter, draftFilters]);
+
+  const catalogHasActiveQuery = useMemo(() => {
+    if (appliedSearch.trim() !== '') {
+      return true;
+    }
+    if (appliedListFilter !== 'all') {
+      return true;
+    }
+    if (appliedFilters.length > 0) {
+      return true;
+    }
+    return false;
+  }, [appliedSearch, appliedListFilter, appliedFilters.length]);
 
   const loadParamsRef = useRef(loadParams);
   loadParamsRef.current = loadParams;
@@ -1313,7 +1412,7 @@ export const ProductList: React.FC = () => {
             disabled={!hasProductSelection || moving}
             className={PRODUCTS_DROPDOWN_ITEM_CLASS}
             onSelect={() => {
-              setMoveTargetList(listFilter === 'all' ? 'main' : listFilter);
+              setMoveTargetList(appliedListFilter === 'all' ? 'main' : appliedListFilter);
               setShowMoveModal(true);
             }}
           >
@@ -1479,24 +1578,47 @@ export const ProductList: React.FC = () => {
               </Select>
             }
             searchRowTrailing={
-              <NativeSelect
-                value={listFilter}
-                onChange={(e) => setListFilter(e.target.value)}
-                aria-label="Filter by list"
-                className="h-10 w-full min-w-[11rem] max-w-[18rem] shrink-0 sm:w-[min(100%,16rem)]"
-              >
-                <option value="all">Alla produkter</option>
-                <option value="main">Huvudlista</option>
-                {lists.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </NativeSelect>
+              <div className="flex w-full min-w-0 max-w-[22rem] shrink-0 items-center gap-2 sm:max-w-none">
+                <NativeSelect
+                  value={listFilter}
+                  onChange={(e) => setListFilter(e.target.value)}
+                  aria-label="Filter by list"
+                  className="h-10 min-w-0 flex-1 sm:w-[min(100%,16rem)]"
+                >
+                  <option value="all">Alla produkter</option>
+                  <option value="main">Huvudlista</option>
+                  {lists.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className={cn(
+                    'h-10 shrink-0 px-3',
+                    filterBuilderOpen && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
+                  )}
+                  onClick={() => setFilterBuilderOpen((o) => !o)}
+                >
+                  Filtrera
+                </Button>
+              </div>
             }
             rightActions={productToolbarActions}
           />
         </div>
+        <ProductCatalogFilterPanel
+          isOpen={filterBuilderOpen}
+          lists={lists}
+          draftFilters={draftFilters}
+          onChangeDraftFilters={setDraftFilters}
+          onApply={applyCatalogFilters}
+          onClear={clearCatalogFilters}
+          buildDefinition={buildCatalogViewDefinition}
+          onLoadDefinition={loadCatalogViewDefinition}
+        />
       </div>
 
       {/* Publish-feedback after execution */}
@@ -1773,7 +1895,7 @@ export const ProductList: React.FC = () => {
                     colSpan={totalTableColSpan}
                     className="p-6 text-center text-muted-foreground"
                   >
-                    {debouncedSearch
+                    {catalogHasActiveQuery
                       ? 'No products found matching your search.'
                       : 'No products yet. Click "Add Product" to get started.'}
                   </TableCell>
@@ -1856,7 +1978,7 @@ export const ProductList: React.FC = () => {
               <div className="p-6 text-center text-muted-foreground">Laddar…</div>
             ) : displayRows.length === 0 ? (
               <div className="p-6 text-center text-muted-foreground">
-                {debouncedSearch
+                {catalogHasActiveQuery
                   ? 'No products found matching your search.'
                   : 'No products yet. Click "Add Product" to get started.'}
               </div>

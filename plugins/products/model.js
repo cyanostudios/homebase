@@ -11,6 +11,7 @@ function sleep(ms) {
 }
 const { AppError } = require('../../server/core/errors/AppError');
 const duplicateMediaTaskModel = require('./duplicateMediaTaskModel');
+const catalogFilterSchema = require('./catalogFilterSchema');
 
 const CATALOG_SEARCH_SCOPES = new Set([
   'all',
@@ -226,6 +227,7 @@ class ProductModel {
    * @param {string|null} [options.q]
    * @param {string} [options.searchIn] all|productId|groupId|sku|title|privateName|lagerplats|ean|gtin
    * @param {string} [options.list] all|main|<listId>
+   * @param {unknown} [options.filters] whitelist-structured filter rules (AND); may include type `list` to override `list`
    */
   async list(req, options = {}) {
     try {
@@ -246,7 +248,26 @@ class ProductModel {
         options.searchIn != null && String(options.searchIn).trim() !== ''
           ? String(options.searchIn).trim()
           : 'all';
-      const listMode = options.list != null ? String(options.list).trim().toLowerCase() : 'all';
+      let listMode = options.list != null ? String(options.list).trim().toLowerCase() : 'all';
+
+      const rawFilters = options.filters;
+      if (rawFilters != null && !Array.isArray(rawFilters)) {
+        throw new AppError('Invalid filters', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+      let normalizedStruct = [];
+      if (Array.isArray(rawFilters) && rawFilters.length > 0) {
+        normalizedStruct = catalogFilterSchema.parseAndNormalizeFilters(rawFilters);
+        const listF = normalizedStruct.find((x) => x.type === 'list');
+        if (listF && listF.value) {
+          const v = listF.value;
+          if (v.mode === 'all') listMode = 'all';
+          else if (v.mode === 'main') listMode = 'main';
+          else if (v.mode === 'listId' && v.listId != null) {
+            listMode = String(v.listId);
+          }
+        }
+      }
+      const structForSql = normalizedStruct.filter((x) => x.type !== 'list');
 
       const sortMap = {
         id: 'p.id',
@@ -281,6 +302,15 @@ class ProductModel {
       const searchFrag = buildCatalogSearchWhereFragment(searchInRaw, qRaw, params);
       if (searchFrag) {
         clauses.push(`(${searchFrag})`);
+      }
+
+      if (structForSql.length > 0) {
+        const structFrags = catalogFilterSchema.buildStructuredFilterClauses(structForSql, params);
+        for (const s of structFrags) {
+          if (s && s !== 'TRUE') {
+            clauses.push(`(${s})`);
+          }
+        }
       }
 
       params.push(limit);

@@ -130,6 +130,85 @@ function createProductRoutes(controller, context) {
   // GET /api/products/count — lightweight count for Dashboard (before '/')
   router.get('/count', gate, (req, res) => controller.getCount(req, res));
 
+  router.get('/filter-definitions', gate, (req, res) => controller.getFilterDefinitions(req, res));
+
+  router.post(
+    '/filter-facets',
+    gate,
+    csrfProtection,
+    [
+      body('field').isIn(['brand', 'supplier', 'manufacturer']),
+      body('q').optional().trim().isLength({ max: 200 }),
+      body('limit').optional().isInt({ min: 1, max: 500 }),
+    ],
+    validateRequest,
+    (req, res) => controller.postFilterFacets(req, res),
+  );
+
+  router.post(
+    '/search',
+    gate,
+    csrfProtection,
+    [
+      body('limit').optional().isInt({ min: 1, max: 500 }),
+      body('offset').optional().isInt({ min: 0, max: 100000 }),
+      body('sort').optional().isIn(['id', 'title', 'quantity', 'priceAmount', 'sku']),
+      body('order').optional().isIn(['asc', 'desc']),
+      body('q').optional().trim().isLength({ max: 500 }),
+      body('searchIn')
+        .optional()
+        .trim()
+        .isIn([
+          'all',
+          'productId',
+          'groupId',
+          'sku',
+          'title',
+          'privateName',
+          'lagerplats',
+          'ean',
+          'gtin',
+        ]),
+      body('list').optional().trim().isLength({ max: 64 }),
+      body('filters').optional().isArray(),
+    ],
+    validateRequest,
+    (req, res) => controller.catalogSearch(req, res),
+  );
+
+  router.get('/saved-filters', gate, (req, res) => controller.listSavedFilters(req, res));
+  router.post(
+    '/saved-filters',
+    gate,
+    csrfProtection,
+    [
+      commonRules.string('name', 1, 200),
+      body('definition').isObject().withMessage('definition required'),
+    ],
+    validateRequest,
+    (req, res) => controller.createSavedFilter(req, res),
+  );
+  router.put(
+    '/saved-filters/:id',
+    gate,
+    csrfProtection,
+    [
+      commonRules.id('id'),
+      body('name').optional().isString().trim().isLength({ min: 1, max: 200 }),
+      body('definition').optional().isObject(),
+    ],
+    validateRequest,
+    (req, res) => controller.updateSavedFilter(req, res),
+  );
+  router.delete(
+    '/saved-filters/:id',
+    gate,
+    csrfProtection,
+    [commonRules.id('id')],
+    validateRequest,
+    (req, res) => controller.deleteSavedFilter(req, res),
+  );
+
   // POST /api/products/draft - Reserve a hidden draft row with a real product id
   router.post('/draft', gate, csrfProtection, (req, res) => controller.createDraft(req, res));
 

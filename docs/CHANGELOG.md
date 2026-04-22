@@ -4,13 +4,25 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
-## 2026-04-22 – Orders och Produkter: sticky toolbar, filterrad och valda
+## 2026-04-22 – Produkter: katalogfilter, sparade vyer, sök, sticky toolbar
+
+### Databas
+
+- **`100-product-catalog-saved-filters-and-indexes.sql`:** tabell **`product_saved_filters`** (namn, JSON-definition, tider); B-tree-indekser mot **`brand_id`**, **`supplier_id`**, **`manufacturer_id`**, **`quantity`**, **`price_amount`**, **lower(lagerplats)**, samt **`channel_product_map (channel_instance_id, product_id)`** för katalogfilter.
+
+### API / backend (`plugins/products`)
+
+- **`catalogFilterSchema.js`:** validerat filter-DSL (t.ex. status, skick, mängd, varumärke, leverantör, tillverkare, lagerplats, SKU, kanal/instans med **Aktiv** / **Inte aktiv**, kanalpris) och bygger SQL-fragment; **`/filter-definitions`**.
+- **Modell m.m.:** **`/search`** (katalog: antal + lista med `filters`); **`lookupsModel`:** märke / tillverkare / leverantör; CRUD på **`/saved-filters`**.
 
 ### Klient
 
-- **`ContentToolbar`:** smalare bredd på **scope**-dropdownen när **`searchLeading`** används (`9.5rem` i stället för `10.5rem`).
-- **`OrdersList`:** **Status** och **Kanal** i samma vänstra rad som sökningen (till höger om sökrutan); **valda / Nollställ** flyttad till **högra kolumnen** till vänster om **Hantera**; hela toolbar-raden är **sticky** med bakgrund och underkant så den följer vid scroll i listan.
-- **`ProductList`:** samma **sticky** toolbar-rad; **valda / Nollställ** till vänster om **Hantera** i högra kolumnen (tidigare bredvid sökraden).
+- **`ProductList`:** **Filtrera** (expandbar filterpanel, utkast vs. tillämpat), **Sparade** / spara vyn, **Uppdatera lista**; sticky toolbar, **valda** till vänster om **Hantera**; kanal- och mängdfält; **Filtrera** alltid **secondary** med tunn **ring** när filterpanelen är öppen (ingen primärfärg som «påslagen»-läge).
+- **`ProductCatalogFilterPanel` + `productCatalogFilterTypes`:** rader per attributtyp, **Attribut** vänster + övriga åtgärder längst **ned** samma nederkant, **0** i talfält (lagerantal & kanalpris) markieras vid fokus så nästa siffra ersätter nollan.
+- **Kanal (filterkriterium):** endast **Aktiv** (rad i `channel_product_map` med `enabled = true`) respektive **Inte aktiv** (saknas aktiv mappning — utan fyrfaldig «kopplad/mappad/men av»-uppdelning i UI).
+- **`formatChannelInstanceLabel`:** **WooCommerce** visar endast **`label`** (ingen sammanslagen nyckel).
+- **`productsApi`:** `search`, `getFilterDefinitions`, märke/tillv./lev., sparade vyer m.m.
+- **`OrdersList` + `ContentToolbar`:** samma vänstra sök+filterrad, **valda** till högerkolumn, **sticky**-toolbar.
 
 ---
 

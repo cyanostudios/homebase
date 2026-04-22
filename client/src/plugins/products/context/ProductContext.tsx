@@ -62,6 +62,7 @@ const CATALOG_RELOAD_FALLBACK: ProductListParams = {
   order: 'asc',
   searchIn: 'all',
   list: 'all',
+  filters: [],
 };
 
 interface ProductContextType {

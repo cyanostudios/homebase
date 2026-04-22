@@ -7,6 +7,8 @@ const path = require('path');
 const crypto = require('crypto');
 
 const lookupsModel = require('./lookupsModel');
+const catalogFilterSchema = require('./catalogFilterSchema');
+const productSavedFiltersModel = require('./productSavedFiltersModel');
 const listsModel = require('../../server/core/lists/listsModel');
 const { fetchCategoriesFromApi: fetchCdonCategories } = require('../cdon-products/fetchCategories');
 const {
@@ -1886,6 +1888,118 @@ class ProductController {
       }
 
       return res.status(500).json({ error: 'Failed to fetch products' });
+    }
+  }
+
+  /** POST /api/products/search — catalog list with JSON body (filters, q, list, sort, …). */
+  async catalogSearch(req, res) {
+    try {
+      const ALLOWED_LIMITS = new Set([25, 50, 100, 150, 200, 250]);
+      const limitRaw = req.body?.limit != null ? Number(req.body.limit) : 100;
+      const limit = ALLOWED_LIMITS.has(limitRaw) ? limitRaw : 100;
+      const offset = req.body?.offset != null ? Math.max(0, Number(req.body.offset)) : 0;
+      const sort = req.body?.sort ? String(req.body.sort) : 'id';
+      const order = req.body?.order ? String(req.body.order) : 'asc';
+      const q = req.body?.q != null && String(req.body.q).trim() !== '' ? String(req.body.q) : null;
+      const searchIn =
+        req.body?.searchIn != null && String(req.body.searchIn).trim() !== ''
+          ? String(req.body.searchIn).trim()
+          : 'all';
+      const list =
+        req.body?.list != null && String(req.body.list).trim() !== ''
+          ? String(req.body.list).trim()
+          : 'all';
+      const filters = req.body?.filters;
+
+      const { items, total } = await this.model.list(req, {
+        limit,
+        offset: Number.isFinite(offset) ? offset : 0,
+        sort,
+        order,
+        q,
+        searchIn,
+        list,
+        filters,
+      });
+      return res.json({ items, total });
+    } catch (error) {
+      Logger.error('Product catalog search error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to fetch products' });
+    }
+  }
+
+  async getFilterDefinitions(req, res) {
+    return res.json(catalogFilterSchema.getFilterDefinitions());
+  }
+
+  async postFilterFacets(req, res) {
+    try {
+      const field = String(req.body?.field || '');
+      const q = req.body?.q != null ? String(req.body.q) : undefined;
+      const limit = req.body?.limit != null ? Number(req.body.limit) : undefined;
+      const items = await lookupsModel.listForCatalogFacet(req, field, q, limit);
+      return res.json({ items });
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to load facets' });
+    }
+  }
+
+  async listSavedFilters(req, res) {
+    try {
+      const items = await productSavedFiltersModel.list(req);
+      return res.json({ items });
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to list saved views' });
+    }
+  }
+
+  async createSavedFilter(req, res) {
+    try {
+      const { name, definition } = req.body || {};
+      const row = await productSavedFiltersModel.create(req, name, definition);
+      return res.status(201).json(row);
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to save view' });
+    }
+  }
+
+  async updateSavedFilter(req, res) {
+    try {
+      const { id } = req.params;
+      const updates = {};
+      if (req.body?.name != null) updates.name = req.body.name;
+      if (req.body?.definition != null) updates.definition = req.body.definition;
+      const row = await productSavedFiltersModel.update(req, id, updates);
+      return res.json(row);
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to update saved view' });
+    }
+  }
+
+  async deleteSavedFilter(req, res) {
+    try {
+      await productSavedFiltersModel.remove(req, req.params.id);
+      return res.status(204).send();
+    } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to delete saved view' });
     }
   }
 

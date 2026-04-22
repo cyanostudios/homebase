@@ -26,6 +26,42 @@ async function getAll(req, table) {
   }));
 }
 
+/**
+ * Facet search for the catalog filter builder (lazy-loaded; not used on every page).
+ * @param {object} req
+ * @param {'brand' | 'supplier' | 'manufacturer'} field
+ * @param {string} [q]
+ * @param {number} [limit] max 500
+ * @returns {Promise<Array<{ id: string, name: string }>>}
+ */
+async function listForCatalogFacet(req, field, q, limit) {
+  const db = Database.get(req);
+  const tenantId = getTenantId(req);
+  if (!tenantId) throw new AppError('Tenant not resolved', 401, AppError.CODES.UNAUTHORIZED);
+
+  const byField = { brand: 'brands', supplier: 'suppliers', manufacturer: 'manufacturers' };
+  const table = byField[field];
+  if (!table) {
+    throw new AppError('Invalid facet field', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+
+  const lim = Math.min(Math.max(Number(limit) || 200, 1), 500);
+  const params = [];
+  let where = '';
+  const qtrim = q != null && String(q).trim() !== '' ? String(q).trim() : null;
+  if (qtrim) {
+    params.push(`%${qtrim}%`);
+    where = `WHERE name ILIKE $1`;
+  }
+  params.push(lim);
+  const limIdx = params.length;
+  const rows = await db.query(
+    `SELECT id, name FROM ${table} ${where} ORDER BY name ASC LIMIT $${limIdx}`,
+    params,
+  );
+  return (rows || []).map((r) => ({ id: String(r.id), name: r.name || '' }));
+}
+
 async function create(req, table, name) {
   const db = Database.get(req);
   const tenantId = getTenantId(req);
@@ -152,6 +188,7 @@ async function findOrCreateManufacturerForSello(req, selloManufacturerId, manufa
 module.exports = {
   getAll,
   create,
+  listForCatalogFacet,
   findOrCreateBrandForSello,
   findOrCreateManufacturerForSello,
 };
