@@ -30,18 +30,42 @@ const INGEST_VIEW_MODE_STORAGE_KEY = 'ingest:viewMode';
 type ViewMode = 'grid' | 'list';
 type SortField = 'name' | 'sourceType' | 'lastFetchedAt' | 'updatedAt' | 'lastFetchStatus';
 type SortOrder = 'asc' | 'desc';
+type IngestFilter = 'all' | 'active' | 'success' | 'failed';
 
 function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -101,6 +125,7 @@ export const IngestSourceList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [activeFilter, setActiveFilter] = useState<IngestFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -135,8 +160,21 @@ export const IngestSourceList: React.FC = () => {
   );
 
   const filteredAndSorted = useMemo(() => {
+    const byFilter = ingest.filter((s) => {
+      if (activeFilter === 'active') {
+        return Boolean(s.isActive);
+      }
+      if (activeFilter === 'success') {
+        return s.lastFetchStatus === 'success';
+      }
+      if (activeFilter === 'failed') {
+        return s.lastFetchStatus === 'failed';
+      }
+      return true;
+    });
+
     const needle = searchTerm.trim().toLowerCase();
-    const filtered = ingest.filter((s) => {
+    const filtered = byFilter.filter((s) => {
       if (!needle) {
         return true;
       }
@@ -173,7 +211,7 @@ export const IngestSourceList: React.FC = () => {
       });
       return flip * cmp;
     });
-  }, [ingest, searchTerm, sortField, sortOrder]);
+  }, [ingest, searchTerm, sortField, sortOrder, activeFilter]);
   const stats = useMemo(
     () => ({
       total: ingest.length,
@@ -281,10 +319,34 @@ export const IngestSourceList: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Active" value={stats.active} dotClassName="bg-emerald-500" />
-          <StatCard label="Success" value={stats.success} dotClassName="bg-amber-500" />
-          <StatCard label="Failed" value={stats.failed} dotClassName="bg-rose-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Active"
+            value={stats.active}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'active'}
+            onClick={() => setActiveFilter('active')}
+          />
+          <StatCard
+            label="Success"
+            value={stats.success}
+            dotClassName="bg-amber-500"
+            active={activeFilter === 'success'}
+            onClick={() => setActiveFilter('success')}
+          />
+          <StatCard
+            label="Failed"
+            value={stats.failed}
+            dotClassName="bg-rose-500"
+            active={activeFilter === 'failed'}
+            onClick={() => setActiveFilter('failed')}
+          />
         </div>
 
         {generalError && (

@@ -7,9 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { useApp } from '@/core/api/AppContext';
-
-/** Same shell as slots detail cards */
-const TASK_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 
 interface TaskAssigneeSelectProps {
   task: any;
@@ -69,7 +67,7 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
   const openPopover = showSuggestions && addableContacts.length > 0;
 
   return (
-    <Card padding="none" className={TASK_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <div className="p-6 space-y-2">
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2">

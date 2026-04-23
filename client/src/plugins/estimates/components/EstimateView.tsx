@@ -2,12 +2,18 @@ import { Copy, Download, Edit, Info, SlidersHorizontal, Trash2, Zap } from 'luci
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_QUICK_ACTION_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
@@ -18,8 +24,6 @@ import { Estimate, calculateEstimateTotals } from '../types/estimate';
 import { EstimateShareBlock } from './EstimateActions';
 import { EstimateStatusSelect } from './EstimateStatusSelect';
 import { StatusReasonModal } from './StatusReasonModal';
-
-const ESTIMATE_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 
 interface EstimateQuickActionsCardProps {
   estimate: Estimate;
@@ -65,17 +69,17 @@ function EstimateQuickActionsCard({
 }: EstimateQuickActionsCardProps) {
   const { t } = useTranslation();
   const canDuplicate = Boolean(getDuplicateConfig(estimate));
-  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
 
   return (
-    <Card padding="none" className={ESTIMATE_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('estimates.quickActions')}
         icon={Zap}
         iconPlugin="estimates"
+        subtleTitle
         className="p-4"
       >
-        <div className="flex flex-col items-start gap-1.5">
+        <div className="flex flex-col items-start gap-1">
           <Button
             type="button"
             variant="ghost"
@@ -86,7 +90,7 @@ function EstimateQuickActionsCard({
                 className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
               />
             )}
-            className={quickActionButtonClass}
+            className={DETAIL_QUICK_ACTION_ROW_CLASS}
             onClick={() => onEdit(estimate)}
           >
             {t('common.edit')}
@@ -101,7 +105,7 @@ function EstimateQuickActionsCard({
                 className={cn(props.className, 'text-red-600 dark:text-red-400')}
               />
             )}
-            className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
             onClick={onDeleteClick}
           >
             {t('common.delete')}
@@ -117,7 +121,7 @@ function EstimateQuickActionsCard({
                   className={cn(props.className, 'text-green-600 dark:text-green-400')}
                 />
               )}
-              className={quickActionButtonClass}
+              className={DETAIL_QUICK_ACTION_ROW_CLASS}
               onClick={onDuplicate}
             >
               {t('common.duplicate')}
@@ -135,17 +139,16 @@ function EstimateExportOptionsCard({ estimate, actions }: EstimateExportOptionsC
     return null;
   }
 
-  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
-
   return (
-    <Card padding="none" className={ESTIMATE_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('estimates.exportOptions')}
         icon={Download}
         iconPlugin="estimates"
+        subtleTitle
         className="p-4"
       >
-        <div className="flex flex-col items-start gap-1.5">
+        <div className="flex flex-col items-start gap-1">
           {actions.map((action) => {
             const Icon = action.icon;
             const iconTint = getEstimateQuickActionIconTint(action.id);
@@ -157,7 +160,11 @@ function EstimateExportOptionsCard({ estimate, actions }: EstimateExportOptionsC
                 size="sm"
                 icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
                 disabled={action.disabled}
-                className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
+                className={cn(
+                  DETAIL_QUICK_ACTION_ROW_CLASS,
+                  'disabled:opacity-50',
+                  action.className,
+                )}
                 onClick={() => action.onClick(estimate)}
               >
                 {action.label}
@@ -235,7 +242,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
               getDuplicateConfig={getDuplicateConfig}
             />
             <EstimateExportOptionsCard estimate={estimate} actions={detailFooterActions} />
-            <Card padding="none" className={ESTIMATE_DETAIL_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('estimates.information')} icon={Info} className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
@@ -271,59 +278,56 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         }
       >
         <div className="space-y-6">
-          <Card padding="none" className={ESTIMATE_DETAIL_CARD_CLASS}>
-            <div className="space-y-2 p-6">
-              <div className="mb-1 flex min-w-0 items-center gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                </span>
-                <span className="truncate text-sm font-semibold text-foreground">
-                  {t('estimates.estimateProperties')}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">{t('estimates.fieldContact')}</div>
-                    <div className="flex h-9 min-w-0 max-w-[180px] items-center justify-end rounded-md border border-border bg-background px-3 text-xs font-medium leading-none">
-                      <span className="truncate text-right">{estimate.contactName || '—'}</span>
-                    </div>
-                  </div>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('estimates.estimateProperties')}
+              icon={SlidersHorizontal}
+              subtleTitle
+              className="p-6"
+            >
+              <div>
+                <div className={DETAIL_PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('estimates.fieldContact')}
+                  </span>
+                  <Badge className="max-w-[min(100%,220px)] truncate border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                    {estimate.contactName || '—'}
+                  </Badge>
                 </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">{t('estimates.fieldCurrency')}</div>
-                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
-                      {estimate.currency || '—'}
-                    </div>
-                  </div>
+                <div className={DETAIL_PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('estimates.fieldCurrency')}
+                  </span>
+                  <Badge className="border-0 rounded-md bg-indigo-50 text-indigo-700 font-semibold dark:bg-indigo-950/40 dark:text-indigo-300">
+                    {estimate.currency || '—'}
+                  </Badge>
                 </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">{t('estimates.fieldValidTo')}</div>
-                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
-                      {estimate.validTo ? new Date(estimate.validTo).toLocaleDateString() : '—'}
-                    </div>
-                  </div>
+                <div className={DETAIL_PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('estimates.fieldValidTo')}
+                  </span>
+                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                    {estimate.validTo ? new Date(estimate.validTo).toLocaleDateString() : '—'}
+                  </Badge>
                 </div>
-
-                <div className="rounded-lg border border-border p-4">
+                <div className={DETAIL_PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('estimates.fieldStatus')}
+                  </span>
                   <EstimateStatusSelect
                     estimate={displayEstimate ?? estimate}
                     onStatusChange={(status) => setQuickEditField('status', status)}
+                    hideInlineLabel
                   />
                 </div>
               </div>
-            </div>
+            </DetailSection>
           </Card>
 
           <EstimateShareBlock estimate={estimate} />
 
           {/* Line Items */}
-          <Card padding="none" className={ESTIMATE_DETAIL_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={t('estimates.lineItemsCount', { count: estimate.lineItems.length })}
               iconPlugin="estimates"
@@ -376,7 +380,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           </Card>
 
           {/* Pricing Summary */}
-          <Card padding="none" className={ESTIMATE_DETAIL_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={t('estimates.pricingSummary')}
               iconPlugin="estimates"
@@ -424,7 +428,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           </Card>
 
           {estimate.notes && (
-            <Card padding="none" className={ESTIMATE_DETAIL_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('estimates.notes')} iconPlugin="estimates" className="p-6">
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                   {estimate.notes}

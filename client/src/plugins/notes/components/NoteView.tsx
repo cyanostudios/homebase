@@ -10,6 +10,12 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_QUICK_ACTION_ROW_CLASS,
+  DETAIL_SURFACE_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -21,8 +27,6 @@ import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import type { Note } from '@/plugins/notes/types/notes';
 
 import { NoteShareBlock } from './NoteShareBlock';
-
-const NOTE_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 
 interface NoteQuickActionsCardProps {
   note: Note;
@@ -75,11 +79,16 @@ function NoteQuickActionsCard({
 }: NoteQuickActionsCardProps) {
   const { t } = useTranslation();
   const canDuplicate = Boolean(getDuplicateConfig(note));
-  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
   return (
-    <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
-      <DetailSection title={t('notes.quickActions')} icon={Zap} iconPlugin="notes" className="p-4">
-        <div className="flex flex-col items-start gap-1.5">
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('notes.quickActions')}
+        icon={Zap}
+        iconPlugin="notes"
+        subtleTitle
+        className="p-4"
+      >
+        <div className="flex flex-col items-start gap-1">
           <Button
             type="button"
             variant="ghost"
@@ -90,7 +99,7 @@ function NoteQuickActionsCard({
                 className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
               />
             )}
-            className={quickActionButtonClass}
+            className={DETAIL_QUICK_ACTION_ROW_CLASS}
             onClick={() => onEdit(note)}
           >
             {t('common.edit')}
@@ -105,7 +114,7 @@ function NoteQuickActionsCard({
                 className={cn(props.className, 'text-red-600 dark:text-red-400')}
               />
             )}
-            className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
             onClick={onDeleteClick}
           >
             {t('common.delete')}
@@ -121,7 +130,7 @@ function NoteQuickActionsCard({
                   className={cn(props.className, 'text-green-600 dark:text-green-400')}
                 />
               )}
-              className={quickActionButtonClass}
+              className={DETAIL_QUICK_ACTION_ROW_CLASS}
               onClick={() => onDuplicate(note)}
             >
               {t('common.duplicate')}
@@ -139,7 +148,11 @@ function NoteQuickActionsCard({
                   size="sm"
                   icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
                   disabled={action.disabled}
-                  className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
+                  className={cn(
+                    DETAIL_QUICK_ACTION_ROW_CLASS,
+                    'disabled:opacity-50',
+                    action.className,
+                  )}
                   onClick={() => action.onClick(note)}
                 >
                   {action.label}
@@ -182,7 +195,6 @@ function NoteExportOptionsCard({
     return null;
   }
 
-  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
   const exportLabelByFormat: Record<ExportFormat, string> = {
     txt: t('common.exportTxt'),
     csv: t('common.exportCsv'),
@@ -190,14 +202,15 @@ function NoteExportOptionsCard({
   };
 
   return (
-    <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('notes.exportOptions')}
         icon={Download}
         iconPlugin="notes"
+        subtleTitle
         className="p-4"
       >
-        <div className="flex flex-col items-start gap-1.5">
+        <div className="flex flex-col items-start gap-1">
           {exportFormats.map((format) => (
             <Button
               key={format}
@@ -205,7 +218,7 @@ function NoteExportOptionsCard({
               variant="ghost"
               size="sm"
               icon={Download}
-              className={quickActionButtonClass}
+              className={DETAIL_QUICK_ACTION_ROW_CLASS}
               onClick={() => onExportItem(format, note)}
             >
               {exportLabelByFormat[format]}
@@ -227,7 +240,11 @@ function NoteExportOptionsCard({
                     size="sm"
                     icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
                     disabled={action.disabled}
-                    className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
+                    className={cn(
+                      DETAIL_QUICK_ACTION_ROW_CLASS,
+                      'disabled:opacity-50',
+                      action.className,
+                    )}
                     onClick={() => action.onClick(note)}
                   >
                     {action.label}
@@ -352,17 +369,15 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               shareActions={exportShareActions}
             />
             {note.mentions && note.mentions.length > 0 && (
-              <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
-                <div className="space-y-1.5 p-3 sm:p-4">
-                  <div className="mb-0.5 flex min-w-0 items-center gap-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="truncate text-sm font-semibold text-foreground">
-                      {t('notes.mentionedContacts')}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 pt-0">
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('notes.mentionedContacts')}
+                  icon={Users}
+                  iconPlugin="notes"
+                  subtleTitle
+                  className="p-4"
+                >
+                  <div className="space-y-1.5">
                     {uniqueMentions.map((mention: { contactId: string; contactName?: string }) => {
                       const contactData = contactsData.find(
                         (c: { id: string | number }) => String(c.id) === String(mention.contactId),
@@ -374,59 +389,54 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                       return (
                         <div
                           key={`mention-${mention.contactId}`}
-                          className="rounded-lg border border-border px-3 py-2"
+                          className={cn(DETAIL_SURFACE_ROW_CLASS, 'plugin-contacts')}
                         >
-                          <div className="flex min-w-0 items-center justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <span className="truncate text-sm font-medium">{name}</span>
-                            </div>
-                            <div className="shrink-0">
-                              {contactData ? (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  icon={ExternalLink}
-                                  className="h-9 w-9 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
-                                  onClick={() => handleContactClick(mention.contactId)}
-                                  aria-label={`${t('common.open')} ${name}`}
-                                >
-                                  <span className="sr-only">{t('common.open')}</span>
-                                </Button>
-                              ) : null}
-                            </div>
-                          </div>
+                          <span className="truncate text-xs text-muted-foreground">{name}</span>
+                          {contactData ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              icon={ExternalLink}
+                              className="h-7 w-7 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
+                              onClick={() => handleContactClick(mention.contactId)}
+                              aria-label={`${t('common.open')} ${name}`}
+                            >
+                              <span className="sr-only">{t('common.open')}</span>
+                            </Button>
+                          ) : null}
                         </div>
                       );
                     })}
                   </div>
-                </div>
+                </DetailSection>
               </Card>
             )}
 
-            <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('notes.information')}
                 icon={Info}
                 iconPlugin="notes"
+                subtleTitle
                 className="p-4"
               >
-                <div className="space-y-4 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">ID</span>
-                    <span className="font-mono font-medium">
+                <div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">ID</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {formatDisplayNumber('notes', note.id)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Created</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {new Date(note.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Updated</span>
-                    <span className="font-medium">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {new Date(note.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -446,7 +456,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         }
       >
         <div className="space-y-4">
-          <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={(note.title || '').trim() || '—'}
               iconPlugin="notes"

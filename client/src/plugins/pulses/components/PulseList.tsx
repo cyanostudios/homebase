@@ -24,17 +24,42 @@ import { usePulses } from '../hooks/usePulses';
 
 import { PulseSettingsView } from './PulseSettingsView';
 
+type PulseFilter = 'all' | 'filtered' | 'failed' | 'today';
+
 function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -66,13 +91,14 @@ export const PulseList: React.FC = () => {
   } = usePulses();
   const [searchTerm, setSearchTerm] = useState('');
   const [pluginFilter, setPluginFilter] = useState<string>('');
+  const [activeFilter, setActiveFilter] = useState<PulseFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
-    return pulseHistory.filter((entry) => {
+    const baseFiltered = pulseHistory.filter((entry) => {
       const matchSearch =
         !needle ||
         entry.recipient.toLowerCase().includes(needle) ||
@@ -80,7 +106,19 @@ export const PulseList: React.FC = () => {
       const matchPlugin = !pluginFilter || entry.pluginSource === pluginFilter;
       return matchSearch && matchPlugin;
     });
-  }, [pulseHistory, searchTerm, pluginFilter]);
+    return baseFiltered.filter((entry) => {
+      if (activeFilter === 'failed') {
+        return String(entry.status || '').toLowerCase() === 'failed';
+      }
+      if (activeFilter === 'today') {
+        return (
+          Boolean(entry.sentAt) &&
+          new Date(entry.sentAt).toDateString() === new Date().toDateString()
+        );
+      }
+      return true;
+    });
+  }, [pulseHistory, searchTerm, pluginFilter, activeFilter]);
 
   const pluginSources = useMemo(
     () =>
@@ -264,10 +302,34 @@ export const PulseList: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Filtered" value={stats.filtered} dotClassName="bg-emerald-500" />
-          <StatCard label="Failed" value={stats.failed} dotClassName="bg-rose-500" />
-          <StatCard label="Sent Today" value={stats.today} dotClassName="bg-violet-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Filtered"
+            value={stats.filtered}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'filtered'}
+            onClick={() => setActiveFilter('filtered')}
+          />
+          <StatCard
+            label="Failed"
+            value={stats.failed}
+            dotClassName="bg-rose-500"
+            active={activeFilter === 'failed'}
+            onClick={() => setActiveFilter('failed')}
+          />
+          <StatCard
+            label="Sent Today"
+            value={stats.today}
+            dotClassName="bg-violet-500"
+            active={activeFilter === 'today'}
+            onClick={() => setActiveFilter('today')}
+          />
         </div>
 
         {selectedCount > 0 && (

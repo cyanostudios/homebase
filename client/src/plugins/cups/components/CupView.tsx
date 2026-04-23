@@ -1,19 +1,27 @@
-import { Globe, Info, Trophy, Trash2 } from 'lucide-react';
+import { Globe, Info, SlidersHorizontal, Trophy, Trash2, Zap } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { cn } from '@/lib/utils';
 
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
 
 export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) {
+  const { t } = useTranslation();
   const current = cup ?? item ?? null;
   const { deleteCup } = useCups();
   const [showDelete, setShowDelete] = useState(false);
@@ -26,39 +34,49 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
       <DetailLayout
         sidebar={
           <div className="space-y-3">
-            <Card
-              padding="none"
-              className="overflow-hidden border border-border/70 bg-card shadow-sm"
-            >
-              <DetailSection title="Information" icon={Info} className="p-4">
-                <div className="space-y-3 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">ID</span>
-                    <span className="font-mono">{formatDisplayNumber('cups', current.id)}</span>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('contacts.information')}
+                icon={Info}
+                subtleTitle
+                className="p-4"
+              >
+                <div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">ID</span>
+                    <span className="font-mono font-semibold text-foreground">
+                      {formatDisplayNumber('cups', current.id)}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Source URL</span>
-                    <span className="max-w-[170px] truncate">{current.source_url || '—'}</span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Source URL</span>
+                    <span className="max-w-[170px] truncate font-semibold text-foreground">
+                      {current.source_url || '—'}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Ingest source</span>
-                    <span>{current.ingest_source_id || '—'}</span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Ingest source</span>
+                    <span className="font-semibold text-foreground">
+                      {current.ingest_source_id || '—'}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Ingest run</span>
-                    <span>{current.ingest_run_id || '—'}</span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Ingest run</span>
+                    <span className="font-semibold text-foreground">
+                      {current.ingest_run_id || '—'}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Updated</span>
-                    <span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {current.updated_at
                         ? new Date(current.updated_at).toLocaleDateString('sv-SE')
                         : '—'}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Created</span>
-                    <span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Created</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {current.created_at
                         ? new Date(current.created_at).toLocaleDateString('sv-SE')
                         : '—'}
@@ -67,29 +85,34 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                 </div>
               </DetailSection>
             </Card>
-            <Card
-              padding="none"
-              className="overflow-hidden border border-border/70 bg-card shadow-sm"
-            >
-              <DetailSection title="Quick actions" className="p-4">
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('contacts.quickActions')}
+                icon={Zap}
+                subtleTitle
+                className="p-4"
+              >
                 <Button
                   variant="ghost"
-                  icon={(p) => (
-                    <Trash2 {...p} className={`${p.className} text-red-600 dark:text-red-400`} />
-                  )}
-                  className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
+                  size="sm"
+                  icon={Trash2}
+                  className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 [&>svg]:text-red-600 dark:[&>svg]:text-red-400"
                   onClick={() => setShowDelete(true)}
                 >
-                  Delete
+                  {t('common.delete')}
                 </Button>
               </DetailSection>
             </Card>
-            <DetailActivityLog plugin="cups" entityId={current.id} title="Activity" />
+            <DetailActivityLog
+              entityType="cups"
+              entityId={current.id}
+              title={t('contacts.activity')}
+            />
           </div>
         }
       >
-        <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
-          <DetailSection title="Cup information" icon={Trophy} className="p-4">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection title="Cup information" icon={Trophy} subtleTitle className="p-6">
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-3 gap-3">
                 <span className="text-muted-foreground">Name</span>
@@ -154,38 +177,55 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
             </div>
           </DetailSection>
         </Card>
-        <Card
-          padding="none"
-          className="mt-3 overflow-hidden border border-border/70 bg-card shadow-sm"
-        >
-          <DetailSection title="Properties" className="p-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-sm font-medium">Visible on public site</div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Controls whether this cup appears in Cupappen.
-                  </p>
-                </div>
-                <Switch checked={!!current.visible} disabled />
+        <Card padding="none" className={cn('mt-3', DETAIL_VIEW_CARD_CLASS)}>
+          <DetailSection
+            title={t('cups.cupProperties')}
+            icon={SlidersHorizontal}
+            subtleTitle
+            className="p-6"
+          >
+            <div>
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('cups.propertyPublic')}
+                </span>
+                {current.visible ? (
+                  <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
+                    {t('common.yes')}
+                  </Badge>
+                ) : (
+                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                    {t('common.no')}
+                  </Badge>
+                )}
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-sm font-medium">Sanctioned cup</div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Indicates whether this cup is sanctioned.
-                  </p>
-                </div>
-                <Switch checked={!!current.sanctioned} disabled />
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('cups.propertySanctioned')}
+                </span>
+                {current.sanctioned ? (
+                  <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
+                    {t('common.yes')}
+                  </Badge>
+                ) : (
+                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                    {t('common.no')}
+                  </Badge>
+                )}
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-sm font-medium">Featured</div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Shows this cup in the featured section on Cupappen.
-                  </p>
-                </div>
-                <Switch checked={!!current.featured} disabled />
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('cups.propertyFeatured')}
+                </span>
+                {current.featured ? (
+                  <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
+                    {t('common.yes')}
+                  </Badge>
+                ) : (
+                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                    {t('common.no')}
+                  </Badge>
+                )}
               </div>
             </div>
           </DetailSection>
@@ -202,7 +242,7 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
           setShowDelete(false);
         }}
         onCancel={() => setShowDelete(false)}
-        variant="destructive"
+        variant="danger"
       />
     </>
   );

@@ -357,6 +357,9 @@
     "titlePlaceholder": "Enter task title...",
     "contentPlaceholder": "Describe the task details... Type @ to mention contacts",
     "taskProperties": "Task Properties",
+    "propertyStatus": "Status",
+    "propertyPriority": "Priority",
+    "propertyDueDate": "Due date",
     "mentionedContacts": "Mentioned Contacts",
     "information": "Information",
     "quickActions": "Quick actions",
@@ -697,9 +700,14 @@
     "columnStart": "Start",
     "featured": "Featured",
     "notFeatured": "Not featured",
-    "ingestLine": "Ingest: {{title}}"
+    "ingestLine": "Ingest: {{title}}",
+    "propertyPublic": "Public on site",
+    "propertySanctioned": "Sanctioned",
+    "propertyFeatured": "Featured",
+    "cupProperties": "Properties"
   },
   "dashboard": {
+    "description": "A quick overview of your enabled plugins—open one below or from the sidebar.",
     "noWidgets": "No widgets available. Enable plugins to see widgets here."
   },
   "dialog": {

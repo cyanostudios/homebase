@@ -26,15 +26,18 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_FIELD_LABEL_CLASS,
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_QUICK_ACTION_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
 import { ingestApi } from '../api/ingestApi';
 import { useIngest } from '../hooks/useIngest';
 import type { IngestSource } from '../types/ingest';
-
-const INGEST_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
-const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
 
 interface IngestSourceViewProps {
   ingest?: IngestSource | null;
@@ -115,14 +118,15 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
       <DetailLayout
         sidebar={
           <div className="space-y-4">
-            <Card padding="none" className={cn(INGEST_DETAIL_CARD_CLASS, 'plugin-ingest')}>
+            <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
               <DetailSection
                 title={t('ingest.quickActions')}
                 icon={Zap}
                 iconPlugin="ingest"
+                subtleTitle
                 className="p-4"
               >
-                <div className="flex flex-col items-start gap-1.5">
+                <div className="flex flex-col items-start gap-1">
                   <Button
                     type="button"
                     variant="ghost"
@@ -133,7 +137,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                         className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
                       />
                     )}
-                    className={quickActionButtonClass}
+                    className={DETAIL_QUICK_ACTION_ROW_CLASS}
                     onClick={() => openIngestSourceForEdit(source)}
                   >
                     {t('common.edit')}
@@ -148,7 +152,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                         className={cn(props.className, 'text-red-600 dark:text-red-400')}
                       />
                     )}
-                    className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
+                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
                     onClick={() => setShowDelete(true)}
                   >
                     {t('common.delete')}
@@ -163,7 +167,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                         className={cn(props.className, 'text-green-600 dark:text-green-400')}
                       />
                     )}
-                    className={cn(quickActionButtonClass, 'text-green-600 dark:text-green-400')}
+                    className={DETAIL_QUICK_ACTION_ROW_CLASS}
                     disabled={importRunning || !source.isActive}
                     onClick={() => void runFetch(source.id)}
                   >
@@ -175,7 +179,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                     rel="noopener noreferrer"
                     className={cn(
                       buttonVariants({ variant: 'ghost', size: 'sm' }),
-                      quickActionButtonClass,
+                      DETAIL_QUICK_ACTION_ROW_CLASS,
                       'inline-flex items-center gap-2',
                     )}
                   >
@@ -186,65 +190,74 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
               </DetailSection>
             </Card>
 
-            <Card padding="none" className={cn(INGEST_DETAIL_CARD_CLASS, 'plugin-ingest')}>
+            <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
               <DetailSection
                 title={t('ingest.information')}
                 icon={Info}
                 iconPlugin="ingest"
+                subtleTitle
                 className="p-4"
               >
-                <div className="space-y-4 text-xs">
-                  <div className="flex justify-between items-center gap-3">
-                    <span className="text-muted-foreground shrink-0">{t('ingest.colId')}</span>
-                    <span className="font-mono font-medium text-right truncate">
+                <div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">{t('ingest.colId')}</span>
+                    <span className="truncate text-right font-mono font-semibold text-foreground">
                       {formatDisplayNumber('ingest', source.id)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center gap-3">
-                    <span className="text-muted-foreground shrink-0">{t('ingest.sourceType')}</span>
-                    <span className="font-medium">{source.sourceType}</span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {t('ingest.sourceType')}
+                    </span>
+                    <span className="font-semibold text-foreground">{source.sourceType}</span>
                   </div>
-                  <div className="flex justify-between items-center gap-3">
-                    <span className="text-muted-foreground shrink-0">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">
                       {t('ingest.fetchMethod')}
                     </span>
-                    <span className="font-mono font-medium text-right truncate">
+                    <span className="truncate text-right font-mono font-semibold text-foreground">
                       {source.fetchMethod}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center gap-3">
-                    <span className="text-muted-foreground shrink-0">{t('ingest.active')}</span>
-                    <span className="font-medium">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">{t('ingest.active')}</span>
+                    <span className="font-semibold text-foreground">
                       {source.isActive ? t('common.yes') : t('common.no')}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center gap-3">
-                    <span className="text-muted-foreground shrink-0">{t('ingest.lastFetch')}</span>
-                    <span className="font-medium text-right">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {t('ingest.lastFetch')}
+                    </span>
+                    <span className="text-right font-semibold text-foreground">
                       {source.lastFetchedAt ? new Date(source.lastFetchedAt).toLocaleString() : '—'}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center gap-3">
-                    <span className="text-muted-foreground shrink-0">{t('ingest.lastStatus')}</span>
-                    <span className="font-medium">{source.lastFetchStatus}</span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {t('ingest.lastStatus')}
+                    </span>
+                    <span className="font-semibold text-foreground">{source.lastFetchStatus}</span>
                   </div>
-                  <div className="flex justify-between items-center gap-3 pt-2 border-t border-border/50">
-                    <span className="text-muted-foreground shrink-0">{t('common.created')}</span>
-                    <span className="font-medium">
+                  <div className={cn(DETAIL_INFO_ROW_CLASS, 'border-t border-border/50 pt-2')}>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {t('common.created')}
+                    </span>
+                    <span className="font-mono font-semibold text-foreground">
                       {new Date(source.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center gap-3">
-                    <span className="text-muted-foreground shrink-0">{t('common.updated')}</span>
-                    <span className="font-medium">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {t('common.updated')}
+                    </span>
+                    <span className="font-mono font-semibold text-foreground">
                       {new Date(source.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
                   {source.notes && (
-                    <div className="pt-2 border-t border-border/50 space-y-1">
-                      <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-                        {t('ingest.notes')}
-                      </div>
+                    <div className="space-y-1 border-t border-border/50 pt-2">
+                      <div className={DETAIL_FIELD_LABEL_CLASS}>{t('ingest.notes')}</div>
                       <p className="text-xs text-foreground whitespace-pre-wrap line-clamp-6">
                         {source.notes}
                       </p>
@@ -266,17 +279,16 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
         }
       >
         <div className="space-y-4">
-          <Card padding="none" className={cn(INGEST_DETAIL_CARD_CLASS, 'plugin-ingest')}>
+          <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
             <DetailSection
               title={t('ingest.sectionDetails')}
               icon={Globe}
               iconPlugin="ingest"
+              subtleTitle
               className="p-6"
             >
               <div>
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                  {t('ingest.sourceUrl')}
-                </div>
+                <div className={DETAIL_FIELD_LABEL_CLASS}>{t('ingest.sourceUrl')}</div>
                 <a
                   href={source.sourceUrl}
                   target="_blank"
@@ -291,11 +303,12 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
 
           {latestRunForExcerpt &&
             (latestRunForExcerpt.rawExcerpt || latestRunForExcerpt.errorMessage) && (
-              <Card padding="none" className={cn(INGEST_DETAIL_CARD_CLASS, 'plugin-ingest')}>
+              <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
                 <DetailSection
                   title={t('ingest.latestExcerptTitle')}
                   icon={FileText}
                   iconPlugin="ingest"
+                  subtleTitle
                   className="p-4 sm:p-6"
                 >
                   <p className="text-xs text-muted-foreground mb-2">
@@ -316,11 +329,12 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
               </Card>
             )}
 
-          <Card padding="none" className={cn(INGEST_DETAIL_CARD_CLASS, 'plugin-ingest')}>
+          <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-ingest')}>
             <DetailSection
               title={t('ingest.runsTitle')}
               icon={History}
               iconPlugin="ingest"
+              subtleTitle
               className="p-4 sm:p-6"
             >
               {runsLoading ? (

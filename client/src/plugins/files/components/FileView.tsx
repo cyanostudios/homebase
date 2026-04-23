@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import type { FileItem } from '../types/files';
@@ -13,8 +14,6 @@ type Props = {
   file?: FileItem;
   item?: FileItem;
 };
-
-const FILE_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 
 function humanSize(bytes?: number | null) {
   if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) {
@@ -57,11 +56,12 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
     <DetailLayout
       sidebar={
         <div className="space-y-4">
-          <Card padding="none" className={FILE_DETAIL_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={t('files.viewInformation')}
               icon={Info}
               iconPlugin="files"
+              subtleTitle
               className="p-4"
             >
               <div className="space-y-4 text-xs">
@@ -117,7 +117,7 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
     >
       <div className="space-y-4">
         {f.url ? (
-          <Card padding="none" className={FILE_DETAIL_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={
                 isImage
@@ -127,6 +127,7 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
                     : t('files.previewContent')
               }
               iconPlugin="files"
+              subtleTitle
               className="p-6"
             >
               {isImage ? (
@@ -151,10 +152,11 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
             </DetailSection>
           </Card>
         ) : (
-          <Card padding="none" className={FILE_DETAIL_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={t('files.previewUnavailableTitle')}
               iconPlugin="files"
+              subtleTitle
               className="p-6"
             >
               <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">

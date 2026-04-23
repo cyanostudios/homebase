@@ -42,18 +42,42 @@ import { EstimateSettingsView } from './EstimateSettingsView';
 type SortField = 'estimateNumber' | 'contactName' | 'total' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+type EstimateFilter = 'all' | 'draft' | 'accepted' | 'sent';
 
 function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -88,6 +112,7 @@ export function EstimateList() {
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
+  const [activeFilter, setActiveFilter] = useState<EstimateFilter>('all');
 
   const ESTIMATES_SETTINGS_KEY = 'estimates';
 
@@ -136,7 +161,20 @@ export function EstimateList() {
   const [deleting, setDeleting] = useState(false);
 
   const sortedEstimates = useMemo(() => {
-    const filtered = estimates.filter(
+    const byFilter = estimates.filter((estimate) => {
+      if (activeFilter === 'draft') {
+        return estimate.status === 'draft';
+      }
+      if (activeFilter === 'accepted') {
+        return estimate.status === 'accepted';
+      }
+      if (activeFilter === 'sent') {
+        return estimate.status === 'sent';
+      }
+      return true;
+    });
+
+    const filtered = byFilter.filter(
       (estimate) =>
         estimate.estimateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         estimate.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -161,7 +199,7 @@ export function EstimateList() {
 
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [estimates, searchTerm, sortField, sortOrder]);
+  }, [estimates, searchTerm, sortField, sortOrder, activeFilter]);
   const stats = useMemo(
     () => ({
       total: estimates.length,
@@ -348,10 +386,34 @@ export function EstimateList() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Draft" value={stats.draft} dotClassName="bg-slate-500" />
-          <StatCard label="Sent" value={stats.sent} dotClassName="bg-amber-500" />
-          <StatCard label="Accepted" value={stats.accepted} dotClassName="bg-emerald-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Draft"
+            value={stats.draft}
+            dotClassName="bg-slate-500"
+            active={activeFilter === 'draft'}
+            onClick={() => setActiveFilter('draft')}
+          />
+          <StatCard
+            label="Sent"
+            value={stats.sent}
+            dotClassName="bg-amber-500"
+            active={activeFilter === 'sent'}
+            onClick={() => setActiveFilter('sent')}
+          />
+          <StatCard
+            label="Accepted"
+            value={stats.accepted}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'accepted'}
+            onClick={() => setActiveFilter('accepted')}
+          />
         </div>
 
         {selectedCount > 0 && (

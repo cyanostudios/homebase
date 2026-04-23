@@ -26,6 +26,12 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_QUICK_ACTION_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
@@ -69,11 +75,6 @@ function formatTimeOnly(s: string | null): string {
   return new Date(s).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
 }
 
-/** White card shell for properties, info, metadata, bookings, activity (detail area has gray bg) */
-const SLOT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
-
-const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
-
 // ─── Sub-components (extracted from SlotView) ─────────────────────────────────
 
 interface SlotExportOptionsCardProps {
@@ -95,14 +96,15 @@ function SlotExportOptionsCard({ slot, exportFormats, onExportItem }: SlotExport
   };
 
   return (
-    <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('slots.exportOptions')}
         icon={Download}
         iconPlugin="slots"
+        subtleTitle
         className="p-4"
       >
-        <div className="flex flex-col items-start gap-1.5">
+        <div className="flex flex-col items-start gap-1">
           {exportFormats.map((format) => (
             <Button
               key={format}
@@ -110,7 +112,7 @@ function SlotExportOptionsCard({ slot, exportFormats, onExportItem }: SlotExport
               variant="ghost"
               size="sm"
               icon={Download}
-              className={quickActionButtonClass}
+              className={DETAIL_QUICK_ACTION_ROW_CLASS}
               onClick={() => onExportItem(format, slot)}
             >
               {exportLabelByFormat[format] ?? `Export ${format.toUpperCase()}`}
@@ -158,9 +160,15 @@ function SlotQuickActionsCard({
     return '';
   };
   return (
-    <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
-      <DetailSection title={t('slots.quickActions')} icon={Zap} iconPlugin="slots" className="p-4">
-        <div className="flex flex-col items-start gap-1.5">
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('slots.quickActions')}
+        icon={Zap}
+        iconPlugin="slots"
+        subtleTitle
+        className="p-4"
+      >
+        <div className="flex flex-col items-start gap-1">
           <Button
             type="button"
             variant="ghost"
@@ -171,7 +179,7 @@ function SlotQuickActionsCard({
                 className={cn(props.className, 'text-red-600 dark:text-red-400')}
               />
             )}
-            className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
             onClick={onDeleteClick}
           >
             {t('common.delete')}
@@ -187,7 +195,7 @@ function SlotQuickActionsCard({
                   className={cn(props.className, 'text-green-600 dark:text-green-400')}
                 />
               )}
-              className="h-9 justify-start rounded-md px-3 text-xs hover:bg-muted"
+              className={DETAIL_QUICK_ACTION_ROW_CLASS}
               onClick={() => onDuplicate(slot)}
             >
               {t('common.duplicate')}
@@ -210,7 +218,8 @@ function SlotQuickActionsCard({
                   )}
                   disabled={action.disabled}
                   className={cn(
-                    'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted disabled:opacity-50',
+                    DETAIL_QUICK_ACTION_ROW_CLASS,
+                    'disabled:opacity-50',
                     action.className,
                   )}
                   onClick={() => action.onClick(slot)}
@@ -235,39 +244,47 @@ interface SlotMetadataCardProps {
 function SlotMetadataCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMetadataCardProps) {
   const { t } = useTranslation();
   return (
-    <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
-      <DetailSection title={t('slots.information')} icon={Info} iconPlugin="slots" className="p-4">
-        <div className="space-y-4 text-xs">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">ID</span>
-            <span className="font-mono font-medium">{formatDisplayNumber('slots', slot.id)}</span>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('slots.information')}
+        icon={Info}
+        iconPlugin="slots"
+        subtleTitle
+        className="p-4"
+      >
+        <div>
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">ID</span>
+            <span className="font-mono font-semibold text-foreground">
+              {formatDisplayNumber('slots', slot.id)}
+            </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Created</span>
-            <span className="font-medium">
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">Created</span>
+            <span className="font-mono font-semibold text-foreground">
               {slot.created_at ? new Date(slot.created_at).toLocaleDateString() : '—'}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Updated</span>
-            <span className="font-medium">
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">Updated</span>
+            <span className="font-mono font-semibold text-foreground">
               {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString() : '—'}
             </span>
           </div>
           {hasMatch && (
-            <div className="flex justify-between items-center pt-2 border-t border-border/50">
-              <span className="text-muted-foreground">Source Match</span>
+            <div className="flex items-center justify-between border-t border-border/50 pt-2 text-xs">
+              <span className="text-slate-500 dark:text-slate-400">Source Match</span>
               {sourceMatch ? (
                 <Button
                   variant="link"
                   size="sm"
                   onClick={onMatchClick}
-                  className="h-auto p-0 text-[10px] plugin-matches text-plugin truncate max-w-[150px]"
+                  className="h-auto max-w-[150px] truncate p-0 text-[10px] plugin-matches text-plugin"
                 >
                   {`${sourceMatch.home_team} – ${sourceMatch.away_team}`}
                 </Button>
               ) : (
-                <span className="text-muted-foreground italic">Deleted Match</span>
+                <span className="italic text-muted-foreground">Deleted Match</span>
               )}
             </div>
           )}
@@ -291,7 +308,7 @@ function SlotMainInfoCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMai
   const displayName = slot.name?.trim() || `SLT ${formatDisplayNumber('slots', slot.id)}`;
 
   return (
-    <Card padding="none" className={cn(SLOT_DETAIL_CARD_CLASS, 'plugin-slots')}>
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-slots')}>
       <div className="p-6 space-y-5">
         <div>
           <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
@@ -484,49 +501,61 @@ function SlotSettingsCard({
 
   return (
     <div className="space-y-4 plugin-slots">
-      <Card padding="none" className={cn(SLOT_DETAIL_CARD_CLASS, 'overflow-visible relative z-30')}>
-        <div className="p-6 space-y-2">
-          <div className="mb-1 flex items-center gap-2 min-w-0">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-            </span>
-            <span className="truncate text-sm font-semibold text-foreground">
-              {t('slots.properties')}
-            </span>
-          </div>
-          <div
-            className={cn(
-              'flex items-center justify-between rounded-lg border border-border p-4',
-              slotDatePassed && 'opacity-55 text-muted-foreground',
-            )}
-            title={slotDatePassed ? t('slots.visibleDisabledPast') : undefined}
-          >
-            <div className="space-y-0.5">
-              <div className="text-sm font-medium">{t('slots.visibleLabel')}</div>
-              <p className="text-[11px] text-muted-foreground">{t('slots.visibleHelp')}</p>
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'overflow-visible relative z-30')}>
+        <DetailSection
+          title={t('slots.properties')}
+          icon={SlidersHorizontal}
+          subtleTitle
+          className="p-6"
+        >
+          <div>
+            <div
+              className={cn(
+                DETAIL_PROP_ROW_CLASS,
+                'items-start gap-4',
+                slotDatePassed && 'opacity-55 text-muted-foreground',
+              )}
+              title={slotDatePassed ? t('slots.visibleDisabledPast') : undefined}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('slots.visibleLabel')}
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{t('slots.visibleHelp')}</p>
+              </div>
+              <div className="shrink-0 pt-0.5">
+                <Switch
+                  checked={!!displaySlot.visible}
+                  onCheckedChange={(checked) => setPropertyDraftField('visible', checked)}
+                  disabled={slotDatePassed}
+                  className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
+                />
+              </div>
             </div>
-            <Switch
-              checked={!!displaySlot.visible}
-              onCheckedChange={(checked) => setPropertyDraftField('visible', checked)}
-              disabled={slotDatePassed}
-              className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
-            />
-          </div>
-          <div className="flex items-center justify-between rounded-lg border border-border p-4">
-            <div className="space-y-0.5">
-              <div className="text-sm font-medium">{t('slots.notificationsLabel')}</div>
-              <p className="text-[11px] text-muted-foreground">{t('slots.notificationsHelp')}</p>
+            <div className={cn(DETAIL_PROP_ROW_CLASS, 'items-start gap-4')}>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('slots.notificationsLabel')}
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {t('slots.notificationsHelp')}
+                </p>
+              </div>
+              <div className="shrink-0 pt-0.5">
+                <Switch
+                  checked={!!displaySlot.notifications_enabled}
+                  onCheckedChange={(checked) =>
+                    setPropertyDraftField('notifications_enabled', checked)
+                  }
+                  className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
+                />
+              </div>
             </div>
-            <Switch
-              checked={!!displaySlot.notifications_enabled}
-              onCheckedChange={(checked) => setPropertyDraftField('notifications_enabled', checked)}
-              className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
-            />
           </div>
-        </div>
+        </DetailSection>
       </Card>
 
-      <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <div className="p-6 space-y-2">
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <div className="flex min-w-0 items-center gap-2">
@@ -656,7 +685,7 @@ function SlotSettingsCard({
       </Card>
 
       {(bookings.length > 0 || bookingsLoading) && (
-        <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <div className="p-6 space-y-3">
             <div className="flex items-center gap-2 min-w-0">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">

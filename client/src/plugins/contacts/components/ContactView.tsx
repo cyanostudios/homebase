@@ -36,6 +36,18 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_EMPTY_STATE_CLASS as EMPTY_STATE_CLASS,
+  DETAIL_FIELD_LABEL_CLASS as FIELD_LABEL_CLASS,
+  DETAIL_FIELD_LABEL_ICON_CLASS as FIELD_LABEL_ICON_CLASS,
+  DETAIL_FIELD_VALUE_CLASS as FIELD_VALUE_CLASS,
+  DETAIL_INFO_ROW_CLASS as INFO_ROW_CLASS,
+  DETAIL_NOTE_CALLOUT_CLASS as NOTE_CLASS,
+  DETAIL_PROP_ROW_CLASS as PROP_ROW_CLASS,
+  DETAIL_QUICK_ACTION_ROW_CLASS,
+  DETAIL_SURFACE_ROW_CLASS as SURFACE_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS as CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
@@ -47,25 +59,6 @@ import type { Contact } from '../types/contacts';
 interface ContactViewProps {
   contact: Contact;
 }
-
-/* -------------------------------------------------------------------------
-   Design tokens mapped to Tailwind classes (from homebase-contact guide)
-   ------------------------------------------------------------------------- */
-const CARD_CLASS = 'rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950';
-const FIELD_LABEL_CLASS =
-  'inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] font-semibold text-slate-400 dark:text-slate-500 mb-0.5';
-const FIELD_LABEL_ICON_CLASS = 'h-3 w-3 shrink-0';
-const FIELD_VALUE_CLASS = 'text-[14px] font-medium text-foreground';
-const PROP_ROW_CLASS =
-  'flex items-center justify-between py-3 border-b border-border/50 last:border-0';
-const NOTE_CLASS =
-  'flex items-start gap-3 p-3.5 rounded-md border-l-4 border-amber-400 bg-amber-50/70 mt-4 dark:bg-amber-950/20 dark:border-amber-600';
-const EMPTY_STATE_CLASS =
-  'text-center border border-dashed border-border rounded-lg p-8 bg-muted/30 mt-3';
-const INFO_ROW_CLASS =
-  'flex items-center justify-between py-2 border-b border-border/50 last:border-0 text-xs';
-const SURFACE_ROW_CLASS =
-  'flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 dark:bg-muted/25';
 
 type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
 
@@ -95,8 +88,7 @@ function ContactQuickActionsCard({
 }) {
   const { t } = useTranslation();
   const canDuplicate = Boolean(getDuplicateConfig(contact));
-  const actionRowClass =
-    'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted/50 transition-colors';
+  const actionRowClass = DETAIL_QUICK_ACTION_ROW_CLASS;
 
   const getActionIconColorClass = (actionId: string): string => {
     if (actionId === 'send-message') {
@@ -207,8 +199,7 @@ function ContactExportOptionsCard({
   if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
     return null;
   }
-  const actionRowClass =
-    'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted/50 transition-colors';
+  const actionRowClass = DETAIL_QUICK_ACTION_ROW_CLASS;
   const exportLabelByFormat: Record<ExportFormat, string> = {
     txt: t('contacts.exportTxt'),
     csv: t('contacts.exportCsv'),

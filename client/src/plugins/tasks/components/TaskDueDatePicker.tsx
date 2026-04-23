@@ -10,9 +10,14 @@ import { cn } from '@/lib/utils';
 interface TaskDueDatePickerProps {
   task: any;
   onDueDateChange: (date: Date | null) => void;
+  hideInlineLabel?: boolean;
 }
 
-export function TaskDueDatePicker({ task, onDueDateChange }: TaskDueDatePickerProps) {
+export function TaskDueDatePicker({
+  task,
+  onDueDateChange,
+  hideInlineLabel = false,
+}: TaskDueDatePickerProps) {
   const [open, setOpen] = useState(false);
 
   const selectedDate = task.dueDate ? new Date(task.dueDate) : undefined;
@@ -23,43 +28,51 @@ export function TaskDueDatePicker({ task, onDueDateChange }: TaskDueDatePickerPr
     setOpen(false);
   };
 
+  const popoverEl = (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex h-9 w-[180px] cursor-pointer items-center justify-between rounded-md border border-border/50 bg-background px-2 text-xs font-medium transition-colors hover:bg-accent/50"
+        >
+          <span className={cn(!task.dueDate && 'text-muted-foreground')}>{displayDate}</span>
+          <CalendarIcon className="h-3 w-3 text-muted-foreground opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto p-0">
+        <DayPicker
+          mode="single"
+          selected={selectedDate}
+          onSelect={handleSelect}
+          initialFocus
+          weekStartsOn={1}
+        />
+        <div className="border-t border-border p-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-9 w-full text-xs"
+            onClick={() => {
+              onDueDateChange(null);
+              setOpen(false);
+            }}
+          >
+            Clear date
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+
+  if (hideInlineLabel) {
+    return <div className="flex shrink-0 justify-end">{popoverEl}</div>;
+  }
+
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="text-sm font-medium text-foreground whitespace-nowrap">Due Date</div>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="h-9 w-[180px] flex items-center justify-between rounded-md border border-border/50 bg-background px-2 text-xs font-medium transition-colors hover:bg-accent/50 cursor-pointer"
-          >
-            <span className={cn(!task.dueDate && 'text-muted-foreground')}>{displayDate}</span>
-            <CalendarIcon className="w-3 h-3 text-muted-foreground opacity-50" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-auto p-0">
-          <DayPicker
-            mode="single"
-            selected={selectedDate}
-            onSelect={handleSelect}
-            initialFocus
-            weekStartsOn={1}
-          />
-          <div className="p-2 border-t border-border">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="w-full h-9 text-xs"
-              onClick={() => {
-                onDueDateChange(null);
-                setOpen(false);
-              }}
-            >
-              Clear date
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+      {popoverEl}
     </div>
   );
 }

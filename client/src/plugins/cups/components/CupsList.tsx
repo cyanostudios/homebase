@@ -47,6 +47,7 @@ import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView'
 type SortField = 'name' | 'start_date' | 'location' | 'updated_at' | 'ingest' | 'featured';
 type SortOrder = 'asc' | 'desc';
 type CupsViewMode = 'grid' | 'list';
+type CupFilter = 'all' | 'visible' | 'featured' | 'withIngest';
 
 const CUPS_VIEW_MODE_STORAGE_KEY = 'cups:viewMode';
 
@@ -54,13 +55,36 @@ function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -102,6 +126,7 @@ export function CupsList() {
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [activeFilter, setActiveFilter] = useState<CupFilter>('all');
   const [viewMode, setViewModeState] = useState<CupsViewMode>(getInitialViewMode);
   const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('view');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -195,17 +220,30 @@ export function CupsList() {
   );
 
   const filtered = useMemo(() => {
+    const byFilter = cups.filter((c) => {
+      if (activeFilter === 'visible') {
+        return Boolean(c.visible);
+      }
+      if (activeFilter === 'featured') {
+        return Boolean(c.featured);
+      }
+      if (activeFilter === 'withIngest') {
+        return Boolean(c.ingest_source_id);
+      }
+      return true;
+    });
+
     const q = search.trim().toLowerCase();
     if (!q) {
-      return cups;
+      return byFilter;
     }
-    return cups.filter((c) => {
+    return byFilter.filter((c) => {
       const ingestTitle = ingestTitleForCup(c.ingest_source_id);
       return [c.name, c.organizer, c.location, c.categories, ingestTitle]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [cups, search, ingestTitleForCup]);
+  }, [cups, search, ingestTitleForCup, activeFilter]);
 
   const filteredAndSorted = useMemo(() => {
     const list = [...filtered];
@@ -414,10 +452,34 @@ export function CupsList() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Visible" value={stats.visible} dotClassName="bg-emerald-500" />
-          <StatCard label="Featured" value={stats.featured} dotClassName="bg-amber-500" />
-          <StatCard label="Ingest Linked" value={stats.withIngest} dotClassName="bg-violet-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Visible"
+            value={stats.visible}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'visible'}
+            onClick={() => setActiveFilter('visible')}
+          />
+          <StatCard
+            label="Featured"
+            value={stats.featured}
+            dotClassName="bg-amber-500"
+            active={activeFilter === 'featured'}
+            onClick={() => setActiveFilter('featured')}
+          />
+          <StatCard
+            label="Ingest Linked"
+            value={stats.withIngest}
+            dotClassName="bg-violet-500"
+            active={activeFilter === 'withIngest'}
+            onClick={() => setActiveFilter('withIngest')}
+          />
         </div>
 
         {selectedCount > 0 && (

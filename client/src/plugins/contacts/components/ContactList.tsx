@@ -50,6 +50,7 @@ import { ContactSettingsView, type ContactSettingsCategory } from './ContactSett
 type SortField = 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+type ContactFilter = 'all' | 'company' | 'private' | 'withTags';
 const CONTACTS_VIEW_MODE_STORAGE_KEY = 'contacts:viewMode';
 
 function getInitialViewMode(): ViewMode {
@@ -104,13 +105,36 @@ function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -155,6 +179,7 @@ export const ContactList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [activeFilter, setActiveFilter] = useState<ContactFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('view');
 
   useEffect(() => {
@@ -204,9 +229,22 @@ export const ContactList: React.FC = () => {
   };
 
   const sortedContacts = useMemo(() => {
+    const byFilter = contacts.filter((contact) => {
+      if (activeFilter === 'company') {
+        return contact.contactType === 'company';
+      }
+      if (activeFilter === 'private') {
+        return contact.contactType === 'private';
+      }
+      if (activeFilter === 'withTags') {
+        return Array.isArray(contact.tags) && contact.tags.length > 0;
+      }
+      return true;
+    });
+
     const needle = searchTerm.trim().toLowerCase();
     if (!needle) {
-      return [...contacts].sort((a, b) => {
+      return [...byFilter].sort((a, b) => {
         let aValue: string;
         let bValue: string;
         if (sortField === 'name') {
@@ -222,7 +260,7 @@ export const ContactList: React.FC = () => {
         return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       });
     }
-    const filtered = contacts.filter(
+    const filtered = byFilter.filter(
       (contact) =>
         contact.companyName.toLowerCase().includes(needle) ||
         contact.contactNumber.toLowerCase().includes(needle) ||
@@ -250,7 +288,7 @@ export const ContactList: React.FC = () => {
 
       return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
     });
-  }, [contacts, searchTerm, sortField, sortOrder]);
+  }, [contacts, searchTerm, sortField, sortOrder, activeFilter]);
 
   const visibleContactIds = useMemo(
     () => sortedContacts.map((contact) => String(contact.id)),
@@ -436,21 +474,29 @@ export const ContactList: React.FC = () => {
             label={t('contacts.stats.total')}
             value={stats.total}
             dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
           />
           <StatCard
             label={t('contacts.stats.companies')}
             value={stats.companies}
             dotClassName="bg-amber-500"
+            active={activeFilter === 'company'}
+            onClick={() => setActiveFilter('company')}
           />
           <StatCard
             label={t('contacts.stats.private')}
             value={stats.private}
             dotClassName="bg-emerald-500"
+            active={activeFilter === 'private'}
+            onClick={() => setActiveFilter('private')}
           />
           <StatCard
             label={t('contacts.stats.withTags')}
             value={stats.withTags}
             dotClassName="bg-orange-500"
+            active={activeFilter === 'withTags'}
+            onClick={() => setActiveFilter('withTags')}
           />
         </div>
 

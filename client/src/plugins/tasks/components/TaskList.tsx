@@ -43,6 +43,7 @@ import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView'
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+type TaskFilter = 'all' | 'open' | 'completed' | 'overdue';
 const TASKS_VIEW_MODE_STORAGE_KEY = 'tasks:viewMode';
 
 function getInitialViewMode(): ViewMode {
@@ -59,13 +60,36 @@ function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -104,6 +128,7 @@ export const TaskList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('view');
 
   useEffect(() => {
@@ -176,8 +201,25 @@ export const TaskList: React.FC = () => {
   );
 
   const sortedTasks = useMemo(() => {
+    const now = Date.now();
+    const byFilter = tasks.filter((task) => {
+      if (activeFilter === 'open') {
+        return task.status !== 'completed' && task.status !== 'cancelled';
+      }
+      if (activeFilter === 'completed') {
+        return task.status === 'completed';
+      }
+      if (activeFilter === 'overdue') {
+        if (!task.dueDate || task.status === 'completed' || task.status === 'cancelled') {
+          return false;
+        }
+        return new Date(task.dueDate).getTime() < now;
+      }
+      return true;
+    });
+
     const q = searchTerm.toLowerCase();
-    const filtered = tasks.filter((task) => {
+    const filtered = byFilter.filter((task) => {
       const matchesSearch =
         task.title.toLowerCase().includes(q) ||
         stripHtml(task.content).toLowerCase().includes(q) ||
@@ -250,7 +292,7 @@ export const TaskList: React.FC = () => {
         }
       }
     });
-  }, [tasks, searchTerm, sortField, sortOrder, contacts, getAssignedContacts]);
+  }, [tasks, searchTerm, sortField, sortOrder, contacts, getAssignedContacts, activeFilter]);
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
   const stats = useMemo(
@@ -430,10 +472,34 @@ export const TaskList: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Open" value={stats.open} dotClassName="bg-amber-500" />
-          <StatCard label="Completed" value={stats.completed} dotClassName="bg-emerald-500" />
-          <StatCard label="Overdue" value={stats.overdue} dotClassName="bg-rose-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Open"
+            value={stats.open}
+            dotClassName="bg-amber-500"
+            active={activeFilter === 'open'}
+            onClick={() => setActiveFilter('open')}
+          />
+          <StatCard
+            label="Completed"
+            value={stats.completed}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'completed'}
+            onClick={() => setActiveFilter('completed')}
+          />
+          <StatCard
+            label="Overdue"
+            value={stats.overdue}
+            dotClassName="bg-rose-500"
+            active={activeFilter === 'overdue'}
+            onClick={() => setActiveFilter('overdue')}
+          />
         </div>
 
         {selectedCount > 0 && (

@@ -37,18 +37,42 @@ import { FileSettingsView } from './FileSettingsView';
 type SortField = 'name' | 'updatedAt' | 'id';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+type FileFilter = 'all' | 'images' | 'withSize' | 'updated7d';
 
 function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -114,6 +138,7 @@ export const FileList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [activeFilter, setActiveFilter] = useState<FileFilter>('all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -128,8 +153,22 @@ export const FileList: React.FC = () => {
   });
 
   const filteredAndSorted = useMemo(() => {
+    const byFilter = files.filter((item: any) => {
+      if (activeFilter === 'images') {
+        return String(item?.mimeType || '').startsWith('image/');
+      }
+      if (activeFilter === 'withSize') {
+        return typeof item?.size === 'number' && item.size > 0;
+      }
+      if (activeFilter === 'updated7d') {
+        const date = item?.updatedAt ? new Date(item.updatedAt).getTime() : NaN;
+        return Number.isFinite(date) && Date.now() - date <= 7 * 24 * 60 * 60 * 1000;
+      }
+      return true;
+    });
+
     const needle = searchTerm.trim().toLowerCase();
-    const filtered = files.map(normalized).filter((it) => {
+    const filtered = byFilter.map(normalized).filter((it) => {
       if (!needle) {
         return true;
       }
@@ -169,7 +208,7 @@ export const FileList: React.FC = () => {
     };
 
     return filtered.sort(cmp);
-  }, [files, searchTerm, sortField, sortOrder]);
+  }, [files, searchTerm, sortField, sortOrder, activeFilter]);
   const stats = useMemo(
     () => ({
       total: files.length,
@@ -296,10 +335,34 @@ export const FileList: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Images" value={stats.images} dotClassName="bg-emerald-500" />
-          <StatCard label="With Size" value={stats.withSize} dotClassName="bg-amber-500" />
-          <StatCard label="Updated 7d" value={stats.updated7d} dotClassName="bg-violet-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Images"
+            value={stats.images}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'images'}
+            onClick={() => setActiveFilter('images')}
+          />
+          <StatCard
+            label="With Size"
+            value={stats.withSize}
+            dotClassName="bg-amber-500"
+            active={activeFilter === 'withSize'}
+            onClick={() => setActiveFilter('withSize')}
+          />
+          <StatCard
+            label="Updated 7d"
+            value={stats.updated7d}
+            dotClassName="bg-violet-500"
+            active={activeFilter === 'updated7d'}
+            onClick={() => setActiveFilter('updated7d')}
+          />
         </div>
 
         {selectedCount > 0 && (

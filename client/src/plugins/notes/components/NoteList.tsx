@@ -45,13 +45,36 @@ function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -64,6 +87,7 @@ function StatCard({
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+type NoteFilter = 'all' | 'withMentions' | 'withContent' | 'recentlyUpdated';
 const NOTES_VIEW_MODE_STORAGE_KEY = 'notes:viewMode';
 
 function getInitialViewMode(): ViewMode {
@@ -110,6 +134,7 @@ export const NoteList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [activeFilter, setActiveFilter] = useState<NoteFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('view');
 
   useEffect(() => {
@@ -152,8 +177,21 @@ export const NoteList: React.FC = () => {
   };
 
   const sortedNotes = useMemo(() => {
+    const byFilter = notes.filter((note) => {
+      if (activeFilter === 'withMentions') {
+        return (note.mentions?.length ?? 0) > 0;
+      }
+      if (activeFilter === 'withContent') {
+        return stripHtml(note.content || '').trim().length > 0;
+      }
+      if (activeFilter === 'recentlyUpdated') {
+        return Date.now() - new Date(note.updatedAt).getTime() <= 7 * 24 * 60 * 60 * 1000;
+      }
+      return true;
+    });
+
     const q = searchTerm.toLowerCase();
-    const filtered = notes.filter(
+    const filtered = byFilter.filter(
       (note) =>
         note.title.toLowerCase().includes(q) ||
         stripHtml(note.content).toLowerCase().includes(q) ||
@@ -189,7 +227,7 @@ export const NoteList: React.FC = () => {
       }
       return (bValue as Date).getTime() - (aValue as Date).getTime();
     });
-  }, [notes, searchTerm, sortField, sortOrder]);
+  }, [notes, searchTerm, sortField, sortOrder, activeFilter]);
 
   const visibleNoteIds = useMemo(() => sortedNotes.map((note) => String(note.id)), [sortedNotes]);
   const stats = useMemo(
@@ -349,14 +387,34 @@ export const NoteList: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
           <StatCard
             label="With Mentions"
             value={stats.withMentions}
             dotClassName="bg-emerald-500"
+            active={activeFilter === 'withMentions'}
+            onClick={() => setActiveFilter('withMentions')}
           />
-          <StatCard label="With Content" value={stats.withContent} dotClassName="bg-amber-500" />
-          <StatCard label="Updated 7d" value={stats.recentlyUpdated} dotClassName="bg-violet-500" />
+          <StatCard
+            label="With Content"
+            value={stats.withContent}
+            dotClassName="bg-amber-500"
+            active={activeFilter === 'withContent'}
+            onClick={() => setActiveFilter('withContent')}
+          />
+          <StatCard
+            label="Updated 7d"
+            value={stats.recentlyUpdated}
+            dotClassName="bg-violet-500"
+            active={activeFilter === 'recentlyUpdated'}
+            onClick={() => setActiveFilter('recentlyUpdated')}
+          />
         </div>
 
         {selectedCount > 0 && (

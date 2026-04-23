@@ -15,27 +15,24 @@ export function Dashboard({ onPageChange }: DashboardProps) {
   const enabledPlugins = useEnabledPlugins();
   const { t } = useTranslation();
 
-  const header = (
-    <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-      <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-        <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-          {t('nav.dashboard')}
-        </h2>
-      </div>
-    </div>
-  );
-
   const widgets = React.useMemo(
     () => PLUGIN_REGISTRY.filter((p) => enabledPlugins.has(p.name) && p.dashboardWidget),
     [enabledPlugins],
   );
 
+  const pageHeader = (
+    <div className="min-w-0">
+      <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.dashboard')}</h2>
+      <p className="text-sm text-muted-foreground">{t('dashboard.description')}</p>
+    </div>
+  );
+
   if (widgets.length === 0) {
     return (
-      <div className="min-h-full bg-background">
-        {header}
-        <div className="px-6 pb-6 space-y-4">
-          <Card className="mt-4 border border-border/70 bg-card p-6 text-center text-muted-foreground shadow-sm">
+      <div className="min-h-full bg-background px-6 py-4">
+        <div className="space-y-4">
+          {pageHeader}
+          <Card className="rounded-xl border-0 bg-card p-6 text-center text-muted-foreground shadow-sm">
             <p>{t('dashboard.noWidgets')}</p>
           </Card>
         </div>
@@ -44,20 +41,22 @@ export function Dashboard({ onPageChange }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-full bg-background">
-      {header}
-      <div className="px-6 pb-6 space-y-4">
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {widgets.map((plugin) => {
+    <div className="min-h-full bg-background px-6 py-4">
+      <div className="space-y-4">
+        {pageHeader}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {widgets.map((plugin, index) => {
             const WidgetComponent = plugin.dashboardWidget!;
-            const Icon = plugin.navigation?.icon;
             const label = plugin.navigation?.label ?? plugin.name;
+            const dotClassName = ['bg-blue-500', 'bg-amber-500', 'bg-emerald-500', 'bg-orange-500'][
+              index % 4
+            ];
             return (
               <Card
                 key={plugin.name}
                 className={cn(
-                  'relative flex min-h-[160px] cursor-pointer flex-col border border-border/70 bg-card p-5 shadow-sm transition-all',
-                  'hover:border-plugin-subtle hover:shadow-md',
+                  'relative flex min-h-[160px] cursor-pointer flex-col rounded-xl border-0 bg-card p-4 shadow-sm transition-shadow',
+                  'hover:shadow-md',
                   `plugin-${plugin.name} hover:plugin-${plugin.name}`,
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
@@ -72,14 +71,15 @@ export function Dashboard({ onPageChange }: DashboardProps) {
                   }
                 }}
               >
-                <div className="mb-3 flex min-w-0 items-start gap-2">
-                  {Icon ? (
-                    <Icon className="mt-0.5 h-5 w-5 shrink-0 text-plugin" aria-hidden />
-                  ) : null}
-                  <h3 className="line-clamp-2 text-base font-semibold leading-tight">{label}</h3>
+                <div className="mb-2 flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+                  <span
+                    className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dotClassName)}
+                    aria-hidden
+                  />
+                  <span className="line-clamp-1">{label}</span>
                 </div>
                 <div
-                  className="flex min-h-0 flex-1 flex-col border-t border-border/60 pt-3"
+                  className="flex min-h-0 flex-1 flex-col border-t border-border/50 pt-3"
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >

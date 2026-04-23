@@ -7,13 +7,11 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 import { filesApi } from '@/plugins/files/api/filesApi';
 import { useFileAttachments } from '@/plugins/files/hooks/useFileAttachments';
 import type { FileItem } from '@/plugins/files/types/files';
-
-/** Same shell as Slots properties / contacts cards (SlotView, SlotForm). */
-const CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 
 function formatSize(bytes: number | null | undefined): string {
   if (bytes === null || bytes === undefined || Number.isNaN(bytes)) {
@@ -160,7 +158,7 @@ export function FileAttachmentsSection({
   const busy = uploading || attachingExisting;
 
   return (
-    <Card padding="none" className={cn(CARD_CLASS, cardClassName, className)}>
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, cardClassName, className)}>
       <div className="space-y-2 p-6">
         <div className="mb-1 flex min-w-0 items-center gap-2">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">

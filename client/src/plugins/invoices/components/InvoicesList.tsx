@@ -20,18 +20,42 @@ import { invoicesNavigation } from '../navigation';
 
 type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'status';
 type SortOrder = 'asc' | 'desc';
+type InvoiceFilter = 'all' | 'draft' | 'paid' | 'overdue';
 
 function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -62,6 +86,7 @@ export function InvoicesList() {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<InvoiceFilter>('all');
 
   // Detect mobile screen size
   useEffect(() => {
@@ -100,7 +125,20 @@ export function InvoicesList() {
   const [sortOrder] = useState<SortOrder>('desc');
 
   const sortedInvoices = useMemo(() => {
-    const filtered = invoices.filter((invoice) => {
+    const byFilter = invoices.filter((invoice) => {
+      if (activeFilter === 'draft') {
+        return invoice.status === 'draft';
+      }
+      if (activeFilter === 'paid') {
+        return invoice.status === 'paid';
+      }
+      if (activeFilter === 'overdue') {
+        return invoice.status === 'overdue';
+      }
+      return true;
+    });
+
+    const filtered = byFilter.filter((invoice) => {
       const searchStr = searchTerm.toLowerCase();
       return (
         (invoice.invoiceNumber || '').toLowerCase().includes(searchStr) ||
@@ -126,7 +164,7 @@ export function InvoicesList() {
 
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [invoices, searchTerm, sortField, sortOrder]);
+  }, [invoices, searchTerm, sortField, sortOrder, activeFilter]);
   const stats = useMemo(
     () => ({
       total: invoices.length,
@@ -326,10 +364,34 @@ export function InvoicesList() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Draft" value={stats.draft} dotClassName="bg-slate-500" />
-          <StatCard label="Paid" value={stats.paid} dotClassName="bg-emerald-500" />
-          <StatCard label="Overdue" value={stats.overdue} dotClassName="bg-rose-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Draft"
+            value={stats.draft}
+            dotClassName="bg-slate-500"
+            active={activeFilter === 'draft'}
+            onClick={() => setActiveFilter('draft')}
+          />
+          <StatCard
+            label="Paid"
+            value={stats.paid}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'paid'}
+            onClick={() => setActiveFilter('paid')}
+          />
+          <StatCard
+            label="Overdue"
+            value={stats.overdue}
+            dotClassName="bg-rose-500"
+            active={activeFilter === 'overdue'}
+            onClick={() => setActiveFilter('overdue')}
+          />
         </div>
 
         {invoicesNavigation.submenu && (

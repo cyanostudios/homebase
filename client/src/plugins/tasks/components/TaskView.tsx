@@ -20,6 +20,13 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_QUICK_ACTION_ROW_CLASS,
+  DETAIL_SURFACE_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -40,8 +47,6 @@ interface TaskViewProps {
   task: any;
 }
 
-const TASK_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
-
 interface TaskQuickActionsCardProps {
   task: any;
   onEdit: (task: any) => void;
@@ -61,12 +66,17 @@ function TaskQuickActionsCard({
 }: TaskQuickActionsCardProps) {
   const { t } = useTranslation();
   const canDuplicate = Boolean(getDuplicateConfig(task));
-  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
 
   return (
-    <Card padding="none" className={TASK_DETAIL_CARD_CLASS}>
-      <DetailSection title={t('tasks.quickActions')} icon={Zap} iconPlugin="tasks" className="p-4">
-        <div className="flex flex-col items-start gap-1.5">
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('tasks.quickActions')}
+        icon={Zap}
+        iconPlugin="tasks"
+        subtleTitle
+        className="p-4"
+      >
+        <div className="flex flex-col items-start gap-1">
           <Button
             type="button"
             variant="ghost"
@@ -77,7 +87,7 @@ function TaskQuickActionsCard({
                 className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
               />
             )}
-            className={quickActionButtonClass}
+            className={DETAIL_QUICK_ACTION_ROW_CLASS}
             onClick={() => onEdit(task)}
           >
             {t('common.edit')}
@@ -92,7 +102,7 @@ function TaskQuickActionsCard({
                 className={cn(props.className, 'text-red-600 dark:text-red-400')}
               />
             )}
-            className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
             onClick={onDeleteClick}
           >
             {t('common.delete')}
@@ -108,7 +118,7 @@ function TaskQuickActionsCard({
                   className={cn(props.className, 'text-green-600 dark:text-green-400')}
                 />
               )}
-              className={quickActionButtonClass}
+              className={DETAIL_QUICK_ACTION_ROW_CLASS}
               onClick={() => onDuplicate(task)}
             >
               {t('common.duplicate')}
@@ -157,7 +167,6 @@ function TaskExportOptionsCard({
     return null;
   }
 
-  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
   const exportLabelByFormat: Record<ExportFormat, string> = {
     txt: t('common.exportTxt'),
     csv: t('common.exportCsv'),
@@ -165,14 +174,15 @@ function TaskExportOptionsCard({
   };
 
   return (
-    <Card padding="none" className={TASK_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('tasks.exportOptions')}
         icon={Download}
         iconPlugin="tasks"
+        subtleTitle
         className="p-4"
       >
-        <div className="flex flex-col items-start gap-1.5">
+        <div className="flex flex-col items-start gap-1">
           {hasFormats
             ? exportFormats.map((format) => (
                 <Button
@@ -181,7 +191,7 @@ function TaskExportOptionsCard({
                   variant="ghost"
                   size="sm"
                   icon={Download}
-                  className={quickActionButtonClass}
+                  className={DETAIL_QUICK_ACTION_ROW_CLASS}
                   onClick={() => onExportItem(format, task)}
                 >
                   {exportLabelByFormat[format]}
@@ -202,7 +212,11 @@ function TaskExportOptionsCard({
                     size="sm"
                     icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
                     disabled={action.disabled}
-                    className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
+                    className={cn(
+                      DETAIL_QUICK_ACTION_ROW_CLASS,
+                      'disabled:opacity-50',
+                      action.className,
+                    )}
                     onClick={() => action.onClick(task)}
                   >
                     {action.label}
@@ -389,17 +403,15 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             />
 
             {task.mentions && task.mentions.length > 0 && (
-              <Card padding="none" className={TASK_DETAIL_CARD_CLASS}>
-                <div className="space-y-1.5 p-3 sm:p-4">
-                  <div className="mb-0.5 flex min-w-0 items-center gap-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="truncate text-sm font-semibold text-foreground">
-                      {t('tasks.mentionedContacts')}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 pt-0">
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('tasks.mentionedContacts')}
+                  icon={Users}
+                  iconPlugin="tasks"
+                  subtleTitle
+                  className="p-4"
+                >
+                  <div className="space-y-1.5">
                     {(() => {
                       const uniqueMentions = Array.from(
                         new Map((task.mentions || []).map((m: any) => [m.contactId, m])).values(),
@@ -414,72 +426,72 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                         return (
                           <div
                             key={`mention-${mention.contactId}`}
-                            className="rounded-lg border border-border px-3 py-2"
+                            className={cn(DETAIL_SURFACE_ROW_CLASS, 'plugin-contacts')}
                           >
-                            <div className="flex min-w-0 items-center justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <span className="truncate text-sm font-medium">{name}</span>
-                              </div>
-                              <div className="shrink-0">
-                                {contactData ? (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={ExternalLink}
-                                    className="h-9 w-9 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
-                                    onClick={() => handleContactClick(mention.contactId)}
-                                    aria-label={`${t('common.open')} ${name}`}
-                                  >
-                                    <span className="sr-only">{t('common.open')}</span>
-                                  </Button>
-                                ) : null}
-                              </div>
-                            </div>
+                            <span className="truncate text-xs text-muted-foreground">{name}</span>
+                            {contactData ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                icon={ExternalLink}
+                                className="h-7 w-7 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
+                                onClick={() => handleContactClick(mention.contactId)}
+                                aria-label={`${t('common.open')} ${name}`}
+                              >
+                                <span className="sr-only">{t('common.open')}</span>
+                              </Button>
+                            ) : null}
                           </div>
                         );
                       });
                     })()}
                   </div>
-                </div>
+                </DetailSection>
               </Card>
             )}
 
-            <Card padding="none" className={TASK_DETAIL_CARD_CLASS}>
-              <DetailSection title={t('tasks.information')} icon={Info} className="p-4">
-                <div className="space-y-4 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">ID</span>
-                    <span className="font-mono font-medium">
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('tasks.information')}
+                icon={Info}
+                iconPlugin="tasks"
+                subtleTitle
+                className="p-4"
+              >
+                <div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">ID</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {formatDisplayNumber('tasks', task.id)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Created</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {new Date(task.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Updated</span>
-                    <span className="font-medium">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {new Date(task.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
                   {task.createdFromNote && noteLoaded && (
-                    <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                      <span className="text-muted-foreground">Source Note</span>
+                    <div className="flex items-center justify-between border-t border-border/50 pt-2 text-xs">
+                      <span className="text-slate-500 dark:text-slate-400">Source Note</span>
                       {sourceNote ? (
                         <Button
                           variant="link"
                           size="sm"
                           onClick={handleNoteClick}
-                          className="h-auto p-0 text-[10px] plugin-notes text-plugin truncate max-w-[150px]"
+                          className="h-auto max-w-[150px] truncate p-0 text-[10px] plugin-notes text-plugin"
                         >
                           {sourceNote.title}
                         </Button>
                       ) : (
-                        <span className="text-muted-foreground italic">Deleted Note</span>
+                        <span className="italic text-muted-foreground">Deleted Note</span>
                       )}
                     </div>
                   )}
@@ -499,7 +511,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         }
       >
         <div className="space-y-6">
-          <Card padding="none" className={TASK_DETAIL_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={String((displayTask ?? task)?.title || '').trim() || '—'}
               className="p-6"
@@ -513,32 +525,46 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             </DetailSection>
           </Card>
 
-          <Card padding="none" className={TASK_DETAIL_CARD_CLASS}>
-            <div className="p-6 space-y-2">
-              <div className="mb-1 flex min-w-0 items-center gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                </span>
-                <span className="truncate text-sm font-semibold text-foreground">
-                  {t('tasks.taskProperties')}
-                </span>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('tasks.taskProperties')}
+              icon={SlidersHorizontal}
+              subtleTitle
+              className="p-6"
+            >
+              <div>
+                <div className={DETAIL_PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('tasks.propertyStatus')}
+                  </span>
+                  <TaskStatusSelect
+                    task={displayTask ?? task}
+                    onStatusChange={handleStatusChange}
+                    hideInlineLabel
+                  />
+                </div>
+                <div className={DETAIL_PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('tasks.propertyPriority')}
+                  </span>
+                  <TaskPrioritySelect
+                    task={displayTask ?? task}
+                    onPriorityChange={handlePriorityChange}
+                    hideInlineLabel
+                  />
+                </div>
+                <div className={DETAIL_PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('tasks.propertyDueDate')}
+                  </span>
+                  <TaskDueDatePicker
+                    task={displayTask ?? task}
+                    onDueDateChange={handleDueDateChange}
+                    hideInlineLabel
+                  />
+                </div>
               </div>
-              <div className="rounded-lg border border-border p-4">
-                <TaskStatusSelect task={displayTask ?? task} onStatusChange={handleStatusChange} />
-              </div>
-              <div className="rounded-lg border border-border p-4">
-                <TaskPrioritySelect
-                  task={displayTask ?? task}
-                  onPriorityChange={handlePriorityChange}
-                />
-              </div>
-              <div className="rounded-lg border border-border p-4">
-                <TaskDueDatePicker
-                  task={displayTask ?? task}
-                  onDueDateChange={handleDueDateChange}
-                />
-              </div>
-            </div>
+            </DetailSection>
           </Card>
 
           <TaskAssigneeSelect task={displayTask ?? task} onAssigneeChange={handleAssigneeChange} />

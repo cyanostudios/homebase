@@ -20,6 +20,14 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_FIELD_LABEL_CLASS,
+  DETAIL_FIELD_VALUE_CLASS,
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_QUICK_ACTION_ROW_CLASS,
+  DETAIL_SURFACE_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
@@ -30,8 +38,6 @@ import type { Slot } from '@/plugins/slots/types/slots';
 import { useMatchContext } from '../context/MatchContext';
 import type { Match } from '../types/match';
 
-const MATCH_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
-const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
 interface MatchViewProps {
   match?: Match;
   item?: Match;
@@ -85,20 +91,26 @@ function MatchQuickActionsCard({
   };
 
   return (
-    <Card padding="none" className={MATCH_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('matches.quickActions')}
         icon={Zap}
         iconPlugin="matches"
+        subtleTitle
         className="p-4"
       >
-        <div className="flex flex-col items-start gap-1.5">
+        <div className="flex flex-col items-start gap-1">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            icon={Trash2}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+            icon={(props) => (
+              <Trash2
+                {...props}
+                className={cn(props.className, 'text-red-600 dark:text-red-400')}
+              />
+            )}
+            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
             onClick={onDeleteClick}
           >
             {t('matches.delete')}
@@ -109,8 +121,13 @@ function MatchQuickActionsCard({
               type="button"
               variant="ghost"
               size="sm"
-              icon={Copy}
-              className={cn(quickActionButtonClass, 'text-green-600 dark:text-green-400')}
+              icon={(props) => (
+                <Copy
+                  {...props}
+                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
+                />
+              )}
+              className={DETAIL_QUICK_ACTION_ROW_CLASS}
               onClick={onDuplicate}
             >
               {t('matches.duplicate')}
@@ -120,17 +137,18 @@ function MatchQuickActionsCard({
           {Array.isArray(detailFooterActions) &&
             detailFooterActions.map((action) => {
               const Icon = action.icon;
+              const tint = getActionIconColorClass(action.id);
               return (
                 <Button
                   key={action.id}
                   type="button"
                   variant="ghost"
                   size="sm"
-                  icon={Icon}
+                  icon={(props) => <Icon {...props} className={cn(props.className, tint)} />}
                   disabled={action.disabled}
                   className={cn(
-                    'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted disabled:opacity-50',
-                    getActionIconColorClass(action.id),
+                    DETAIL_QUICK_ACTION_ROW_CLASS,
+                    'disabled:opacity-50',
                     action.className,
                   )}
                   onClick={() => action.onClick(match)}
@@ -171,31 +189,27 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
       : '—';
 
   return (
-    <Card padding="none" className={cn(MATCH_DETAIL_CARD_CLASS, 'plugin-matches')}>
-      <div className="p-6 space-y-5">
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-matches')}>
+      <div className="space-y-5 p-6">
         {/* Name (own row) */}
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-            {t('matches.nameLabel')}
+          <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.nameLabel')}</div>
+          <div className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em] text-foreground">
+            {displayName}
           </div>
-          <div className="text-2xl font-semibold text-foreground">{displayName}</div>
         </div>
 
         {/* Home / Away (same row) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.homeTeamLabel')}
-            </div>
-            <div className="text-sm font-medium">
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.homeTeamLabel')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>
               {match.home_team?.trim() ? match.home_team : '—'}
             </div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.awayTeamLabel')}
-            </div>
-            <div className="text-sm font-medium">
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.awayTeamLabel')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>
               {match.away_team?.trim() ? match.away_team : '—'}
             </div>
           </div>
@@ -204,20 +218,16 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
         {/* Number + Location (same row) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.matchNumber')}
-            </div>
-            <div className="text-sm font-medium tabular-nums">
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.matchNumber')}</div>
+            <div className={cn(DETAIL_FIELD_VALUE_CLASS, 'tabular-nums')}>
               {match.match_number !== null && match.match_number !== undefined
                 ? String(match.match_number)
                 : '—'}
             </div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.dateTimePlaceholder')}
-            </div>
-            <div className="text-sm font-medium">
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.dateTimePlaceholder')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>
               {match.start_time ? new Date(match.start_time).toLocaleString('sv-SE') : '—'}
             </div>
           </div>
@@ -226,17 +236,13 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
         {/* Location + Map link (same row) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.locationLabel')}
-            </div>
-            <div className="text-sm font-medium">
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.locationLabel')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>
               {match.location?.trim() ? match.location : '—'}
             </div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.mapLink')}
-            </div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.mapLink')}</div>
             {match.map_link?.trim() ? (
               <a
                 href={match.map_link}
@@ -248,54 +254,44 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             ) : (
-              <div className="text-sm font-medium">—</div>
+              <div className={DETAIL_FIELD_VALUE_CLASS}>—</div>
             )}
           </div>
         </div>
 
-        <div className="border-t border-border/70 pt-4" />
+        <div className="border-t border-border/50 pt-4" />
 
         {/* Sport / Format / Minutes (same row) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.sport')}
-            </div>
-            <div className="text-sm font-medium">{sportLabel}</div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.sport')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>{sportLabel}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.format')}
-            </div>
-            <div className="text-sm font-medium">{match.format || '—'}</div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.format')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>{match.format || '—'}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.minutes')}
-            </div>
-            <div className="text-sm font-medium tabular-nums">{minutesLabel}</div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.minutes')}</div>
+            <div className={cn(DETAIL_FIELD_VALUE_CLASS, 'tabular-nums')}>{minutesLabel}</div>
           </div>
         </div>
 
         {/* Type / Referees / Future (same row) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.matchType')}
-            </div>
-            <div className="text-sm font-medium">{matchTypeLabel}</div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.matchType')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>{matchTypeLabel}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.refereeCount')}
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.refereeCount')}</div>
+            <div className={cn(DETAIL_FIELD_VALUE_CLASS, 'tabular-nums')}>
+              {match.referee_count ?? 1}
             </div>
-            <div className="text-sm font-medium tabular-nums">{match.referee_count ?? 1}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('matches.futureInfo')}
-            </div>
-            <div className="text-sm font-medium">—</div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.futureInfo')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>—</div>
           </div>
         </div>
       </div>
@@ -306,29 +302,30 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
 function MatchMetadataCard({ match }: { match: Match }) {
   const { t } = useTranslation();
   return (
-    <Card padding="none" className={MATCH_DETAIL_CARD_CLASS}>
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('matches.information')}
         icon={Info}
         iconPlugin="matches"
+        subtleTitle
         className="p-4"
       >
-        <div className="space-y-4 text-xs">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">ID</span>
-            <span className="font-mono font-medium">
+        <div>
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">ID</span>
+            <span className="font-mono font-semibold text-foreground">
               {formatDisplayNumber('matches', match.id)}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">{t('matches.created')}</span>
-            <span className="font-medium">
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">{t('matches.created')}</span>
+            <span className="font-mono font-semibold text-foreground">
               {match.created_at ? new Date(match.created_at).toLocaleDateString('sv-SE') : '—'}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">{t('matches.updated')}</span>
-            <span className="font-medium">
+          <div className={DETAIL_INFO_ROW_CLASS}>
+            <span className="text-slate-500 dark:text-slate-400">{t('matches.updated')}</span>
+            <span className="font-mono font-semibold text-foreground">
               {match.updated_at ? new Date(match.updated_at).toLocaleDateString('sv-SE') : '—'}
             </span>
           </div>
@@ -354,27 +351,24 @@ function RelatedItemsCard({
     return null;
   }
   return (
-    <Card padding="none" className={MATCH_DETAIL_CARD_CLASS}>
-      <DetailSection title={title} icon={Icon} iconPlugin={iconPlugin} className="p-4">
-        <div className="space-y-2">
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={title} icon={Icon} iconPlugin={iconPlugin} subtleTitle className="p-4">
+        <div className="space-y-1.5">
           {items.map((item) => (
             <div
               key={`${title}-${item.id}`}
-              className={cn(
-                'flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2',
-                item.pluginClass,
-              )}
+              className={cn(DETAIL_SURFACE_ROW_CLASS, item.pluginClass)}
             >
               <span className="truncate text-xs text-muted-foreground">{item.label}</span>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-9 w-9 shrink-0 p-0 hover:bg-accent"
+                icon={ExternalLink}
+                className="h-7 w-7 shrink-0 p-0 hover:bg-accent"
                 onClick={item.onOpen}
               >
                 <span className="sr-only">{t('matches.open')}</span>
-                <ExternalLink className="h-4 w-4" />
               </Button>
             </div>
           ))}
@@ -502,7 +496,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
             {hasSlotsPlugin && (
               <>
                 {relatedSlotsLoading ? (
-                  <Card padding="none" className={MATCH_DETAIL_CARD_CLASS}>
+                  <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                     <DetailSection
                       title={t('matches.relatedSlots')}
                       icon={Info}
@@ -513,7 +507,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
                     </DetailSection>
                   </Card>
                 ) : relatedSlots.length === 0 ? (
-                  <Card padding="none" className={MATCH_DETAIL_CARD_CLASS}>
+                  <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                     <DetailSection
                       title={t('matches.relatedSlots')}
                       icon={Info}
@@ -560,7 +554,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
 
           <Card
             padding="none"
-            className={cn(MATCH_DETAIL_CARD_CLASS, 'plugin-matches overflow-visible relative z-30')}
+            className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-matches overflow-visible relative z-30')}
           >
             <div className="p-6 space-y-2">
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
@@ -44,66 +45,72 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
     <div className="plugin-invoices">
       <DetailLayout
         sidebar={
-          <div className="space-y-6">
-            <Card
-              padding="none"
-              className="overflow-hidden border-none shadow-sm bg-background/50 plugin-invoices"
-            >
-              <DetailSection title={t('invoices.information')} icon={Info} className="p-4">
-                <div className="space-y-4 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Number</span>
-                    <span className="font-mono font-medium">{invoiceNumberDisplay || '—'}</span>
+          <div className="space-y-4">
+            <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-invoices')}>
+              <DetailSection
+                title={t('invoices.information')}
+                icon={Info}
+                iconPlugin="invoices"
+                subtleTitle
+                className="p-4"
+              >
+                <div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Number</span>
+                    <span className="font-mono font-semibold text-foreground">
+                      {invoiceNumberDisplay || '—'}
+                    </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Status</span>
-                    <span className="capitalize font-medium text-plugin">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Status</span>
+                    <span className="font-semibold capitalize text-plugin">
                       {status.toLowerCase().replace(/^./, (str) => str.toUpperCase())}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Customer</span>
-                    <span className="font-medium truncate max-w-[150px]">{contactName || '—'}</span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Customer</span>
+                    <span className="max-w-[150px] truncate font-semibold text-foreground">
+                      {contactName || '—'}
+                    </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Issue Date</span>
-                    <span className="font-medium">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Issue Date</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {issueDate ? issueDate.toLocaleDateString() : '—'}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Due Date</span>
-                    <span className="font-medium">
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Due Date</span>
+                    <span className="font-mono font-semibold text-foreground">
                       {dueDate ? dueDate.toLocaleDateString() : '—'}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Currency</span>
-                    <span className="font-medium">{currency}</span>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Currency</span>
+                    <span className="font-semibold text-foreground">{currency}</span>
                   </div>
-                  <div className="pt-2 mt-2 border-t border-border/50">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Created</span>
-                      <span className="font-medium font-mono text-[10px] opacity-70">
-                        {created ? created.toLocaleDateString() : '—'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-muted-foreground">Updated</span>
-                      <span className="font-medium font-mono text-[10px] opacity-70">
-                        {updated ? updated.toLocaleDateString() : '—'}
-                      </span>
-                    </div>
+                  <div className={cn(DETAIL_INFO_ROW_CLASS, 'border-t border-border/50 pt-2')}>
+                    <span className="text-slate-500 dark:text-slate-400">Created</span>
+                    <span className="font-mono text-[10px] font-semibold text-foreground opacity-80">
+                      {created ? created.toLocaleDateString() : '—'}
+                    </span>
+                  </div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
+                    <span className="font-mono text-[10px] font-semibold text-foreground opacity-80">
+                      {updated ? updated.toLocaleDateString() : '—'}
+                    </span>
                   </div>
                 </div>
               </DetailSection>
             </Card>
 
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('invoices.quickActions')}
                 icon={Zap}
                 iconPlugin="invoices"
+                subtleTitle
                 className="p-4"
               >
                 <InvoiceActions invoice={actualItem} />
@@ -112,11 +119,16 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
           </div>
         }
       >
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Internal Notes & Terms */}
           {(actualItem.notes || actualItem.paymentTerms) && (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title={t('invoices.notesAndTerms')} className="p-6">
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('invoices.notesAndTerms')}
+                iconPlugin="invoices"
+                subtleTitle
+                className="p-6"
+              >
                 {actualItem.notes && (
                   <div className="text-sm text-muted-foreground italic leading-relaxed mb-4">
                     "{actualItem.notes}"
@@ -141,9 +153,11 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
 
           {/* Line Items */}
           {actualItem.lineItems && actualItem.lineItems.length > 0 && (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('invoices.lineItemsCount', { count: actualItem.lineItems.length })}
+                iconPlugin="invoices"
+                subtleTitle
                 className="p-6"
               >
                 <div className="overflow-x-auto">
@@ -200,8 +214,13 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
           )}
 
           {/* Totals */}
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title={t('invoices.pricingSummary')} className="p-6">
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('invoices.pricingSummary')}
+              iconPlugin="invoices"
+              subtleTitle
+              className="p-6"
+            >
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>

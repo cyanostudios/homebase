@@ -59,6 +59,7 @@ import { SlotsSettingsView } from './SlotsSettingsView';
 
 type SortField = 'name' | 'slot_time' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
+type SlotFilter = 'all' | 'visible' | 'upcoming' | 'withCategory';
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 const SLOTS_VIEW_MODE_STORAGE_KEY = 'slots:viewMode';
 
@@ -66,13 +67,36 @@ function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -119,6 +143,7 @@ export function SlotsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('slot_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [activeFilter, setActiveFilter] = useState<SlotFilter>('all');
   const [viewMode, setViewModeState] = useState<SlotsViewMode>(getInitialViewMode);
   const [settingsCategory, setSettingsCategory] = useState<'view' | 'categories'>('view');
 
@@ -176,8 +201,21 @@ export function SlotsList() {
     s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
   const filteredAndSorted = useMemo(() => {
+    const byFilter = slots.filter((s) => {
+      if (activeFilter === 'visible') {
+        return Boolean(s.visible);
+      }
+      if (activeFilter === 'upcoming') {
+        return new Date(s.slot_time).getTime() > Date.now();
+      }
+      if (activeFilter === 'withCategory') {
+        return Boolean(s.category?.trim());
+      }
+      return true;
+    });
+
     const needle = searchTerm.trim().toLowerCase();
-    const filtered = slots.filter((s) => {
+    const filtered = byFilter.filter((s) => {
       if (!needle) {
         return true;
       }
@@ -217,7 +255,7 @@ export function SlotsList() {
       const cmp = String(aVal).localeCompare(String(bVal), undefined, { sensitivity: 'base' });
       return sortOrder === 'asc' ? cmp : -cmp;
     });
-  }, [slots, searchTerm, sortField, sortOrder, formatDateTimeForFilter]);
+  }, [slots, searchTerm, sortField, sortOrder, formatDateTimeForFilter, activeFilter]);
   const stats = useMemo(
     () => ({
       total: slots.length,
@@ -410,10 +448,34 @@ export function SlotsList() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Visible" value={stats.visible} dotClassName="bg-emerald-500" />
-          <StatCard label="Upcoming" value={stats.upcoming} dotClassName="bg-amber-500" />
-          <StatCard label="With Category" value={stats.withCategory} dotClassName="bg-violet-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Visible"
+            value={stats.visible}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'visible'}
+            onClick={() => setActiveFilter('visible')}
+          />
+          <StatCard
+            label="Upcoming"
+            value={stats.upcoming}
+            dotClassName="bg-amber-500"
+            active={activeFilter === 'upcoming'}
+            onClick={() => setActiveFilter('upcoming')}
+          />
+          <StatCard
+            label="With Category"
+            value={stats.withCategory}
+            dotClassName="bg-violet-500"
+            active={activeFilter === 'withCategory'}
+            onClick={() => setActiveFilter('withCategory')}
+          />
         </div>
 
         {selectedCount > 0 && (

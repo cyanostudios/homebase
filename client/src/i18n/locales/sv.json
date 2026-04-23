@@ -357,6 +357,9 @@
     "titlePlaceholder": "Ange uppgiftens titel...",
     "contentPlaceholder": "Beskriv uppgiften... Skriv @ för att nämna kontakter",
     "taskProperties": "Uppgiftsegenskaper",
+    "propertyStatus": "Status",
+    "propertyPriority": "Prioritet",
+    "propertyDueDate": "Förfallodatum",
     "mentionedContacts": "Nämnda kontakter",
     "information": "Information",
     "quickActions": "Snabbåtgärder",
@@ -697,9 +700,14 @@
     "columnStart": "Start",
     "featured": "Utvald",
     "notFeatured": "Inte utvald",
-    "ingestLine": "Ingest: {{title}}"
+    "ingestLine": "Ingest: {{title}}",
+    "propertyPublic": "Publik på sajten",
+    "propertySanctioned": "Sanktionerad",
+    "propertyFeatured": "Utvald",
+    "cupProperties": "Egenskaper"
   },
   "dashboard": {
+    "description": "Snabb överblick över dina aktiverade plugins—öppna ett nedan eller från sidomenyn.",
     "noWidgets": "Inga widgets tillgängliga. Aktivera plugins för att se widgetar här."
   },
   "dialog": {

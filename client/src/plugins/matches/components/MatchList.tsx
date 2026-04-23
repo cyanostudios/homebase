@@ -29,19 +29,43 @@ const MATCHES_SETTINGS_KEY = 'matches';
 type ViewMode = 'grid' | 'list';
 type SortField = 'start_time' | 'home_team' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
+type MatchFilter = 'all' | 'upcoming' | 'futsal' | 'withLocation';
 const MATCHES_VIEW_MODE_STORAGE_KEY = 'matches:viewMode';
 
 function StatCard({
   label,
   value,
   dotClassName,
+  active = false,
+  onClick,
 }: {
   label: string;
   value: number;
   dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
         <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
         <span>{label}</span>
@@ -85,6 +109,7 @@ export function MatchList() {
   const [sortField, setSortField] = useState<SortField>('start_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [activeFilter, setActiveFilter] = useState<MatchFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('view');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -126,8 +151,21 @@ export function MatchList() {
   );
 
   const filteredAndSorted = useMemo(() => {
+    const byFilter = matches.filter((m) => {
+      if (activeFilter === 'upcoming') {
+        return new Date(m.start_time).getTime() > Date.now();
+      }
+      if (activeFilter === 'futsal') {
+        return (m.format || '').toLowerCase() === 'futsal';
+      }
+      if (activeFilter === 'withLocation') {
+        return Boolean(m.location?.trim());
+      }
+      return true;
+    });
+
     const needle = searchTerm.trim().toLowerCase();
-    const filtered = matches.filter((m) => {
+    const filtered = byFilter.filter((m) => {
       if (!needle) {
         return true;
       }
@@ -172,7 +210,7 @@ export function MatchList() {
       const cmp = String(aVal).localeCompare(String(bVal), undefined, { sensitivity: 'base' });
       return sortOrder === 'asc' ? cmp : -cmp;
     });
-  }, [matches, searchTerm, sortField, sortOrder, formatDateTimeForFilter]);
+  }, [matches, searchTerm, sortField, sortOrder, formatDateTimeForFilter, activeFilter]);
 
   const visibleMatchIds = useMemo(
     () => filteredAndSorted.map((m) => String(m.id)),
@@ -281,10 +319,34 @@ export function MatchList() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Total" value={stats.total} dotClassName="bg-blue-500" />
-          <StatCard label="Upcoming" value={stats.upcoming} dotClassName="bg-emerald-500" />
-          <StatCard label="Futsal" value={stats.futsal} dotClassName="bg-indigo-500" />
-          <StatCard label="With Location" value={stats.withLocation} dotClassName="bg-amber-500" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label="Upcoming"
+            value={stats.upcoming}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'upcoming'}
+            onClick={() => setActiveFilter('upcoming')}
+          />
+          <StatCard
+            label="Futsal"
+            value={stats.futsal}
+            dotClassName="bg-indigo-500"
+            active={activeFilter === 'futsal'}
+            onClick={() => setActiveFilter('futsal')}
+          />
+          <StatCard
+            label="With Location"
+            value={stats.withLocation}
+            dotClassName="bg-amber-500"
+            active={activeFilter === 'withLocation'}
+            onClick={() => setActiveFilter('withLocation')}
+          />
         </div>
 
         {selectedCount > 0 && (
