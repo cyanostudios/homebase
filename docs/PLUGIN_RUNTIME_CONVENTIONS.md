@@ -1,6 +1,6 @@
 # Plugin runtime conventions (frontend)
 
-Core (`panelHandlers`, `panelRendering`, `App.tsx`, etc.) resolves plugin behavior using **naming conventions** derived from the plugin `name` in `pluginRegistry.ts` and singularization in `pluginSingular.ts`.
+Core (`panelHandlers`, `panelRendering`, `core/app/*`, etc.) resolves plugin behavior using **naming conventions** derived from the plugin `name` in `pluginRegistry.ts` and singularization in `pluginSingular.ts`.
 
 This document is the **single reference** for those names. See also `guides/core-architecture-review-for-cursor.md`, `guides/lazy-plugin-providers-architecture.md` (Context vs `*Provider.tsx`, `providerLoader`, pre-fetch on auth, Vite chunks), and `guides/notes-tasks-shares-and-ui-updates.md` (task/note shares, note→task dialog, slots/detail UI).
 
@@ -63,7 +63,7 @@ If `View` or `Form` is missing when core tries to render that mode, a **dev warn
 
 ## Optional explicit contracts
 
-For cross-plugin or optional capabilities, prefer **`pluginContract.ts`** patterns (e.g. duplicate flow) instead of adding more special cases in `App.tsx`.
+For cross-plugin or optional capabilities, prefer **`pluginContract.ts`** patterns (e.g. duplicate flow) instead of adding more special cases in `core/app/AppContent.tsx` and related orchestration files.
 
 ---
 

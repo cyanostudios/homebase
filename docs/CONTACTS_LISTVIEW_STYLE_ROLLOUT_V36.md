@@ -2,6 +2,11 @@
 
 Detta dokument definierar exakt vad som ska synkas från `contacts` listview till övriga plugins.
 
+## Status
+
+Rollout implementerad i commit `4021082` (2026-04-20) och verifierad mot nuvarande listkomponenter.
+Checkboxarna nedan visar aktuell status i kodbasen.
+
 ## Målstandard (från Contacts)
 
 1. **Panel-surface (list container)**
@@ -33,92 +38,92 @@ Gäller plugin-listor i:
 
 ### 1) Notes (`client/src/plugins/notes/components/NoteList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Grid/list-segment-stil
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Grid cards till borderless `rounded-xl border-0 shadow-sm`
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Grid/list-segment-stil
+- [x] Table `rowBorders={false}` + grå header
+- [x] Grid cards till borderless `rounded-xl border-0 shadow-sm`
 
 ### 2) Tasks (`client/src/plugins/tasks/components/TaskList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Grid/list-segment-stil
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Status/priority badges till borderless badge-stil
-- [ ] Grid cards till borderless `rounded-xl border-0 shadow-sm`
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Grid/list-segment-stil
+- [x] Table `rowBorders={false}` + grå header
+- [x] Status/priority badges till borderless badge-stil
+- [x] Grid cards till borderless `rounded-xl border-0 shadow-sm`
 
 ### 3) Matches (`client/src/plugins/matches/components/MatchList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Grid/list-segment-stil
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Eventuella chips/badges till borderless badge-stil
-- [ ] Grid cards till borderless `rounded-xl border-0 shadow-sm`
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Grid/list-segment-stil
+- [x] Table `rowBorders={false}` + grå header
+- [x] Eventuella chips/badges till borderless badge-stil
+- [x] Grid cards till borderless `rounded-xl border-0 shadow-sm`
 
 ### 4) Slots (`client/src/plugins/slots/components/SlotsList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Grid/list-segment-stil
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Category badge till borderless badge-stil
-- [ ] Grid cards till borderless `rounded-xl border-0 shadow-sm`
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Grid/list-segment-stil
+- [x] Table `rowBorders={false}` + grå header
+- [x] Category badge till borderless badge-stil
+- [x] Grid cards till borderless `rounded-xl border-0 shadow-sm`
 
 ### 5) Estimates (`client/src/plugins/estimates/components/EstimateList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Grid/list-segment-stil
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Status badges till borderless badge-stil
-- [ ] Grid cards till borderless `rounded-xl border-0 shadow-sm`
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Grid/list-segment-stil
+- [x] Table `rowBorders={false}` + grå header
+- [x] Status badges till borderless badge-stil
+- [x] Grid cards till borderless `rounded-xl border-0 shadow-sm`
 
 ### 6) Invoices (`client/src/plugins/invoices/components/InvoicesList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Om table används: `rowBorders={false}` + grå header
-- [ ] Status/type badges till borderless badge-stil
-- [ ] Kort/rader till borderless card-känsla
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Om table används: `rowBorders={false}` + grå header (N/A, `GroupedList` används i stället)
+- [x] Status/type badges till borderless badge-stil
+- [x] Kort/rader till borderless card-känsla
 
 ### 7) Files (`client/src/plugins/files/components/FileList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Grid/list-segment-stil
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Type/status badges till borderless badge-stil
-- [ ] Grid cards till borderless `rounded-xl border-0 shadow-sm`
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Grid/list-segment-stil
+- [x] Table `rowBorders={false}` + grå header
+- [x] Type/status badges till borderless badge-stil
+- [x] Grid cards till borderless `rounded-xl border-0 shadow-sm`
 
 ### 8) Mail (`client/src/plugins/mail/components/MailList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Status/source badges till borderless badge-stil
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Table `rowBorders={false}` + grå header
+- [x] Status/source badges till borderless badge-stil
 
 ### 9) Pulses (`client/src/plugins/pulses/components/PulseList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Status/source badges till borderless badge-stil
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Table `rowBorders={false}` + grå header
+- [x] Status/source badges till borderless badge-stil
 
 ### 10) Ingest (`client/src/plugins/ingest/components/IngestSourceList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Grid/list-segment-stil
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Status badges till borderless badge-stil
-- [ ] Grid cards till borderless `rounded-xl border-0 shadow-sm`
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Grid/list-segment-stil
+- [x] Table `rowBorders={false}` + grå header
+- [x] Status badges till borderless badge-stil
+- [x] Grid cards till borderless `rounded-xl border-0 shadow-sm`
 
 ### 11) Cups (`client/src/plugins/cups/components/CupsList.tsx`)
 
-- [ ] Panel-surface till contacts-klass
-- [ ] Toolbar/list i samma panel
-- [ ] Grid/list-segment-stil
-- [ ] Table `rowBorders={false}` + grå header
-- [ ] Grid cards till borderless `rounded-xl border-0 shadow-sm`
+- [x] Panel-surface till contacts-klass
+- [x] Toolbar/list i samma panel
+- [x] Grid/list-segment-stil
+- [x] Table `rowBorders={false}` + grå header
+- [x] Grid cards till borderless `rounded-xl border-0 shadow-sm`

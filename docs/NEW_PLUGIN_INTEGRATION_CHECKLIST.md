@@ -15,9 +15,11 @@ Use this checklist when creating a new plugin from `templates/plugin-frontend-te
 - Copy `templates/plugin-frontend-template` to `client/src/plugins/<your-plugin>/`.
 - Rename template symbols (`YourItem*`) to plugin-specific names.
 - Register plugin in `client/src/core/pluginRegistry.ts`:
-  - `name`, `Provider`, `hook`, `panelKey`
+  - `name`, `Provider`, `providerLoader`, `NullProvider`, `hook`, `panelKey`
   - `components.List`, `components.Form`, `components.View`
   - `navigation` config
+- Ensure `Provider` is a lightweight fallback (normally `NullProvider`) and put the heavy provider implementation behind `providerLoader`.
+- Verify the plugin is discovered by `useEnabledPlugins()` flow so `client/src/core/app/PluginProviders.tsx` mounts it only when enabled.
 - Ensure route mapping exists in `client/src/core/routing/routeMap.ts`.
 
 ## 3) Panel contract (mandatory)

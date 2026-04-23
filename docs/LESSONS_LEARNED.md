@@ -126,14 +126,17 @@ Lade till 'settings' i rendering men glömde uppdatera NavPage type.
 
 ```typescript
 // ✅ KORREKT - Uppdatera NavPage type
-export type NavPage = 'contacts' | 'notes' | 'estimates' | 'invoices' | 'tasks' | 'files' | 'settings';
+export type NavPage =
+  | 'contacts'
+  | 'notes'
+  | 'estimates'
+  | 'invoices'
+  | 'tasks'
+  | 'files'
+  | 'settings';
 
-// ✅ KORREKT - Hantera settings separat i App.tsx
-{currentPage === 'settings' ? (
-  <SettingsList onCategoryClick={(categoryId) => {...}} />
-) : (
-  renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY)
-)}
+// ✅ KORREKT - Låt routing/rendering hantera settings som en normal plugin-sida
+return renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY);
 ```
 
 💡 **Why (lesson learned):**

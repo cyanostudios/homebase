@@ -1,8 +1,18 @@
 # Homebase UI & UX Standards (V3 Premium)
 
-**Last Updated:** February 2026
+**Last Updated:** April 2026
 
 This document defines the strict UI/UX standards for the Homebase V3 "Premium" design language. All plugins must adhere to these guidelines to ensure a cohesive user experience.
+
+## 0. V3.6 Shared UI Primitives
+
+The v3.6 alignment introduced shared primitive behavior that all plugins should rely on instead of local workarounds:
+
+- **`Card` primitive:** `shadow-none` also implies `border-0` (see `client/src/components/ui/card.tsx`).
+- **`Table` primitive:** use `rowBorders={false}` for borderless list tables; it clears borders consistently for `thead/tbody/tr/th/td` (see `client/src/components/ui/table.tsx`).
+- **`ContentHeader` suffix:** status badges or contextual suffix UI should use `titleSuffix` via layout context (`MainLayout` / `ContentHeader`) instead of ad-hoc title hacks.
+- **List rollout reference:** `docs/CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md` is the canonical checklist for contacts-style list shell parity.
+- **Detail view token rollout (WIP):** shared tokens are being consolidated in `client/src/core/ui/detailViewCardStyles.ts` (`DETAIL_VIEW_CARD_CLASS`, `DETAIL_FIELD_LABEL_CLASS`, etc.) and should be reused once rollout is complete.
 
 ## 1. List Views (Tables)
 
@@ -29,7 +39,7 @@ To prevent layout shifts when switching tabs, all list views must follow these e
 
 ### Table Interaction
 
-- **Row Hover:** `hover:bg-gray-50 dark:hover:bg-gray-900/50`
+- **Row Hover:** `hover:bg-slate-50 dark:hover:bg-slate-900/80`
 - **Click Target:** Entire row should be clickable (except checkbox/actions).
 - **Cursor:** `cursor-pointer` on row.
 
@@ -127,7 +137,7 @@ In the `View` component, the "Information" section (System ID, Dates) should use
 
 ### 3.1 List toolbar buttons
 
-List views use `ContentToolbar` and set it via `useContentLayout().setHeaderTrailing`. All toolbar actions (Settings, Grid, List, Import, etc.) must use the same button style for consistency:
+List views place toolbar actions inside the main list card (same shell as table/grid content). All toolbar actions (Settings, Grid, List, Import, etc.) must use the same button style for consistency:
 
 - **Component:** `Button` from `@/components/ui/button`.
 - **Variant:** `variant="secondary"` for secondary actions.

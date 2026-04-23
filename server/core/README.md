@@ -7,6 +7,9 @@ This directory contains the core infrastructure services for Homebase V2.
 ```
 server/core/
 ├── ServiceManager.js          # Central service manager
+├── Bootstrap.js               # Core startup helpers
+├── routes/                    # Core route setup
+│   └── setupCoreRoutes.js
 ├── errors/
 │   └── AppError.js            # Standardized error handling
 ├── services/
@@ -14,10 +17,17 @@ server/core/
 │   │   ├── DatabaseService.js  # Base database interface
 │   │   └── adapters/
 │   │       └── PostgreSQLAdapter.js  # PostgreSQL implementation
+│   ├── tenant/
+│   │   └── providers/          # Local/Neon tenant providers
+│   ├── connection-pool/
+│   │   └── providers/          # Pool provider implementations
+│   ├── publicShareRouting.js   # Public share route tenant lookup
 │   └── logger/
 │       ├── LoggerService.js   # Base logger interface
 │       └── adapters/
 │           └── ConsoleAdapter.js  # Console logger implementation
+├── storage/
+│   └── localStorageService.js
 └── middleware/
     ├── csrf.js                # CSRF protection
     ├── validation.js          # Input validation helpers

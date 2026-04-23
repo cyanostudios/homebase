@@ -220,5 +220,7 @@ curl http://localhost:3002/api/plugins    # List loaded plugins
 **Status:** ✅ Complete Modular Architecture + Development Ready  
 **Development Time:** 15-25 minutes per plugin with templates  
 **Performance:** Enterprise-grade with proven optimization  
-**Last Updated:** March 2026  
+**UI Alignment:** Contacts v3.6 list shell rolled out across plugin list views  
+**Detail Views:** Shared detail-card token rollout is in progress (`detailViewCardStyles.ts`)  
+**Last Updated:** April 2026  
 **Built with ❤️ by the development team**

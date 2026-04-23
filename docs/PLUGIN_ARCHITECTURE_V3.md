@@ -1,6 +1,6 @@
 # Plugin Architecture V3: The Action Registry
 
-**Last Updated:** February 2026
+**Last Updated:** April 2026
 
 The V3 architecture introduces the **Action Registry** pattern to solve the problem of circular dependencies between plugins (e.g., Notes needing Tasks, and Tasks needing Notes).
 
@@ -25,35 +25,33 @@ The `ActionContext` acts as a neutral "marketplace" in the Core layer.
 
 ### 1. Registering an Action (Provider)
 
-In `TaskContext.tsx`:
+In a provider (for example `TaskContext.tsx`):
 
 ```tsx
-const { registerAction, unregisterAction } = usePluginActions();
+const { registerAction } = useActionRegistry();
 
 useEffect(() => {
-  // "I can create a task from a note"
-  registerAction({
+  // "I can create a task from a note" for note entities
+  const unregister = registerAction('note', {
     id: 'create-task-from-note',
-    pluginName: 'task',
     label: 'Create Task',
     icon: CheckSquare,
     variant: 'secondary',
-    order: 10,
     onClick: (note) => {
       // Logic to open task panel with note data
     },
   });
 
-  return () => unregisterAction('create-task-from-note');
-}, [registerAction, unregisterAction]);
+  return unregister;
+}, [registerAction]);
 ```
 
 ### 2. Consuming Actions (Consumer)
 
-In `NoteContext.tsx`:
+In a consumer (for example `NoteContext.tsx`):
 
 ```tsx
-const pluginActions = usePluginActions('note'); // Get actions relevant to 'note' entities
+const pluginActions = usePluginActions('note'); // Actions registered for note entities
 
 // Render them dynamically
 {
@@ -101,6 +99,6 @@ When one plugin can create or open another plugin’s entity from a source entit
 
 ## Best Practices
 
-- **Unregister:** Always return a cleanup function to unregister actions.
+- **Unregister:** `registerAction(entityType, action)` returns a cleanup function. Always return it from `useEffect`.
 - **Stable References:** Use `useCallback` for `onClick` handlers to prevent re-registration loops.
 - **Unique IDs:** Use descriptive IDs like `create-entity-from-source`.

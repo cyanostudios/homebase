@@ -23,7 +23,9 @@ It must own the `cups` domain model, list UI, detail UI, form UI, and import-to-
 
 2. **Do not touch protected core files unless required**
    Protected examples:
-   - `client/src/App.tsx`
+   - `client/src/core/app/AppRoutes.tsx`
+   - `client/src/core/app/AppContent.tsx`
+   - `client/src/core/app/PluginProviders.tsx`
    - `client/src/core/api/AppContext.tsx`
    - `client/src/core/pluginRegistry.ts`
    - `server/plugin-loader.js`
@@ -764,7 +766,7 @@ Do not do these in this task:
 - no giant parser framework
 - no generic content platform abstraction
 - no ingest redesign
-- no App.tsx refactor as part of this work
+- no `client/src/core/app/*` refactor as part of this work
 - no AppContext refactor
 - no speculative multi-domain abstraction
 

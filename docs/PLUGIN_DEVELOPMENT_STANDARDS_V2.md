@@ -31,10 +31,12 @@ See `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` for the exact integration flow.
 0. **Do not break the platform.** Navigation, panel behaviour, and basic CRUD must keep working. Prefer reading code and fixing root cause over guesswork.
 
 1. Plugin Registry Entry
-   Every plugin MUST be registered in client/src/core/pluginRegistry.ts:
+   Every plugin MUST be registered in `client/src/core/pluginRegistry.ts`:
    {
    name: 'my-plugins', // PLURAL form required
-   Provider: MyPluginProvider,
+   Provider: MyPluginNullProvider, // synchronous fallback
+   providerLoader: () => import('@/plugins/my-plugin/context/MyPluginProvider').then((m) => m.MyPluginProvider),
+   NullProvider: MyPluginNullProvider,
    hook: useMyPlugins,
    panelKey: 'isMyPluginPanelOpen', // Must match context boolean exactly
    components: {
@@ -57,6 +59,7 @@ See `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` for the exact integration flow.
      - Plugins are sorted alphabetically for consistency
      - Some plugins (read-only, experimental) are excluded from DEFAULT_USER_PLUGINS
    - Superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access
+   - Provider loading is orchestrated by `client/src/core/app/PluginProviders.tsx` + `useEnabledPlugins()`. Heavy providers must be exposed via `providerLoader`; the eager `Provider` should stay lightweight (`NullProvider`) unless the plugin is always-on.
 
 - Skapa/kör ett litet script under `scripts/` som lägger till raden i `user_plugin_access` (följ mönstret från andra scripts i repot)
 
@@ -160,7 +163,7 @@ När en plugin stödjer export (single-item och/eller bulk) ska vi använda samm
 
 Use the same UI components and styling as other plugins so list views and toolbars look and behave the same across the app.
 
-- **Toolbar:** Use `ContentToolbar` from `@/core/ui/ContentToolbar` in the list component. Set it via `setHeaderTrailing` from `useContentLayout()` inside a `useEffect`, and return a cleanup that calls `setHeaderTrailing(null)`.
+- **Toolbar:** Use the in-card list toolbar shell used across current list views (search/settings/grid-list controls in the same main card as list content), not legacy `ContentToolbar` header injection.
 - **Toolbar buttons:** Use the shared `Button` from `@/components/ui/button` with:
   - `variant="secondary"` for secondary actions (e.g. Settings, Grid, List, Import).
   - `size="sm"`.

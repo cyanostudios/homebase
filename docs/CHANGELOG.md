@@ -4,6 +4,23 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-04-20 – Plugin list alignment (v3.6 rollout)
+
+**Sammanfattning:** Samtliga plugin-listor i scope (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoices`, `files`, `mail`, `pulses`, `ingest`, `cups`) har alignats med Contacts-listans shell enligt commit `4021082`.
+
+### Gemensam list-shell i plugins
+
+- **En huvudpanel per lista:** `Card` med `overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950`.
+- **List-toolbar i samma panel:** sökfält + settings + (där relevant) Grid/List-segment i toppraden.
+- **Tabellstandard:** `Table rowBorders={false}` och `TableHeader` med grå yta (`bg-slate-50/90 dark:bg-slate-900/50`) där tabell används.
+- **Grid-kort:** borderless kort (`rounded-xl border-0 ... shadow-sm`) i de listor som har gridläge.
+- **Badge-standard:** borderless pill badges (`border-0 rounded-md px-2 py-0.5 text-xs font-semibold`) i status/type/source-kolumner där det är relevant.
+
+### Dokumentation i samma leverans
+
+- **Ny rollout-checklista:** `docs/CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md`.
+- **Cups i18n:** utökade nycklar för kolumnrubriker och empty-state copy i `client/src/i18n/locales/en.json` och `client/src/i18n/locales/sv.json`.
+
 ## 2026-04 – Homebase v3.6: Contacts design alignment (list, detail, panel primitives)
 
 **Sammanfattning:** Stor designjustering av Contacts enligt referensfiler (`guides/homebase-contact.README.md`, `guides/homebase-contact.css`) med fokus på listvy, detail cards, sidebar/topbar-element och renare UI-primitiver utan lokala workarounds.
@@ -86,7 +103,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ### Frontend: lazy plugin-providers och registry
 
-- **`client/src/core/pluginRegistry.ts`:** `providerLoader` – tunga providers laddas när plugin är aktivt (`App.tsx`).
+- **`client/src/core/pluginRegistry.ts`:** `providerLoader` – tunga providers laddas när plugin är aktivt (`client/src/core/app/PluginProviders.tsx`).
 - **`client/src/hooks/useEnabledPlugins.ts`:** Härleder aktiva plugin-id från feature-flaggor och användarinställningar.
 - **Context / Provider:** För contacts, cups, estimates, files, ingest, invoices, mail, matches, notes, pulses, slots, tasks: `*Context.tsx` (hook + typer) och `*Provider.tsx` (implementation) – minskar initial bundle när plugin är avstängt.
 - **`client/src/types/pluginTypes.ts`:** Barrel för plugin-relaterade typer.
@@ -756,4 +773,4 @@ _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slo
 
 ---
 
-**Senast uppdaterad:** 2026-04-20
+**Senast uppdaterad:** 2026-04-21

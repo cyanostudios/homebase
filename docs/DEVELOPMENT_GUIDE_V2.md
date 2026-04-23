@@ -61,8 +61,9 @@ homebase/
 │   ├── index.html          # HTML entry point
 │   └── src/                # React application
 │       ├── core/           # Core system files
+│       │   └── app/        # AppRoutes/AppContent/PluginProviders orchestration
 │       ├── plugins/        # Plugin implementations
-│       └── App.tsx         # Main application
+│       └── App.tsx         # Thin root entry (renders AppRoutes)
 ├── server/                 # Express.js backend
 │   ├── core/              # Core services and middleware
 │   │   ├── ServiceManager.js

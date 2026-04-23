@@ -25,7 +25,9 @@ It must be built in a way that matches Homebase architecture and avoids guessing
 
 2. **Do not modify core files unless absolutely required**
    Protected files include:
-   - `App.tsx`
+   - `client/src/core/app/AppRoutes.tsx`
+   - `client/src/core/app/AppContent.tsx`
+   - `client/src/core/app/PluginProviders.tsx`
    - `AppContext.tsx`
    - `pluginRegistry.ts`
    - `server/plugin-loader.js`
@@ -845,7 +847,7 @@ Use template naming patterns adapted to `ingest`.
 Read `pluginRegistry.ts` first.
 Then add `ingest` the same way other plugins are registered.
 
-Do not modify `App.tsx` unless absolutely necessary and verified.
+Do not modify `client/src/core/app/*` orchestration files unless absolutely necessary and verified.
 
 ### Phase 7: Wire end-to-end flow
 

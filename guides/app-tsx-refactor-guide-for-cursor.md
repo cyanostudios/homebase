@@ -1,5 +1,11 @@
 # App.tsx Refactor Guide for Cursor Agent
 
+## Historical context (2026-04)
+
+`client/src/App.tsx` is now a thin entry file. Most orchestration has moved to `client/src/core/app/` (`AppRoutes.tsx`, `AppContent.tsx`, `PluginProviders.tsx`).
+
+Use this guide as historical guidance for decomposition patterns, but apply changes to current orchestration files first.
+
 Use this guide to improve the current `App.tsx` structure **without unnecessary refactoring**.
 
 This is **not** a rewrite.
