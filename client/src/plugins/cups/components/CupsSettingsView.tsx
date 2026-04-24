@@ -340,6 +340,12 @@ export function CupsSettingsView({
                   ))}
                 </div>
               )}
+              {ingestSources.length > 0 && allowedIngestSourceIds.length === 0 && (
+                <p className="text-sm text-muted-foreground rounded-md border border-dashed border-border/60 bg-muted/30 px-3 py-2">
+                  Tick at least one source to enable bulk import here. From the Cups list, you can
+                  still use Import from Ingest for any source until you restrict the list below.
+                </p>
+              )}
               {allowedIngestSourceIds.length > 0 && (
                 <div className="flex items-center justify-between gap-2 rounded border border-border/60 p-3">
                   <p className="text-sm text-muted-foreground">

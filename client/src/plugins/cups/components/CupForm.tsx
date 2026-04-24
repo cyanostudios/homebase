@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +11,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { filesApi } from '@/plugins/files/api/filesApi';
 
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
@@ -42,7 +44,10 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
     visible: true,
     sanctioned: true,
     featured: false,
+    featured_image_url: '',
   });
+  const [imageUploadBusy, setImageUploadBusy] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
     useUnsavedChanges();
 
@@ -63,7 +68,9 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
       visible: item?.visible !== false,
       sanctioned: item?.sanctioned !== false,
       featured: item?.featured === true,
+      featured_image_url: item?.featured_image_url || '',
     });
+    setImageUploadError(null);
     clearValidationErrors();
     markClean();
   }, [item, clearValidationErrors, markClean]);
@@ -105,6 +112,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
       registration_url: form.registration_url || null,
       source_url: form.source_url || null,
       description: form.description || null,
+      featured_image_url: form.featured_image_url.trim() || null,
     });
     if (ok) {
       markClean();
@@ -276,6 +284,68 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                         onFieldChange('featured', checked);
                       }}
                     />
+                  </div>
+                  <div className="border-t border-border pt-3 mt-1 space-y-2">
+                    <div>
+                      <Label>Hero image (Cupappen featured cards)</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Upload a cover image for the featured card. If empty, a default photo is
+                        used on the public site.
+                      </p>
+                    </div>
+                    {form.featured_image_url ? (
+                      <div className="flex flex-wrap items-end gap-3">
+                        <img
+                          src={form.featured_image_url}
+                          alt=""
+                          className="h-24 w-40 rounded-md object-cover border border-border"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            onFieldChange('featured_image_url', '');
+                          }}
+                        >
+                          Remove image
+                        </Button>
+                      </div>
+                    ) : null}
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      disabled={imageUploadBusy}
+                      className="cursor-pointer"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!file) {
+                          return;
+                        }
+                        setImageUploadError(null);
+                        setImageUploadBusy(true);
+                        try {
+                          const items = await filesApi.uploadFiles([file]);
+                          const url = items[0]?.url;
+                          if (url) {
+                            onFieldChange('featured_image_url', url);
+                          } else {
+                            setImageUploadError('No file URL returned');
+                          }
+                        } catch {
+                          setImageUploadError('Upload failed');
+                        } finally {
+                          setImageUploadBusy(false);
+                        }
+                      }}
+                    />
+                    {imageUploadBusy ? (
+                      <p className="text-xs text-muted-foreground">Uploading…</p>
+                    ) : null}
+                    {imageUploadError ? (
+                      <p className="text-xs text-destructive">{imageUploadError}</p>
+                    ) : null}
                   </div>
                 </div>
               </div>

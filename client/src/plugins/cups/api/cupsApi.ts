@@ -36,6 +36,44 @@ function toBoolean(v: unknown, fallback = true): boolean {
   return true;
 }
 
+function messageFromApiErrorBody(body: Record<string, unknown> | null, fallback: string): string {
+  if (!body) {
+    return fallback;
+  }
+  const primary =
+    (typeof body.error === 'string' && body.error) ||
+    (typeof body.message === 'string' && body.message) ||
+    '';
+  const details = body.details;
+  let detailStr = '';
+  if (Array.isArray(details)) {
+    detailStr = details
+      .map((d: unknown) => {
+        if (
+          d &&
+          typeof d === 'object' &&
+          'msg' in d &&
+          typeof (d as { msg: string }).msg === 'string'
+        ) {
+          return (d as { msg: string }).msg;
+        }
+        return typeof d === 'string' ? d : JSON.stringify(d);
+      })
+      .filter(Boolean)
+      .join('; ');
+  }
+  if (primary && detailStr) {
+    return `${primary}: ${detailStr}`;
+  }
+  if (primary) {
+    return primary;
+  }
+  if (detailStr) {
+    return detailStr;
+  }
+  return fallback;
+}
+
 function rowToCup(row: Record<string, unknown>): Cup {
   return {
     id: String(row.id),
@@ -52,6 +90,7 @@ function rowToCup(row: Record<string, unknown>): Cup {
     match_format: optionalString(row.match_format),
     description: optionalString(row.description),
     registration_url: optionalString(row.registration_url),
+    featured_image_url: optionalString(row.featured_image_url),
     source_url: optionalString(row.source_url),
     source_type: optionalString(row.source_type),
     ingest_source_id: optionalString(row.ingest_source_id),
@@ -75,8 +114,17 @@ class CupsApi {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(err?.error || err?.message || 'Request failed');
+      const text = await response.text();
+      let parsed: Record<string, unknown> | null = null;
+      if (text) {
+        try {
+          parsed = JSON.parse(text) as Record<string, unknown>;
+        } catch {
+          parsed = null;
+        }
+      }
+      const fallback = text.trim().slice(0, 280) || response.statusText || 'Request failed';
+      throw new Error(messageFromApiErrorBody(parsed, fallback));
     }
     return response.json();
   }

@@ -109,8 +109,9 @@ export function CupIngestPickSourceDialog({
                 <p className="text-sm text-muted-foreground">Loading sources…</p>
               ) : options.length === 0 ? (
                 <p className="text-sm text-destructive">
-                  No ingest sources available. Add sources in Ingest or enable them under Cups
-                  settings.
+                  {sources.length > 0 && allowedIngestSourceIds.length > 0
+                    ? 'None of your allowed ingest sources match what exists in Ingest anymore. Open Cups settings → Import and update the ticked sources (or clear outdated IDs).'
+                    : 'No ingest sources available. Add sources in Ingest first.'}
                 </p>
               ) : (
                 <div className="space-y-2">

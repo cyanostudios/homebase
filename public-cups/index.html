@@ -18,22 +18,16 @@
     </script>
     <!-- End Google Tag Manager -->
     <title>Cupappen - Hitta fotbollscuper</title>
-    <meta
-      name="description"
-      content="Cupappen listar fotbollscuper i Sverige med datum, arrangör, kategorier, antal lag och anmälningslänkar."
-    />
+    <meta name="description" content="Cupappen samlar Sveriges fotbollscuper på ett ställe. Sök, jämför och anmäl ert lag till rätt cup — utan att scrolla genom tio olika webbsidor." />
     <meta name="robots" content="index, follow" />
     <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#099ea2" />
     <meta name="author" content="Cupappen" />
     <meta name="application-name" content="Cupappen" />
     <meta name="format-detection" content="telephone=no" />
     <meta property="og:locale" content="sv_SE" />
     <meta property="og:title" content="Cupappen - Hitta fotbollscuper" />
-    <meta
-      property="og:description"
-      content="Sök och filtrera fotbollscuper. Se datum, plats, arrangör, kategorier och anmälan."
-    />
+    <meta property="og:description" content="Sök och filtrera fotbollscuper. Se datum, plats, arrangör, kategorier och anmälan." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://cupappen.se/" />
     <meta property="og:site_name" content="Cupappen" />
@@ -45,26 +39,19 @@
     <meta property="og:image:alt" content="Cupappen - Hitta fotbollscuper i Sverige" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Cupappen - Hitta fotbollscuper" />
-    <meta
-      name="twitter:description"
-      content="Sök och filtrera fotbollscuper i hela Sverige med SEO-optimerad listning."
-    />
+    <meta name="twitter:description" content="Sök och filtrera fotbollscuper i hela Sverige." />
     <meta name="twitter:image" content="https://cupappen.se/assets/og/cupappen-og-1200x630.png" />
     <meta name="twitter:image:alt" content="Cupappen - Hitta fotbollscuper i Sverige" />
     <link rel="canonical" href="https://cupappen.se/" />
     <link rel="alternate" hreflang="sv-SE" href="https://cupappen.se/" />
     <link rel="alternate" hreflang="x-default" href="https://cupappen.se/" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="./assets/icons/favicon-32x32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon-180x180.png" />
+    <link rel="icon" type="image/png" href="./assets/cupappen-favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/cupappen-favicon.png" />
     <link rel="robots" href="./robots.txt" />
     <link rel="sitemap" type="application/xml" title="Sitemap" href="./sitemap.xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet" />
     <script type="application/ld+json" id="base-json-ld">
       {
         "@context": "https://schema.org",
@@ -77,7 +64,7 @@
             "email": "info@cupappen.se",
             "logo": {
               "@type": "ImageObject",
-              "url": "https://cupappen.se/assets/icons/cupappen-logo-512.png",
+              "url": "https://cupappen.se/assets/cupappen-logo.png",
               "width": 512,
               "height": 512
             }
@@ -88,9 +75,7 @@
             "name": "Cupappen",
             "url": "https://cupappen.se/",
             "inLanguage": "sv-SE",
-            "publisher": {
-              "@id": "https://cupappen.se/#organization"
-            },
+            "publisher": { "@id": "https://cupappen.se/#organization" },
             "potentialAction": {
               "@type": "SearchAction",
               "target": "https://cupappen.se/?q={search_term_string}",
@@ -102,9 +87,7 @@
             "@id": "https://cupappen.se/#collection",
             "url": "https://cupappen.se/",
             "name": "Cupappen - Hitta fotbollscuper",
-            "isPartOf": {
-              "@id": "https://cupappen.se/#website"
-            },
+            "isPartOf": { "@id": "https://cupappen.se/#website" },
             "inLanguage": "sv-SE",
             "description": "Cupappen listar fotbollscuper i Sverige med datum, arrangör, kategorier, antal lag och anmälningslänkar."
           }
@@ -116,126 +99,462 @@
   </head>
   <body>
     <!-- Google Tag Manager (noscript) -->
-    <noscript
-      ><iframe
-        src="https://www.googletagmanager.com/ns.html?id=GTM-T9Z5HTC6"
-        height="0"
-        width="0"
-        style="display: none; visibility: hidden"
-        title="Google Tag Manager"
-      ></iframe
-    ></noscript>
-    <!-- End Google Tag Manager (noscript) -->
-    <a href="#main-content" class="skip-link">Hoppa till innehåll</a>
-    <header data-testid="main-header" class="topbar">
-      <div class="topbar-inner">
-        <div class="brand-row">
-          <span class="brand-text">Cupappen</span>
-        </div>
-        <button id="filter-toggle-btn" class="filter-toggle-btn" type="button" hidden aria-expanded="false">
-          Visa filter
-        </button>
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T9Z5HTC6" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
 
-        <div data-testid="search-bar" class="search-shell">
-          <div class="search-field">
-            <span class="search-label">Sök</span>
-            <input id="search-input" type="search" placeholder="Cup eller arrangör" aria-label="Sök cuper" />
-          </div>
-          <div class="search-field">
-            <span class="search-label">Datum</span>
-            <div id="date-filter" class="custom-select" aria-label="Filtrera på datum">
-              <button
-                id="date-trigger"
-                class="custom-trigger"
-                type="button"
-                aria-haspopup="listbox"
-                aria-expanded="false"
-              >
-                <span class="custom-trigger-inner">
-                  <span id="date-label">Kommande</span>
-                </span>
-                <span class="custom-chevron" aria-hidden="true">▾</span>
-              </button>
-              <div id="date-menu" class="custom-menu" role="listbox" hidden></div>
-            </div>
-          </div>
-          <div class="search-field">
-            <span class="search-label">Kategorier</span>
-            <div id="category-filter" class="custom-select" aria-label="Filtrera på kategori">
-              <button
-                id="category-trigger"
-                class="custom-trigger"
-                type="button"
-                aria-haspopup="listbox"
-                aria-expanded="false"
-              >
-                <span class="custom-trigger-inner">
-                  <span id="category-label">Alla klasser</span>
-                </span>
-                <span class="custom-chevron" aria-hidden="true">▾</span>
-              </button>
-              <div id="category-menu" class="custom-menu" role="listbox" hidden></div>
-            </div>
-          </div>
-          <div class="search-field">
-            <span class="search-label">Distrikt</span>
-            <div id="district-filter" class="custom-select" aria-label="Filtrera på distrikt">
-              <button
-                id="district-trigger"
-                class="custom-trigger"
-                type="button"
-                aria-haspopup="listbox"
-                aria-expanded="false"
-              >
-                <span class="custom-trigger-inner">
-                  <span id="district-label">Alla distrikt</span>
-                </span>
-                <span class="custom-chevron" aria-hidden="true">▾</span>
-              </button>
-              <div id="district-menu" class="custom-menu" role="listbox" hidden></div>
-            </div>
-          </div>
-          <button id="search-btn" data-testid="search-btn" class="search-btn" aria-label="Sök">
-            <svg class="search-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="7"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </button>
-          <button id="clear-filters-btn" class="clear-btn" type="button" aria-label="Rensa filter">
-            Rensa
+    <a href="#cup-listing" class="skip-link">Hoppa till cupförteckning</a>
+
+    <!-- ================================================================
+         1. HEADER (fixed glass)
+    ================================================================ -->
+    <header data-testid="main-header" class="site-header">
+      <div class="container site-header__inner">
+        <a href="/" class="logo" data-testid="header-logo" aria-label="Cupappen startsida">
+          <picture>
+            <source srcset="./assets/cupappen-logo.webp" type="image/webp" />
+            <img
+              class="logo__img"
+              src="./assets/cupappen-logo.png"
+              alt="Cupappen"
+              width="360"
+              height="240"
+              decoding="async"
+            />
+          </picture>
+        </a>
+
+        <nav aria-label="Huvudnavigation">
+          <ul class="nav-links">
+            <li><a href="#cup-listing" data-testid="nav-cuper">Cuper</a></li>
+            <li><a href="#organizer" data-testid="nav-arrangorer">För arrangörer</a></li>
+            <li><a href="#featured-cups" data-testid="nav-how-it-works">Så funkar det</a></li>
+            <li><a href="#faq" data-testid="nav-faq">Om oss</a></li>
+          </ul>
+        </nav>
+
+        <div class="header-actions">
+          <a href="#cup-listing" class="btn btn-primary" data-testid="header-add-cup" style="display:none;" id="header-add-cup-btn">Lägg till cup</a>
+          <button type="button" class="menu-btn" data-testid="mobile-menu-btn" id="mobile-menu-btn" aria-label="Öppna meny" aria-expanded="false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
         </div>
       </div>
     </header>
 
-    <main id="main-content" class="content">
-      <section id="featured-section" class="featured-section" hidden>
-        <h2 class="featured-title">Utvalda cuper</h2>
-        <div id="featured-grid" class="cups-grid"></div>
-      </section>
-      <p id="filter-breadcrumbs" class="filter-breadcrumbs"></p>
+    <!-- Mobile drawer -->
+    <div id="mobile-drawer" class="mobile-drawer" role="dialog" aria-modal="true" aria-label="Mobilmeny">
+      <div class="mobile-drawer__panel">
+        <a href="#cup-listing" data-testid="mobile-nav-cuper">Cuper</a>
+        <a href="#organizer" data-testid="mobile-nav-arrangorer">För arrangörer</a>
+        <a href="#featured-cups" data-testid="mobile-nav-how-it-works">Så funkar det</a>
+        <a href="#faq" data-testid="mobile-nav-faq">Om oss</a>
+        <a href="#cup-listing" class="btn btn-primary" style="justify-content:center;margin-top:0.5rem;" data-testid="mobile-add-cup">Lägg till cup</a>
+      </div>
+    </div>
 
-      <section id="loading" class="state state-loading">
-        <span class="spinner" aria-hidden="true"></span>
-        <span>Laddar cuper...</span>
+    <main id="main-content">
+
+      <!-- ================================================================
+           2. HERO
+      ================================================================ -->
+      <section class="hero" aria-label="Hjälte-sektion">
+        <div class="hero__grid-bg" aria-hidden="true"></div>
+        <div class="hero__blob hero__blob--left" aria-hidden="true"></div>
+        <div class="hero__blob hero__blob--right" aria-hidden="true"></div>
+
+        <div class="container hero__content">
+          <div class="hero__badge fade-up" role="status" aria-live="polite" data-testid="hero-cup-count-badge">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="hero-cup-count-line">Ny säsong 2026 · …</span>
+          </div>
+
+          <h1 class="h1 fade-up delay-1" style="max-width: 18ch;">
+            Hitta din nästa <em class="display-accent">fotbollscup</em> — på under en minut.
+          </h1>
+
+          <p class="lead fade-up delay-2" style="margin-top:1.25rem;">
+            Cupappen samlar Sveriges turneringar på ett ställe. Sök, jämför och anmäl ert lag till rätt cup — utan att scrolla genom tio olika webbsidor.
+          </p>
+
+          <!-- Filterkort (samma fält som listning) -->
+          <div class="hero-search-card filter-card filter-card--hero fade-up delay-3" role="search" aria-label="Filtrera cuper">
+            <div class="hero-search-field">
+              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div>
+                <label class="hero-search-field__label" for="search-input-hero">Sök</label>
+                <input type="search" id="search-input-hero" data-testid="search-input-hero" placeholder="Cup, arrangör, plats…" />
+              </div>
+            </div>
+            <div class="hero-search-divider" aria-hidden="true"></div>
+            <div class="hero-search-field hero-search-field--select">
+              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <div class="hero-search-field__select-wrap" aria-label="Filtrera på datum">
+                <span class="hero-search-field__label" id="hero-datum-label">Datum</span>
+                <div id="hero-date-filter" class="custom-select" aria-labelledby="hero-datum-label">
+                  <button id="hero-date-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-date-trigger">
+                    <span class="custom-trigger-inner"><span id="hero-date-label">Kommande</span></span>
+                    <span class="custom-chevron" aria-hidden="true">▾</span>
+                  </button>
+                  <div id="hero-date-menu" class="custom-menu" role="listbox" hidden></div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-search-divider" aria-hidden="true"></div>
+            <div class="hero-search-field hero-search-field--select">
+              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <div class="hero-search-field__select-wrap" aria-label="Filtrera på kategori">
+                <span class="hero-search-field__label" id="hero-cat-label">Kategorier</span>
+                <div id="hero-category-filter" class="custom-select" aria-labelledby="hero-cat-label">
+                  <button id="hero-category-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-category-trigger">
+                    <span class="custom-trigger-inner"><span id="hero-category-label">Alla klasser</span></span>
+                    <span class="custom-chevron" aria-hidden="true">▾</span>
+                  </button>
+                  <div id="hero-category-menu" class="custom-menu" role="listbox" hidden></div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-search-divider" aria-hidden="true"></div>
+            <div class="hero-search-field hero-search-field--select">
+              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h4l2 2h4l2-2h4v16H4V4z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+              <div class="hero-search-field__select-wrap" aria-label="Filtrera på distrikt">
+                <span class="hero-search-field__label" id="hero-district-label-text">Distrikt</span>
+                <div id="hero-district-filter" class="custom-select" aria-labelledby="hero-district-label-text">
+                  <button id="hero-district-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-district-trigger">
+                    <span class="custom-trigger-inner"><span id="hero-district-label">Alla distrikt</span></span>
+                    <span class="custom-chevron" aria-hidden="true">▾</span>
+                  </button>
+                  <div id="hero-district-menu" class="custom-menu" role="listbox" hidden></div>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary hero-search-btn" data-testid="hero-search-button" id="hero-search-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Sök cuper
+            </button>
+            <button type="button" class="btn btn-secondary hero-search-btn hero-search-btn--ghost" data-testid="clear-filters-btn-hero" id="clear-filters-btn-hero" aria-label="Rensa filter">Rensa</button>
+          </div>
+        </div>
       </section>
-      <section id="error" class="state" hidden>Kunde inte hämta cuper just nu.</section>
-      <section id="empty" class="state" hidden>inga cuper matchade din sökning</section>
-      <section id="cups-grid" data-testid="cup-listings" class="cups-grid" hidden></section>
+
+      <!-- ================================================================
+           3. FEATURED CUPS (live data)
+      ================================================================ -->
+      <section class="section reveal" id="featured-cups" aria-label="Utvalda turneringar">
+        <div class="container">
+          <p class="eyebrow section-header">Utvalda turneringar</p>
+          <h2 class="h2" style="margin-top:0.5rem;margin-bottom:0;">Populära cuper just nu</h2>
+          <p class="lead" style="margin-top:0.75rem;">Handplockade cuper för säsongen.</p>
+
+          <div id="featured-cups-grid" class="cup-grid" aria-live="polite" aria-label="Utvalda cuper">
+            <!-- Populated by JS -->
+          </div>
+
+          <div class="section-cta">
+            <a href="#cup-listing" class="btn btn-secondary" data-testid="see-all-cups-btn">
+              Se alla cuper
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           4. ORGANIZER CTA (dark split panel)
+      ================================================================ -->
+      <section class="organizer-section reveal" id="organizer" aria-label="Information för arrangörer">
+        <div class="container">
+          <div class="organizer">
+            <div class="organizer__glow" aria-hidden="true"></div>
+            <div class="organizer__grid">
+              <!-- Left: text -->
+              <div class="organizer__content">
+                <p class="eyebrow organizer__eyebrow">För arrangörer</p>
+                <h2 class="organizer__title">Fyll er cup <em>snabbare</em> — utan extra arbete.</h2>
+                <p class="organizer__lead">Nå tusentals tränare och föreningar som aktivt söker cuper. Lägg upp er turnering på några minuter.</p>
+                <ul class="bullets" aria-label="Fördelar för arrangörer">
+                  <li>
+                    <span class="bullets__check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                    Nå över 60 000 fotbollsintresserade varje månad
+                  </li>
+                  <li>
+                    <span class="bullets__check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                    Egen arrangörspanel med statistik i realtid
+                  </li>
+                  <li>
+                    <span class="bullets__check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                    Smidig hantering av anmälningar och betalningar
+                  </li>
+                  <li>
+                    <span class="bullets__check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                    Redaktionellt stöd för att lyfta fram er cup
+                  </li>
+                </ul>
+                <div class="organizer__actions">
+                  <a href="mailto:info@cupappen.se" class="btn btn-on-dark" data-testid="organizer-primary-cta">Lägg till cup gratis</a>
+                  <a href="mailto:info@cupappen.se" class="btn btn-ghost-dark" data-testid="organizer-secondary-cta">Prata med säljteamet</a>
+                </div>
+              </div>
+              <!-- Right: media + metric card -->
+              <div class="organizer__media" aria-hidden="true">
+                <img src="https://images.pexels.com/photos/6077799/pexels-photo-6077799.jpeg?w=940" alt="Fotbollstränare" loading="lazy" />
+                <div class="metric-card" aria-label="Live statistik: Piteå Summer Games">
+                  <div class="metric-card__label">
+                    <span class="pulse" aria-hidden="true"></span>
+                    LIVE · PITEÅ SUMMER GAMES
+                  </div>
+                  <div class="metric-card__value">+218 lag</div>
+                  <div class="metric-card__sub">anmälda de senaste 14 dagarna</div>
+                  <div class="metric-card__bar" aria-label="78% fyllnad">
+                    <div class="metric-card__bar-fill" style="width:78%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           5. FAQ
+      ================================================================ -->
+      <section class="section reveal" id="faq" aria-label="Vanliga frågor">
+        <div class="container">
+          <p class="eyebrow section-header" style="text-align:center;">Vanliga frågor</p>
+          <h2 class="h2" style="margin-top:0.5rem;text-align:center;">Har du frågor? Vi har svaren.</h2>
+
+          <div class="faq-wrap" role="list">
+            <div class="faq-item" role="listitem">
+              <button type="button" class="faq-toggle" data-testid="faq-toggle-0" aria-expanded="false" aria-controls="faq-answer-0">
+                Kostar det något att använda Cupappen?
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="faq-answer-0" class="faq-answer" role="region" aria-labelledby="faq-toggle-0">
+                <div><p>Nej, Cupappen är helt gratis att använda för lag och tränare som söker cuper. För arrangörer som vill exponera sin cup kan det finnas olika paketerbjudanden — kontakta oss för mer information.</p></div>
+              </div>
+            </div>
+
+            <div class="faq-item" role="listitem">
+              <button type="button" class="faq-toggle" data-testid="faq-toggle-1" aria-expanded="false" aria-controls="faq-answer-1">
+                Hur lägger jag upp min cup?
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="faq-answer-1" class="faq-answer" role="region" aria-labelledby="faq-toggle-1">
+                <div><p>Kontakta oss på <a href="mailto:info@cupappen.se">info@cupappen.se</a> eller använd knappen "Lägg till cup gratis" på sidan. Vi hjälper er att publicera cupen snabbt — oftast inom ett dygn.</p></div>
+              </div>
+            </div>
+
+            <div class="faq-item" role="listitem">
+              <button type="button" class="faq-toggle" data-testid="faq-toggle-2" aria-expanded="false" aria-controls="faq-answer-2">
+                Kan jag anmäla mitt lag direkt via Cupappen?
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="faq-answer-2" class="faq-answer" role="region" aria-labelledby="faq-toggle-2">
+                <div><p>Du klickar på "Till cupsidan" på varje cup och länkas direkt till arrangörens officiella anmälningssida. Cupappen fungerar som en katalog och sökmotor — anmälan sker hos arrangören.</p></div>
+              </div>
+            </div>
+
+            <div class="faq-item" role="listitem">
+              <button type="button" class="faq-toggle" data-testid="faq-toggle-3" aria-expanded="false" aria-controls="faq-answer-3">
+                Hur vet jag att en cup är seriös?
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="faq-answer-3" class="faq-answer" role="region" aria-labelledby="faq-toggle-3">
+                <div><p>Vi listar primärt cuper som är sanktionerade av respektive distriktsförbund inom Svensk Fotboll. Sanktionerade cuper uppfyller grundläggande krav vad gäller säkerhet, spelregler och administration.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <p class="faq-contact">
+            Hittar du inte svaret? <a href="mailto:info@cupappen.se" data-testid="footer-link-kontakt">Kontakta oss här</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           6. CUP LISTING (live, existing filter/search functionality)
+      ================================================================ -->
+      <section class="cup-listing-section" id="cup-listing" aria-label="Alla cuper">
+        <div class="container">
+          <p class="eyebrow section-header">Cupdatabasen</p>
+          <h2 class="h2" style="margin-top:0.5rem;margin-bottom:0;">Alla cuper</h2>
+          <p class="lead" style="margin-top:0.75rem;">Sök och filtrera bland samtliga sanktionerade cuper i Sverige.</p>
+
+          <!-- Search shell -->
+          <button id="filter-toggle-btn" class="listing-filter-toggle" type="button" hidden aria-expanded="false">
+            Visa filter
+          </button>
+
+          <div id="listing-filter-shell" data-testid="search-bar" class="hero-search-card filter-card filter-card--listing" role="search" aria-label="Filtrera cuper">
+            <div class="hero-search-field">
+              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div>
+                <label class="hero-search-field__label" for="search-input">Sök</label>
+                <input id="search-input" type="search" data-testid="search-input" placeholder="Cup, arrangör, plats…" aria-label="Sök cuper" />
+              </div>
+            </div>
+            <div class="hero-search-divider" aria-hidden="true"></div>
+            <div class="hero-search-field hero-search-field--select">
+              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <div class="hero-search-field__select-wrap" aria-label="Filtrera på datum">
+                <span class="hero-search-field__label" id="ld-date-legend">Datum</span>
+                <div id="date-filter" class="custom-select" aria-labelledby="ld-date-legend">
+                  <button id="date-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="date-trigger">
+                    <span class="custom-trigger-inner"><span id="date-label">Kommande</span></span>
+                    <span class="custom-chevron" aria-hidden="true">▾</span>
+                  </button>
+                  <div id="date-menu" class="custom-menu" role="listbox" hidden></div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-search-divider" aria-hidden="true"></div>
+            <div class="hero-search-field hero-search-field--select">
+              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <div class="hero-search-field__select-wrap" aria-label="Filtrera på kategori">
+                <span class="hero-search-field__label" id="cat-label-for">Kategorier</span>
+                <div id="category-filter" class="custom-select" aria-labelledby="cat-label-for">
+                  <button id="category-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="category-trigger">
+                    <span class="custom-trigger-inner"><span id="category-label">Alla klasser</span></span>
+                    <span class="custom-chevron" aria-hidden="true">▾</span>
+                  </button>
+                  <div id="category-menu" class="custom-menu" role="listbox" hidden></div>
+                </div>
+              </div>
+            </div>
+            <div class="hero-search-divider" aria-hidden="true"></div>
+            <div class="hero-search-field hero-search-field--select">
+              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h4l2 2h4l2-2h4v16H4V4z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+              <div class="hero-search-field__select-wrap" aria-label="Filtrera på distrikt">
+                <span class="hero-search-field__label" id="dist-label-for">Distrikt</span>
+                <div id="district-filter" class="custom-select" aria-labelledby="dist-label-for">
+                  <button id="district-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="district-trigger">
+                    <span class="custom-trigger-inner"><span id="district-label">Alla distrikt</span></span>
+                    <span class="custom-chevron" aria-hidden="true">▾</span>
+                  </button>
+                  <div id="district-menu" class="custom-menu" role="listbox" hidden></div>
+                </div>
+              </div>
+            </div>
+            <button id="search-btn" data-testid="search-btn" type="button" class="btn btn-primary hero-search-btn" aria-label="Sök">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Sök cuper
+            </button>
+            <button id="clear-filters-btn" class="btn btn-secondary hero-search-btn hero-search-btn--ghost" data-testid="clear-filters-btn" type="button" aria-label="Rensa filter">Rensa</button>
+          </div>
+
+          <section id="featured-section" class="featured-section" hidden aria-label="Utvalda cuper">
+            <h3 class="featured-title">Utvalda cuper</h3>
+            <div id="featured-grid" class="cups-grid"></div>
+          </section>
+
+          <div id="filter-breadcrumbs" class="filter-breadcrumbs" aria-live="polite" role="status">
+            <span class="filter-breadcrumbs__text"></span>
+          </div>
+
+          <section id="loading" class="state state-loading" aria-label="Laddar cuper" aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            <span>Laddar cuper...</span>
+          </section>
+          <section id="error" class="state" hidden aria-live="assertive">Kunde inte hämta cuper just nu. Försök igen senare.</section>
+          <section id="empty" class="state" hidden aria-live="polite">Inga cuper matchade din sökning.</section>
+          <section id="cups-grid" data-testid="cup-listings" class="cups-grid" hidden aria-live="polite" aria-label="Cupförteckning"></section>
+        </div>
+      </section>
+
     </main>
+
     <noscript>
-      <p class="noscript-note">
-        Cupappen kräver JavaScript för att visa aktuell cupdata och filterfunktioner.
-      </p>
+      <p class="noscript-note">Cupappen kräver JavaScript för att visa aktuell cupdata och filterfunktioner.</p>
     </noscript>
-    <footer class="site-footer">
-      <div class="site-footer-inner">
-        <p>
-          Cupappen.se ansvarar inte för anmälan eller för att informationen är fullständig och korrekt.<br />
-          Varje besökare ansvarar själv för att kontrollera uppgifter och villkor hos respektive cuparrangör.<br />
-          © <span id="footer-year"></span> Cupappen ·
-          <a href="mailto:info@cupappen.se">info@cupappen.se</a>
-        </p>
+
+    <!-- ================================================================
+         7. FOOTER (dark) — Newsletter + Footer
+    ================================================================ -->
+    <footer class="site-footer" aria-label="Sidfot">
+      <!-- Newsletter -->
+      <div class="newsletter">
+        <div class="container">
+          <div class="newsletter__grid">
+            <div>
+              <p class="eyebrow" style="color:#6ee7e9;">Håll dig uppdaterad</p>
+              <h2 class="newsletter__title">Få nya cuper direkt i inkorgen</h2>
+              <p class="newsletter__lead">Vi skickar ett nyhetsbrev när nya cuper publiceras. Ingen spam — bara cuper.</p>
+            </div>
+            <form class="newsletter__form" action="#" method="post" aria-label="Prenumerera på nyhetsbrev" onsubmit="return false;">
+              <label for="newsletter-email" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">E-postadress</label>
+              <input id="newsletter-email" name="email" type="email" class="newsletter__input" placeholder="din@epostadress.se" autocomplete="email" aria-label="E-postadress" />
+              <button type="submit" class="btn btn-primary" data-testid="newsletter-submit">Prenumerera</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer links -->
+      <div class="container">
+        <div class="footer-main">
+          <div class="footer-brand footer-col">
+            <a href="/" class="logo logo--footer" aria-label="Cupappen startsida">
+              <picture>
+                <source srcset="./assets/cupappen-logo.webp" type="image/webp" />
+                <img
+                  class="logo__img"
+                  src="./assets/cupappen-logo.png"
+                  alt="Cupappen"
+                  width="360"
+                  height="240"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
+            </a>
+            <p class="footer-brand-desc">Cupappen samlar Sveriges fotbollscuper på ett ställe. Sök, filtrera och hitta rätt cup på sekunder.</p>
+          </div>
+
+          <div class="footer-col">
+            <h4>Produkten</h4>
+            <ul>
+              <li><a href="#cup-listing" data-testid="footer-link-cuper">Hitta cuper</a></li>
+              <li><a href="#cup-listing" data-testid="footer-link-kalender">Kalender</a></li>
+              <li><a href="#cup-listing" data-testid="footer-link-aldersklasser">Åldersklasser</a></li>
+              <li><a href="#cup-listing" data-testid="footer-link-inomhus">Inomhuscuper</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-col">
+            <h4>Arrangörer</h4>
+            <ul>
+              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-lagg-till">Lägg till cup</a></li>
+              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-priser">Priser</a></li>
+              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-marknadsforing">Marknadsföring</a></li>
+              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-partners">Partners</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-col">
+            <h4>Företaget</h4>
+            <ul>
+              <li><a href="#faq" data-testid="footer-link-om">Om oss</a></li>
+              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-kontakt">Kontakt</a></li>
+              <li><a href="#" data-testid="footer-link-blogg">Blogg</a></li>
+              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-jobb">Jobb</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <span>© <span id="footer-year"></span> Cupappen · <a href="mailto:info@cupappen.se">info@cupappen.se</a></span>
+          <div class="footer-bottom-links">
+            <a href="#" data-testid="footer-link-villkor">Villkor</a>
+            <a href="#" data-testid="footer-link-integritet">Integritetspolicy</a>
+            <a href="#" data-testid="footer-link-cookies">Cookies</a>
+          </div>
+        </div>
       </div>
     </footer>
 

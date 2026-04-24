@@ -50,7 +50,7 @@ export CUPS_CACHE_TTL='60'
 ```
 
 Fälten är whitelistade och matchar public-cups-modellen:  
-`id`, `name`, `organizer`, `location`, `start_date`, `end_date`, `categories`, `featured`, `sanctioned`, `team_count`, `match_format`, `registration_url`, `description`, `source_url`, `source_type`, `ingest_source_name`, `updated_at`.
+`id`, `name`, `organizer`, `location`, `start_date`, `end_date`, `categories`, `featured`, `sanctioned`, `team_count`, `match_format`, `registration_url`, `featured_image_url`, `description`, `source_url`, `source_type`, `ingest_source_name`, `updated_at`.
 
 ## CORS
 

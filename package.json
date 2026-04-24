@@ -49,6 +49,7 @@
     "migrate:cups-sanctioned": "node scripts/run-cups-sanctioned-migration.js",
     "migrate:cups-visible": "node scripts/run-cups-visible-migration.js",
     "migrate:cups-featured": "node scripts/run-cups-featured-migration.js",
+    "migrate:cups-featured-image-url": "node scripts/run-cups-featured-image-url-migration.js",
     "migrate:cups-sync-state": "node scripts/run-cups-sync-state-migration.js",
     "migrate:files-storage": "node scripts/run-files-storage-migrations.js",
     "migrate:note-shares": "node scripts/run-note-shares-migration.js",

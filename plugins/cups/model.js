@@ -54,6 +54,8 @@ class CupsModel {
       sameString('match_format') &&
       sameString('description') &&
       sameString('registration_url') &&
+      (!Object.prototype.hasOwnProperty.call(payload, 'featured_image_url') ||
+        sameString('featured_image_url')) &&
       sameString('source_url') &&
       sameString('source_type') &&
       sameInt('ingest_source_id') &&
@@ -84,6 +86,7 @@ class CupsModel {
       match_format: row.match_format ?? null,
       description: row.description ?? null,
       registration_url: row.registration_url ?? null,
+      featured_image_url: row.featured_image_url ?? null,
       source_url: row.source_url ?? null,
       source_type: row.source_type ?? null,
       ingest_source_id:
@@ -153,6 +156,10 @@ class CupsModel {
         match_format: data.match_format?.trim() || null,
         description: data.description || null,
         registration_url: data.registration_url?.trim() || null,
+        featured_image_url:
+          data.featured_image_url != null && String(data.featured_image_url).trim() !== ''
+            ? String(data.featured_image_url).trim()
+            : null,
         source_url: data.source_url?.trim() || null,
         source_type: data.source_type?.trim() || null,
         ingest_source_id: data.ingest_source_id || null,
@@ -204,6 +211,12 @@ class CupsModel {
         match_format: data.match_format?.trim() || null,
         description: data.description || null,
         registration_url: data.registration_url?.trim() || null,
+        featured_image_url:
+          data.featured_image_url !== undefined
+            ? data.featured_image_url != null && String(data.featured_image_url).trim() !== ''
+              ? String(data.featured_image_url).trim()
+              : null
+            : (existing[0].featured_image_url ?? null),
         source_url: data.source_url?.trim() || null,
         source_type:
           data.source_type !== undefined

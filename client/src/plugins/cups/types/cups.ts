@@ -15,6 +15,8 @@ export interface Cup {
   match_format: string | null;
   description: string | null;
   registration_url: string | null;
+  /** Hero image on Cupappen featured cards (from Files upload). */
+  featured_image_url: string | null;
   source_url: string | null;
   source_type: string | null;
   ingest_source_id: string | null;
