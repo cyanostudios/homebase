@@ -89,11 +89,6 @@ WHERE user_id = 1;
 
 - **Alternativ B (Admin API):** som superadmin kan du lista/switcha tenants för att verifiera att mappingen fungerar.
 
-```bash
-GET /api/admin/tenants
-POST /api/admin/switch-tenant
-```
-
 **Testa provisioning snabbt:**
 
 - `node scripts/create-test-user.js` (skapar användare och triggar tenant-provisioning enligt `TENANT_PROVIDER`).

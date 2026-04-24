@@ -51,6 +51,47 @@ async function unregisterPublicShareRoute(shareToken) {
 }
 
 /**
+ * Resolve tenant pool for a public share token (main-DB public_share_routing).
+ * Used by GET middleware and by note/task models when req.tenantPool is still missing.
+ * Does not override an existing req.tenantPool.
+ * @param {import('express').Request} req
+ * @param {'task'|'note'} resourceType
+ * @param {string} shareToken
+ */
+async function resolvePublicShareTenantFromToken(req, resourceType, shareToken) {
+  if (req.tenantPool) {
+    return;
+  }
+  if (!shareToken || typeof shareToken !== 'string') {
+    return;
+  }
+
+  const mainPool = ServiceManager.getMainPool();
+  let result;
+  try {
+    result = await mainPool.query(
+      `SELECT tenant_connection_string FROM public_share_routing
+       WHERE share_token = $1 AND resource_type = $2`,
+      [shareToken, resourceType],
+    );
+  } catch (err) {
+    if (isMissingRoutingTableError(err)) {
+      Logger.warn('public_share_routing missing — anonymous share links unavailable');
+      return;
+    }
+    throw err;
+  }
+
+  if (!result.rows.length) {
+    return;
+  }
+
+  ServiceManager.initialize(req);
+  const connectionPool = ServiceManager.get('connectionPool');
+  req.tenantPool = connectionPool.getTenantPool(result.rows[0].tenant_connection_string);
+}
+
+/**
  * For GET /api/tasks|notes/public/:token — sets req.tenantPool when routing row exists.
  * Does not override an existing req.tenantPool.
  * @param {import('express').Request} req
@@ -71,30 +112,7 @@ async function attachPublicShareTenantPool(req) {
 
   const resourceType = match[1] === 'tasks' ? RESOURCE_TASK : RESOURCE_NOTE;
   const token = decodeURIComponent(match[2]);
-
-  const pool = ServiceManager.getMainPool();
-  let result;
-  try {
-    result = await pool.query(
-      `SELECT tenant_connection_string FROM public_share_routing
-       WHERE share_token = $1 AND resource_type = $2`,
-      [token, resourceType],
-    );
-  } catch (err) {
-    if (isMissingRoutingTableError(err)) {
-      Logger.warn('public_share_routing missing — anonymous share links unavailable');
-      return;
-    }
-    throw err;
-  }
-
-  if (!result.rows.length) {
-    return;
-  }
-
-  ServiceManager.initialize(req);
-  const connectionPool = ServiceManager.get('connectionPool');
-  req.tenantPool = connectionPool.getTenantPool(result.rows[0].tenant_connection_string);
+  await resolvePublicShareTenantFromToken(req, resourceType, token);
 }
 
 module.exports = {
@@ -103,4 +121,5 @@ module.exports = {
   registerPublicShareRoute,
   unregisterPublicShareRoute,
   attachPublicShareTenantPool,
+  resolvePublicShareTenantFromToken,
 };

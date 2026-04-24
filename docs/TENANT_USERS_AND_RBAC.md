@@ -82,13 +82,7 @@ See `scripts/db/README.md` for run instructions. Safe to run multiple times (ide
 ### 3.4 GET /api/auth/me
 
 - Returns `user`, `currentTenantUserId`, `tenantId`, `tenantRole`, `tenantOwnerUserId`.
-- Plugins for “current tenant” are resolved via TenantContextService (owner = `currentTenantUserId`), so superuser switch-tenant still gets the switched tenant’s plugins.
-
-### 3.5 Admin switch-tenant (superuser)
-
-- `POST /api/admin/switch-tenant` with `{ userId }` (owner id).
-- Session: `tenantConnectionString`, `currentTenantUserId`, `tenantId`, `tenantRole`, `tenantOwnerUserId` updated for the target tenant.
-- Lookup uses `tenants WHERE user_id = $1 OR owner_user_id = $1`.
+- Plugins for “current tenant” are resolved via TenantContextService (owner = `currentTenantUserId`).
 
 ---
 

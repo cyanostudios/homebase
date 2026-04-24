@@ -2,7 +2,6 @@ import { Menu } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getTopBarWidgets } from '@/core/widgets';
@@ -11,7 +10,6 @@ import { useTheme } from '@/hooks/useTheme';
 import type { NavPage } from './Sidebar';
 import { TopBarBreadcrumbs } from './topbar/TopBarBreadcrumbs';
 import { TopBarUserMenu } from './topbar/TopBarUserMenu';
-import type { Tenant } from './topbar/types';
 
 interface TopBarProps {
   currentPage: NavPage;
@@ -38,48 +36,6 @@ function TopBarInner({
   );
   const [pomodoroClockEnabled, setPomodoroClockEnabled] = useState(true);
   const [timeTrackingEnabled, setTimeTrackingEnabled] = useState(true);
-
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [currentTenantUserId, setCurrentTenantUserId] = useState<number | null>(null);
-  const [isLoadingTenants, setIsLoadingTenants] = useState(false);
-  const isAdmin = user?.role === 'superuser';
-
-  const loadCurrentTenant = useCallback(async () => {
-    try {
-      const response = await apiFetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentTenantUserId(data.currentTenantUserId);
-      }
-    } catch (error) {
-      console.error('Failed to load current tenant:', error);
-    }
-  }, []);
-
-  const loadTenants = useCallback(async () => {
-    try {
-      setIsLoadingTenants(true);
-      const response = await apiFetch('/api/admin/tenants');
-      if (response.ok) {
-        const data = await response.json();
-        setTenants(data.tenants || []);
-      } else {
-        setTenants([]);
-      }
-    } catch (error) {
-      console.error('Failed to load tenants:', error);
-      setTenants([]);
-    } finally {
-      setIsLoadingTenants(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAdmin) {
-      void loadCurrentTenant();
-      void loadTenants();
-    }
-  }, [isAdmin, loadCurrentTenant, loadTenants]);
 
   useEffect(() => {
     const loadProfileSettings = async () => {
@@ -114,24 +70,6 @@ function TopBarInner({
       void loadPreferences();
     }
   }, [user, getSettings, settingsVersion]);
-
-  const switchTenant = useCallback(async (userId: number) => {
-    try {
-      const response = await apiFetch('/api/admin/switch-tenant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
-      if (response.ok) {
-        invalidateCsrfToken();
-        window.location.reload();
-      } else {
-        console.error('Failed to switch tenant');
-      }
-    } catch (error) {
-      console.error('Error switching tenant:', error);
-    }
-  }, []);
 
   const pageLabel = useMemo(() => {
     if (currentPage === 'dashboard') {
@@ -267,11 +205,6 @@ function TopBarInner({
           <TopBarUserMenu
             user={user}
             profileSettings={profileSettings}
-            isAdmin={isAdmin}
-            tenants={tenants}
-            isLoadingTenants={isLoadingTenants}
-            currentTenantUserId={currentTenantUserId}
-            onSwitchTenant={switchTenant}
             onOpenSettings={handleOpenSettings}
             theme={theme}
             toggleTheme={toggleTheme}

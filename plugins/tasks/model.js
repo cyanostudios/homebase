@@ -7,6 +7,7 @@ const {
   registerPublicShareRoute,
   unregisterPublicShareRoute,
   RESOURCE_TASK,
+  resolvePublicShareTenantFromToken,
 } = require('../../server/core/services/publicShareRouting');
 
 /**
@@ -300,19 +301,36 @@ class TaskModel {
       Logger.info('Task share created', { taskId: id, shareId: result.rows[0].id });
 
       const createdToken = result.rows[0].share_token;
-      if (req.session?.tenantConnectionString) {
+      let tenantConnectionString = req.session?.tenantConnectionString;
+      if (!tenantConnectionString && req.session?.user?.id) {
         try {
-          await registerPublicShareRoute(
-            createdToken,
-            RESOURCE_TASK,
-            req.session.tenantConnectionString,
-          );
+          const TenantContextService = require('../../server/core/services/tenant/TenantContextService');
+          const tctx = new TenantContextService();
+          const ctx = await tctx.getTenantContextByUserId(req.session.user.id);
+          tenantConnectionString = ctx?.tenantConnectionString ?? null;
+        } catch (e) {
+          Logger.warn('Could not resolve tenant connection string for task share registration', {
+            taskId: id,
+            message: e?.message,
+          });
+        }
+      }
+      if (tenantConnectionString) {
+        try {
+          await registerPublicShareRoute(createdToken, RESOURCE_TASK, tenantConnectionString);
         } catch (routeErr) {
           Logger.error('public_share_routing register failed', routeErr, {
             taskId: id,
             tokenPrefix: createdToken.substring(0, 8),
           });
         }
+      } else {
+        Logger.warn(
+          'Task share created in tenant DB but public_share_routing not registered (no tenant connection string)',
+          {
+            taskId: id,
+          },
+        );
       }
 
       return {
@@ -336,7 +354,11 @@ class TaskModel {
 
   async getTaskByShareToken(req, shareToken) {
     try {
-      const pool = req.tenantPool || this._getContext(req).pool;
+      await resolvePublicShareTenantFromToken(req, RESOURCE_TASK, shareToken);
+      if (!req.tenantPool) {
+        return null;
+      }
+      const pool = req.tenantPool;
 
       const result = await pool.query(
         `

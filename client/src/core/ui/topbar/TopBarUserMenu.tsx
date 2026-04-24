@@ -1,5 +1,5 @@
 import { Moon, Sun } from 'lucide-react';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -8,24 +8,15 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 
 import { getUserColor, getUserInitials } from './helpers';
-import type { Tenant } from './types';
 
 export const TopBarUserMenu = React.memo(function TopBarUserMenu({
   user,
   profileSettings,
-  isAdmin,
-  tenants,
-  isLoadingTenants,
-  currentTenantUserId,
-  onSwitchTenant,
   onOpenSettings,
   theme,
   toggleTheme,
@@ -33,26 +24,11 @@ export const TopBarUserMenu = React.memo(function TopBarUserMenu({
 }: {
   user: { email?: string; role?: string } | null | undefined;
   profileSettings: { name?: string; title?: string } | null;
-  isAdmin: boolean;
-  tenants: Tenant[];
-  isLoadingTenants: boolean;
-  currentTenantUserId: number | null;
-  onSwitchTenant: (userId: number) => void;
   onOpenSettings: () => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   onLogout: () => void;
 }) {
-  const tenantSwitchById = useMemo(() => {
-    const m = new Map<number, () => void>();
-    tenants.forEach((t) => {
-      m.set(t.id, () => {
-        onSwitchTenant(t.id);
-      });
-    });
-    return m;
-  }, [tenants, onSwitchTenant]);
-
   const onThemeRowSelect = useCallback((e: Event) => {
     e.preventDefault();
   }, []);
@@ -86,28 +62,6 @@ export const TopBarUserMenu = React.memo(function TopBarUserMenu({
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {isAdmin && (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Switch account</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
-              {isLoadingTenants ? (
-                <DropdownMenuItem disabled>Loading accounts...</DropdownMenuItem>
-              ) : !tenants || tenants.length === 0 ? (
-                <DropdownMenuItem disabled>No accounts found</DropdownMenuItem>
-              ) : (
-                tenants.map((tenant) => (
-                  <DropdownMenuItem
-                    key={tenant.id}
-                    onClick={tenantSwitchById.get(tenant.id)!}
-                    className={currentTenantUserId === tenant.id ? 'bg-accent' : undefined}
-                  >
-                    <span className="truncate">{tenant.email}</span>
-                  </DropdownMenuItem>
-                ))
-              )}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
         <DropdownMenuItem onClick={onOpenSettings}>Settings</DropdownMenuItem>
         <DropdownMenuItem
           onSelect={onThemeRowSelect}
