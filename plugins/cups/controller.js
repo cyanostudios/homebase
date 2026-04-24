@@ -99,6 +99,20 @@ class CupsController {
     }
   }
 
+  async restore(req, res) {
+    try {
+      const cup = await this.model.restore(req, req.params.id);
+      res.json(cup);
+    } catch (error) {
+      Logger.error('Restore cup failed', error, {
+        id: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to restore cup' });
+    }
+  }
+
   async importFromIngest(req, res) {
     try {
       const summary = await importFromIngest({

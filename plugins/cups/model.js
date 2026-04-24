@@ -89,6 +89,8 @@ class CupsModel {
           ? String(row.ingest_run_id)
           : null,
       external_id: row.external_id ?? null,
+      last_seen_at: row.last_seen_at ?? null,
+      deleted_at: row.deleted_at ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };
@@ -150,6 +152,8 @@ class CupsModel {
         ingest_source_id: data.ingest_source_id || null,
         ingest_run_id: data.ingest_run_id || null,
         external_id: data.external_id?.trim() || null,
+        last_seen_at: data.last_seen_at !== undefined ? data.last_seen_at : null,
+        deleted_at: data.deleted_at !== undefined ? data.deleted_at : null,
       });
       return this.transformRow(row);
     } catch (error) {
@@ -225,6 +229,10 @@ class CupsModel {
             : data.external_id != null && String(data.external_id).trim() !== ''
               ? String(data.external_id).trim()
               : null,
+        last_seen_at:
+          data.last_seen_at !== undefined ? data.last_seen_at : (existing[0].last_seen_at ?? null),
+        deleted_at:
+          data.deleted_at !== undefined ? data.deleted_at : (existing[0].deleted_at ?? null),
       });
       return this.transformRow(row);
     } catch (error) {
@@ -330,6 +338,8 @@ class CupsModel {
       ingest_source_id: importMeta.ingestSourceId ?? null,
       ingest_run_id: importMeta.ingestRunId ?? null,
       external_id: extRaw || null,
+      last_seen_at: new Date(),
+      deleted_at: null,
     };
   }
 
@@ -381,6 +391,67 @@ class CupsModel {
       }
     }
     return { created, updated, skipped, errors };
+  }
+
+  /**
+   * Soft-delete cups belonging to `ingestSourceId` whose `last_seen_at` is
+   * older than `seenBefore` (i.e. were NOT touched during the current import run).
+   * Returns the count of rows soft-deleted.
+   */
+  async softDeleteMissingForSource(req, ingestSourceId, seenBefore) {
+    const db = Database.get(req);
+    const userId = db.getUserId();
+    const rows = await db.query(
+      `UPDATE cups
+          SET deleted_at  = NOW(),
+              updated_at  = NOW()
+        WHERE ingest_source_id = $1
+          AND user_id           = $2
+          AND deleted_at       IS NULL
+          AND (last_seen_at IS NULL OR last_seen_at < $3)
+        RETURNING id`,
+      [ingestSourceId, userId, seenBefore],
+    );
+    return rows.length;
+  }
+
+  /**
+   * Hard-delete cups for `ingestSourceId` that have been soft-deleted for
+   * more than `retentionDays` (default 30).
+   * Returns the count of rows hard-deleted.
+   */
+  async hardDeleteExpiredForSource(req, ingestSourceId, retentionDays = 30) {
+    const db = Database.get(req);
+    const userId = db.getUserId();
+    const rows = await db.query(
+      `DELETE FROM cups
+        WHERE ingest_source_id = $1
+          AND user_id          = $2
+          AND deleted_at      IS NOT NULL
+          AND deleted_at       < NOW() - ($3 || ' days')::INTERVAL
+        RETURNING id`,
+      [ingestSourceId, userId, String(retentionDays)],
+    );
+    return rows.length;
+  }
+
+  /**
+   * Restore a soft-deleted cup by clearing its `deleted_at`.
+   */
+  async restore(req, id) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `UPDATE cups
+          SET deleted_at = NULL,
+              updated_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [id],
+    );
+    if (!rows.length) {
+      throw new AppError('Cup not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    return this.transformRow(rows[0]);
   }
 }
 

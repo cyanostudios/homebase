@@ -21,6 +21,7 @@ export type CupsContextType = {
   saveCup: (data: Partial<Cup> & { name: string }, cupId?: string) => Promise<boolean>;
   deleteCup: (id: string) => Promise<void>;
   deleteCups: (ids: string[]) => Promise<void>;
+  restoreCup: (id: string) => Promise<void>;
   importFromIngestSource: (sourceId: string) => Promise<{
     sourceId: string;
     fetched: boolean;
@@ -28,6 +29,9 @@ export type CupsContextType = {
     created: number;
     updated: number;
     skipped: number;
+    softDeleted: number;
+    restored: number;
+    hardDeleted: number;
     errors: string[];
   }>;
 
@@ -78,6 +82,7 @@ const EMPTY_CUPS_CONTEXT: CupsContextType = {
   saveCup: async () => false,
   deleteCup: async () => {},
   deleteCups: async () => {},
+  restoreCup: async () => {},
   importFromIngestSource: async () => ({
     sourceId: '',
     fetched: false,
@@ -85,6 +90,9 @@ const EMPTY_CUPS_CONTEXT: CupsContextType = {
     created: 0,
     updated: 0,
     skipped: 0,
+    softDeleted: 0,
+    restored: 0,
+    hardDeleted: 0,
     errors: [],
   }),
   selectedCupIds: [],

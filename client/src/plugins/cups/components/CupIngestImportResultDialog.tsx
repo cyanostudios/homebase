@@ -26,6 +26,8 @@ export interface CupIngestImportResultDialogProps {
   created?: number;
   updated?: number;
   skipped?: number;
+  softDeleted?: number;
+  hardDeleted?: number;
   errors?: string[];
 }
 
@@ -39,6 +41,8 @@ export function CupIngestImportResultDialog({
   created = 0,
   updated = 0,
   skipped = 0,
+  softDeleted = 0,
+  hardDeleted = 0,
   errors = [],
 }: CupIngestImportResultDialogProps) {
   const resolvedTitle =
@@ -75,7 +79,7 @@ export function CupIngestImportResultDialog({
           <AlertDialogDescription asChild>
             <div className="space-y-3 pt-2 text-left text-foreground">
               <div className="rounded-md border border-border/70 bg-muted/40 px-3 py-2 text-sm">
-                <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+                <div className="grid grid-cols-3 gap-3 text-center sm:grid-cols-6">
                   <div>
                     <div className="text-xs text-muted-foreground">Parsed</div>
                     <div className="font-semibold tabular-nums">{parsed}</div>
@@ -95,6 +99,23 @@ export function CupIngestImportResultDialog({
                   <div>
                     <div className="text-xs text-muted-foreground">Skipped</div>
                     <div className="font-semibold tabular-nums">{skipped}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Removed</div>
+                    <div
+                      className={cn(
+                        'font-semibold tabular-nums',
+                        softDeleted > 0 && 'text-red-600 dark:text-red-400',
+                      )}
+                    >
+                      {softDeleted}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Deleted</div>
+                    <div className="font-semibold tabular-nums text-muted-foreground">
+                      {hardDeleted}
+                    </div>
                   </div>
                 </div>
               </div>

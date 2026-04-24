@@ -80,6 +80,15 @@ function createCupsRoutes(controller, context) {
     (req, res) => controller.importFromIngest(req, res),
   );
 
+  router.post(
+    '/:id/restore',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.restore(req, res),
+  );
+
   return router;
 }
 

@@ -52,6 +52,7 @@ class PublicCupsModel {
         FROM cups c
         LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
         WHERE COALESCE(c.visible, TRUE) = TRUE
+          AND c.deleted_at IS NULL
         ORDER BY c.start_date ASC NULLS LAST, c.name ASC
       `);
       return result.rows.map((row) => this.transformCup(row));

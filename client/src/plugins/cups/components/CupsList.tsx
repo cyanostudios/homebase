@@ -47,7 +47,7 @@ import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView'
 type SortField = 'name' | 'start_date' | 'location' | 'updated_at' | 'ingest' | 'featured';
 type SortOrder = 'asc' | 'desc';
 type CupsViewMode = 'grid' | 'list';
-type CupFilter = 'all' | 'visible' | 'featured' | 'upcoming';
+type CupFilter = 'all' | 'visible' | 'featured' | 'upcoming' | 'removed';
 
 const CUPS_VIEW_MODE_STORAGE_KEY = 'cups:viewMode';
 
@@ -147,6 +147,8 @@ export function CupsList() {
     created: number;
     updated: number;
     skipped: number;
+    softDeleted: number;
+    hardDeleted: number;
     errors: string[];
     sourceCount?: number;
   } | null>(null);
@@ -225,6 +227,12 @@ export function CupsList() {
     const todayStartMs = todayStart.getTime();
 
     const byFilter = cups.filter((c) => {
+      if (activeFilter === 'removed') {
+        return c.deleted_at !== null && c.deleted_at !== undefined;
+      }
+      if (c.deleted_at !== null && c.deleted_at !== undefined) {
+        return false;
+      }
       if (activeFilter === 'visible') {
         return Boolean(c.visible);
       }
@@ -296,17 +304,19 @@ export function CupsList() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayStartMs = todayStart.getTime();
+    const active = cups.filter((c) => c.deleted_at === null || c.deleted_at === undefined);
     return {
-      total: cups.length,
-      visible: cups.filter((c) => Boolean(c.visible)).length,
-      featured: cups.filter((c) => Boolean(c.featured)).length,
-      upcoming: cups.filter((c) => {
+      total: active.length,
+      visible: active.filter((c) => Boolean(c.visible)).length,
+      featured: active.filter((c) => Boolean(c.featured)).length,
+      upcoming: active.filter((c) => {
         if (!c.start_date) {
           return false;
         }
         const startDateMs = new Date(c.start_date).getTime();
         return Number.isFinite(startDateMs) && startDateMs >= todayStartMs;
       }).length,
+      removed: cups.filter((c) => c.deleted_at !== null && c.deleted_at !== undefined).length,
     };
   }, [cups]);
 
@@ -344,6 +354,8 @@ export function CupsList() {
           created: 0,
           updated: 0,
           skipped: 0,
+          softDeleted: 0,
+          hardDeleted: 0,
           errors: ['This ingest source is not enabled for Cups. Enable it in Cups settings.'],
           sourceCount: 1,
         });
@@ -370,6 +382,8 @@ export function CupsList() {
           created: result.created ?? 0,
           updated: result.updated ?? 0,
           skipped: result.skipped ?? 0,
+          softDeleted: result.softDeleted ?? 0,
+          hardDeleted: result.hardDeleted ?? 0,
           errors: errs,
           sourceCount: 1,
         });
@@ -382,6 +396,8 @@ export function CupsList() {
           created: 0,
           updated: 0,
           skipped: 0,
+          softDeleted: 0,
+          hardDeleted: 0,
           errors: [error?.message || 'Import failed'],
           sourceCount: 1,
         });
@@ -467,7 +483,12 @@ export function CupsList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div
+          className={cn(
+            'grid grid-cols-2 gap-3',
+            stats.removed > 0 ? 'md:grid-cols-5' : 'md:grid-cols-4',
+          )}
+        >
           <StatCard
             label="Total"
             value={stats.total}
@@ -496,6 +517,15 @@ export function CupsList() {
             active={activeFilter === 'upcoming'}
             onClick={() => setActiveFilter('upcoming')}
           />
+          {stats.removed > 0 && (
+            <StatCard
+              label="Removed"
+              value={stats.removed}
+              dotClassName="bg-red-400"
+              active={activeFilter === 'removed'}
+              onClick={() => setActiveFilter('removed')}
+            />
+          )}
         </div>
 
         {selectedCount > 0 && (
@@ -561,6 +591,8 @@ export function CupsList() {
             created={importResult.created}
             updated={importResult.updated}
             skipped={importResult.skipped}
+            softDeleted={importResult.softDeleted}
+            hardDeleted={importResult.hardDeleted}
             errors={importResult.errors}
           />
         )}
@@ -644,6 +676,7 @@ export function CupsList() {
                   key={cup.id}
                   className={cn(
                     'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
+                    cup.deleted_at !== null && cup.deleted_at !== undefined && 'opacity-60',
                     isSelected(cup.id)
                       ? 'plugin-cups bg-plugin-subtle ring-1 border-plugin-subtle'
                       : 'hover:border-plugin-subtle hover:plugin-cups hover:shadow-md',
@@ -665,6 +698,11 @@ export function CupsList() {
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 cursor-pointer"
                     />
+                    {cup.deleted_at !== null && cup.deleted_at !== undefined && (
+                      <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                        Removed
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-sm font-semibold leading-snug">{cup.name || '—'}</h3>
                   <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs text-muted-foreground">
@@ -819,6 +857,7 @@ export function CupsList() {
                       className={cn(
                         'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
                         isSelected(cup.id) && 'bg-plugin-subtle',
+                        cup.deleted_at !== null && cup.deleted_at !== undefined && 'opacity-60',
                       )}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -871,7 +910,8 @@ export function CupsList() {
                 : 'border-t border-border/60',
             )}
           >
-            Showing {filteredAndSorted.length} of {cups.length} Cups
+            Showing {filteredAndSorted.length} of{' '}
+            {activeFilter === 'removed' ? stats.removed : stats.total} Cups
           </div>
         </Card>
       </div>

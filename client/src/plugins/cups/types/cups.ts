@@ -20,6 +20,8 @@ export interface Cup {
   ingest_source_id: string | null;
   ingest_run_id: string | null;
   external_id: string | null;
+  last_seen_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }

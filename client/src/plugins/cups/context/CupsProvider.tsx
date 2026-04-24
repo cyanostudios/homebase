@@ -221,6 +221,17 @@ export function CupsProvider({
     [clearCupSelection, closeCupPanel, currentCup],
   );
 
+  const restoreCup = useCallback(
+    async (id: string) => {
+      const restored = await cupsApi.restoreCup(id);
+      setCups((prev) => prev.map((c) => (c.id === id ? restored : c)));
+      if (currentCup?.id === id) {
+        setCurrentCup(restored);
+      }
+    },
+    [currentCup],
+  );
+
   const importFromIngestSource = useCallback(
     async (sourceId: string) => {
       const result = await cupsApi.importFromIngestSource(sourceId);
@@ -277,6 +288,7 @@ export function CupsProvider({
     saveCup,
     deleteCup,
     deleteCups,
+    restoreCup,
     importFromIngestSource,
     selectedCupIds,
     toggleCupSelected,

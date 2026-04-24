@@ -57,6 +57,8 @@ function rowToCup(row: Record<string, unknown>): Cup {
     ingest_source_id: optionalString(row.ingest_source_id),
     ingest_run_id: optionalString(row.ingest_run_id),
     external_id: optionalString(row.external_id),
+    last_seen_at: optionalString(row.last_seen_at),
+    deleted_at: optionalString(row.deleted_at),
     created_at: String(row.created_at ?? ''),
     updated_at: String(row.updated_at ?? ''),
   };
@@ -98,6 +100,11 @@ class CupsApi {
     await this.request(`/cups/${id}`, { method: 'DELETE' });
   }
 
+  async restoreCup(id: string): Promise<Cup> {
+    const row = await this.request(`/cups/${id}/restore`, { method: 'POST' });
+    return rowToCup(row);
+  }
+
   async importFromIngestSource(sourceId: string): Promise<{
     sourceId: string;
     fetched: boolean;
@@ -105,6 +112,9 @@ class CupsApi {
     created: number;
     updated: number;
     skipped: number;
+    softDeleted: number;
+    restored: number;
+    hardDeleted: number;
     errors: string[];
   }> {
     return this.request(`/cups/import-from-ingest/${sourceId}`, { method: 'POST' });

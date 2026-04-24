@@ -1,4 +1,4 @@
-import { Globe, Info, SlidersHorizontal, Trophy, Trash2, Zap } from 'lucide-react';
+import { Globe, Info, RotateCcw, SlidersHorizontal, Trophy, Trash2, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -23,8 +23,21 @@ import type { Cup } from '../types/cups';
 export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) {
   const { t } = useTranslation();
   const current = cup ?? item ?? null;
-  const { deleteCup } = useCups();
+  const { deleteCup, restoreCup } = useCups();
   const [showDelete, setShowDelete] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleRestore = async () => {
+    if (!current) {
+      return;
+    }
+    setIsRestoring(true);
+    try {
+      await restoreCup(current.id);
+    } finally {
+      setIsRestoring(false);
+    }
+  };
   if (!current) {
     return null;
   }
@@ -111,6 +124,34 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
           </div>
         }
       >
+        {current.deleted_at !== null && current.deleted_at !== undefined && (
+          <Card
+            padding="none"
+            className="mb-3 border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20"
+          >
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                  Removed from source
+                </p>
+                <p className="text-xs text-red-600/80 dark:text-red-500">
+                  Removed on {new Date(current.deleted_at).toLocaleDateString('sv-SE')}. The cup was
+                  not found in the latest import. It will be permanently deleted after 30 days.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={RotateCcw}
+                className="h-8 shrink-0 px-3 text-xs text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-950/40"
+                onClick={handleRestore}
+                disabled={isRestoring}
+              >
+                Restore
+              </Button>
+            </div>
+          </Card>
+        )}
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection title="Cup information" icon={Trophy} subtleTitle className="p-6">
             <div className="space-y-3 text-sm">
