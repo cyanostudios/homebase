@@ -704,7 +704,9 @@
     "propertyPublic": "Public on site",
     "propertySanctioned": "Sanctioned",
     "propertyFeatured": "Featured",
-    "cupProperties": "Properties"
+    "cupProperties": "Properties",
+    "heroImageView": "Hero image (public site)",
+    "heroImageNone": "No image uploaded — Cupappen uses a default photo for featured cards."
   },
   "dashboard": {
     "description": "A quick overview of your enabled plugins—open one below or from the sidebar.",

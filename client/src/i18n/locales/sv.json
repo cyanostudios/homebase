@@ -704,7 +704,9 @@
     "propertyPublic": "Publik på sajten",
     "propertySanctioned": "Sanktionerad",
     "propertyFeatured": "Utvald",
-    "cupProperties": "Egenskaper"
+    "cupProperties": "Egenskaper",
+    "heroImageView": "Hjältebild (publik sajt)",
+    "heroImageNone": "Ingen bild uppladdad — Cupappen använder standardfoto på utvalda kort."
   },
   "dashboard": {
     "description": "Snabb överblick över dina aktiverade plugins—öppna ett nedan eller från sidomenyn.",

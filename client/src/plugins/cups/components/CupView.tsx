@@ -42,6 +42,8 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
     return null;
   }
 
+  const heroImageUrl = (current.featured_image_url || '').trim();
+
   return (
     <>
       <DetailLayout
@@ -214,6 +216,30 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
               <div className="grid grid-cols-3 gap-3">
                 <span className="text-muted-foreground">Description</span>
                 <span className="col-span-2 whitespace-pre-wrap">{current.description || '—'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 items-start">
+                <span className="text-muted-foreground">{t('cups.heroImageView')}</span>
+                <div className="col-span-2 min-w-0">
+                  {heroImageUrl ? (
+                    <a
+                      href={heroImageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block rounded-md border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <img
+                        src={heroImageUrl}
+                        alt={`${current.name} — ${t('cups.heroImageView')}`}
+                        className="h-24 w-40 max-w-full rounded-md object-cover"
+                        loading="lazy"
+                      />
+                    </a>
+                  ) : (
+                    <p className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">
+                      {t('cups.heroImageNone')}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </DetailSection>

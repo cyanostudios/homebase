@@ -126,8 +126,7 @@
           <ul class="nav-links">
             <li><a href="#cup-listing" data-testid="nav-cuper">Cuper</a></li>
             <li><a href="#organizer" data-testid="nav-arrangorer">För arrangörer</a></li>
-            <li><a href="#featured-cups" data-testid="nav-how-it-works">Så funkar det</a></li>
-            <li><a href="#faq" data-testid="nav-faq">Om oss</a></li>
+            <li><a href="#faq" data-testid="nav-faq">FAQ</a></li>
           </ul>
         </nav>
 
@@ -145,8 +144,7 @@
       <div class="mobile-drawer__panel">
         <a href="#cup-listing" data-testid="mobile-nav-cuper">Cuper</a>
         <a href="#organizer" data-testid="mobile-nav-arrangorer">För arrangörer</a>
-        <a href="#featured-cups" data-testid="mobile-nav-how-it-works">Så funkar det</a>
-        <a href="#faq" data-testid="mobile-nav-faq">Om oss</a>
+        <a href="#faq" data-testid="mobile-nav-faq">FAQ</a>
         <a href="#cup-listing" class="btn btn-primary" style="justify-content:center;margin-top:0.5rem;" data-testid="mobile-add-cup">Lägg till cup</a>
       </div>
     </div>
@@ -298,7 +296,6 @@
                 </ul>
                 <div class="organizer__actions">
                   <a href="mailto:info@cupappen.se" class="btn btn-on-dark" data-testid="organizer-primary-cta">Lägg till cup gratis</a>
-                  <a href="mailto:info@cupappen.se" class="btn btn-ghost-dark" data-testid="organizer-secondary-cta">Prata med säljteamet</a>
                 </div>
               </div>
               <!-- Right: media + metric card -->
@@ -322,63 +319,7 @@
       </section>
 
       <!-- ================================================================
-           5. FAQ
-      ================================================================ -->
-      <section class="section reveal" id="faq" aria-label="Vanliga frågor">
-        <div class="container">
-          <p class="eyebrow section-header" style="text-align:center;">Vanliga frågor</p>
-          <h2 class="h2" style="margin-top:0.5rem;text-align:center;">Har du frågor? Vi har svaren.</h2>
-
-          <div class="faq-wrap" role="list">
-            <div class="faq-item" role="listitem">
-              <button type="button" class="faq-toggle" data-testid="faq-toggle-0" aria-expanded="false" aria-controls="faq-answer-0">
-                Kostar det något att använda Cupappen?
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div id="faq-answer-0" class="faq-answer" role="region" aria-labelledby="faq-toggle-0">
-                <div><p>Nej, Cupappen är helt gratis att använda för lag och tränare som söker cuper. För arrangörer som vill exponera sin cup kan det finnas olika paketerbjudanden — kontakta oss för mer information.</p></div>
-              </div>
-            </div>
-
-            <div class="faq-item" role="listitem">
-              <button type="button" class="faq-toggle" data-testid="faq-toggle-1" aria-expanded="false" aria-controls="faq-answer-1">
-                Hur lägger jag upp min cup?
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div id="faq-answer-1" class="faq-answer" role="region" aria-labelledby="faq-toggle-1">
-                <div><p>Kontakta oss på <a href="mailto:info@cupappen.se">info@cupappen.se</a> eller använd knappen "Lägg till cup gratis" på sidan. Vi hjälper er att publicera cupen snabbt — oftast inom ett dygn.</p></div>
-              </div>
-            </div>
-
-            <div class="faq-item" role="listitem">
-              <button type="button" class="faq-toggle" data-testid="faq-toggle-2" aria-expanded="false" aria-controls="faq-answer-2">
-                Kan jag anmäla mitt lag direkt via Cupappen?
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div id="faq-answer-2" class="faq-answer" role="region" aria-labelledby="faq-toggle-2">
-                <div><p>Du klickar på "Till cupsidan" på varje cup och länkas direkt till arrangörens officiella anmälningssida. Cupappen fungerar som en katalog och sökmotor — anmälan sker hos arrangören.</p></div>
-              </div>
-            </div>
-
-            <div class="faq-item" role="listitem">
-              <button type="button" class="faq-toggle" data-testid="faq-toggle-3" aria-expanded="false" aria-controls="faq-answer-3">
-                Hur vet jag att en cup är seriös?
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div id="faq-answer-3" class="faq-answer" role="region" aria-labelledby="faq-toggle-3">
-                <div><p>Vi listar primärt cuper som är sanktionerade av respektive distriktsförbund inom Svensk Fotboll. Sanktionerade cuper uppfyller grundläggande krav vad gäller säkerhet, spelregler och administration.</p></div>
-              </div>
-            </div>
-          </div>
-
-          <p class="faq-contact">
-            Hittar du inte svaret? <a href="mailto:info@cupappen.se" data-testid="footer-link-kontakt">Kontakta oss här</a>
-          </p>
-        </div>
-      </section>
-
-      <!-- ================================================================
-           6. CUP LISTING (live, existing filter/search functionality)
+           5. CUP LISTING (live, existing filter/search functionality)
       ================================================================ -->
       <section class="cup-listing-section" id="cup-listing" aria-label="Alla cuper">
         <div class="container">
@@ -464,6 +405,62 @@
           <section id="error" class="state" hidden aria-live="assertive">Kunde inte hämta cuper just nu. Försök igen senare.</section>
           <section id="empty" class="state" hidden aria-live="polite">Inga cuper matchade din sökning.</section>
           <section id="cups-grid" data-testid="cup-listings" class="cups-grid" hidden aria-live="polite" aria-label="Cupförteckning"></section>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           6. FAQ (direkt före sidfot)
+      ================================================================ -->
+      <section class="section reveal" id="faq" aria-label="Vanliga frågor">
+        <div class="container">
+          <p class="eyebrow section-header" style="text-align:center;">Vanliga frågor</p>
+          <h2 class="h2" style="margin-top:0.5rem;text-align:center;">Har du frågor? Vi har svaren.</h2>
+
+          <div class="faq-wrap" role="list">
+            <div class="faq-item" role="listitem">
+              <button type="button" class="faq-toggle" data-testid="faq-toggle-0" aria-expanded="false" aria-controls="faq-answer-0">
+                Kostar det något att använda Cupappen?
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="faq-answer-0" class="faq-answer" role="region" aria-labelledby="faq-toggle-0">
+                <div><p>Nej, Cupappen är helt gratis att använda för lag och tränare som söker cuper. För arrangörer som vill exponera sin cup kan det finnas olika paketerbjudanden — kontakta oss för mer information.</p></div>
+              </div>
+            </div>
+
+            <div class="faq-item" role="listitem">
+              <button type="button" class="faq-toggle" data-testid="faq-toggle-1" aria-expanded="false" aria-controls="faq-answer-1">
+                Hur lägger jag upp min cup?
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="faq-answer-1" class="faq-answer" role="region" aria-labelledby="faq-toggle-1">
+                <div><p>Kontakta oss på <a href="mailto:info@cupappen.se">info@cupappen.se</a> eller använd knappen "Lägg till cup gratis" på sidan. Vi hjälper er att publicera cupen snabbt — oftast inom ett dygn.</p></div>
+              </div>
+            </div>
+
+            <div class="faq-item" role="listitem">
+              <button type="button" class="faq-toggle" data-testid="faq-toggle-2" aria-expanded="false" aria-controls="faq-answer-2">
+                Kan jag anmäla mitt lag direkt via Cupappen?
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="faq-answer-2" class="faq-answer" role="region" aria-labelledby="faq-toggle-2">
+                <div><p>Du klickar på "Till cupsidan" på varje cup och länkas direkt till arrangörens officiella anmälningssida. Cupappen fungerar som en katalog och sökmotor — anmälan sker hos arrangören.</p></div>
+              </div>
+            </div>
+
+            <div class="faq-item" role="listitem">
+              <button type="button" class="faq-toggle" data-testid="faq-toggle-3" aria-expanded="false" aria-controls="faq-answer-3">
+                Hur vet jag att en cup är seriös?
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="faq-answer-3" class="faq-answer" role="region" aria-labelledby="faq-toggle-3">
+                <div><p>Vi listar primärt cuper som är sanktionerade av respektive distriktsförbund inom Svensk Fotboll. Sanktionerade cuper uppfyller grundläggande krav vad gäller säkerhet, spelregler och administration.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <p class="faq-contact">
+            Hittar du inte svaret? <a href="mailto:info@cupappen.se" data-testid="footer-link-kontakt">Kontakta oss här</a>
+          </p>
         </div>
       </section>
 
