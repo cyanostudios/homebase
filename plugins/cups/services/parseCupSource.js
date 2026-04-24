@@ -121,6 +121,7 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
   if (!html || typeof html !== 'string') {
     return null;
   }
+  const decodedHtml = decodeHtmlEntities(html);
 
   if (looksLikeStockholmPdfTable(html, sourceUrl, sourceType)) {
     return 'stockholm_pdf_table';
@@ -154,14 +155,14 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
   /** Östergötland: /tavling/sanktionerade-cuper/ (rubrik "Sanktionerade cuper", år i accordion). */
   if (
     /(^|\.)ostergotland\.svenskfotboll\.se$/i.test(host) &&
-    /Sanktionerade cuper/i.test(decodeHtmlEntities(html)) &&
+    /Sanktionerade cuper/i.test(decodedHtml) &&
     hasSkaneAccordion
   ) {
     return 'svff_yearmonth_list';
   }
 
   /** Ångermanland-style labeled paragraphs (SvFF HTML uses entities, e.g. T&auml;vling/ Cup:). */
-  if (/Tävling\s*\/\s*Cup\s*:/i.test(decodeHtmlEntities(html))) {
+  if (/Tävling\s*\/\s*Cup\s*:/i.test(decodedHtml)) {
     return 'angermanland_labeled';
   }
 
@@ -170,34 +171,34 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
     return 'sodermanland_accordion';
   }
 
+  const isSmalandHost =
+    /(^|\.)smalandboll\.se$/i.test(host) || /(^|\.)smalandsfotbollen\.se$/i.test(host);
+  const isBohuslanDalslandHost = /(^|\.)bohuslan-dalsland\.svenskfotboll\.se$/i.test(host);
+  const hasSmalandStyleMarkers =
+    /\bTävlingens namn\s*:/i.test(decodedHtml) ||
+    (/\bÅlder\s*:/i.test(decodedHtml) && /\bArrangör\s*:/i.test(decodedHtml));
+
+  /** Småland/Skåne accordion must be classified before generic paragraph-list checks. */
+  if (hasSkaneAccordion && hasSmalandStyleMarkers) {
+    return 'skane_accordion';
+  }
+  if (hasSkaneAccordion) {
+    return 'skane_accordion';
+  }
+
   /** Västerbotten / Västmanland: Excel-style table with Cupnamn column. */
   if (/<table[\s>]/.test(html) && /\bCupnamn\b/i.test(html)) {
     return 'svff_table';
   }
 
   /** Uppland: Arr. förening blocks (SvFF HTML uses entities e.g. Arr. f&ouml;rening). */
-  if (/Arr\.\s*förening\s*:/i.test(decodeHtmlEntities(html))) {
+  if (/Arr\.\s*förening\s*:/i.test(decodedHtml)) {
     return 'svff_paragraph_list';
   }
   /** Jämtland m.fl.: rubrik kan vara &lt;h2&gt;&lt;strong&gt;Cuper 2026&lt;/strong&gt;&lt;/h2&gt;. */
-  if (/<h2\b[^>]*>[\s\S]*?Cuper\s+\d{4}/i.test(decodeHtmlEntities(html))) {
+  if (/<h2\b[^>]*>[\s\S]*?Cuper\s+\d{4}/i.test(decodedHtml)) {
     return 'svff_paragraph_list';
   }
-
-  /** Småland multisite uses SVFF accordion DOM + "Tävlingens namn:" (Skåne body uses "Cup/tävling:"). */
-  if (hasSkaneAccordion && /\bTävlingens namn\s*:/i.test(html)) {
-    return 'smaland_label_list';
-  }
-
-  if (hasSkaneAccordion) {
-    return 'skane_accordion';
-  }
-
-  const isSmalandHost = /(^|\.)smalandboll\.se$/i.test(host);
-  const isBohuslanDalslandHost = /(^|\.)bohuslan-dalsland\.svenskfotboll\.se$/i.test(host);
-  const hasSmalandStyleMarkers =
-    /\bTävlingens namn\s*:/i.test(html) ||
-    (/\bÅlder\s*:/i.test(html) && /\bArrangör\s*:/i.test(html));
 
   if (isBohuslanDalslandHost && /\bFotbollscuper\b/i.test(html)) {
     return 'bohuslan_html_list';
@@ -460,6 +461,19 @@ function parseDatumFieldSmaland(datumValue, defaultYear = STOCKHOLM_PDF_DEFAULT_
       return { start: toIsoDate(y, mo, lo), end: toIsoDate(y, mo, hi), dateText: trimmed };
     }
   }
+  // Accept compact month-token forms like "13juni" and "14-16augusti"
+  m = firstPart.match(/^(\d{1,2})\s*[-–]\s*(\d{1,2})\s*([a-zåäö]+)(?:\s+(\d{4}))?$/i);
+  if (m) {
+    const d1 = parseInt(m[1], 10);
+    const d2 = parseInt(m[2], 10);
+    const mo = resolveSwedishMonth(m[3]);
+    const y = m[4] ? parseInt(m[4], 10) : defaultYear;
+    if (mo) {
+      const lo = Math.min(d1, d2);
+      const hi = Math.max(d1, d2);
+      return { start: toIsoDate(y, mo, lo), end: toIsoDate(y, mo, hi), dateText: trimmed };
+    }
+  }
 
   m = firstPart.match(/^(\d{1,2})\s+([a-zåäö]+)(?:\s+(\d{4}))?$/i);
   if (m) {
@@ -467,6 +481,38 @@ function parseDatumFieldSmaland(datumValue, defaultYear = STOCKHOLM_PDF_DEFAULT_
     const mo = resolveSwedishMonth(m[2]);
     const y = m[3] ? parseInt(m[3], 10) : defaultYear;
     if (mo) {
+      return { start: toIsoDate(y, mo, day), end: toIsoDate(y, mo, day), dateText: trimmed };
+    }
+  }
+  // Accept compact single-day month-token form: "29augusti"
+  m = firstPart.match(/^(\d{1,2})\s*([a-zåäö]+)(?:\s+(\d{4}))?$/i);
+  if (m) {
+    const day = parseInt(m[1], 10);
+    const mo = resolveSwedishMonth(m[2]);
+    const y = m[3] ? parseInt(m[3], 10) : defaultYear;
+    if (mo) {
+      return { start: toIsoDate(y, mo, day), end: toIsoDate(y, mo, day), dateText: trimmed };
+    }
+  }
+  // Accept slash numeric month forms used in Småland accordion titles/body: "14-16/8", "27/6", optional year.
+  m = firstPart.match(/^(\d{1,2})\s*[-–]\s*(\d{1,2})\s*\/\s*(\d{1,2})(?:\s+(\d{4}))?$/i);
+  if (m) {
+    const d1 = parseInt(m[1], 10);
+    const d2 = parseInt(m[2], 10);
+    const mo = parseInt(m[3], 10);
+    const y = m[4] ? parseInt(m[4], 10) : defaultYear;
+    if (mo >= 1 && mo <= 12) {
+      const lo = Math.min(d1, d2);
+      const hi = Math.max(d1, d2);
+      return { start: toIsoDate(y, mo, lo), end: toIsoDate(y, mo, hi), dateText: trimmed };
+    }
+  }
+  m = firstPart.match(/^(\d{1,2})\s*\/\s*(\d{1,2})(?:\s+(\d{4}))?$/i);
+  if (m) {
+    const day = parseInt(m[1], 10);
+    const mo = parseInt(m[2], 10);
+    const y = m[3] ? parseInt(m[3], 10) : defaultYear;
+    if (mo >= 1 && mo <= 12) {
       return { start: toIsoDate(y, mo, day), end: toIsoDate(y, mo, day), dateText: trimmed };
     }
   }
