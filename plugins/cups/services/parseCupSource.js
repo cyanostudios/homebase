@@ -637,7 +637,11 @@ function translateSpelformToEnglish(raw) {
 /**
  * Småland / mixed district labels → same fields as Skåne. Ålder + Kategorier → `categories` (Antal lag & Spelform → own columns via team_count / match_format).
  */
-function parseLabeledCupLines(lines) {
+/**
+ * @param {string[]} lines
+ * @param {number} [defaultYear] override for implicit-year date strings
+ */
+function parseLabeledCupLines(lines, defaultYear = STOCKHOLM_PDF_DEFAULT_YEAR) {
   let organizer = null;
   let cupName = null;
   let location = null;
@@ -707,7 +711,7 @@ function parseLabeledCupLines(lines) {
   const team_count = antalLag != null ? parseTeamCountFromAntalLag(antalLag) : null;
   const match_format = spelform ? translateSpelformToEnglish(spelform) || spelform : null;
 
-  const { start, end, dateText } = parseDatumFieldSmaland(dateRaw || '');
+  const { start, end, dateText } = parseDatumFieldSmaland(dateRaw || '', defaultYear);
   return {
     organizer,
     cupName,
@@ -720,6 +724,47 @@ function parseLabeledCupLines(lines) {
     date_text: dateText,
     description: lines.join('\n'),
   };
+}
+
+/**
+ * Extract the most prominent year (20xx) from a page's headings/title so implicit-year
+ * date strings ("12 september") are anchored to the correct season, not the wall clock.
+ * Returns null if nothing found — caller falls back to STOCKHOLM_PDF_DEFAULT_YEAR.
+ * @param {string} html
+ * @returns {number|null}
+ */
+function extractPageDefaultYear(html) {
+  const currentYear = new Date().getFullYear();
+  const candidates = [];
+  // Look in h1/h2/h3/h4 headings and <title>
+  const headingRe = /<(?:h[1-4]|title)\b[^>]*>([\s\S]*?)<\/(?:h[1-4]|title)>/gi;
+  let m;
+  while ((m = headingRe.exec(html)) !== null) {
+    const text = stripTags(m[1]);
+    const years = [...text.matchAll(/\b(20\d{2})\b/g)].map((x) => parseInt(x[1], 10));
+    for (const y of years) {
+      if (y >= currentYear - 1 && y <= currentYear + 2) {
+        candidates.push(y);
+      }
+    }
+  }
+  if (candidates.length === 0) {
+    return null;
+  }
+  // Prefer the most frequently mentioned year; among ties, prefer the largest (upcoming season).
+  const freq = new Map();
+  for (const y of candidates) {
+    freq.set(y, (freq.get(y) || 0) + 1);
+  }
+  let best = null;
+  let bestFreq = 0;
+  for (const [y, f] of freq) {
+    if (f > bestFreq || (f === bestFreq && best !== null && y > best)) {
+      best = y;
+      bestFreq = f;
+    }
+  }
+  return best;
 }
 
 /** Remove SVFF accordion list title so it does not pollute Småland label lines / description. */
@@ -988,19 +1033,34 @@ function normalizeRegistrationUrlForId(url) {
 
 /**
  * Deterministic id from parsed fields only (never DOM accordion ids — those can change between fetches).
- * @param {string} [dateTextFallback] when start/end missing (e.g. unparsed Swedish datum), stabilizes id.
+ *
+ * Identity strategy (in priority order):
+ *  1. Raw datum text (`dateTextFallback`) when available — most stable across parser changes
+ *     and implicit-year date strings, because it is the literal source value.
+ *  2. Parsed ISO start + end (when no dateText is available, e.g. Stockholm PDF path
+ *     that calls stableStockholmPdfExternalId separately).
+ *  3. Empty start/end strings (degenerate case, produces name||| + url hash).
+ *
+ * Why prefer dateText over parsed dates: the same on-page string like "12 september" is stable
+ * across calendar-year rollovers, parser regex changes, and HTML refetches, whereas the parsed
+ * ISO output can flip between "2025-09-12" and "2026-09-12" (or between a value and null) when
+ * the year is implicit in the page text or the parser is updated. A flip in the parsed dates
+ * produces a different hash → primary-match miss → duplicate INSERT every import run.
+ *
+ * @param {string|null|undefined} dateTextFallback raw datum string (e.g. "12–14 september 2026")
  */
 function stableExternalId(name, start, end, registrationUrl, dateTextFallback) {
   const n = String(name || '').trim();
   const ru = normalizeRegistrationUrlForId(registrationUrl);
-  const s = start != null && String(start) !== '' ? String(start) : '';
-  const e = end != null && String(end) !== '' ? String(end) : '';
   let base;
-  if (s && e) {
-    base = `${n}|${s}|${e}|${ru}`;
-  } else if (dateTextFallback) {
-    base = `${n}|${String(dateTextFallback).trim()}|${ru}`;
+  // Prefer raw datum text: it is directly from the source page and does not change
+  // when date parsing succeeds/fails or the implicit year rolls over.
+  const dt = dateTextFallback != null ? String(dateTextFallback).trim() : '';
+  if (dt) {
+    base = `${n}|${dt}|${ru}`;
   } else {
+    const s = start != null && String(start) !== '' ? String(start) : '';
+    const e = end != null && String(end) !== '' ? String(end) : '';
     base = `${n}|${s}|${e}|${ru}`;
   }
   let h = 0;
@@ -1020,12 +1080,14 @@ function parseSkaneAccordionCups(html, sourceUrl, sourceType) {
   const blocks = splitAccordionItemBlocks(html);
   const out = [];
 
+  const pageYear = extractPageDefaultYear(html) ?? STOCKHOLM_PDF_DEFAULT_YEAR;
+
   for (const block of blocks) {
     const title = extractAccordionTitle(block);
     const inner = extractAccordionContentAllParagraphsInnerHtml(block);
     const lines = htmlFragmentToLabelLines(inner);
     const parsed = accordionLinesLookLikeSmalandLabeledList(lines)
-      ? parseLabeledCupLines(lines)
+      ? parseLabeledCupLines(lines, pageYear)
       : parseStructuredParagraph(inner);
 
     const nameRaw = (parsed.cupName || title || '').trim();
@@ -1070,9 +1132,13 @@ function parseSmalandLabelListCups(html, sourceUrl, sourceType) {
   const blocks = splitSmalandCupBlockHtml(html);
   const out = [];
 
+  // Extract year from the page heading so implicit-year date strings are anchored
+  // to the correct season rather than the current wall-clock year.
+  const pageYear = extractPageDefaultYear(html) ?? STOCKHOLM_PDF_DEFAULT_YEAR;
+
   for (const block of blocks) {
     const lines = htmlFragmentToLabelLines(stripAccordionTextSpan(block));
-    const parsed = parseLabeledCupLines(lines);
+    const parsed = parseLabeledCupLines(lines, pageYear);
     const nameRaw = (parsed.cupName || '').trim();
     if (!nameRaw) {
       continue;

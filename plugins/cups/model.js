@@ -3,6 +3,12 @@ const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 class CupsModel {
+  normalizeLookupString(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase();
+  }
+
   normalizeComparableString(value) {
     const s = value == null ? '' : String(value).trim();
     return s === '' ? null : s;
@@ -299,6 +305,8 @@ class CupsModel {
     const start = item.start_date ?? null;
     const end = item.end_date ?? null;
 
+    // Secondary match: exact name + exact dates (handles the null = null case correctly via
+    // IS NOT DISTINCT FROM, but misses when dates flip between null and a real value).
     const byKey = await db.query(
       `SELECT id FROM cups WHERE ingest_source_id = $1
        AND name = $2
@@ -307,7 +315,77 @@ class CupsModel {
        LIMIT 1`,
       [ingestId, name, start, end],
     );
-    return byKey.length ? byKey[0].id : null;
+    if (byKey.length) return byKey[0].id;
+
+    // Secondary-relaxed: when the incoming item has no dates (parser could not extract them),
+    // also try matching any existing row with the same name+source regardless of what dates
+    // are stored. This prevents a create when the previous run parsed dates but the current
+    // run could not (or vice versa). We only do this when BOTH start and end are null to
+    // avoid incorrectly merging cups from different years that share a name.
+    if (start === null && end === null) {
+      const byNameExact = await db.query(
+        `SELECT id FROM cups WHERE ingest_source_id = $1 AND name = $2
+         ORDER BY deleted_at IS NULL DESC, updated_at DESC LIMIT 1`,
+        [ingestId, name],
+      );
+      if (byNameExact.length) return byNameExact[0].id;
+    }
+
+    // Tertiary fallback:
+    // If parser/profile changes alter external_id or date parsing, avoid creating a duplicate
+    // by trying to match same source + same cup name (case-insensitive) with safe heuristics.
+    const byName = await db.query(
+      `SELECT id, organizer, start_date, end_date, deleted_at, updated_at
+         FROM cups
+        WHERE ingest_source_id = $1
+          AND lower(trim(name)) = lower(trim($2))
+        ORDER BY deleted_at IS NULL DESC, updated_at DESC
+        LIMIT 10`,
+      [ingestId, name],
+    );
+    if (!byName.length) {
+      return null;
+    }
+
+    if (byName.length === 1) {
+      return byName[0].id;
+    }
+
+    const organizer = this.normalizeLookupString(item?.organizer);
+    if (organizer) {
+      const orgMatches = byName.filter(
+        (row) => this.normalizeLookupString(row.organizer) === organizer,
+      );
+      if (orgMatches.length === 1) {
+        return orgMatches[0].id;
+      }
+      if (orgMatches.length > 1) {
+        // Prefer active row when many historical rows exist with same name+organizer.
+        const active = orgMatches.find(
+          (row) => row.deleted_at === null || row.deleted_at === undefined,
+        );
+        if (active) {
+          return active.id;
+        }
+      }
+    }
+
+    const itemStart = this.normalizeComparableDate(item?.start_date);
+    if (itemStart) {
+      const itemYear = new Date(itemStart).getUTCFullYear();
+      const sameYear = byName.filter((row) => {
+        const rowStart = this.normalizeComparableDate(row.start_date);
+        if (!rowStart) {
+          return false;
+        }
+        return new Date(rowStart).getUTCFullYear() === itemYear;
+      });
+      if (sameYear.length === 1) {
+        return sameYear[0].id;
+      }
+    }
+
+    return null;
   }
 
   buildImportPayload(item, importMeta) {
