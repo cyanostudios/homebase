@@ -3,12 +3,15 @@
 
 module.exports = {
   testEnvironment: 'node',
-  roots: ['<rootDir>/server'],
+  roots: ['<rootDir>/server', '<rootDir>/plugins'],
   testMatch: ['**/__tests__/**/*.test.js', '**/?(*.)+(spec|test).js'],
   collectCoverageFrom: [
     'server/**/*.js',
+    'plugins/**/*.js',
     '!server/**/__tests__/**',
     '!server/**/*.test.js',
+    '!plugins/**/__tests__/**',
+    '!plugins/**/*.test.js',
     '!server/index.ts', // TypeScript entry point
   ],
   coverageDirectory: 'coverage',

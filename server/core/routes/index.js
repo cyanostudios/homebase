@@ -3,6 +3,7 @@
 
 const authRoutes = require('./auth');
 const adminRoutes = require('./admin');
+const cronRoutes = require('./cron');
 const healthRoutes = require('./health');
 const teamRoutes = require('./team');
 
@@ -22,6 +23,7 @@ function setupCoreRoutes(app, dependencies) {
   app.use('/api', healthRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/cron', cronRoutes);
   app.use('/api/team', teamRoutes);
 }
 

@@ -1,4 +1,4 @@
-import { Check, Download, LayoutGrid, List } from 'lucide-react';
+import { Check, Download, LayoutGrid, List, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -47,12 +47,14 @@ export function CupsSettingsView({
   const [viewMode, setViewMode] = useState<CupsViewMode>('list');
   const [defaultIngestSourceId, setDefaultIngestSourceId] = useState('');
   const [allowedIngestSourceIds, setAllowedIngestSourceIds] = useState<string[]>([]);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const [ingestSources, setIngestSources] = useState<IngestSource[]>([]);
   const [ingestLoading, setIngestLoading] = useState(true);
   const [initialState, setInitialState] = useState({
     viewMode: 'list' as CupsViewMode,
     defaultIngestSourceId: '',
     allowedIngestSourceIds: [] as string[],
+    autoRefresh: false,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,13 +84,16 @@ export function CupsSettingsView({
         const loadedAllowed = Array.isArray(settings?.allowedIngestSourceIds)
           ? settings.allowedIngestSourceIds.map(String)
           : [];
+        const loadedAutoRefresh = settings?.autoRefresh === true;
         setViewMode(loadedView);
         setDefaultIngestSourceId(loadedDefault);
         setAllowedIngestSourceIds(loadedAllowed);
+        setAutoRefresh(loadedAutoRefresh);
         setInitialState({
           viewMode: loadedView,
           defaultIngestSourceId: loadedDefault,
           allowedIngestSourceIds: loadedAllowed,
+          autoRefresh: loadedAutoRefresh,
         });
       })
       .catch(() => {})
@@ -126,7 +131,8 @@ export function CupsSettingsView({
     viewMode !== initialState.viewMode ||
     defaultIngestSourceId !== initialState.defaultIngestSourceId ||
     JSON.stringify([...allowedIngestSourceIds].sort()) !==
-      JSON.stringify([...initialState.allowedIngestSourceIds].sort());
+      JSON.stringify([...initialState.allowedIngestSourceIds].sort()) ||
+    autoRefresh !== initialState.autoRefresh;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -135,17 +141,19 @@ export function CupsSettingsView({
         viewMode,
         defaultIngestSourceId: defaultIngestSourceId.trim() || '',
         allowedIngestSourceIds,
+        autoRefresh,
       };
       await updateSettings(CUPS_SETTINGS_KEY, payload);
       setInitialState({
         viewMode,
         defaultIngestSourceId: defaultIngestSourceId.trim() || '',
         allowedIngestSourceIds,
+        autoRefresh,
       });
     } finally {
       setIsSaving(false);
     }
-  }, [allowedIngestSourceIds, defaultIngestSourceId, updateSettings, viewMode]);
+  }, [allowedIngestSourceIds, autoRefresh, defaultIngestSourceId, updateSettings, viewMode]);
 
   const toggleAllowedSource = useCallback((sourceId: string) => {
     setAllowedIngestSourceIds((prev) =>
@@ -359,6 +367,33 @@ export function CupsSettingsView({
               <p className="text-sm text-muted-foreground">
                 Used as default in Cups import action and should be one of the selected sources.
               </p>
+
+              <div className="mt-4 border-t border-border/60 pt-4">
+                <label
+                  className={cn(
+                    'flex cursor-pointer items-start gap-3 rounded border p-3 text-sm',
+                    autoRefresh ? 'border-primary/50 bg-primary/5' : 'border-border/60',
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 cursor-pointer"
+                    checked={autoRefresh}
+                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                  />
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      Auto refresh
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Runs daily at 03:00 UTC — imports cups from the selected sources above and
+                      soft-deletes cups that are no longer in the source. Cups not seen for 30 days
+                      are permanently deleted.
+                    </span>
+                  </span>
+                </label>
+              </div>
             </div>
           </DetailSection>
         )}

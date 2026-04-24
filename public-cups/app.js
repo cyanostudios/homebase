@@ -1,4 +1,11 @@
 const API_BASE = window.PUBLIC_CUPS_API_BASE || window.location.origin;
+const IS_LOCAL_PUBLIC_CUPS =
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const CUPS_API_URL =
+  window.PUBLIC_CUPS_API_URL ||
+  (IS_LOCAL_PUBLIC_CUPS
+    ? `${window.PUBLIC_CUPS_API_BASE || 'http://localhost:3002'}/api/public/cups`
+    : `${API_BASE}/api/cups.php`);
 
 const CATEGORY_ALIASES = {
   f: 'Flickor',
@@ -131,7 +138,7 @@ function syncMobileFiltersUI() {
 async function loadCups() {
   showState('loading');
   try {
-    const response = await fetch(`${API_BASE}/api/cups.php`);
+    const response = await fetch(CUPS_API_URL);
     if (!response.ok) throw new Error(`Server returned ${response.status}`);
 
     const payload = await response.json();

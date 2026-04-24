@@ -4,6 +4,26 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-04-24 – Cups auto-refresh cron
+
+**Sammanfattning:** Implementerade ett per-tenant opt-in cron-system som håller Cups (och cupappen) uppdaterad automatiskt via Railway Cron.
+
+### Nytt
+
+- **`POST /api/cron/cups/refresh`** — ny intern endpoint skyddad med `x-cron-secret` header (ej bakom requireAuth/CSRF). Stöder valfri `{ userId }` i body för manuell körning.
+- **`plugins/cups/services/cronRefresh.js`** — tjänst som letar fram opt-in users ur `user_settings`, resolvar tenant-pool via `TenantContextService` och kör `importFromIngest` seriellt per källa med per-user try/catch.
+- **Auto refresh toggle** i Cups Settings → Import-kategorin. Sparas som `autoRefresh: boolean` i `user_settings.settings` (JSONB merge, ingen migration krävs). Default: av.
+- **`CRON_SECRET` env var** dokumenterad i `.env.example` och i `docs/CUPS_AUTO_REFRESH_CRON.md`.
+- **`npm run cron:cups-refresh`** — lokal curl-shortcut för manuell testkörning.
+- **`docs/CUPS_AUTO_REFRESH_CRON.md`** — fullständig dokumentation av arkitektur, Railway-setup, lokal testning, response-format och säkerhetsmodell.
+
+### Befintligt återanvänt oförändrat
+
+- `importFromIngest.js` med mark-and-sweep (soft-delete, hard-delete efter 30 dagar) används som-är.
+- `plugins/public-cups/model.js` filtrerar redan `deleted_at IS NULL` — cupappen behöver inga ändringar.
+
+---
+
 ## 2026-04-20 – Plugin list alignment (v3.6 rollout)
 
 **Sammanfattning:** Samtliga plugin-listor i scope (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoices`, `files`, `mail`, `pulses`, `ingest`, `cups`) har alignats med Contacts-listans shell enligt commit `4021082`.

@@ -55,7 +55,8 @@
     "migrate:task-shares": "node scripts/run-task-shares-migration.js",
     "migrate:public-share-routing": "node scripts/run-public-share-routing-migration.js",
     "puppeteer:install-chrome": "cross-env PUPPETEER_CACHE_DIR=.cache/puppeteer puppeteer browsers install chrome",
-    "twilio": "npm install twilio"
+    "twilio": "npm install twilio",
+    "cron:cups-refresh": "curl -fsS -X POST -H \"x-cron-secret: $CRON_SECRET\" http://localhost:3002/api/cron/cups/refresh | cat"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
