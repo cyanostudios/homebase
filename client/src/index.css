@@ -283,6 +283,16 @@
 .rich-text-editor .ProseMirror strong {
   @apply font-semibold;
 }
+.rich-text-editor .ProseMirror a,
+.rich-text-editor .ProseMirror .rich-text-link {
+  @apply text-blue-600 dark:text-blue-400 underline underline-offset-2 font-normal;
+  text-decoration-thickness: 1.5px;
+  cursor: pointer;
+}
+.rich-text-editor .ProseMirror a:hover,
+.rich-text-editor .ProseMirror .rich-text-link:hover {
+  @apply text-blue-700 dark:text-blue-300;
+}
 
 /* Mention nodes in editor */
 .rich-text-editor .ProseMirror .mention {
@@ -328,6 +338,16 @@
 }
 .rich-text-content strong {
   @apply font-semibold;
+}
+.rich-text-content a,
+.rich-text-content .rich-text-link {
+  @apply text-blue-600 dark:text-blue-400 underline underline-offset-2 font-normal;
+  text-decoration-thickness: 1.5px;
+  cursor: pointer;
+}
+.rich-text-content a:hover,
+.rich-text-content .rich-text-link:hover {
+  @apply text-blue-700 dark:text-blue-300;
 }
 
 .rich-text-content .mention {

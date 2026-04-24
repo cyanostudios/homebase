@@ -471,6 +471,9 @@ export const PulseList: React.FC = () => {
               </Table>
             </Card>
           )}
+          <div className="border-t border-border/60 px-4 py-2 text-xs text-muted-foreground">
+            Showing {filtered.length} of {pulseHistory.length} Pulses
+          </div>
         </Card>
       </div>
     </div>

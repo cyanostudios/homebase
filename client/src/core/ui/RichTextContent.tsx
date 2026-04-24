@@ -21,6 +21,7 @@ interface RichTextContentProps {
 }
 
 const PURIFY_ALLOWED_TAGS = [
+  'a',
   'p',
   'br',
   'h1',
@@ -42,7 +43,15 @@ const PURIFY_ALLOWED_TAGS = [
   'hr',
   'span',
 ];
-const PURIFY_ALLOWED_ATTR = ['class', 'data-type', 'data-id', 'data-label'];
+const PURIFY_ALLOWED_ATTR = [
+  'class',
+  'data-type',
+  'data-id',
+  'data-label',
+  'href',
+  'target',
+  'rel',
+];
 
 function isHtml(content: string) {
   return content.trimStart().startsWith('<');

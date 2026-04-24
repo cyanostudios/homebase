@@ -533,8 +533,20 @@ export const TaskList: React.FC = () => {
           isLoading={deleting}
         />
 
-        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
-          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+        <Card
+          className={cn(
+            'rounded-xl border-0',
+            viewMode === 'grid'
+              ? 'overflow-visible bg-transparent shadow-none'
+              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
+          )}
+        >
+          <div
+            className={cn(
+              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
+              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
+            )}
+          >
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -594,7 +606,7 @@ export const TaskList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {sortedTasks.map((task, index) => {
                 const taskIsSelected = isSelected(task.id);
                 const assignedContacts = getAssignedContacts(task);
@@ -602,7 +614,7 @@ export const TaskList: React.FC = () => {
                   <Card
                     key={task.id}
                     className={cn(
-                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-card p-5 shadow-sm transition-all',
+                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
                       taskIsSelected
                         ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
                         : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
@@ -896,6 +908,16 @@ export const TaskList: React.FC = () => {
               </Table>
             </Card>
           )}
+          <div
+            className={cn(
+              'px-4 py-2 text-xs text-muted-foreground',
+              viewMode === 'grid'
+                ? 'mx-1 mb-1 mt-3 rounded-xl bg-white dark:bg-slate-950'
+                : 'border-t border-border/60',
+            )}
+          >
+            Showing {sortedTasks.length} of {tasks.length} Tasks
+          </div>
         </Card>
       </div>
     </div>

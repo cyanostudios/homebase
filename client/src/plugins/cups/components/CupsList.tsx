@@ -47,7 +47,7 @@ import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView'
 type SortField = 'name' | 'start_date' | 'location' | 'updated_at' | 'ingest' | 'featured';
 type SortOrder = 'asc' | 'desc';
 type CupsViewMode = 'grid' | 'list';
-type CupFilter = 'all' | 'visible' | 'featured' | 'withIngest';
+type CupFilter = 'all' | 'visible' | 'featured' | 'upcoming';
 
 const CUPS_VIEW_MODE_STORAGE_KEY = 'cups:viewMode';
 
@@ -220,6 +220,10 @@ export function CupsList() {
   );
 
   const filtered = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStartMs = todayStart.getTime();
+
     const byFilter = cups.filter((c) => {
       if (activeFilter === 'visible') {
         return Boolean(c.visible);
@@ -227,8 +231,12 @@ export function CupsList() {
       if (activeFilter === 'featured') {
         return Boolean(c.featured);
       }
-      if (activeFilter === 'withIngest') {
-        return Boolean(c.ingest_source_id);
+      if (activeFilter === 'upcoming') {
+        if (!c.start_date) {
+          return false;
+        }
+        const startDateMs = new Date(c.start_date).getTime();
+        return Number.isFinite(startDateMs) && startDateMs >= todayStartMs;
       }
       return true;
     });
@@ -284,15 +292,23 @@ export function CupsList() {
       return sortOrder === 'asc' ? cmp : -cmp;
     });
   }, [filtered, sortField, sortOrder, ingestTitleForCup]);
-  const stats = useMemo(
-    () => ({
+  const stats = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStartMs = todayStart.getTime();
+    return {
       total: cups.length,
       visible: cups.filter((c) => Boolean(c.visible)).length,
       featured: cups.filter((c) => Boolean(c.featured)).length,
-      withIngest: cups.filter((c) => Boolean(c.ingest_source_id)).length,
-    }),
-    [cups],
-  );
+      upcoming: cups.filter((c) => {
+        if (!c.start_date) {
+          return false;
+        }
+        const startDateMs = new Date(c.start_date).getTime();
+        return Number.isFinite(startDateMs) && startDateMs >= todayStartMs;
+      }).length,
+    };
+  }, [cups]);
 
   const visibleIds = useMemo(() => filteredAndSorted.map((c) => c.id), [filteredAndSorted]);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(id));
@@ -474,11 +490,11 @@ export function CupsList() {
             onClick={() => setActiveFilter('featured')}
           />
           <StatCard
-            label="Ingest Linked"
-            value={stats.withIngest}
+            label="Upcoming"
+            value={stats.upcoming}
             dotClassName="bg-violet-500"
-            active={activeFilter === 'withIngest'}
-            onClick={() => setActiveFilter('withIngest')}
+            active={activeFilter === 'upcoming'}
+            onClick={() => setActiveFilter('upcoming')}
           />
         </div>
 
@@ -549,8 +565,20 @@ export function CupsList() {
           />
         )}
 
-        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
-          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+        <Card
+          className={cn(
+            'rounded-xl border-0',
+            viewMode === 'grid'
+              ? 'overflow-visible bg-transparent shadow-none'
+              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
+          )}
+        >
+          <div
+            className={cn(
+              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
+              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
+            )}
+          >
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -610,12 +638,12 @@ export function CupsList() {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredAndSorted.map((cup, index) => (
                 <Card
                   key={cup.id}
                   className={cn(
-                    'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-card p-5 shadow-sm transition-all',
+                    'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
                     isSelected(cup.id)
                       ? 'plugin-cups bg-plugin-subtle ring-1 border-plugin-subtle'
                       : 'hover:border-plugin-subtle hover:plugin-cups hover:shadow-md',
@@ -835,6 +863,16 @@ export function CupsList() {
               </Table>
             </Card>
           )}
+          <div
+            className={cn(
+              'px-4 py-2 text-xs text-muted-foreground',
+              viewMode === 'grid'
+                ? 'mx-1 mb-1 mt-3 rounded-xl bg-white dark:bg-slate-950'
+                : 'border-t border-border/60',
+            )}
+          >
+            Showing {filteredAndSorted.length} of {cups.length} Cups
+          </div>
         </Card>
       </div>
     </div>

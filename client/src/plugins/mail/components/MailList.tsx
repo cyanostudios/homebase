@@ -454,6 +454,9 @@ export const MailList: React.FC = () => {
               </Table>
             </Card>
           )}
+          <div className="border-t border-border/60 px-4 py-2 text-xs text-muted-foreground">
+            Showing {filtered.length} of {mailHistory.length} Mails
+          </div>
         </Card>
       </div>
     </div>

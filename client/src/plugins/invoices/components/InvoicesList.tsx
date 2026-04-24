@@ -547,6 +547,9 @@ export function InvoicesList() {
               );
             }}
           />
+          <div className="border-t border-border/60 px-4 py-2 text-xs text-muted-foreground">
+            Showing {sortedInvoices.length} of {invoices.length} Invoices
+          </div>
         </Card>
       </div>
     </div>
