@@ -10,7 +10,7 @@ Statisk landningssida med live cupdata från `api/cups.php`. Byggs med vanlig HT
 4. **Arrangörspanel** — `#organizer` (CTA mot info@cupappen.se).
 5. **Cupdatabasen** — `#cup-listing`: filter, utvalda-rad (vid filter), brödsmulor, rutnät med alla cuper.
 6. **FAQ** — `#faq`, direkt före sidfot.
-7. **Footer** — nyhetsbrev + länkar.
+7. **Footer** — sidfotsrad (copyright och e-post).
 
 Skip-länk: `#cup-listing`.
 

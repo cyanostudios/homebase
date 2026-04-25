@@ -267,51 +267,34 @@
               <div class="organizer__content">
                 <p class="eyebrow organizer__eyebrow">För arrangörer</p>
                 <h2 class="organizer__title">Fyll er cup <em>snabbare</em> — utan extra arbete.</h2>
-                <p class="organizer__lead">Nå tusentals tränare och föreningar som aktivt söker cuper. Lägg upp er turnering på några minuter.</p>
+                <p class="organizer__lead">Nå tusentals tränare och föreningar som aktivt söker cuper. Lägg upp er turnering gratis.</p>
                 <ul class="bullets" aria-label="Fördelar för arrangörer">
                   <li>
                     <span class="bullets__check" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                     </span>
-                    Nå över 60 000 fotbollsintresserade varje månad
+                    Nå tusentals intresserade ledare varje månad
                   </li>
                   <li>
                     <span class="bullets__check" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                     </span>
-                    Egen arrangörspanel med statistik i realtid
+                    Lägg upp din cup utan extra kostnad
                   </li>
                   <li>
                     <span class="bullets__check" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                     </span>
-                    Smidig hantering av anmälningar och betalningar
-                  </li>
-                  <li>
-                    <span class="bullets__check" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                    </span>
-                    Redaktionellt stöd för att lyfta fram er cup
+                    Kontakta oss om du har frågor
                   </li>
                 </ul>
                 <div class="organizer__actions">
                   <a href="mailto:info@cupappen.se" class="btn btn-on-dark" data-testid="organizer-primary-cta">Lägg till cup gratis</a>
                 </div>
               </div>
-              <!-- Right: media + metric card -->
+              <!-- Right: media -->
               <div class="organizer__media" aria-hidden="true">
-                <img src="https://images.pexels.com/photos/6077799/pexels-photo-6077799.jpeg?w=940" alt="Fotbollstränare" loading="lazy" />
-                <div class="metric-card" aria-label="Live statistik: Piteå Summer Games">
-                  <div class="metric-card__label">
-                    <span class="pulse" aria-hidden="true"></span>
-                    LIVE · PITEÅ SUMMER GAMES
-                  </div>
-                  <div class="metric-card__value">+218 lag</div>
-                  <div class="metric-card__sub">anmälda de senaste 14 dagarna</div>
-                  <div class="metric-card__bar" aria-label="78% fyllnad">
-                    <div class="metric-card__bar-fill" style="width:78%;"></div>
-                  </div>
-                </div>
+                <img src="https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?w=940" alt="Fotbollstränare" loading="lazy" />
               </div>
             </div>
           </div>
@@ -471,86 +454,12 @@
     </noscript>
 
     <!-- ================================================================
-         7. FOOTER (dark) — Newsletter + Footer
+         7. FOOTER (dark) — Sidfotsrad
     ================================================================ -->
     <footer class="site-footer" aria-label="Sidfot">
-      <!-- Newsletter -->
-      <div class="newsletter">
-        <div class="container">
-          <div class="newsletter__grid">
-            <div>
-              <p class="eyebrow" style="color:#6ee7e9;">Håll dig uppdaterad</p>
-              <h2 class="newsletter__title">Få nya cuper direkt i inkorgen</h2>
-              <p class="newsletter__lead">Vi skickar ett nyhetsbrev när nya cuper publiceras. Ingen spam — bara cuper.</p>
-            </div>
-            <form class="newsletter__form" action="#" method="post" aria-label="Prenumerera på nyhetsbrev" onsubmit="return false;">
-              <label for="newsletter-email" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">E-postadress</label>
-              <input id="newsletter-email" name="email" type="email" class="newsletter__input" placeholder="din@epostadress.se" autocomplete="email" aria-label="E-postadress" />
-              <button type="submit" class="btn btn-primary" data-testid="newsletter-submit">Prenumerera</button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Footer links -->
-      <div class="container">
-        <div class="footer-main">
-          <div class="footer-brand footer-col">
-            <a href="/" class="logo logo--footer" aria-label="Cupappen startsida">
-              <picture>
-                <source srcset="./assets/cupappen-logo.webp" type="image/webp" />
-                <img
-                  class="logo__img"
-                  src="./assets/cupappen-logo.png"
-                  alt="Cupappen"
-                  width="360"
-                  height="240"
-                  loading="lazy"
-                  decoding="async"
-                />
-              </picture>
-            </a>
-            <p class="footer-brand-desc">Cupappen samlar Sveriges fotbollscuper på ett ställe. Sök, filtrera och hitta rätt cup på sekunder.</p>
-          </div>
-
-          <div class="footer-col">
-            <h4>Produkten</h4>
-            <ul>
-              <li><a href="#cup-listing" data-testid="footer-link-cuper">Hitta cuper</a></li>
-              <li><a href="#cup-listing" data-testid="footer-link-kalender">Kalender</a></li>
-              <li><a href="#cup-listing" data-testid="footer-link-aldersklasser">Åldersklasser</a></li>
-              <li><a href="#cup-listing" data-testid="footer-link-inomhus">Inomhuscuper</a></li>
-            </ul>
-          </div>
-
-          <div class="footer-col">
-            <h4>Arrangörer</h4>
-            <ul>
-              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-lagg-till">Lägg till cup</a></li>
-              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-priser">Priser</a></li>
-              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-marknadsforing">Marknadsföring</a></li>
-              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-partners">Partners</a></li>
-            </ul>
-          </div>
-
-          <div class="footer-col">
-            <h4>Företaget</h4>
-            <ul>
-              <li><a href="#faq" data-testid="footer-link-om">Om oss</a></li>
-              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-kontakt">Kontakt</a></li>
-              <li><a href="#" data-testid="footer-link-blogg">Blogg</a></li>
-              <li><a href="mailto:info@cupappen.se" data-testid="footer-link-jobb">Jobb</a></li>
-            </ul>
-          </div>
-        </div>
-
+      <div class="container site-footer__bottom">
         <div class="footer-bottom">
           <span>© <span id="footer-year"></span> Cupappen · <a href="mailto:info@cupappen.se">info@cupappen.se</a></span>
-          <div class="footer-bottom-links">
-            <a href="#" data-testid="footer-link-villkor">Villkor</a>
-            <a href="#" data-testid="footer-link-integritet">Integritetspolicy</a>
-            <a href="#" data-testid="footer-link-cookies">Cookies</a>
-          </div>
         </div>
       </div>
     </footer>

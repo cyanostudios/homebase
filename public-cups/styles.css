@@ -280,10 +280,6 @@ body {
   object-fit: contain;
   object-position: left center;
 }
-.logo--footer .logo__img {
-  max-width: 26rem;
-  height: 6rem;
-}
 .nav-links {
   display: none;
   gap: 2rem;
@@ -815,15 +811,6 @@ span.cup-card__cta {
   padding: 0.45rem 0.875rem;
 }
 
-/* Listing cards: samma CTA-layout som .cup-card__footer i populära sektionen */
-.cup-action > a.cup-card__cta,
-.cup-action > span.cup-card__cta {
-  flex: 0 0 auto;
-  width: fit-content;
-  max-width: 100%;
-  align-self: flex-start;
-}
-
 /* Section CTA link */
 .section-cta {
   margin-top: 2.25rem;
@@ -1052,77 +1039,6 @@ span.cup-card__cta {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-.organizer__media::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to right, var(--dark-surface), rgba(15, 23, 42, 0.4), transparent);
-}
-@media (min-width: 1024px) {
-  .organizer__media::after {
-    background: linear-gradient(to left, var(--dark-surface), rgba(15, 23, 42, 0.4), transparent);
-  }
-}
-.metric-card {
-  position: absolute;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  z-index: 2;
-  padding: 1.25rem;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  max-width: 15rem;
-  color: var(--text);
-}
-@media (min-width: 1024px) {
-  .metric-card {
-    bottom: 2.5rem;
-    right: 2.5rem;
-  }
-}
-.metric-card__label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
-}
-.metric-card__label .pulse {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--brand);
-  animation: pulse 2s ease-in-out infinite;
-}
-.metric-card__value {
-  font-family: 'Fraunces', serif;
-  font-size: 1.875rem;
-  font-weight: 600;
-  margin-top: 0.75rem;
-  color: var(--text);
-}
-.metric-card__sub {
-  font-size: 0.75rem;
-  color: var(--text-faint);
-  margin-top: 0.125rem;
-}
-.metric-card__bar {
-  margin-top: 0.75rem;
-  height: 0.375rem;
-  border-radius: var(--radius-pill);
-  background: var(--border);
-  overflow: hidden;
-}
-.metric-card__bar-fill {
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: var(--brand);
 }
 
 /* --- FAQ --- */
@@ -1386,15 +1302,6 @@ span.cup-card__cta {
     transform: rotate(360deg);
   }
 }
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
 
 /* Featured cups section (in listing area) */
 .featured-section {
@@ -1438,44 +1345,73 @@ span.cup-card__cta {
   background: rgba(245, 158, 11, 0.06);
 }
 
-.cups-grid .cup-card {
+/* Listning / utvalda i databas: samma kort som populära, utan bild (bild endast i #featured-cups-grid) */
+.cups-grid .cup-card.cup-card--listing {
   flex-direction: column;
-  gap: 1rem;
-  padding: 1.25rem;
-  border-radius: var(--radius-xl);
+  padding: 0;
+  gap: 0;
+  min-height: 0;
+  align-self: stretch;
 }
-
-.cup-main {
+.cup-card--listing .cup-card__body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
-  min-width: 0;
+  min-height: 100%;
+  padding: 1.25rem;
 }
-
-.cup-title {
-  margin: 0;
-  font-family: 'Fraunces', serif;
-  font-size: clamp(1rem, 1vw + 0.85rem, 1.25rem);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+.cup-card--listing .cup-card__title {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 1.25rem;
   line-height: 1.25;
-  color: var(--text);
 }
-
-.cup-subtitle {
-  margin: 0;
+.cup-card__organizer {
+  margin: 0 0 0.35rem;
   font-size: 0.8rem;
   color: var(--text-muted);
-  font-weight: 400;
+  line-height: 1.4;
 }
-
-.cup-description {
-  margin: 0;
+.cup-card--listing .cup-card__date {
+  margin-top: 0.15rem;
+}
+.cup-card--listing .cup-card__badges {
+  margin-top: 0.75rem;
+}
+.cup-card__categories-line {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.cup-card__meta-pills {
+  margin-top: 0.75rem;
+}
+.cup-card__listing-desc {
+  margin: 0.85rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
   color: var(--text-muted);
-  font-size: 0.8rem;
-  line-height: 1.5;
-  max-width: 72ch;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.cup-card__desc-empty {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.cup-card__visibility-hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #b45309;
+}
+.cup-listing-section .featured-section .cups-grid .cup-card--listing,
+#cups-grid .cup-card--listing {
+  min-height: 0;
 }
 
 .meta-pills {
@@ -1511,196 +1447,21 @@ span.cup-card__cta {
   color: var(--text-faint);
 }
 
-.cup-action {
-  flex: 0 0 auto;
-  min-width: 0;
-  max-width: none;
-  border-top: 1px solid var(--border-soft);
-  border-left: none;
-  padding-left: 0;
-  padding-top: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.action-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-}
-
-.action-row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.deadline-label {
-  margin: 0;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
-  font-weight: 700;
-}
-
-.deadline-value {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text);
-  font-weight: 700;
-}
-
-.action-value {
-  margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: var(--text-muted);
-}
-
-.action-value a {
-  color: var(--brand);
-  text-decoration: underline;
-}
-
-.action-categories {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  color: var(--text);
-  font-weight: 600;
-  max-width: 23ch;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  hyphens: auto;
-}
-
 /* --- FOOTER --- */
 .site-footer {
   background: var(--dark-bg);
   color: #cbd5e1;
 }
-.newsletter {
-  padding-block: 3rem;
-  border-bottom: 1px solid var(--dark-border);
-}
-.newsletter__grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2.5rem;
-  align-items: center;
-}
-@media (min-width: 1024px) {
-  .newsletter__grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-.newsletter__title {
-  font-family: 'Fraunces', serif;
-  font-size: clamp(1.75rem, 3vw, 2.25rem);
-  font-weight: 600;
-  color: #fff;
-  letter-spacing: -0.02em;
-  margin: 0.5rem 0 0;
-}
-.newsletter__lead {
-  color: #94a3b8;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
-}
-.newsletter__form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-@media (min-width: 640px) {
-  .newsletter__form {
-    flex-direction: row;
-  }
-}
-.newsletter__input {
-  flex: 1;
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--radius-pill);
-  background: var(--dark-surface);
-  border: 1px solid var(--dark-border);
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.875rem;
-  outline: none;
-  transition: border-color 200ms ease;
-}
-.newsletter__input::placeholder {
-  color: #64748b;
-}
-.newsletter__input:focus {
-  border-color: var(--brand);
-}
 
-.footer-main {
-  padding-block: 3rem;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
-}
-@media (min-width: 768px) {
-  .footer-main {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-.footer-brand {
-  grid-column: span 2;
-}
-.footer-brand-desc {
-  margin-top: 1rem;
-  font-size: 0.875rem;
-  color: #64748b;
-  line-height: 1.65;
-  max-width: 22rem;
-}
-.footer-col h4 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin: 0 0 1rem;
-}
-.footer-col ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-}
-.footer-col a {
-  font-size: 0.875rem;
-  color: #94a3b8;
-  text-decoration: none;
-  transition: color 200ms ease;
-}
-.footer-col a:hover {
-  color: #fff;
+.site-footer__bottom {
+  padding-top: 2rem;
 }
 
 .footer-bottom {
   padding-block: 1.5rem;
-  border-top: 1px solid var(--dark-border);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  justify-content: space-between;
-  align-items: center;
+  text-align: center;
   font-size: 0.75rem;
   color: #64748b;
-}
-@media (min-width: 768px) {
-  .footer-bottom {
-    flex-direction: row;
-  }
 }
 .footer-bottom a {
   color: #64748b;
@@ -1708,10 +1469,6 @@ span.cup-card__cta {
 }
 .footer-bottom a:hover {
   color: #fff;
-}
-.footer-bottom-links {
-  display: flex;
-  gap: 1.5rem;
 }
 
 /* --- SECTION HEADERS --- */
