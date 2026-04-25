@@ -2,9 +2,11 @@
 
 En enkel read-only endpoint för Cupappen som hämtar publika cuper från Postgres/Neon.
 
-## Fil
+## Filer
 
 - Endpoint: `public-cups/api/cups.php`
+- Dynamisk sitemap: `public-cups/api/sitemap.php` (HTML-sidans URL:er + en post per visibel cup, `Content-Type: application/xml`)
+- Delad DB-hantering: `public-cups/api/pdo_env.php` (`getPdoFromEnv()`)
 
 ## Krav
 
@@ -30,6 +32,7 @@ Prioritetsordning för databasanslutning:
 - `CUPS_ALLOWED_ORIGINS` (kommaseparerad lista, t.ex. `https://cupappen.se,https://www.cupappen.se`)
 - `CUPS_CACHE_TTL` (sekunder, default `0` = avstängd)
 - `CUPS_DEBUG_ERRORS` (`1` för detaljerade fel i utveckling, default `0`)
+- `CUPS_PUBLIC_SITE_URL` (valfri, t.ex. `https://cupappen.se` – används av `sitemap.php` för `<loc>`; standard är `https://cupappen.se`)
 
 ## Exempel (Apache/Nginx env)
 

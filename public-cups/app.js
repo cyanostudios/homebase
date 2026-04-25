@@ -584,29 +584,37 @@ function renderCups(featured, regular) {
   cupsGridEl.innerHTML = regular.map((cup) => renderCupCard(cup)).join('');
 }
 
+/* Ikoner (samma som renderFeaturedCard) */
+const CUP_CARD_PIN_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s7-5.6 7-12a7 7 0 1 0-14 0c0 6.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+const CUP_CARD_CAL_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+
+/**
+ * Listning & “utvalda” i cupdatabasen: samma kortyta som Populära cuper (ingen bild här; bild endast i toppsektionen).
+ */
 function renderCupCard(cup) {
+  const name = escapeHtml(normalizeText(cup.name) || 'Okänd cup');
+  const location = normalizeText(cup.location);
+  const dateRange = formatDateRange(cup.start_date, cup.end_date);
+  const categories = normalizeText(cup.categories) || '';
   const organizerText = normalizeText(cup.organizer);
   const districtText = normalizeText(cup.ingest_source_name).trim();
-  const organizer = organizerText
-    ? `Arrangör: ${escapeHtml(organizerText)}${districtText ? `, ${escapeHtml(districtText)}` : ''}`
+  const organizerLine = organizerText
+    ? districtText
+      ? `${escapeHtml(organizerText)} · ${escapeHtml(districtText)}`
+      : escapeHtml(organizerText)
     : districtText
       ? `Arrangör saknas · ${escapeHtml(districtText)}`
       : 'Arrangör saknas';
-  const descriptionRaw = decodeHtmlEntities((cup.description || '').slice(0, 220));
-  const description = escapeHtml(descriptionRaw || 'Ingen beskrivning tillgänglig.');
+
+  const descRaw = (cup.description || '').trim();
+  const descriptionHtml = descRaw
+    ? escapeHtml(decodeHtmlEntities(descRaw))
+    : '<span class="cup-card__desc-empty">Ingen beskrivning tillgänglig.</span>';
+
   const meta = [
-    locationMetaPill(normalizeText(cup.location), !!cup.location),
-    metaPill(
-      'calendar',
-      formatDateRange(cup.start_date, cup.end_date),
-      !!(cup.start_date || cup.end_date),
-    ),
-    metaPill('ball', normalizeText(cup.match_format), !!cup.match_format),
-    metaPill(
-      'group',
-      `${cup.team_count} lag`,
-      cup.team_count !== null && cup.team_count !== undefined,
-    ),
+    metaPill('ball', normalizeText(cup.match_format), !!normalizeText(cup.match_format)),
     metaPill(
       'shield',
       cup.sanctioned === false || cup.sanctioned === 'false' ? 'Ej sanktionerad' : 'Sanktionerad',
@@ -617,6 +625,12 @@ function renderCupCard(cup) {
     .filter(Boolean)
     .join('');
 
+  const categoriesBlock = categories
+    ? `<div class="cup-card__badges"><span class="badge-brand cup-card__categories-line">${escapeHtml(
+        categories,
+      )}</span></div>`
+    : '';
+
   const registerUrl = cup.registration_url
     ? escapeHtml(withCupappenUtm(cup.registration_url))
     : null;
@@ -625,34 +639,40 @@ function renderCupCard(cup) {
     : `<span class="cup-card__cta" style="cursor:default;">Info saknas</span>`;
 
   const accentClass = accentClassForCup(cup);
+  const hiddenFromPublic =
+    cup.visible === false || cup.visible === 'false'
+      ? '<p class="cup-card__visibility-hint" role="status">Inte synlig i publik listning</p>'
+      : '';
 
   return `
-    <article class="cup-card ${accentClass}">
-      <div class="cup-main">
-        <div>
-          <h2 class="cup-title">${escapeHtml(normalizeText(cup.name) || 'Okänd cup')}</h2>
-          <p class="cup-subtitle">${organizer}</p>
+    <article class="cup-card cup-card--listing ${accentClass}" data-testid="cup-listing-card">
+      <div class="cup-card__body">
+        <div class="cup-card__meta">
+          ${CUP_CARD_PIN_SVG}
+          ${escapeHtml(location || 'Plats saknas')}
         </div>
-        <p class="cup-description">${description}</p>
-        <div class="meta-pills">${meta}</div>
+        <h3 class="cup-card__title">${name}</h3>
+        <p class="cup-card__organizer">${organizerLine}</p>
+        <div class="cup-card__date">
+          ${CUP_CARD_CAL_SVG}
+          ${escapeHtml(dateRange)}
+        </div>
+        ${categoriesBlock}
+        <div class="meta-pills cup-card__meta-pills">${meta}</div>
+        <div class="cup-card__listing-desc">${descriptionHtml}</div>
+        ${hiddenFromPublic}
+        <div class="cup-card__footer">
+          <div class="cup-card__users">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            ${
+              cup.team_count !== null && cup.team_count !== undefined
+                ? `${cup.team_count} lag`
+                : 'Anmälan öppen'
+            }
+          </div>
+          ${register}
+        </div>
       </div>
-      <aside class="cup-action">
-        <div class="action-details">
-          <div class="action-row">
-            <p class="deadline-label">Cupdatum</p>
-            <p class="deadline-value">${escapeHtml(formatDate(cup.start_date || cup.end_date || '—'))}</p>
-          </div>
-          <div class="action-row">
-            <p class="deadline-label">Plats</p>
-            <p class="action-value">${renderLocationLink(normalizeText(cup.location))}</p>
-          </div>
-          <div class="action-row">
-            <p class="deadline-label">Klasser</p>
-            <p class="action-categories">${escapeHtml(normalizeText(cup.categories) || '—')}</p>
-          </div>
-        </div>
-        ${register}
-      </aside>
     </article>
   `;
 }
@@ -664,18 +684,6 @@ function metaPill(icon, text, visible, variantClass = '') {
   if (!visible || !text) return '';
   const cls = variantClass ? `meta-pill ${variantClass}` : 'meta-pill';
   return `<span class="${cls}">${iconSvg(icon)}${escapeHtml(text)}</span>`;
-}
-
-function locationMetaPill(text, visible) {
-  if (!visible || !text) return '';
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
-  return `<a class="meta-pill" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${iconSvg('pin')}${escapeHtml(text)}</a>`;
-}
-
-function renderLocationLink(text) {
-  if (!text) return '—';
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
-  return `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
 }
 
 function iconSvg(name) {
@@ -775,6 +783,47 @@ function compareByDate(a, b) {
   return String(a.name || '').localeCompare(String(b.name || ''), 'sv');
 }
 
+function jsonLdEventItem(cup) {
+  const regAbs = toAbsolutePublicUrl(cup.registration_url);
+  const regWithUtm = regAbs ? withCupappenUtm(regAbs) : '';
+  const imageAbs = toAbsolutePublicUrl(cup.featured_image_url);
+  const image = imageAbs || undefined;
+  return {
+    '@type': 'Event',
+    '@id': `https://cupappen.se/#event-${String(cup.id || '')}`,
+    name: normalizeText(cup.name) || 'Cup',
+    eventStatus: 'https://schema.org/EventScheduled',
+    startDate: cup.start_date || undefined,
+    endDate: cup.end_date || undefined,
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    image: image || undefined,
+    location: cup.location
+      ? {
+          '@type': 'Place',
+          name: normalizeText(cup.location),
+        }
+      : undefined,
+    organizer: cup.organizer
+      ? {
+          '@type': 'Organization',
+          name: normalizeText(cup.organizer),
+        }
+      : undefined,
+    url: regWithUtm || undefined,
+    description: normalizeText(cup.description || cup.categories) || undefined,
+    isAccessibleForFree: true,
+    offers: regWithUtm
+      ? {
+          '@type': 'Offer',
+          url: regWithUtm,
+          availability: 'https://schema.org/InStock',
+          price: '0',
+          priceCurrency: 'SEK',
+        }
+      : undefined,
+  };
+}
+
 function renderJsonLd(cups) {
   const seen = new Set();
   const unique = (cups || []).filter((cup) => {
@@ -790,31 +839,7 @@ function renderJsonLd(cups) {
     itemListElement: unique.map((cup, index) => ({
       '@type': 'ListItem',
       position: index + 1,
-      item: {
-        '@type': 'Event',
-        name: normalizeText(cup.name) || 'Cup',
-        startDate: cup.start_date || undefined,
-        endDate: cup.end_date || undefined,
-        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-        location: cup.location
-          ? {
-              '@type': 'Place',
-              name: normalizeText(cup.location),
-            }
-          : undefined,
-        organizer: cup.organizer
-          ? {
-              '@type': 'Organization',
-              name: normalizeText(cup.organizer),
-            }
-          : undefined,
-        url: (() => {
-          const abs = toAbsolutePublicUrl(cup.registration_url);
-          return abs ? withCupappenUtm(abs) : undefined;
-        })(),
-        description: normalizeText(cup.description || cup.categories) || undefined,
-        isAccessibleForFree: true,
-      },
+      item: jsonLdEventItem(cup),
     })),
   };
   if (jsonLdEl) jsonLdEl.textContent = JSON.stringify(itemList);

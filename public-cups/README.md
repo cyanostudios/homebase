@@ -14,6 +14,11 @@ Statisk landningssida med live cupdata från `api/cups.php`. Byggs med vanlig HT
 
 Skip-länk: `#cup-listing`.
 
+## Cupkort
+
+- **Populära cuper** (`#featured-cups-grid`) använder `renderFeaturedCard`: **bild** (uppladdad hjältebild eller standardfoto), samma kropp som övriga kort.
+- **Cupdatabasen** (`#featured-grid`, `#cups-grid`) använder `renderCupCard` med klassen `cup-card--listing`: **samma kortlayout och typografi** (meta, titel, datum, klasser, fot, CTA), men **ingen bildrad** — all text (beskrivning, kategorier, m.m.) ligger i `cup-card__body`.
+
 ## Filterkort (layout)
 
 Klasserna `.hero-search-card` och `.filter-card` används i hero och under cup-listan. Gemensamt:
@@ -27,6 +32,12 @@ Mobil: `#filter-toggle-btn` visar/döljer `#listing-filter-shell` (klass `is-col
 ## API
 
 Se [api/README.md](./api/README.md) för PHP-endpoint, miljövariabler och svarformat.
+
+## SEO
+
+- **JSON-LD (schema.org `ItemList` + `Event`)** fylls i i [`app.js`](app.js) efter att cupdata laddats (`#cups-json-ld`), med t.ex. `eventStatus`, `image` (om `featured_image_url`), `offers` där anmälnings-URL finns, m.m.
+- **Sitemap index:** `sitemap.xml` pekar mot den **dynamiska** sitemapen `api/sitemap.php` (URL-sats med startsida + en post per cup som `https://cupappen.se/#cup-{id}` med `lastmod` från `updated_at`). **Obligatoriskt** att webbservern kör `api/sitemap.php` med PHP. Bas-URL (utöver `https://cupappen.se` som standard) kan styras med miljövariabeln `CUPS_PUBLIC_SITE_URL` i produktion.
+- Databasanslutning delas av `api/cups.php` och `api/sitemap.php` via `api/pdo_env.php` (`getPdoFromEnv()`).
 
 ## Plattformen (admin)
 
