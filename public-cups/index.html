@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      CSP: GTM kräver script-src 'unsafe-inline' + googletagmanager; typsnitt/bilder från https;
+      connect-src inkluderar lokal dev (CUPS_API_URL) och all https (API-bilder m.m.).
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https: http://127.0.0.1:3002 http://localhost:3002; frame-src https://www.googletagmanager.com; form-action 'self'; upgrade-insecure-requests"
+    />
     <!-- Google Tag Manager -->
     <script>
       (function (w, d, s, l, i) {

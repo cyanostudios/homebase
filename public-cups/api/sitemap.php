@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/pdo_env.php';
+require_once __DIR__ . '/security_headers.php';
+
+applyPublicCupsSecurityHeaders('xml');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);

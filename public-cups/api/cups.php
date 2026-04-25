@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/pdo_env.php';
+require_once __DIR__ . '/security_headers.php';
 
 /**
  * Public Cups API (PHP + PDO + Postgres/Neon)
@@ -11,6 +12,7 @@ require_once __DIR__ . '/pdo_env.php';
  * - Optional APCu cache via CUPS_CACHE_TTL
  */
 
+applyPublicCupsSecurityHeaders('json');
 header('Content-Type: application/json; charset=utf-8');
 
 /**

@@ -33,6 +33,12 @@ Mobil: `#filter-toggle-btn` visar/döljer `#listing-filter-shell` (klass `is-col
 
 Se [api/README.md](./api/README.md) för PHP-endpoint, miljövariabler och svarformat.
 
+## Säkerhet (översikt)
+
+- **HTML:** [`index.html`](index.html) har en **Content-Security-Policy** (meta) anpassad till GTM, Google Fonts, externa bilder (https) och `fetch` mot samma origin / https (samt `localhost:3002` för lokal dev-proxy).
+- **PHP:** [`api/security_headers.php`](api/security_headers.php) anropas från `cups.php` och `sitemap.php`. Detaljer och drift (HSTS, rate limit) finns i [`api/README.md`](./api/README.md).
+- **Klient:** Cupdata som skrivs in i DOM går i huvudsak via `escapeHtml`; hjältebild-URL valideras som `http(s)` eller rot-relativ innan den sätts i `src`.
+
 ## SEO
 
 - **JSON-LD (schema.org `ItemList` + `Event`)** fylls i i [`app.js`](app.js) efter att cupdata laddats (`#cups-json-ld`), med t.ex. `eventStatus`, `image` (om `featured_image_url`), `offers` där anmälnings-URL finns, m.m.

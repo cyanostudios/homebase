@@ -362,7 +362,7 @@ function renderFeaturedCard(cup, index) {
     'https://images.pexels.com/photos/1308713/pexels-photo-1308713.jpeg?w=640',
     'https://images.pexels.com/photos/3886384/pexels-photo-3886384.jpeg?w=640',
   ];
-  const customSrc = safeImageSrc(cup.featured_image_url);
+  const customSrc = safeImageUrlForAttr(cup.featured_image_url);
   const img = customSrc || heroImages[index % heroImages.length];
 
   return `
@@ -386,7 +386,7 @@ function renderFeaturedCard(cup, index) {
         <div class="cup-card__footer">
           <div class="cup-card__users">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            ${cup.team_count ? `${cup.team_count} lag` : 'Anmälan öppen'}
+            ${formatTeamCountLabel(cup.team_count)}
           </div>
           ${
             registerUrl
@@ -664,11 +664,7 @@ function renderCupCard(cup) {
         <div class="cup-card__footer">
           <div class="cup-card__users">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            ${
-              cup.team_count !== null && cup.team_count !== undefined
-                ? `${cup.team_count} lag`
-                : 'Anmälan öppen'
-            }
+            ${formatTeamCountLabel(cup.team_count)}
           </div>
           ${register}
         </div>
@@ -1020,12 +1016,26 @@ function normalizeText(value) {
   return decodeHtmlEntities(String(value || ''));
 }
 
-/** Tillåt endast http(s) eller rot-relativa URL:er; säker för dubbelcitat-attribut. */
-function safeImageSrc(url) {
+/**
+ * Tillåt endast http(s) eller rot-relativa URL:er; escape för användning i src="…".
+ */
+function safeImageUrlForAttr(url) {
   const u = normalizeText(url).trim();
   if (!u) return '';
   if (!(u.startsWith('https://') || u.startsWith('http://') || u.startsWith('/'))) return '';
-  return u.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  return escapeHtml(u);
+}
+
+/** Säker visning av lagantal (endast icke-negativa heltal); annars “Anmälan öppen”. */
+function formatTeamCountLabel(teamCount) {
+  if (teamCount === null || teamCount === undefined || teamCount === '') {
+    return 'Anmälan öppen';
+  }
+  const n = Number(teamCount);
+  if (!Number.isFinite(n) || n < 0) return 'Anmälan öppen';
+  const whole = Math.floor(n);
+  if (whole <= 0) return 'Anmälan öppen';
+  return `${escapeHtml(String(whole))} lag`;
 }
 
 function normalizeCategoryToken(token) {
