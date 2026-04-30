@@ -362,7 +362,7 @@ function renderFeaturedCard(cup, index) {
     'https://images.pexels.com/photos/1308713/pexels-photo-1308713.jpeg?w=640',
     'https://images.pexels.com/photos/3886384/pexels-photo-3886384.jpeg?w=640',
   ];
-  const customSrc = safeImageUrlForAttr(cup.featured_image_url);
+  const customSrc = resolveCupImageUrlForAttr(cup);
   const img = customSrc || heroImages[index % heroImages.length];
 
   return `
@@ -782,7 +782,7 @@ function compareByDate(a, b) {
 function jsonLdEventItem(cup) {
   const regAbs = toAbsolutePublicUrl(cup.registration_url);
   const regWithUtm = regAbs ? withCupappenUtm(regAbs) : '';
-  const imageAbs = toAbsolutePublicUrl(cup.featured_image_url);
+  const imageAbs = resolveCupImageUrlAbsolute(cup);
   const image = imageAbs || undefined;
   return {
     '@type': 'Event',
@@ -1123,6 +1123,43 @@ function toAbsolutePublicUrl(urlValue) {
   } catch {
     return raw;
   }
+}
+
+function extractGoogleDriveFileId(rawUrl) {
+  const raw = String(rawUrl || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw, window.location.origin);
+    if (!/drive\.google\.com$/i.test(url.hostname)) return '';
+
+    const filePath = url.pathname.match(/\/file\/d\/([^/]+)/i);
+    if (filePath?.[1]) return filePath[1];
+
+    const id = url.searchParams.get('id');
+    if (id) return id;
+  } catch {
+    // ignore malformed url
+  }
+  return '';
+}
+
+function normalizeGoogleDriveImageUrl(rawUrl) {
+  const id = extractGoogleDriveFileId(rawUrl);
+  if (!id) return '';
+  return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(id)}`;
+}
+
+function resolveCupImageUrlForAttr(cup) {
+  const driveUrl = normalizeGoogleDriveImageUrl(cup?.featured_image_drive_url);
+  const safeDriveUrl = safeImageUrlForAttr(driveUrl);
+  if (safeDriveUrl) return safeDriveUrl;
+  return safeImageUrlForAttr(cup?.featured_image_url);
+}
+
+function resolveCupImageUrlAbsolute(cup) {
+  const driveUrl = normalizeGoogleDriveImageUrl(cup?.featured_image_drive_url);
+  if (driveUrl) return driveUrl;
+  return toAbsolutePublicUrl(cup?.featured_image_url);
 }
 
 function accentClassForCup(cup) {

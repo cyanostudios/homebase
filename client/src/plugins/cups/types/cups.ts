@@ -15,6 +15,8 @@ export interface Cup {
   match_format: string | null;
   description: string | null;
   registration_url: string | null;
+  /** Optional Google Drive link for hero image, normalized by public site rendering. */
+  featured_image_drive_url: string | null;
   /** Hero image on Cupappen featured cards (from Files upload). */
   featured_image_url: string | null;
   source_url: string | null;
