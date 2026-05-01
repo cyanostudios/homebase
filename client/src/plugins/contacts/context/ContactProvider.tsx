@@ -171,6 +171,20 @@ export function ContactProvider({
     }
   }, [isAuthenticated]);
 
+  /** Top-bar time widget POST cannot use ContactContext — sync badge via browser event */
+  useEffect(() => {
+    const CONTACT_TIME_ENTRY_ADDED = 'homebase:contact-time-entry-added';
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ contactId?: string }>;
+      const id = ce.detail?.contactId;
+      if (id) {
+        setContactHasTimeEntries(id, true);
+      }
+    };
+    window.addEventListener(CONTACT_TIME_ENTRY_ADDED, handler);
+    return () => window.removeEventListener(CONTACT_TIME_ENTRY_ADDED, handler);
+  }, [setContactHasTimeEntries]);
+
   const loadContacts = async () => {
     try {
       const contactsData = await contactsApi.getContacts();
@@ -181,6 +195,18 @@ export function ContactProvider({
         updatedAt: new Date(contact.updatedAt),
       }));
       setContacts(transformedContacts);
+      try {
+        const { contactIds } = await contactsApi.getContactIdsWithTimeEntries();
+        setContactIdsWithTimeEntries((prev) => {
+          const next = new Set(prev);
+          for (const id of contactIds) {
+            next.add(id);
+          }
+          return next;
+        });
+      } catch (timeIdsErr) {
+        console.error('Failed to load contacts with time entries:', timeIdsErr);
+      }
     } catch (error) {
       console.error('Failed to load contacts:', error);
     }

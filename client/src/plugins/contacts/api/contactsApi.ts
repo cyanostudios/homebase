@@ -34,6 +34,11 @@ class ContactsApi {
     return this.request('/contacts');
   }
 
+  /** Contact ids that have at least one time entry (for list badges). */
+  async getContactIdsWithTimeEntries(): Promise<{ contactIds: string[] }> {
+    return this.request('/contacts/with-time-entries');
+  }
+
   async createContact(contactData: any) {
     return this.request('/contacts', {
       method: 'POST',

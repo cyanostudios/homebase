@@ -309,7 +309,8 @@
       "total": "Totalt",
       "companies": "Företag",
       "private": "Privata",
-      "withTags": "Med taggar"
+      "withTags": "Med taggar",
+      "timeLogged": "Tid loggad"
     },
     "noMatch": "Inga kontakter matchar sökningen.",
     "noYet": "Inga kontakter än. Klicka \"Lägg till kontakt\" för att komma igång.",
@@ -341,7 +342,11 @@
     "deleteConfirmNamed": "Är du säker på att du vill ta bort \"{{name}}\"?",
     "deleteTimeEntryTitle": "Ta bort tidsinlägg",
     "deleteTimeEntryMessage": "Är du säker på att du vill ta bort detta tidsinlägg? Det går inte att ångra.",
-    "discardTagsMessage": "Du har osparade ändringar i taggar. Vill du kasta dem?"
+    "discardTagsMessage": "Du har osparade ändringar i taggar. Vill du kasta dem?",
+    "timeTrackingActive": "Tidsregistrering pågår för denna kontakt",
+    "timeLoggedBadge": "Tid loggad",
+    "columnEmailPhone": "E-post / telefon",
+    "columnTime": "Tid"
   },
   "tasks": {
     "listDescription": "Följ arbete, deadlines, ansvariga och prioritet.",

@@ -9,6 +9,7 @@ import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider } from '@/core/api/AppContext';
 import { AppContent } from '@/core/app/AppContent';
 import { PluginProviders } from '@/core/app/PluginProviders';
+import { TimeTrackingActivityProvider } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { GlobalNavigationGuardProvider } from '@/hooks/useGlobalNavigationGuard';
 
 const PublicEstimateView = React.lazy(() =>
@@ -55,13 +56,15 @@ export function AppRoutes() {
         path="/*"
         element={
           <AppProvider>
-            <ActionProvider>
-              <GlobalNavigationGuardProvider>
-                <PluginProviders>
-                  <AppContent />
-                </PluginProviders>
-              </GlobalNavigationGuardProvider>
-            </ActionProvider>
+            <TimeTrackingActivityProvider>
+              <ActionProvider>
+                <GlobalNavigationGuardProvider>
+                  <PluginProviders>
+                    <AppContent />
+                  </PluginProviders>
+                </GlobalNavigationGuardProvider>
+              </ActionProvider>
+            </TimeTrackingActivityProvider>
           </AppProvider>
         }
       />

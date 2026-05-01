@@ -13,6 +13,7 @@ import {
   Search,
   Settings,
   Store,
+  Timer,
   X,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -38,6 +39,7 @@ import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems } from '@/core/utils/exportUtils';
+import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -47,10 +49,10 @@ import { contactExportConfig } from '../utils/contactExportConfig';
 
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
 
-type SortField = 'name' | 'type' | 'email';
+type SortField = 'name' | 'type' | 'email' | 'time';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
-type ContactFilter = 'all' | 'company' | 'private' | 'withTags';
+type ContactFilter = 'all' | 'company' | 'private' | 'withTags' | 'timeLogged';
 const CONTACTS_VIEW_MODE_STORAGE_KEY = 'contacts:viewMode';
 
 function getInitialViewMode(): ViewMode {
@@ -162,8 +164,10 @@ export const ContactList: React.FC = () => {
     selectedCount,
     isSelected,
     recentlyDuplicatedContactId,
+    contactIdsWithTimeEntries,
   } = useContacts();
   const { getSettings, updateSettings, settingsVersion, user } = useApp();
+  const activeTimeTrackingContactId = useOptionalActiveTimeTrackingContactId();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
@@ -229,6 +233,45 @@ export const ContactList: React.FC = () => {
   };
 
   const sortedContacts = useMemo(() => {
+    const timeRank = (c: Contact): number => {
+      const idStr = String(c.id);
+      const activeHere =
+        activeTimeTrackingContactId !== null && idStr === activeTimeTrackingContactId;
+      const hasLogged = contactIdsWithTimeEntries.has(c.id) || contactIdsWithTimeEntries.has(idStr);
+      if (activeHere) {
+        return 2;
+      }
+      if (hasLogged) {
+        return 1;
+      }
+      return 0;
+    };
+
+    const comparePair = (a: Contact, b: Contact): number => {
+      if (sortField === 'time') {
+        const ar = timeRank(a);
+        const br = timeRank(b);
+        if (ar !== br) {
+          return sortOrder === 'asc' ? ar - br : br - ar;
+        }
+        return a.companyName.toLowerCase().localeCompare(b.companyName.toLowerCase());
+      }
+
+      let aValue: string;
+      let bValue: string;
+      if (sortField === 'name') {
+        aValue = a.companyName.toLowerCase();
+        bValue = b.companyName.toLowerCase();
+      } else if (sortField === 'type') {
+        aValue = a.contactType;
+        bValue = b.contactType;
+      } else {
+        aValue = a.email?.toLowerCase() ?? '';
+        bValue = b.email?.toLowerCase() ?? '';
+      }
+      return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+    };
+
     const byFilter = contacts.filter((contact) => {
       if (activeFilter === 'company') {
         return contact.contactType === 'company';
@@ -239,26 +282,16 @@ export const ContactList: React.FC = () => {
       if (activeFilter === 'withTags') {
         return Array.isArray(contact.tags) && contact.tags.length > 0;
       }
+      if (activeFilter === 'timeLogged') {
+        const idStr = String(contact.id);
+        return contactIdsWithTimeEntries.has(contact.id) || contactIdsWithTimeEntries.has(idStr);
+      }
       return true;
     });
 
     const needle = searchTerm.trim().toLowerCase();
     if (!needle) {
-      return [...byFilter].sort((a, b) => {
-        let aValue: string;
-        let bValue: string;
-        if (sortField === 'name') {
-          aValue = a.companyName.toLowerCase();
-          bValue = b.companyName.toLowerCase();
-        } else if (sortField === 'type') {
-          aValue = a.contactType;
-          bValue = b.contactType;
-        } else {
-          aValue = a.email?.toLowerCase() ?? '';
-          bValue = b.email?.toLowerCase() ?? '';
-        }
-        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      });
+      return [...byFilter].sort(comparePair);
     }
     const filtered = byFilter.filter(
       (contact) =>
@@ -271,24 +304,16 @@ export const ContactList: React.FC = () => {
           contact.tags.some((t) => typeof t === 'string' && t.toLowerCase().includes(needle))),
     );
 
-    return [...filtered].sort((a, b) => {
-      let aValue: string;
-      let bValue: string;
-
-      if (sortField === 'name') {
-        aValue = a.companyName.toLowerCase();
-        bValue = b.companyName.toLowerCase();
-      } else if (sortField === 'type') {
-        aValue = a.contactType;
-        bValue = b.contactType;
-      } else {
-        aValue = a.email?.toLowerCase() ?? '';
-        bValue = b.email?.toLowerCase() ?? '';
-      }
-
-      return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-    });
-  }, [contacts, searchTerm, sortField, sortOrder, activeFilter]);
+    return [...filtered].sort(comparePair);
+  }, [
+    contacts,
+    searchTerm,
+    sortField,
+    sortOrder,
+    activeFilter,
+    activeTimeTrackingContactId,
+    contactIdsWithTimeEntries,
+  ]);
 
   const visibleContactIds = useMemo(
     () => sortedContacts.map((contact) => String(contact.id)),
@@ -413,15 +438,19 @@ export const ContactList: React.FC = () => {
     [contacts, selectedContactIds],
   );
 
-  const stats = useMemo(
-    () => ({
+  const stats = useMemo(() => {
+    const hasTimeLogged = (c: Contact) => {
+      const idStr = String(c.id);
+      return contactIdsWithTimeEntries.has(c.id) || contactIdsWithTimeEntries.has(idStr);
+    };
+    return {
       total: contacts.length,
       companies: contacts.filter((c) => c.contactType === 'company').length,
       private: contacts.filter((c) => c.contactType === 'private').length,
       withTags: contacts.filter((c) => Array.isArray(c.tags) && c.tags.length > 0).length,
-    }),
-    [contacts],
-  );
+      timeLogged: contacts.filter(hasTimeLogged).length,
+    };
+  }, [contacts, contactIdsWithTimeEntries]);
 
   // Full-page settings view (like Core Settings) instead of list
   if (contactsContentView === 'settings') {
@@ -469,7 +498,7 @@ export const ContactList: React.FC = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           <StatCard
             label={t('contacts.stats.total')}
             value={stats.total}
@@ -497,6 +526,13 @@ export const ContactList: React.FC = () => {
             dotClassName="bg-orange-500"
             active={activeFilter === 'withTags'}
             onClick={() => setActiveFilter('withTags')}
+          />
+          <StatCard
+            label={t('contacts.stats.timeLogged')}
+            value={stats.timeLogged}
+            dotClassName="bg-amber-600"
+            active={activeFilter === 'timeLogged'}
+            onClick={() => setActiveFilter('timeLogged')}
           />
         </div>
 
@@ -636,6 +672,10 @@ export const ContactList: React.FC = () => {
             <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {sortedContacts.map((contact, index) => {
                 const contactIsSelected = isSelected(contact.id);
+                const timeTrackingActiveHere =
+                  activeTimeTrackingContactId !== null &&
+                  String(contact.id) === activeTimeTrackingContactId;
+                const hasTimeLogged = contactIdsWithTimeEntries.has(contact.id);
                 return (
                   <Card
                     key={contact.id}
@@ -668,14 +708,37 @@ export const ContactList: React.FC = () => {
                         className="cursor-pointer h-4 w-4"
                         aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                       />
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <ContactAvatar contact={contact} />
                         <TypeBadge type={contact.contactType} />
+                        {hasTimeLogged && (
+                          <Badge
+                            variant="outline"
+                            className="h-5 shrink-0 px-1.5 text-[10px] font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50"
+                          >
+                            <Timer className="h-2.5 w-2.5" aria-hidden />
+                            {t('contacts.timeLoggedBadge')}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
-                      {contact.companyName}
-                    </h3>
+                    <div className="flex min-w-0 items-start gap-2">
+                      <h3 className="line-clamp-1 min-w-0 flex-1 text-base font-semibold leading-snug">
+                        {contact.companyName}
+                      </h3>
+                      {timeTrackingActiveHere && (
+                        <span
+                          className="mt-0.5 inline-flex shrink-0"
+                          title={t('contacts.timeTrackingActive')}
+                        >
+                          <Timer
+                            className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                            aria-hidden
+                          />
+                          <span className="sr-only">{t('contacts.timeTrackingActive')}</span>
+                        </span>
+                      )}
+                    </div>
                     {(contact.organizationNumber || contact.personalNumber) && (
                       <div className="text-xs text-muted-foreground leading-snug">
                         {contact.contactType === 'company' && contact.organizationNumber && (
@@ -712,6 +775,10 @@ export const ContactList: React.FC = () => {
               <div className="space-y-2 p-4">
                 {sortedContacts.map((contact, index) => {
                   const contactIsSelected = isSelected(contact.id);
+                  const timeTrackingActiveHere =
+                    activeTimeTrackingContactId !== null &&
+                    String(contact.id) === activeTimeTrackingContactId;
+                  const hasTimeLogged = contactIdsWithTimeEntries.has(contact.id);
                   return (
                     <Card
                       key={contact.id}
@@ -743,9 +810,23 @@ export const ContactList: React.FC = () => {
                             <ContactAvatar contact={contact} />
                             <TypeBadge type={contact.contactType} />
                           </div>
-                          <h3 className="font-semibold text-base mb-1 truncate">
-                            {contact.companyName}
-                          </h3>
+                          <div className="mb-1 flex min-w-0 items-center gap-2">
+                            <h3 className="min-w-0 flex-1 truncate font-semibold text-base">
+                              {contact.companyName}
+                            </h3>
+                            {timeTrackingActiveHere && (
+                              <span
+                                className="inline-flex shrink-0"
+                                title={t('contacts.timeTrackingActive')}
+                              >
+                                <Timer
+                                  className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                                  aria-hidden
+                                />
+                                <span className="sr-only">{t('contacts.timeTrackingActive')}</span>
+                              </span>
+                            )}
+                          </div>
                           {contact.contactType === 'company' && contact.organizationNumber && (
                             <p className="text-xs text-muted-foreground mb-1">
                               Org: {contact.organizationNumber}
@@ -768,6 +849,17 @@ export const ContactList: React.FC = () => {
                               </div>
                             )}
                           </div>
+                          {hasTimeLogged && (
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                              <Badge
+                                variant="outline"
+                                className="h-5 shrink-0 px-1.5 text-[10px] font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50"
+                              >
+                                <Timer className="h-2.5 w-2.5" aria-hidden />
+                                {t('contacts.timeLoggedBadge')}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </Card>
@@ -823,11 +915,11 @@ export const ContactList: React.FC = () => {
                     </TableHead>
                     <TableHead className="text-xs">Tags</TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs min-w-[180px]"
                       onClick={() => handleSort('email')}
                     >
                       <div className="flex items-center gap-2">
-                        <span>Email</span>
+                        <span>{t('contacts.columnEmailPhone')}</span>
                         {sortField === 'email' &&
                           (sortOrder === 'asc' ? (
                             <ArrowUp className="h-3 w-3 inline" />
@@ -836,12 +928,28 @@ export const ContactList: React.FC = () => {
                           ))}
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs">Phone</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none text-xs w-[132px]"
+                      onClick={() => handleSort('time')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{t('contacts.columnTime')}</span>
+                        {sortField === 'time' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sortedContacts.map((contact, index) => {
                     const contactIsSelected = isSelected(contact.id);
+                    const timeTrackingActiveHere =
+                      activeTimeTrackingContactId !== null &&
+                      String(contact.id) === activeTimeTrackingContactId;
                     return (
                       <TableRow
                         key={contact.id}
@@ -877,15 +985,14 @@ export const ContactList: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-semibold">{contact.companyName}</span>
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="min-w-0 truncate text-sm font-semibold">
+                                {contact.companyName}
+                              </span>
+                            </div>
                             {contact.contactType === 'company' && contact.organizationNumber && (
                               <span className="text-xs text-muted-foreground">
                                 Org. {contact.organizationNumber}
-                              </span>
-                            )}
-                            {contact.contactType === 'private' && contact.phone && (
-                              <span className="text-xs text-muted-foreground">
-                                Ph. {contact.phone}
                               </span>
                             )}
                           </div>
@@ -908,19 +1015,49 @@ export const ContactList: React.FC = () => {
                               : '—'}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <Mail className="w-3 h-3 text-muted-foreground" />
-                            <span className="truncate max-w-[200px]">{contact.email}</span>
+                        <TableCell className="align-top">
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-xs min-w-0">
+                              <Mail className="w-3 h-3 shrink-0 text-muted-foreground" />
+                              <span className="truncate max-w-[min(280px,28vw)]">
+                                {contact.email || '—'}
+                              </span>
+                            </div>
+                            {contact.phone ? (
+                              <div className="flex items-center gap-1.5 text-xs text-foreground">
+                                <Phone className="w-3 h-3 shrink-0 text-muted-foreground" />
+                                <span className="tabular-nums">{contact.phone}</span>
+                              </div>
+                            ) : (
+                              <span className="pl-5 text-[10px] text-muted-foreground">—</span>
+                            )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          {contact.phone && (
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <Phone className="w-3 h-3 text-muted-foreground" />
-                              <span>{contact.phone}</span>
-                            </div>
-                          )}
+                        <TableCell className="align-top w-[132px]">
+                          <div className="flex flex-col items-start gap-1.5">
+                            {timeTrackingActiveHere && (
+                              <span
+                                className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"
+                                title={t('contacts.timeTrackingActive')}
+                              >
+                                <Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                <span className="sr-only">{t('contacts.timeTrackingActive')}</span>
+                              </span>
+                            )}
+                            {contactIdsWithTimeEntries.has(contact.id) && (
+                              <Badge
+                                variant="outline"
+                                className="h-5 shrink-0 px-1.5 text-[10px] font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50"
+                              >
+                                <Timer className="h-2.5 w-2.5" aria-hidden />
+                                {t('contacts.timeLoggedBadge')}
+                              </Badge>
+                            )}
+                            {!timeTrackingActiveHere &&
+                              !contactIdsWithTimeEntries.has(contact.id) && (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, SkipForward, Timer, X, Settings } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward, X, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 import { pomodoroAudio } from './pomodoroAudio';
 import { PomodoroSettings } from './pomodoroSettings';
+import { TomatoIcon } from './TomatoIcon';
 import { usePomodoroTimer } from './usePomodoroTimer';
 
 interface PomodoroTimerProps {
@@ -102,63 +103,63 @@ export function PomodoroTimer({
 
   const colors = getSessionColor();
 
-  const getTimerButtonColor = () => {
-    if (sessionType === 'work' && state === 'running') {
-      return {
-        bg: 'bg-blue-50 dark:bg-blue-950/30',
-        border: 'border-blue-200 dark:border-blue-800',
-        text: 'text-blue-600 dark:text-blue-400',
-      };
-    }
-    return colors!;
+  const handlePillToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    handleToggle();
   };
 
-  const timerButtonColors = getTimerButtonColor();
+  const handlePlayPause = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (state === 'running') {
+      pause();
+    } else {
+      start();
+    }
+  };
 
-  // Compact view för TopBar – ghost-stil, endast färgad text (som list header/footer)
+  // Compact view för TopBar – samma pill-mönster som Time tracking (ikon + tid + play/pause)
   if (compact) {
     return (
-      <div className="flex items-center gap-2 relative">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleToggle}
-          className={cn('flex items-center gap-1 h-9 text-xs px-3', timerButtonColors.text)}
+      <div className="relative flex items-center">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={handlePillToggle}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleToggle();
+            }
+          }}
           aria-label="Toggle Pomodoro panel"
-          title="Toggle Pomodoro panel"
+          title="Pomodoro"
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 font-mono text-slate-700 transition-colors hover:bg-slate-200 dark:bg-muted dark:text-slate-200 dark:hover:bg-muted/70"
         >
-          {settings.compactMode ? (
-            <Timer className="w-4 h-4 flex-shrink-0" />
-          ) : (
-            <>
-              <Timer className="w-4 h-4 flex-shrink-0" />
-              <span className="font-medium tabular-nums min-w-[5ch] text-right">{timeDisplay}</span>
-            </>
+          <TomatoIcon className="h-3.5 w-3.5" />
+          {!settings.compactMode && (
+            <span className="min-w-[5ch] text-center text-xs font-medium tabular-nums">
+              {timeDisplay}
+            </span>
           )}
-        </Button>
-
-        {/* Snabbknappar – ghost, endast färgad text */}
-        {state === 'idle' || state === 'paused' ? (
-          <Button
-            onClick={start}
-            variant="ghost"
-            size="sm"
-            icon={Play}
-            className="h-9 text-xs px-3 text-green-600 dark:text-green-400"
-            aria-label="Start timer"
-            title="Start timer"
-          />
-        ) : (
-          <Button
-            onClick={pause}
-            variant="ghost"
-            size="sm"
-            icon={Pause}
-            className="h-9 text-xs px-3 text-orange-600 dark:text-orange-400"
-            aria-label="Pause timer"
-            title="Pause timer"
-          />
-        )}
+          <button
+            type="button"
+            onClick={handlePlayPause}
+            aria-label={state === 'running' ? 'Pause timer' : 'Start timer'}
+            title={state === 'running' ? 'Pause timer' : 'Start timer'}
+            className={cn(
+              'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors',
+              state === 'running'
+                ? 'text-orange-500 hover:text-orange-600 dark:text-orange-400'
+                : 'text-emerald-500 hover:text-emerald-600 dark:text-emerald-400',
+            )}
+          >
+            {state === 'running' ? (
+              <Pause className="h-3 w-3" strokeWidth={2.5} />
+            ) : (
+              <Play className="h-3 w-3 fill-current" />
+            )}
+          </button>
+        </div>
 
         {/* Expanded panel */}
         {expanded && !showSettings && (
@@ -166,7 +167,7 @@ export function PomodoroTimer({
             {/* Header */}
             <div className="flex items-center justify-between gap-2 mb-4 min-w-0">
               <div className="flex items-center gap-2 min-w-0 shrink">
-                <Timer className="w-5 h-5 shrink-0 text-muted-foreground" />
+                <TomatoIcon className="h-5 w-5" />
                 <Heading level={3} className="mb-0 truncate">
                   Pomodoro Timer
                 </Heading>
@@ -229,28 +230,30 @@ export function PomodoroTimer({
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Text className="text-2xl font-bold text-foreground mb-0">{timeDisplay}</Text>
+                  <span className="text-3xl font-bold tabular-nums text-foreground sm:text-4xl">
+                    {timeDisplay}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Kontroller */}
-            <div className="flex justify-center gap-2">
+            {/* Kontroller — samma variant-mönster som Time tracking */}
+            <div className="flex flex-wrap justify-center gap-2">
               {state === 'idle' || state === 'paused' ? (
-                <Button onClick={start} variant="primary" size="sm" icon={Play}>
+                <Button onClick={start} variant="default" size="sm" icon={Play}>
                   Start
                 </Button>
               ) : (
-                <Button onClick={pause} variant="primary" size="sm" icon={Pause}>
+                <Button onClick={pause} variant="secondary" size="sm" icon={Pause}>
                   Pause
                 </Button>
               )}
 
-              <Button onClick={reset} variant="secondary" size="sm" icon={RotateCcw}>
+              <Button onClick={reset} variant="outline" size="sm" icon={RotateCcw}>
                 Reset
               </Button>
 
-              <Button onClick={skip} variant="secondary" size="sm" icon={SkipForward}>
+              <Button onClick={skip} variant="outline" size="sm" icon={SkipForward}>
                 Skip
               </Button>
             </div>
@@ -279,7 +282,7 @@ export function PomodoroTimer({
             </div>
 
             {/* Duration Settings */}
-            <div className="space-y-4 mb-6">
+            <div className="space-y-3 mb-6">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
                   Work Duration (minutes)
@@ -292,7 +295,7 @@ export function PomodoroTimer({
                   onChange={(e) =>
                     handleSettingsChange('workDuration', parseInt(e.target.value) || 25)
                   }
-                  className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 
@@ -308,7 +311,7 @@ export function PomodoroTimer({
                   onChange={(e) =>
                     handleSettingsChange('shortBreakDuration', parseInt(e.target.value) || 5)
                   }
-                  className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 
@@ -324,7 +327,7 @@ export function PomodoroTimer({
                   onChange={(e) =>
                     handleSettingsChange('longBreakDuration', parseInt(e.target.value) || 15)
                   }
-                  className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 
@@ -340,7 +343,7 @@ export function PomodoroTimer({
                   onChange={(e) =>
                     handleSettingsChange('sessionsUntilLongBreak', parseInt(e.target.value) || 4)
                   }
-                  className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+                  className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
             </div>
@@ -456,7 +459,7 @@ export function PomodoroTimer({
         </div>
 
         {/* Duration settings */}
-        <div className="space-y-4 mb-6">
+        <div className="space-y-3 mb-6">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Work Duration (minutes)
@@ -467,7 +470,7 @@ export function PomodoroTimer({
               max="120"
               value={settings.workDuration}
               onChange={(e) => handleSettingsChange('workDuration', parseInt(e.target.value) || 25)}
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
@@ -483,7 +486,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('shortBreakDuration', parseInt(e.target.value) || 5)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
@@ -499,7 +502,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('longBreakDuration', parseInt(e.target.value) || 15)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
@@ -515,7 +518,7 @@ export function PomodoroTimer({
               onChange={(e) =>
                 handleSettingsChange('sessionsUntilLongBreak', parseInt(e.target.value) || 4)
               }
-              className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
+              className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
         </div>
@@ -539,7 +542,7 @@ export function PomodoroTimer({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Timer className="w-5 h-5 text-muted-foreground" />
+          <TomatoIcon className="h-5 w-5" />
           <Heading level={3} className="mb-0">
             Pomodoro Timer
           </Heading>
@@ -602,28 +605,30 @@ export function PomodoroTimer({
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <Text className="text-2xl font-bold text-foreground mb-0">{timeDisplay}</Text>
+            <span className="text-3xl font-bold tabular-nums text-foreground sm:text-4xl">
+              {timeDisplay}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Kontroller */}
-      <div className="flex justify-center gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         {state === 'idle' || state === 'paused' ? (
-          <Button onClick={start} variant="primary" size="sm" icon={Play}>
+          <Button onClick={start} variant="default" size="sm" icon={Play}>
             Start
           </Button>
         ) : (
-          <Button onClick={pause} variant="primary" size="sm" icon={Pause}>
+          <Button onClick={pause} variant="secondary" size="sm" icon={Pause}>
             Pause
           </Button>
         )}
 
-        <Button onClick={reset} variant="secondary" size="sm" icon={RotateCcw}>
+        <Button onClick={reset} variant="outline" size="sm" icon={RotateCcw}>
           Reset
         </Button>
 
-        <Button onClick={skip} variant="secondary" size="sm" icon={SkipForward}>
+        <Button onClick={skip} variant="outline" size="sm" icon={SkipForward}>
           Skip
         </Button>
       </div>

@@ -169,6 +169,20 @@ class ContactModel {
 
   // --- Contact time entries (time tracking) ---
 
+  async getContactIdsWithTimeEntries(req) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query('SELECT DISTINCT contact_id FROM contact_time_entries', []);
+      return rows.map((r) => String(r.contact_id));
+    } catch (error) {
+      Logger.error('Failed to fetch contact ids with time entries', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch time entry contacts', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async getTimeEntries(req, contactId) {
     try {
       const db = Database.get(req);

@@ -309,7 +309,8 @@
       "total": "Total",
       "companies": "Companies",
       "private": "Private",
-      "withTags": "With tags"
+      "withTags": "With tags",
+      "timeLogged": "Time logged"
     },
     "noMatch": "No contacts found matching your search.",
     "noYet": "No contacts yet. Click \"Add Contact\" to get started.",
@@ -341,7 +342,11 @@
     "deleteConfirmNamed": "Are you sure you want to delete \"{{name}}\"?",
     "deleteTimeEntryTitle": "Delete time entry",
     "deleteTimeEntryMessage": "Are you sure you want to delete this time entry? This cannot be undone.",
-    "discardTagsMessage": "You have unsaved changes to tags. Do you want to discard them?"
+    "discardTagsMessage": "You have unsaved changes to tags. Do you want to discard them?",
+    "timeTrackingActive": "Time tracking is running for this contact",
+    "timeLoggedBadge": "Time logged",
+    "columnEmailPhone": "Email / phone",
+    "columnTime": "Time"
   },
   "tasks": {
     "listDescription": "Track work, deadlines, assignees, and priorities.",

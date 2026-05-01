@@ -22,6 +22,11 @@ function createContactRoutes(controller, context) {
     controller.getAll(req, res);
   });
 
+  // GET /api/contacts/with-time-entries — distinct contact ids that have ≥1 time entry (before /:id routes)
+  router.get('/with-time-entries', gate, (req, res) => {
+    controller.getContactIdsWithTimeEntries(req, res);
+  });
+
   // POST /api/contacts - Create new contact
   router.post(
     '/',

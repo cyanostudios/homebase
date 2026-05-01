@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 
 import type { TopBarWidgetProps } from '../registry';
 
+import { useOptionalTimeTrackingActivityDispatch } from './TimeTrackingActivityContext';
 import { type TimeTrackingSettings, loadSettings, saveSettings } from './timeTrackingSettings';
 
 export function TimeTrackingWidget({
@@ -43,6 +44,7 @@ export function TimeTrackingWidget({
   onClose,
 }: TopBarWidgetProps) {
   const { contacts } = useApp();
+  const setActiveTrackingContactId = useOptionalTimeTrackingActivityDispatch();
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [selectedContactId, setSelectedContactId] = useState<string>('');
@@ -59,6 +61,15 @@ export function TimeTrackingWidget({
   useEffect(() => {
     setSettings(loadSettings());
   }, []);
+
+  useEffect(() => {
+    const id = selectedContactId.trim();
+    if (isRunning && id) {
+      setActiveTrackingContactId(id);
+    } else {
+      setActiveTrackingContactId(null);
+    }
+  }, [isRunning, selectedContactId, setActiveTrackingContactId]);
 
   useEffect(() => {
     if (isRunning) {
@@ -127,6 +138,11 @@ export function TimeTrackingWidget({
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to add time');
       }
+      window.dispatchEvent(
+        new CustomEvent('homebase:contact-time-entry-added', {
+          detail: { contactId: selectedContactId },
+        }),
+      );
       if (!isManual) {
         setElapsedSeconds(0);
       } else {

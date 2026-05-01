@@ -23,6 +23,21 @@ class ContactController {
     }
   }
 
+  async getContactIdsWithTimeEntries(req, res) {
+    try {
+      const contactIds = await this.model.getContactIdsWithTimeEntries(req);
+      res.json({ contactIds });
+    } catch (error) {
+      Logger.error('Get contact ids with time entries failed', error, {
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to fetch time entry contacts' });
+    }
+  }
+
   async create(req, res) {
     try {
       const contact = await this.model.create(req, req.body);
