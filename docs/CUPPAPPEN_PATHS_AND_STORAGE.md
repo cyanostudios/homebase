@@ -91,19 +91,22 @@ Sätt dessa **i den miljö där Node-servern kör** (`.env.local` respektive Rai
 
 **Bucket:** Under **Cloudflare → R2 → bucket → Settings** ska **public access** vara aktiverad för den URL ni använder i `R2_PUBLIC_URL` (r2.dev-subdomain eller custom domain).
 
+**API-token:** Under **R2 → Manage R2 API Tokens** måste token ha **Object Read & Write** (inte endast Read). Om ni begränsar till en bucket ska det vara **samma namn** som `R2_BUCKET_NAME`. Fel behörighet ger ofta **Access Denied** vid uppladdning.
+
 ## 6. Migration?
 
 **Ingen särskild migration krävs för R2.** Kolumnen **`featured_image_url`** finns redan i `cups`. Att byta från lokal `/api/files/raw/...` till R2 är en **om-upload + spara** i admin (ny URL i databasen).
 
 ## 7. Felsökning (snabb)
 
-| Symtom                                                                | Trolig orsak                                                              |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| URL i admin är `/api/files/raw/...`                                   | `R2_*` saknas eller är tomma **i den Node-process som tar emot upload**   |
-| Fungerar på Railway men inte lokalt                                   | Saknar `R2_*` i `.env.local`                                              |
-| Fungerar lokalt men inte på Railway                                   | Variabler på fel Railway-tjänst eller ingen redeploy                      |
-| Objekt saknas i R2-bucket                                             | Upload gick till local adapter (se ovan) eller fel bucket-namn            |
-| Bild visas inte på publik sajt men URL är `https://pub-...r2.dev/...` | Public access / fel `R2_PUBLIC_URL`; testa öppna URL direkt i webbläsaren |
+| Symtom                                                                | Trolig orsak                                                                                                                     |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| URL i admin är `/api/files/raw/...`                                   | `R2_*` saknas eller är tomma **i den Node-process som tar emot upload**                                                          |
+| Fungerar på Railway men inte lokalt                                   | Saknar `R2_*` i `.env.local`                                                                                                     |
+| Fungerar lokalt men inte på Railway                                   | Variabler på fel Railway-tjänst eller ingen redeploy                                                                             |
+| Objekt saknas i R2-bucket                                             | Upload gick till local adapter (se ovan) eller fel bucket-namn                                                                   |
+| Bild visas inte på publik sajt men URL är `https://pub-...r2.dev/...` | Public access / fel `R2_PUBLIC_URL`; testa öppna URL direkt i webbläsaren                                                        |
+| **Access Denied** vid upload (logg/API)                               | API-token saknar skrivrättighet eller är begränsad till annan bucket än `R2_BUCKET_NAME`; skapa ny token med Object Read & Write |
 
 ## Se även
 

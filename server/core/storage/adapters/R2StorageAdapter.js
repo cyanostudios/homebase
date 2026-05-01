@@ -29,10 +29,14 @@ class R2StorageAdapter extends StorageProvider {
       );
     }
 
+    // WHEN_* avoids default payload checksum headers that R2 may reject (AccessDenied on PutObject).
+    // See: Cloudflare community + AWS SDK flexible checksums vs R2 compatibility.
     this._client = new S3Client({
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId, secretAccessKey },
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 
@@ -46,14 +50,26 @@ class R2StorageAdapter extends StorageProvider {
     const key = `cups/${storedFilename}`;
     const fileBuffer = fs.readFileSync(input.path);
 
-    await this._client.send(
-      new PutObjectCommand({
-        Bucket: this._bucket,
-        Key: key,
-        Body: fileBuffer,
-        ContentType: input.mimeType || 'application/octet-stream',
-      }),
-    );
+    try {
+      await this._client.send(
+        new PutObjectCommand({
+          Bucket: this._bucket,
+          Key: key,
+          Body: fileBuffer,
+          ContentType: input.mimeType || 'application/octet-stream',
+        }),
+      );
+    } catch (err) {
+      const code = err && typeof err === 'object' && 'name' in err ? String(err.name) : '';
+      if (code === 'AccessDenied' || /AccessDenied/i.test(String(err && err.message))) {
+        const hint = new Error(
+          `R2 Access Denied (bucket "${this._bucket}"). In Cloudflare: R2 → Manage API Tokens → token must have **Object Read & Write** and include this bucket (or all buckets). Verify R2_ACCOUNT_ID matches your account and R2_BUCKET_NAME matches exactly.`,
+        );
+        hint.cause = err;
+        throw hint;
+      }
+      throw err;
+    }
 
     try {
       fs.unlinkSync(input.path);
