@@ -29,11 +29,16 @@ class R2StorageAdapter extends StorageProvider {
       );
     }
 
+    // Support optional R2_ENDPOINT override (e.g. for EU-region buckets:
+    // https://<accountId>.eu.r2.cloudflarestorage.com).
+    // Falls back to the global endpoint when not set.
+    const endpointOverride = trimEnv('R2_ENDPOINT');
+    const endpoint = endpointOverride || `https://${accountId}.r2.cloudflarestorage.com`;
+
     // WHEN_* avoids default payload checksum headers that R2 may reject (AccessDenied on PutObject).
-    // See: Cloudflare community + AWS SDK flexible checksums vs R2 compatibility.
     this._client = new S3Client({
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint,
       credentials: { accessKeyId, secretAccessKey },
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
