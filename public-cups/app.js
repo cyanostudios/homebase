@@ -1125,40 +1125,11 @@ function toAbsolutePublicUrl(urlValue) {
   }
 }
 
-function extractGoogleDriveFileId(rawUrl) {
-  const raw = String(rawUrl || '').trim();
-  if (!raw) return '';
-  try {
-    const url = new URL(raw, window.location.origin);
-    if (!/drive\.google\.com$/i.test(url.hostname)) return '';
-
-    const filePath = url.pathname.match(/\/file\/d\/([^/]+)/i);
-    if (filePath?.[1]) return filePath[1];
-
-    const id = url.searchParams.get('id');
-    if (id) return id;
-  } catch {
-    // ignore malformed url
-  }
-  return '';
-}
-
-function normalizeGoogleDriveImageUrl(rawUrl) {
-  const id = extractGoogleDriveFileId(rawUrl);
-  if (!id) return '';
-  return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(id)}`;
-}
-
 function resolveCupImageUrlForAttr(cup) {
-  const driveUrl = normalizeGoogleDriveImageUrl(cup?.featured_image_drive_url);
-  const safeDriveUrl = safeImageUrlForAttr(driveUrl);
-  if (safeDriveUrl) return safeDriveUrl;
   return safeImageUrlForAttr(cup?.featured_image_url);
 }
 
 function resolveCupImageUrlAbsolute(cup) {
-  const driveUrl = normalizeGoogleDriveImageUrl(cup?.featured_image_drive_url);
-  if (driveUrl) return driveUrl;
   return toAbsolutePublicUrl(cup?.featured_image_url);
 }
 

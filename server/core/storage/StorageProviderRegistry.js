@@ -1,5 +1,6 @@
 // server/core/storage/StorageProviderRegistry.js
 const googledriveSettingsStore = require('./googledriveSettingsStore');
+const { isR2Configured } = require('./adapters/R2StorageAdapter');
 
 /** @type {Map<string, import('./StorageProvider')>} */
 const providers = new Map();
@@ -28,6 +29,9 @@ function get(name) {
  * @param {import('express').Request} req
  */
 async function resolveForUpload(req) {
+  if (isR2Configured() && providers.has('r2')) {
+    return get('r2');
+  }
   try {
     const s = await googledriveSettingsStore.getSettings(req);
     if (s?.connected && s.accessToken) {
@@ -44,6 +48,9 @@ async function resolveForUpload(req) {
  */
 function resolveForFileRow(row) {
   const sp = row.storageProvider || 'local';
+  if (sp === 'r2' && row.externalFileId && providers.has('r2')) {
+    return get('r2');
+  }
   if (sp === 'googledrive' && row.externalFileId) {
     return get('googledrive');
   }

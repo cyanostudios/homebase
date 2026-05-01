@@ -39,7 +39,6 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
     team_count: '' as string,
     match_format: '',
     registration_url: '',
-    featured_image_drive_url: '',
     source_url: '',
     description: '',
     visible: true,
@@ -64,7 +63,6 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
         item?.team_count !== null && item?.team_count !== undefined ? String(item.team_count) : '',
       match_format: item?.match_format || '',
       registration_url: item?.registration_url || '',
-      featured_image_drive_url: item?.featured_image_drive_url || '',
       source_url: item?.source_url || '',
       description: item?.description || '',
       visible: item?.visible !== false,
@@ -112,7 +110,6 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
       visible: form.visible,
       sanctioned: form.sanctioned,
       registration_url: form.registration_url || null,
-      featured_image_drive_url: form.featured_image_drive_url.trim() || null,
       source_url: form.source_url || null,
       description: form.description || null,
       featured_image_url: form.featured_image_url.trim() || null,
@@ -289,20 +286,6 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                     />
                   </div>
                   <div className="border-t border-border pt-3 mt-1 space-y-2">
-                    <div>
-                      <Label>Google Drive image link (separate field)</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Optional direct/preview link for Drive image. Public site will prefer this
-                        over uploaded hero image when valid.
-                      </p>
-                    </div>
-                    <Input
-                      value={form.featured_image_drive_url}
-                      onChange={(e) => {
-                        onFieldChange('featured_image_drive_url', e.target.value);
-                      }}
-                      placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
-                    />
                     <div>
                       <Label>Hero image (Cupappen featured cards)</Label>
                       <p className="text-xs text-muted-foreground">

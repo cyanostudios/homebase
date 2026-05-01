@@ -43,7 +43,6 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
   }
 
   const heroImageUrl = (current.featured_image_url || '').trim();
-  const heroDriveUrl = (current.featured_image_drive_url || '').trim();
 
   return (
     <>
@@ -241,24 +240,6 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                     </p>
                   )}
                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <span className="text-muted-foreground">Drive image link</span>
-                <span className="col-span-2 break-all">
-                  {heroDriveUrl ? (
-                    <a
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                      href={heroDriveUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Globe className="h-3.5 w-3.5" />
-                      Open
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </span>
               </div>
             </div>
           </DetailSection>

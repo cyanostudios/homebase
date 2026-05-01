@@ -90,7 +90,6 @@ function rowToCup(row: Record<string, unknown>): Cup {
     match_format: optionalString(row.match_format),
     description: optionalString(row.description),
     registration_url: optionalString(row.registration_url),
-    featured_image_drive_url: optionalString(row.featured_image_drive_url),
     featured_image_url: optionalString(row.featured_image_url),
     source_url: optionalString(row.source_url),
     source_type: optionalString(row.source_type),
