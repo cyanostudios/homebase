@@ -1,5 +1,5 @@
 // plugins/files/index.js
-// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
+// V3: PluginSDK context
 const {
   ensureStorageProvidersRegistered,
 } = require('../../server/core/storage/registerDefaultAdapters');

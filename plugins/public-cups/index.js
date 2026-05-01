@@ -90,7 +90,7 @@ async function ensurePublicCupsPool() {
   return poolInitPromise;
 }
 
-function initializePublicCupsPlugin() {
+function initializePublicCupsPlugin(_context) {
   const model = new PublicCupsModel();
   const controller = new PublicCupsController(model);
 

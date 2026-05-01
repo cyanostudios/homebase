@@ -1,5 +1,5 @@
 // plugins/tasks/index.js
-// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
+// V3: PluginSDK context
 const TaskModel = require('./model');
 const TaskController = require('./controller');
 const createTaskRoutes = require('./routes');

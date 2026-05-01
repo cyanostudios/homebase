@@ -174,7 +174,7 @@ node scripts/setup-database.js
 4. **Database**
    - Add PostgreSQL service
    - Railway will provide `DATABASE_URL` automatically
-   - Run migrations: `npm run setup-database` (or use Railway's post-deploy script)
+   - Run migrations: `node scripts/setup-database.js` (or use Railway's post-deploy script)
 
 5. **Storage**
    - **Important**: Railway has ephemeral filesystem
@@ -226,7 +226,7 @@ node scripts/setup-database.js
 
 4. **Run Migrations**
    ```bash
-   heroku run npm run setup-database
+   heroku run node scripts/setup-database.js
    ```
 
 ### Docker

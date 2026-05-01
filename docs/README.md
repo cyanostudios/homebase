@@ -8,6 +8,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 
 ## Snabbstart (ny utvecklare)
 
+- **Tilläggsguider (Cursor-workflows):** `../guides/README.md`
 - **Arkitektur & core services:** `CORE_SERVICES_ARCHITECTURE.md`
 - **Plugin-arkitektur (V3 Action Registry):** `PLUGIN_ARCHITECTURE_V3.md`
 - **UI/UX-regler:** `UI_AND_UX_STANDARDS_V3.md`
@@ -34,6 +35,9 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **Deploy:** `DEPLOYMENT_V2.md`
 - **Frontend bundle-analys:** `FRONTEND_BUNDLE_ANALYSIS.md` (`npm run build:ui:analyze` → `bundle-stats.html`)
 - **Lessons learned / vanliga misstag:** `LESSONS_LEARNED.md`
+- **Cups auto-refresh (cron, Railway):** `CUPS_AUTO_REFRESH_CRON.md`
+- **Plugin runtime-konventioner (panel titles, manifest):** `PLUGIN_RUNTIME_CONVENTIONS.md`
+- **Ny plugin-integration (checklista):** `NEW_PLUGIN_INTEGRATION_CHECKLIST.md`
 
 ## Dokumentationspolicy
 

@@ -84,24 +84,9 @@ class PluginLoader {
       },
     };
 
-    // Load plugin
+    // Load plugin (single PluginSDK context signature)
     const initializePlugin = require(pluginPath);
-
-    // TODO(legacy-plugins): Track milestone to remove (pool, requirePlugin) init and migrate all
-    // backend plugins to (context) only. See guides/core-architecture-review-for-cursor.md.
-
-    // Support both old signature (pool, requirePlugin) and new (context)
-    let plugin;
-    if (initializePlugin.length === 1) {
-      // New Signature: (context) => ...
-      plugin = initializePlugin(context);
-    } else {
-      // Old Signature: (pool, requirePlugin) => ...
-      console.warn(
-        `⚠️ Plugin '${pluginName}' is using legacy signature. Please update to use PluginSDK.`,
-      );
-      plugin = initializePlugin(this.pool, this.requirePlugin);
-    }
+    const plugin = initializePlugin(context);
 
     if (!plugin.config || !plugin.router) {
       throw new Error('Plugin must export config and router');

@@ -1,5 +1,5 @@
 // plugins/estimates/index.js
-// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
+// V3: PluginSDK context
 const EstimateModel = require('./model');
 const EstimateController = require('./controller');
 const createEstimateRoutes = require('./routes');

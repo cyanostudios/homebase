@@ -1,5 +1,5 @@
 // plugins/notes/index.js
-// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
+// V3: PluginSDK context
 const NoteModel = require('./model');
 const NoteController = require('./controller');
 const createNoteRoutes = require('./routes');

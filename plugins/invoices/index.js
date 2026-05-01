@@ -1,5 +1,5 @@
 // plugins/invoices/index.js
-// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
+// V3: PluginSDK context
 const InvoiceModel = require('./model');
 const InvoiceController = require('./controller');
 const createInvoiceRoutes = require('./routes');

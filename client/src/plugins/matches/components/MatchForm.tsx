@@ -15,6 +15,7 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -25,7 +26,6 @@ import { cn } from '@/lib/utils';
 import { useMatches } from '../hooks/useMatches';
 import { type MatchMention, type SportType, SPORT_TYPES, getFormatsForSport } from '../types/match';
 
-import { MatchDateTimePicker } from './MatchDateTimePicker';
 import { MatchSettingsForm } from './MatchSettingsForm';
 
 const MATCH_FORM_CARD_CLASS =
@@ -431,7 +431,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                     <Label htmlFor="match-time" className={FIELD_LABEL_CLASS}>
                       {t('matches.dateTimePlaceholder')}
                     </Label>
-                    <MatchDateTimePicker
+                    <DateTimePicker
                       value={formData.start_time}
                       onChange={(v) => updateField('start_time', v)}
                       hasError={Boolean(getFieldError('start_time'))}

@@ -1,5 +1,5 @@
 // plugins/pulses/index.js
-// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
+// V3: PluginSDK context
 const createPulseRoutes = require('./routes');
 const config = require('./plugin.config');
 

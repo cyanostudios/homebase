@@ -1,5 +1,5 @@
 // plugins/contacts/index.js
-// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
+// V3: PluginSDK context
 const ContactModel = require('./model');
 const ContactController = require('./controller');
 const createContactRoutes = require('./routes');
