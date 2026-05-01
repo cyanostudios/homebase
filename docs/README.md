@@ -14,7 +14,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **UI/UX-regler:** `UI_AND_UX_STANDARDS_V3.md`
 - **Plugin design (slots/notes-mönster):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Säkerhet:** `SECURITY_GUIDELINES.md`
-- **Dev/Deploy:** `DEVELOPMENT_GUIDE_V2.md`, `DEPLOYMENT_V2.md`
+- **Dev/Deploy:** `DEVELOPMENT_GUIDE_V2.md`, `DEPLOYMENT_V2.md`, `CUPPAPPEN_PATHS_AND_STORAGE.md`
 - **Cups-import (SvFF HTML/PDF, `parseCupSource`):** avsnitt i `DEVELOPMENT_GUIDE_V2.md` + detaljer i `CHANGELOG.md` (2026-04, cups).
 - **Frontend bundle-analys (Vite treemap):** `FRONTEND_BUNDLE_ANALYSIS.md`
 
@@ -33,6 +33,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **Plugin design-alignment (checklista):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Security:** `SECURITY_GUIDELINES.md`
 - **Deploy:** `DEPLOYMENT_V2.md`
+- **Cupappen vägar (lokal / Neon / Railway / R2 / publik sajt):** `CUPPAPPEN_PATHS_AND_STORAGE.md`
 - **Frontend bundle-analys:** `FRONTEND_BUNDLE_ANALYSIS.md` (`npm run build:ui:analyze` → `bundle-stats.html`)
 - **Lessons learned / vanliga misstag:** `LESSONS_LEARNED.md`
 - **Cups auto-refresh (cron, Railway):** `CUPS_AUTO_REFRESH_CRON.md`
