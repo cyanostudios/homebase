@@ -17,11 +17,11 @@ class R2StorageAdapter extends StorageProvider {
 
   _init() {
     if (this._client) return;
-    const accountId = process.env.R2_ACCOUNT_ID;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-    this._bucket = process.env.R2_BUCKET_NAME;
-    this._publicUrl = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
+    const accountId = trimEnv('R2_ACCOUNT_ID');
+    const accessKeyId = trimEnv('R2_ACCESS_KEY_ID');
+    const secretAccessKey = trimEnv('R2_SECRET_ACCESS_KEY');
+    this._bucket = trimEnv('R2_BUCKET_NAME');
+    this._publicUrl = trimEnv('R2_PUBLIC_URL').replace(/\/$/, '');
 
     if (!accountId || !accessKeyId || !secretAccessKey || !this._bucket || !this._publicUrl) {
       throw new Error(
@@ -98,16 +98,22 @@ class R2StorageAdapter extends StorageProvider {
   }
 }
 
+function trimEnv(name) {
+  const v = process.env[name];
+  if (v === undefined || v === null) return '';
+  return String(v).trim();
+}
+
 /**
- * Returns true when all required R2 env vars are present.
+ * Returns true when all required R2 env vars are present (non-empty after trim).
  */
 function isR2Configured() {
   return !!(
-    process.env.R2_ACCOUNT_ID &&
-    process.env.R2_ACCESS_KEY_ID &&
-    process.env.R2_SECRET_ACCESS_KEY &&
-    process.env.R2_BUCKET_NAME &&
-    process.env.R2_PUBLIC_URL
+    trimEnv('R2_ACCOUNT_ID') &&
+    trimEnv('R2_ACCESS_KEY_ID') &&
+    trimEnv('R2_SECRET_ACCESS_KEY') &&
+    trimEnv('R2_BUCKET_NAME') &&
+    trimEnv('R2_PUBLIC_URL')
   );
 }
 

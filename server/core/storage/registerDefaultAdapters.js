@@ -9,16 +9,16 @@ const StorageProviderRegistry = require('./StorageProviderRegistry');
 let registered = false;
 
 function ensureStorageProvidersRegistered() {
-  if (registered) {
-    return;
+  if (!registered) {
+    const uploadRoot = path.join(process.cwd(), 'server', 'uploads', 'files');
+    StorageProviderRegistry.register('local', new LocalStorageAdapter({ uploadRoot }));
+    StorageProviderRegistry.register('googledrive', new GoogleDriveStorageAdapter());
+    registered = true;
   }
-  const uploadRoot = path.join(process.cwd(), 'server', 'uploads', 'files');
-  StorageProviderRegistry.register('local', new LocalStorageAdapter({ uploadRoot }));
-  StorageProviderRegistry.register('googledrive', new GoogleDriveStorageAdapter());
-  if (isR2Configured()) {
+  // Register R2 whenever env becomes available (dotenv override, or first run missed empty vars)
+  if (isR2Configured() && !StorageProviderRegistry.has('r2')) {
     StorageProviderRegistry.register('r2', new R2StorageAdapter());
   }
-  registered = true;
 }
 
 module.exports = { ensureStorageProvidersRegistered };

@@ -26,10 +26,17 @@ function get(name) {
 }
 
 /**
+ * @param {string} name
+ */
+function has(name) {
+  return providers.has(name);
+}
+
+/**
  * @param {import('express').Request} req
  */
 async function resolveForUpload(req) {
-  if (isR2Configured() && providers.has('r2')) {
+  if (isR2Configured() && has('r2')) {
     return get('r2');
   }
   try {
@@ -48,7 +55,7 @@ async function resolveForUpload(req) {
  */
 function resolveForFileRow(row) {
   const sp = row.storageProvider || 'local';
-  if (sp === 'r2' && row.externalFileId && providers.has('r2')) {
+  if (sp === 'r2' && row.externalFileId && has('r2')) {
     return get('r2');
   }
   if (sp === 'googledrive' && row.externalFileId) {
@@ -60,6 +67,7 @@ function resolveForFileRow(row) {
 module.exports = {
   register,
   get,
+  has,
   resolveForUpload,
   resolveForFileRow,
 };

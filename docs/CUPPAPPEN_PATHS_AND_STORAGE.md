@@ -45,6 +45,8 @@ flowchart LR
 
 **Viktigt:** För att uppladdningar från den lokala appen ska gå till **R2** måste **alla** fem `R2_*`-variabler finnas i **`.env.local`**. Annars används lokal disk och URL:er blir `/api/files/raw/...` (endast användbar inloggad, inte för `cuppappen.se`).
 
+Servern laddar `.env` först och sedan **`.env.local` med `override: true`** så att lokala värden vinner över tomma variabler i shell eller i `.env`. Vid start loggas **`📦 File uploads: Cloudflare R2`** om R2 är aktivt, annars **`local disk …`**.
+
 ## 2. Produktion (GitHub → Railway)
 
 | Steg           | Beskrivning                                                            |

@@ -15,7 +15,11 @@ const { Pool } = require('pg');
 // Load from project root (not process.cwd — tools may start the API from another directory)
 const projectRoot = path.join(__dirname, '..');
 require('dotenv').config({ path: path.join(projectRoot, '.env') });
-require('dotenv').config({ path: path.join(projectRoot, '.env.local') });
+// override: true so .env.local wins over empty shell vars or placeholders from .env
+require('dotenv').config({
+  path: path.join(projectRoot, '.env.local'),
+  override: true,
+});
 
 // Puppeteer (ingest browser_fetch): use project .cache/puppeteer by default. Cursor/sandbox may inject
 // PUPPETEER_CACHE_DIR under a temp path where Chrome was never installed — override that.
@@ -244,6 +248,22 @@ if (process.env.NODE_ENV === 'production') {
 
 // Load plugins
 pluginLoader.loadPlugins(app);
+
+try {
+  const { ensureStorageProvidersRegistered } = require('./core/storage/registerDefaultAdapters');
+  const StorageProviderRegistry = require('./core/storage/StorageProviderRegistry');
+  const { isR2Configured } = require('./core/storage/adapters/R2StorageAdapter');
+  ensureStorageProvidersRegistered();
+  const useR2 = isR2Configured() && StorageProviderRegistry.has('r2');
+  console.log(
+    useR2
+      ? '📦 File uploads: Cloudflare R2 (hero images → public URL)'
+      : '📦 File uploads: local disk (add R2_* to .env.local or Railway for public cup images)',
+  );
+} catch (e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  console.warn('📦 File uploads: could not resolve storage mode:', msg);
+}
 
 // Plugin info endpoint
 app.get('/api/plugins', requireAuth, (req: any, res: any) => {
