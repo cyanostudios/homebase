@@ -10,8 +10,8 @@ import type {
   YourItemsSettings,
 } from '../types/your-items';
 
-// TODO: Replace "your-items" with your plugin's plural-kebab name everywhere in this file.
-// TODO: Replace YourItem with your domain model name (singular), e.g., Product, Article, etc.
+// Scaffold: replace "your-items" with your plugin's plural-kebab name; replace YourItem with your domain model.
+// Checklist: docs/NEW_PLUGIN_INTEGRATION_CHECKLIST.md — backend initializer: `function initializeX(context)` only.
 
 interface YourItemsContextType {
   isYourItemsPanelOpen: boolean;

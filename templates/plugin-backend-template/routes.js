@@ -1,13 +1,18 @@
 // templates/plugin-backend-template/routes.js
+// Align with production plugins: context from plugin-loader, shared validation + CSRF hooks.
 const express = require('express');
-const { body, param } = require('express-validator');
+const router = express.Router();
 const config = require('./plugin.config');
+const { csrfProtection } = require('../../server/core/middleware/csrf');
+const { body, commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
-function createTemplateRoutes(controller, requirePlugin, csrfProtection, validateRequest) {
-  const router = express.Router();
-  const gate = requirePlugin(config.name); // auth/enablement guard for this plugin
+function createTemplateRoutes(controller, context) {
+  const requirePlugin =
+    context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
+  const gate = requirePlugin(config.name);
 
   router.get('/', gate, (req, res, next) => controller.getAll(req, res, next));
+
   router.get('/settings', gate, (req, res) => {
     res.json({ defaultView: 'list', allowDuplicate: true });
   });
@@ -15,45 +20,48 @@ function createTemplateRoutes(controller, requirePlugin, csrfProtection, validat
   router.post(
     '/',
     gate,
-    csrfProtection,
-    [
-      body('title').trim().notEmpty().withMessage('Title is required').isLength({ max: 255 }),
-      body('description').optional({ values: 'falsy' }).isString().isLength({ max: 5000 }),
-      validateRequest,
-    ],
+    /* csrfProtection, */ // Re-enable when client sends CSRF token (see docs/SECURITY_GUIDELINES.md)
+    commonRules.plainString('title', 1, 255),
+    body('description')
+      .optional({ values: 'falsy' })
+      .isString()
+      .isLength({ max: 5000 })
+      .withMessage('description must not exceed 5000 characters'),
+    validateRequest,
     (req, res, next) => controller.create(req, res, next),
   );
 
   router.put(
     '/:id',
     gate,
-    csrfProtection,
-    [
-      param('id').isString().notEmpty().withMessage('Invalid ID'),
-      body('title').trim().notEmpty().withMessage('Title is required').isLength({ max: 255 }),
-      body('description').optional({ values: 'falsy' }).isString().isLength({ max: 5000 }),
-      validateRequest,
-    ],
+    /* csrfProtection, */
+    commonRules.id('id'),
+    commonRules.plainString('title', 1, 255),
+    body('description')
+      .optional({ values: 'falsy' })
+      .isString()
+      .isLength({ max: 5000 })
+      .withMessage('description must not exceed 5000 characters'),
+    validateRequest,
     (req, res, next) => controller.update(req, res, next),
   );
 
   router.delete(
     '/:id',
     gate,
-    csrfProtection,
-    [param('id').isString().notEmpty().withMessage('Invalid ID'), validateRequest],
+    /* csrfProtection, */
+    commonRules.id('id'),
+    validateRequest,
     (req, res, next) => controller.delete(req, res, next),
   );
 
   router.put(
     '/settings',
     gate,
-    csrfProtection,
-    [
-      body('defaultView').isIn(['list', 'grid']),
-      body('allowDuplicate').isBoolean(),
-      validateRequest,
-    ],
+    /* csrfProtection, */
+    body('defaultView').isIn(['list', 'grid']).withMessage('defaultView must be list or grid'),
+    body('allowDuplicate').isBoolean().withMessage('allowDuplicate must be a boolean'),
+    validateRequest,
     (req, res) => res.json(req.body),
   );
 

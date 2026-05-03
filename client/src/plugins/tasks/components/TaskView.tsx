@@ -553,16 +553,18 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                     hideInlineLabel
                   />
                 </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('tasks.propertyDueDate')}
-                  </span>
-                  <TaskDueDatePicker
-                    task={displayTask ?? task}
-                    onDueDateChange={handleDueDateChange}
-                    hideInlineLabel
-                  />
-                </div>
+                {(displayTask ?? task).status !== 'completed' && (
+                  <div className={DETAIL_PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      {t('tasks.propertyDueDate')}
+                    </span>
+                    <TaskDueDatePicker
+                      task={displayTask ?? task}
+                      onDueDateChange={handleDueDateChange}
+                      hideInlineLabel
+                    />
+                  </div>
+                )}
               </div>
             </DetailSection>
           </Card>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { dedupeInFlightByKey } from '@/core/utils/dedupeInFlightByKey';
 
 import { estimateShareApi } from '../api/estimatesApi';
 import { PublicEstimate } from '../types/estimate';
@@ -14,26 +15,8 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
   const [estimate, setEstimate] = useState<PublicEstimate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasLoaded, setHasLoaded] = useState(false);
-
-  const loadEstimate = async () => {
-    if (hasLoaded) {
-      return;
-    } // Simple guard
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const publicEstimate = await estimateShareApi.getPublicEstimate(token);
-      setEstimate(publicEstimate);
-      setLoading(false);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to load estimate');
-      setHasLoaded(false); // Allow retry on error
-      setLoading(false);
-    }
-  };
+  /** Bumps so "Try again" after failure issues a new fetch (and new view count). */
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     if (!token) {
@@ -42,12 +25,35 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
       return;
     }
 
-    if (!hasLoaded) {
-      setHasLoaded(true);
-      loadEstimate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, hasLoaded]);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const key = `public-estimate:${token}:${loadAttempt}`;
+        const publicEstimate = await dedupeInFlightByKey(key, () =>
+          estimateShareApi.getPublicEstimate(token),
+        );
+        if (!cancelled) {
+          setEstimate(publicEstimate);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load estimate');
+          setEstimate(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, loadAttempt]);
 
   if (loading) {
     return (
@@ -81,9 +87,7 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
             <Button
               variant="default"
               onClick={() => {
-                setHasLoaded(false);
-                setError(null);
-                loadEstimate();
+                setLoadAttempt((n) => n + 1);
               }}
               className="mr-2"
             >
@@ -98,7 +102,6 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
     );
   }
 
-  // Normalisera datum till strängar så de matchar vad webTemplate förväntar sig
   const templateInput = {
     ...estimate,
     createdAt:
@@ -111,14 +114,12 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
         : (estimate.updatedAt as any),
     validTo:
       estimate.validTo instanceof Date ? estimate.validTo.toISOString() : (estimate.validTo as any),
-    // PublicEstimate har extra fält – behåll dem som de är; generateWebHTML ignorerar dem om den inte behöver dem.
     shareValidUntil:
       estimate.shareValidUntil instanceof Date
         ? estimate.shareValidUntil.toISOString()
         : (estimate.shareValidUntil as any),
   } as any;
 
-  // Generera HTML via webTemplate
   const webHTML = generateWebHTML(templateInput);
 
   return (

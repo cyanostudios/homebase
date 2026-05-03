@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { RichTextContent } from '@/core/ui/RichTextContent';
+import { dedupeInFlightByKey } from '@/core/utils/dedupeInFlightByKey';
 
 import { noteShareApi } from '../api/notesApi';
 import type { PublicNote } from '../types/notes';
@@ -27,7 +28,9 @@ export function PublicNoteView({ token }: PublicNoteViewProps) {
       try {
         setLoading(true);
         setError(null);
-        const publicNote = await noteShareApi.getPublicNote(token);
+        const publicNote = await dedupeInFlightByKey(`public-note:${token}`, () =>
+          noteShareApi.getPublicNote(token),
+        );
         if (!cancelled) {
           setNote(publicNote);
         }

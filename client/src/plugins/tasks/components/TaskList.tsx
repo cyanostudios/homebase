@@ -35,7 +35,12 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
-import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
+import {
+  type Task,
+  TASK_STATUS_COLORS,
+  TASK_PRIORITY_COLORS,
+  formatStatusForDisplay,
+} from '../types/tasks';
 import { getTasksExportConfig } from '../utils/taskExportConfig';
 
 import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
@@ -422,6 +427,8 @@ export const TaskList: React.FC = () => {
     }
   };
 
+  const shouldShowDueDate = (task: Task) => Boolean(task.dueDate) && task.status !== 'completed';
+
   const handleOpenForView = (task: any) => {
     attemptNavigation(() => openTaskForView(task));
   };
@@ -660,7 +667,7 @@ export const TaskList: React.FC = () => {
                           Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
                         </div>
                       )}
-                      {task.dueDate && (
+                      {shouldShowDueDate(task) && (
                         <div className={formatDueDate(task.dueDate)?.className || ''}>
                           {formatDueDate(task.dueDate)?.text}
                         </div>
@@ -722,7 +729,7 @@ export const TaskList: React.FC = () => {
                             </Badge>
                           </div>
                           <div className="flex flex-col gap-1 text-sm">
-                            {task.dueDate && (
+                            {shouldShowDueDate(task) && (
                               <div className={formatDueDate(task.dueDate)?.className || ''}>
                                 {formatDueDate(task.dueDate)?.text}
                               </div>
@@ -877,7 +884,7 @@ export const TaskList: React.FC = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {task.dueDate ? (
+                          {shouldShowDueDate(task) ? (
                             <div className={formatDueDate(task.dueDate)?.className || ''}>
                               {formatDueDate(task.dueDate)?.text}
                             </div>

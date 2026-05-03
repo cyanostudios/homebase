@@ -23,11 +23,20 @@ class TemplateApi {
         message?: string;
         code?: string;
         errors?: ValidationError[];
+        /** express-validator shape from server/core/middleware/validation validateRequest */
+        details?: Array<{ path?: string; msg?: string }>;
       };
       const err: ApiError = new Error(payload.error ?? payload.message ?? 'Request failed');
       err.status = response.status;
       err.code = payload.code;
-      err.errors = payload.errors;
+      err.errors =
+        payload.errors ??
+        (Array.isArray(payload.details)
+          ? payload.details.map((d) => ({
+              field: d.path ?? 'general',
+              message: d.msg ?? 'Invalid',
+            }))
+          : undefined);
       throw err;
     }
 

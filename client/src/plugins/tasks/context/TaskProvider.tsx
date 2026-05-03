@@ -714,7 +714,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             className: 'text-muted-foreground',
           };
         };
-        const dueDateInfo = formatDueDateForHeader(item.dueDate);
+        const dueDateInfo =
+          item.status === 'completed' ? null : formatDueDateForHeader(item.dueDate);
 
         const assignedToIds =
           item.assignedToIds ?? (item.assignedTo ? [String(item.assignedTo)] : []);

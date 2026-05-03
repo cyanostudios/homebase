@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { RichTextContent } from '@/core/ui/RichTextContent';
+import { dedupeInFlightByKey } from '@/core/utils/dedupeInFlightByKey';
 
 import { taskShareApi } from '../api/tasksApi';
 import {
@@ -32,7 +33,9 @@ export function PublicTaskView({ token }: PublicTaskViewProps) {
       try {
         setLoading(true);
         setError(null);
-        const publicTask = await taskShareApi.getPublicTask(token);
+        const publicTask = await dedupeInFlightByKey(`public-task:${token}`, () =>
+          taskShareApi.getPublicTask(token),
+        );
         if (!cancelled) {
           setTask(publicTask);
         }
