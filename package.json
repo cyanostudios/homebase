@@ -12,7 +12,7 @@
     "build": "npm run build:ui && npm run build:api && npm run copy:ui",
     "build:ui": "vite build",
     "build:ui:analyze": "cross-env ANALYZE=1 vite build",
-    "build:api": "tsc server/index.ts --outDir dist --target es2020 --module commonjs && cp -r server/migrations dist/migrations",
+    "build:api": "tsc server/index.ts --outDir dist --target es2020 --module commonjs && cp -r server/migrations dist/migrations && cp -r server/core dist/core",
     "copy:ui": "mkdir -p dist/public && cp -r client/dist/* dist/public/",
     "start": "npm run start:api",
     "start:api": "cross-env NODE_ENV=production node dist/index.js",
