@@ -472,6 +472,16 @@ export function CupsList() {
               {t('cups.importFromIngest')}
             </Button>
             <Button
+              variant="ghost"
+              size="sm"
+              icon={Settings}
+              className="h-9 px-2.5 text-xs"
+              onClick={openCupSettings}
+              title={t('common.settings')}
+            >
+              {t('common.settings')}
+            </Button>
+            <Button
               variant="primary"
               size="sm"
               icon={Plus}
@@ -621,15 +631,6 @@ export function CupsList() {
               />
             </div>
             <div className="flex flex-shrink-0 items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={Settings}
-                className="h-8 px-2.5 text-xs"
-                onClick={openCupSettings}
-              >
-                {t('common.settings')}
-              </Button>
               <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
                 <Button
                   variant="ghost"

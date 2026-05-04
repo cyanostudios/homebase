@@ -375,15 +375,27 @@ export const NoteList: React.FC = () => {
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.notes')}</h2>
             <p className="text-sm text-muted-foreground">{t('notes.listDescription')}</p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Plus}
-            className="h-9 px-3 text-xs"
-            onClick={() => attemptNavigation(() => openNotePanel(null))}
-          >
-            {t('notes.addNote')}
-          </Button>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Settings}
+              className="h-9 px-2.5 text-xs"
+              onClick={() => openNoteSettings()}
+              title={t('notes.settings')}
+            >
+              {t('notes.settings')}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              className="h-9 px-3 text-xs"
+              onClick={() => attemptNavigation(() => openNotePanel(null))}
+            >
+              {t('notes.addNote')}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -477,16 +489,6 @@ export const NoteList: React.FC = () => {
               />
             </div>
             <div className="flex flex-shrink-0 items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={Settings}
-                className="h-8 px-2.5 text-xs"
-                onClick={() => openNoteSettings()}
-                title={t('notes.settings')}
-              >
-                {t('notes.settings')}
-              </Button>
               <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
                 <Button
                   variant="ghost"

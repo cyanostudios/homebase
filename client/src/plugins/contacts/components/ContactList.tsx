@@ -487,15 +487,27 @@ export const ContactList: React.FC = () => {
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.contacts')}</h2>
             <p className="text-sm text-muted-foreground">{t('contacts.description')}</p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Plus}
-            className="h-9 px-3 text-xs"
-            onClick={() => attemptNavigation(() => openContactPanel(null))}
-          >
-            {t('contacts.addContact')}
-          </Button>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Settings}
+              className="h-9 px-2.5 text-xs"
+              onClick={() => openContactSettings()}
+              title={t('contacts.settings')}
+            >
+              {t('contacts.settings')}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              className="h-9 px-3 text-xs"
+              onClick={() => attemptNavigation(() => openContactPanel(null))}
+            >
+              {t('contacts.addContact')}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
@@ -619,16 +631,6 @@ export const ContactList: React.FC = () => {
               />
             </div>
             <div className="flex flex-shrink-0 items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={Settings}
-                className="h-8 px-2.5 text-xs"
-                onClick={() => openContactSettings()}
-                title={t('contacts.settings')}
-              >
-                {t('contacts.settings')}
-              </Button>
               <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
                 <Button
                   variant="ghost"
