@@ -52,6 +52,21 @@ function lastModFromValue(?string $value): string
     return gmdate('Y-m-d', $ts);
 }
 
+function slugify(string $value): string
+{
+    $v = mb_strtolower(trim($value), 'UTF-8');
+    $v = strtr($v, [
+        'å' => 'a',
+        'ä' => 'a',
+        'ö' => 'o',
+        'é' => 'e',
+        'è' => 'e',
+        'ü' => 'u',
+    ]);
+    $v = preg_replace('/[^a-z0-9]+/u', '-', $v) ?? '';
+    return trim($v, '-') ?: 'cup';
+}
+
 header('Content-Type: application/xml; charset=utf-8');
 
 $base = publicSiteBaseUrl();
@@ -59,7 +74,7 @@ $base = publicSiteBaseUrl();
 try {
     $pdo = getPdoFromEnv();
     $sql = <<<'SQL'
-SELECT c.id, c.updated_at
+SELECT c.id, c.name, c.updated_at
 FROM cups c
 WHERE COALESCE(c.visible, TRUE) = TRUE
 ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC
@@ -110,7 +125,8 @@ foreach ($rows as $row) {
         continue;
     }
     $lastmod = lastModFromValue($row['updated_at'] ?? null);
-    $loc = $base . '/#cup-' . (string) $id;
+    $slug = slugify((string) ($row['name'] ?? 'cup'));
+    $loc = $base . '/cup/' . (string) $id . '-' . $slug;
     echo '  <url>' . "\n";
     echo '    <loc>' . xmlText($loc) . '</loc>' . "\n";
     echo '    <lastmod>' . xmlText($lastmod) . '</lastmod>' . "\n";

@@ -338,9 +338,7 @@ function renderFeaturedCard(cup, index) {
   const dateRange = formatDateRange(cup.start_date, cup.end_date);
   const categories = normalizeText(cup.categories) || '';
   const categoriesTruncated = categories.length > 60 ? categories.slice(0, 57) + '…' : categories;
-  const registerUrl = cup.registration_url
-    ? escapeHtml(withCupappenUtm(cup.registration_url))
-    : null;
+  const detailUrl = escapeHtml(cupDetailUrl(cup));
 
   const presence = getCategoryPresence(categories);
   const primaryBadge =
@@ -388,11 +386,7 @@ function renderFeaturedCard(cup, index) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             ${formatTeamCountLabel(cup.team_count)}
           </div>
-          ${
-            registerUrl
-              ? `<a class="cup-card__cta" href="${registerUrl}" target="_blank" rel="noopener noreferrer">Till cupsidan ${CUP_CARD_CTA_ARROW_SVG}</a>`
-              : `<span class="cup-card__cta" style="cursor:default;">Info saknas</span>`
-          }
+          <a class="cup-card__cta" href="${detailUrl}">Till cupdetalj ${CUP_CARD_CTA_ARROW_SVG}</a>
         </div>
       </div>
     </article>
@@ -631,12 +625,8 @@ function renderCupCard(cup) {
       )}</span></div>`
     : '';
 
-  const registerUrl = cup.registration_url
-    ? escapeHtml(withCupappenUtm(cup.registration_url))
-    : null;
-  const register = registerUrl
-    ? `<a class="cup-card__cta" href="${registerUrl}" target="_blank" rel="noopener noreferrer">Till cupsidan ${CUP_CARD_CTA_ARROW_SVG}</a>`
-    : `<span class="cup-card__cta" style="cursor:default;">Info saknas</span>`;
+  const detailUrl = escapeHtml(cupDetailUrl(cup));
+  const register = `<a class="cup-card__cta" href="${detailUrl}">Till cupdetalj ${CUP_CARD_CTA_ARROW_SVG}</a>`;
 
   const accentClass = accentClassForCup(cup);
   const hiddenFromPublic =
@@ -651,7 +641,7 @@ function renderCupCard(cup) {
           ${CUP_CARD_PIN_SVG}
           ${escapeHtml(location || 'Plats saknas')}
         </div>
-        <h3 class="cup-card__title">${name}</h3>
+        <h3 class="cup-card__title"><a href="${detailUrl}" style="color:inherit;text-decoration:none;">${name}</a></h3>
         <p class="cup-card__organizer">${organizerLine}</p>
         <div class="cup-card__date">
           ${CUP_CARD_CAL_SVG}
@@ -1014,6 +1004,25 @@ function decodeHtmlEntities(value) {
 
 function normalizeText(value) {
   return decodeHtmlEntities(String(value || ''));
+}
+
+function slugify(value) {
+  const decoded = normalizeText(value).toLowerCase().trim();
+  const transliterated = decoded
+    .replaceAll('å', 'a')
+    .replaceAll('ä', 'a')
+    .replaceAll('ö', 'o')
+    .replaceAll('é', 'e')
+    .replaceAll('è', 'e')
+    .replaceAll('ü', 'u');
+  return transliterated.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'cup';
+}
+
+function cupDetailUrl(cup) {
+  const id = Number(cup?.id);
+  if (!Number.isFinite(id) || id < 1) return '/';
+  const slug = slugify(cup?.name || 'cup');
+  return `/cup/${id}-${slug}`;
 }
 
 /**
