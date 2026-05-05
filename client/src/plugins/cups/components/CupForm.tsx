@@ -16,6 +16,17 @@ import { filesApi } from '@/plugins/files/api/filesApi';
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** Persisted timestamps (UTC ISO etc.) → <input type="date"> value in local calendar (YYYY-MM-DD). */
+function cupTimestampToDateInputValue(raw: string): string {
+  const d = new Date(raw.trim());
+  if (Number.isNaN(d.getTime())) {
+    return '';
+  }
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
 type Props = {
   currentCup?: Cup | null;
   currentItem?: Cup | null;
@@ -56,8 +67,8 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
       name: item?.name || '',
       organizer: item?.organizer || '',
       location: item?.location || '',
-      start_date: item?.start_date ? String(item.start_date).slice(0, 16) : '',
-      end_date: item?.end_date ? String(item.end_date).slice(0, 16) : '',
+      start_date: item?.start_date ? cupTimestampToDateInputValue(String(item.start_date)) : '',
+      end_date: item?.end_date ? cupTimestampToDateInputValue(String(item.end_date)) : '',
       categories: item?.categories || '',
       team_count:
         item?.team_count !== null && item?.team_count !== undefined ? String(item.team_count) : '',
@@ -87,10 +98,6 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
     const v = String(value || '').trim();
     if (!v) {
       return null;
-    }
-    // datetime-local returns YYYY-MM-DDTHH:mm; backend validator requires seconds.
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) {
-      return `${v}:00`;
     }
     return v;
   };
@@ -164,7 +171,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
               <div>
                 <Label>Start date</Label>
                 <Input
-                  type="datetime-local"
+                  type="date"
                   value={form.start_date}
                   onChange={(e) => {
                     onFieldChange('start_date', e.target.value);
@@ -174,7 +181,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
               <div>
                 <Label>End date</Label>
                 <Input
-                  type="datetime-local"
+                  type="date"
                   value={form.end_date}
                   onChange={(e) => {
                     onFieldChange('end_date', e.target.value);
