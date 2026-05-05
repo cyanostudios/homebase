@@ -307,10 +307,6 @@ async function loadCups() {
   }
 }
 
-/* Pil på “Till cupsidan” — samma i populära och listkort */
-const CUP_CARD_CTA_ARROW_SVG =
-  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
-
 /* ================================================================
    FEATURED CUPS SECTION (top of page, card-style grid)
 ================================================================ */
@@ -364,32 +360,33 @@ function renderFeaturedCard(cup, index) {
   const img = customSrc || heroImages[index % heroImages.length];
 
   return `
-    <article class="cup-card" data-testid="featured-cup-card-${index}">
-      <div class="cup-card__media">
-        <img src="${img}" alt="${name}" loading="lazy" />
-        ${primaryBadge ? `<div class="cup-card__accent"><span class="dot" aria-hidden="true"></span>${escapeHtml(primaryBadge)}</div>` : ''}
-        <div class="cup-card__index">#${String(index + 1).padStart(2, '0')}</div>
-      </div>
-      <div class="cup-card__body">
-        <div class="cup-card__meta">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s7-5.6 7-12a7 7 0 1 0-14 0c0 6.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
-          ${escapeHtml(location || 'Plats saknas')}
+    <a href="${detailUrl}" style="display:block;color:inherit;text-decoration:none;" aria-label="Öppna ${name}">
+      <article class="cup-card" data-testid="featured-cup-card-${index}">
+        <div class="cup-card__media">
+          <img src="${img}" alt="${name}" loading="lazy" />
+          ${primaryBadge ? `<div class="cup-card__accent"><span class="dot" aria-hidden="true"></span>${escapeHtml(primaryBadge)}</div>` : ''}
+          <div class="cup-card__index">#${String(index + 1).padStart(2, '0')}</div>
         </div>
-        <h3 class="cup-card__title">${name}</h3>
-        <div class="cup-card__date">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          ${escapeHtml(dateRange)}
-        </div>
-        ${categoriesTruncated ? `<div class="cup-card__badges"><span class="badge-brand">${escapeHtml(categoriesTruncated)}</span></div>` : ''}
-        <div class="cup-card__footer">
-          <div class="cup-card__users">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            ${formatTeamCountLabel(cup.team_count)}
+        <div class="cup-card__body">
+          <div class="cup-card__meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s7-5.6 7-12a7 7 0 1 0-14 0c0 6.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            ${escapeHtml(location || 'Plats saknas')}
           </div>
-          <a class="cup-card__cta" href="${detailUrl}">Till cupdetalj ${CUP_CARD_CTA_ARROW_SVG}</a>
+          <h3 class="cup-card__title">${name}</h3>
+          <div class="cup-card__date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ${escapeHtml(dateRange)}
+          </div>
+          ${categoriesTruncated ? `<div class="cup-card__badges"><span class="badge-brand">${escapeHtml(categoriesTruncated)}</span></div>` : ''}
+          <div class="cup-card__footer">
+            <div class="cup-card__users">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              ${formatTeamCountLabel(cup.team_count)}
+            </div>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+    </a>
   `;
 }
 
@@ -602,11 +599,6 @@ function renderCupCard(cup) {
       ? `Arrangör saknas · ${escapeHtml(districtText)}`
       : 'Arrangör saknas';
 
-  const descRaw = (cup.description || '').trim();
-  const descriptionHtml = descRaw
-    ? escapeHtml(decodeHtmlEntities(descRaw))
-    : '<span class="cup-card__desc-empty">Ingen beskrivning tillgänglig.</span>';
-
   const meta = [
     metaPill('ball', normalizeText(cup.match_format), !!normalizeText(cup.match_format)),
     metaPill(
@@ -626,7 +618,6 @@ function renderCupCard(cup) {
     : '';
 
   const detailUrl = escapeHtml(cupDetailUrl(cup));
-  const register = `<a class="cup-card__cta" href="${detailUrl}">Till cupdetalj ${CUP_CARD_CTA_ARROW_SVG}</a>`;
 
   const accentClass = accentClassForCup(cup);
   const hiddenFromPublic =
@@ -635,13 +626,14 @@ function renderCupCard(cup) {
       : '';
 
   return `
-    <article class="cup-card cup-card--listing ${accentClass}" data-testid="cup-listing-card">
-      <div class="cup-card__body">
+    <a href="${detailUrl}" style="display:block;color:inherit;text-decoration:none;" aria-label="Öppna ${name}">
+      <article class="cup-card cup-card--listing ${accentClass}" data-testid="cup-listing-card">
+        <div class="cup-card__body">
         <div class="cup-card__meta">
           ${CUP_CARD_PIN_SVG}
           ${escapeHtml(location || 'Plats saknas')}
         </div>
-        <h3 class="cup-card__title"><a href="${detailUrl}" style="color:inherit;text-decoration:none;">${name}</a></h3>
+        <h3 class="cup-card__title">${name}</h3>
         <p class="cup-card__organizer">${organizerLine}</p>
         <div class="cup-card__date">
           ${CUP_CARD_CAL_SVG}
@@ -649,17 +641,16 @@ function renderCupCard(cup) {
         </div>
         ${categoriesBlock}
         <div class="meta-pills cup-card__meta-pills">${meta}</div>
-        <div class="cup-card__listing-desc">${descriptionHtml}</div>
         ${hiddenFromPublic}
         <div class="cup-card__footer">
           <div class="cup-card__users">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             ${formatTeamCountLabel(cup.team_count)}
           </div>
-          ${register}
         </div>
       </div>
-    </article>
+      </article>
+    </a>
   `;
 }
 
@@ -769,15 +760,33 @@ function compareByDate(a, b) {
   return String(a.name || '').localeCompare(String(b.name || ''), 'sv');
 }
 
+function publicSiteOrigin() {
+  return typeof window !== 'undefined' ? window.location.origin : 'https://cupappen.se';
+}
+
+function cupDetailAbsoluteUrl(cup) {
+  try {
+    return new URL(cupDetailUrl(cup), `${publicSiteOrigin()}/`).href;
+  } catch {
+    return `${publicSiteOrigin()}${cupDetailUrl(cup)}`;
+  }
+}
+
 function jsonLdEventItem(cup) {
   const regAbs = toAbsolutePublicUrl(cup.registration_url);
   const regWithUtm = regAbs ? withCupappenUtm(regAbs) : '';
   const imageAbs = resolveCupImageUrlAbsolute(cup);
   const image = imageAbs || undefined;
+  const detailUrl = cupDetailAbsoluteUrl(cup);
+  const idPart = String(cup.id || '').trim();
   return {
-    '@type': 'Event',
-    '@id': `https://cupappen.se/#event-${String(cup.id || '')}`,
+    '@type': 'SportsEvent',
+    '@id': `${detailUrl}#cup`,
+    ...(idPart ? { identifier: idPart } : {}),
+    url: detailUrl,
     name: normalizeText(cup.name) || 'Cup',
+    inLanguage: 'sv-SE',
+    sport: 'Fotboll',
     eventStatus: 'https://schema.org/EventScheduled',
     startDate: cup.start_date || undefined,
     endDate: cup.end_date || undefined,
@@ -795,7 +804,6 @@ function jsonLdEventItem(cup) {
           name: normalizeText(cup.organizer),
         }
       : undefined,
-    url: regWithUtm || undefined,
     description: normalizeText(cup.description || cup.categories) || undefined,
     isAccessibleForFree: true,
     offers: regWithUtm
@@ -819,16 +827,29 @@ function renderJsonLd(cups) {
     return true;
   });
 
+  const origin = publicSiteOrigin();
   const itemList = {
-    '@context': 'https://schema.org',
     '@type': 'ItemList',
+    '@id': `${origin}/#cup-catalog-itemlist`,
+    name: 'Aktuellt i cupkatalogen – Cupappen',
+    description:
+      'Varje SportEvent pekar på en SSR-detaljsida (snäll URL /cup/[slug]-[år]) med fakta och omdömen.',
+    url: `${origin}/`,
+    numberOfItems: unique.length,
+    itemListOrder: 'https://schema.org/ItemListOrderAscending',
     itemListElement: unique.map((cup, index) => ({
       '@type': 'ListItem',
       position: index + 1,
       item: jsonLdEventItem(cup),
     })),
   };
-  if (jsonLdEl) jsonLdEl.textContent = JSON.stringify(itemList);
+
+  if (jsonLdEl) {
+    jsonLdEl.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [itemList],
+    });
+  }
 }
 
 /* ================================================================
@@ -1019,10 +1040,13 @@ function slugify(value) {
 }
 
 function cupDetailUrl(cup) {
-  const id = Number(cup?.id);
-  if (!Number.isFinite(id) || id < 1) return '/';
   const slug = slugify(cup?.name || 'cup');
-  return `/cup/${id}-${slug}`;
+  const rawDate = cup?.start_date || cup?.end_date || '';
+  const year = new Date(rawDate).getFullYear();
+  if (Number.isFinite(year) && year >= 2000 && year <= 2100) {
+    return `/cup/${slug}-${year}`;
+  }
+  return `/cup/${slug}`;
 }
 
 /**

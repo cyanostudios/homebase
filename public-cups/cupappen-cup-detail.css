@@ -211,6 +211,10 @@
   display: grid;
   place-items: center;
   color: #fff;
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: 700;
+  padding-top: 1px;
 }
 .highlight-item__text {
   font-size: 0.875rem;
@@ -272,6 +276,12 @@
   font-weight: 600;
   margin-top: 0.25rem;
   color: var(--text);
+}
+.info-card__alert-expired {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #dc2626;
 }
 .info-list {
   margin: 1.5rem 0 0;

@@ -14,6 +14,69 @@ function siteBaseUrl(): string
     return rtrim($raw !== '' ? $raw : 'https://cupappen.se', '/');
 }
 
+/** Absolut bild-/resurslänk för OG/JSON-LD (hanterar /relativa vägar mot site base). */
+function absolutePublicUrl(string $baseUrl, string $url): string
+{
+    $url = trim($url);
+    if ($url === '') {
+        return '';
+    }
+    if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+        return $url;
+    }
+    if (str_starts_with($url, '//')) {
+        return 'https:' . $url;
+    }
+    $baseUrl = rtrim($baseUrl, '/');
+    if (str_starts_with($url, '/')) {
+        return $baseUrl . $url;
+    }
+
+    return $url;
+}
+
+function truncateMetaDescription(string $text, int $max = 158): string
+{
+    $t = preg_replace('/\s+/u', ' ', trim($text)) ?? '';
+    if ($t === '') {
+        return '';
+    }
+    if (mb_strlen($t) <= $max) {
+        return $t;
+    }
+    $slice = mb_substr($t, 0, $max - 1);
+    $lastSpace = mb_strrpos($slice, ' ');
+    if ($lastSpace !== false && $lastSpace > 40) {
+        $slice = mb_substr($slice, 0, $lastSpace);
+    }
+
+    return rtrim($slice, ',.;:–—- ') . '…';
+}
+
+/** Ta bort null ur JSON-LD-arrayer (läsbar för LLMs/sökmotorer). */
+function jsonLdStripNulls(mixed $v): mixed
+{
+    if (is_array($v)) {
+        $out = [];
+        foreach ($v as $k => $item) {
+            $clean = jsonLdStripNulls($item);
+            if ($clean === null) {
+                continue;
+            }
+            if (is_array($clean)) {
+                if ($clean === []) {
+                    continue;
+                }
+            }
+            $out[$k] = $clean;
+        }
+
+        return $out;
+    }
+
+    return $v;
+}
+
 function normalizeText(?string $value): string
 {
     return trim(html_entity_decode((string) ($value ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
@@ -35,16 +98,44 @@ function slugify(string $value): string
     return trim($v, '-') ?: 'cup';
 }
 
+function cupYear(array $cup): ?int
+{
+    $raw = (string) ($cup['start_date'] ?? $cup['end_date'] ?? '');
+    if ($raw === '') {
+        return null;
+    }
+    $ts = strtotime($raw);
+    if ($ts === false) {
+        return null;
+    }
+    return (int) date('Y', $ts);
+}
+
+function cupPrettySlug(array $cup): string
+{
+    $base = slugify((string) ($cup['name'] ?? 'cup'));
+    $year = cupYear($cup);
+    return $year ? ($base . '-' . $year) : $base;
+}
+
 function parseCupPath(): ?array
 {
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-    if (!preg_match('#^/cup/(\d+)(?:-([a-z0-9-]+))?/?$#i', $path, $matches)) {
-        return null;
+    if (preg_match('#^/cup/(\d+)(?:-([a-z0-9-]+))?/?$#i', $path, $matches)) {
+        return [
+            'legacyId' => (int) $matches[1],
+            'slug' => $matches[2] ?? '',
+            'slugYear' => null,
+        ];
     }
-    return [
-        'id' => (int) $matches[1],
-        'slug' => $matches[2] ?? '',
-    ];
+    if (preg_match('#^/cup/([a-z0-9-]+?)-(\d{4})/?$#i', $path, $matches)) {
+        return [
+            'legacyId' => null,
+            'slug' => strtolower($matches[1]),
+            'slugYear' => (int) $matches[2],
+        ];
+    }
+    return null;
 }
 
 function formatDateSv(?string $value): string
@@ -56,7 +147,7 @@ function formatDateSv(?string $value): string
     if ($ts === false) {
         return $value;
     }
-    return (string) strftime('%e %b %Y', $ts);
+    return date('j M Y', $ts);
 }
 
 function dateRangeLabel(array $cup): string
@@ -116,28 +207,85 @@ function starString(float $avg): string
     return $out;
 }
 
+function fetchPublicCupsFallback(): array
+{
+    $envUrl = trim((string) (getenv('PUBLIC_CUPS_API_URL') ?: ''));
+    $url = $envUrl !== '' ? $envUrl : 'http://localhost:3002/api/public/cups';
+    $json = @file_get_contents($url);
+    if ($json === false) {
+        return [];
+    }
+    $payload = json_decode($json, true);
+    if (!is_array($payload) || !isset($payload['cups']) || !is_array($payload['cups'])) {
+        return [];
+    }
+    return array_values(
+        array_filter(
+            $payload['cups'],
+            static fn($c) => is_array($c) && (($c['visible'] ?? true) !== false) && (($c['visible'] ?? 'true') !== 'false'),
+        ),
+    );
+}
+
 $pathParts = parseCupPath();
-if ($pathParts === null || $pathParts['id'] < 1) {
+if ($pathParts === null) {
     http_response_code(404);
     include __DIR__ . '/index.html';
     exit;
 }
 
 try {
+    $pdo = null;
+    $allCupsFallback = [];
     $pdo = getPdoFromEnv();
-    $cupStmt = $pdo->prepare(
-        "SELECT c.*, src.name AS ingest_source_name
-         FROM cups c
-         LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
-         WHERE c.id = :id AND COALESCE(c.visible, TRUE) = TRUE
-         LIMIT 1",
-    );
-    $cupStmt->execute(['id' => $pathParts['id']]);
-    $cup = $cupStmt->fetch();
+    if ($pathParts['legacyId']) {
+        $cupStmt = $pdo->prepare(
+            "SELECT c.*, src.name AS ingest_source_name
+             FROM cups c
+             LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
+             WHERE c.id = :id AND COALESCE(c.visible, TRUE) = TRUE
+             LIMIT 1",
+        );
+        $cupStmt->execute(['id' => $pathParts['legacyId']]);
+        $cup = $cupStmt->fetch();
+    } else {
+        $cupsStmt = $pdo->query(
+            "SELECT c.*, src.name AS ingest_source_name
+             FROM cups c
+             LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
+             WHERE COALESCE(c.visible, TRUE) = TRUE",
+        );
+        $cup = null;
+        foreach ($cupsStmt->fetchAll() as $row) {
+            if ((int) (cupYear($row) ?? 0) !== (int) $pathParts['slugYear']) {
+                continue;
+            }
+            if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $pathParts['slugYear'])) {
+                $cup = $row;
+                break;
+            }
+        }
+    }
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo 'Internal server error.';
-    exit;
+    $pdo = null;
+    $allCupsFallback = fetchPublicCupsFallback();
+    $cup = null;
+    foreach ($allCupsFallback as $row) {
+        if ($pathParts['legacyId']) {
+            if ((int) ($row['id'] ?? 0) === (int) $pathParts['legacyId']) {
+                $cup = $row;
+                break;
+            }
+            continue;
+        }
+        if ((int) (cupYear($row) ?? 0) !== (int) $pathParts['slugYear']) {
+            continue;
+        }
+        if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $pathParts['slugYear'])) {
+            $cup = $row;
+            break;
+        }
+    }
 }
 
 if (!$cup) {
@@ -148,6 +296,11 @@ if (!$cup) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, follow" />
+  <meta
+    name="description"
+    content="Den här cupen finns inte längre på Cupappen eller är inte publik. Utforska aktuella fotbollscuper på cupappen.se."
+  />
   <title>Cup hittades inte - Cupappen</title>
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/cupappen-cup-detail.css" />
@@ -166,14 +319,14 @@ if (!$cup) {
     exit;
 }
 
-$expectedSlug = slugify((string) ($cup['name'] ?? 'cup'));
-if ($pathParts['slug'] !== '' && $pathParts['slug'] !== $expectedSlug) {
-    header('Location: /cup/' . (int) $cup['id'] . '-' . $expectedSlug, true, 301);
+$expectedPrettySlug = cupPrettySlug($cup);
+if ($pathParts['legacyId'] || ($pathParts['slug'] . '-' . $pathParts['slugYear']) !== $expectedPrettySlug) {
+    header('Location: /cup/' . $expectedPrettySlug, true, 301);
     exit;
 }
 
 $baseUrl = siteBaseUrl();
-$canonicalPath = '/cup/' . (int) $cup['id'] . '-' . $expectedSlug;
+$canonicalPath = '/cup/' . $expectedPrettySlug;
 $canonicalUrl = $baseUrl . $canonicalPath;
 $title = normalizeText((string) ($cup['name'] ?? 'Cup'));
 $dateRange = dateRangeLabel($cup);
@@ -182,126 +335,293 @@ $organizer = normalizeText((string) ($cup['organizer'] ?? ''));
 $description = normalizeText((string) ($cup['description'] ?? ''));
 $categories = splitCategories($cup['categories'] ?? null);
 $imageUrl = cupImageUrl($cup);
+$compareDateRaw = (string) ($cup['end_date'] ?? $cup['start_date'] ?? '');
+$compareTs = $compareDateRaw !== '' ? strtotime($compareDateRaw) : false;
+$isPastCup = $compareTs !== false && $compareTs < time();
 
-$ratingsSummaryStmt = $pdo->prepare(
-    "SELECT COUNT(*)::int AS count, ROUND(COALESCE(AVG(rating), 0)::numeric, 1) AS avg
-     FROM cup_ratings WHERE cup_id = :cup_id",
-);
-$ratingsSummaryStmt->execute(['cup_id' => (int) $cup['id']]);
-$ratingsSummary = $ratingsSummaryStmt->fetch() ?: ['count' => 0, 'avg' => 0];
-$ratingsCount = (int) ($ratingsSummary['count'] ?? 0);
-$ratingsAvg = (float) ($ratingsSummary['avg'] ?? 0);
-
-$distStmt = $pdo->prepare("SELECT rating, COUNT(*)::int AS count FROM cup_ratings WHERE cup_id = :cup_id GROUP BY rating");
-$distStmt->execute(['cup_id' => (int) $cup['id']]);
+$ratingsCount = 0;
+$ratingsAvg = 0.0;
 $distribution = ['1' => 0, '2' => 0, '3' => 0, '4' => 0, '5' => 0];
-foreach ($distStmt->fetchAll() as $row) {
-    $k = (string) ((int) ($row['rating'] ?? 0));
-    if (isset($distribution[$k])) {
-        $distribution[$k] = (int) ($row['count'] ?? 0);
+$ratings = [];
+$related = [];
+
+if ($pdo instanceof PDO) {
+    $ratingsSummaryStmt = $pdo->prepare(
+        "SELECT COUNT(*)::int AS count, ROUND(COALESCE(AVG(rating), 0)::numeric, 1) AS avg
+         FROM cup_ratings WHERE cup_id = :cup_id",
+    );
+    $ratingsSummaryStmt->execute(['cup_id' => (int) $cup['id']]);
+    $ratingsSummary = $ratingsSummaryStmt->fetch() ?: ['count' => 0, 'avg' => 0];
+    $ratingsCount = (int) ($ratingsSummary['count'] ?? 0);
+    $ratingsAvg = (float) ($ratingsSummary['avg'] ?? 0);
+
+    $distStmt = $pdo->prepare("SELECT rating, COUNT(*)::int AS count FROM cup_ratings WHERE cup_id = :cup_id GROUP BY rating");
+    $distStmt->execute(['cup_id' => (int) $cup['id']]);
+    foreach ($distStmt->fetchAll() as $row) {
+        $k = (string) ((int) ($row['rating'] ?? 0));
+        if (isset($distribution[$k])) {
+            $distribution[$k] = (int) ($row['count'] ?? 0);
+        }
     }
-}
 
-$ratingsStmt = $pdo->prepare(
-    "SELECT reviewer_name, reviewer_role, rating, comment, created_at
-     FROM cup_ratings
-     WHERE cup_id = :cup_id
-     ORDER BY created_at DESC
-     LIMIT 30",
-);
-$ratingsStmt->execute(['cup_id' => (int) $cup['id']]);
-$ratings = $ratingsStmt->fetchAll();
+    $ratingsStmt = $pdo->prepare(
+        "SELECT reviewer_name, reviewer_role, reviewer_club, reviewer_class, rating, comment, created_at
+         FROM cup_ratings
+         WHERE cup_id = :cup_id
+         ORDER BY created_at DESC
+         LIMIT 30",
+    );
+    $ratingsStmt->execute(['cup_id' => (int) $cup['id']]);
+    $ratings = $ratingsStmt->fetchAll();
 
-$relatedStmt = $pdo->prepare(
-    "SELECT id, name, location, start_date, featured_image_url
-     FROM cups
-     WHERE id <> :id
-       AND COALESCE(visible, TRUE) = TRUE
-       AND (
-         (organizer IS NOT NULL AND organizer <> '' AND organizer = :organizer)
-         OR
-         (location IS NOT NULL AND location <> '' AND location = :location)
-       )
-     ORDER BY start_date ASC NULLS LAST
-     LIMIT 4",
-);
-$relatedStmt->execute([
-    'id' => (int) $cup['id'],
-    'organizer' => $cup['organizer'] ?? '',
-    'location' => $cup['location'] ?? '',
-]);
-$related = $relatedStmt->fetchAll();
-
-if (count($related) < 4) {
-    $fallbackStmt = $pdo->prepare(
+    $relatedStmt = $pdo->prepare(
         "SELECT id, name, location, start_date, featured_image_url
          FROM cups
-         WHERE id <> :id AND COALESCE(visible, TRUE) = TRUE
+         WHERE id <> :id
+           AND COALESCE(visible, TRUE) = TRUE
+           AND (
+             (organizer IS NOT NULL AND organizer <> '' AND organizer = :organizer)
+             OR
+             (location IS NOT NULL AND location <> '' AND location = :location)
+           )
          ORDER BY start_date ASC NULLS LAST
-         LIMIT 8",
+         LIMIT 4",
     );
-    $fallbackStmt->execute(['id' => (int) $cup['id']]);
-    $seen = [];
-    foreach ($related as $row) {
-        $seen[(int) $row['id']] = true;
-    }
-    foreach ($fallbackStmt->fetchAll() as $row) {
-        $id = (int) $row['id'];
-        if (isset($seen[$id])) {
-            continue;
+    $relatedStmt->execute([
+        'id' => (int) $cup['id'],
+        'organizer' => $cup['organizer'] ?? '',
+        'location' => $cup['location'] ?? '',
+    ]);
+    $related = $relatedStmt->fetchAll();
+
+    if (count($related) < 4) {
+        $fallbackStmt = $pdo->prepare(
+            "SELECT id, name, location, start_date, featured_image_url
+             FROM cups
+             WHERE id <> :id AND COALESCE(visible, TRUE) = TRUE
+             ORDER BY start_date ASC NULLS LAST
+             LIMIT 8",
+        );
+        $fallbackStmt->execute(['id' => (int) $cup['id']]);
+        $seen = [];
+        foreach ($related as $row) {
+            $seen[(int) $row['id']] = true;
         }
-        $related[] = $row;
-        $seen[$id] = true;
-        if (count($related) >= 4) {
-            break;
+        foreach ($fallbackStmt->fetchAll() as $row) {
+            $id = (int) $row['id'];
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $related[] = $row;
+            $seen[$id] = true;
+            if (count($related) >= 4) {
+                break;
+            }
         }
     }
+} else {
+    if (!isset($allCupsFallback) || !is_array($allCupsFallback)) {
+        $allCupsFallback = fetchPublicCupsFallback();
+    }
+    $relatedPool = array_values(
+        array_filter(
+            $allCupsFallback,
+            static fn($row) => (int) ($row['id'] ?? 0) !== (int) ($cup['id'] ?? 0),
+        ),
+    );
+    $related = array_slice($relatedPool, 0, 4);
 }
 
 $metaDescription = $description !== '' ? $description : trim($title . ' i ' . ($location !== '' ? $location : 'Sverige') . '. Datum, arrangör och anmälan på Cupappen.');
-$eventJson = [
-    '@context' => 'https://schema.org',
-    '@type' => 'Event',
-    '@id' => $canonicalUrl . '#event',
+$metaDescriptionHtml = truncateMetaDescription($metaDescription !== '' ? $metaDescription : $title);
+$ogImageUrl = absolutePublicUrl($baseUrl, $imageUrl);
+
+$registrationRaw = trim((string) ($cup['registration_url'] ?? ''));
+$registrationAbs = $registrationRaw !== '' ? absolutePublicUrl($baseUrl, $registrationRaw) : '';
+
+$keywordsParts = $categories;
+$matchFormatKw = normalizeText((string) ($cup['match_format'] ?? ''));
+if ($matchFormatKw !== '') {
+    $keywordsParts[] = $matchFormatKw;
+}
+$districtKw = normalizeText((string) ($cup['ingest_source_name'] ?? ''));
+if ($districtKw !== '') {
+    $keywordsParts[] = $districtKw;
+}
+$keywordsCsv = implode(', ', array_unique(array_values(array_filter($keywordsParts))));
+
+$sportsEventLd = [
+    '@type' => 'SportsEvent',
+    '@id' => $canonicalUrl . '#cup',
+    'identifier' => ((int) ($cup['id'] ?? 0)) > 0 ? (string) ((int) $cup['id']) : null,
     'name' => $title,
+    'url' => $canonicalUrl,
+    'inLanguage' => 'sv-SE',
     'startDate' => $cup['start_date'] ?: null,
     'endDate' => $cup['end_date'] ?: null,
+    'sport' => 'Fotboll',
+    'description' => $metaDescriptionHtml !== '' ? $metaDescriptionHtml : $metaDescription,
     'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
     'eventStatus' => 'https://schema.org/EventScheduled',
-    'description' => $metaDescription,
-    'image' => [$imageUrl],
-    'location' => $location !== '' ? ['@type' => 'Place', 'name' => $location] : null,
-    'organizer' => $organizer !== '' ? ['@type' => 'Organization', 'name' => $organizer] : null,
-    'url' => $canonicalUrl,
 ];
+if ($keywordsCsv !== '') {
+    $sportsEventLd['keywords'] = $keywordsCsv;
+}
+$sportsEventLd['image'] = [$ogImageUrl];
+if ($location !== '') {
+    $sportsEventLd['location'] = ['@type' => 'Place', 'name' => $location];
+}
+if ($organizer !== '') {
+    $sportsEventLd['organizer'] = ['@type' => 'Organization', 'name' => $organizer];
+}
+if ($registrationAbs !== '' && (str_starts_with($registrationAbs, 'http://') || str_starts_with($registrationAbs, 'https://'))) {
+    $sportsEventLd['offers'] = [
+        '@type' => 'Offer',
+        'url' => $registrationAbs,
+        'availability' => 'https://schema.org/InStock',
+        'price' => '0',
+        'priceCurrency' => 'SEK',
+    ];
+}
+if (!empty($cup['team_count'])) {
+    $tc = (int) $cup['team_count'];
+    if ($tc > 0) {
+        $sportsEventLd['maximumAttendeeCapacity'] = $tc;
+    }
+}
+if ($ratingsCount > 0) {
+    $sportsEventLd['aggregateRating'] = [
+        '@type' => 'AggregateRating',
+        'ratingValue' => round($ratingsAvg, 1),
+        'bestRating' => 5,
+        'worstRating' => 1,
+        'ratingCount' => $ratingsCount,
+    ];
+}
+$sportsEventLd['mainEntityOfPage'] = ['@id' => $canonicalUrl . '#webpage'];
+
+$organizationLd = [
+    '@type' => 'Organization',
+    '@id' => $baseUrl . '/#organization',
+    'name' => 'Cupappen',
+    'url' => $baseUrl . '/',
+    'email' => 'info@cupappen.se',
+    'logo' => [
+        '@type' => 'ImageObject',
+        'url' => absolutePublicUrl($baseUrl, '/assets/cupappen-logo.png'),
+        'width' => 1536,
+        'height' => 1024,
+    ],
+];
+
+$websiteLd = [
+    '@type' => 'WebSite',
+    '@id' => $baseUrl . '/#website',
+    'name' => 'Cupappen',
+    'url' => $baseUrl . '/',
+    'inLanguage' => 'sv-SE',
+    'publisher' => ['@id' => $organizationLd['@id']],
+];
+
+$breadcrumbLd = [
+    '@type' => 'BreadcrumbList',
+    '@id' => $canonicalUrl . '#breadcrumb',
+    'itemListElement' => [
+        [
+            '@type' => 'ListItem',
+            'position' => 1,
+            'name' => 'Cupappen',
+            'item' => $baseUrl . '/',
+        ],
+        [
+            '@type' => 'ListItem',
+            'position' => 2,
+            'name' => $title,
+            'item' => $canonicalUrl,
+        ],
+    ],
+];
+
+$webPageLd = [
+    '@type' => 'WebPage',
+    '@id' => $canonicalUrl . '#webpage',
+    'url' => $canonicalUrl,
+    'name' => $title . ' | Cupappen',
+    'description' => $metaDescriptionHtml !== '' ? $metaDescriptionHtml : $metaDescription,
+    'inLanguage' => 'sv-SE',
+    'primaryImageOfPage' => ['@type' => 'ImageObject', 'url' => $ogImageUrl],
+    'publisher' => ['@id' => $organizationLd['@id']],
+    'isPartOf' => ['@id' => $websiteLd['@id']],
+    'about' => ['@id' => $canonicalUrl . '#cup'],
+    'mainEntity' => ['@id' => $canonicalUrl . '#cup'],
+    'breadcrumb' => ['@id' => $canonicalUrl . '#breadcrumb'],
+];
+
+$jsonLdGraph = jsonLdStripNulls([
+    '@context' => 'https://schema.org',
+    '@graph' => [$organizationLd, $websiteLd, $webPageLd, $breadcrumbLd, $sportsEventLd],
+]);
+
 ?>
 <!doctype html>
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><?= h($title) ?> - Cupappen</title>
-  <meta name="description" content="<?= h($metaDescription) ?>" />
-  <meta name="robots" content="index,follow" />
+  <title><?= h($title) ?> · Cupappen</title>
+  <meta name="description" content="<?= h($metaDescriptionHtml !== '' ? $metaDescriptionHtml : $metaDescription) ?>" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1" />
+  <meta name="theme-color" content="#099ea2" />
+  <meta name="author" content="Cupappen" />
+  <meta name="application-name" content="Cupappen" />
+  <?php if ($keywordsCsv !== ''): ?>
+    <meta name="keywords" content="<?= h($keywordsCsv) ?>" />
+  <?php endif; ?>
   <link rel="canonical" href="<?= h($canonicalUrl) ?>" />
+  <link rel="alternate" hreflang="sv-SE" href="<?= h($canonicalUrl) ?>" />
+  <link rel="alternate" hreflang="x-default" href="<?= h($canonicalUrl) ?>" />
+  <meta property="og:locale" content="sv_SE" />
+  <meta property="og:site_name" content="Cupappen" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="<?= h($title) ?> - Cupappen" />
-  <meta property="og:description" content="<?= h($metaDescription) ?>" />
+  <meta property="og:title" content="<?= h($title) ?> · Cupappen" />
+  <meta property="og:description" content="<?= h($metaDescriptionHtml !== '' ? $metaDescriptionHtml : $metaDescription) ?>" />
   <meta property="og:url" content="<?= h($canonicalUrl) ?>" />
-  <meta property="og:image" content="<?= h($imageUrl) ?>" />
+  <meta property="og:image" content="<?= h($ogImageUrl) ?>" />
+  <?php if (str_starts_with($ogImageUrl, 'https://')): ?>
+    <meta property="og:image:secure_url" content="<?= h($ogImageUrl) ?>" />
+  <?php endif; ?>
+  <meta property="og:image:alt" content="<?= h($title) ?>" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="<?= h($title) ?> - Cupappen" />
-  <meta name="twitter:description" content="<?= h($metaDescription) ?>" />
-  <meta name="twitter:image" content="<?= h($imageUrl) ?>" />
+  <meta name="twitter:title" content="<?= h($title) ?> · Cupappen" />
+  <meta name="twitter:description" content="<?= h($metaDescriptionHtml !== '' ? $metaDescriptionHtml : $metaDescription) ?>" />
+  <meta name="twitter:image" content="<?= h($ogImageUrl) ?>" />
+  <meta name="twitter:image:alt" content="<?= h($title) ?>" />
+  <link rel="icon" type="image/svg+xml" href="<?= h($baseUrl . '/favicon.svg') ?>" />
+  <link rel="icon" type="image/png" sizes="48x48" href="<?= h($baseUrl . '/assets/cupappen-favicon.png') ?>" />
+  <link rel="sitemap" type="application/xml" title="Cupappen sitemap" href="<?= h($baseUrl . '/sitemap.xml') ?>" />
+  <link rel="alternate" type="text/plain" title="LLM / AI site guide (llms.txt)" href="<?= h($baseUrl . '/llms.txt') ?>" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/cupappen-cup-detail.css" />
-  <script type="application/ld+json"><?= h(json_encode($eventJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
+  <script type="application/ld+json"><?= h(json_encode($jsonLdGraph, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
 </head>
 <body>
   <header class="detail-header">
     <div class="container detail-header__inner">
+      <a href="/" class="logo" aria-label="Cupappen startsida">
+        <picture>
+          <source srcset="/assets/cupappen-logo.webp" type="image/webp" />
+          <img
+            class="logo__img"
+            src="/assets/cupappen-logo.png"
+            alt="Cupappen"
+            width="360"
+            height="240"
+            decoding="async"
+          />
+        </picture>
+      </a>
       <a class="detail-back" href="/">Tillbaka</a>
-      <a class="detail-back" href="/">Cupappen</a>
     </div>
   </header>
 
@@ -392,6 +712,8 @@ $eventJson = [
                     <div class="rating-item__head">
                       <span class="rating-item__name"><?= h($name) ?></span>
                       <?php if (!empty($rating['reviewer_role'])): ?><span class="rating-item__role"><?= h((string) $rating['reviewer_role']) ?></span><?php endif; ?>
+                      <?php if (!empty($rating['reviewer_club'])): ?><span class="rating-item__role"><?= h((string) $rating['reviewer_club']) ?></span><?php endif; ?>
+                      <?php if (!empty($rating['reviewer_class'])): ?><span class="rating-item__role"><?= h((string) $rating['reviewer_class']) ?></span><?php endif; ?>
                       <?php if (!empty($rating['created_at'])): ?><span class="rating-item__date"><?= h(date('Y-m-d', strtotime((string) $rating['created_at']))) ?></span><?php endif; ?>
                     </div>
                     <div class="rating-item__stars"><?= h(str_repeat('★', (int) $rating['rating']) . str_repeat('☆', max(0, 5 - (int) $rating['rating']))) ?></div>
@@ -422,6 +744,16 @@ $eventJson = [
                 <input class="form-input" id="reviewer_role" name="reviewer_role" placeholder="Tränare / Förälder / Spelare" />
               </div>
             </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label class="form-field__label" for="reviewer_club">Förening / Klubb</label>
+                <input class="form-input" id="reviewer_club" name="reviewer_club" placeholder="Ex. IFK Göteborg" />
+              </div>
+              <div class="form-field">
+                <label class="form-field__label" for="reviewer_class">Klass</label>
+                <input class="form-input" id="reviewer_class" name="reviewer_class" placeholder="Ex. F16, P12" maxlength="40" />
+              </div>
+            </div>
             <div class="form-field">
               <label class="form-field__label" for="comment">Kommentar</label>
               <textarea class="form-textarea" id="comment" name="comment" rows="4"></textarea>
@@ -438,6 +770,9 @@ $eventJson = [
       <section class="info-card">
         <span class="info-card__label">Cupinfo</span>
         <div class="info-card__price"><?= h(number_format($ratingsAvg, 1)) ?>/5</div>
+        <?php if ($isPastCup): ?>
+          <p class="info-card__alert-expired">Cupdatumet har passerat</p>
+        <?php endif; ?>
         <ul class="info-list">
           <li class="info-list__row"><div><span class="info-list__label">Datum</span><p class="info-list__value"><?= h($dateRange) ?></p></div></li>
           <?php if ($location !== ''): ?><li class="info-list__row"><div><span class="info-list__label">Plats</span><p class="info-list__value"><?= h($location) ?></p></div></li><?php endif; ?>
@@ -447,9 +782,6 @@ $eventJson = [
         <?php if (!empty($cup['registration_url'])): ?>
           <a class="info-card__cta" target="_blank" rel="noopener noreferrer" href="<?= h((string) $cup['registration_url']) ?>">Till anmälan</a>
         <?php endif; ?>
-        <div class="info-card__contact">
-          <?php if (!empty($cup['source_url'])): ?><a href="<?= h((string) $cup['source_url']) ?>" target="_blank" rel="noopener noreferrer">Officiell cupsida</a><?php endif; ?>
-        </div>
       </section>
 
       <section class="related-card">
@@ -457,7 +789,7 @@ $eventJson = [
         <ul class="related-list">
           <?php foreach ($related as $rel):
               $relName = normalizeText((string) ($rel['name'] ?? 'Cup'));
-              $relHref = '/cup/' . (int) $rel['id'] . '-' . slugify($relName);
+              $relHref = '/cup/' . cupPrettySlug($rel);
               $relImage = cupImageUrl($rel);
               ?>
             <li>
@@ -535,6 +867,8 @@ $eventJson = [
           cup_id: cupId,
           reviewer_name: String(document.getElementById('reviewer_name')?.value || '').trim(),
           reviewer_role: String(document.getElementById('reviewer_role')?.value || '').trim(),
+          reviewer_club: String(document.getElementById('reviewer_club')?.value || '').trim(),
+          reviewer_class: String(document.getElementById('reviewer_class')?.value || '').trim(),
           comment: String(document.getElementById('comment')?.value || '').trim(),
           rating: Number(ratingValue?.value || 0),
         };

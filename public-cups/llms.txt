@@ -1,17 +1,40 @@
 # Cupappen
 
-Cupappen är en publik katalog för svenska fotbollscuper.
+Cupappen is a public catalogue of football (soccer) tournaments in Sweden, published in Swedish (`sv-SE`).
 
-## Purpose
-- Hjälpa användare hitta cuper via sök och filter.
-- Visa verifierad cupinformation: namn, arrangör, datum, klasser, plats, spelform, antal lag och länk till cupsida.
+## Canonical site
+- Homepage: https://cupappen.se/
 
-## Primary URL
-- https://cupappen.se/
+## What this site is for
+- Help teams, clubs, and parents discover upcoming and past cups.
+- Provide one place to filter by date, category/district, free-text search, then open a dedicated page per cup.
+
+## URL patterns (important)
+- **Cup detail (primary, SEO/SSR):** `https://cupappen.se/cup/{slug}-{year}/`
+  - Example: `https://cupappen.se/cup/tjejcupen-2026`
+  - `{slug}` is derived from the cup name (ASCII slug). `{year}` is taken from start/end date when available to disambiguate recurring names.
+- Legacy redirect: older links like `/cup/{id}-{slug}` 301 to the pretty URL above when the cup exists.
+- Homepage `https://cupappen.se/` loads the interactive listing (client-side filters). Each visible cup also has the dedicated detail URL in the sitemap.
+
+## Machine-readable metadata
+- Cup detail pages are **server-rendered HTML** (not only a client shell) and include:
+  - `rel=canonical`, `hreflang` (`sv-SE`, `x-default`), Open Graph and Twitter tags.
+  - **JSON-LD** (`@graph`): `Organization`, `WebSite`, `WebPage`, `BreadcrumbList`, and `SportsEvent` (sport: fotboll). When reviews exist, `aggregateRating` may be present on the `SportsEvent`.
+- The homepage includes base JSON-LD (`Organization`, `WebSite`, `CollectionPage`, `SearchAction`) plus a dynamic `ItemList` of `SportsEvent` items emitted after cups load (IDs/URLs use the same detail pattern as the UI).
+
+## Ratings & user content
+- Authenticated **public** POST to `POST /api/ratings.php` (JSON) attaches a star rating + optional text to a `cup_id`.
+- GET returns aggregate stats and recent reviews. Rate limits apply (e.g. cooldown per IP/cup).
+- Summaries in JSON-LD reflect aggregate scores when data exists; individual comments are in the visible HTML.
+
+## Sitemaps & discovery
+- XML sitemap: https://cupappen.se/sitemap.xml (cup detail URLs included).
+
+## Data freshness & accuracy
+- Cup records are ingested/updated from organisers and sources over time. Fields (dates, venues, links) can change; prefer the on-page values and `lastmod` hints in the sitemap where present.
+
+## Preferred short citation
+Cupappen — https://cupappen.se/
 
 ## Contact
-- mailto:info@cupappen.se
-
-## Data notes
-- Innehåll uppdateras löpande från ingest-källor.
-- Cupdata kan förändras över tid.
+- Email: info@cupappen.se

@@ -1,4 +1,26 @@
 User-agent: *
 Allow: /
+# LLM / AI crawler guidance: see https://cupappen.se/llms.txt
 
 Sitemap: https://cupappen.se/sitemap.xml
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /

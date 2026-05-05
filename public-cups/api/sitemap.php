@@ -67,6 +67,19 @@ function slugify(string $value): string
     return trim($v, '-') ?: 'cup';
 }
 
+function cupYear(array $row): ?int
+{
+    $raw = (string) ($row['start_date'] ?? $row['end_date'] ?? '');
+    if ($raw === '') {
+        return null;
+    }
+    $ts = strtotime($raw);
+    if ($ts === false) {
+        return null;
+    }
+    return (int) date('Y', $ts);
+}
+
 header('Content-Type: application/xml; charset=utf-8');
 
 $base = publicSiteBaseUrl();
@@ -74,7 +87,7 @@ $base = publicSiteBaseUrl();
 try {
     $pdo = getPdoFromEnv();
     $sql = <<<'SQL'
-SELECT c.id, c.name, c.updated_at
+SELECT c.id, c.name, c.start_date, c.end_date, c.updated_at
 FROM cups c
 WHERE COALESCE(c.visible, TRUE) = TRUE
 ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC
@@ -126,7 +139,8 @@ foreach ($rows as $row) {
     }
     $lastmod = lastModFromValue($row['updated_at'] ?? null);
     $slug = slugify((string) ($row['name'] ?? 'cup'));
-    $loc = $base . '/cup/' . (string) $id . '-' . $slug;
+    $year = cupYear($row);
+    $loc = $base . '/cup/' . $slug . ($year ? ('-' . (string) $year) : '');
     echo '  <url>' . "\n";
     echo '    <loc>' . xmlText($loc) . '</loc>' . "\n";
     echo '    <lastmod>' . xmlText($lastmod) . '</lastmod>' . "\n";

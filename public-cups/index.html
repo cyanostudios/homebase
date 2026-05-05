@@ -57,8 +57,8 @@
     <link rel="icon" type="image/svg+xml" href="https://cupappen.se/favicon.svg" />
     <link rel="icon" type="image/png" sizes="48x48" href="https://cupappen.se/assets/cupappen-favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="https://cupappen.se/assets/cupappen-favicon.png" />
-    <link rel="robots" href="./robots.txt" />
-    <link rel="sitemap" type="application/xml" title="Sitemap" href="./sitemap.xml" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://cupappen.se/sitemap.xml" />
+    <link rel="alternate" type="text/plain" title="Guide för AI/LLM (llms.txt)" href="https://cupappen.se/llms.txt" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet" />
@@ -99,7 +99,8 @@
             "name": "Cupappen - Hitta fotbollscuper",
             "isPartOf": { "@id": "https://cupappen.se/#website" },
             "inLanguage": "sv-SE",
-            "description": "Cupappen listar fotbollscuper i Sverige med datum, arrangör, kategorier, antal lag och anmälningslänkar."
+            "about": { "@type": "Thing", "name": "Fotbollsturneringar i Sverige" },
+            "description": "Cupappen listar fotbollscuper i Sverige med datum, arrangör, kategorier och anmälan. Varje synlig cup har en egen server-renderad sida (/cup/kupnamn-år) för sökning och delning; sidan innehåller schema.org SportsEvent, användarrecensioner och länk till anmälan där sådan finns."
           }
         ]
       }

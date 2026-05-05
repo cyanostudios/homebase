@@ -61,7 +61,7 @@ function ratingsPayload(PDO $pdo, int $cupId): array
     }
 
     $ratingsStmt = $pdo->prepare(
-        "SELECT id, reviewer_name, reviewer_role, rating, comment, created_at
+        "SELECT id, reviewer_name, reviewer_role, reviewer_club, reviewer_class, rating, comment, created_at
          FROM cup_ratings
          WHERE cup_id = :cup_id
          ORDER BY created_at DESC
@@ -74,6 +74,8 @@ function ratingsPayload(PDO $pdo, int $cupId): array
                 'id' => (int) $row['id'],
                 'reviewer_name' => (string) ($row['reviewer_name'] ?? ''),
                 'reviewer_role' => $row['reviewer_role'] ?? null,
+                'reviewer_club' => $row['reviewer_club'] ?? null,
+                'reviewer_class' => $row['reviewer_class'] ?? null,
                 'rating' => (int) ($row['rating'] ?? 0),
                 'comment' => $row['comment'] ?? null,
                 'created_at' => $row['created_at'] ?? null,
@@ -121,6 +123,8 @@ try {
     $cupId = (int) ($payload['cup_id'] ?? 0);
     $reviewerName = trim((string) ($payload['reviewer_name'] ?? ''));
     $reviewerRole = trim((string) ($payload['reviewer_role'] ?? ''));
+    $reviewerClub = trim((string) ($payload['reviewer_club'] ?? ''));
+    $reviewerClass = trim((string) ($payload['reviewer_class'] ?? ''));
     $rating = (int) ($payload['rating'] ?? 0);
     $comment = trim((string) ($payload['comment'] ?? ''));
 
@@ -132,6 +136,12 @@ try {
     }
     if ($reviewerRole !== '' && mb_strlen($reviewerRole) > 100) {
         respond(400, ['error' => 'reviewer_role max 100 chars']);
+    }
+    if ($reviewerClub !== '' && mb_strlen($reviewerClub) > 120) {
+        respond(400, ['error' => 'reviewer_club max 120 chars']);
+    }
+    if ($reviewerClass !== '' && mb_strlen($reviewerClass) > 40) {
+        respond(400, ['error' => 'reviewer_class max 40 chars']);
     }
     if ($rating < 1 || $rating > 5) {
         respond(400, ['error' => 'rating must be between 1 and 5']);
@@ -163,13 +173,15 @@ try {
     }
 
     $insertStmt = $pdo->prepare(
-        "INSERT INTO cup_ratings (cup_id, reviewer_name, reviewer_role, rating, comment)
-         VALUES (:cup_id, :reviewer_name, :reviewer_role, :rating, :comment)",
+        "INSERT INTO cup_ratings (cup_id, reviewer_name, reviewer_role, reviewer_club, reviewer_class, rating, comment)
+         VALUES (:cup_id, :reviewer_name, :reviewer_role, :reviewer_club, :reviewer_class, :rating, :comment)",
     );
     $insertStmt->execute([
         'cup_id' => $cupId,
         'reviewer_name' => $reviewerName,
         'reviewer_role' => $reviewerRole !== '' ? $reviewerRole : null,
+        'reviewer_club' => $reviewerClub !== '' ? $reviewerClub : null,
+        'reviewer_class' => $reviewerClass !== '' ? $reviewerClass : null,
         'rating' => $rating,
         'comment' => $comment !== '' ? $comment : null,
     ]);
