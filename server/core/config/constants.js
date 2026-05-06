@@ -5,7 +5,7 @@ const path = require('path');
 
 // Plugins that should NOT be enabled by default for new users
 // (e.g., read-only plugins, experimental plugins, or plugins requiring special setup)
-const DEFAULT_DISABLED_PLUGINS = [];
+const DEFAULT_DISABLED_PLUGINS = ['mail'];
 
 // Dynamically discover available plugins
 // Only includes directories that contain a valid plugin.config.js file
@@ -40,12 +40,12 @@ const getAvailablePlugins = () => {
   return Array.from(plugins).sort(); // Sort for consistent ordering
 };
 
-const AVAILABLE_PLUGINS = getAvailablePlugins();
-
-// Default enabled plugins for new users (excludes plugins in DEFAULT_DISABLED_PLUGINS)
-const DEFAULT_USER_PLUGINS = AVAILABLE_PLUGINS.filter(
+const AVAILABLE_PLUGINS = getAvailablePlugins().filter(
   (plugin) => !DEFAULT_DISABLED_PLUGINS.includes(plugin),
 );
+
+// Default enabled plugins for new users (excludes plugins in DEFAULT_DISABLED_PLUGINS)
+const DEFAULT_USER_PLUGINS = AVAILABLE_PLUGINS;
 
 module.exports = {
   // User Roles (platform-level)
