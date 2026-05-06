@@ -76,6 +76,22 @@ export default defineConfig({
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks(id) {
+          // ── Core vendor chunks (must be first to avoid React ending up in a plugin chunk) ──
+          if (
+            id.includes('/node_modules/react/') ||
+            id.includes('/node_modules/react-dom/') ||
+            id.includes('/node_modules/scheduler/')
+          )
+            return 'vendor-react';
+          if (
+            id.includes('/node_modules/react-router-dom/') ||
+            id.includes('/node_modules/react-router/') ||
+            id.includes('/node_modules/@remix-run/')
+          )
+            return 'vendor-router';
+          if (id.includes('/node_modules/react-i18next/') || id.includes('/node_modules/i18next/'))
+            return 'vendor-i18n';
+
           // ── Plugin Provider chunks ─────────────────────────────────────────────
           // Loaded lazily at authentication via providerLoader; kept separate from
           // UI component chunks so navigating to a plugin page only loads its UI.

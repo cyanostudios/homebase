@@ -5,6 +5,57 @@
 import React from 'react';
 import { Route, Routes, useParams } from 'react-router-dom';
 
+class PluginErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error) {
+    console.error('[PluginErrorBoundary] Plugin crashed, showing fallback:', error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh',
+            gap: '12px',
+            fontFamily: 'sans-serif',
+          }}
+        >
+          <p style={{ fontSize: '1rem', color: '#666' }}>
+            Something went wrong loading the app. Please try refreshing the page.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '8px 20px',
+              borderRadius: '6px',
+              border: 'none',
+              background: '#0f172a',
+              color: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            Refresh
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider } from '@/core/api/AppContext';
 import { AppContent } from '@/core/app/AppContent';
@@ -55,17 +106,19 @@ export function AppRoutes() {
       <Route
         path="/*"
         element={
-          <AppProvider>
-            <TimeTrackingActivityProvider>
-              <ActionProvider>
-                <GlobalNavigationGuardProvider>
-                  <PluginProviders>
-                    <AppContent />
-                  </PluginProviders>
-                </GlobalNavigationGuardProvider>
-              </ActionProvider>
-            </TimeTrackingActivityProvider>
-          </AppProvider>
+          <PluginErrorBoundary>
+            <AppProvider>
+              <TimeTrackingActivityProvider>
+                <ActionProvider>
+                  <GlobalNavigationGuardProvider>
+                    <PluginProviders>
+                      <AppContent />
+                    </PluginProviders>
+                  </GlobalNavigationGuardProvider>
+                </ActionProvider>
+              </TimeTrackingActivityProvider>
+            </AppProvider>
+          </PluginErrorBoundary>
         }
       />
     </Routes>
