@@ -76,21 +76,21 @@ export default defineConfig({
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks(id) {
-          // ── Core vendor chunks (must be first to avoid React ending up in a plugin chunk) ──
+          // ── Core vendor chunk ─────────────────────────────────────────────────
+          // All React-ecosystem libs that call createContext/hooks at module
+          // evaluation time MUST live in the same chunk as React to guarantee
+          // evaluation order and avoid circular-dependency race conditions.
           if (
             id.includes('/node_modules/react/') ||
             id.includes('/node_modules/react-dom/') ||
-            id.includes('/node_modules/scheduler/')
+            id.includes('/node_modules/react-router') ||
+            id.includes('/node_modules/@remix-run/') ||
+            id.includes('/node_modules/react-i18next/') ||
+            id.includes('/node_modules/i18next/') ||
+            id.includes('/node_modules/scheduler/') ||
+            id.includes('/node_modules/wouter/')
           )
             return 'vendor-react';
-          if (
-            id.includes('/node_modules/react-router-dom/') ||
-            id.includes('/node_modules/react-router/') ||
-            id.includes('/node_modules/@remix-run/')
-          )
-            return 'vendor-router';
-          if (id.includes('/node_modules/react-i18next/') || id.includes('/node_modules/i18next/'))
-            return 'vendor-i18n';
 
           // ── Plugin Provider chunks ─────────────────────────────────────────────
           // Loaded lazily at authentication via providerLoader; kept separate from
