@@ -106,7 +106,47 @@
       }
     </script>
     <script type="application/ld+json" id="cups-json-ld"></script>
-    <link rel="stylesheet" href="./styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Kostar det något att använda Cupappen?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Nej, Cupappen är helt gratis att använda för lag och tränare som söker cuper. För arrangörer som vill exponera sin cup kan det finnas olika paketerbjudanden — kontakta oss för mer information."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Hur lägger jag upp min cup?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Kontakta oss på info@cupappen.se eller använd knappen \"Lägg till cup gratis\" på sidan. Vi hjälper er att publicera cupen snabbt — oftast inom ett dygn."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Kan jag anmäla mitt lag direkt via Cupappen?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Du klickar på \"Till cupsidan\" på varje cup och länkas direkt till arrangörens officiella anmälningssida. Cupappen fungerar som en katalog och sökmotor — anmälan sker hos arrangören."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Hur vet jag att en cup är seriös?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Vi listar primärt cuper som är sanktionerade av respektive distriktsförbund inom Svensk Fotboll. Sanktionerade cuper uppfyller grundläggande krav vad gäller säkerhet, spelregler och administration."
+            }
+          }
+        ]
+      }
+    </script>
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <!-- Google Tag Manager (noscript) -->
@@ -121,10 +161,10 @@
       <div class="container site-header__inner">
         <a href="/" class="logo" data-testid="header-logo" aria-label="Cupappen startsida">
           <picture>
-            <source srcset="./assets/cupappen-logo.webp" type="image/webp" />
+            <source srcset="/assets/cupappen-logo.webp" type="image/webp" />
             <img
               class="logo__img"
-              src="./assets/cupappen-logo.png"
+              src="/assets/cupappen-logo.png"
               alt="Cupappen"
               width="360"
               height="240"
@@ -475,6 +515,6 @@
       </div>
     </footer>
 
-    <script src="./app.js"></script>
+    <script src="/app.js"></script>
   </body>
 </html>

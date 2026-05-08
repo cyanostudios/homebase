@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/api/pdo_env.php';
+require_once __DIR__ . '/api/security_headers.php';
+applyPublicCupsSecurityHeaders('html');
 
 function h(?string $value): string
 {
@@ -281,7 +283,10 @@ function genericImageForCup(array $cup): string
 function cupImageUrl(array $cup): string
 {
     $raw = trim((string) ($cup['featured_image_url'] ?? ''));
-    if ($raw !== '' && (str_starts_with($raw, 'http://') || str_starts_with($raw, 'https://') || str_starts_with($raw, '/'))) {
+    if ($raw !== ''
+        && (str_starts_with($raw, 'http://') || str_starts_with($raw, 'https://') || str_starts_with($raw, '/'))
+        && !str_starts_with($raw, '/api/')
+    ) {
         return $raw;
     }
     return genericImageForCup($cup);
@@ -320,7 +325,26 @@ function fetchPublicCupsFallback(): array
 $pathParts = parseCupPath();
 if ($pathParts === null) {
     http_response_code(404);
-    include __DIR__ . '/index.html';
+    ?>
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Sidan hittades inte · Cupappen</title>
+  <link rel="canonical" href="https://cupappen.se/" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div style="max-width:480px;margin:10vh auto;padding:2rem;text-align:center;font-family:sans-serif;">
+    <h1 style="font-size:1.5rem;margin-bottom:0.75rem;">Sidan hittades inte</h1>
+    <p style="color:#666;margin-bottom:1.5rem;">Adressen du angav finns inte. Gå tillbaka till startsidan för att söka bland cuper.</p>
+    <a href="/" style="display:inline-block;padding:0.6rem 1.5rem;background:#099ea2;color:#fff;border-radius:6px;text-decoration:none;">Till startsidan</a>
+  </div>
+</body>
+</html>
+<?php
     exit;
 }
 
@@ -686,6 +710,9 @@ $jsonLdGraph = jsonLdStripNulls([
   <?php if (str_starts_with($ogImageUrl, 'https://')): ?>
     <meta property="og:image:secure_url" content="<?= h($ogImageUrl) ?>" />
   <?php endif; ?>
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:alt" content="<?= h($title) ?>" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="<?= h($title) ?> · Cupappen" />
@@ -694,6 +721,7 @@ $jsonLdGraph = jsonLdStripNulls([
   <meta name="twitter:image:alt" content="<?= h($title) ?>" />
   <link rel="icon" type="image/svg+xml" href="<?= h($baseUrl . '/favicon.svg') ?>" />
   <link rel="icon" type="image/png" sizes="48x48" href="<?= h($baseUrl . '/assets/cupappen-favicon.png') ?>" />
+  <link rel="apple-touch-icon" sizes="180x180" href="<?= h($baseUrl . '/assets/cupappen-favicon.png') ?>" />
   <link rel="sitemap" type="application/xml" title="Cupappen sitemap" href="<?= h($baseUrl . '/sitemap.xml') ?>" />
   <link rel="alternate" type="text/plain" title="LLM / AI site guide (llms.txt)" href="<?= h($baseUrl . '/llms.txt') ?>" />
   <link rel="stylesheet" href="/styles.css" />
@@ -722,7 +750,7 @@ $jsonLdGraph = jsonLdStripNulls([
 
   <section class="cover">
     <div class="cover__media">
-      <img src="<?= h($imageUrl) ?>" alt="<?= h($title) ?>" />
+      <img src="<?= h($imageUrl) ?>" alt="<?= h($title) ?>" width="1200" height="630" fetchpriority="high" decoding="async" />
       <div class="cover__gradient"></div>
       <div class="cover__content">
         <span class="cover__chip"><span class="dot"></span>Cupdetaljer</span>

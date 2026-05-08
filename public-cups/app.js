@@ -93,6 +93,7 @@ let mobileFiltersCollapsed = true;
    BOOT
 ================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  applyUrlParams();
   loadCups();
   initMobileMenu();
   initHeroSearch();
@@ -282,6 +283,32 @@ function updateTotalCupCountsUI(total) {
       n === 1
         ? 'Ny säsong 2026 · 1 cup publicerad'
         : `Ny säsong 2026 · ${formatted} cuper publicerade`;
+  }
+}
+
+/**
+ * Pre-fill search and filters from URL params so that Google's SearchAction
+ * (?q=) and shared filter links work correctly.
+ * Supported: ?q=searchterm  ?date=upcoming|past|all  ?category=F12  ?district=Småland
+ */
+function applyUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+
+  const q = params.get('q');
+  if (q && searchInputEl) {
+    searchInputEl.value = q;
+    if (searchInputHeroEl) searchInputHeroEl.value = q;
+  }
+
+  const date = params.get('date');
+  if (date && dateLabelEl) {
+    const valid = ['upcoming', 'past', 'all'];
+    const labelMap = { upcoming: 'Kommande', past: 'Passerade', all: 'Alla' };
+    if (valid.includes(date)) {
+      state.dateFilter = date;
+      dateLabelEl.textContent = labelMap[date] || date;
+      if (dateLabelHeroEl) dateLabelHeroEl.textContent = labelMap[date] || date;
+    }
   }
 }
 
@@ -1056,6 +1083,8 @@ function safeImageUrlForAttr(url) {
   const u = normalizeText(url).trim();
   if (!u) return '';
   if (!(u.startsWith('https://') || u.startsWith('http://') || u.startsWith('/'))) return '';
+  // Admin-API paths (/api/files/...) are not accessible on the public site.
+  if (u.startsWith('/api/')) return '';
   return escapeHtml(u);
 }
 
