@@ -484,6 +484,70 @@ class CupsModel {
     return { created, updated, skipped, errors };
   }
 
+  // ── Ratings ────────────────────────────────────────────────────────────────
+
+  transformRatingRow(row) {
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      cup_id: String(row.cup_id),
+      reviewer_name: row.reviewer_name ?? '',
+      reviewer_role: row.reviewer_role ?? null,
+      reviewer_club: row.reviewer_club ?? null,
+      reviewer_class: row.reviewer_class ?? null,
+      rating: Number(row.rating),
+      comment: row.comment ?? null,
+      created_at: row.created_at,
+    };
+  }
+
+  async getRatingsForCup(req, cupId) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query(
+        `SELECT id, cup_id, reviewer_name, reviewer_role, reviewer_club, reviewer_class,
+                rating, comment, created_at
+           FROM cup_ratings
+          WHERE cup_id = $1
+          ORDER BY created_at DESC`,
+        [cupId],
+      );
+      const summary = await db.query(
+        `SELECT COUNT(*)::int AS count,
+                ROUND(COALESCE(AVG(rating), 0)::numeric, 1)::float AS avg
+           FROM cup_ratings
+          WHERE cup_id = $1`,
+        [cupId],
+      );
+      return {
+        ratings: rows.map((r) => this.transformRatingRow(r)),
+        count: summary[0]?.count ?? 0,
+        avg: summary[0]?.avg ?? 0,
+      };
+    } catch (error) {
+      Logger.error('Failed to fetch ratings', error, { cupId });
+      throw new AppError('Failed to fetch ratings', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async deleteRating(req, cupId, ratingId) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query(
+        'DELETE FROM cup_ratings WHERE id = $1 AND cup_id = $2 RETURNING id',
+        [ratingId, cupId],
+      );
+      if (!rows.length) {
+        throw new AppError('Rating not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      return { id: String(ratingId) };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to delete rating', error, { cupId, ratingId });
+      throw new AppError('Failed to delete rating', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   /**
    * Soft-delete cups belonging to `ingestSourceId` whose `last_seen_at` is
    * older than `seenBefore` (i.e. were NOT touched during the current import run).

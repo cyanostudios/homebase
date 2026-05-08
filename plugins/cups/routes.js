@@ -71,6 +71,20 @@ function createCupsRoutes(controller, context) {
     controller.delete(req, res),
   );
 
+  router.get('/:id/ratings', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.getRatings(req, res),
+  );
+
+  router.delete(
+    '/:id/ratings/:ratingId',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('ratingId'),
+    validateRequest,
+    (req, res) => controller.deleteRating(req, res),
+  );
+
   router.post(
     '/import-from-ingest/:sourceId',
     gate,

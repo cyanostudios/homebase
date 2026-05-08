@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils';
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
 
+import { CupRatings } from './CupRatings';
+
 export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) {
   const { t } = useTranslation();
   const current = cup ?? item ?? null;
@@ -297,6 +299,7 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
             </div>
           </DetailSection>
         </Card>
+        <CupRatings cupId={current.id} />
       </DetailLayout>
       <ConfirmDialog
         isOpen={showDelete}

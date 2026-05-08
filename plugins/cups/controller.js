@@ -113,6 +113,35 @@ class CupsController {
     }
   }
 
+  async getRatings(req, res) {
+    try {
+      const result = await this.model.getRatingsForCup(req, req.params.id);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Get ratings failed', error, {
+        id: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch ratings' });
+    }
+  }
+
+  async deleteRating(req, res) {
+    try {
+      const result = await this.model.deleteRating(req, req.params.id, req.params.ratingId);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Delete rating failed', error, {
+        cupId: req.params.id,
+        ratingId: req.params.ratingId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to delete rating' });
+    }
+  }
+
   async importFromIngest(req, res) {
     try {
       const summary = await importFromIngest({
