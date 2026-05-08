@@ -8,7 +8,7 @@
     "dev:ui": "vite --port 3001",
     "dev:all": "concurrently -k -n API,UI -c auto \"npm:dev:api\" \"npm:dev:ui\"",
     "dev:public-booking": "npx serve public-booking -p 3003",
-    "dev:public-cups": "sh -c 'if command -v php >/dev/null 2>&1; then php -S 0.0.0.0:3004 -t public-cups public-cups/router.php; else echo \"php not found; using static serve fallback (detail routes will 404)\"; npx serve public-cups -p 3004; fi'",
+    "dev:public-cups": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; if command -v php >/dev/null 2>&1; then php -S 0.0.0.0:3004 -t public-cups public-cups/router.php; else echo \"php not found; using static serve fallback (detail routes will 404)\"; npx serve public-cups -p 3004; fi'",
     "build": "npm run build:ui && npm run build:api && npm run copy:ui",
     "build:ui": "vite build",
     "build:ui:analyze": "cross-env ANALYZE=1 vite build",

@@ -128,14 +128,65 @@ function parseCupPath(): ?array
             'slugYear' => null,
         ];
     }
+    /** Måste testas innan ”slug-only” så `/cup/foo-2026` blir slug+år — inte år saknas. */
     if (preg_match('#^/cup/([a-z0-9-]+?)-(\d{4})/?$#i', $path, $matches)) {
         return [
             'legacyId' => null,
-            'slug' => strtolower($matches[1]),
+            'slug' => strtolower((string) $matches[1]),
             'slugYear' => (int) $matches[2],
         ];
     }
+    if (preg_match('#^/cup/([a-z0-9-]+)/?$#i', $path, $matches)) {
+        return [
+            'legacyId' => null,
+            'slug' => strtolower((string) $matches[1]),
+            'slugYear' => null,
+        ];
+    }
+
     return null;
+}
+
+function cupRequestPathSegment(): string
+{
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    if (preg_match('#^/cup/([^/]+)/?$#i', $path, $m)) {
+        return strtolower((string) $m[1]);
+    }
+
+    return '';
+}
+
+/**
+ * Flera säsonger med samma namn-slug: först kommande/löpande (tidigast start bland dem), annars senast passerade.
+ *
+ * @param array<int, array<string, mixed>> $candidates
+ */
+function pickCupForSharedSlug(array $candidates): ?array
+{
+    if ($candidates === []) {
+        return null;
+    }
+    if (count($candidates) === 1) {
+        return $candidates[0];
+    }
+
+    $now = time();
+    $ongoingOrUpcoming = [];
+    foreach ($candidates as $row) {
+        $endRaw = (string) ($row['end_date'] ?? '');
+        $startRaw = (string) ($row['start_date'] ?? '');
+        $endTs = $endRaw !== '' ? strtotime($endRaw) : false;
+        $startTs = $startRaw !== '' ? strtotime($startRaw) : false;
+        $compareTs = ($endTs !== false && $endTs > 0) ? $endTs : (($startTs !== false && $startTs > 0) ? $startTs : false);
+        if ($compareTs !== false && $compareTs >= $now) {
+            $ongoingOrUpcoming[] = $row;
+        }
+    }
+    $pool = $ongoingOrUpcoming !== [] ? $ongoingOrUpcoming : $candidates;
+    sortCupsLikeHomepage($pool);
+
+    return $ongoingOrUpcoming !== [] ? $pool[0] : $pool[array_key_last($pool)];
 }
 
 function formatDateSv(?string $value): string
@@ -172,6 +223,45 @@ function splitCategories(?string $categories): array
     }
     $parts = array_map(static fn($s) => trim((string) $s), explode(',', $categories));
     return array_values(array_filter($parts, static fn($s) => $s !== ''));
+}
+
+/** Samma som startsidans filtrering för “utvalda” (featured). */
+function cupIsFeaturedPublic(array $cup): bool
+{
+    $f = $cup['featured'] ?? false;
+
+    return $f === true || $f === 'true' || $f === 't' || $f === 1 || $f === '1';
+}
+
+/** Sortering som i `app.js` compareByDate (närmast i tid först). */
+function cupScheduleSortKey(array $cup): int
+{
+    $raw = (string) ($cup['start_date'] ?? $cup['end_date'] ?? '');
+    if ($raw === '') {
+        return PHP_INT_MAX;
+    }
+    $ts = strtotime($raw);
+
+    return $ts === false ? PHP_INT_MAX : $ts;
+}
+
+/** @param array<int, array<string, mixed>> $rows */
+function sortCupsLikeHomepage(array &$rows): void
+{
+    usort(
+        $rows,
+        static function (array $a, array $b): int {
+            $cmp = cupScheduleSortKey($a) <=> cupScheduleSortKey($b);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            return strcmp(
+                normalizeText((string) ($a['name'] ?? '')),
+                normalizeText((string) ($b['name'] ?? '')),
+            );
+        },
+    );
 }
 
 function genericImageForCup(array $cup): string
@@ -255,36 +345,61 @@ try {
              LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
              WHERE COALESCE(c.visible, TRUE) = TRUE",
         );
-        $cup = null;
-        foreach ($cupsStmt->fetchAll() as $row) {
-            if ((int) (cupYear($row) ?? 0) !== (int) $pathParts['slugYear']) {
-                continue;
+        $allRows = $cupsStmt->fetchAll();
+        if ($pathParts['slugYear'] !== null) {
+            $cup = null;
+            $slugYear = (int) $pathParts['slugYear'];
+            foreach ($allRows as $row) {
+                if ((int) (cupYear($row) ?? 0) !== $slugYear) {
+                    continue;
+                }
+                if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $slugYear)) {
+                    $cup = $row;
+                    break;
+                }
             }
-            if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $pathParts['slugYear'])) {
-                $cup = $row;
-                break;
+        } else {
+            $needle = (string) $pathParts['slug'];
+            $candidates = [];
+            foreach ($allRows as $row) {
+                if (slugify((string) ($row['name'] ?? 'cup')) === $needle) {
+                    $candidates[] = $row;
+                }
             }
+            $cup = pickCupForSharedSlug($candidates);
         }
     }
 } catch (Throwable $e) {
     $pdo = null;
     $allCupsFallback = fetchPublicCupsFallback();
     $cup = null;
-    foreach ($allCupsFallback as $row) {
-        if ($pathParts['legacyId']) {
+    if ($pathParts['legacyId']) {
+        foreach ($allCupsFallback as $row) {
             if ((int) ($row['id'] ?? 0) === (int) $pathParts['legacyId']) {
                 $cup = $row;
                 break;
             }
-            continue;
         }
-        if ((int) (cupYear($row) ?? 0) !== (int) $pathParts['slugYear']) {
-            continue;
+    } elseif ($pathParts['slugYear'] !== null) {
+        $slugYear = (int) $pathParts['slugYear'];
+        foreach ($allCupsFallback as $row) {
+            if ((int) (cupYear($row) ?? 0) !== $slugYear) {
+                continue;
+            }
+            if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $slugYear)) {
+                $cup = $row;
+                break;
+            }
         }
-        if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $pathParts['slugYear'])) {
-            $cup = $row;
-            break;
+    } else {
+        $needle = (string) $pathParts['slug'];
+        $candidates = [];
+        foreach ($allCupsFallback as $row) {
+            if (slugify((string) ($row['name'] ?? 'cup')) === $needle) {
+                $candidates[] = $row;
+            }
         }
+        $cup = pickCupForSharedSlug($candidates);
     }
 }
 
@@ -320,7 +435,12 @@ if (!$cup) {
 }
 
 $expectedPrettySlug = cupPrettySlug($cup);
-if ($pathParts['legacyId'] || ($pathParts['slug'] . '-' . $pathParts['slugYear']) !== $expectedPrettySlug) {
+if ($pathParts['legacyId']) {
+    header('Location: /cup/' . $expectedPrettySlug, true, 301);
+    exit;
+}
+$requestedSeg = cupRequestPathSegment();
+if ($requestedSeg !== strtolower((string) $expectedPrettySlug)) {
     header('Location: /cup/' . $expectedPrettySlug, true, 301);
     exit;
 }
@@ -343,7 +463,8 @@ $ratingsCount = 0;
 $ratingsAvg = 0.0;
 $distribution = ['1' => 0, '2' => 0, '3' => 0, '4' => 0, '5' => 0];
 $ratings = [];
-$related = [];
+$sidebarUtvaldaLimit = 6;
+$sidebarFeaturedCups = [];
 
 if ($pdo instanceof PDO) {
     $ratingsSummaryStmt = $pdo->prepare(
@@ -374,62 +495,36 @@ if ($pdo instanceof PDO) {
     $ratingsStmt->execute(['cup_id' => (int) $cup['id']]);
     $ratings = $ratingsStmt->fetchAll();
 
-    $relatedStmt = $pdo->prepare(
-        "SELECT id, name, location, start_date, featured_image_url
+    $lim = max(1, min(48, $sidebarUtvaldaLimit));
+    $featuredStmt = $pdo->prepare(
+        'SELECT id, name, location, start_date, end_date, featured_image_url
          FROM cups
          WHERE id <> :id
            AND COALESCE(visible, TRUE) = TRUE
-           AND (
-             (organizer IS NOT NULL AND organizer <> '' AND organizer = :organizer)
-             OR
-             (location IS NOT NULL AND location <> '' AND location = :location)
-           )
-         ORDER BY start_date ASC NULLS LAST
-         LIMIT 4",
+           AND COALESCE(featured, FALSE) = TRUE
+         ORDER BY start_date ASC NULLS LAST, end_date ASC NULLS LAST, name ASC
+         LIMIT ' . (string) ((int) $lim),
     );
-    $relatedStmt->execute([
+    $featuredStmt->execute([
         'id' => (int) $cup['id'],
-        'organizer' => $cup['organizer'] ?? '',
-        'location' => $cup['location'] ?? '',
     ]);
-    $related = $relatedStmt->fetchAll();
-
-    if (count($related) < 4) {
-        $fallbackStmt = $pdo->prepare(
-            "SELECT id, name, location, start_date, featured_image_url
-             FROM cups
-             WHERE id <> :id AND COALESCE(visible, TRUE) = TRUE
-             ORDER BY start_date ASC NULLS LAST
-             LIMIT 8",
-        );
-        $fallbackStmt->execute(['id' => (int) $cup['id']]);
-        $seen = [];
-        foreach ($related as $row) {
-            $seen[(int) $row['id']] = true;
-        }
-        foreach ($fallbackStmt->fetchAll() as $row) {
-            $id = (int) $row['id'];
-            if (isset($seen[$id])) {
-                continue;
-            }
-            $related[] = $row;
-            $seen[$id] = true;
-            if (count($related) >= 4) {
-                break;
-            }
-        }
-    }
+    $sidebarFeaturedCups = $featuredStmt->fetchAll();
 } else {
     if (!isset($allCupsFallback) || !is_array($allCupsFallback)) {
         $allCupsFallback = fetchPublicCupsFallback();
     }
-    $relatedPool = array_values(
+    $pool = array_values(
         array_filter(
             $allCupsFallback,
-            static fn($row) => (int) ($row['id'] ?? 0) !== (int) ($cup['id'] ?? 0),
+            static function ($row) use ($cup): bool {
+                return is_array($row)
+                    && (int) ($row['id'] ?? 0) !== (int) ($cup['id'] ?? 0)
+                    && cupIsFeaturedPublic($row);
+            },
         ),
     );
-    $related = array_slice($relatedPool, 0, 4);
+    sortCupsLikeHomepage($pool);
+    $sidebarFeaturedCups = array_slice($pool, 0, $sidebarUtvaldaLimit);
 }
 
 $metaDescription = $description !== '' ? $description : trim($title . ' i ' . ($location !== '' ? $location : 'Sverige') . '. Datum, arrangör och anmälan på Cupappen.');
@@ -709,15 +804,15 @@ $jsonLdGraph = jsonLdStripNulls([
                 <div class="rating-item__row">
                   <div class="rating-avatar"><?= h(mb_strtoupper($initial, 'UTF-8')) ?></div>
                   <div>
+                    <div class="rating-item__stars"><?= h(str_repeat('★', (int) $rating['rating']) . str_repeat('☆', max(0, 5 - (int) $rating['rating']))) ?></div>
                     <div class="rating-item__head">
                       <span class="rating-item__name"><?= h($name) ?></span>
                       <?php if (!empty($rating['reviewer_role'])): ?><span class="rating-item__role"><?= h((string) $rating['reviewer_role']) ?></span><?php endif; ?>
                       <?php if (!empty($rating['reviewer_club'])): ?><span class="rating-item__role"><?= h((string) $rating['reviewer_club']) ?></span><?php endif; ?>
                       <?php if (!empty($rating['reviewer_class'])): ?><span class="rating-item__role"><?= h((string) $rating['reviewer_class']) ?></span><?php endif; ?>
-                      <?php if (!empty($rating['created_at'])): ?><span class="rating-item__date"><?= h(date('Y-m-d', strtotime((string) $rating['created_at']))) ?></span><?php endif; ?>
                     </div>
-                    <div class="rating-item__stars"><?= h(str_repeat('★', (int) $rating['rating']) . str_repeat('☆', max(0, 5 - (int) $rating['rating']))) ?></div>
                     <?php if (!empty($rating['comment'])): ?><p class="rating-item__comment"><?= h((string) $rating['comment']) ?></p><?php endif; ?>
+                    <?php if (!empty($rating['created_at'])): ?><span class="rating-item__date"><?= h(date('Y-m-d', strtotime((string) $rating['created_at']))) ?></span><?php endif; ?>
                   </div>
                 </div>
               </article>
@@ -784,10 +879,11 @@ $jsonLdGraph = jsonLdStripNulls([
         <?php endif; ?>
       </section>
 
-      <section class="related-card">
-        <h3 class="related-card__title">Liknande cuper</h3>
+      <?php if (count($sidebarFeaturedCups) > 0): ?>
+      <section class="related-card" aria-label="Utvalda cuper">
+        <h3 class="related-card__title">Utvalda cuper</h3>
         <ul class="related-list">
-          <?php foreach ($related as $rel):
+          <?php foreach ($sidebarFeaturedCups as $rel):
               $relName = normalizeText((string) ($rel['name'] ?? 'Cup'));
               $relHref = '/cup/' . cupPrettySlug($rel);
               $relImage = cupImageUrl($rel);
@@ -804,6 +900,7 @@ $jsonLdGraph = jsonLdStripNulls([
           <?php endforeach; ?>
         </ul>
       </section>
+      <?php endif; ?>
     </aside>
   </main>
 

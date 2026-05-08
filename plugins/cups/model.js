@@ -503,26 +503,39 @@ class CupsModel {
 
   async getRatingsForCup(req, cupId) {
     try {
+      // cup_ratings has no user_id column — bypass tenant filter via raw pool.
+      // Security: join cups so we only return ratings for cups owned by this tenant.
       const db = Database.get(req);
-      const rows = await db.query(
-        `SELECT id, cup_id, reviewer_name, reviewer_role, reviewer_club, reviewer_class,
-                rating, comment, created_at
-           FROM cup_ratings
-          WHERE cup_id = $1
-          ORDER BY created_at DESC`,
-        [cupId],
-      );
-      const summary = await db.query(
-        `SELECT COUNT(*)::int AS count,
-                ROUND(COALESCE(AVG(rating), 0)::numeric, 1)::float AS avg
-           FROM cup_ratings
-          WHERE cup_id = $1`,
-        [cupId],
-      );
+      const userId = db.getUserId();
+      const pool = db.getPool();
+
+      const [rows, summaryRows] = await Promise.all([
+        pool.query(
+          `SELECT cr.id, cr.cup_id, cr.reviewer_name, cr.reviewer_role,
+                  cr.reviewer_club, cr.reviewer_class, cr.rating, cr.comment, cr.created_at
+             FROM cup_ratings cr
+             JOIN cups c ON c.id = cr.cup_id
+            WHERE cr.cup_id = $1
+              AND c.user_id = $2
+            ORDER BY cr.created_at DESC`,
+          [cupId, userId],
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count,
+                  ROUND(COALESCE(AVG(cr.rating), 0)::numeric, 1)::float AS avg
+             FROM cup_ratings cr
+             JOIN cups c ON c.id = cr.cup_id
+            WHERE cr.cup_id = $1
+              AND c.user_id = $2`,
+          [cupId, userId],
+        ),
+      ]);
+
+      const summary = summaryRows.rows[0];
       return {
-        ratings: rows.map((r) => this.transformRatingRow(r)),
-        count: summary[0]?.count ?? 0,
-        avg: summary[0]?.avg ?? 0,
+        ratings: rows.rows.map((r) => this.transformRatingRow(r)),
+        count: summary?.count ?? 0,
+        avg: summary?.avg ?? 0,
       };
     } catch (error) {
       Logger.error('Failed to fetch ratings', error, { cupId });
@@ -533,11 +546,20 @@ class CupsModel {
   async deleteRating(req, cupId, ratingId) {
     try {
       const db = Database.get(req);
-      const rows = await db.query(
-        'DELETE FROM cup_ratings WHERE id = $1 AND cup_id = $2 RETURNING id',
-        [ratingId, cupId],
+      const userId = db.getUserId();
+      const pool = db.getPool();
+
+      // Verify cup belongs to this tenant, then delete rating.
+      const result = await pool.query(
+        `DELETE FROM cup_ratings
+          WHERE id = $1
+            AND cup_id = $2
+            AND EXISTS (SELECT 1 FROM cups WHERE id = $2 AND user_id = $3)
+          RETURNING id`,
+        [ratingId, cupId, userId],
       );
-      if (!rows.length) {
+
+      if (!result.rows.length) {
         throw new AppError('Rating not found', 404, AppError.CODES.NOT_FOUND);
       }
       return { id: String(ratingId) };

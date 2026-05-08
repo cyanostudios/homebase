@@ -169,7 +169,7 @@ try {
     $cooldownSeconds = 24 * 60 * 60;
     $last = (int) ($_SESSION['cup_rating_cooldown'][$cooldownKey] ?? 0);
     if ($last > 0 && ($now - $last) < $cooldownSeconds) {
-        respond(429, ['error' => 'You can only rate this cup once every 24 hours']);
+        respond(429, ['error' => 'Du har redan betygsatt den här cupen.']);
     }
 
     $insertStmt = $pdo->prepare(

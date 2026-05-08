@@ -137,22 +137,14 @@ export function CupRatings({ cupId }: { cupId: string }) {
                 {data.ratings.map((r) => (
                   <div key={r.id} className="flex items-start justify-between gap-3 px-3 py-3">
                     <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-foreground">
-                          {r.reviewer_name}
-                        </span>
-                        {r.reviewer_club && (
-                          <span className="text-xs text-muted-foreground">{r.reviewer_club}</span>
-                        )}
-                        {r.reviewer_class && (
-                          <span className="text-xs text-muted-foreground">
-                            · {r.reviewer_class}
-                          </span>
-                        )}
-                        {r.reviewer_role && (
-                          <span className="text-xs text-muted-foreground">· {r.reviewer_role}</span>
-                        )}
-                      </div>
+                      <p className="text-sm font-medium text-foreground">{r.reviewer_name}</p>
+                      {(r.reviewer_role || r.reviewer_club || r.reviewer_class) && (
+                        <p className="text-xs text-muted-foreground">
+                          {[r.reviewer_role, r.reviewer_club, r.reviewer_class]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      )}
                       <StarDisplay value={r.rating} />
                       {r.comment && (
                         <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
@@ -164,13 +156,16 @@ export function CupRatings({ cupId }: { cupId: string }) {
                       </p>
                     </div>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       icon={Trash2}
-                      className="h-7 w-7 shrink-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 [&>svg]:text-red-500"
+                      className="h-7 w-7 shrink-0 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
                       disabled={deleting === r.id}
                       onClick={() => setConfirmId(r.id)}
-                    />
+                    >
+                      <span className="sr-only">Ta bort</span>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -181,14 +176,15 @@ export function CupRatings({ cupId }: { cupId: string }) {
 
       <ConfirmDialog
         isOpen={confirmId !== null}
-        title="Delete rating?"
+        title="Ta bort betyg?"
         message={
           pending
-            ? `Delete the rating from "${pending.reviewer_name}"? This cannot be undone.`
-            : 'Delete this rating?'
+            ? `Ta bort betyget från "${pending.reviewer_name}"? Åtgärden kan inte ångras.`
+            : 'Ta bort detta betyg?'
         }
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmText="Ta bort"
+        cancelText="Avbryt"
+        confirmDisabled={deleting !== null}
         onConfirm={() => confirmId && handleDelete(confirmId)}
         onCancel={() => setConfirmId(null)}
         variant="danger"
