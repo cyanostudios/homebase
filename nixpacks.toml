@@ -1,0 +1,6 @@
+# Node version for Railway/Nixpacks (matches package.json engines)
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"

@@ -159,9 +159,11 @@ node scripts/setup-database.js
 
 ### Railway
 
+See also **[RAILWAY_HOMEBASE_SETUP.md](./RAILWAY_HOMEBASE_SETUP.md)** for a focused Homebase checklist (separate from the Cupappen `public-cups` project).
+
 1. **Connect Repository**
    - Link your GitHub repository to Railway
-   - Railway will auto-detect Node.js
+   - Railway will auto-detect Node.js (or use root [`railway.toml`](../railway.toml) for build/start/healthcheck)
 
 2. **Set Environment Variables**
    - Go to Variables tab

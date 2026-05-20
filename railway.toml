@@ -1,0 +1,12 @@
+# Homebase API + SPA (repo root). Cupappen uses public-cups/ in a separate Railway project.
+# https://docs.railway.com/config-as-code
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
