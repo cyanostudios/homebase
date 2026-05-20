@@ -66,15 +66,16 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Security middleware
+// Security middleware (CSP must allow Vite bundles + theme inline script in dist/public/index.html)
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
+        connectSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-        scriptSrc: ["'self'", "'sha256-QD35SUaR0rL4q4aw+18vMcPWzQ1YnU+ZH5LBDzoc3nI='"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'https:'],
       },
     },
@@ -235,19 +236,7 @@ app.use(activityLogMiddleware);
 // Setup core routes (auth, admin, health)
 setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader });
 
-// Serve static files (production)
-if (process.env.NODE_ENV === 'production') {
-  const buildPath = path.join(__dirname, 'public');
-  app.use(express.static(buildPath));
-  app.get('*', (req: any, res: any, next: any) => {
-    if (req.path.startsWith('/api')) {
-      return next();
-    }
-    res.sendFile(path.join(buildPath, 'index.html'));
-  });
-}
-
-// Load plugins
+// Load plugins (API routes must register before SPA fallback)
 pluginLoader.loadPlugins(app);
 
 try {
@@ -271,6 +260,34 @@ app.get('/api/plugins', requireAuth, (req: any, res: any) => {
   const plugins = pluginLoader.getAllPlugins();
   res.json(plugins);
 });
+
+// Production SPA (after all /api routes — avoid serving index.html for missing /assets/*)
+if (process.env.NODE_ENV === 'production') {
+  const buildPath = path.join(__dirname, 'public');
+  const indexHtml = path.join(buildPath, 'index.html');
+  const fs = require('fs');
+  if (!fs.existsSync(indexHtml)) {
+    console.error(`❌ Production UI missing at ${indexHtml}. Run "npm run build" before deploy.`);
+  } else {
+    console.log(`🖥️  Serving UI from ${buildPath}`);
+  }
+  app.use(
+    express.static(buildPath, {
+      index: false,
+      fallthrough: true,
+    }),
+  );
+  app.get('*', (req: any, res: any, next: any) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    // Missing chunk/CSS must 404 — not index.html (browser would show blank/black screen)
+    if (req.path.startsWith('/assets/') || /\.[a-z0-9]+$/i.test(req.path)) {
+      return res.status(404).send('Not found');
+    }
+    res.sendFile(indexHtml);
+  });
+}
 
 // Error handler (must be last)
 app.use(errorHandler);
