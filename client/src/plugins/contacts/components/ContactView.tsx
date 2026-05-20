@@ -35,7 +35,7 @@ import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, type DetailSectionIconPlugin } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS as EMPTY_STATE_CLASS,
   DETAIL_FIELD_LABEL_CLASS as FIELD_LABEL_CLASS,
@@ -243,7 +243,7 @@ function RelatedItemsCard({
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
-  iconPlugin: string;
+  iconPlugin: DetailSectionIconPlugin;
   items: RelatedItem[];
 }) {
   if (items.length === 0) {
@@ -433,7 +433,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         label: formatDisplayNumber('estimates', item.estimateNumber),
         onOpen: () => {
           closeContactPanel();
-          openEstimateForView(item);
+          openEstimateForView?.(item);
         },
         pluginClass: 'plugin-estimates bg-plugin-subtle/40',
       })),
@@ -447,7 +447,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         label: item.title || 'Task',
         onOpen: () => {
           closeContactPanel();
-          openTaskForView(item);
+          openTaskForView?.(item);
         },
         pluginClass: 'plugin-tasks bg-plugin-subtle/40',
       })),
@@ -461,7 +461,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         label: item.title || 'Note',
         onOpen: () => {
           closeContactPanel();
-          openNoteForView(item);
+          openNoteForView?.(item);
         },
         pluginClass: 'plugin-notes bg-plugin-subtle/40',
       })),
@@ -475,7 +475,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         label: item.location || 'Slot',
         onOpen: () => {
           closeContactPanel();
-          openSlotForView(item);
+          openSlotForView?.(item);
         },
         pluginClass: 'plugin-slots bg-plugin-subtle/40',
       })),
@@ -489,7 +489,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         label: `${item.home_team ?? '—'} - ${item.away_team ?? '—'}`,
         onOpen: () => {
           closeContactPanel();
-          openMatchForView(item);
+          openMatchForView?.(item);
         },
         pluginClass: 'plugin-matches bg-plugin-subtle/40',
       })),

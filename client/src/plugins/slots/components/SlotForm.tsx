@@ -345,8 +345,8 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
     setIsSubmitting(true);
     const mentions: SlotMention[] = selectedContactIds
       .map((id) => assignableContacts.find((c: { id: number | string }) => String(c.id) === id))
-      .filter(Boolean)
-      .map((c: { id: number | string; companyName?: string }) => ({
+      .filter((c): c is NonNullable<typeof c> => c !== null)
+      .map((c) => ({
         contactId: String(c.id),
         contactName: c.companyName ?? 'Contact',
         companyName: c.companyName,

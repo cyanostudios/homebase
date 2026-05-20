@@ -1,7 +1,7 @@
-import { LucideIcon } from 'lucide-react';
 import React from 'react';
 
 import { cn } from '@/lib/utils';
+import type { AppIcon } from '@/types/icons';
 
 import { Heading } from './Typography';
 
@@ -18,7 +18,7 @@ export type DetailSectionIconPlugin =
 
 interface DetailSectionProps {
   title: string | React.ReactNode;
-  icon?: LucideIcon;
+  icon?: AppIcon;
   /** Plugin whose color to use for the icon (e.g. tasks = lila, notes = gul). Omit for neutral gray (e.g. Information). */
   iconPlugin?: DetailSectionIconPlugin;
   /** Optional node rendered to the right of the title (e.g. a reset button). */

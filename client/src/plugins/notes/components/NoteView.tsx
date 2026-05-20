@@ -335,15 +335,10 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     }
   };
 
-  const uniqueMentions = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          (note?.mentions || []).map((m: { contactId: string }) => [m.contactId, m]),
-        ).values(),
-      ),
-    [note?.mentions],
-  );
+  const uniqueMentions = useMemo((): Array<{ contactId: string; contactName?: string }> => {
+    const raw = (note?.mentions || []) as Array<{ contactId: string; contactName?: string }>;
+    return Array.from(new Map(raw.map((m) => [m.contactId, m])).values());
+  }, [note?.mentions]);
 
   if (!note) {
     return null;

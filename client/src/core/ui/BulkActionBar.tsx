@@ -1,7 +1,9 @@
 // client/src/core/ui/BulkActionBar.tsx
 // Generic bulk action bar component for list views
 
-import { XCircle, type LucideIcon } from 'lucide-react';
+import { XCircle } from 'lucide-react';
+
+import type { AppIcon } from '@/types/icons';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,7 +11,7 @@ import { Button } from '@/components/ui/button';
 
 export interface BulkAction {
   label: string;
-  icon?: LucideIcon;
+  icon?: AppIcon;
   onClick: () => void;
   variant?: 'default' | 'destructive';
 }

@@ -177,124 +177,130 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
 
     return (
       <>
-        <DetailLayout title={title} subtitle={subtitle} maxWidthClass={PANEL_MAX_WIDTH}>
-          <div className="space-y-4">
-            {validationErrors
-              .filter((e) => e.field === 'general')
-              .map((e) => (
-                <p key={e.message} className="text-sm text-destructive">
-                  {e.message}
-                </p>
-              ))}
-            <Card padding="none" className={CARD_CLASS}>
-              <DetailSection
-                title={t('ingest.sectionDetails')}
-                icon={Info}
-                iconPlugin="ingest"
-                className="p-6"
-              >
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="ingest-name">{t('ingest.name')}</Label>
-                    <Input
-                      id="ingest-name"
-                      value={formData.name}
-                      onChange={(e) => updateField('name', e.target.value)}
-                      placeholder={t('ingest.namePlaceholder')}
-                      className="mt-1"
-                    />
-                    {getFieldError('name') && (
-                      <p className="text-xs text-destructive mt-1">
-                        {getFieldError('name')?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="ingest-url">{t('ingest.sourceUrl')}</Label>
-                    <Input
-                      id="ingest-url"
-                      value={formData.sourceUrl}
-                      onChange={(e) => updateField('sourceUrl', e.target.value)}
-                      placeholder="https://"
-                      className="mt-1 font-mono text-sm"
-                    />
-                    {getFieldError('sourceUrl') && (
-                      <p className="text-xs text-destructive mt-1">
-                        {getFieldError('sourceUrl')?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>{t('ingest.sourceType')}</Label>
-                    <Select
-                      value={formData.sourceType}
-                      onValueChange={(v) => updateField('sourceType', v as IngestSourceType)}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="html">HTML</SelectItem>
-                        <SelectItem value="pdf">PDF</SelectItem>
-                        <SelectItem value="json">JSON</SelectItem>
-                        <SelectItem value="xml">XML</SelectItem>
-                        <SelectItem value="other">{t('ingest.typeOther')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>{t('ingest.fetchMethod')}</Label>
-                    <Select
-                      value={formData.fetchMethod}
-                      onValueChange={(v) => updateField('fetchMethod', v as IngestFetchMethod)}
-                    >
-                      <SelectTrigger id="ingest-fetch-method" className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="generic_http">
-                          {t('ingest.fetchMethodGeneric')}
-                        </SelectItem>
-                        <SelectItem value="browser_fetch">
-                          {t('ingest.fetchMethodBrowser')}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {getFieldError('fetchMethod') && (
-                      <p className="text-xs text-destructive mt-1">
-                        {getFieldError('fetchMethod')?.message}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t('ingest.fetchMethodHint')}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 rounded-md border border-border/60 p-3">
-                    <div>
-                      <p className="text-sm font-medium">{t('ingest.active')}</p>
-                      <p className="text-xs text-muted-foreground">{t('ingest.activeHint')}</p>
-                    </div>
-                    <Switch
-                      checked={formData.isActive}
-                      onCheckedChange={(v) => updateField('isActive', v)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ingest-notes">{t('ingest.notes')}</Label>
-                    <Textarea
-                      id="ingest-notes"
-                      value={formData.notes}
-                      onChange={(e) => updateField('notes', e.target.value)}
-                      rows={4}
-                      className="mt-1"
-                      placeholder={t('ingest.notesPlaceholder')}
-                    />
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
+        <div className={PANEL_MAX_WIDTH}>
+          <div className="mb-4 space-y-1">
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+            {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
           </div>
-        </DetailLayout>
+          <DetailLayout>
+            <div className="space-y-4">
+              {validationErrors
+                .filter((e) => e.field === 'general')
+                .map((e) => (
+                  <p key={e.message} className="text-sm text-destructive">
+                    {e.message}
+                  </p>
+                ))}
+              <Card padding="none" className={CARD_CLASS}>
+                <DetailSection
+                  title={t('ingest.sectionDetails')}
+                  icon={Info}
+                  iconPlugin="ingest"
+                  className="p-6"
+                >
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="ingest-name">{t('ingest.name')}</Label>
+                      <Input
+                        id="ingest-name"
+                        value={formData.name}
+                        onChange={(e) => updateField('name', e.target.value)}
+                        placeholder={t('ingest.namePlaceholder')}
+                        className="mt-1"
+                      />
+                      {getFieldError('name') && (
+                        <p className="text-xs text-destructive mt-1">
+                          {getFieldError('name')?.message}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="ingest-url">{t('ingest.sourceUrl')}</Label>
+                      <Input
+                        id="ingest-url"
+                        value={formData.sourceUrl}
+                        onChange={(e) => updateField('sourceUrl', e.target.value)}
+                        placeholder="https://"
+                        className="mt-1 font-mono text-sm"
+                      />
+                      {getFieldError('sourceUrl') && (
+                        <p className="text-xs text-destructive mt-1">
+                          {getFieldError('sourceUrl')?.message}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label>{t('ingest.sourceType')}</Label>
+                      <Select
+                        value={formData.sourceType}
+                        onValueChange={(v) => updateField('sourceType', v as IngestSourceType)}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="html">HTML</SelectItem>
+                          <SelectItem value="pdf">PDF</SelectItem>
+                          <SelectItem value="json">JSON</SelectItem>
+                          <SelectItem value="xml">XML</SelectItem>
+                          <SelectItem value="other">{t('ingest.typeOther')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>{t('ingest.fetchMethod')}</Label>
+                      <Select
+                        value={formData.fetchMethod}
+                        onValueChange={(v) => updateField('fetchMethod', v as IngestFetchMethod)}
+                      >
+                        <SelectTrigger id="ingest-fetch-method" className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="generic_http">
+                            {t('ingest.fetchMethodGeneric')}
+                          </SelectItem>
+                          <SelectItem value="browser_fetch">
+                            {t('ingest.fetchMethodBrowser')}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {getFieldError('fetchMethod') && (
+                        <p className="text-xs text-destructive mt-1">
+                          {getFieldError('fetchMethod')?.message}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t('ingest.fetchMethodHint')}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 rounded-md border border-border/60 p-3">
+                      <div>
+                        <p className="text-sm font-medium">{t('ingest.active')}</p>
+                        <p className="text-xs text-muted-foreground">{t('ingest.activeHint')}</p>
+                      </div>
+                      <Switch
+                        checked={formData.isActive}
+                        onCheckedChange={(v) => updateField('isActive', v)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ingest-notes">{t('ingest.notes')}</Label>
+                      <Textarea
+                        id="ingest-notes"
+                        value={formData.notes}
+                        onChange={(e) => updateField('notes', e.target.value)}
+                        rows={4}
+                        className="mt-1"
+                        placeholder={t('ingest.notesPlaceholder')}
+                      />
+                    </div>
+                  </div>
+                </DetailSection>
+              </Card>
+            </div>
+          </DetailLayout>
+        </div>
 
         <ConfirmDialog
           isOpen={showWarning}

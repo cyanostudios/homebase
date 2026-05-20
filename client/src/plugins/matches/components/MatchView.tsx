@@ -1,13 +1,4 @@
-import {
-  Copy,
-  ExternalLink,
-  Info,
-  Search,
-  Trash2,
-  Users,
-  Zap,
-  type LucideIcon,
-} from 'lucide-react';
+import { Copy, ExternalLink, Info, Search, Trash2, Users, Zap } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,7 +10,7 @@ import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailSection, type DetailSectionIconPlugin } from '@/core/ui/DetailSection';
 import {
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
@@ -31,6 +22,7 @@ import {
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import type { AppIcon } from '@/types/icons';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { slotsApi } from '@/plugins/slots/api/slotsApi';
 import type { Slot } from '@/plugins/slots/types/slots';
@@ -53,7 +45,7 @@ interface MatchQuickActionsCardProps {
   detailFooterActions?: Array<{
     id: string;
     label: string;
-    icon: LucideIcon;
+    icon: AppIcon;
     onClick: (item: Match) => void;
     className?: string;
     disabled?: boolean;
@@ -343,7 +335,7 @@ function RelatedItemsCard({
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
-  iconPlugin: string;
+  iconPlugin: DetailSectionIconPlugin;
   items: RelatedItem[];
 }) {
   const { t } = useTranslation();

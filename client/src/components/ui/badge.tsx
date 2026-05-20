@@ -23,30 +23,33 @@ const badgeVariants = cva(
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {
-  onClick?: () => void; // Support onClick for backward compatibility
-  disabled?: boolean; // Support disabled for backward compatibility
+  onClick?: () => void;
+  disabled?: boolean;
 }
 
 function Badge({ className, variant, onClick, disabled, children, ...props }: BadgeProps) {
-  const Component = onClick ? 'button' : 'div';
+  const classes = cn(badgeVariants({ variant }), className);
 
-  // Only add hover states, transition, and cursor-pointer when onClick is provided
-  // Non-clickable badges should not have any hover states or transitions
-  const clickableClasses = onClick
-    ? disabled
+  if (onClick) {
+    const clickableClasses = disabled
       ? 'cursor-default opacity-50 transition-opacity'
-      : 'cursor-pointer hover:opacity-80 transition-opacity'
-    : 'cursor-default'; // Non-clickable badges: no hover states, no transitions
+      : 'cursor-pointer hover:opacity-80 transition-opacity';
+    return (
+      <button
+        type="button"
+        className={cn(classes, clickableClasses)}
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
+      >
+        {children}
+      </button>
+    );
+  }
 
   return (
-    <Component
-      className={cn(badgeVariants({ variant }), clickableClasses, className)}
-      onClick={onClick && !disabled ? onClick : undefined}
-      disabled={disabled}
-      {...props}
-    >
+    <div className={cn(classes, 'cursor-default')} {...props}>
       {children}
-    </Component>
+    </div>
   );
 }
 

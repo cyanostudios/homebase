@@ -58,7 +58,7 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
 
   const assignedContacts = assignedIds
     .map(
-      (id) =>
+      (id: string) =>
         assignableContacts.find((c: any) => String(c.id) === id) ??
         (contacts as any[]).find((c: any) => String(c.id) === id),
     )
@@ -171,7 +171,9 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
                       className="h-9 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
                       onClick={() =>
                         onAssigneeChange(
-                          assignedIds.filter((id) => String(id) !== String(assignedContact.id)),
+                          assignedIds.filter(
+                            (id: string) => String(id) !== String(assignedContact.id),
+                          ),
                         )
                       }
                       aria-label={`${t('tasks.removeAssignee')} ${assignedContact.companyName ?? ''}`}

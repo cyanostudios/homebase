@@ -9,13 +9,14 @@ import {
   Store,
   Trophy,
   Download,
-  LucideIcon,
 } from 'lucide-react';
 import React from 'react';
 
+import type { AppIcon } from '@/types/icons';
+
 export interface PluginNavigationSubItem {
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   page: string;
   order: number;
 }
@@ -23,7 +24,7 @@ export interface PluginNavigationSubItem {
 export interface PluginNavigationConfig {
   category: string;
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   order: number;
   submenu?: PluginNavigationSubItem[]; // Optional submenu items
   badge?: {

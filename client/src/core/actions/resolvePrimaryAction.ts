@@ -2,14 +2,16 @@
  * Resolves the ContentHeader primary action (e.g. Add, Close on settings).
  * Logic extracted from App.tsx to keep orchestration thin; behavior must stay in sync with list/settings UX per plugin.
  */
-import { Plus, type LucideIcon } from 'lucide-react';
+import { Plus } from 'lucide-react';
+
+import type { AppIcon } from '@/types/icons';
 
 import type { PluginRegistryEntry } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 
 export type ResolvedPrimaryAction = null | {
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   onClick: () => void;
   variant?: 'secondary';
 };

@@ -1,4 +1,6 @@
-import { ChevronDown, ChevronRight, Home, type LucideIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, Home } from 'lucide-react';
+
+import type { AppIcon } from '@/types/icons';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -40,14 +42,14 @@ interface SidebarProps {
 
 type SubmenuNavItem = {
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   page: NavPage;
   order: number;
 };
 
 type NavItemData = {
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   page: NavPage;
   order: number;
   badge?: {

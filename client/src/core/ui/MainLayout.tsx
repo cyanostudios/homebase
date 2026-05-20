@@ -1,4 +1,4 @@
-import { LucideIcon } from 'lucide-react';
+import type { AppIcon } from '@/types/icons';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { ContentHeader } from './ContentHeader';
@@ -14,9 +14,9 @@ interface MainLayoutProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
   contentTitle: string;
-  contentIcon?: LucideIcon;
+  contentIcon?: AppIcon;
   contentActionLabel?: string;
-  contentActionIcon?: LucideIcon;
+  contentActionIcon?: AppIcon;
   contentActionVariant?: 'primary' | 'secondary';
   onContentAction?: () => void;
   // DetailPanel props

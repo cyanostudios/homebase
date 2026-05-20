@@ -1,15 +1,15 @@
-import { LucideIcon } from 'lucide-react';
+import type { AppIcon } from '@/types/icons';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
 
 interface ContentHeaderProps {
   title: string;
-  icon?: LucideIcon;
+  icon?: AppIcon;
   /** Rendered next to the title (e.g. status badge for Mail/Pulse). */
   titleSuffix?: React.ReactNode;
   actionLabel?: string;
-  actionIcon?: LucideIcon;
+  actionIcon?: AppIcon;
   /** When 'secondary', action button is grey (e.g. Close). Default 'primary' (green). */
   actionVariant?: 'primary' | 'secondary';
   onAction?: () => void;

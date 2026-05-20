@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import type { AppIcon } from '@/types/icons';
 import React, { createContext, useContext } from 'react';
 
 import type { Match, MatchMention, ValidationError } from '../types/match';
@@ -47,7 +47,7 @@ export interface MatchContextType {
   detailFooterActions?: Array<{
     id: string;
     label: string;
-    icon: LucideIcon;
+    icon: AppIcon;
     onClick: (item: Match) => void;
     className?: string;
     disabled?: boolean;

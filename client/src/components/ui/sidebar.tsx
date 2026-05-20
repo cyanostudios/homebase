@@ -78,11 +78,11 @@ const SidebarProvider = React.forwardRef<
       setOpenProp?.(newOpen);
     }, [open, setOpenProp]);
 
-    const value = React.useMemo<SidebarContext>(
+    const value = React.useMemo<SidebarContextType>(
       () => ({
         state: open ? 'expanded' : 'collapsed',
         open,
-        setOpen: (newOpen) => {
+        setOpen: (newOpen: boolean) => {
           setOpen(newOpen);
           setOpenProp?.(newOpen);
         },

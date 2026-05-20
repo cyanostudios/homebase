@@ -1,6 +1,6 @@
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { type LucideIcon } from 'lucide-react';
+import type { AppIcon } from '@/types/icons';
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
@@ -38,7 +38,7 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
-  icon?: LucideIcon; // Support icon prop for backward compatibility
+  icon?: AppIcon;
 }
 
 /** Radix Slot allows only one element; JSX whitespace becomes extra text children. */

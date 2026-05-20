@@ -302,7 +302,7 @@ export async function exportToPDF(
     };
 
     // Header row
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(headerFontSize);
     let x = startX;
     headers.forEach((h) => {
@@ -310,7 +310,7 @@ export async function exportToPDF(
       x += colWidth;
     });
     y += lineHeight + cellPadding * 2;
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(fontSize);
 
     // Horizontal line under header

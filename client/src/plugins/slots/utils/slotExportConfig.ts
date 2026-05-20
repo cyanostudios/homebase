@@ -36,7 +36,7 @@ export function getSlotExportBaseFilename(slot: Slot): string {
 }
 
 function slotToTxtContent(slot: Slot): string {
-  const lines: string[] = [
+  const parts = [
     slot.name ? `Name: ${slot.name}` : `Slot: SLT-${slot.id}`,
     slot.location ? `Location: ${slot.location}` : '',
     slot.address ? `Address: ${slot.address}` : '',
@@ -47,11 +47,9 @@ function slotToTxtContent(slot: Slot): string {
     `Visible: ${slot.visible ? 'Yes' : 'No'}`,
     `Notifications: ${slot.notifications_enabled ? 'Yes' : 'No'}`,
     slot.description ? `\nDescription:\n${slot.description}` : '',
-    `\nCreated: ${formatDate(slot.created_at)}`,
-  ]
-    .filter(Boolean)
-    .join('\n');
-  return lines;
+    `Created: ${formatDate(slot.created_at)}`,
+  ].filter(Boolean) as string[];
+  return parts.join('\n');
 }
 
 function slotToCsvRow(slot: Slot): Record<string, unknown> {

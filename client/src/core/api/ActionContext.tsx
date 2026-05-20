@@ -1,10 +1,10 @@
-import { LucideIcon } from 'lucide-react';
+import type { AppIcon } from '@/types/icons';
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
 export interface EntityAction {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   onClick: (data: any) => void | Promise<void>;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
   className?: string;

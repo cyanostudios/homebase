@@ -8,7 +8,9 @@ import { useMatches } from '@/plugins/matches/hooks/useMatches';
 export function MatchesDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
   const { matches } = useMatches();
 
-  const upcoming = matches.filter((m) => m.match_time && new Date(m.match_time) > new Date()).length;
+  const upcoming = matches.filter(
+    (m) => m.start_time && new Date(m.start_time) > new Date(),
+  ).length;
 
   return (
     <div className="space-y-3">
