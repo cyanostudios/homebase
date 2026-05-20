@@ -44,7 +44,14 @@ import {
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
 import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView';
 
-type SortField = 'name' | 'start_date' | 'location' | 'updated_at' | 'ingest' | 'featured';
+type SortField =
+  | 'name'
+  | 'start_date'
+  | 'location'
+  | 'updated_at'
+  | 'ingest'
+  | 'featured'
+  | 'ratings_count';
 type SortOrder = 'asc' | 'desc';
 type CupsViewMode = 'grid' | 'list';
 type CupFilter = 'all' | 'visible' | 'featured' | 'upcoming' | 'removed';
@@ -91,6 +98,39 @@ function StatCard({
       </div>
       <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
     </Card>
+  );
+}
+
+function SortableHead({
+  label,
+  field,
+  sortField,
+  sortOrder,
+  className,
+  onSort,
+}: {
+  label: string;
+  field: SortField;
+  sortField: SortField;
+  sortOrder: SortOrder;
+  className?: string;
+  onSort: (field: SortField) => void;
+}) {
+  return (
+    <TableHead
+      className={cn('cursor-pointer select-none py-1.5 text-xs hover:bg-muted/50', className)}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1.5">
+        <span>{label}</span>
+        {sortField === field &&
+          (sortOrder === 'asc' ? (
+            <ArrowUp className="h-3 w-3 shrink-0" />
+          ) : (
+            <ArrowDown className="h-3 w-3 shrink-0" />
+          ))}
+      </div>
+    </TableHead>
   );
 }
 
@@ -288,6 +328,9 @@ export function CupsList() {
       } else if (sortField === 'featured') {
         av = a.featured === true ? 1 : 0;
         bv = b.featured === true ? 1 : 0;
+      } else if (sortField === 'ratings_count') {
+        av = a.ratings_count ?? 0;
+        bv = b.ratings_count ?? 0;
       } else {
         av = a.updated_at ? new Date(a.updated_at).getTime() : 0;
         bv = b.updated_at ? new Date(b.updated_at).getTime() : 0;
@@ -732,123 +775,89 @@ export function CupsList() {
             <Card className="shadow-none">
               <Table rowBorders={false}>
                 <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
-                  <TableRow>
-                    <TableHead className="w-12 text-xs">
+                  <TableRow className="h-8">
+                    <TableHead className="w-10 py-1.5 text-xs">
                       <input
                         ref={headerCheckboxRef}
                         type="checkbox"
-                        className="h-4 w-4 cursor-pointer"
+                        className="h-3.5 w-3.5 cursor-pointer"
                         checked={allVisibleSelected}
                         onChange={onToggleAllVisible}
                       />
                     </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => {
-                        if (sortField === 'name') {
+                    <SortableHead
+                      label={t('cups.columnName')}
+                      field="name"
+                      sortField={sortField}
+                      sortOrder={sortOrder}
+                      onSort={(f) => {
+                        if (sortField === f) {
                           setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                         } else {
-                          setSortField('name');
+                          setSortField(f);
                           setSortOrder('asc');
                         }
                       }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('cups.columnName')}</span>
-                        {sortField === 'name' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-xs">Organizer</TableHead>
-                    <TableHead className="text-xs">Visible</TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => {
-                        if (sortField === 'featured') {
+                    />
+                    <TableHead className="py-1.5 text-xs text-muted-foreground">Status</TableHead>
+                    <SortableHead
+                      label={t('cups.columnLocation')}
+                      field="location"
+                      sortField={sortField}
+                      sortOrder={sortOrder}
+                      onSort={(f) => {
+                        if (sortField === f) {
                           setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                         } else {
-                          setSortField('featured');
+                          setSortField(f);
+                          setSortOrder('asc');
+                        }
+                      }}
+                    />
+                    <SortableHead
+                      label={t('cups.columnIngest')}
+                      field="ingest"
+                      sortField={sortField}
+                      sortOrder={sortOrder}
+                      className="max-w-[12rem]"
+                      onSort={(f) => {
+                        if (sortField === f) {
+                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortField(f);
+                          setSortOrder('asc');
+                        }
+                      }}
+                    />
+                    <SortableHead
+                      label={t('cups.columnStart')}
+                      field="start_date"
+                      sortField={sortField}
+                      sortOrder={sortOrder}
+                      onSort={(f) => {
+                        if (sortField === f) {
+                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortField(f);
+                          setSortOrder('asc');
+                        }
+                      }}
+                    />
+                    <SortableHead
+                      label="Betyg"
+                      field="ratings_count"
+                      sortField={sortField}
+                      sortOrder={sortOrder}
+                      className="w-20 text-right"
+                      onSort={(f) => {
+                        if (sortField === f) {
+                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortField(f);
                           setSortOrder('desc');
                         }
                       }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('cups.columnFeatured')}</span>
-                        {sortField === 'featured' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => {
-                        if (sortField === 'location') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField('location');
-                          setSortOrder('asc');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('cups.columnLocation')}</span>
-                        {sortField === 'location' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50 max-w-[14rem]"
-                      onClick={() => {
-                        if (sortField === 'ingest') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField('ingest');
-                          setSortOrder('asc');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('cups.columnIngest')}</span>
-                        {sortField === 'ingest' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => {
-                        if (sortField === 'start_date') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField('start_date');
-                          setSortOrder('asc');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('cups.columnStart')}</span>
-                        {sortField === 'start_date' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
+                    />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -856,9 +865,9 @@ export function CupsList() {
                     <TableRow
                       key={cup.id}
                       className={cn(
-                        'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
+                        'h-9 cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
                         isSelected(cup.id) && 'bg-plugin-subtle',
-                        cup.deleted_at !== null && cup.deleted_at !== undefined && 'opacity-60',
+                        cup.deleted_at !== null && cup.deleted_at !== undefined && 'opacity-50',
                       )}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -868,34 +877,73 @@ export function CupsList() {
                       }}
                       role="button"
                     >
-                      <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
+                      <TableCell
+                        className="w-10 py-1.5 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={isSelected(cup.id)}
                           onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
                           onChange={() => onVisibleRowCheckboxChange(cup.id)}
-                          className="h-4 w-4 cursor-pointer"
+                          className="h-3.5 w-3.5 cursor-pointer"
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{cup.name || '—'}</TableCell>
-                      <TableCell className="text-xs">{cup.organizer || '—'}</TableCell>
-                      <TableCell className="text-xs">
-                        {cup.visible ? t('common.yes') : t('common.no')}
+                      <TableCell className="py-1.5">
+                        <div className="flex flex-col gap-0">
+                          <span className="text-sm font-medium leading-tight">
+                            {cup.name || '—'}
+                          </span>
+                          {cup.organizer && (
+                            <span className="text-[11px] leading-tight text-muted-foreground">
+                              {cup.organizer}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {cup.featured ? t('common.yes') : t('common.no')}
+                      <TableCell className="py-1.5">
+                        <div className="flex items-center gap-1">
+                          {cup.visible ? (
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                              Vis
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                              Dold
+                            </span>
+                          )}
+                          {cup.featured && (
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                              Top
+                            </span>
+                          )}
+                          {cup.deleted_at !== null && cup.deleted_at !== undefined && (
+                            <span className="inline-flex items-center rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                              Borttagen
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-xs">{cup.location || '—'}</TableCell>
+                      <TableCell className="py-1.5 text-xs text-muted-foreground">
+                        {cup.location || '—'}
+                      </TableCell>
                       <TableCell
-                        className="max-w-[14rem] truncate text-xs"
+                        className="max-w-[12rem] truncate py-1.5 text-xs text-muted-foreground"
                         title={ingestTitleForCup(cup.ingest_source_id) || undefined}
                       >
                         {ingestTitleForCup(cup.ingest_source_id) || '—'}
                       </TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="py-1.5 text-xs text-muted-foreground">
                         {cup.start_date
                           ? new Date(cup.start_date).toLocaleDateString('sv-SE')
                           : '—'}
+                      </TableCell>
+                      <TableCell className="w-20 py-1.5 text-right text-xs tabular-nums text-muted-foreground">
+                        {cup.ratings_count > 0 ? (
+                          <span className="font-medium text-foreground">{cup.ratings_count}</span>
+                        ) : (
+                          '—'
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

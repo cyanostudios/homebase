@@ -90,6 +90,24 @@ async function ensurePublicCupsPool() {
   return poolInitPromise;
 }
 
+async function shutdownPublicCupsPool() {
+  try {
+    if (poolInitPromise) {
+      const resolved = await poolInitPromise;
+      if (resolved) {
+        await resolved.end();
+      }
+    } else if (cachedPool) {
+      await cachedPool.end();
+    }
+  } catch (e) {
+    console.warn('public-cups: pool.end() during shutdown', e?.message || e);
+  } finally {
+    cachedPool = null;
+    poolInitPromise = null;
+  }
+}
+
 function initializePublicCupsPlugin(_context) {
   const model = new PublicCupsModel();
   const controller = new PublicCupsController(model);
@@ -127,3 +145,4 @@ function __resetPublicCupsPoolForTests() {
 
 module.exports = initializePublicCupsPlugin;
 module.exports.__resetPublicCupsPoolForTests = __resetPublicCupsPoolForTests;
+module.exports.shutdownPublicCupsPool = shutdownPublicCupsPool;

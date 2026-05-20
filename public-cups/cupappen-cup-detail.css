@@ -335,6 +335,19 @@
   transform: translateY(-2px);
   box-shadow: 0 10px 30px -10px rgba(9, 158, 162, 0.45);
 }
+.info-card__update-link {
+  display: block;
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted, #64748b);
+  text-decoration: none;
+  transition: color 150ms;
+}
+.info-card__update-link:hover {
+  color: var(--brand, #099ea2);
+  text-decoration: underline;
+}
 .info-card__contact {
   margin-top: 1rem;
   padding-top: 1rem;

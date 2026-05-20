@@ -306,7 +306,13 @@ function fetchPublicCupsFallback(): array
 {
     $envUrl = trim((string) (getenv('PUBLIC_CUPS_API_URL') ?: ''));
     $url = $envUrl !== '' ? $envUrl : 'http://localhost:3002/api/public/cups';
-    $json = @file_get_contents($url);
+    $ctx = stream_context_create([
+        'http' => [
+            'timeout' => 12.0,
+            'ignore_errors' => true,
+        ],
+    ]);
+    $json = @file_get_contents($url, false, $ctx);
     if ($json === false) {
         return [];
     }
@@ -363,34 +369,62 @@ try {
         $cupStmt->execute(['id' => $pathParts['legacyId']]);
         $cup = $cupStmt->fetch();
     } else {
-        $cupsStmt = $pdo->query(
-            "SELECT c.*, src.name AS ingest_source_name
-             FROM cups c
-             LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
-             WHERE COALESCE(c.visible, TRUE) = TRUE",
-        );
-        $allRows = $cupsStmt->fetchAll();
-        if ($pathParts['slugYear'] !== null) {
-            $cup = null;
-            $slugYear = (int) $pathParts['slugYear'];
-            foreach ($allRows as $row) {
-                if ((int) (cupYear($row) ?? 0) !== $slugYear) {
+        /** Two-phase lookup: lightweight rows first, full `SELECT c.*` only for resolved id (reduces RSS per slug request). */
+        $needle = (string) $pathParts['slug'];
+        $slugYearParam = $pathParts['slugYear'];
+        $cupId = null;
+
+        if ($slugYearParam !== null) {
+            $y = (int) $slugYearParam;
+            $lightStmt = $pdo->prepare(
+                'SELECT c.id, c.name, c.start_date, c.end_date
+                 FROM cups c
+                 WHERE COALESCE(c.visible, TRUE) = TRUE
+                   AND (
+                     (c.start_date IS NOT NULL AND EXTRACT(YEAR FROM c.start_date::timestamp) = :y)
+                     OR (c.end_date IS NOT NULL AND EXTRACT(YEAR FROM c.end_date::timestamp) = :y)
+                   )',
+            );
+            $lightStmt->execute(['y' => $y]);
+            $lightRows = $lightStmt->fetchAll();
+            foreach ($lightRows as $row) {
+                if ((int) (cupYear($row) ?? 0) !== $y) {
                     continue;
                 }
-                if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $slugYear)) {
-                    $cup = $row;
+                if (cupPrettySlug($row) === ($needle . '-' . $y)) {
+                    $cupId = (int) $row['id'];
                     break;
                 }
             }
         } else {
-            $needle = (string) $pathParts['slug'];
+            $lightStmt = $pdo->query(
+                'SELECT c.id, c.name, c.start_date, c.end_date
+                 FROM cups c
+                 WHERE COALESCE(c.visible, TRUE) = TRUE',
+            );
+            $lightRows = $lightStmt->fetchAll();
             $candidates = [];
-            foreach ($allRows as $row) {
+            foreach ($lightRows as $row) {
                 if (slugify((string) ($row['name'] ?? 'cup')) === $needle) {
                     $candidates[] = $row;
                 }
             }
-            $cup = pickCupForSharedSlug($candidates);
+            $picked = pickCupForSharedSlug($candidates);
+            $cupId = $picked ? (int) $picked['id'] : null;
+        }
+
+        if ($cupId !== null && $cupId > 0) {
+            $cupStmt = $pdo->prepare(
+                'SELECT c.*, src.name AS ingest_source_name
+                 FROM cups c
+                 LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
+                 WHERE c.id = :id AND COALESCE(c.visible, TRUE) = TRUE
+                 LIMIT 1',
+            );
+            $cupStmt->execute(['id' => $cupId]);
+            $cup = $cupStmt->fetch();
+        } else {
+            $cup = false;
         }
     }
 } catch (Throwable $e) {
@@ -905,6 +939,12 @@ $jsonLdGraph = jsonLdStripNulls([
         <?php if (!empty($cup['registration_url'])): ?>
           <a class="info-card__cta" target="_blank" rel="noopener noreferrer" href="<?= h((string) $cup['registration_url']) ?>">Till anmälan</a>
         <?php endif; ?>
+        <?php
+            $mailSubject = 'Uppdatering: ' . $title;
+            $mailBody = "Hej,\n\nJag vill uppdatera informationen om " . $title . ".\n\n";
+            $mailtoHref = 'mailto:info@cupappen.se?subject=' . rawurlencode($mailSubject) . '&body=' . rawurlencode($mailBody);
+        ?>
+        <a class="info-card__update-link" href="<?= h($mailtoHref) ?>">Uppdatera cupen</a>
       </section>
 
       <?php if (count($sidebarFeaturedCups) > 0): ?>

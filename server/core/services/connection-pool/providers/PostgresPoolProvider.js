@@ -10,7 +10,7 @@ const { Pool } = require('pg');
  *
  * Features:
  * - Pool caching and reuse
- * - Automatic cleanup of inactive pools (24h idle time)
+ * - Automatic cleanup of inactive pools (4h idle time)
  * - Graceful shutdown support
  * - Pool statistics and monitoring
  */
@@ -27,7 +27,7 @@ class PostgresPoolProvider extends ConnectionPoolService {
 
     // Cleanup configuration
     this.cleanupInterval = config.cleanupInterval || 60 * 60 * 1000; // 1 hour
-    this.maxPoolAge = config.maxPoolAge || 24 * 60 * 60 * 1000; // 24 hours
+    this.maxPoolAge = config.maxPoolAge || 4 * 60 * 60 * 1000; // 4 hours
 
     // Pool registry
     this.tenantPools = new Map();

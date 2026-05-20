@@ -102,16 +102,28 @@ class CupsModel {
       deleted_at: row.deleted_at ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
+      ratings_count:
+        row.ratings_count !== null && row.ratings_count !== undefined
+          ? Number(row.ratings_count)
+          : 0,
     };
   }
 
   async getAll(req) {
     try {
       const db = Database.get(req);
-      const rows = await db.query(
-        'SELECT * FROM cups ORDER BY start_date DESC NULLS LAST, created_at DESC',
-        [],
+      const userId = db.getUserId();
+      const pool = db.getPool();
+      const result = await pool.query(
+        `SELECT c.*, COUNT(cr.id)::int AS ratings_count
+           FROM cups c
+           LEFT JOIN cup_ratings cr ON cr.cup_id = c.id
+          WHERE c.user_id = $1
+          GROUP BY c.id
+          ORDER BY c.start_date DESC NULLS LAST, c.created_at DESC`,
+        [userId],
       );
+      const rows = result.rows;
       return rows.map((r) => this.transformRow(r));
     } catch (error) {
       Logger.error('Failed to fetch cups', error);

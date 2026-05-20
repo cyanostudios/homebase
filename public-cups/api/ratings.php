@@ -35,6 +35,21 @@ function applyCors(): void
     }
 }
 
+/** Remove stale cooldown timestamps so PHP session payloads do not grow without bound. */
+function pruneCupRatingCooldownMap(int $cooldownSeconds): void
+{
+    if (!isset($_SESSION['cup_rating_cooldown']) || !is_array($_SESSION['cup_rating_cooldown'])) {
+        return;
+    }
+    $now = time();
+    foreach ($_SESSION['cup_rating_cooldown'] as $key => $ts) {
+        $t = (int) $ts;
+        if ($t <= 0 || ($now - $t) >= $cooldownSeconds) {
+            unset($_SESSION['cup_rating_cooldown'][$key]);
+        }
+    }
+}
+
 function ratingsPayload(PDO $pdo, int $cupId): array
 {
     $summaryStmt = $pdo->prepare(
@@ -163,10 +178,12 @@ try {
         $_SESSION['cup_rating_cooldown'] = [];
     }
 
+    $cooldownSeconds = 24 * 60 * 60;
+    pruneCupRatingCooldownMap($cooldownSeconds);
+
     $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
     $cooldownKey = $cupId . '|' . $ip;
     $now = time();
-    $cooldownSeconds = 24 * 60 * 60;
     $last = (int) ($_SESSION['cup_rating_cooldown'][$cooldownKey] ?? 0);
     if ($last > 0 && ($now - $last) < $cooldownSeconds) {
         respond(429, ['error' => 'Du har redan betygsatt den här cupen.']);

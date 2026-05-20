@@ -344,6 +344,27 @@ async function gracefulShutdown(signal: string) {
   try {
     await closeHttpServer(server);
     await Bootstrap.shutdown();
+
+    try {
+      const publicCupsPlugin = require('../plugins/public-cups/index.js');
+      if (typeof publicCupsPlugin.shutdownPublicCupsPool === 'function') {
+        await publicCupsPlugin.shutdownPublicCupsPool();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('Shutdown: public-cups pool', msg);
+    }
+
+    try {
+      const bookingPlugin = require('../plugins/booking/index.js');
+      if (typeof bookingPlugin.shutdownBookingPool === 'function') {
+        await bookingPlugin.shutdownBookingPool();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('Shutdown: booking pool', msg);
+    }
+
     await pool.end();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

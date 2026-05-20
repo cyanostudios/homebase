@@ -100,6 +100,7 @@ function rowToCup(row: Record<string, unknown>): Cup {
     deleted_at: optionalString(row.deleted_at),
     created_at: String(row.created_at ?? ''),
     updated_at: String(row.updated_at ?? ''),
+    ratings_count: optionalNumber(row.ratings_count) ?? 0,
   };
 }
 

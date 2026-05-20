@@ -100,7 +100,8 @@ WHERE user_id = 1;
 R2_ACCOUNT_ID=your-account-id
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
-R2_BUCKET=your-bucket-name
+R2_BUCKET_NAME=your-bucket-name
+R2_PUBLIC_URL=https://images.example.com
 R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
 
 # OR S3 (AWS)
@@ -278,25 +279,34 @@ node scripts/setup-database.js
 
 - [ ] Sentry configured (if using)
 - [ ] Error logging working
-- [ ] Health check endpoint accessible
+- [ ] Health check endpoint accessible (`GET /api/health` on the Homebase API — not `/health`)
 - [ ] Uptime monitoring configured
 
 ## Health Checks
 
-The application should respond to health checks:
+### Homebase API (Node / Railway)
+
+The API exposes a detailed health endpoint (includes memory and tenant pool stats):
 
 ```bash
-curl https://your-domain.com/health
+curl -sS https://your-api-host.example.com/api/health | head
 ```
 
-Expected response:
+- **Healthy:** HTTP 200 and `"status": "healthy"` in the JSON body.
+- **Unhealthy:** HTTP 503 and `"status": "unhealthy"` when the DB ping fails.
 
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}
-```
+**Railway (manual setup in the dashboard)** — on the API service:
+
+1. Set **Healthcheck path** to **`/api/health`** (deploy must listen on `PORT` as today).
+2. Prefer **restart on failure** so a wedged process is replaced (exact labels vary by Railway UI version).
+3. Optionally alert on RSS or 503s using your monitoring tool by polling the same URL.
+
+### Cupappen public stack (`public-cups` Docker)
+
+Production uses **Caddy + PHP-FPM** (see [`public-cups/Dockerfile`](public-cups/Dockerfile); FPM `pm.max_requests` limits long-run memory creep).
+
+- **Probe URL:** `GET /api/health.php` — returns `{"status":"ok"}` when Postgres (`CUPS_DB_*` / `pdo_env.php`) is reachable.
+- The image defines a Docker **`HEALTHCHECK`** against that URL; configure your platform to respect it or set an equivalent HTTP healthcheck in the Railway/service UI for the Cupappen container.
 
 ## Troubleshooting
 

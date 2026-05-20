@@ -26,6 +26,7 @@ export interface Cup {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  ratings_count: number;
 }
 
 export interface CupValidationError {

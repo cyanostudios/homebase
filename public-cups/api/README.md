@@ -6,6 +6,8 @@ En enkel read-only endpoint för Cupappen som hämtar publika cuper från Postgr
 
 - Endpoint: `public-cups/api/cups.php`
 - Dynamisk sitemap: `public-cups/api/sitemap.php` (HTML-sidans URL:er + en post per visibel cup, `Content-Type: application/xml`)
+- Betyg: `public-cups/api/ratings.php`
+- Liv / readiness: `public-cups/api/health.php` (`GET`, JSON `{ "status": "ok" }` vid lyckad DB-ping — används av Docker `HEALTHCHECK`)
 - Delad DB-hantering: `public-cups/api/pdo_env.php` (`getPdoFromEnv()`)
 - Gemensamma säkerhetsheaders: `public-cups/api/security_headers.php` (`applyPublicCupsSecurityHeaders()`)
 

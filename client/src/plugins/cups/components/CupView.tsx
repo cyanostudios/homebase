@@ -1,5 +1,5 @@
 import { Globe, Info, RotateCcw, SlidersHorizontal, Trophy, Trash2, Zap } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,8 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import { ingestApi } from '@/plugins/ingest/api/ingestApi';
+import type { IngestSource } from '@/plugins/ingest/types/ingest';
 
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
@@ -28,6 +30,30 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
   const { deleteCup, restoreCup } = useCups();
   const [showDelete, setShowDelete] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [ingestSources, setIngestSources] = useState<IngestSource[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    ingestApi
+      .getSources()
+      .then((sources) => {
+        if (!cancelled) {
+          setIngestSources(sources);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const ingestSourceName = (id: string | null | undefined): string => {
+    if (!id) {
+      return '—';
+    }
+    const source = ingestSources.find((s) => String(s.id) === String(id));
+    return source?.name ?? String(id);
+  };
 
   const handleRestore = async () => {
     if (!current) {
@@ -74,7 +100,7 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Ingest source</span>
                     <span className="font-semibold text-foreground">
-                      {current.ingest_source_id || '—'}
+                      {ingestSourceName(current.ingest_source_id)}
                     </span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>

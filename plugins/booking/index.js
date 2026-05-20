@@ -34,6 +34,18 @@ async function initBookingPool() {
   }
 }
 
+async function shutdownBookingPool() {
+  if (!bookingPool) {
+    return;
+  }
+  try {
+    await bookingPool.end();
+  } catch (e) {
+    console.warn('booking: pool.end() during shutdown', e?.message || e);
+  }
+  bookingPool = null;
+}
+
 function initializeBookingPlugin(context) {
   const model = new BookingModel();
   const controller = new BookingController(model);
@@ -68,3 +80,4 @@ function initializeBookingPlugin(context) {
 }
 
 module.exports = initializeBookingPlugin;
+module.exports.shutdownBookingPool = shutdownBookingPool;

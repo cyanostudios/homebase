@@ -146,7 +146,7 @@ function activityLogMiddleware(req, res, next) {
     res.json = originalJson;
 
     // Log activity after response is sent (non-blocking)
-    res.on('finish', () => {
+    res.once('finish', () => {
       // Skip if marked as skipped by the controller
       if (req.skipActivityLog) {
         return;

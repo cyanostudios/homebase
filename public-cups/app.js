@@ -322,6 +322,13 @@ async function loadCups() {
     state.cups = Array.isArray(payload.cups)
       ? payload.cups.filter((cup) => cup?.visible !== false && cup?.visible !== 'false')
       : [];
+
+    const now = new Date();
+    const hasUpcoming = state.cups.some((cup) => isUpcoming(cup, now));
+    if (!hasUpcoming && state.cups.length > 0) {
+      state.selectedDateFilter = 'all';
+    }
+
     updateTotalCupCountsUI(state.cups.length);
     renderDateFilter(state.cups);
     renderCategoryFilter();

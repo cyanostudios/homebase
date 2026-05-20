@@ -33,6 +33,10 @@ Mobil: `#filter-toggle-btn` visar/döljer `#listing-filter-shell` (klass `is-col
 
 Se [api/README.md](./api/README.md) för PHP-endpoint, miljövariabler och svarformat.
 
+## Docker (produktion)
+
+[`Dockerfile`](Dockerfile) kör **Caddy** som reverse proxy framför **PHP-FPM** (Alpine), med `pm.max_requests` i poolen så workers återstartas och minnet inte kryper obegränsat som med `php -S`. **HEALTHCHECK** anropar `GET /api/health.php`. Lokalt: `npm run dev:public-cups` använder fortfarande `php -S` + `router.php`.
+
 ## Säkerhet (översikt)
 
 - **HTML:** [`index.html`](index.html) har en **Content-Security-Policy** (meta) anpassad till GTM, Google Fonts, externa bilder (https) och `fetch` mot samma origin / https (samt `localhost:3002` för lokal dev-proxy).
