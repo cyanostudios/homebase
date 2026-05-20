@@ -9,7 +9,7 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
  * Do not add new plugins here — use `pluginContext.getPanelTitle` / `getPanelSubtitle` instead.
  * @see docs/PLUGIN_RUNTIME_CONVENTIONS.md
  */
-const LEGACY_IMPORT_PLUGIN_CONFIG: Record<string, any> = {
+const IMPORT_PLUGIN_CONFIG: Record<string, any> = {
   import: {
     icon: Upload,
     getTitle: (item: any) => ({
@@ -41,9 +41,6 @@ const LEGACY_IMPORT_PLUGIN_CONFIG: Record<string, any> = {
     },
   },
 };
-
-/** @deprecated Use context-driven titles; only `import` remains in legacy map. */
-const PLUGIN_CONFIGS = LEGACY_IMPORT_PLUGIN_CONFIG;
 
 type TFunction = (key: string, options?: any) => string;
 
@@ -77,7 +74,7 @@ export const createPanelTitles = (
 
     // Central title from current item: order title → companyName/name → plugin display numbers → id.
     if (currentMode === 'view' && currentItem) {
-      const cfg = PLUGIN_CONFIGS[currentPlugin.name];
+      const cfg = IMPORT_PLUGIN_CONFIG[currentPlugin.name];
       if (cfg?.getTitle) {
         const titleData = cfg.getTitle(currentItem);
         if (currentPlugin.name === 'import') {
@@ -173,9 +170,9 @@ export const createPanelTitles = (
       return pluginContext.getPanelSubtitle(currentMode, currentItem);
     }
 
-    // Legacy: import-only (LEGACY_IMPORT_PLUGIN_CONFIG)
+    // import plugin panel subtitle (IMPORT_PLUGIN_CONFIG)
     if (currentMode === 'view' && currentItem) {
-      const cfg = PLUGIN_CONFIGS[currentPlugin.name];
+      const cfg = IMPORT_PLUGIN_CONFIG[currentPlugin.name];
       if (cfg?.getSubtitle) {
         const subtitleData = cfg.getSubtitle(currentItem);
         const Icon = subtitleData.icon;

@@ -17,7 +17,6 @@ import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
-import { PublicRouteHandler } from '../components/PublicRouteHandler';
 import {
   Estimate,
   EstimateShare,
@@ -838,9 +837,5 @@ export function EstimateProvider({
     closeEstimateSettingsView: () => setEstimatesContentView('list'),
   };
 
-  return (
-    <EstimateContext.Provider value={value}>
-      <PublicRouteHandler>{children}</PublicRouteHandler>
-    </EstimateContext.Provider>
-  );
+  return <EstimateContext.Provider value={value}>{children}</EstimateContext.Provider>;
 }

@@ -103,8 +103,7 @@ export default defineConfig({
             id.includes('/node_modules/@remix-run/') ||
             id.includes('/node_modules/react-i18next/') ||
             id.includes('/node_modules/i18next/') ||
-            id.includes('/node_modules/scheduler/') ||
-            id.includes('/node_modules/wouter/')
+            id.includes('/node_modules/scheduler/')
           )
             return 'vendor-react';
 
@@ -142,8 +141,7 @@ export default defineConfig({
 
           // ── Heavy vendor chunks ───────────────────────────────────────────────
           if (id.includes('@tiptap') || id.includes('tippy')) return 'vendor-tiptap';
-          if (id.includes('recharts')) return 'vendor-recharts';
-          if (id.includes('jspdf') || id.includes('html2pdf')) return 'vendor-pdf';
+          if (id.includes('jspdf')) return 'vendor-pdf';
           if (id.includes('date-fns')) return 'vendor-datefns';
         },
       },
