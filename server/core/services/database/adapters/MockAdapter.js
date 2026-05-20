@@ -2,7 +2,7 @@
 // Mock Database Adapter for testing
 
 const DatabaseService = require('../DatabaseService');
-const AppError = require('../../../errors/AppError');
+const { AppError } = require('../../../errors/AppError');
 
 class MockAdapter extends DatabaseService {
   constructor(config = {}) {

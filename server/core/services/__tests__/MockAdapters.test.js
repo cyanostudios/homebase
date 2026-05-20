@@ -4,7 +4,7 @@
 const ServiceManager = require('../../ServiceManager');
 const MockDatabaseAdapter = require('../database/adapters/MockAdapter');
 const MockLoggerAdapter = require('../logger/adapters/MockAdapter');
-const AppError = require('../../errors/AppError');
+const { AppError } = require('../../errors/AppError');
 
 describe('Mock Adapters', () => {
   let mockDb;

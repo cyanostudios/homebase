@@ -5,6 +5,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/server', '<rootDir>/plugins'],
   testMatch: ['**/__tests__/**/*.test.js', '**/?(*.)+(spec|test).js'],
+  testPathIgnorePatterns: ['/node_modules/', '/__archive__/'],
   collectCoverageFrom: [
     'server/**/*.js',
     'plugins/**/*.js',
