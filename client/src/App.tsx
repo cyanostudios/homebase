@@ -1,9 +1,5 @@
 /**
- * ⚠️  CRITICAL SYSTEM FILE - HANDLE WITH EXTREME CARE ⚠️
- *
- * Root app entry: composes top-level routes (see core/app/AppRoutes).
- *
- * Last Modified: August 2025 - Global Navigation Guard Integration
+ * Root app entry — composes top-level routes (see core/app/AppRoutes).
  */
 
 import { AppRoutes } from '@/core/app/AppRoutes';

@@ -11,8 +11,6 @@ const ServiceManager = require('./ServiceManager');
  * 1. Initialize ServiceManager (load all providers)
  * 2. Graceful shutdown of all services
  *
- * Note: This is Phase 1 of the Bootstrap pattern.
- * Full middleware/route extraction will be done in Phase 2.
  */
 class Bootstrap {
   /**

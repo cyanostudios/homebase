@@ -1,42 +1,6 @@
 /**
- * ⚠️  CRITICAL SYSTEM FILE - HANDLE WITH EXTREME CARE ⚠️
- *
- * This is the core AppContext that manages global state for all plugins.
- * It provides authentication, cross-plugin data, and panel coordination.
- *
- * 🚨 BEFORE MAKING ANY CHANGES:
- * 1. Read docs/LESSONS_LEARNED.md, docs/PLUGIN_ARCHITECTURE_V3.md, docs/PLUGIN_RUNTIME_CONVENTIONS.md
- * 2. Understand that changes here affect ALL plugins
- * 3. Test thoroughly with all existing plugins (contacts, notes, estimates, tasks, invoices, files)
- * 4. Verify cross-plugin features still work (@mentions, references)
- * 5. Check that panel coordination system works
- * 6. Ensure authentication flow remains secure
- *
- * 📋 WHAT THIS FILE MANAGES:
- * - Authentication state and login/logout functions
- * - Cross-plugin data (contacts, notes) for references
- * - Panel coordination system (registerPanelCloseFunction)
- * - Cross-plugin API functions (getNotesForContact, etc.)
- * - Global data refresh functionality
- *
- * ❌ NEVER CHANGE WITHOUT EXPLICIT NEED:
- * - Authentication interface or state management
- * - Panel registration system (registerPanelCloseFunction)
- * - Cross-plugin data structure (contacts, notes arrays)
- * - API request wrapper or error handling
- * - Provider component structure
- *
- * ✅ SAFE TO MODIFY (with care):
- * - Adding new cross-plugin reference functions
- * - Adding new API endpoints (following existing patterns)
- * - Adding new shared data types (with backward compatibility)
- *
- * 🔧 FOR NEW PLUGINS:
- * - Add cross-plugin functions if needed (getXForContact pattern)
- * - Register panel close functions in plugin contexts
- * - NO changes to core authentication or data loading
- *
- * Last Modified: August 2025 - Critical Rules Added
+ * Global app state: authentication, cross-plugin reference data, panel coordination.
+ * Changes here affect all plugins — see docs/PLUGIN_ARCHITECTURE_V3.md before editing.
  */
 
 import {
@@ -61,7 +25,21 @@ interface User {
   plugins: string[];
 }
 
-type PluginNameUnion = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'invoices' | 'files';
+type PluginNameUnion =
+  | 'contacts'
+  | 'notes'
+  | 'estimates'
+  | 'tasks'
+  | 'invoices'
+  | 'files'
+  | 'cups'
+  | 'slots'
+  | 'matches'
+  | 'ingest'
+  | 'mail'
+  | 'pulses'
+  | 'settings'
+  | 'booking';
 
 interface AppContextType {
   // Auth State
