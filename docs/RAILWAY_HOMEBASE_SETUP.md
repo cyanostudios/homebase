@@ -80,6 +80,13 @@ Förväntat: HTTP 200, `"status":"healthy"`.
 
 Loggar vid start: `BACKEND_VERSION=…`, `File uploads: Cloudflare R2` (om R2 satt).
 
+### Svart skärm
+
+1. `NODE_ENV=production` (annars serveras inte admin-UI).
+2. Deploy-logg ska visa `Serving UI from .../dist/public`.
+3. DevTools → Network: `/assets/*.js` ska vara **200**, inte HTML.
+4. Efter fix i `3a41a69+`: redeploy från `homebase-v3.6`.
+
 ## 5. Railway Cron (valfritt)
 
 Se [CUPS_AUTO_REFRESH_CRON.md](./CUPS_AUTO_REFRESH_CRON.md):
