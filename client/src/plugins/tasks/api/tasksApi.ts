@@ -1,4 +1,4 @@
-import { apiFetch } from '@/core/api/apiFetch';
+import { createApiClient, type ApiRequestError } from '@/core/api/createApiClient';
 
 import type { CreateTaskShareRequest, PublicTask, Task, TaskShare } from '../types/tasks';
 
@@ -13,41 +13,22 @@ class TasksApi {
     return [];
   }
 
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
+  private _request = createApiClient('/tasks');
 
-    const response = await apiFetch(`/api${endpoint}`, {
-      headers,
-      ...options,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-
-      const errorMessage = error.error || error.message || 'Request failed';
-      const errorCode = error.code;
-      const errorDetails = error.details;
-
-      if (errorCode === 'VALIDATION_ERROR' && errorDetails) {
-        console.error('Validation errors:', errorDetails);
+  private async request(path: string, options: RequestInit = {}) {
+    try {
+      return await this._request(path, options);
+    } catch (err) {
+      const apiErr = err as ApiRequestError;
+      if (apiErr.code === 'VALIDATION_ERROR' && apiErr.details) {
+        console.error('Validation errors:', apiErr.details);
       }
-
-      const err: any = new Error(errorMessage);
-      err.status = response.status;
-      err.code = errorCode;
-      err.details = errorDetails;
-
       throw err;
     }
-
-    return response.json();
   }
 
   async getTasks(): Promise<Task[]> {
-    const tasks = await this.request('/tasks');
+    const tasks = await this.request('');
     return tasks.map((task: any) => ({
       ...task,
       assignedTo: task.assigned_to,
@@ -60,7 +41,7 @@ class TasksApi {
   }
 
   async getTask(id: string): Promise<Task> {
-    const task = await this.request(`/tasks/${id}`);
+    const task = await this.request(`/${id}`);
     return {
       ...task,
       assignedTo: task.assigned_to,
@@ -115,7 +96,7 @@ class TasksApi {
       requestBody.created_from_note = createdFromNote;
     }
 
-    const task = await this.request('/tasks', {
+    const task = await this.request('', {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
@@ -137,7 +118,7 @@ class TasksApi {
       : assignedTo
         ? [String(assignedTo)]
         : [];
-    const task = await this.request(`/tasks/${id}`, {
+    const task = await this.request(`/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
         ...rest,
@@ -159,13 +140,13 @@ class TasksApi {
   }
 
   async deleteTask(id: string): Promise<void> {
-    await this.request(`/tasks/${id}`, {
+    await this.request(`/${id}`, {
       method: 'DELETE',
     });
   }
 
   async createShare(request: CreateTaskShareRequest): Promise<TaskShare> {
-    const share = await this.request('/tasks/shares', {
+    const share = await this.request('/shares', {
       method: 'POST',
       body: JSON.stringify({
         taskId: request.taskId,
@@ -181,7 +162,7 @@ class TasksApi {
   }
 
   async getShares(taskId: string): Promise<TaskShare[]> {
-    const shares = await this.request(`/tasks/${taskId}/shares`);
+    const shares = await this.request(`/${taskId}/shares`);
     return shares.map((share: any) => ({
       ...share,
       validUntil: new Date(share.validUntil),
@@ -191,13 +172,13 @@ class TasksApi {
   }
 
   async revokeShare(shareId: string): Promise<void> {
-    await this.request(`/tasks/shares/${shareId}`, {
+    await this.request(`/shares/${shareId}`, {
       method: 'DELETE',
     });
   }
 
   async getPublicTask(token: string): Promise<PublicTask> {
-    const task = await this.request(`/tasks/public/${token}`);
+    const task = await this.request(`/public/${token}`);
     return {
       ...task,
       assignedTo: task.assigned_to,

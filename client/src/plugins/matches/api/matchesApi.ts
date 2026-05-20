@@ -1,4 +1,4 @@
-import { apiFetch } from '@/core/api/apiFetch';
+import { createApiClient } from '@/core/api/createApiClient';
 
 import { Match, MatchMention } from '../types/match';
 
@@ -55,35 +55,15 @@ function rowToMatch(row: Record<string, unknown>): Match {
 }
 
 class MatchesApi {
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
-    const response = await apiFetch(`/api${endpoint}`, {
-      headers,
-      ...options,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-      const err: any = new Error(error.error || error.message || 'Request failed');
-      err.status = response.status;
-      err.code = error.code;
-      err.details = error.details;
-      throw err;
-    }
-
-    return response.json();
-  }
+  private request = createApiClient('/matches');
 
   async getMatches(): Promise<Match[]> {
-    const rows = await this.request('/matches');
+    const rows = await this.request('');
     return (rows || []).map((row: Record<string, unknown>) => rowToMatch(row));
   }
 
   async getMatch(id: string): Promise<Match> {
-    const row = await this.request(`/matches/${id}`);
+    const row = await this.request(`/${id}`);
     return rowToMatch(row);
   }
 
@@ -121,7 +101,7 @@ class MatchesApi {
       contact_id: data.contact_id ?? null,
       mentions: data.mentions ?? [],
     };
-    const row = await this.request('/matches', { method: 'POST', body: JSON.stringify(body) });
+    const row = await this.request('', { method: 'POST', body: JSON.stringify(body) });
     return rowToMatch(row);
   }
 
@@ -144,12 +124,12 @@ class MatchesApi {
       contact_id: data.contact_id ?? null,
       mentions: data.mentions ?? [],
     };
-    const row = await this.request(`/matches/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    const row = await this.request(`/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     return rowToMatch(row);
   }
 
   async deleteMatch(id: string): Promise<void> {
-    await this.request(`/matches/${id}`, { method: 'DELETE' });
+    await this.request(`/${id}`, { method: 'DELETE' });
   }
 }
 

@@ -1,4 +1,4 @@
-import { apiFetch } from '@/core/api/apiFetch';
+import { createApiClient } from '@/core/api/createApiClient';
 
 import { Slot, SlotMention, SlotBooking } from '../types/slots';
 
@@ -52,35 +52,10 @@ function rowToSlot(row: Record<string, unknown>): Slot {
 }
 
 class SlotsApi {
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
-
-    const response = await apiFetch(`/api${endpoint}`, {
-      headers,
-      ...options,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-      const err = new Error(
-        (error as { error?: string; message?: string })?.error ||
-          (error as { error?: string; message?: string })?.message ||
-          'Request failed',
-      ) as Error & { status?: number; code?: string; details?: unknown };
-      err.status = response.status;
-      err.code = (error as { code?: string }).code;
-      err.details = (error as { details?: unknown }).details;
-      throw err;
-    }
-
-    return response.json();
-  }
+  private request = createApiClient('/slots');
 
   async getSlots(): Promise<Slot[]> {
-    const rows = await this.request('/slots');
+    const rows = await this.request('');
     return (rows || []).map((row: Record<string, unknown>) => rowToSlot(row));
   }
 
@@ -123,7 +98,7 @@ class SlotsApi {
           ? String(data.description).trim() || null
           : null,
     };
-    const row = await this.request('/slots', { method: 'POST', body: JSON.stringify(body) });
+    const row = await this.request('', { method: 'POST', body: JSON.stringify(body) });
     return rowToSlot(row);
   }
 
@@ -140,7 +115,7 @@ class SlotsApi {
     }>,
   ): Promise<Slot[]> {
     const body = { slots };
-    const rows = await this.request('/slots/batch', {
+    const rows = await this.request('/batch', {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -180,16 +155,16 @@ class SlotsApi {
           ? String(data.category).trim() || null
           : null;
     }
-    const row = await this.request(`/slots/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    const row = await this.request(`/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     return rowToSlot(row);
   }
 
   async deleteSlot(id: string): Promise<void> {
-    await this.request(`/slots/${id}`, { method: 'DELETE' });
+    await this.request(`/${id}`, { method: 'DELETE' });
   }
 
   async getBookings(slotId: string): Promise<SlotBooking[]> {
-    const rows = await this.request(`/slots/${slotId}/bookings`);
+    const rows = await this.request(`/${slotId}/bookings`);
     return (rows || []).map((row: Record<string, unknown>) => ({
       id: String(row.id),
       slot_id: String(row.slot_id),
@@ -202,7 +177,7 @@ class SlotsApi {
   }
 
   async deleteBooking(bookingId: string): Promise<void> {
-    await this.request(`/slots/bookings/${bookingId}`, { method: 'DELETE' });
+    await this.request(`/bookings/${bookingId}`, { method: 'DELETE' });
   }
 }
 

@@ -1,28 +1,8 @@
-import { apiFetch } from '@/core/api/apiFetch';
+import { createApiClient } from '@/core/api/createApiClient';
 
 // Mail API
 class MailApi {
-  private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
-
-    const response = await apiFetch(`/api/mail${endpoint}`, {
-      headers,
-      ...options,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-      const err: any = new Error(error.error || error.message || 'Request failed');
-      err.status = response.status;
-      err.code = error.code;
-      throw err;
-    }
-
-    return response.json();
-  }
+  private request = createApiClient('/mail');
 
   async getHistory(params?: { limit?: number; offset?: number; pluginSource?: string }) {
     const search = new URLSearchParams();

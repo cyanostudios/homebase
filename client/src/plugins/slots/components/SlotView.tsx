@@ -33,6 +33,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { formatDateOnly, formatDateTime } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
@@ -53,20 +54,6 @@ import {
 import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
-
-function formatDateTime(s: string | null): string {
-  if (!s) {
-    return '—';
-  }
-  return new Date(s).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-function formatDateOnly(s: string | null): string {
-  if (!s) {
-    return '—';
-  }
-  return new Date(s).toLocaleDateString('sv-SE', { dateStyle: 'short' });
-}
 
 function formatTimeOnly(s: string | null): string {
   if (!s) {

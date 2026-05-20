@@ -171,11 +171,11 @@
   },
   "lint-staged": {
     "client/src/**/*.{ts,tsx}": [
-      "eslint --fix --max-warnings=0 --no-warn-ignored",
+      "eslint --fix --quiet --no-warn-ignored",
       "prettier --write"
     ],
     "server/**/*.ts": [
-      "eslint --fix --max-warnings=0 --no-warn-ignored",
+      "eslint --fix --quiet --no-warn-ignored",
       "prettier --write"
     ],
     "*.{js,css,md,json}": [

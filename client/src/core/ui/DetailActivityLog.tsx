@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { activityLogApi, ActivityLogEntry } from '@/core/api/activityLogApi';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 const ACTION_COLORS: Record<string, string> = {
@@ -29,13 +30,6 @@ interface DetailActivityLogProps {
   showClearButton?: boolean;
   /** When this value changes, the log is refetched (e.g. slot.updated_at after save). */
   refreshKey?: string | number | null;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  });
 }
 
 export function DetailActivityLog({
@@ -132,7 +126,7 @@ export function DetailActivityLog({
                       {actionLabel(entry.action)}
                     </span>
                     <span className="text-muted-foreground shrink-0">
-                      {formatDate(entry.createdAt)}
+                      {formatDateTimeShort(entry.createdAt)}
                     </span>
                   </div>
                   {entry.action === 'update' && entry.metadata?.changeSummary && (

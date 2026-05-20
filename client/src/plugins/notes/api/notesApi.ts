@@ -1,69 +1,42 @@
-import { apiFetch } from '@/core/api/apiFetch';
+import { createApiClient } from '@/core/api/createApiClient';
 
 import type { CreateNoteShareRequest, NoteShare, PublicNote } from '../types/notes';
 
 class NotesApi {
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
-
-    const response = await apiFetch(`/api${endpoint}`, {
-      headers,
-      ...options,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-
-      const errorMessage = error.error || error.message || 'Request failed';
-      const errorCode = error.code;
-      const errorDetails = error.details;
-
-      const err: any = new Error(errorMessage);
-      err.status = response.status;
-      err.code = errorCode;
-      err.details = errorDetails;
-
-      throw err;
-    }
-
-    return response.json();
-  }
+  private request = createApiClient('/notes');
 
   async getNotes() {
-    return this.request('/notes');
+    return this.request('');
   }
 
   async createNote(noteData: any) {
-    return this.request('/notes', {
+    return this.request('', {
       method: 'POST',
       body: JSON.stringify(noteData),
     });
   }
 
   async updateNote(id: string, noteData: any) {
-    return this.request(`/notes/${id}`, {
+    return this.request(`/${id}`, {
       method: 'PUT',
       body: JSON.stringify(noteData),
     });
   }
 
   async deleteNote(id: string) {
-    return this.request(`/notes/${id}`, {
+    return this.request(`/${id}`, {
       method: 'DELETE',
     });
   }
 
   async createShare(request: CreateNoteShareRequest): Promise<NoteShare> {
-    const share = await this.request('/notes/shares', {
+    const share = (await this.request('/shares', {
       method: 'POST',
       body: JSON.stringify({
         noteId: request.noteId,
         validUntil: request.validUntil.toISOString(),
       }),
-    });
+    })) as NoteShare & { validUntil: string; createdAt: string; lastAccessedAt?: string };
     return {
       ...share,
       validUntil: new Date(share.validUntil),
@@ -73,8 +46,10 @@ class NotesApi {
   }
 
   async getShares(noteId: string): Promise<NoteShare[]> {
-    const shares = await this.request(`/notes/${noteId}/shares`);
-    return shares.map((share: any) => ({
+    const shares = (await this.request(`/${noteId}/shares`)) as Array<
+      NoteShare & { validUntil: string; createdAt: string; lastAccessedAt?: string }
+    >;
+    return shares.map((share) => ({
       ...share,
       validUntil: new Date(share.validUntil),
       createdAt: new Date(share.createdAt),
@@ -83,13 +58,17 @@ class NotesApi {
   }
 
   async revokeShare(shareId: string): Promise<void> {
-    await this.request(`/notes/shares/${shareId}`, {
+    await this.request(`/shares/${shareId}`, {
       method: 'DELETE',
     });
   }
 
   async getPublicNote(token: string): Promise<PublicNote> {
-    const note = await this.request(`/notes/public/${token}`);
+    const note = (await this.request(`/public/${token}`)) as PublicNote & {
+      createdAt: string;
+      updatedAt: string;
+      shareValidUntil: string;
+    };
     return {
       ...note,
       createdAt: new Date(note.createdAt),

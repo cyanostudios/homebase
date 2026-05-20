@@ -1,60 +1,33 @@
-import { apiFetch } from '@/core/api/apiFetch';
+import { createApiClient } from '@/core/api/createApiClient';
 
 class ContactsApi {
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
-
-    const response = await apiFetch(`/api${endpoint}`, {
-      headers,
-      ...options,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-
-      const errorMessage = error.error || error.message || 'Request failed';
-      const errorCode = error.code;
-      const errorDetails = error.details;
-
-      const err: any = new Error(errorMessage);
-      err.status = response.status;
-      err.code = errorCode;
-      err.details = errorDetails;
-
-      throw err;
-    }
-
-    return response.json();
-  }
+  private request = createApiClient('/contacts');
 
   async getContacts() {
-    return this.request('/contacts');
+    return this.request('');
   }
 
   /** Contact ids that have at least one time entry (for list badges). */
   async getContactIdsWithTimeEntries(): Promise<{ contactIds: string[] }> {
-    return this.request('/contacts/with-time-entries');
+    return this.request('/with-time-entries');
   }
 
   async createContact(contactData: any) {
-    return this.request('/contacts', {
+    return this.request('', {
       method: 'POST',
       body: JSON.stringify(contactData),
     });
   }
 
   async updateContact(id: string, contactData: any) {
-    return this.request(`/contacts/${id}`, {
+    return this.request(`/${id}`, {
       method: 'PUT',
       body: JSON.stringify(contactData),
     });
   }
 
   async deleteContact(id: string) {
-    return this.request(`/contacts/${id}`, { method: 'DELETE' });
+    return this.request(`/${id}`, { method: 'DELETE' });
   }
 }
 

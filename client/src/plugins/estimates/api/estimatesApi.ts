@@ -1,41 +1,14 @@
 import { apiFetch } from '@/core/api/apiFetch';
+import { createApiClient } from '@/core/api/createApiClient';
 
 import { Estimate, EstimateShare, CreateShareRequest, PublicEstimate } from '../types/estimate';
 
 // Estimates API — mutating calls use apiFetch (CSRF when ENABLE_CSRF=true on server)
 class EstimatesApi {
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
-
-    const response = await apiFetch(`/api${endpoint}`, {
-      headers,
-      ...options,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-
-      // Handle standardized error format from backend
-      const errorMessage = error.error || error.message || 'Request failed';
-      const errorCode = error.code;
-      const errorDetails = error.details;
-
-      const err: any = new Error(errorMessage);
-      err.status = response.status;
-      err.code = errorCode;
-      err.details = errorDetails;
-
-      throw err;
-    }
-
-    return response.json();
-  }
+  private request = createApiClient('/estimates');
 
   async getEstimates(): Promise<Estimate[]> {
-    const estimates = await this.request('/estimates');
+    const estimates = (await this.request('')) as any[];
     return estimates.map((estimate: any) => ({
       ...estimate,
       validTo: new Date(estimate.validTo),
@@ -45,7 +18,7 @@ class EstimatesApi {
   }
 
   async getEstimate(id: string): Promise<Estimate> {
-    const estimate = await this.request(`/estimates/${id}`);
+    const estimate = (await this.request(`/${id}`)) as any;
     return {
       ...estimate,
       validTo: new Date(estimate.validTo),
@@ -55,10 +28,10 @@ class EstimatesApi {
   }
 
   async createEstimate(estimateData: any): Promise<Estimate> {
-    const estimate = await this.request('/estimates', {
+    const estimate = (await this.request('', {
       method: 'POST',
       body: JSON.stringify(estimateData),
-    });
+    })) as any;
     return {
       ...estimate,
       validTo: new Date(estimate.validTo),
@@ -68,10 +41,10 @@ class EstimatesApi {
   }
 
   async updateEstimate(id: string, estimateData: any): Promise<Estimate> {
-    const estimate = await this.request(`/estimates/${id}`, {
+    const estimate = (await this.request(`/${id}`, {
       method: 'PUT',
       body: JSON.stringify(estimateData),
-    });
+    })) as any;
     return {
       ...estimate,
       validTo: new Date(estimate.validTo),
@@ -81,13 +54,13 @@ class EstimatesApi {
   }
 
   async deleteEstimate(id: string): Promise<void> {
-    await this.request(`/estimates/${id}`, {
+    await this.request(`/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getNextEstimateNumber(): Promise<string> {
-    const result = await this.request('/estimates/number/next');
+    const result = await this.request('/number/next');
     return result.estimateNumber;
   }
 
@@ -141,7 +114,7 @@ class EstimatesApi {
 
   // Sharing API functions
   async createShare(request: CreateShareRequest): Promise<EstimateShare> {
-    const share = await this.request('/estimates/shares', {
+    const share = await this.request('/shares', {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -154,7 +127,7 @@ class EstimatesApi {
   }
 
   async getShares(estimateId: string): Promise<EstimateShare[]> {
-    const shares = await this.request(`/estimates/${estimateId}/shares`);
+    const shares = await this.request(`/${estimateId}/shares`);
     return shares.map((share: any) => ({
       ...share,
       validUntil: new Date(share.validUntil),
@@ -164,13 +137,13 @@ class EstimatesApi {
   }
 
   async revokeShare(shareId: string): Promise<void> {
-    await this.request(`/estimates/shares/${shareId}`, {
+    await this.request(`/shares/${shareId}`, {
       method: 'DELETE',
     });
   }
 
   async getPublicEstimate(token: string): Promise<PublicEstimate> {
-    const estimate = await this.request(`/estimates/public/${token}`);
+    const estimate = (await this.request(`/public/${token}`)) as any;
     return {
       ...estimate,
       validTo: new Date(estimate.validTo),

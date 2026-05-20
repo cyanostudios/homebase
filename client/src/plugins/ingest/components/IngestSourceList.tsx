@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { formatDate, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
@@ -93,13 +94,6 @@ function statusBadgeClass(status: string) {
     return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
   }
   return 'bg-muted text-muted-foreground';
-}
-
-function formatDateTimeShort(iso: string | null) {
-  if (!iso) {
-    return '—';
-  }
-  return new Date(iso).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
 }
 
 export const IngestSourceList: React.FC = () => {
@@ -500,10 +494,10 @@ export const IngestSourceList: React.FC = () => {
                     </div>
                     <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
                       <div>
-                        {t('common.updated')}: {new Date(row.updatedAt).toLocaleDateString()}
+                        {t('common.updated')}: {formatDate(row.updatedAt)}
                       </div>
                       <div>
-                        {t('common.created')}: {new Date(row.createdAt).toLocaleDateString()}
+                        {t('common.created')}: {formatDate(row.createdAt)}
                       </div>
                     </div>
                   </Card>
@@ -635,7 +629,7 @@ export const IngestSourceList: React.FC = () => {
                         {row.isActive ? t('common.yes') : t('common.no')}
                       </TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground">
-                        {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : '—'}
+                        {row.updatedAt ? formatDate(row.updatedAt) : '—'}
                       </TableCell>
                     </TableRow>
                   ))}
