@@ -277,7 +277,7 @@ ALLOWED_TYPES = [
 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 ];
 
-MAX_SIZE = 10 _ 1024 _ 1024; // 10MB default
+MAX*SIZE = 10 * 1024 \_ 1024; // 10MB default
 
 async upload(file, path, options = {}) {
 // Type validation
@@ -826,7 +826,12 @@ npm audit fix
 Dependency scanning:
 npx snyk test
 SAST (Static Analysis):
-npx eslint . --ext .js,.ts
+npm run lint
+
+# or errors only: npm run lint:errors
+
+# Config: eslint.config.cjs (ESLint 9 flat config)
+
 Manual Security Testing
 Test for:
 

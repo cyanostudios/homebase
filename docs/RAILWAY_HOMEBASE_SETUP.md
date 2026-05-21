@@ -9,7 +9,7 @@ Repot innehåller [`railway.toml`](../railway.toml) (build, start, healthcheck `
 | Inställning    | Värde                                                      |
 | -------------- | ---------------------------------------------------------- |
 | Root directory | `/` (repots rot)                                           |
-| Branch         | t.ex. `homebase-v3.6`                                      |
+| Branch         | `main` (eller release-branch du deployar från)             |
 | Build          | `npm ci && npm run build` (eller låt `railway.toml` styra) |
 | Start          | `npm start`                                                |
 | Healthcheck    | `/api/health`                                              |
@@ -85,7 +85,7 @@ Loggar vid start: `BACKEND_VERSION=…`, `File uploads: Cloudflare R2` (om R2 sa
 1. `NODE_ENV=production` (annars serveras inte admin-UI).
 2. Deploy-logg ska visa `Serving UI from .../dist/public`.
 3. DevTools → Network: `/assets/*.js` ska vara **200**, inte HTML.
-4. Efter fix i `3a41a69+`: redeploy från `homebase-v3.6`.
+4. Efter CSP/SPA-fix på `main`: trigga **Redeploy** så senaste build körs (kolla `BACKEND_VERSION` i `/api/health` eller deploy-logg).
 
 ## 5. Railway Cron (valfritt)
 

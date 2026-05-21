@@ -222,5 +222,6 @@ curl http://localhost:3002/api/plugins    # List loaded plugins
 **Performance:** Enterprise-grade with proven optimization  
 **UI Alignment:** Contacts v3.6 list shell rolled out across plugin list views  
 **Detail Views:** Shared detail-card token rollout is in progress (`detailViewCardStyles.ts`)  
-**Last Updated:** April 2026  
+**Last Updated:** May 2026  
+**Docs index:** [docs/README.md](./docs/README.md)  
 **Built with ❤️ by the development team**

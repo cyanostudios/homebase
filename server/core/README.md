@@ -1,6 +1,8 @@
-# Core Services Architecture
+# Core Services (server)
 
-This directory contains the core infrastructure services for Homebase V2.
+This directory contains the core infrastructure services for Homebase.
+
+**Canonical architecture doc:** `docs/CORE_SERVICES_ARCHITECTURE.md` (ServiceManager scope, providers). This README is operator-focused (env, csurf, audit).
 
 ## Structure
 

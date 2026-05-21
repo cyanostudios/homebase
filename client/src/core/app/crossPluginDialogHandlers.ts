@@ -1,6 +1,6 @@
 /**
  * Long confirm/callback bodies for cross-plugin DuplicateDialog flows.
- * Extracted from App.tsx per guides/app-tsx-refactor-guide-for-cursor.md — behavior unchanged.
+ * Extracted from App.tsx — behavior unchanged. See docs/CORE_ARCHITECTURE_V2.md.
  */
 import type { Dispatch, SetStateAction } from 'react';
 import type { NavigateFunction } from 'react-router-dom';

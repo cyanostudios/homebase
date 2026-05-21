@@ -4,6 +4,20 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-05 – Documentation audit (synkad med kod)
+
+**Sammanfattning:** Canonical docs uppdaterade mot `main` (branch, Node 22, `server/index.ts`, `vite.config.ts`, `createApiClient`, `ServiceManager`-scope). Borttaget: `CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md`, `RAILWAY_CRON_EXAMPLE.md`. `REFACTORING_EXISTING_PLUGINS.md` ersatt med kort referens (inga felaktiga `ServiceManager.get('storage')`-exempel). List shell v3.6 införlivat i `UI_AND_UX_STANDARDS_V3.md` §0.1. Index: `docs/README.md`.
+
+---
+
+## 2026-05 – Code cleanup (five categories; deferred risks)
+
+**Sammanfattning:** Städning i fem kategorier mergad till `main` (kosmetisk, död kod, TS 49→0, tester, delvis `createApiClient` / `dateFormat`).
+
+**Medvetet utelämnat / nästa runda:** se `docs/CLEANUP_DEFERRED_RISKS.md` (CSRF/csurf, legacy tenant paths, `parseCupSource` split, stora UI-filer, resterande plugin-API:er, ESLint `any`-skuld, Railway/CSRF drift).
+
+---
+
 ## 2026-04-24 – Cups auto-refresh cron
 
 **Sammanfattning:** Implementerade ett per-tenant opt-in cron-system som håller Cups (och cupappen) uppdaterad automatiskt via Railway Cron.

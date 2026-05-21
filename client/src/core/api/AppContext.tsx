@@ -613,7 +613,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /**
    * AppContext scope (guardrail): keep **global**, **cross-plugin**, or **shell** concerns here.
    * Prefer plugin modules or small helpers for plugin-specific behavior; do not use this as a
-   * default dumping ground. See guides/core-architecture-review-for-cursor.md.
+   * default dumping ground. See docs/PLUGIN_ARCHITECTURE_V3.md and docs/CORE_ARCHITECTURE_V2.md.
    */
   const contextValue = useMemo(
     () => ({

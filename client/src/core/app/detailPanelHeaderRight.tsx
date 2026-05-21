@@ -1,6 +1,6 @@
 /**
  * Detail panel header actions (view: nav + update/edit + close; edit/create: close + save).
- * Extracted from App.tsx per guides/app-tsx-refactor-guide-for-cursor.md — behavior must stay identical.
+ * Extracted from App.tsx — behavior must stay identical. See docs/CORE_ARCHITECTURE_V2.md.
  */
 import { Check, Edit, X } from 'lucide-react';
 import React from 'react';

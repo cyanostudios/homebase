@@ -24,7 +24,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 
 - Copy `templates/plugin-frontend-template` to `client/src/plugins/<your-plugin>/`.
 - **Rename everywhere:** template IDs like `your-items`, symbols like `YourItem` / `YourItems*`, API paths, and `registerPanelCloseFunction('<plugin-name>', …)` must match the real plugin `name` (kebab-case) from `plugin.config.js`.
-- **API client:** base URL must match `routeBase` (template uses `/api/your-items`). Map **`details`** from validation responses to field errors if you use `fetch` directly (see template `templateApi.ts`); or use shared **`apiFetch`** where appropriate so CSRF/session behavior stays consistent.
+- **API client:** base URL must match `routeBase` (e.g. `/api/your-items`). Prefer **`createApiClient('/your-items')`** from `client/src/core/api/createApiClient.ts` (uses **`apiFetch`** → CSRF when `ENABLE_CSRF=true`). Map **`details`** from validation responses to field errors; for FormData/uploads copy the pattern from `filesApi.ts` instead of the default JSON client.
 - **Register in `client/src/core/pluginRegistry.ts`:**
   - Required: `name`, `Provider`, `hook`, `panelKey`, `components.List`, `components.Form`, `components.View`.
   - Usually: `providerLoader`, `NullProvider`, `navigation`.

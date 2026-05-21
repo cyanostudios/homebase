@@ -1,6 +1,6 @@
 # Homebase UI & UX Standards (V3 Premium)
 
-**Last Updated:** April 2026
+**Last Updated:** May 2026
 
 This document defines the strict UI/UX standards for the Homebase V3 "Premium" design language. All plugins must adhere to these guidelines to ensure a cohesive user experience.
 
@@ -11,8 +11,22 @@ The v3.6 alignment introduced shared primitive behavior that all plugins should 
 - **`Card` primitive:** `shadow-none` also implies `border-0` (see `client/src/components/ui/card.tsx`).
 - **`Table` primitive:** use `rowBorders={false}` for borderless list tables; it clears borders consistently for `thead/tbody/tr/th/td` (see `client/src/components/ui/table.tsx`).
 - **`ContentHeader` suffix:** status badges or contextual suffix UI should use `titleSuffix` via layout context (`MainLayout` / `ContentHeader`) instead of ad-hoc title hacks.
-- **List rollout reference:** `docs/CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md` is the canonical checklist for contacts-style list shell parity.
-- **Detail view token rollout (WIP):** shared tokens are being consolidated in `client/src/core/ui/detailViewCardStyles.ts` (`DETAIL_VIEW_CARD_CLASS`, `DETAIL_FIELD_LABEL_CLASS`, etc.) and should be reused once rollout is complete.
+- **Detail view tokens:** reuse `client/src/core/ui/detailViewCardStyles.ts` (`DETAIL_VIEW_CARD_CLASS`, `DETAIL_FIELD_LABEL_CLASS`, etc.) and related helpers in `detailViewCardStyles.ts` / `DetailSection`.
+
+### 0.1 List view shell (contacts-style, rolled out 2026-04)
+
+All plugin list views (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoices`, `files`, `mail`, `pulses`, `ingest`, `cups`, `contacts`) should match this shell. **Settings** is excluded (not a data list).
+
+| Element              | Standard                                                                                                                                                 |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Panel surface**    | `overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950`                                                                               |
+| **Toolbar**          | Search + settings + grid/list in the **same** panel top row as the list                                                                                  |
+| **Grid/list toggle** | Wrapper: `inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5`; buttons: `h-7 rounded-[6px] px-2 text-xs` + clear active state |
+| **Table**            | `rowBorders={false}`; header `bg-slate-50/90 dark:bg-slate-900/50`                                                                                       |
+| **Grid cards**       | `rounded-xl border-0 … shadow-sm`                                                                                                                        |
+| **Badges**           | `border-0 rounded-md px-2 py-0.5 text-xs font-semibold`; subtle fill, not outline                                                                        |
+
+Reference implementation: `client/src/plugins/contacts/components/ContactList.tsx`. Rollout completed in commit `4021082`; do not reintroduce per-plugin border/outline table styles.
 
 ## 1. List Views (Tables)
 

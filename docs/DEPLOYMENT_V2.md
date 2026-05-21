@@ -43,17 +43,23 @@ If the frontend is deployed separately (e.g. Vercel) and the API elsewhere (e.g.
 - The server uses this as `Access-Control-Allow-Origin` in production so login, cookies and API calls work from that origin.
 - If `FRONTEND_URL` is not set in production, CORS falls back to `origin: false` (no header), and login will fail when frontend and API domains differ.
 
-#### Service Providers (V2)
+#### ServiceManager (runtime — see `CORE_SERVICES_ARCHITECTURE.md`)
+
+Homebase **production** wiring is centered on `ServiceManager`, not a generic multi-provider matrix:
 
 ```bash
-# Choose your providers
-DATABASE_PROVIDER=postgres  # or neon, mysql
-LOGGER_PROVIDER=console     # or sentry
-STORAGE_PROVIDER=r2         # or s3, local
-EMAIL_PROVIDER=resend       # or sendgrid, smtp
-QUEUE_PROVIDER=redis        # or memory
-CACHE_PROVIDER=redis        # or memory
+# Main DB (users, sessions, tenants metadata)
+DATABASE_URL=postgresql://...
+
+# Tenant provisioning / resolution
+TENANT_PROVIDER=neon          # or local for dev
+NEON_API_KEY=...              # required when TENANT_PROVIDER=neon
+
+# Connection pool for tenant DBs
+POOL_PROVIDER=postgres        # default
 ```
+
+**Not** initialized via `ServiceManager.get()` today: queue, cache, generic storage, email. Plugins use dedicated code paths (e.g. files R2, mail plugin settings, cups import). Env vars like `R2_*` are documented in `.env.example` and `CUPPAPPEN_PATHS_AND_STORAGE.md`.
 
 #### Neon tenant provisioning (database-per-tenant)
 
@@ -175,14 +181,12 @@ See also **[RAILWAY_HOMEBASE_SETUP.md](./RAILWAY_HOMEBASE_SETUP.md)** for a focu
    - Start command: `npm start`
 
 4. **Database**
-   - Add PostgreSQL service
-   - Railway will provide `DATABASE_URL` automatically
-   - Run migrations: `node scripts/setup-database.js` (or use Railway's post-deploy script)
+   - **Homebase:** use **Neon main** via `DATABASE_URL` (do not add Railway Postgres for this service). See `RAILWAY_HOMEBASE_SETUP.md`.
+   - Run migrations: `npm run railway:migrate` or `node scripts/setup-database.js` with Neon URL.
 
-5. **Storage**
-   - **Important**: Railway has ephemeral filesystem
-   - **Must use cloud storage** (R2 or S3) for file uploads
-   - Set `STORAGE_PROVIDER=r2` or `STORAGE_PROVIDER=s3`
+5. **Storage (files / cup images)**
+   - Railway disk is ephemeral — use **R2** env vars (`R2_*` in `.env.example`), not local `server/uploads/` in production.
+   - Configure in Railway Variables; files plugin uses R2 when vars are set.
 
 ### Vercel
 

@@ -1,48 +1,67 @@
 # Homebase Documentation
 
-Det här är den **aktuella** ingången till dokumentationen. Målet är att hålla få dokument som är uppdaterade, och flytta historik/“vad som ändrats” till `CHANGELOG.md`.
+**Ingångspunkt** till aktuell dokumentation. Historik och release-noter: [`CHANGELOG.md`](CHANGELOG.md). Backlog efter maj 2026-städning: [`CLEANUP_DEFERRED_RISKS.md`](CLEANUP_DEFERRED_RISKS.md).
 
-### Aktuell kodrad
+## Aktuell kodrad
 
-- **`homebase-V3.5`** – long-lived branch för V3.5-arbete (`origin/homebase-V3.5`). Se `CHANGELOG.md`: **2026-04** – första blocket (säkerhet, CSRF/`apiFetch`, publika task/note-delningar, lazy providers, Cupappen UTM); därefter cups/SvFF-import (Östergötland, `public-cups`), files/notes-bilagor, bundle-analys, files-layout.
+- **`main`** — standard branch för utveckling och deploy (Railway Homebase, monolith API + SPA).
+- **`homebase-v3.6`** / **`homebase-V3.5`** — äldre feature-branches; behålls på remote men är inte canonical.
+- **Node:** `>=22.18 <23` (`package.json` → `engines`).
 
 ## Snabbstart (ny utvecklare)
 
-- **Tilläggsguider (Cursor-workflows):** `../guides/README.md`
-- **Arkitektur & core services:** `CORE_SERVICES_ARCHITECTURE.md`
-- **Plugin-arkitektur (V3 Action Registry):** `PLUGIN_ARCHITECTURE_V3.md`
-- **UI/UX-regler:** `UI_AND_UX_STANDARDS_V3.md`
-- **Plugin design (slots/notes-mönster):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
-- **Säkerhet:** `SECURITY_GUIDELINES.md`
-- **Dev/Deploy:** `DEVELOPMENT_GUIDE_V2.md`, `DEPLOYMENT_V2.md`, `RAILWAY_HOMEBASE_SETUP.md`, `CUPPAPPEN_PATHS_AND_STORAGE.md`
-- **Cups-import (SvFF HTML/PDF, `parseCupSource`):** avsnitt i `DEVELOPMENT_GUIDE_V2.md` + detaljer i `CHANGELOG.md` (2026-04, cups).
-- **Frontend bundle-analys (Vite treemap):** `FRONTEND_BUNDLE_ANALYSIS.md`
+| Ämne                                | Dokument                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| Setup, struktur, kommandon          | [`DEVELOPMENT_GUIDE_V2.md`](DEVELOPMENT_GUIDE_V2.md)                         |
+| Core services (`ServiceManager`)    | [`CORE_SERVICES_ARCHITECTURE.md`](CORE_SERVICES_ARCHITECTURE.md)             |
+| Client/server-översikt              | [`CORE_ARCHITECTURE_V2.md`](CORE_ARCHITECTURE_V2.md)                         |
+| Plugin-arkitektur (Action Registry) | [`PLUGIN_ARCHITECTURE_V3.md`](PLUGIN_ARCHITECTURE_V3.md)                     |
+| Ny plugin (checklista)              | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md) |
+| Plugin-standarder (obligatoriskt)   | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)   |
+| UI/UX (V3 + list shell v3.6)        | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                     |
+| Säkerhet, CSRF, `apiFetch`          | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                           |
+| Deploy (allmänt)                    | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                       |
+| Railway Homebase                    | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md)                     |
+| Cupappen (separat projekt)          | [`CUPPAPPEN_PATHS_AND_STORAGE.md`](CUPPAPPEN_PATHS_AND_STORAGE.md)           |
+| Bundle-analys                       | [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md)                 |
 
-## Canonical dokument (hålls uppdaterade)
+## Canonical dokument
 
-- **Changelog / historik:** `CHANGELOG.md`
-- **SQL-migrationer (körguider, inkl. cups-teardown 052/053):** `../server/migrations/README.md`
-- **Core services (Adapter pattern):** `CORE_SERVICES_ARCHITECTURE.md`
-- **Core-arkitektur (översikt + TopBar widgets):** `CORE_ARCHITECTURE_V2.md` _(översikt – uppdateras vid stora layout/flow-ändringar)_
-- **Plugin-arkitektur (V3):** `PLUGIN_ARCHITECTURE_V3.md`
-- **Plugin-standarder (mandatory):** `PLUGIN_DEVELOPMENT_STANDARDS_V2.md`
-- **Refaktorera befintliga plugins:** `REFACTORING_EXISTING_PLUGINS.md`
+- **Changelog:** `CHANGELOG.md`
+- **SQL-migrationer:** `../server/migrations/README.md`
+- **Engångs-migreringsskript (arkiv):** `../scripts/archive/README.md`
+- **Plugin runtime (panel/hook-namn):** `PLUGIN_RUNTIME_CONVENTIONS.md`
+- **Design-alignment (kopiera från slots/notes):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Mentions & cross-plugin UI:** `MENTIONS_AND_CROSS_PLUGIN_UI.md`
-- **Tenant/users/RBAC:** `TENANT_USERS_AND_RBAC.md`
-- **UI/UX:** `UI_AND_UX_STANDARDS_V3.md`
-- **Plugin design-alignment (checklista):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
-- **Security:** `SECURITY_GUIDELINES.md`
-- **Deploy:** `DEPLOYMENT_V2.md`
-- **Cupappen vägar (lokal / Neon / Railway / R2 / publik sajt):** `CUPPAPPEN_PATHS_AND_STORAGE.md`
-- **Frontend bundle-analys:** `FRONTEND_BUNDLE_ANALYSIS.md` (`npm run build:ui:analyze` → `bundle-stats.html`)
-- **Lessons learned / vanliga misstag:** `LESSONS_LEARNED.md`
-- **Cups auto-refresh (cron, Railway):** `CUPS_AUTO_REFRESH_CRON.md`
-- **Plugin runtime-konventioner (panel titles, manifest):** `PLUGIN_RUNTIME_CONVENTIONS.md`
-- **Ny plugin-integration (checklista):** `NEW_PLUGIN_INTEGRATION_CHECKLIST.md`
+- **Tenant / RBAC:** `TENANT_USERS_AND_RBAC.md`
+- **Cups cron (Railway):** `CUPS_AUTO_REFRESH_CRON.md`
+- **Lessons learned / agent-regler:** `LESSONS_LEARNED.md`
+
+## Kod som dokumentationen ska matcha
+
+| Koncept                  | Verifierad plats i kod                   |
+| ------------------------ | ---------------------------------------- |
+| Server entry             | `server/index.ts`                        |
+| Plugin discovery         | `plugin-loader.js` (root)                |
+| Frontend API + CSRF      | `client/src/core/api/apiFetch.ts`        |
+| Delad plugin-HTTP-klient | `client/src/core/api/createApiClient.ts` |
+| Datum (sv-SE)            | `client/src/core/utils/dateFormat.ts`    |
+| Ikoner i TS              | `client/src/types/icons.ts` (`AppIcon`)  |
+| ESLint                   | `eslint.config.cjs` (flat config)        |
+| Prod build + SPA         | `npm run build` → `dist/public/`         |
+| Railway                  | `railway.toml`, `nixpacks.toml`          |
 
 ## Dokumentationspolicy
 
-- **Sanningen om “vad som ändrats”** ska hamna i `CHANGELOG.md` (kronologiskt, kortfattat, med länkar till relevanta filer).
-- **Referenser till filer/paths** i docs ska uppdateras när filer flyttas/byter namn.
-- **UI-handlingar i paneler** ska beskrivas som delade panel-actions (header/footer) när logiken är gemensam; undvik footer-only formuleringar om implementationen använder båda.
-- **Redundanta “V2”-översikter** som duplicerar ovanstående ska tas bort efter att ev. unika delar har flyttats in i canonical docs eller `CHANGELOG.md`.
+- **Vad som ändrats:** kort post i `CHANGELOG.md` med filreferenser.
+- **Paths och branch-namn:** uppdatera canonical docs när kod flyttas; changelog-rader är historiska.
+- **Radera eller arkivera** one-off rollout-docs när arbetet är klart (se changelog, inte duplicera checklistor).
+- **Out of scope i docs:** `public-cups/` deploy, cup-Railway — beskrivs i `CUPPAPPEN_PATHS_AND_STORAGE.md`, inte som del av Homebase API-deploy.
+
+## Borttagna / sammanslagna dokument (maj 2026)
+
+| Tidigare fil                                                                       | Ersatt av                                                              |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md`                                           | `UI_AND_UX_STANDARDS_V3.md` §0                                         |
+| `RAILWAY_CRON_EXAMPLE.md`                                                          | `CUPS_AUTO_REFRESH_CRON.md` § Railway Cron                             |
+| `REFACTORING_EXISTING_PLUGINS.md` (700+ rader, felaktiga `ServiceManager`-exempel) | `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` + `CORE_SERVICES_ARCHITECTURE.md` |

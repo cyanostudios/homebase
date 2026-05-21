@@ -2,7 +2,7 @@
 
 Core (`panelHandlers`, `panelRendering`, `core/app/*`, etc.) resolves plugin behavior using **naming conventions** derived from the plugin `name` in `pluginRegistry.ts` and singularization in `pluginSingular.ts`.
 
-This document is the **single reference** for those names. See also `guides/core-architecture-review-for-cursor.md`, `guides/lazy-plugin-providers-architecture.md` (Context vs `*Provider.tsx`, `providerLoader`, pre-fetch on auth, Vite chunks), and `guides/notes-tasks-shares-and-ui-updates.md` (task/note shares, note→task dialog, slots/detail UI).
+This document is the **single reference** for those names. Related: `PLUGIN_ARCHITECTURE_V3.md` (lazy `providerLoader`, Action Registry), `MENTIONS_AND_CROSS_PLUGIN_UI.md`, `NEW_PLUGIN_INTEGRATION_CHECKLIST.md`.
 
 ---
 
@@ -36,18 +36,18 @@ The hook returned by `plugin.hook()` should expose (as applicable):
 
 ---
 
-## Form submit / cancel (`window`)
+## Form submit / cancel
 
-Create/edit (and some settings) forms register globals so the shell **Save** / **Cancel** can trigger them:
+**Create / edit (`panelMode` create | edit):** use **inline Save/Cancel** in the form body. Do **not** register `window.submit*Form` / `window.cancel*Form` for these modes (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12).
 
-- `window.submit{PluginCap}Form` — e.g. `submitContactForm`, `submitNoteForm`
+**Settings (`panelMode` settings):** register globals so the shell footer can drive save/cancel:
+
+- `window.submit{PluginCap}Form` — e.g. `submitContactForm`
 - `window.cancel{PluginCap}Form` — e.g. `cancelContactForm`
 
-`PluginCap` is derived from the plugin name (camelCase, first letter uppercased); `panelHandlers` also tries the **singular cap** variant (e.g. `submitContactForm`).
+`PluginCap` is derived from the plugin name; `panelHandlers` also tries the **singular cap** variant. Register in `useEffect` on mount, clear on unmount. See `client/src/types/global.d.ts`.
 
-Register these in the plugin **Form** component (`useEffect` on mount, clear on unmount). See `client/src/types/global.d.ts` for the declared keys.
-
-The **settings** plugin uses `closeSettingsPanel` on context for cancel; forms still register `submit*` / `cancel*` where applicable.
+The **settings** plugin uses `closeSettingsPanel` on context for cancel where applicable.
 
 ---
 

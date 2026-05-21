@@ -51,153 +51,100 @@ Homebase is a modular plugin-based platform with service abstraction architectur
 
 ## Project Structure
 
-````
+```
 homebase/
-├── vite.config.ts          # Vite configuration (ROOT)
-├── tailwind.config.ts      # Tailwind CSS configuration (ROOT)
-├── package.json            # All dependencies (ROOT)
-├── tsconfig.json           # TypeScript configuration (ROOT)
+├── vite.config.ts          # Vite (UI build + optional bundle analyzer)
+├── package.json            # Single root package (engines: Node >=22.18 <23)
 ├── client/
-│   ├── index.html          # HTML entry point
-│   └── src/                # React application
-│       ├── core/           # Core system files
-│       │   └── app/        # AppRoutes/AppContent/PluginProviders orchestration
-│       ├── plugins/        # Plugin implementations
-│       └── App.tsx         # Thin root entry (renders AppRoutes)
-├── server/                 # Express.js backend
-│   ├── core/              # Core services and middleware
-│   │   ├── ServiceManager.js
-│   │   ├── services/      # Service adapters
-│   │   ├── middleware/    # Security middleware
-│   │   └── errors/        # Error types
-│   └── app.js
-├── plugins/                # Backend plugin implementations
-├── config/                 # Configuration files
-│   └── services.js        # Service provider configuration
-└── docs/                   # Documentation
-Key Points:
+│   ├── index.html
+│   └── src/
+│       ├── core/           # apiFetch, createApiClient, AppContext, pluginRegistry, app/
+│       ├── plugins/        # Frontend plugins
+│       └── App.tsx         # Renders AppRoutes
+├── server/
+│   ├── index.ts            # Express entry (prod serves dist/public)
+│   └── core/               # ServiceManager, middleware, migrations
+├── plugin-loader.js        # Backend plugin discovery (repo root)
+├── plugins/                # Backend plugins (model, routes, index.js)
+├── config/services.js      # Legacy/env config (see CORE_SERVICES_ARCHITECTURE)
+└── docs/
+```
 
-Single package.json manages all dependencies
-All configs in ROOT for proper path resolution
-No separate frontend package management
+**Key points:** one `package.json`, configs at repo root, backend plugins under `plugins/`, frontend under `client/src/plugins/`.
 
+---
 
-Development Environment Setup
-Prerequisites
+## Development Environment Setup
 
-Node.js 18+
-PostgreSQL
-Git
+### Prerequisites
 
-Installation
-# Clone repository
-git clone [repository-url]
+- **Node.js** `>=22.18 <23` (see `package.json` → `engines`)
+- **PostgreSQL** (local or Neon for dev)
+- **Git**
+
+### Installation
+
+```bash
+git clone [repository-url] homebase
 cd homebase
-
-# Install ALL dependencies from ROOT
 npm install
-
-# Setup development database
 node scripts/setup-database.js
-
-# Environment configuration
 cp .env.example .env.local
-# Edit DATABASE_URL and service provider settings
-Environment Variables
-Required variables:
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/homebase_dev
+# Edit DATABASE_URL, SESSION_SECRET, TENANT_PROVIDER, etc.
+```
 
-# Session
+### Environment variables (essentials)
+
+```bash
+# Main DB (users, sessions, tenants)
+DATABASE_URL=postgresql://user:password@localhost:5432/homebase_dev
 SESSION_SECRET=your-secret-key-here
 
-# Service Providers (optional - defaults to local/dev)
-DATABASE_PROVIDER=postgres
-STORAGE_PROVIDER=local
-EMAIL_PROVIDER=smtp
-Production variables:
-# Database
-DATABASE_URL=your-neon-connection-string
+# Tenant resolution (dev often local; prod neon)
+TENANT_PROVIDER=local   # or neon + NEON_API_KEY
 
-# Service Providers
-DATABASE_PROVIDER=neon
-STORAGE_PROVIDER=r2
-EMAIL_PROVIDER=resend
+# Optional: CSRF in dev
+ENABLE_CSRF=true
 
-# Provider-specific config
-R2_ACCOUNT_ID=...
-R2_ACCESS_KEY=...
-R2_BUCKET=...
-RESEND_API_KEY=...
+# Files / cups images (prod)
+# R2_* — see .env.example
+```
 
-Running the Application
-Development Terminal Setup
-# Terminal 1: Frontend development server (from ROOT)
-npx vite
+Runtime services exposed via `ServiceManager`: see **`CORE_SERVICES_ARCHITECTURE.md`** (not a full storage/email/queue matrix).
 
-# Terminal 2: Backend API server (from ROOT)
-npm run dev
+### Running the application
 
-# Terminal 3: Commands and testing (from ROOT)
-# Available for git, database, testing commands
-CRITICAL: Always run commands from project root directory.
-Development URLs
+```bash
+# Both API + UI
+npm run dev:all
 
-Frontend: http://localhost:3001
-Backend API: http://localhost:3002
-Health Check: curl http://localhost:3002/api/health
+# Or separate terminals (from repo root)
+npm run dev:api   # http://localhost:3002
+npm run dev:ui    # http://localhost:3001
+```
 
+```bash
+curl http://localhost:3002/api/health
+curl http://localhost:3002/api/plugins
+```
 
-Service Configuration
-Configuring Service Providers
-config/services.js:
-const env = process.env.NODE_ENV || 'development';
+### Quality checks
 
-const configs = {
-  development: {
-    DATABASE_PROVIDER: 'postgres',
-    STORAGE_PROVIDER: 'local',
-    EMAIL_PROVIDER: 'smtp',
-    QUEUE_PROVIDER: 'memory',
-    CACHE_PROVIDER: 'memory',
+```bash
+npm run check          # tsc
+npm run lint           # eslint (flat config: eslint.config.cjs)
+npm test               # jest (server/plugins tests)
+npm run build          # production UI + API
+```
 
-    database: {
-      postgres: {
-        host: 'localhost',
-        port: 5432,
-        database: 'homebase_dev'
-      }
-    },
-    storage: {
-      local: {
-        path: './uploads'
-      }
-    }
-  },
-
-  production: {
-    DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || 'neon',
-    STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'r2',
-    EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'resend',
-
-    // Provider-specific configurations
-  }
-};
-
-module.exports = configs[env];
-Switching providers:
-
-Update DATABASE_PROVIDER in config
-Add provider credentials to .env.local
-Restart server
-No code changes needed
+Pre-commit: **lint-staged** runs `eslint --fix --quiet` and Prettier on staged TS/TSX. Pre-push (husky): `tsc` + `jest`.
 
 ---
 
 ## Cups: import från SvFF-sidor (HTML/PDF)
 
 - **Kod:** `plugins/cups/services/parseCupSource.js` – `parseCupSource({ html, sourceUrl, sourceType })` returnerar normaliserade cup-rader; `detectCupSourceProfile` väljer vilken parser som ska köras (tabell, accordion, år+månad-lista, PDF, m.m.).
-- **Östergötland *Sanktionerade cuper*:** profil `svff_yearmonth_list` när värd är `ostergotland.svenskfotboll.se` och sidan innehåller rubriken *Sanktionerade cuper*; **Futsal**-rader importeras inte.
+- **Östergötland _Sanktionerade cuper_:** profil `svff_yearmonth_list` när värd är `ostergotland.svenskfotboll.se` och sidan innehåller rubriken _Sanktionerade cuper_; **Futsal**-rader importeras inte.
 - **Historik och full profil-lista:** `docs/CHANGELOG.md` (§ **2026-04 – Cups: SvFF-import**).
 - **Publik cup-sajt:** katalogen `public-cups/` (statisk frontend + `api/cups.php`); listning bygger på API som bara exponerar **synliga** cuper (`visible`). Se samma changelog-avsnitt.
 
@@ -206,76 +153,100 @@ No code changes needed
 ## Plugin Development Workflow
 
 ### Creating a New Plugin
+
 Backend (5-10 min):
+
 # Copy backend template
+
 cp -r templates/plugin-backend-template plugins/my-plugin
 cd plugins/my-plugin
 
 # Configure
+
 # 1. Update plugin.config.js (name, routeBase)
+
 # 2. Define database schema in model.js
+
 # 3. Implement business logic using ServiceManager
+
 # 4. Add security middleware to routes.js
+
 Frontend (10-15 min):
+
 # Copy frontend template
+
 cp -r templates/plugin-frontend-template client/src/plugins/my-plugin
 
 # Implement
+
 # 1. Define TypeScript types
-# 2. Create API layer with CSRF handling
+
+# 2. Create API layer (createApiClient + apiFetch for CSRF)
+
 # 3. Implement context with panel registration
+
 # 4. Build responsive components
+
 Registration (2 min):
 // Add to client/src/core/pluginRegistry.ts
 {
-  name: 'my-plugin',
-  Provider: MyPluginProvider,
-  hook: useMyPlugin,
-  panelKey: 'isMyPluginPanelOpen',
-  components: { List, Form, View }
+name: 'my-plugin',
+Provider: MyPluginProvider,
+hook: useMyPlugin,
+panelKey: 'isMyPluginPanelOpen',
+components: { List, Form, View }
 }
 Testing:
+
 # Backend tests
+
 npm test plugins/my-plugin
 
 # Frontend tests
+
 npm test client/src/plugins/my-plugin
 
 # Integration tests
+
 npm run test:integration
 
 Database Management
 Creating Migrations
 // migrations/XXX_create_my_plugin.js
 module.exports = {
-  up: async (database) => {
-    await database.query(`
-      CREATE TABLE my_plugin_items (
-        id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        content TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+up: async (database) => {
+await database.query(`
+CREATE TABLE my_plugin_items (
+id SERIAL PRIMARY KEY,
+user_id INT NOT NULL,
+title VARCHAR(255) NOT NULL,
+content TEXT,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         INDEX idx_user_id (user_id)
       )
     `);
-  },
 
-  down: async (database) => {
-    await database.query('DROP TABLE IF EXISTS my_plugin_items');
-  }
+},
+
+down: async (database) => {
+await database.query('DROP TABLE IF EXISTS my_plugin_items');
+}
 };
 Running Migrations
+
 # Run pending migrations
+
 npm run migrate
 
 # Rollback last migration
+
 npm run migrate:rollback
 
 # Reset database (WARNING: deletes all data)
+
 npm run migrate:reset
 
 Testing
@@ -285,25 +256,25 @@ const ServiceManager = require('../../server/core/ServiceManager');
 const MockDatabaseAdapter = require('../../server/core/services/database/adapters/MockAdapter');
 
 describe('My Plugin Model', () => {
-  beforeEach(() => {
-    ServiceManager.override('database', new MockDatabaseAdapter());
-  });
+beforeEach(() => {
+ServiceManager.override('database', new MockDatabaseAdapter());
+});
 
-  it('should create item', async () => {
-    const item = await model.createItem({ title: 'Test' });
-    expect(item).toHaveProperty('id');
-  });
+it('should create item', async () => {
+const item = await model.createItem({ title: 'Test' });
+expect(item).toHaveProperty('id');
+});
 });
 Frontend:
 import { renderHook, act } from '@testing-library/react-hooks';
 import { useMyPlugin } from './useMyPlugin';
 
 describe('useMyPlugin', () => {
-  it('should open panel in create mode', () => {
-    const { result } = renderHook(() => useMyPlugin());
-    act(() => result.current.openMyPluginPanel(null));
-    expect(result.current.panelMode).toBe('create');
-  });
+it('should open panel in create mode', () => {
+const { result } = renderHook(() => useMyPlugin());
+act(() => result.current.openMyPluginPanel(null));
+expect(result.current.panelMode).toBe('create');
+});
 });
 Integration Tests
 I nuvarande kodbas startas servern från `server/index.ts` och det finns ingen separat `server/app`-export att importera i Supertest.
@@ -321,44 +292,52 @@ Om ni vill ha Supertest-baserade request-tester:
 Security Best Practices
 Backend Security Checklist
 
- All routes use requirePlugin() middleware
- POST/PUT/DELETE routes use CSRF protection
- Input validation with express-validator
- Rate limiting on sensitive endpoints
- Ownership verification on UPDATE/DELETE
- Use ServiceManager for all infrastructure
- Standardized error handling with AppError
- Audit logging for sensitive operations
+All routes use requirePlugin() middleware
+POST/PUT/DELETE routes use CSRF protection
+Input validation with express-validator
+Rate limiting on sensitive endpoints
+Ownership verification on UPDATE/DELETE
+Use ServiceManager for all infrastructure
+Standardized error handling with AppError
+Audit logging for sensitive operations
 
 Frontend Security Checklist
 
- CSRF token included in all mutations
- Input sanitization before display
- Error handling for all API calls
- Loading states prevent double submissions
- No sensitive data in console logs
- Proper error messages (no internal details)
-
+CSRF token included in all mutations
+Input sanitization before display
+Error handling for all API calls
+Loading states prevent double submissions
+No sensitive data in console logs
+Proper error messages (no internal details)
 
 Debugging
 Backend Debugging
+
 # Enable debug logging
-DEBUG=* npm run dev
+
+DEBUG=\* npm run dev
 
 # Watch for file changes
+
 npm run dev:watch
 
 # Check database queries
+
 DEBUG=database npm run dev
 Frontend Debugging
+
 # React DevTools
+
 # Install browser extension
 
 # Check component re-renders
+
 # React DevTools > Profiler
 
 # Network tab
+
 # Browser DevTools > Network > Filter by XHR
+
 Common Issues
 "Could not resolve @/core/api/AppContext"
 
@@ -374,54 +353,64 @@ Start PostgreSQL
 Verify DATABASE_URL in .env.local
 Run node scripts/setup-database.js
 
-
-
 "CSRF token mismatch"
 
 Cause: CSRF token not included or expired
 Fix: Ensure frontend fetches fresh token and includes in headers
 
-
 Deployment
 Production Build
+
 # Build frontend
+
 npm run build
 
 # Test production build locally
+
 npm run preview
 
 # Build includes:
+
 # - Minified JavaScript
+
 # - Optimized CSS
+
 # - Source maps (for debugging)
+
 Environment Setup
 Production checklist:
 
- Set NODE_ENV=production
- Configure production database (Neon)
- Configure storage provider (R2, S3, Scaleway)
- Configure email provider (Resend, SendGrid)
- Set strong SESSION_SECRET
- Enable HTTPS
- Configure CORS if needed
- Setup error tracking (Sentry)
- Configure logging service
- Setup backups
+Set NODE_ENV=production
+Configure production database (Neon)
+Configure storage provider (R2, S3, Scaleway)
+Configure email provider (Resend, SendGrid)
+Set strong SESSION_SECRET
+Enable HTTPS
+Configure CORS if needed
+Setup error tracking (Sentry)
+Configure logging service
+Setup backups
 
 Railway Deployment
+
 # Install Railway CLI
+
 npm install -g @railway/cli
 
 # Login
+
 railway login
 
 # Link project
+
 railway link
 
 # Deploy
+
 railway up
 
 # View logs
+
 railway logs
 
 Performance Optimization
@@ -441,13 +430,13 @@ Caching:
 // Use cache service for expensive queries
 const cache = ServiceManager.get('cache');
 const items = await cache.wrap('my-plugin:items', async () => {
-  return await database.query('SELECT * FROM items', []);
+return await database.query('SELECT _ FROM items', []);
 }, 300);
 Pagination:
 // Limit query results
 const items = await database.query(
-  'SELECT * FROM items ORDER BY created_at DESC LIMIT ? OFFSET ?',
-  [pageSize, offset]
+'SELECT _ FROM items ORDER BY created_at DESC LIMIT ? OFFSET ?',
+[pageSize, offset]
 );
 Backend Optimization
 Database Indexing:
@@ -457,9 +446,9 @@ CREATE INDEX idx_created_at ON my_plugin_items(created_at);
 Connection Pooling:
 // Configured in database adapter
 {
-  max: 20,           // Maximum connections
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+max: 20, // Maximum connections
+idleTimeoutMillis: 30000,
+connectionTimeoutMillis: 2000,
 }
 
 Monitoring
@@ -473,18 +462,18 @@ Error Tracking
 Sentry integration:
 // Configure in production
 if (process.env.NODE_ENV === 'production') {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: 'production'
-  });
+Sentry.init({
+dsn: process.env.SENTRY_DSN,
+environment: 'production'
+});
 }
 Health Checks
 // GET /api/health
 {
-  status: 'ok',
-  database: 'connected',
-  uptime: 12345,
-  version: '1.0.0'
+status: 'ok',
+database: 'connected',
+uptime: 12345,
+version: '1.0.0'
 }
 
 Best Practices
@@ -517,7 +506,6 @@ Write integration tests for APIs
 Test with mock adapters for speed
 Test edge cases and error conditions
 
-
 ## Development Workflow
 
 ### npm run dev startar BARA backend per default
@@ -526,6 +514,7 @@ Test edge cases and error conditions
 Körde `npm run dev` och trodde att både backend och frontend skulle starta.
 
 ✅ **KORREKT:**
+
 ```bash
 # Antingen separata terminals:
 npm run dev:api  # Backend (port 3002)
@@ -533,7 +522,7 @@ npm run dev:ui   # Frontend (port 3001)
 
 # Eller allt i en terminal:
 npm run dev:all  # Båda samtidigt med concurrently
-````
+```
 
 💡 **Lärdom:** `npm run dev` kör bara `dev:api`, inte frontend. Frontend måste startas separat med `npm run dev:ui`, eller använd `npm run dev:all` för båda.
 
@@ -618,7 +607,7 @@ git commit -m "feat: add new feature"
 git push
 ```
 
-💡 **Lärdom:** Projektet använder **husky pre-commit hooks** med **lint-staged** som automatiskt kör ESLint och Prettier på staged filer före varje commit. Om ESLint hittar fel (warnings eller errors) stoppas commit-processen. **Kör alltid `npm run lint` eller `npx lint-staged` INNAN du committar**, fixa alla fel, och committa igen. I `package.json` använder lint-staged `eslint --fix --max-warnings=0 --no-warn-ignored` så att filer som medvetet ignoreras i ESLint-konfigurationen (t.ex. vissa deklarationsfiler) inte ska faila commit med en “ignored file”-varning.
+💡 **Lärdom:** Projektet använder **husky pre-commit hooks** med **lint-staged** som automatiskt kör ESLint och Prettier på staged filer före varje commit. Om ESLint hittar fel (warnings eller errors) stoppas commit-processen. **Kör alltid `npm run lint` eller `npx lint-staged` INNAN du committar**, fixa alla fel, och committa igen. I `package.json` använder lint-staged `eslint --fix --quiet --no-warn-ignored` (endast **errors** stoppar commit; `@typescript-eslint/no-explicit-any` är **warn** i `eslint.config.cjs`).
 
 ---
 
