@@ -2,6 +2,8 @@
 
 Det här dokumentet beskriver **hur data och filer rör sig** i den typiska Cupappen-uppsättningen: lokal utveckling med Neon, deploy från GitHub till Railway, publik sajt mot PHP/Neon, samt **var** miljövariabler ska ligga så att hjältebilder hamnar i Cloudflare R2 i stället för på lokal disk.
 
+**Drift, Docker, `CUPS_DB_URL`, 500-fel:** se **[`CUPPAPPEN_RAILWAY_OPERATIONS.md`](./CUPPAPPEN_RAILWAY_OPERATIONS.md)** — obligatorisk läsning innan Cupappen Railway ändras.
+
 ## Översikt (en bild)
 
 ```mermaid
@@ -133,6 +135,8 @@ Sätt dessa **i den miljö där Node-servern kör** (`.env.local` respektive Rai
 
 ## Se även
 
+- **[`CUPPAPPEN_RAILWAY_OPERATIONS.md`](./CUPPAPPEN_RAILWAY_OPERATIONS.md)** — två Railway-tjänster, Dockerfile/`libpq`, checklista, webbläsar-500
 - `.env.example` — mall med `R2_*`-kommentarer
+- `public-cups/railway.env.example` — `CUPS_DB_URL` m.m. för Cupappen-tjänsten
 - `public-cups/README.md` — publik sajt, API, SEO
 - `docs/DEPLOYMENT_V2.md` — generell deploy (jämför R2-namn med `.env.example`; files-plugin använder **`R2_BUCKET_NAME`** och **`R2_PUBLIC_URL`**)

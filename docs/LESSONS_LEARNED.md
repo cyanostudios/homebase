@@ -11,6 +11,29 @@
 
 ---
 
+## Cupappen (public-cups) — separat från Homebase
+
+> **Canonical drift-doc:** [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](./CUPPAPPEN_RAILWAY_OPERATIONS.md)
+
+❌ **What we did (that didn't work):**
+
+- Deployade eller felsökte cupappen.se som om det vore **samma Railway-tjänst** som Homebase API.
+- Satte Homebase **`DATABASE_URL`** (Neon main) som **`CUPS_DB_URL`** på Cupappen.
+- Byggde Docker-image som **`apk del postgresql-dev`** utan att behålla **`postgresql-libs`** → `pdo_pgsql` laddades inte (`libpq.so.5` saknas) → `/api/cups.php` **500** och webbläsaren visade “inga cuper”.
+- Antog att 500 betydde att cuper raderats i databasen.
+
+✅ **What we do instead (that works):**
+
+- **Två Railway-tjänster:** Homebase (rot, Node) och Cupappen (**Root Directory = `public-cups`**, `public-cups/Dockerfile`).
+- **`CUPS_DB_URL`** = tenant Postgres (`tenants.neon_connection_string`), samma DB som cups-plugin i admin.
+- Dockerfile: **`postgresql-libs` stannar kvar** efter `docker-php-ext-install pdo_pgsql`; bara build-deps tas bort.
+- Efter varje Cupappen-deploy: `curl https://www.cupappen.se/api/health.php` → `{"status":"ok"}` och `api/cups.php` → JSON.
+- API-URL i prod: **`https://www.cupappen.se/api/...`** (apex kan redirecta `/api/*` till HTML).
+
+💡 **Why:** Cupappen är PHP + Caddy + egen env. Homebase-refaktorer påverkar den inte. 500 = server/DB/Docker, inte tom databas (det ger `{"cups":[]}` med 200).
+
+---
+
 ## Database SDK
 
 > **Note:** Se även `CORE_SERVICES_ARCHITECTURE.md` (service-översikt) och `REFACTORING_EXISTING_PLUGINS.md` (migrering).

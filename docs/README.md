@@ -10,20 +10,20 @@
 
 ## Snabbstart (ny utvecklare)
 
-| Ämne                                | Dokument                                                                     |
-| ----------------------------------- | ---------------------------------------------------------------------------- |
-| Setup, struktur, kommandon          | [`DEVELOPMENT_GUIDE_V2.md`](DEVELOPMENT_GUIDE_V2.md)                         |
-| Core services (`ServiceManager`)    | [`CORE_SERVICES_ARCHITECTURE.md`](CORE_SERVICES_ARCHITECTURE.md)             |
-| Client/server-översikt              | [`CORE_ARCHITECTURE_V2.md`](CORE_ARCHITECTURE_V2.md)                         |
-| Plugin-arkitektur (Action Registry) | [`PLUGIN_ARCHITECTURE_V3.md`](PLUGIN_ARCHITECTURE_V3.md)                     |
-| Ny plugin (checklista)              | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md) |
-| Plugin-standarder (obligatoriskt)   | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)   |
-| UI/UX (V3 + list shell v3.6)        | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                     |
-| Säkerhet, CSRF, `apiFetch`          | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                           |
-| Deploy (allmänt)                    | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                       |
-| Railway Homebase                    | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md)                     |
-| Cupappen (separat projekt)          | [`CUPPAPPEN_PATHS_AND_STORAGE.md`](CUPPAPPEN_PATHS_AND_STORAGE.md)           |
-| Bundle-analys                       | [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md)                 |
+| Ämne                                | Dokument                                                                                                                                 |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup, struktur, kommandon          | [`DEVELOPMENT_GUIDE_V2.md`](DEVELOPMENT_GUIDE_V2.md)                                                                                     |
+| Core services (`ServiceManager`)    | [`CORE_SERVICES_ARCHITECTURE.md`](CORE_SERVICES_ARCHITECTURE.md)                                                                         |
+| Client/server-översikt              | [`CORE_ARCHITECTURE_V2.md`](CORE_ARCHITECTURE_V2.md)                                                                                     |
+| Plugin-arkitektur (Action Registry) | [`PLUGIN_ARCHITECTURE_V3.md`](PLUGIN_ARCHITECTURE_V3.md)                                                                                 |
+| Ny plugin (checklista)              | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)                                                             |
+| Plugin-standarder (obligatoriskt)   | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                               |
+| UI/UX (V3 + list shell v3.6)        | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                                                                                 |
+| Säkerhet, CSRF, `apiFetch`          | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                       |
+| Deploy (allmänt)                    | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                                                                                   |
+| Railway Homebase                    | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md)                                                                                 |
+| Cupappen (separat Railway + R2)     | [`CUPPAPPEN_PATHS_AND_STORAGE.md`](CUPPAPPEN_PATHS_AND_STORAGE.md), [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md) |
+| Bundle-analys                       | [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md)                                                                             |
 
 ## Canonical dokument
 
@@ -34,7 +34,8 @@
 - **Design-alignment (kopiera från slots/notes):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Mentions & cross-plugin UI:** `MENTIONS_AND_CROSS_PLUGIN_UI.md`
 - **Tenant / RBAC:** `TENANT_USERS_AND_RBAC.md`
-- **Cups cron (Railway):** `CUPS_AUTO_REFRESH_CRON.md`
+- **Cups cron (Railway Homebase):** `CUPS_AUTO_REFRESH_CRON.md`
+- **Cupappen drift (Docker, CUPS_DB_URL):** `CUPPAPPEN_RAILWAY_OPERATIONS.md`
 - **Lessons learned / agent-regler:** `LESSONS_LEARNED.md`
 
 ## Kod som dokumentationen ska matcha

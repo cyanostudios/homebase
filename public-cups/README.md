@@ -33,9 +33,20 @@ Mobil: `#filter-toggle-btn` visar/döljer `#listing-filter-shell` (klass `is-col
 
 Se [api/README.md](./api/README.md) för PHP-endpoint, miljövariabler och svarformat.
 
-## Docker (produktion)
+## Docker & Railway (produktion)
 
-[`Dockerfile`](Dockerfile) kör **Caddy** som reverse proxy framför **PHP-FPM** (Alpine), med `pm.max_requests` i poolen så workers återstartas och minnet inte kryper obegränsat som med `php -S`. **HEALTHCHECK** anropar `GET /api/health.php`. Lokalt: `npm run dev:public-cups` använder fortfarande `php -S` + `router.php`.
+[`Dockerfile`](Dockerfile) kör **Caddy** + **PHP-FPM** (Alpine). **HEALTHCHECK** = `GET /api/health.php`.
+
+**Railway (obligatoriskt):**
+
+- **Separat tjänst** från Homebase API — inte samma deploy.
+- **Root Directory** = `public-cups` (se [`railway.toml`](railway.toml)).
+- **`CUPS_DB_URL`** = tenant Postgres (inte Homebase `DATABASE_URL`).
+- Efter deploy: `curl https://www.cupappen.se/api/health.php` → `{"status":"ok"}`.
+
+Full checklist och vanliga misstag (t.ex. `pdo_pgsql` / `libpq`): **[`docs/CUPPAPPEN_RAILWAY_OPERATIONS.md`](../docs/CUPPAPPEN_RAILWAY_OPERATIONS.md)**.
+
+Miljövariabler: [`railway.env.example`](railway.env.example). Lokalt: `npm run dev:public-cups` (`php -S` + `router.php`).
 
 ## Säkerhet (översikt)
 

@@ -1,7 +1,10 @@
 FROM php:8.2-fpm-alpine
 
+# Cupappen production image — Railway Root Directory MUST be `public-cups`.
+# Ops checklist: docs/CUPPAPPEN_RAILWAY_OPERATIONS.md
+#
+# CRITICAL: Keep postgresql-libs after build (libpq.so). Never `apk del postgresql-libs`.
 # Caddy reverse proxy + PHP-FPM workers (replacing php -S built-in server for stable long-run RSS).
-# postgresql-libs must stay installed at runtime (libpq.so) — pdo_pgsql fails without it.
 RUN apk update \
   && apk add --no-cache \
     supervisor \

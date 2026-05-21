@@ -4,6 +4,15 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-05 – Cupappen drift documentation (post-incident)
+
+**Sammanfattning:** Efter återställd cupappen.se (Docker `postgresql-libs`, `CUPS_DB_URL`, redeploy) tillagd canonical driftguide så samma misstag inte upprepas.
+
+- **Ny:** [`docs/CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md) — två Railway-tjänster, Dockerfile/`libpq`, checklista, 500 vs tom lista, Cloudflare apex.
+- Uppdaterat: [`CUPPAPPEN_PATHS_AND_STORAGE.md`](CUPPAPPEN_PATHS_AND_STORAGE.md), [`public-cups/README.md`](../public-cups/README.md), [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md), kommentar i [`public-cups/Dockerfile`](../public-cups/Dockerfile).
+
+---
+
 ## 2026-05 – Documentation audit (synkad med kod)
 
 **Sammanfattning:** Canonical docs uppdaterade mot `main` (branch, Node 22, `server/index.ts`, `vite.config.ts`, `createApiClient`, `ServiceManager`-scope). Borttaget: `CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md`, `RAILWAY_CRON_EXAMPLE.md`. `REFACTORING_EXISTING_PLUGINS.md` ersatt med kort referens (inga felaktiga `ServiceManager.get('storage')`-exempel). List shell v3.6 införlivat i `UI_AND_UX_STANDARDS_V3.md` §0.1. Index: `docs/README.md`.
