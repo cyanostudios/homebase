@@ -107,6 +107,24 @@ export default defineConfig({
           )
             return 'vendor-react';
 
+          // Radix + lucide must not be hoisted into a single plugin-* chunk (causes
+          // cross-chunk imports like plugin-files → plugin-contacts and "X is not a function").
+          if (id.includes('/node_modules/@radix-ui/')) return 'vendor-radix';
+          if (id.includes('/node_modules/lucide-react/')) return 'vendor-lucide';
+
+          // Shared UI/utils used by many plugins — never hoist into plugin-contacts only.
+          if (
+            id.includes('/components/ui/') ||
+            id.includes('/core/ui/') ||
+            id.includes('/core/hooks/') ||
+            id.includes('/core/api/') ||
+            id.includes('/core/utils/') ||
+            id.includes('/core/types/') ||
+            id.includes('/hooks/') ||
+            id.includes('/lib/utils')
+          )
+            return 'vendor-shared';
+
           // ── Plugin Provider chunks ─────────────────────────────────────────────
           // Loaded lazily at authentication via providerLoader; kept separate from
           // UI component chunks so navigating to a plugin page only loads its UI.

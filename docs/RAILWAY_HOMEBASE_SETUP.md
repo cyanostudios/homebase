@@ -100,6 +100,9 @@ Install-fasen måste inkludera devDependencies: `nixpacks.toml` → `[phases.ins
 2. Deploy-logg ska visa `Serving UI from .../dist/public`.
 3. DevTools → Network: `/assets/*.js` ska vara **200**, inte HTML.
 4. Efter CSP/SPA-fix på `main`: trigga **Redeploy** så senaste build körs (kolla `BACKEND_VERSION` i `/api/health` eller deploy-logg).
+5. Console **`X is not a function` i `plugin-files.*.js`** (ofta Radix): `vite.config.ts` ska ha `vendor-radix` / `vendor-lucide` — inte dela `@radix-ui` via en annan plugin-chunk. Det är **inte** `DATABASE_URL` / Railway Variables.
+
+**Variabler som påverkar UI:** `NODE_ENV=production`, `APP_URL` / `FRONTEND_URL` (CORS/redirect efter login). Saknad `vite.svg` (404 favicon) ger **inte** svart skärm.
 
 ## 5. Railway Cron (valfritt)
 
