@@ -15,8 +15,12 @@ describe('Provider Switching', () => {
   });
 
   afterEach(() => {
-    // Restore env
-    process.env = originalEnv;
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
   });
 
   describe('TenantService Provider Switching', () => {
@@ -55,6 +59,12 @@ describe('Provider Switching', () => {
   });
 
   describe('ConnectionPoolService Provider Switching', () => {
+    beforeEach(() => {
+      // initialize() always boots tenant first — avoid TENANT_PROVIDER=local from .env.local
+      process.env.TENANT_PROVIDER = 'neon';
+      process.env.NEON_API_KEY = 'test-key';
+    });
+
     test('should load PostgresPoolProvider when POOL_PROVIDER=postgres', () => {
       process.env.POOL_PROVIDER = 'postgres';
 
@@ -77,6 +87,10 @@ describe('Provider Switching', () => {
   });
 
   describe('Service Interface Compliance', () => {
+    beforeEach(() => {
+      ServiceManager.reset();
+    });
+
     test('TenantService should have all required methods', () => {
       process.env.TENANT_PROVIDER = 'local';
       process.env.DATABASE_URL = 'postgresql://localhost/test';
@@ -93,6 +107,8 @@ describe('Provider Switching', () => {
     });
 
     test('ConnectionPoolService should have all required methods', () => {
+      process.env.TENANT_PROVIDER = 'neon';
+      process.env.NEON_API_KEY = 'test-key';
       process.env.POOL_PROVIDER = 'postgres';
 
       ServiceManager.initialize();
