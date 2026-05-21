@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/pdo_env.php';
+require_once __DIR__ . '/db_helpers.php';
 require_once __DIR__ . '/security_headers.php';
 
 applyPublicCupsSecurityHeaders('xml');
@@ -86,14 +87,7 @@ $base = publicSiteBaseUrl();
 
 try {
     $pdo = getPdoFromEnv();
-    $sql = <<<'SQL'
-SELECT c.id, c.name, c.start_date, c.end_date, c.updated_at
-FROM cups c
-WHERE COALESCE(c.visible, TRUE) = TRUE
-  AND c.deleted_at IS NULL
-ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC
-SQL;
-    $stmt = $pdo->query($sql);
+    $stmt = $pdo->query(publicCupsSitemapSql($pdo));
     $rows = $stmt->fetchAll();
 
     $maxTs = 0;

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/pdo_env.php';
+require_once __DIR__ . '/db_helpers.php';
 require_once __DIR__ . '/security_headers.php';
 
 /**
@@ -137,35 +138,12 @@ try {
         }
     }
 
-    $pdo = getPdoFromEnv();
-    $sql = <<<SQL
-SELECT
-  c.id,
-  c.name,
-  c.organizer,
-  c.location,
-  c.start_date,
-  c.end_date,
-  c.categories,
-  c.featured,
-  c.sanctioned,
-  c.team_count,
-  c.match_format,
-  c.registration_url,
-  c.featured_image_url,
-  c.description,
-  c.source_url,
-  c.source_type,
-  c.updated_at,
-  src.name AS ingest_source_name
-FROM cups c
-LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
-WHERE COALESCE(c.visible, TRUE) = TRUE
-  AND c.deleted_at IS NULL
-ORDER BY c.start_date ASC NULLS LAST, c.name ASC
-SQL;
+    if (!extension_loaded('pdo_pgsql')) {
+        throw new RuntimeException('PHP extension pdo_pgsql is not loaded (rebuild Docker image with postgresql-libs)');
+    }
 
-    $stmt = $pdo->query($sql);
+    $pdo = getPdoFromEnv();
+    $stmt = $pdo->query(publicCupsListSql($pdo));
     $rows = $stmt->fetchAll();
     $cups = array_map('transformCup', $rows);
 

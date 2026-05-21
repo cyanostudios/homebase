@@ -358,6 +358,13 @@ async function loadCups() {
     renderFeaturedCupsSection();
   } catch (error) {
     console.error('Failed to load cups:', error);
+    if (errorEl) {
+      const hint =
+        error?.message === 'Failed to fetch cups'
+          ? 'Databasfel på servern — kontrollera CUPS_DB_URL och att Cupappen Railway har redeployats med senaste Docker-image (pdo_pgsql).'
+          : String(error?.message || error);
+      errorEl.textContent = hint;
+    }
     showState('error');
   }
 }

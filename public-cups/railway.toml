@@ -1,0 +1,11 @@
+# Cupappen (public-cups) — separate Railway service from Homebase API.
+# In Railway UI: Root Directory = public-cups (or deploy only this folder).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health.php"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"

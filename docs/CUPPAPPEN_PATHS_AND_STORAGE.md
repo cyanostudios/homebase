@@ -118,6 +118,10 @@ Sätt dessa **i den miljö där Node-servern kör** (`.env.local` respektive Rai
 
 4. Om API returnerar `"cups":[]` men admin har cuper: kontrollera `visible = true` och `deleted_at IS NULL` i tenant-DB; kör ev. import/cron igen från Homebase.
 
+5. **Railway Cupappen-tjänst:** `Root Directory` = `public-cups`, deploy via `public-cups/Dockerfile` (se `public-cups/railway.toml`). Deploy **inte** Homebase `railway.toml` på samma tjänst.
+
+6. Tillfällig debug: `CUPS_DEBUG_ERRORS=1` → `GET /api/health.php` returnerar `details` (t.ex. `pdo_pgsql extension not loaded` eller `Missing CUPS_DB_URL`).
+
 | Symtom                                                                | Trolig orsak                                                                                                                     |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | URL i admin är `/api/files/raw/...`                                   | `R2_*` saknas eller är tomma **i den Node-process som tar emot upload**                                                          |
