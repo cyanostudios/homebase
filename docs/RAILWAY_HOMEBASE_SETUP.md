@@ -90,6 +90,10 @@ Loggar vid start: `BACKEND_VERSION=…`, `File uploads: Cloudflare R2` (om R2 sa
 
 Kör **inte** `npm ci` igen i `buildCommand` — Nixpacks install-fasen har redan kört `npm ci`. Använd bara `npm run build` i `railway.toml`.
 
+### Build failar på `vite: not found`
+
+Install-fasen måste inkludera devDependencies: `nixpacks.toml` → `[phases.install]` med `npm ci --include=dev` (vite, typescript, tsc). `NODE_ENV=production` på Railway räcker inte med bara `NPM_CONFIG_PRODUCTION=false`.
+
 ### Svart skärm
 
 1. `NODE_ENV=production` (annars serveras inte admin-UI).

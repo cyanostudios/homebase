@@ -4,10 +4,14 @@
 [phases.setup]
 nixPkgs = ["nodejs_22"]
 
+[phases.install]
+# Railway/Nixpacks set NODE_ENV=production; --include=dev ensures vite/tsc exist for build
+cmds = ["HUSKY=0 npm ci --include=dev"]
+
 [variables]
 NIXPACKS_NODE_VERSION = "22"
-# Express monolith; avoid Caddy fmt / static SPA pipeline from public-cups Caddyfile in repo
 NIXPACKS_SPA_CADDY = "false"
-# Install devDependencies during build (vite, typescript, etc.)
 NPM_CONFIG_PRODUCTION = "false"
 HUSKY = "0"
+# Puppeteer is runtime-only on Railway; skip Chrome download during image build
+PUPPETEER_SKIP_DOWNLOAD = "true"
