@@ -1,6 +1,13 @@
-# Node version for Railway/Nixpacks (matches package.json engines)
+# Homebase on Railway: Node API + Vite SPA (Express serves dist/public).
+# Not a Caddy-only static host — disable Vite SPA auto-detection (see Nixpacks Node provider).
+
 [phases.setup]
 nixPkgs = ["nodejs_22"]
 
 [variables]
 NIXPACKS_NODE_VERSION = "22"
+# Express monolith; avoid Caddy fmt / static SPA pipeline from public-cups Caddyfile in repo
+NIXPACKS_SPA_CADDY = "false"
+# Install devDependencies during build (vite, typescript, etc.)
+NPM_CONFIG_PRODUCTION = "false"
+HUSKY = "0"
