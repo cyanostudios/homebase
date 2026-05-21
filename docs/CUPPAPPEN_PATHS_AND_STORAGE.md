@@ -109,7 +109,7 @@ Sätt dessa **i den miljö där Node-servern kör** (`.env.local` respektive Rai
    ```
 
    - `{"status":"ok"}` → DB OK.
-   - `{"status":"unhealthy"}` eller HTTP 500 `Failed to fetch cups` → **`CUPS_DB_URL` saknas, fel eller pekar på fel databas** på **Cupappens Railway-tjänst** (inte Homebase API-tjänsten).
+   - `{"status":"unhealthy"}` eller HTTP 500 `Failed to fetch cups` → **`CUPS_DB_URL` saknas/fel** på Cupappen Railway, **eller** PHP kan inte ladda `pdo_pgsql` (deploy-logg: `libpq.so.5: No such file` → rebuild med fixad `public-cups/Dockerfile` som behåller `postgresql-libs`).
    - HTML-sida istället för JSON på `https://cupappen.se/api/cups.php` → Cloudflare redirectar apex `/api/*` till startsidan; använd **www** eller fixa redirect (behåll path `/api/...`).
 
 2. **Sätt `CUPS_DB_URL`** på Cupappen Railway till **samma tenant-Postgres** där Homebase cups-plugin sparar rader (`tenants.neon_connection_string` för den tenant som äger cup-databasen). Det är **inte** Neon main (`DATABASE_URL` på Homebase).

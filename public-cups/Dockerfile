@@ -1,15 +1,18 @@
 FROM php:8.2-fpm-alpine
 
 # Caddy reverse proxy + PHP-FPM workers (replacing php -S built-in server for stable long-run RSS).
+# postgresql-libs must stay installed at runtime (libpq.so) — pdo_pgsql fails without it.
 RUN apk update \
   && apk add --no-cache \
     supervisor \
     caddy \
     curl \
+    postgresql-libs \
+  && apk add --no-cache --virtual .php-build-deps \
     $PHPIZE_DEPS \
     postgresql-dev \
   && docker-php-ext-install -j "$(nproc)" pdo_pgsql \
-  && apk del --no-network $PHPIZE_DEPS postgresql-dev \
+  && apk del .php-build-deps \
   && rm -rf /var/cache/apk/*
 
 COPY docker/php-fpm-zz-www.conf /usr/local/etc/php-fpm.d/zz-cupappen.conf

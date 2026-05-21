@@ -14,7 +14,7 @@ En enkel read-only endpoint för Cupappen som hämtar publika cuper från Postgr
 ## Krav
 
 - PHP 8.1+ (8.2 rekommenderas)
-- PHP extension: `pdo_pgsql`
+- PHP extension: `pdo_pgsql` (kräver `libpq` / `postgresql-libs` i Docker — se `public-cups/Dockerfile`)
 - (Valfritt) `apcu` för in-memory cache
 
 ## Miljövariabler
