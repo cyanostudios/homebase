@@ -3,7 +3,8 @@
 
 [build]
 builder = "nixpacks"
-buildCommand = "HUSKY=0 NPM_CONFIG_PRODUCTION=false npm ci && npm run build"
+# Install phase already runs npm ci (see nixpacks.toml). Second npm ci causes EBUSY on node_modules/.cache.
+buildCommand = "npm run build"
 
 [deploy]
 startCommand = "npm start"

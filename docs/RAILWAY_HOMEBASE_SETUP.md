@@ -6,13 +6,13 @@ Repot innehåller [`railway.toml`](../railway.toml) (build, start, healthcheck `
 
 ## 1. Ny tjänst i Railway
 
-| Inställning    | Värde                                                                          |
-| -------------- | ------------------------------------------------------------------------------ |
-| Root directory | `/` (repots rot)                                                               |
-| Branch         | `main` (eller release-branch du deployar från)                                 |
-| Build          | `railway.toml` → `HUSKY=0 NPM_CONFIG_PRODUCTION=false npm ci && npm run build` |
-| Start          | `npm start`                                                                    |
-| Healthcheck    | `/api/health`                                                                  |
+| Inställning    | Värde                                                               |
+| -------------- | ------------------------------------------------------------------- |
+| Root directory | `/` (repots rot)                                                    |
+| Branch         | `main` (eller release-branch du deployar från)                      |
+| Build          | Nixpacks `npm ci` (install) + `railway.toml` → `npm run build` only |
+| Start          | `npm start`                                                         |
+| Healthcheck    | `/api/health`                                                       |
 
 **Lägg inte till** Railway Postgres på detta projekt — använd Neon main via `DATABASE_URL`.
 
@@ -85,6 +85,10 @@ Loggar vid start: `BACKEND_VERSION=…`, `File uploads: Cloudflare R2` (om R2 sa
 1. Root Directory ska vara **repots rot** (inte `public-cups`).
 2. `nixpacks.toml` ska ha `NIXPACKS_SPA_CADDY=false` (undvik Caddy/Vite SPA-pipeline i monorepo).
 3. `prepare` använder `scripts/prepare-husky.js` — hoppar över i CI/Railway.
+
+### Build failar på `EBUSY` / `node_modules/.cache`
+
+Kör **inte** `npm ci` igen i `buildCommand` — Nixpacks install-fasen har redan kört `npm ci`. Använd bara `npm run build` i `railway.toml`.
 
 ### Svart skärm
 
