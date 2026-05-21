@@ -1,4 +1,16 @@
-const API_BASE = window.PUBLIC_CUPS_API_BASE || window.location.origin;
+/** Apex cupappen.se redirects /api/* to www homepage in Cloudflare — use www for API. */
+function resolvePublicCupsApiOrigin() {
+  if (window.PUBLIC_CUPS_API_BASE) {
+    return String(window.PUBLIC_CUPS_API_BASE).replace(/\/$/, '');
+  }
+  const { hostname, origin } = window.location;
+  if (hostname === 'cupappen.se') {
+    return 'https://www.cupappen.se';
+  }
+  return origin;
+}
+
+const API_BASE = resolvePublicCupsApiOrigin();
 const IS_LOCAL_PUBLIC_CUPS =
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const CUPS_API_URL =
@@ -316,9 +328,18 @@ async function loadCups() {
   showState('loading');
   try {
     const response = await fetch(CUPS_API_URL);
-    if (!response.ok) throw new Error(`Server returned ${response.status}`);
-
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(
+        'Cup-API svarade inte med JSON (kolla Cloudflare redirect för /api/* och CUPS_DB_URL på Railway)',
+      );
+    }
     const payload = await response.json();
+    if (!response.ok) {
+      const msg =
+        typeof payload?.error === 'string' ? payload.error : `Server returned ${response.status}`;
+      throw new Error(msg);
+    }
     state.cups = Array.isArray(payload.cups)
       ? payload.cups.filter((cup) => cup?.visible !== false && cup?.visible !== 'false')
       : [];

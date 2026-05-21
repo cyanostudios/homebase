@@ -99,6 +99,25 @@ Sätt dessa **i den miljö där Node-servern kör** (`.env.local` respektive Rai
 
 ## 7. Felsökning (snabb)
 
+### Inga cuper på cupappen.se (tom lista eller “Laddar…” / fel)
+
+1. **Kolla API direkt** (ska vara JSON, inte HTML):
+
+   ```bash
+   curl -sS https://www.cupappen.se/api/health.php
+   curl -sS https://www.cupappen.se/api/cups.php | head -c 200
+   ```
+
+   - `{"status":"ok"}` → DB OK.
+   - `{"status":"unhealthy"}` eller HTTP 500 `Failed to fetch cups` → **`CUPS_DB_URL` saknas, fel eller pekar på fel databas** på **Cupappens Railway-tjänst** (inte Homebase API-tjänsten).
+   - HTML-sida istället för JSON på `https://cupappen.se/api/cups.php` → Cloudflare redirectar apex `/api/*` till startsidan; använd **www** eller fixa redirect (behåll path `/api/...`).
+
+2. **Sätt `CUPS_DB_URL`** på Cupappen Railway till **samma tenant-Postgres** där Homebase cups-plugin sparar rader (`tenants.neon_connection_string` för den tenant som äger cup-databasen). Det är **inte** Neon main (`DATABASE_URL` på Homebase).
+
+3. Efter variabeländring: **Redeploy** Cupappen. Valfritt: sätt `CUPS_DEBUG_ERRORS=1` tillfälligt för feltext i API-svar.
+
+4. Om API returnerar `"cups":[]` men admin har cuper: kontrollera `visible = true` och `deleted_at IS NULL` i tenant-DB; kör ev. import/cron igen från Homebase.
+
 | Symtom                                                                | Trolig orsak                                                                                                                     |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | URL i admin är `/api/files/raw/...`                                   | `R2_*` saknas eller är tomma **i den Node-process som tar emot upload**                                                          |

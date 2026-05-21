@@ -90,6 +90,7 @@ try {
 SELECT c.id, c.name, c.start_date, c.end_date, c.updated_at
 FROM cups c
 WHERE COALESCE(c.visible, TRUE) = TRUE
+  AND c.deleted_at IS NULL
 ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC
 SQL;
     $stmt = $pdo->query($sql);

@@ -67,6 +67,17 @@ Om variabeln är tom skickas ingen CORS allow-header.
 
 - Endpointen är read-only (endast `GET`/`OPTIONS`)
 - SQL-feltext exponeras inte i produktion (`CUPS_DEBUG_ERRORS=0`)
+- Listan filtrerar `visible = true` och `deleted_at IS NULL` (samma intent som Homebase `plugins/public-cups/model.js`)
+- Produktion: anropa **`https://www.cupappen.se/api/cups.php`** — apex `cupappen.se` kan redirecta `/api/*` till startsidan via Cloudflare
+
+## Felsökning
+
+| Test                  | Förväntat         |
+| --------------------- | ----------------- |
+| `GET /api/health.php` | `{"status":"ok"}` |
+| `GET /api/cups.php`   | `{"cups":[...]}`  |
+
+Om health är `unhealthy` eller cups ger 500: kontrollera `CUPS_DB_URL` på Cupappen Railway (tenant Postgres, inte Homebase main DB). Se `docs/CUPPAPPEN_PATHS_AND_STORAGE.md` §7.
 
 ## Säkerhet
 

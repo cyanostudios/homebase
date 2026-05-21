@@ -18,5 +18,9 @@ try {
     echo json_encode(['status' => 'ok'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $e) {
     http_response_code(503);
-    echo json_encode(['status' => 'unhealthy'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $payload = ['status' => 'unhealthy', 'db' => false];
+    if (filter_var(getenv('CUPS_DEBUG_ERRORS') ?: '0', FILTER_VALIDATE_BOOLEAN)) {
+        $payload['details'] = $e->getMessage();
+    }
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }

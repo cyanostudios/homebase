@@ -165,7 +165,9 @@ try {
         respond(400, ['error' => 'comment max 3000 chars']);
     }
 
-    $cupStmt = $pdo->prepare('SELECT id FROM cups WHERE id = :id AND COALESCE(visible, TRUE) = TRUE LIMIT 1');
+    $cupStmt = $pdo->prepare(
+        'SELECT id FROM cups WHERE id = :id AND COALESCE(visible, TRUE) = TRUE AND deleted_at IS NULL LIMIT 1',
+    );
     $cupStmt->execute(['id' => $cupId]);
     if (!$cupStmt->fetch()) {
         respond(404, ['error' => 'Cup not found']);
