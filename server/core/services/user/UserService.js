@@ -124,12 +124,20 @@ class UserService {
    */
   async getPluginAccess(userId) {
     const db = this._getPool();
-    // PostgreSQLAdapter.query() returns rows directly (array), not {rows: [...]}
-    const result = await db.query(
-      'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
-      [userId],
-    );
-    return result ? result.map((row) => row.plugin_name) : [];
+    try {
+      // PostgreSQLAdapter.query() returns rows directly (array), not {rows: [...]}
+      const result = await db.query(
+        'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
+        [userId],
+      );
+      return result ? result.map((row) => row.plugin_name) : [];
+    } catch (err) {
+      if (err?.code === '42P01') {
+        this.logger.warn('user_plugin_access table missing; returning no plugins', { userId });
+        return [];
+      }
+      throw err;
+    }
   }
 
   /**

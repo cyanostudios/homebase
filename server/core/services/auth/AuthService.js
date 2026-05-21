@@ -75,11 +75,22 @@ class AuthService {
         tenantContext.tenantOwnerUserId,
       );
     } catch (err) {
-      this.logger.warn('Tenant plugins lookup failed, using user plugins', { userId: user.id });
-      plugins = await this.userService.getPluginAccess(user.id);
+      this.logger.warn('Tenant plugins lookup failed, using user plugins', {
+        userId: user.id,
+        message: err?.message,
+      });
+      plugins = [];
     }
     if (!plugins || !plugins.length) {
-      plugins = await this.userService.getPluginAccess(user.id);
+      try {
+        plugins = await this.userService.getPluginAccess(user.id);
+      } catch (err) {
+        this.logger.warn('user_plugin_access lookup failed during login', {
+          userId: user.id,
+          message: err?.message,
+        });
+        plugins = [];
+      }
     }
 
     return {

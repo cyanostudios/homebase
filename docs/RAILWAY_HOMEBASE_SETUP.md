@@ -32,10 +32,19 @@ Kopiera från lokal `.env.local` / Neon Console.
 
 ### Efter första deploy (samma Railway-URL)
 
-| Variabel       | Anteckning                         |
-| -------------- | ---------------------------------- |
-| `APP_URL`      | `https://<service>.up.railway.app` |
-| `FRONTEND_URL` | Samma som `APP_URL` om monolith    |
+| Variabel       | Anteckning                                                             |
+| -------------- | ---------------------------------------------------------------------- |
+| `APP_URL`      | `https://<service>.up.railway.app` (din faktiska URL)                  |
+| `FRONTEND_URL` | **Samma URL som `APP_URL`** när API + SPA körs på en tjänst (monolith) |
+
+Exempel (ersätt med din URL):
+
+```text
+APP_URL=https://sweet-courtesy-production-fa4e.up.railway.app
+FRONTEND_URL=https://sweet-courtesy-production-fa4e.up.railway.app
+```
+
+`DATABASE_URL` från Neon ska inkludera SSL, t.ex. `?sslmode=require` i slutet av connection string.
 
 ### Rekommenderat
 
@@ -103,6 +112,47 @@ Install-fasen måste inkludera devDependencies: `nixpacks.toml` → `[phases.ins
 5. Console **`X is not a function` i `plugin-files.*.js`** (ofta Radix): `vite.config.ts` ska ha `vendor-radix` / `vendor-lucide` — inte dela `@radix-ui` via en annan plugin-chunk. Det är **inte** `DATABASE_URL` / Railway Variables.
 
 **Variabler som påverkar UI:** `NODE_ENV=production`, `APP_URL` / `FRONTEND_URL` (CORS/redirect efter login). Saknad `vite.svg` (404 favicon) ger **inte** svart skärm.
+
+### Login: `GET /api/auth/me` 401 och `POST /api/auth/login` 500
+
+| Symptom                                                    | Betydelse                                                                                             |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `GET /api/auth/me` → **401**                               | Normalt **innan** inloggning (ingen session).                                                         |
+| `POST /api/auth/login` → **401**                           | Fel e-post/lösenord, eller användaren finns inte i **Neon main** `users`.                             |
+| `POST /api/auth/login` → **503** + `TENANT_NOT_CONFIGURED` | Användaren finns men saknar `tenants.neon_connection_string` / membership.                            |
+| `POST /api/auth/login` → **500**                           | Serverkrasch — kolla **Railway → Deployments → View logs** efter login-försök. Vanliga orsaker nedan. |
+
+**Checklista (Railway Variables):**
+
+1. `DATABASE_URL` = Neon **main** (samma som du migrerat), med `sslmode=require` om Neon kräver det.
+2. `SESSION_SECRET` = stark nyckel (`openssl rand -base64 32`), inte dev-default.
+3. `TENANT_PROVIDER` = `neon`
+4. `NEON_API_KEY` = satt (för tenant-uppslag; inte samma som connection string).
+5. `NODE_ENV` = `production`
+6. `APP_URL` + `FRONTEND_URL` = din Railway-URL (monolith).
+
+**Engång — migrera Neon main** (om du inte gjort det mot samma URL som Railway använder):
+
+```bash
+DATABASE_URL='postgresql://...@....neon.tech/neondb?sslmode=require' npm run railway:migrate
+```
+
+Det skapar bl.a. `users`, `sessions`, `tenants`, `user_plugin_access`.
+
+**Verifiera användare i Neon:** Kontot du loggar in med måste finnas i **main**-databasens `users` (samma e-post som lokalt om du kopierat data). Rad i `tenants` med `neon_connection_string` för den användaren (eller aktiv `tenant_memberships`).
+
+**Snabbtest från terminal:**
+
+```bash
+curl -sS -X POST 'https://<din-railway-url>/api/auth/login' \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"din@email.se","password":"ditt-lösenord"}'
+```
+
+- **200** + `user` → login OK; om UI fortfarande strular, hård refresh / cookies.
+- **401** → fel credentials eller saknad user i Neon main.
+- **503** + `TENANT_NOT_CONFIGURED` → tenant-rad saknas i main DB.
+- **500** → läs felrad i Railway-loggen (`Login failed`, `relation "users" does not exist`, session, SSL, m.m.).
 
 ## 5. Railway Cron (valfritt)
 
