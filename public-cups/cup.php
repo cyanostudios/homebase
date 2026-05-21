@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/api/pdo_env.php';
+require_once __DIR__ . '/api/url_helpers.php';
 require_once __DIR__ . '/api/security_headers.php';
 applyPublicCupsSecurityHeaders('html');
 
@@ -591,6 +592,7 @@ $ogImageUrl = absolutePublicUrl($baseUrl, $imageUrl);
 
 $registrationRaw = trim((string) ($cup['registration_url'] ?? ''));
 $registrationAbs = $registrationRaw !== '' ? absolutePublicUrl($baseUrl, $registrationRaw) : '';
+$registrationWithUtm = $registrationAbs !== '' ? withCupappenUtm($registrationAbs) : '';
 
 $keywordsParts = $categories;
 $matchFormatKw = normalizeText((string) ($cup['match_format'] ?? ''));
@@ -627,10 +629,10 @@ if ($location !== '') {
 if ($organizer !== '') {
     $sportsEventLd['organizer'] = ['@type' => 'Organization', 'name' => $organizer];
 }
-if ($registrationAbs !== '' && (str_starts_with($registrationAbs, 'http://') || str_starts_with($registrationAbs, 'https://'))) {
+if ($registrationWithUtm !== '' && (str_starts_with($registrationWithUtm, 'http://') || str_starts_with($registrationWithUtm, 'https://'))) {
     $sportsEventLd['offers'] = [
         '@type' => 'Offer',
-        'url' => $registrationAbs,
+        'url' => $registrationWithUtm,
         'availability' => 'https://schema.org/InStock',
         'price' => '0',
         'priceCurrency' => 'SEK',
@@ -936,8 +938,8 @@ $jsonLdGraph = jsonLdStripNulls([
           <?php if ($organizer !== ''): ?><li class="info-list__row"><div><span class="info-list__label">Arrangör</span><p class="info-list__value"><?= h($organizer) ?></p></div></li><?php endif; ?>
           <?php if (!empty($cup['team_count'])): ?><li class="info-list__row"><div><span class="info-list__label">Lag</span><p class="info-list__value"><?= h((string) ((int) $cup['team_count'])) ?></p></div></li><?php endif; ?>
         </ul>
-        <?php if (!empty($cup['registration_url'])): ?>
-          <a class="info-card__cta" target="_blank" rel="noopener noreferrer" href="<?= h((string) $cup['registration_url']) ?>">Till anmälan</a>
+        <?php if ($registrationWithUtm !== ''): ?>
+          <a class="info-card__cta" target="_blank" rel="noopener noreferrer" href="<?= h($registrationWithUtm) ?>">Till anmälan</a>
         <?php endif; ?>
         <?php
             $mailSubject = 'Uppdatering: ' . $title;

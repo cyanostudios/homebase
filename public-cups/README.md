@@ -17,6 +17,7 @@ Skip-länk: `#cup-listing`.
 ## Cupkort
 
 - **Populära cuper** (`#featured-cups-grid`) använder `renderFeaturedCard`: **bild** (uppladdad hjältebild eller standardfoto), samma kropp som övriga kort.
+- **Utlänkar (anmälan):** `utm_source=cupappen` på alla utgående registreringslänkar — `app.js` (`withCupappenUtm`) på startsidan/JSON-LD, `cup.php` + `api/url_helpers.php` på SSR-detaljsidor (`Till anmälan`).
 - **Cupdatabasen** (`#featured-grid`, `#cups-grid`) använder `renderCupCard` med klassen `cup-card--listing`: **samma kortlayout och typografi** (meta, titel, datum, klasser, fot, CTA), men **ingen bildrad** — all text (beskrivning, kategorier, m.m.) ligger i `cup-card__body`.
 
 ## Filterkort (layout)
