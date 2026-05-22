@@ -100,6 +100,18 @@ DATABASE_URL='postgresql://...@....neon.tech/neondb?sslmode=require' npm run ver
 railway run npm run verify:neon
 ```
 
+### Flytta lokalt konto till produktion (samma Neon-tenant)
+
+Om användaren skapades mot **lokal** `DATABASE_URL` men tenant-DB ligger i Neon (`green-pine-…` m.m.):
+
+```bash
+SOURCE_DATABASE_URL='postgresql://localhost:5432/homebase_dev' \
+TARGET_DATABASE_URL='postgresql://...@....neon.tech/neondb?sslmode=require' \
+npm run copy:user-to-main -- --email=user@homebase.se
+```
+
+Samma e-post/lösenord fungerar sedan på Railway. `TARGET` ska vara samma Neon **main** som Railway `DATABASE_URL`.
+
 Loggar vid start: `BACKEND_VERSION=…`, `File uploads: Cloudflare R2` (om R2 satt).
 
 ### Build failar på `husky: not found`
