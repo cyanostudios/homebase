@@ -11,11 +11,19 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
+const cliEnv = {
+  DATABASE_URL: process.env.DATABASE_URL,
+  NEON_API_KEY: process.env.NEON_API_KEY,
+};
+
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 require('dotenv').config({
   path: path.join(__dirname, '..', '.env.local'),
   override: true,
 });
+
+if (cliEnv.DATABASE_URL) process.env.DATABASE_URL = cliEnv.DATABASE_URL;
+if (cliEnv.NEON_API_KEY) process.env.NEON_API_KEY = cliEnv.NEON_API_KEY;
 
 const migrate = process.argv.includes('--migrate');
 

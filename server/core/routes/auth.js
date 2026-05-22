@@ -138,7 +138,17 @@ router.post(
           code: 'TENANT_NOT_CONFIGURED',
         });
       }
-      res.status(500).json({ error: 'Internal server error' });
+      if (error?.code === '42P01') {
+        return res.status(503).json({
+          error:
+            'Database schema missing on main DB (users/sessions/tenants). Run: DATABASE_URL=<neon-main> npm run railway:migrate',
+          code: 'SCHEMA_MISSING',
+        });
+      }
+      res.status(500).json({
+        error: 'Internal server error',
+        code: 'LOGIN_FAILED',
+      });
     }
   },
 );
@@ -207,6 +217,13 @@ router.post('/signup', async (req, res) => {
     }
     if (error.message.includes('Password')) {
       return res.status(400).json({ error: error.message });
+    }
+    if (error?.code === '42P01') {
+      return res.status(503).json({
+        error:
+          'Database schema missing on main DB. Run: DATABASE_URL=<neon-main> npm run railway:migrate',
+        code: 'SCHEMA_MISSING',
+      });
     }
 
     res.status(500).json({ error: 'Failed to create account. Please try again.' });

@@ -85,7 +85,20 @@ npm run migrate:public-share-routing
 curl -sS https://<din-url>/api/health
 ```
 
-Förväntat: HTTP 200, `"status":"healthy"`.
+Förväntat: HTTP 200, `"status":"healthy"`, `"authSchema":{"authReady":true,...}`, och `"neonApi":{"status":"ok","projectCount":...}`.
+
+Om `authSchema.authReady` är `false` eller HTTP **503**: tabellerna `users` / `sessions` / `tenants` saknas eller är otillgängliga på Neon main — kör `railway:migrate` (se §3) mot **samma** `DATABASE_URL` som Railway.
+
+Om `neonApi.status` är `missing_key`, `unauthorized` eller `error`: `NEON_API_KEY` på Railway är fel/saknas (signup skapar tenant-projekt via Neon API).
+
+**Verifiera lokalt eller via Railway CLI:**
+
+```bash
+npm run verify:neon
+# med Neon main URL i shell:
+DATABASE_URL='postgresql://...@....neon.tech/neondb?sslmode=require' npm run verify:neon
+railway run npm run verify:neon
+```
 
 Loggar vid start: `BACKEND_VERSION=…`, `File uploads: Cloudflare R2` (om R2 satt).
 
@@ -115,12 +128,14 @@ Install-fasen måste inkludera devDependencies: `nixpacks.toml` → `[phases.ins
 
 ### Login: `GET /api/auth/me` 401 och `POST /api/auth/login` 500
 
-| Symptom                                                    | Betydelse                                                                                             |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `GET /api/auth/me` → **401**                               | Normalt **innan** inloggning (ingen session).                                                         |
-| `POST /api/auth/login` → **401**                           | Fel e-post/lösenord, eller användaren finns inte i **Neon main** `users`.                             |
-| `POST /api/auth/login` → **503** + `TENANT_NOT_CONFIGURED` | Användaren finns men saknar `tenants.neon_connection_string` / membership.                            |
-| `POST /api/auth/login` → **500**                           | Serverkrasch — kolla **Railway → Deployments → View logs** efter login-försök. Vanliga orsaker nedan. |
+| Symptom                                                    | Betydelse                                                                                                 |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `GET /api/auth/me` → **401**                               | Normalt **innan** inloggning (ingen session).                                                             |
+| `POST /api/auth/login` → **401**                           | Fel e-post/lösenord, eller användaren finns inte i **Neon main** `users`.                                 |
+| `POST /api/auth/login` → **503** + `TENANT_NOT_CONFIGURED` | Användaren finns men saknar `tenants.neon_connection_string` / membership.                                |
+| `POST /api/auth/login` → **500**                           | Serverkrasch — kolla **Railway → Deployments → View logs** efter login-försök. Vanliga orsaker nedan.     |
+| `POST /api/auth/login` → **503** + `SCHEMA_MISSING`        | Main DB saknar auth-tabeller (efter senaste deploy). Kör `railway:migrate`.                               |
+| Fel lösenord men fortfarande **500** (inte 401)            | Ofta `users`-tabellen saknas — SQL kastar innan lösenordskontroll. Migrera + `/api/health` → `authReady`. |
 
 **Checklista (Railway Variables):**
 

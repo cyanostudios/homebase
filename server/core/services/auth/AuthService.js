@@ -30,7 +30,21 @@ class AuthService {
 
     this.logger.info('User found', { userId: user.id, email: user.email });
 
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!user.password_hash) {
+      this.logger.error('User row missing password_hash', null, {
+        userId: user.id,
+        email: user.email,
+      });
+      throw new Error('User account is misconfigured (missing password_hash)');
+    }
+
+    let validPassword = false;
+    try {
+      validPassword = await bcrypt.compare(password, user.password_hash);
+    } catch (err) {
+      this.logger.error('Password verify failed', err, { userId: user.id, email: user.email });
+      throw err;
+    }
     if (!validPassword) {
       this.logger.warn('Login failed: Invalid password', { userId: user.id, email: user.email });
       return null;

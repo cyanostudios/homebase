@@ -310,6 +310,27 @@ const server = app.listen(PORT, () => {
   console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
   console.log(`🔌 Loaded ${pluginLoader.getAllPlugins().length} plugins`);
 
+  if (process.env.NODE_ENV === 'production') {
+    void (async () => {
+      for (const table of ['users', 'sessions', 'tenants']) {
+        try {
+          await pool.query(`SELECT 1 FROM ${table} LIMIT 1`);
+        } catch (err: unknown) {
+          const pg = err as { code?: string; message?: string };
+          console.error(
+            `❌ Auth schema: table "${table}" missing or inaccessible on main DB. ` +
+              'Copy DATABASE_URL from Railway → Neon main, then run: npm run railway:migrate',
+          );
+          if (pg?.code || pg?.message) {
+            console.error(`   (${pg.code || 'error'}: ${pg.message || 'unknown'})`);
+          }
+          return;
+        }
+      }
+      console.log('✅ Auth schema: users, sessions, tenants OK');
+    })();
+  }
+
   try {
     const {
       runBrowserFetchStartupDiagnostics,
