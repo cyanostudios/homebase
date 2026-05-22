@@ -4,6 +4,7 @@ const ServiceManager = require('../../ServiceManager');
 const UserService = require('../user/UserService');
 const TenantContextService = require('../tenant/TenantContextService');
 const { DEFAULT_AVAILABLE_PLUGINS, DEFAULT_USER_PLUGINS } = require('../../config/constants');
+const { upsertTenantRecord, ensureTenantMembership } = require('../../utils/tenantMainDb');
 
 class AuthService {
   constructor() {
@@ -62,6 +63,26 @@ class AuthService {
 
     // NOTE: Local/Neon tenant resolution is handled in TenantContextService.
     // AuthService should not duplicate tenant provisioning logic.
+
+    if (!tenantContext || !tenantContext.tenantConnectionString) {
+      if (typeof this.tenantService.linkNeonTenantForUser === 'function') {
+        try {
+          const linked = await this.tenantService.linkNeonTenantForUser(user.id);
+          if (linked?.tenantConnectionString) {
+            this.logger.info('Linked existing Neon project to user on login', {
+              userId: user.id,
+              tenantId: linked.tenantId,
+            });
+            tenantContext = linked;
+          }
+        } catch (err) {
+          this.logger.warn('Neon tenant link on login failed', {
+            userId: user.id,
+            message: err?.message,
+          });
+        }
+      }
+    }
 
     if (!tenantContext || !tenantContext.tenantConnectionString) {
       const isLocal =
@@ -159,28 +180,13 @@ class AuthService {
     const tenantDb = await this.tenantService.createTenant(user.id, user.email);
 
     const db = this.userService._getPool();
-    // Insert tenant (owner_user_id for multi-user; keep user_id for backward compat)
-    const insertTenantSql = `
-      INSERT INTO tenants (user_id, owner_user_id, neon_project_id, neon_database_name, neon_connection_string)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id
-    `;
-    const tenantRows = await db.query(insertTenantSql, [
-      user.id,
-      user.id,
-      tenantDb.projectId,
-      tenantDb.databaseName,
-      tenantDb.connectionString,
-    ]);
-    const tenantId = tenantRows[0]?.id;
-    if (!tenantId) throw new Error('Failed to create tenant row');
-
-    // Membership: owner is admin
-    await db.query(
-      `INSERT INTO tenant_memberships (tenant_id, user_id, role, status, created_by)
-       VALUES ($1, $2, 'admin', 'active', $2)`,
-      [tenantId, user.id],
-    );
+    const tenantId = await upsertTenantRecord(db, {
+      userId: user.id,
+      projectId: tenantDb.projectId,
+      databaseName: tenantDb.databaseName,
+      connectionString: tenantDb.connectionString,
+    });
+    await ensureTenantMembership(db, tenantId, user.id);
 
     // Tenant plugin access (shared for all members)
     for (const pluginName of selectedPlugins) {

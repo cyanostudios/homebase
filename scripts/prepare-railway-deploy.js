@@ -99,12 +99,15 @@ if (migrate) {
       if (r.status !== 0) process.exit(r.status);
     }
   }
-  const r2 = spawnSync('npm', ['run', 'migrate:public-share-routing'], {
-    stdio: 'inherit',
-    env: process.env,
-    cwd: path.join(__dirname, '..'),
-  });
-  if (r2.status !== 0) process.exit(r2.status);
+  const extraMigrations = ['migrate:tenant-memberships', 'migrate:public-share-routing'];
+  for (const script of extraMigrations) {
+    const r = spawnSync('npm', ['run', script], {
+      stdio: 'inherit',
+      env: process.env,
+      cwd: path.join(__dirname, '..'),
+    });
+    if (r.status !== 0) process.exit(r.status);
+  }
   console.log('✅ Migrations finished');
 }
 

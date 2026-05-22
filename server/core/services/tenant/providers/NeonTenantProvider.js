@@ -7,6 +7,7 @@ const axios = require('axios');
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
+const { upsertTenantRecord, ensureTenantMembership } = require('../../../utils/tenantMainDb');
 
 /**
  * NeonTenantProvider - Creates separate Neon projects for each tenant
@@ -41,16 +42,17 @@ class NeonTenantProvider extends TenantService {
       const projectName = `homebase-tenant-${userId}`;
       const project = await this._createNeonProject(projectName);
 
-      // 2. Get default database connection string
-      const connectionString = project.connection_uris[0].connection_uri;
+      const projectId = project.project.id;
+      const databaseName = project.databases?.[0]?.name || 'neondb';
+      const connectionString = await this._resolveConnectionString(project, projectId);
 
-      // 3. Run migrations on new database
+      // 3. Run migrations on new tenant database
       await this._runMigrations(connectionString);
 
       const result = {
-        projectId: project.project.id,
-        databaseName: project.databases[0].name,
-        connectionString: connectionString,
+        projectId,
+        databaseName,
+        connectionString,
       };
 
       console.log(`✅ Neon tenant created: ${project.project.id}`);
@@ -148,12 +150,56 @@ class NeonTenantProvider extends TenantService {
       throw new Error('mainPool not configured for NeonTenantProvider');
     }
 
-    const result = await this.mainPool.query(
-      'SELECT 1 FROM tenants WHERE user_id = $1 OR owner_user_id = $1',
-      [userId],
-    );
+    try {
+      const result = await this.mainPool.query(
+        'SELECT 1 FROM tenants WHERE user_id = $1 OR owner_user_id = $1',
+        [userId],
+      );
+      return result.rows.length > 0;
+    } catch (err) {
+      if (err?.code !== '42703') throw err;
+      const result = await this.mainPool.query('SELECT 1 FROM tenants WHERE user_id = $1', [
+        userId,
+      ]);
+      return result.rows.length > 0;
+    }
+  }
 
-    return result.rows.length > 0;
+  /**
+   * Link main-DB tenants row to existing Neon project homebase-tenant-{userId} (signup repair / login).
+   * @returns {Promise<{ tenantId, tenantRole, tenantConnectionString, tenantOwnerUserId }|null>}
+   */
+  async linkNeonTenantForUser(userId) {
+    const projectName = `homebase-tenant-${userId}`;
+    const projects = await this.listTenants();
+    const match = projects.find((p) => p.name === projectName);
+    if (!match) {
+      console.log(`⚠️  No Neon project named ${projectName}`);
+      return null;
+    }
+
+    const { connectionString, databaseName } = await this._fetchConnectionForProject(match.id);
+    if (!connectionString) return null;
+
+    const UserService = require('../../user/UserService');
+    const db = new UserService()._getPool();
+
+    const tenantId = await upsertTenantRecord(db, {
+      userId,
+      projectId: match.id,
+      databaseName,
+      connectionString,
+    });
+    await ensureTenantMembership(db, tenantId, userId);
+
+    console.log(`✅ Linked Neon tenant ${match.id} to user ${userId} (tenant_id=${tenantId})`);
+
+    return {
+      tenantId,
+      tenantRole: 'admin',
+      tenantConnectionString: connectionString,
+      tenantOwnerUserId: userId,
+    };
   }
 
   /**
@@ -204,6 +250,48 @@ class NeonTenantProvider extends TenantService {
     );
 
     return response.data;
+  }
+
+  async _resolveConnectionString(createProjectPayload, projectId) {
+    const fromCreate = createProjectPayload?.connection_uris?.[0]?.connection_uri;
+    if (fromCreate) return fromCreate;
+    return (await this._fetchConnectionForProject(projectId)).connectionString;
+  }
+
+  async _fetchConnectionForProject(projectId) {
+    const headers = { Authorization: `Bearer ${this.apiKey}` };
+    const branchesRes = await axios.get(`${this.baseUrl}/projects/${projectId}/branches`, {
+      headers,
+    });
+    const branches = branchesRes.data?.branches || [];
+    const branch = branches.find((b) => b.primary) || branches[0];
+    if (!branch?.id) throw new Error(`No branch for Neon project ${projectId}`);
+
+    const rolesRes = await axios.get(
+      `${this.baseUrl}/projects/${projectId}/branches/${branch.id}/roles`,
+      { headers },
+    );
+    const roleName = rolesRes.data?.roles?.[0]?.name;
+    if (!roleName) throw new Error(`No role for Neon project ${projectId}`);
+
+    const databaseName = branch.databases?.[0]?.name || 'neondb';
+
+    const connRes = await axios.get(`${this.baseUrl}/projects/${projectId}/connection_uri`, {
+      headers,
+      params: {
+        branch_id: branch.id,
+        database_name: databaseName,
+        role_name: roleName,
+        pooled: true,
+      },
+    });
+
+    const connectionString = connRes.data?.uri || connRes.data?.connection_uri;
+    if (!connectionString) {
+      throw new Error(`Neon API returned no connection URI for project ${projectId}`);
+    }
+
+    return { connectionString, databaseName };
   }
 
   /**

@@ -64,7 +64,8 @@
     "cron:cups-refresh": "curl -fsS -X POST -H \"x-cron-secret: $CRON_SECRET\" http://localhost:3002/api/cron/cups/refresh | cat",
     "railway:preflight": "node scripts/prepare-railway-deploy.js",
     "railway:migrate": "node scripts/prepare-railway-deploy.js --migrate",
-    "verify:neon": "node scripts/verify-neon.js"
+    "verify:neon": "node scripts/verify-neon.js",
+    "repair:neon-tenants": "node scripts/repair-neon-tenants.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.967.0",
