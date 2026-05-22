@@ -112,7 +112,11 @@ router.post(
             errorMessage: err.message,
             errorStack: err.stack,
           });
-          return res.status(500).json({ error: 'Session creation failed' });
+          return res.status(500).json({
+            error: 'Session creation failed',
+            code: 'SESSION_SAVE_FAILED',
+            hint: 'Main DB sessions table may lack PRIMARY KEY on sid. Run: npm run fix:sessions-table',
+          });
         }
 
         res.json({
@@ -195,7 +199,11 @@ router.post('/signup', async (req, res) => {
       if (err) {
         const logger = ServiceManager.get('logger');
         logger.error('Session save failed after signup', err, { userId: user.id });
-        return res.status(500).json({ error: 'Session creation failed' });
+        return res.status(500).json({
+          error: 'Session creation failed',
+          code: 'SESSION_SAVE_FAILED',
+          hint: 'Main DB sessions table may lack PRIMARY KEY on sid. Run: npm run fix:sessions-table',
+        });
       }
 
       res.status(201).json({

@@ -65,7 +65,8 @@
     "railway:preflight": "node scripts/prepare-railway-deploy.js",
     "railway:migrate": "node scripts/prepare-railway-deploy.js --migrate",
     "verify:neon": "node scripts/verify-neon.js",
-    "repair:neon-tenants": "node scripts/repair-neon-tenants.js"
+    "repair:neon-tenants": "node scripts/repair-neon-tenants.js",
+    "fix:sessions-table": "node scripts/fix-sessions-table.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.967.0",

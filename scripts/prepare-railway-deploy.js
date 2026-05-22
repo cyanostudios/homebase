@@ -99,6 +99,12 @@ if (migrate) {
       if (r.status !== 0) process.exit(r.status);
     }
   }
+  const fixSessions = spawnSync('node', [path.join(__dirname, 'fix-sessions-table.js')], {
+    stdio: 'inherit',
+    env: process.env,
+  });
+  if (fixSessions.status !== 0) process.exit(fixSessions.status);
+
   const extraMigrations = ['migrate:tenant-memberships', 'migrate:public-share-routing'];
   for (const script of extraMigrations) {
     const r = spawnSync('npm', ['run', script], {

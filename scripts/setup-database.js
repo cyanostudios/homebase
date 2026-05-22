@@ -159,13 +159,23 @@ async function setupDatabase() {
       )
     `);
 
-    // Sessions table for express-session
+    // Sessions table for express-session (connect-pg-simple requires PRIMARY KEY on sid)
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (
         sid VARCHAR NOT NULL COLLATE "default",
         sess JSONB NOT NULL,
         expire TIMESTAMP(6) NOT NULL
       )
+    `);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'sessions_pkey'
+        ) THEN
+          ALTER TABLE sessions ADD CONSTRAINT sessions_pkey PRIMARY KEY (sid);
+        END IF;
+      END $$
     `);
 
     // Create indexes for performance
