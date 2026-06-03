@@ -183,6 +183,42 @@ Express ändrar hur `req.path` ser ut beroende på var middleware mountas. Om sk
 
 ---
 
+### CSRF: använd session-läge, inte csurf cookie-läge utan cookie-parser
+
+❌ **What we did (that didn't work):**  
+Med `ENABLE_CSRF=true` konfigurerade vi `csurf({ cookie: { httpOnly, secure, sameSite } })`. Homebase har **inte** `cookie-parser` — bara `express-session`. `csurf` verifierar `req.cookies` i cookie-läge → **`misconfigured csrf`** → **500** på `GET /api/csrf-token` och alla routes med `csrfProtection` (t.ex. `PUT /api/cups/:id`).
+
+✅ **What we do instead (that works):**
+
+- `csrf({ cookie: false })` — hemlighet på `req.session.csrfSecret` (samma session store som login, `connect-pg-simple` i prod).
+- `GET /api/csrf-token` registrerad med `csrfProtection` + `csrfTokenHandler` i `server/index.ts`.
+- Klient: `apiFetch` hämtar token och skickar `X-CSRF-Token`.
+
+💡 **Why (lesson learned):**  
+Cookie-baserad CSRF i `csurf` är ett separat lager från session-cookien. Utan `cookie-parser` failar det tyst i prod med generisk 500. Verifiera alltid: `curl https://<app>/api/csrf-token` → 200.
+
+**Referens:** `server/core/middleware/csrf.js`, `docs/RAILWAY_HOMEBASE_SETUP.md` §5, commit `0bb24b9`.
+
+---
+
+### Prod rate limit 100/15m + SPA = mass-429
+
+❌ **What we did (that didn't work):**  
+Global limiter i prod satt till **100 requests / 15 minuter**. Efter login mountar SPA många plugin-providers som var och en gör GET mot `/api/settings/*`, `/api/cups`, `/api/ingest`, osv. Gränsen nåddes direkt → **429** överallt och “Network error” i UI (särskilt när CSRF redan failade och användaren försökte igen).
+
+✅ **What we do instead (that works):**
+
+- Prod-default **3000 / 15 min** (`server/core/middleware/rateLimit.js`), överstyr med `RATE_LIMIT_MAX`.
+- Skip för auth/csrf/health (både `/api/...` och stripped paths).
+- I dev: limit av som standard; `FORCE_RATE_LIMIT=1` för att testa 429 lokalt.
+
+💡 **Why (lesson learned):**  
+Rate limits måste dimensioneras för **parallella** SPA-anrop, inte bara enstaka API-anrop. Dokumentera i Railway-guide och testa efter deploy med full dashboard-laddning.
+
+**Referens:** commit `74d23d7`, `docs/RAILWAY_HOMEBASE_SETUP.md` §6–7.
+
+---
+
 ### Undvik “dubbel panel”-special-casing
 
 ❌ **What we did (that didn't work):**

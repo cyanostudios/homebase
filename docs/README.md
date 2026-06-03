@@ -21,7 +21,7 @@
 | UI/UX (V3 + list shell v3.6)        | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                                                                                 |
 | Säkerhet, CSRF, `apiFetch`          | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                       |
 | Deploy (allmänt)                    | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                                                                                   |
-| Railway Homebase                    | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md)                                                                                 |
+| Railway Homebase                    | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md) (§5–7: CSRF, rate limit, konsol)                                                |
 | Cupappen (separat Railway + R2)     | [`CUPPAPPEN_PATHS_AND_STORAGE.md`](CUPPAPPEN_PATHS_AND_STORAGE.md), [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md) |
 | Bundle-analys                       | [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md)                                                                             |
 

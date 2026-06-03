@@ -357,45 +357,48 @@ Skip virus scanning in production
 
 CSRF Protection
 Cross-Site Request Forgery Prevention
-Required for all state-changing operations:
-const csrf = require('csurf');
-const csrfProtection = csrf({ cookie: true });
+Required for all state-changing operations when `ENABLE_CSRF=true`.
 
-// Apply to all POST/PUT/DELETE routes
+**Implementation (canonical):** `server/core/middleware/csrf.js` uses **session-backed** secrets:
+
+```javascript
+// cookie: false — secret stored on req.session.csrfSecret (express-session).
+// Do NOT use cookie: true without cookie-parser — causes "misconfigured csrf" → 500.
+const csrfProtection = csrf({ cookie: false });
+```
+
+Token endpoint (must run `csrfProtection` before handler):
+
+```javascript
+app.get('/api/csrf-token', csrfProtection, csrfTokenHandler);
+```
+
+Apply to mutating plugin routes:
+
+```javascript
 router.post('/contacts', csrfProtection, controller.createContact);
 router.put('/contacts/:id', csrfProtection, controller.updateContact);
 router.delete('/contacts/:id', csrfProtection, controller.deleteContact);
+```
 
-// Provide CSRF token to frontend
-router.get('/csrf-token', csrfProtection, (req, res) => {
-res.json({ csrfToken: req.csrfToken() });
-});
-Frontend implementation:
-// Fetch CSRF token on app load
-const { csrfToken } = await fetch('/api/csrf-token').then(r => r.json());
+**Frontend:** use `apiFetch` from `client/src/core/api/apiFetch.ts` (or `createApiClient`) — it fetches `GET /api/csrf-token`, sends `X-CSRF-Token` and `credentials: 'include'`, and retries once on `CSRF_INVALID` (403).
 
-// Include in all mutations
-await fetch('/api/contacts', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json',
-'X-CSRF-Token': csrfToken
-},
-body: JSON.stringify(contactData)
-});
+**Production checklist:** `curl -sS https://<app>/api/csrf-token` → 200 + token; deploy from `main` with fix ≥ `0bb24b9`. See `docs/RAILWAY_HOMEBASE_SETUP.md` §5.
 
 Rate Limiting
 Global Rate Limiting
 Prevent abuse and DoS attacks:
 const rateLimit = require('express-rate-limit');
 
-// Global rate limit
+// Global rate limit (see server/core/middleware/rateLimit.js)
+// Production default: 3000 requests / 15 min per IP (override: RATE_LIMIT_MAX).
+// SPA loads many plugins in parallel — do not use very low caps (e.g. 100) in prod.
 const globalLimiter = rateLimit({
-windowMs: 15 _ 60 _ 1000, // 15 minutes
-max: 100, // 100 requests per window
+windowMs: 15 _ 60 _ 1000,
+max: productionGlobalMax, // 3000 default in prod
 message: 'Too many requests, please try again later',
 standardHeaders: true,
-legacyHeaders: false
+legacyHeaders: false,
 });
 
 app.use('/api', globalLimiter);

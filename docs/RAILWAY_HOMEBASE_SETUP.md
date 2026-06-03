@@ -48,11 +48,12 @@ FRONTEND_URL=https://sweet-courtesy-production-fa4e.up.railway.app
 
 ### Rekommenderat
 
-| Variabel                                                                                       | Anteckning                  |
-| ---------------------------------------------------------------------------------------------- | --------------------------- |
-| `ENABLE_CSRF`                                                                                  | `true`                      |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` | Cup-hjältebilder            |
-| `CRON_SECRET`                                                                                  | För Railway Cron (valfritt) |
+| Variabel                                                                                       | Anteckning                                                                |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `ENABLE_CSRF`                                                                                  | `true` i prod — kräver session-CSRF (se §5); klienten använder `apiFetch` |
+| `RATE_LIMIT_MAX`                                                                               | Valfritt; standard **3000** anrop / 15 min per IP i prod (se §6)          |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` | Cup-hjältebilder                                                          |
+| `CRON_SECRET`                                                                                  | För Railway Cron (valfritt)                                               |
 
 ### Valfritt
 
@@ -188,7 +189,101 @@ curl -sS -X POST 'https://<din-railway-url>/api/auth/login' \
 - **503** + `TENANT_NOT_CONFIGURED` → tenant-rad saknas i main DB.
 - **500** → läs felrad i Railway-loggen (`Login failed`, `relation "users" does not exist`, session, SSL, m.m.).
 
-## 5. Railway Cron (valfritt)
+## 5. CSRF i produktion (`ENABLE_CSRF=true`)
+
+Homebase använder **`csurf`** med hemlighet lagrad i **express-session** (`csrf({ cookie: false })`), inte en separat CSRF-cookie.
+
+| Komponent      | Plats                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------- |
+| Middleware     | `server/core/middleware/csrf.js`                                                                  |
+| Token-endpoint | `GET /api/csrf-token` (registrerad i `server/index.ts` **före** global rate limiter)              |
+| Klient         | `client/src/core/api/apiFetch.ts` — hämtar token, skickar `X-CSRF-Token` på POST/PUT/PATCH/DELETE |
+| Plugin-rutter  | t.ex. `plugins/cups/routes.js` — `csrfProtection` på muterande metoder                            |
+
+### Varför inte `cookie: true`?
+
+`csurf` i **cookie-läge** kräver att `req.cookies` finns (via **`cookie-parser`**). Homebase har bara `express-session` + `connect-pg-simple`. Utan `cookie-parser` kastar middleware **`misconfigured csrf`** → **500** på `/api/csrf-token` och alla muterande API-anrop.
+
+**Fix (2026-06, commit `0bb24b9`):** session-lagrad `csrfSecret` på `req.session`.
+
+### Verifiera efter deploy
+
+```bash
+curl -sS https://<din-url>/api/csrf-token
+```
+
+| Svar                                            | Betydelse                                                   |
+| ----------------------------------------------- | ----------------------------------------------------------- |
+| **200** `{"csrfToken":"..."}`                   | OK — CSRF aktiv                                             |
+| **200** `{"csrfToken":"csrf-disabled"}`         | `ENABLE_CSRF` är inte `true` på servern                     |
+| **500** `INTERNAL_ERROR` / `CSRF_MISCONFIGURED` | Gammal build eller fel CSRF-konfig — deploya senaste `main` |
+
+Login-flödet anropar token-endpointen två gånger vid retry i `apiFetch`; det är förväntat.
+
+### Deploy-branch
+
+Railway ska deploya från **`main`** (eller en branch som innehåller minst `0bb24b9` + `74d23d7`). Fixen låg tidigare bara på `homebase-v3.6` medan prod körde äldre `main` → prod fortsatte ge 500 tills `main` mergades.
+
+Mer bakgrund: [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md) (CSRF), [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) (misconfigured csrf).
+
+## 6. Rate limiting i produktion
+
+Global limiter: `server/core/middleware/rateLimit.js`, mountad som `app.use('/api', globalLimiter)` i `server/index.ts`.
+
+| Miljö                 | Beteende                                                              |
+| --------------------- | --------------------------------------------------------------------- |
+| `NODE_ENV=production` | Limit **aktiv** (såvida inte `FORCE_RATE_LIMIT` används i dev)        |
+| Utveckling            | Limit **av** som standard (SPA + HMR + många parallella plugin-fetch) |
+| `FORCE_RATE_LIMIT=1`  | Tvinga limit lokalt/staging för att testa 429                         |
+
+### Gränser (efter 2026-06)
+
+| Limiter           | Prod                                | Dev                   |
+| ----------------- | ----------------------------------- | --------------------- |
+| Global `/api/*`   | **3000** / 15 min per IP (standard) | 5000 (om limit är på) |
+| Auth login/signup | 5 / min per IP                      | 200 / min             |
+
+Överstyr prod-tak med `RATE_LIMIT_MAX` (positivt heltal).
+
+### Undantag från global limiter
+
+Dessa paths skippas (både med och utan `/api`-prefix, eftersom mount strip:ar prefix):
+
+- `/health`, `/csrf-token`
+- `/auth/me`, `/auth/login`, `/auth/signup`
+
+### Symptom: massor av **429** i konsolen
+
+Tidigare prod-tak var **100 / 15 min**. Efter misslyckad login försöker dashboarden ladda **alla** plugins parallellt (settings, cups, ingest, files, slots, contacts, notes, …) → gränsen nådd → kedja av 429 och “Network error” i UI.
+
+**Åtgärd:** deploya `74d23d7` eller senare; vid behov sätt `RATE_LIMIT_MAX=5000` i Railway Variables.
+
+## 7. Felsökning i webbläsarkonsolen
+
+| Konsol / nätverk                                     | Status  | Förklaring                                                                |
+| ---------------------------------------------------- | ------- | ------------------------------------------------------------------------- |
+| `GET /api/auth/me`                                   | **401** | Normalt **innan** inloggning — ingen sessioncookie.                       |
+| `favicon.ico`                                        | **404** | Ofarligt — ingen favicon i `dist/public`.                                 |
+| i18next / Locize-rad                                 | Info    | Reklam från i18next, inte ett appfel.                                     |
+| `GET /api/csrf-token`                                | **500** | CSRF felkonfigurerad eller gammal deploy — se §5.                         |
+| `GET /api/csrf-token` (×2 vid login)                 | **500** | Samma; `apiFetch` retry.                                                  |
+| `GET /api/settings/*`, `/api/cups`, `/api/ingest`, … | **429** | Rate limit — ofta **efter** trasig CSRF + många parallella anrop — se §6. |
+| “Failed to fetch settings: Network error”            | Följd   | Klienten tolkar 429/500 som nätverksfel.                                  |
+
+**Efter lyckad deploy:** hård refresh eller inkognito → logga in → `/api/csrf-token` ska vara 200, plugin-GET ska inte spam:a 429.
+
+### Data synlig efter login men “tom” tenant
+
+Om användare kopierats från lokal DB till Neon main med **annat `user_id`** (t.ex. lokalt 7, prod 2) måste tenant-rader remap:as:
+
+```bash
+MAIN_DATABASE_URL='<Neon main>' \
+  node scripts/remap-tenant-user-id.js --from=7 --to=2 --email=user@homebase.se
+```
+
+Eller kör `npm run copy:user-to-main` (gör remap automatiskt). Se §4 ovan.
+
+## 8. Railway Cron (valfritt)
 
 Se [CUPS_AUTO_REFRESH_CRON.md](./CUPS_AUTO_REFRESH_CRON.md):
 

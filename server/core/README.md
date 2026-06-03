@@ -97,22 +97,30 @@ router.post(
 
 ### CSRF Protection
 
+Active when `ENABLE_CSRF=true`. Uses **session-backed** `csurf` (`cookie: false`) — do not enable
+`cookie: true` without `cookie-parser` (causes `misconfigured csrf` → 500).
+
 ```javascript
-const { csrfProtection } = require('./server/core/middleware/csrf');
+const { csrfProtection, csrfTokenHandler } = require('./server/core/middleware/csrf');
+
+// In server/index.ts (before global rate limiter):
+app.get('/api/csrf-token', csrfProtection, csrfTokenHandler);
 
 router.post('/contacts', csrfProtection, controller.createContact);
-router.put('/contacts/:id', csrfProtection, controller.updateContact);
-router.delete('/contacts/:id', csrfProtection, controller.deleteContact);
 ```
+
+Client: `client/src/core/api/apiFetch.ts`. Production troubleshooting: `docs/RAILWAY_HOMEBASE_SETUP.md` §5.
 
 ### Rate Limiting
 
 ```javascript
 const { globalLimiter, authLimiter } = require('./server/core/middleware/rateLimit');
 
-app.use('/api', globalLimiter);
+app.use('/api', globalLimiter); // prod default: 3000 req / 15 min; see RATE_LIMIT_MAX
 router.post('/auth/login', authLimiter, authController.login);
 ```
+
+Skipped from global limiter (stripped and `/api/...` paths): `health`, `csrf-token`, `auth/me`, `auth/login`, `auth/signup`.
 
 ## Features
 

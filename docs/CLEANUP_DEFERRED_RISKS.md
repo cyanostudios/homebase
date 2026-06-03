@@ -92,13 +92,13 @@ Central util: `client/src/core/utils/dateFormat.ts`.
 
 ## 6. Drift / Railway / produktion (ej del av kod-cleanup)
 
-| Punkt                                  | Risk                                        | Status                                                       |
-| -------------------------------------- | ------------------------------------------- | ------------------------------------------------------------ |
-| **CSP / SPA-routing** efter deploy-fix | **Hög** om ej redeployat                    | Kräver att `main` (t.ex. `3a41a69+`) är live på Railway.     |
-| **`APP_URL` / `FRONTEND_URL`**         | **Medel**                                   | Måste matcha Railway-URL för länkar/CSRF/cookies.            |
-| **`ENABLE_CSRF=true` i prod**          | **Hög** om på utan full `apiFetch`-täckning | Verifiera alla muterande routes.                             |
-| **`.env.local` → localhost**           | **Medel** (operatör)                        | Neon-prod-migreringar körs manuellt med rätt `DATABASE_URL`. |
-| **Husky pre-push**                     | **Låg**                                     | Kör `tsc` + `jest`; varning om deprecated husky.sh före v10. |
+| Punkt                                  | Risk                                 | Status                                                                                               |
+| -------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **CSP / SPA-routing** efter deploy-fix | **Hög** om ej redeployat             | Kräver att `main` (t.ex. `3a41a69+`) är live på Railway.                                             |
+| **`APP_URL` / `FRONTEND_URL`**         | **Medel**                            | Måste matcha Railway-URL för länkar/CSRF/cookies.                                                    |
+| **`ENABLE_CSRF=true` i prod**          | **Medel** (session-CSRF fix 2026-06) | Kräv `csrf({ cookie: false })`; verifiera `curl /api/csrf-token`. Se `RAILWAY_HOMEBASE_SETUP.md` §5. |
+| **`.env.local` → localhost**           | **Medel** (operatör)                 | Neon-prod-migreringar körs manuellt med rätt `DATABASE_URL`.                                         |
+| **Husky pre-push**                     | **Låg**                              | Kör `tsc` + `jest`; varning om deprecated husky.sh före v10.                                         |
 
 Se `docs/RAILWAY_HOMEBASE_SETUP.md`.
 

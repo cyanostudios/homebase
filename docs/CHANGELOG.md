@@ -4,6 +4,31 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-06 – Railway prod: CSRF 500 + rate-limit 429 (fix + docs)
+
+**Sammanfattning:** Produktion (`ENABLE_CSRF=true`) gav 500 på `/api/csrf-token` och kedja av 429 på plugin-API. Orsak + fix dokumenterade i Railway-guiden.
+
+### Fix (kod)
+
+- **`server/core/middleware/csrf.js`:** `csrf({ cookie: false })` — session-lagrad secret; undviker `misconfigured csrf` utan `cookie-parser` (`0bb24b9`).
+- **`server/core/middleware/errorHandler.js`:** tydligare `CSRF_MISCONFIGURED` vid konfigurationsfel.
+- **`server/core/middleware/rateLimit.js`:** prod-default **3000** / 15 min (tidigare 100); valfritt `RATE_LIMIT_MAX` (`74d23d7`).
+- **`server/__tests__/security.test.js`:** regressionstest för CSRF med `ENABLE_CSRF=true`.
+
+### Dokumentation
+
+- **`docs/RAILWAY_HOMEBASE_SETUP.md`:** nya §5–7 (CSRF, rate limit, konsolfelsökning); `RATE_LIMIT_MAX` i variabellista.
+- **`docs/SECURITY_GUIDELINES.md`:** CSRF/rate-limit avsnitt synkade med faktisk implementation.
+- **`docs/LESSONS_LEARNED.md`:** csurf cookie-läge + låg prod rate limit.
+- **`.env.example`:** `RATE_LIMIT_MAX` kommentar.
+
+### Drift
+
+- Deploy Railway från **`main`** (fix fanns först bara på `homebase-v3.6`).
+- Verifiering: `curl …/api/csrf-token` → 200; efter login inga mass-429 på dashboard.
+
+---
+
 ## 2026-05 – Cupappen drift documentation (post-incident)
 
 **Sammanfattning:** Efter återställd cupappen.se (Docker `postgresql-libs`, `CUPS_DB_URL`, redeploy) tillagd canonical driftguide så samma misstag inte upprepas.
@@ -23,7 +48,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Sammanfattning:** Städning i fem kategorier mergad till `main` (kosmetisk, död kod, TS 49→0, tester, delvis `createApiClient` / `dateFormat`).
 
-**Medvetet utelämnat / nästa runda:** se `docs/CLEANUP_DEFERRED_RISKS.md` (CSRF/csurf, legacy tenant paths, `parseCupSource` split, stora UI-filer, resterande plugin-API:er, ESLint `any`-skuld, Railway/CSRF drift).
+**Medvetet utelämnat / nästa runda:** se `docs/CLEANUP_DEFERRED_RISKS.md` (csurf → modern CSRF-paket, legacy tenant paths, `parseCupSource` split, stora UI-filer, resterande plugin-API:er, ESLint `any`-skuld). Railway session-CSRF + rate limit: fix 2026-06, se `RAILWAY_HOMEBASE_SETUP.md` §5–7.
 
 ---
 

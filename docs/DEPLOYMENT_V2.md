@@ -270,8 +270,8 @@ See also **[RAILWAY_HOMEBASE_SETUP.md](./RAILWAY_HOMEBASE_SETUP.md)** for a focu
 
 - [ ] HTTPS enabled
 - [ ] `SESSION_COOKIE_SECURE=true` (if using HTTPS)
-- [ ] CSRF protection enabled
-- [ ] Rate limiting configured
+- [ ] `ENABLE_CSRF=true` and `curl …/api/csrf-token` returns 200 (session CSRF — see `RAILWAY_HOMEBASE_SETUP.md` §5)
+- [ ] Rate limiting: prod default 3000/15m OK for SPA; optional `RATE_LIMIT_MAX` (§6)
 - [ ] Environment variables secured (not in code)
 
 ### 3. Performance
