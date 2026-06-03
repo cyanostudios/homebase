@@ -1,70 +1,52 @@
+import { createApiClient, type ApiRequestError } from '@/core/api/createApiClient';
+
 import type { ValidationError, YourItem, YourItemPayload, YourItemsSettings } from '../types/your-items';
 
-type ApiError = Error & {
-  status?: number;
-  code?: string;
-  errors?: ValidationError[];
-};
+const request = createApiClient('/your-items');
+
+type ApiError = ApiRequestError & { errors?: ValidationError[] };
+
+function mapValidationDetails(err: ApiError): ApiError {
+  if (Array.isArray(err.details)) {
+    err.errors = err.details.map((d: { path?: string; msg?: string; field?: string; message?: string }) => ({
+      field: d.path ?? d.field ?? 'general',
+      message: d.msg ?? d.message ?? 'Invalid',
+    }));
+  }
+  return err;
+}
+
+async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  try {
+    return (await request(path, options)) as T;
+  } catch (err) {
+    throw mapValidationDetails(err as ApiError);
+  }
+}
 
 class TemplateApi {
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`/api/your-items${path}`, {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers ?? {}),
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        message?: string;
-        code?: string;
-        errors?: ValidationError[];
-        /** express-validator shape from server/core/middleware/validation validateRequest */
-        details?: Array<{ path?: string; msg?: string }>;
-      };
-      const err: ApiError = new Error(payload.error ?? payload.message ?? 'Request failed');
-      err.status = response.status;
-      err.code = payload.code;
-      err.errors =
-        payload.errors ??
-        (Array.isArray(payload.details)
-          ? payload.details.map((d) => ({
-              field: d.path ?? 'general',
-              message: d.msg ?? 'Invalid',
-            }))
-          : undefined);
-      throw err;
-    }
-
-    return (await response.json()) as T;
-  }
-
   getItems() {
-    return this.request<YourItem[]>('');
+    return apiRequest<YourItem[]>('');
   }
 
   createItem(payload: YourItemPayload) {
-    return this.request<YourItem>('', { method: 'POST', body: JSON.stringify(payload) });
+    return apiRequest<YourItem>('', { method: 'POST', body: JSON.stringify(payload) });
   }
 
   updateItem(id: string, payload: YourItemPayload) {
-    return this.request<YourItem>(`/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    return apiRequest<YourItem>(`/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
   }
 
   deleteItem(id: string) {
-    return this.request<{ deleted: boolean }>(`/${id}`, { method: 'DELETE' });
+    return apiRequest<{ deleted: boolean }>(`/${id}`, { method: 'DELETE' });
   }
 
   getSettings() {
-    return this.request<YourItemsSettings>('/settings');
+    return apiRequest<YourItemsSettings>('/settings');
   }
 
   saveSettings(payload: YourItemsSettings) {
-    return this.request<YourItemsSettings>('/settings', {
+    return apiRequest<YourItemsSettings>('/settings', {
       method: 'PUT',
       body: JSON.stringify(payload),
     });

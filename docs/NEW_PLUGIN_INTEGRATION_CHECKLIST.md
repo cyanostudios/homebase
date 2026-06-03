@@ -14,7 +14,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - **`plugin.config.js`:** set `name`, `routeBase` (must match frontend API base path, e.g. `/api/your-items`), `requiredRole`, `description`.
 - **Routes factory:** `createYourRoutes(controller, context)` — pass `context` through; do not thread `requirePlugin` as a separate top-level argument.
 - **Validation:** use `validateRequest` and `commonRules` / `body` from `server/core/middleware/validation.js` (same stack as production plugins).
-- **CSRF:** import `csrfProtection` from `server/core/middleware/csrf.js`. Until mutating routes are fully aligned with `ENABLE_CSRF` and the client token flow, follow existing plugins: keep `csrfProtection` in the chain as a commented placeholder where needed, and document intent in `SECURITY_GUIDELINES.md` if you diverge.
+- **CSRF:** import `csrfProtection` from `server/core/middleware/csrf.js` on all POST/PUT/PATCH/DELETE routes (template already does). Server uses session-backed `csrf({ cookie: false })` when `ENABLE_CSRF=true` — see `docs/RAILWAY_HOMEBASE_SETUP.md` §5. Frontend must use `createApiClient` / `apiFetch` (template `templateApi.ts`).
 - **Discovery:** folder under `plugins/<name>/` with `index.js` + `plugin.config.js` so `plugin-loader.js` picks it up.
 - **Schema:** add tenant migrations under `server/migrations/` for plugin tables; optional extra runner under `scripts/` if you need data backfills.
 

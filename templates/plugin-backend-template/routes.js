@@ -20,7 +20,7 @@ function createTemplateRoutes(controller, context) {
   router.post(
     '/',
     gate,
-    /* csrfProtection, */ // Re-enable when client sends CSRF token (see docs/SECURITY_GUIDELINES.md)
+    csrfProtection,
     commonRules.plainString('title', 1, 255),
     body('description')
       .optional({ values: 'falsy' })
@@ -34,7 +34,7 @@ function createTemplateRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
-    /* csrfProtection, */
+    csrfProtection,
     commonRules.id('id'),
     commonRules.plainString('title', 1, 255),
     body('description')
@@ -49,7 +49,7 @@ function createTemplateRoutes(controller, context) {
   router.delete(
     '/:id',
     gate,
-    /* csrfProtection, */
+    csrfProtection,
     commonRules.id('id'),
     validateRequest,
     (req, res, next) => controller.delete(req, res, next),
@@ -58,7 +58,7 @@ function createTemplateRoutes(controller, context) {
   router.put(
     '/settings',
     gate,
-    /* csrfProtection, */
+    csrfProtection,
     body('defaultView').isIn(['list', 'grid']).withMessage('defaultView must be list or grid'),
     body('allowDuplicate').isBoolean().withMessage('allowDuplicate must be a boolean'),
     validateRequest,
