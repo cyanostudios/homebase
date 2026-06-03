@@ -31,11 +31,27 @@ class PasswordResetService {
       `SELECT 1 FROM information_schema.tables
        WHERE table_schema = 'public' AND table_name = 'password_reset_tokens'`,
     );
-    if (!rows?.length) {
-      const err = new Error('Password reset is not available (database migration required)');
-      err.code = 'PASSWORD_RESET_NOT_CONFIGURED';
-      throw err;
+    if (rows?.length) {
+      return;
     }
+
+    this.logger.info('password_reset_tokens missing — applying main-DB schema (026)');
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash VARCHAR(64) NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(
+      'CREATE INDEX IF NOT EXISTS idx_password_reset_token_hash ON password_reset_tokens(token_hash)',
+    );
+    await db.query(
+      'CREATE INDEX IF NOT EXISTS idx_password_reset_user_id ON password_reset_tokens(user_id)',
+    );
   }
 
   /**

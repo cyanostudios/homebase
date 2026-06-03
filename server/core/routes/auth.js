@@ -187,12 +187,6 @@ router.post(
       res.json(body);
     } catch (error) {
       logger.error('Forgot password failed', error, { email: String(email).trim() });
-      if (error.code === 'PASSWORD_RESET_NOT_CONFIGURED') {
-        return res.status(503).json({
-          error: 'Password reset is not available yet. Run: npm run migrate:password-reset',
-          code: error.code,
-        });
-      }
       if (error.code === 'EMAIL_NOT_CONFIGURED') {
         return res.status(503).json({
           error: error.message,
@@ -229,12 +223,6 @@ router.post(
       }
       if (error.message.includes('Invalid or expired')) {
         return res.status(400).json({ error: error.message });
-      }
-      if (error.code === 'PASSWORD_RESET_NOT_CONFIGURED') {
-        return res.status(503).json({
-          error: 'Password reset is not available yet. Run: npm run migrate:password-reset',
-          code: error.code,
-        });
       }
       res.status(500).json({ error: 'Could not reset password' });
     }
