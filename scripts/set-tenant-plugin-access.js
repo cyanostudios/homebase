@@ -6,13 +6,22 @@
  *   node scripts/set-tenant-plugin-access.js --email=user@homebase.se --disable=matches,slots --enable=tasks
  *   node scripts/set-tenant-plugin-access.js --tenant-id=7 --disable=matches,slots --enable=tasks
  *
- * Requires DATABASE_URL (.env.local or .env). Use Neon main URL for production Railway.
+ * Requires DATABASE_URL or TARGET_DATABASE_URL (.env.local is often localhost — use TARGET for prod).
  */
+const path = require('path');
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: '.env.local' });
-dotenv.config({ path: '.env' });
+const injected = {
+  DATABASE_URL: process.env.DATABASE_URL,
+  TARGET_DATABASE_URL: process.env.TARGET_DATABASE_URL,
+};
+
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '.env.local'), override: true });
+
+if (injected.TARGET_DATABASE_URL) process.env.TARGET_DATABASE_URL = injected.TARGET_DATABASE_URL;
+if (injected.DATABASE_URL) process.env.DATABASE_URL = injected.DATABASE_URL;
 
 function parseList(arg) {
   if (!arg) return [];
@@ -113,12 +122,19 @@ async function main() {
     console.error('Provide at least one of --enable=plugin1,plugin2 or --disable=plugin1,plugin2');
     process.exit(1);
   }
-  if (!process.env.DATABASE_URL) {
-    console.error('DATABASE_URL is not set');
+  const dbUrl = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.error('TARGET_DATABASE_URL or DATABASE_URL is required');
+    process.exit(1);
+  }
+  if (/@(localhost|127\.0\.0\.1)/.test(dbUrl) && !process.env.TARGET_DATABASE_URL) {
+    console.error(
+      'DATABASE_URL points at localhost. Set TARGET_DATABASE_URL to Neon main for production.',
+    );
     process.exit(1);
   }
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new Pool({ connectionString: dbUrl });
   try {
     const tables = {
       tenantPlugin: await hasTable(pool, 'tenant_plugin_access'),

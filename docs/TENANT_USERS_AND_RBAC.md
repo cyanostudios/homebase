@@ -38,8 +38,8 @@ Plugin lists live in **main DB** (`tenant_plugin_access` per tenant; `user_plugi
 # Local (.env.local → main DATABASE_URL)
 npm run set:tenant-plugins -- --email=user@homebase.se --disable=matches,slots --enable=tasks
 
-# Production Neon main (paste URL or railway run)
-DATABASE_URL='postgresql://...@....neon.tech/neondb?sslmode=require' \
+# Production Neon main (use TARGET_DATABASE_URL — .env.local is usually localhost)
+TARGET_DATABASE_URL='postgresql://...@....neon.tech/neondb?sslmode=require' \
   node scripts/set-tenant-plugin-access.js --email=user@homebase.se --disable=matches,slots --enable=tasks
 ```
 
