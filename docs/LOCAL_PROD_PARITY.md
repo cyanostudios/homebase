@@ -53,6 +53,18 @@ Log in locally with the **same email/password as production**.
 Cup **data** then comes from the shared Neon tenant DB (same as prod).  
 Local-only schema (`TENANT_PROVIDER=local`) will **not** show prod cups.
 
+### System-e-post (samma Resend som Mail)
+
+Password reset uses server env vars, not Mail plugin DB. To send real emails locally (same as Railway):
+
+```bash
+RESEND_API_KEY=re_...
+RESEND_FROM=noreply@your-verified-domain.se
+FRONTEND_URL=http://localhost:3001
+```
+
+Without these, local dev shows the reset link on screen instead of sending mail.
+
 ---
 
 ## 2. Ongoing: change both environments

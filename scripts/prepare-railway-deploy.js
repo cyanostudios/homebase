@@ -34,10 +34,17 @@ const recommended = [
   'APP_URL',
   'FRONTEND_URL',
   'ENABLE_CSRF',
+  'RESEND_API_KEY',
+  'RESEND_FROM',
   'R2_ACCOUNT_ID',
   'R2_BUCKET_NAME',
   'R2_PUBLIC_URL',
 ];
+
+function isSystemEmailConfigured() {
+  if (process.env.RESEND_API_KEY) return true;
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
 
 function isLocalDb(url) {
   if (!url) return true;
@@ -82,6 +89,21 @@ if (isLocalDb(dbUrl)) {
 console.log('\n--- Recommended (Railway Variables) ---');
 for (const key of recommended) {
   console.log(process.env[key] ? `✅ ${key}` : `○  ${key}: not set`);
+}
+
+console.log('\n--- System email (password reset) ---');
+if (isSystemEmailConfigured()) {
+  console.log(
+    `✅ Provider configured (${process.env.RESEND_API_KEY ? 'resend' : 'smtp'}) — forgot-password can send mail in production`,
+  );
+} else {
+  console.log(
+    '⚠️  RESEND_API_KEY + RESEND_FROM (or SMTP_*) not set — production forgot-password returns EMAIL_NOT_CONFIGURED',
+  );
+  console.log('   Use the same Resend API key and from-address as Mail plugin settings.');
+  if (!isLocalDb(dbUrl)) {
+    failed = true;
+  }
 }
 
 if (migrate) {

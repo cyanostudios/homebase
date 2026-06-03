@@ -46,6 +46,41 @@ FRONTEND_URL=https://sweet-courtesy-production-fa4e.up.railway.app
 
 `DATABASE_URL` från Neon ska inkludera SSL, t.ex. `?sslmode=require` i slutet av connection string.
 
+### System-e-post (lösenordsåterställning)
+
+Glömt lösenord använder **plattforms-Resend** ([`server/core/services/email/systemEmail.js`](../server/core/services/email/systemEmail.js)), inte Mail-pluginets databasinställningar. Kopiera **samma** värden som i **Mail → Inställningar** (Resend):
+
+| Variabel         | Anteckning                                                                        |
+| ---------------- | --------------------------------------------------------------------------------- |
+| `RESEND_API_KEY` | `re_...` från Resend Dashboard eller Mail-inställningar                           |
+| `RESEND_FROM`    | Verifierad avsändare (samma som `resendFromAddress` i Mail)                       |
+| `FRONTEND_URL`   | Måste vara din Railway-URL — reset-länken blir `https://…/reset-password/{token}` |
+
+Utan dessa i prod (`NODE_ENV=production`) får användare `EMAIL_NOT_CONFIGURED` vid glömt lösenord. Lokalt i dev visas länken på skärmen istället.
+
+Exportera från Mail-pluginet (samma DB som `DATABASE_URL` / Neon main):
+
+```bash
+npm run export:system-email-from-mail -- --write-railway-file
+# → .env.railway.resend (gitignored) — klistra in i Railway Variables, redeploy
+```
+
+Verifiera efter deploy:
+
+```bash
+curl -sS https://<din-url>/api/health | jq '.systemEmail, .passwordReset'
+# systemEmail.configured ska vara true
+```
+
+```bash
+curl -sS -X POST 'https://<din-url>/api/auth/forgot-password' \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@homebase.se"}'
+# HTTP 200, inte 503 EMAIL_NOT_CONFIGURED
+```
+
+Engångstabell (om du vill köra manuellt): `npm run migrate:password-reset` med Neon main `DATABASE_URL`. Efter commit `d6b2d4d` skapas tabellen även automatiskt vid första forgot-anrop.
+
 ### Rekommenderat
 
 | Variabel                                                                                       | Anteckning                                                                |

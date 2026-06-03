@@ -23,6 +23,7 @@ bundle-stats.html
 .env.local
 .env.production
 .env.development
+.env.railway.resend
 
 # Ingest browser_fetch — Puppeteer-managed Chromium (npm run puppeteer:install-chrome)
 .cache/puppeteer/

@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const ServiceManager = require('../ServiceManager');
+const { isSystemEmailConfigured } = require('../services/auth/PasswordResetService');
 const { checkNeonApiForHealth, resolveTenantProvider } = require('../utils/neonApiHealth');
 
 // Store plugin loader instance (set by Bootstrap)
@@ -39,6 +40,18 @@ async function checkAuthSchema(database) {
   return { authReady, userCount, tables: out };
 }
 
+async function checkPasswordResetSchema(database) {
+  try {
+    await database.query('SELECT 1 FROM password_reset_tokens LIMIT 1');
+    return { table: 'ok' };
+  } catch (err) {
+    return {
+      table: err?.code === '42P01' ? 'missing' : 'error',
+      message: err?.message,
+    };
+  }
+}
+
 /**
  * Health check endpoint
  * Returns system status, database health, plugin info, and pool statistics
@@ -52,6 +65,15 @@ router.get('/health', async (req, res) => {
     // Test database connection
     await database.query('SELECT 1');
     const authSchema = await checkAuthSchema(database);
+    const passwordReset = await checkPasswordResetSchema(database);
+    const systemEmail = {
+      configured: isSystemEmailConfigured(),
+      provider: process.env.RESEND_API_KEY
+        ? 'resend'
+        : process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
+          ? 'smtp'
+          : null,
+    };
     const tenantProvider = resolveTenantProvider();
     const neonApi = await checkNeonApiForHealth();
     const neonReady = neonApi.status === 'ok' || neonApi.status === 'skipped';
@@ -71,6 +93,8 @@ router.get('/health', async (req, res) => {
       uptime: process.uptime(),
       database: 'connected',
       authSchema,
+      passwordReset,
+      systemEmail,
       neonApi,
       environment: process.env.NODE_ENV,
       tenantProvider,
