@@ -85,6 +85,21 @@ class UserService {
   }
 
   /**
+   * Update password hash for a user
+   * @param {number|string} userId
+   * @param {string} newPassword
+   */
+  async updatePassword(userId, newPassword) {
+    const db = this._getPool();
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.query(
+      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [passwordHash, userId],
+    );
+    this.logger.info('User password updated', { userId });
+  }
+
+  /**
    * Update user role
    * @param {string} email
    * @param {string} role

@@ -35,12 +35,15 @@ This document describes the multi-user-per-tenant architecture: several users (U
 Plugin lists live in **main DB** (`tenant_plugin_access` per tenant; `user_plugin_access` for owner legacy fallback). After changes, the user should **log out/in** so `GET /api/auth/me` refreshes `user.plugins`.
 
 ```bash
-# Local (.env.local → main DATABASE_URL)
+# Local + production (recommended while LOCAL_PROD_PARITY=1 — see docs/LOCAL_PROD_PARITY.md)
+npm run set:tenant-plugins -- --both --email=user@homebase.se --disable=matches,slots --enable=tasks
+
+# Local only (.env.local → DATABASE_URL)
 npm run set:tenant-plugins -- --email=user@homebase.se --disable=matches,slots --enable=tasks
 
-# Production Neon main (use TARGET_DATABASE_URL — .env.local is usually localhost)
-TARGET_DATABASE_URL='postgresql://...@....neon.tech/neondb?sslmode=require' \
-  node scripts/set-tenant-plugin-access.js --email=user@homebase.se --disable=matches,slots --enable=tasks
+# Production only
+PROD_MAIN_DATABASE_URL='postgresql://...@....neon.tech/neondb?sslmode=require' \
+  npm run set:tenant-plugins -- --email=user@homebase.se --disable=matches,slots --enable=tasks
 ```
 
 Optional: `--tenant-id=<tenants.id>` instead of `--email`. Script: `scripts/set-tenant-plugin-access.js`.

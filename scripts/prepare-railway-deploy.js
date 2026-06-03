@@ -105,7 +105,11 @@ if (migrate) {
   });
   if (fixSessions.status !== 0) process.exit(fixSessions.status);
 
-  const extraMigrations = ['migrate:tenant-memberships', 'migrate:public-share-routing'];
+  const extraMigrations = [
+    'migrate:tenant-memberships',
+    'migrate:public-share-routing',
+    'migrate:password-reset',
+  ];
   for (const script of extraMigrations) {
     const r = spawnSync('npm', ['run', script], {
       stdio: 'inherit',

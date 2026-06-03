@@ -1,0 +1,38 @@
+---
+description: Apply operational changes to both local dev and Railway production until user disables parity
+alwaysApply: true
+---
+
+# Local + production parity (active)
+
+The user wants **local and production kept in sync** until they explicitly say otherwise.
+
+## Code changes
+
+- Implement once; deploy via merge to `main` (Railway) when they ask to push/deploy.
+- Branch workflow: `homebase-v3.6` for work, merge to `main` for production.
+
+## Database / config / plugin access
+
+When changing **plugin access**, **tenant users**, **migrations on main DB**, or similar ops:
+
+1. Prefer **both** environments in the same step.
+2. Use `npm run set:tenant-plugins -- --both --email=... --enable=... --disable=...` when `PROD_MAIN_DATABASE_URL` is set in `.env.local`.
+3. For prod-only URL, use `PROD_MAIN_DATABASE_URL` or `TARGET_DATABASE_URL` (Neon **main** `neondb`, not tenant DB).
+4. Never use localhost `DATABASE_URL` for production scripts without `PROD_MAIN_DATABASE_URL` / `TARGET_DATABASE_URL`.
+5. After plugin access changes, remind: **log out/in** on local and Railway.
+
+## Local dev should match prod data
+
+- Local main: `DATABASE_URL` → localhost Postgres.
+- Prod main: `PROD_MAIN_DATABASE_URL` in `.env.local` (gitignored).
+- Shared cup data: `TENANT_PROVIDER=neon` + same tenant `neon_connection_string` (see `npm run sync:local-from-prod`).
+- `PUBLIC_CUPS_USER_ID` must match production owner id (e.g. `2` for `user@homebase.se` on prod).
+
+## Reference
+
+`docs/LOCAL_PROD_PARITY.md`
+
+## Stop parity
+
+Only skip dual apply when the user says local-only or prod-only.

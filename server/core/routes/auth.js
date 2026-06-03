@@ -5,7 +5,9 @@ const express = require('express');
 const router = express.Router();
 const { DEFAULT_AVAILABLE_PLUGINS } = require('../config/constants');
 const AuthService = require('../services/auth/AuthService');
+const PasswordResetService = require('../services/auth/PasswordResetService');
 const ServiceManager = require('../ServiceManager');
+const { emailLimiter } = require('../middleware/rateLimit');
 
 // Dependencies will be injected by setupAuthRoutes()
 let authLimiter = null;
@@ -14,6 +16,7 @@ let pluginLoader = null;
 
 // Initialize AuthService
 const authService = new AuthService();
+const passwordResetService = new PasswordResetService();
 
 /** Always-on plugin: ensure 'settings' is in the plugins array for nav/API consistency. */
 function ensureSettingsInPlugins(plugins) {
@@ -153,6 +156,87 @@ router.post(
         error: 'Internal server error',
         code: 'LOGIN_FAILED',
       });
+    }
+  },
+);
+
+/**
+ * POST /forgot-password
+ * Send password reset email (generic response — no email enumeration)
+ */
+router.post(
+  '/forgot-password',
+  (req, res, next) => emailLimiter(req, res, next),
+  async (req, res) => {
+    const logger = ServiceManager.get('logger');
+    const { email } = req.body || {};
+
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    try {
+      const result = await passwordResetService.requestReset(email);
+      const body = {
+        message:
+          'If an account exists for that email, we sent instructions to reset your password.',
+      };
+      if (result.devLink && process.env.NODE_ENV === 'development') {
+        body.devLink = result.devLink;
+      }
+      res.json(body);
+    } catch (error) {
+      logger.error('Forgot password failed', error, { email: String(email).trim() });
+      if (error.code === 'PASSWORD_RESET_NOT_CONFIGURED') {
+        return res.status(503).json({
+          error: 'Password reset is not available yet. Run: npm run migrate:password-reset',
+          code: error.code,
+        });
+      }
+      if (error.code === 'EMAIL_NOT_CONFIGURED') {
+        return res.status(503).json({
+          error: error.message,
+          code: error.code,
+        });
+      }
+      res.status(500).json({ error: 'Could not process password reset request' });
+    }
+  },
+);
+
+/**
+ * POST /reset-password
+ * Set a new password using a token from the reset email
+ */
+router.post(
+  '/reset-password',
+  (req, res, next) => authLimiter(req, res, next),
+  async (req, res) => {
+    const logger = ServiceManager.get('logger');
+    const { token, password } = req.body || {};
+
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and password are required' });
+    }
+
+    try {
+      await passwordResetService.resetPassword(token, password);
+      res.json({ message: 'Password updated. You can sign in with your new password.' });
+    } catch (error) {
+      logger.warn('Reset password failed', { message: error.message });
+      if (error.message.includes('at least 8')) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error.message.includes('Invalid or expired')) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error.code === 'PASSWORD_RESET_NOT_CONFIGURED') {
+        return res.status(503).json({
+          error: 'Password reset is not available yet. Run: npm run migrate:password-reset',
+          code: error.code,
+        });
+      }
+      res.status(500).json({ error: 'Could not reset password' });
     }
   },
 );

@@ -7,6 +7,9 @@
  *   node scripts/set-tenant-plugin-access.js --tenant-id=7 --disable=matches,slots --enable=tasks
  *
  * Requires DATABASE_URL or TARGET_DATABASE_URL (.env.local is often localhost — use TARGET for prod).
+ *
+ * --both  Apply the same enable/disable to local DATABASE_URL and prod (PROD_MAIN_DATABASE_URL or TARGET_DATABASE_URL).
+ *         Also enabled when LOCAL_PROD_PARITY=1 in .env.local.
  */
 const path = require('path');
 const { Pool } = require('pg');
@@ -111,28 +114,19 @@ async function listEnabled(pool, tables, tenantId, ownerUserId) {
   return [];
 }
 
-async function main() {
-  const email = parseArg('email');
-  const tenantIdArg = parseArg('tenant-id');
-  const tenantId = tenantIdArg ? parseInt(tenantIdArg, 10) : null;
-  const enable = parseList(parseArg('enable'));
-  const disable = parseList(parseArg('disable'));
+function wantsBoth() {
+  return (
+    process.argv.includes('--both') ||
+    process.env.LOCAL_PROD_PARITY === '1' ||
+    process.env.LOCAL_PROD_PARITY === 'true'
+  );
+}
 
-  if (!enable.length && !disable.length) {
-    console.error('Provide at least one of --enable=plugin1,plugin2 or --disable=plugin1,plugin2');
-    process.exit(1);
-  }
-  const dbUrl = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
+async function applyPluginChanges(dbUrl, label, { email, tenantId, enable, disable }) {
   if (!dbUrl) {
-    console.error('TARGET_DATABASE_URL or DATABASE_URL is required');
-    process.exit(1);
+    throw new Error(`${label}: database URL is missing`);
   }
-  if (/@(localhost|127\.0\.0\.1)/.test(dbUrl) && !process.env.TARGET_DATABASE_URL) {
-    console.error(
-      'DATABASE_URL points at localhost. Set TARGET_DATABASE_URL to Neon main for production.',
-    );
-    process.exit(1);
-  }
+  console.log(`\n=== ${label} (${maskHost(dbUrl)}) ===`);
 
   const pool = new Pool({ connectionString: dbUrl });
   try {
@@ -174,11 +168,75 @@ async function main() {
 
     const rows = await listEnabled(pool, tables, tenant.id, ownerUserId);
     const active = rows.filter((r) => r.enabled).map((r) => r.plugin_name);
-    console.log('\nEnabled plugins now:', active.length ? active.join(', ') : '(none)');
-    console.log('Log out and log in again (or hard refresh) so /api/auth/me picks up plugin list.');
+    console.log('Enabled plugins now:', active.length ? active.join(', ') : '(none)');
   } finally {
     await pool.end();
   }
+}
+
+function maskHost(url) {
+  try {
+    const u = new URL(url.replace(/^postgresql:/, 'http:'));
+    return `${u.hostname}${u.pathname}`;
+  } catch {
+    return 'database';
+  }
+}
+
+async function main() {
+  const email = parseArg('email');
+  const tenantIdArg = parseArg('tenant-id');
+  const tenantId = tenantIdArg ? parseInt(tenantIdArg, 10) : null;
+  const enable = parseList(parseArg('enable'));
+  const disable = parseList(parseArg('disable'));
+
+  if (!enable.length && !disable.length) {
+    console.error('Provide at least one of --enable=plugin1,plugin2 or --disable=plugin1,plugin2');
+    process.exit(1);
+  }
+
+  const localUrl = process.env.DATABASE_URL;
+  const prodUrl =
+    process.env.PROD_MAIN_DATABASE_URL ||
+    process.env.TARGET_DATABASE_URL ||
+    (localUrl && !/@(localhost|127\.0\.0\.1)/.test(localUrl) ? localUrl : null);
+
+  const opts = { email, tenantId, enable, disable };
+
+  if (wantsBoth()) {
+    if (!localUrl) {
+      console.error('DATABASE_URL (local main) is required for --both');
+      process.exit(1);
+    }
+    if (!prodUrl || /@(localhost|127\.0\.0\.1)/.test(prodUrl)) {
+      console.error(
+        'PROD_MAIN_DATABASE_URL or TARGET_DATABASE_URL (Neon main) is required for --both',
+      );
+      process.exit(1);
+    }
+    await applyPluginChanges(localUrl, 'local main', opts);
+    await applyPluginChanges(prodUrl, 'production main', opts);
+    console.log(
+      '\nLog out and log in again on local and Railway so /api/auth/me picks up plugins.',
+    );
+    return;
+  }
+
+  const dbUrl = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.error('TARGET_DATABASE_URL, PROD_MAIN_DATABASE_URL, or DATABASE_URL is required');
+    process.exit(1);
+  }
+  if (/@(localhost|127\.0\.0\.1)/.test(dbUrl) && !process.env.TARGET_DATABASE_URL) {
+    console.error(
+      'DATABASE_URL points at localhost. Set TARGET_DATABASE_URL or PROD_MAIN_DATABASE_URL for production, or use --both.',
+    );
+    process.exit(1);
+  }
+
+  const label = /@(localhost|127\.0\.0\.1)/.test(dbUrl) ? 'local main' : 'production main';
+  await applyPluginChanges(dbUrl, label, opts);
+  console.log('\nLog out and log in again (or hard refresh) so /api/auth/me picks up plugin list.');
 }
 
 main().catch((err) => {

@@ -41,11 +41,13 @@ const globalLimiter = rateLimit({
       path === '/auth/me' ||
       path === '/auth/login' ||
       path === '/auth/signup' ||
+      path === '/auth/forgot-password' ||
       path === '/api/health' ||
       path === '/api/csrf-token' ||
       path === '/api/auth/me' ||
       path === '/api/auth/login' ||
-      path === '/api/auth/signup'
+      path === '/api/auth/signup' ||
+      path === '/api/auth/forgot-password'
     );
   },
 });

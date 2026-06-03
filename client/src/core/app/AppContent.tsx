@@ -152,7 +152,7 @@ export function AppContent() {
       return;
     }
     const path = location.pathname.replace(/\/+$/, '') || '/';
-    if (path !== DASHBOARD_PATH && path !== '/dashboard') {
+    if (path !== DASHBOARD_PATH && path !== '/dashboard' && !path.startsWith('/reset-password')) {
       navigate(DASHBOARD_PATH, { replace: true });
     }
   }, [isLoading, isAuthenticated, location.pathname, navigate]);

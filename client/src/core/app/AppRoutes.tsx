@@ -62,6 +62,7 @@ import { AppContent } from '@/core/app/AppContent';
 import { PluginProviders } from '@/core/app/PluginProviders';
 import { TimeTrackingActivityProvider } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { GlobalNavigationGuardProvider } from '@/hooks/useGlobalNavigationGuard';
+import { ResetPasswordPage } from '@/core/ui/ResetPasswordPage';
 
 const PublicEstimateView = React.lazy(() =>
   import('@/plugins/estimates/components/PublicEstimateView').then((m) => ({
@@ -101,6 +102,8 @@ export function AppRoutes() {
       />
       <Route path="/public/note/:token" element={<PublicTokenRoute Component={PublicNoteView} />} />
       <Route path="/public/task/:token" element={<PublicTokenRoute Component={PublicTaskView} />} />
+
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
       {/* All private routes – wrapped in full provider stack */}
       <Route
