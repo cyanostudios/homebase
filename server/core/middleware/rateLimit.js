@@ -18,9 +18,14 @@ const enforceRateLimits = process.env.NODE_ENV === 'production' || forceRateLimi
  * repeatedly — a 1000/15m dev cap still produces 429 during normal work.
  * Set FORCE_RATE_LIMIT=1 to test limits locally.
  */
+const parsedRateLimitMax = parseInt(process.env.RATE_LIMIT_MAX || '', 10);
+const productionGlobalMax =
+  Number.isFinite(parsedRateLimitMax) && parsedRateLimitMax > 0 ? parsedRateLimitMax : 3000;
+
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 5000,
+  // SPA mounts many plugin providers in parallel; 100/15m caused mass 429 in production.
+  max: process.env.NODE_ENV === 'production' ? productionGlobalMax : 5000,
   message: 'Too many requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -35,10 +40,12 @@ const globalLimiter = rateLimit({
       path === '/csrf-token' ||
       path === '/auth/me' ||
       path === '/auth/login' ||
+      path === '/auth/signup' ||
       path === '/api/health' ||
       path === '/api/csrf-token' ||
       path === '/api/auth/me' ||
-      path === '/api/auth/login'
+      path === '/api/auth/login' ||
+      path === '/api/auth/signup'
     );
   },
 });
