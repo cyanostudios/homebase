@@ -54,6 +54,10 @@ export function CupsProvider({
   const [cups, setCups] = useState<Cup[]>([]);
   const [cupsContentView, setCupsContentView] = useState<'list' | 'settings'>('list');
   const [isSaving, setIsSaving] = useState(false);
+  const [quickEditDraft, setQuickEditDraft] = useState<Partial<
+    Pick<Cup, 'visible' | 'sanctioned' | 'featured'>
+  > | null>(null);
+  const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
 
   const {
     selectedIds: selectedCupIds,
@@ -86,6 +90,7 @@ export function CupsProvider({
     setCurrentCup(null);
     setPanelMode('create');
     setValidationErrors([]);
+    setQuickEditDraft(null);
     navigateToBase();
   }, [navigateToBase, setValidationErrors]);
 
@@ -116,6 +121,7 @@ export function CupsProvider({
       setPanelMode('edit');
       setIsCupPanelOpen(true);
       setValidationErrors([]);
+      setQuickEditDraft(null);
       onCloseOtherPanels();
       navigateToItem(cup, cups, 'name');
     },
@@ -130,6 +136,7 @@ export function CupsProvider({
       setPanelMode('view');
       setIsCupPanelOpen(true);
       setValidationErrors([]);
+      setQuickEditDraft(null);
       onCloseOtherPanels();
       navigateToItem(cup, cups, 'name');
     },
@@ -246,6 +253,67 @@ export function CupsProvider({
     [],
   );
 
+  const setQuickEditField = useCallback(
+    (field: 'visible' | 'sanctioned' | 'featured', value: boolean) => {
+      setQuickEditDraft((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
+
+  const hasQuickEditChanges = Boolean(
+    currentCup &&
+      panelMode === 'view' &&
+      quickEditDraft &&
+      Object.keys(quickEditDraft).length > 0 &&
+      (() => {
+        const visible = quickEditDraft.visible ?? currentCup.visible;
+        const sanctioned = quickEditDraft.sanctioned ?? currentCup.sanctioned;
+        const featured = quickEditDraft.featured ?? currentCup.featured;
+        return (
+          Boolean(visible) !== Boolean(currentCup.visible) ||
+          Boolean(sanctioned) !== Boolean(currentCup.sanctioned) ||
+          Boolean(featured) !== Boolean(currentCup.featured)
+        );
+      })(),
+  );
+
+  const onApplyQuickEdit = useCallback(async () => {
+    if (!currentCup || !quickEditDraft || Object.keys(quickEditDraft).length === 0) {
+      return;
+    }
+    const success = await saveCup(
+      {
+        ...currentCup,
+        name: currentCup.name || 'Cup',
+        visible: quickEditDraft.visible ?? currentCup.visible,
+        sanctioned: quickEditDraft.sanctioned ?? currentCup.sanctioned,
+        featured: quickEditDraft.featured ?? currentCup.featured,
+      },
+      currentCup.id,
+    );
+    if (success) {
+      setQuickEditDraft(null);
+    }
+  }, [currentCup, quickEditDraft, saveCup]);
+
+  const getCloseHandler = useCallback(
+    (defaultClose: () => void) => {
+      return () => {
+        if (hasQuickEditChanges) {
+          setShowDiscardQuickEditDialog(true);
+        } else {
+          defaultClose();
+        }
+      };
+    },
+    [hasQuickEditChanges],
+  );
+
+  const onDiscardQuickEditAndClose = useCallback(() => {
+    setQuickEditDraft(null);
+    setShowDiscardQuickEditDialog(false);
+  }, []);
+
   const openCupSettings = useCallback(() => {
     clearCupSelection();
     setCupsContentView('settings');
@@ -305,6 +373,14 @@ export function CupsProvider({
     hasNextItem,
     currentItemIndex,
     totalItems,
+    quickEditDraft,
+    setQuickEditField,
+    hasQuickEditChanges,
+    onApplyQuickEdit,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    onDiscardQuickEditAndClose,
+    getCloseHandler,
   };
 
   return <CupsContext.Provider value={value}>{children}</CupsContext.Provider>;

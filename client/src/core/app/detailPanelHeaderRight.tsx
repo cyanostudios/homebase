@@ -45,7 +45,8 @@ export function renderDetailPanelHeaderRight({
       (pluginName === 'tasks' ||
         pluginName === 'estimates' ||
         pluginName === 'slots' ||
-        pluginName === 'matches') &&
+        pluginName === 'matches' ||
+        pluginName === 'cups') &&
         typeof currentPluginContext?.hasQuickEditChanges === 'boolean' &&
         currentPluginContext.hasQuickEditChanges,
     ) ||
@@ -76,7 +77,8 @@ export function renderDetailPanelHeaderRight({
                 pluginName === 'tasks' ||
                 pluginName === 'estimates' ||
                 pluginName === 'slots' ||
-                pluginName === 'matches'
+                pluginName === 'matches' ||
+                pluginName === 'cups'
               ) {
                 currentPluginContext?.onApplyQuickEdit?.();
                 return;

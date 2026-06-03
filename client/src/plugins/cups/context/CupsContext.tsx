@@ -52,6 +52,15 @@ export type CupsContextType = {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+
+  quickEditDraft: Partial<Pick<Cup, 'visible' | 'sanctioned' | 'featured'>> | null;
+  setQuickEditField: (field: 'visible' | 'sanctioned' | 'featured', value: boolean) => void;
+  hasQuickEditChanges: boolean;
+  onApplyQuickEdit: () => Promise<void>;
+  showDiscardQuickEditDialog: boolean;
+  setShowDiscardQuickEditDialog: (open: boolean) => void;
+  onDiscardQuickEditAndClose: () => void;
+  getCloseHandler: (defaultClose: () => void) => () => void;
 };
 
 export const CupsContext = createContext<CupsContextType | undefined>(undefined);
@@ -110,6 +119,14 @@ const EMPTY_CUPS_CONTEXT: CupsContextType = {
   hasNextItem: false,
   currentItemIndex: 0,
   totalItems: 0,
+  quickEditDraft: null,
+  setQuickEditField: () => {},
+  hasQuickEditChanges: false,
+  onApplyQuickEdit: async () => {},
+  showDiscardQuickEditDialog: false,
+  setShowDiscardQuickEditDialog: () => {},
+  onDiscardQuickEditAndClose: () => {},
+  getCloseHandler: (fn) => fn,
 };
 
 export function CupsNullProvider({ children }: { children: React.ReactNode }) {

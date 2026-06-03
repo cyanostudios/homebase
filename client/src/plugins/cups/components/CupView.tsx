@@ -1,19 +1,14 @@
 import { Globe, Info, RotateCcw, SlidersHorizontal, Trophy, Trash2, Zap } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import {
-  DETAIL_INFO_ROW_CLASS,
-  DETAIL_PROP_ROW_CLASS,
-  DETAIL_VIEW_CARD_CLASS,
-} from '@/core/ui/detailViewCardStyles';
+import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
@@ -22,12 +17,21 @@ import type { IngestSource } from '@/plugins/ingest/types/ingest';
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
 
+import { CupPropertiesFields } from './CupPropertiesFields';
 import { CupRatings } from './CupRatings';
 
 export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) {
   const { t } = useTranslation();
   const current = cup ?? item ?? null;
-  const { deleteCup, restoreCup } = useCups();
+  const {
+    deleteCup,
+    restoreCup,
+    quickEditDraft,
+    setQuickEditField,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    onDiscardQuickEditAndClose,
+  } = useCups();
   const [showDelete, setShowDelete] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [ingestSources, setIngestSources] = useState<IngestSource[]>([]);
@@ -66,7 +70,20 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
       setIsRestoring(false);
     }
   };
-  if (!current) {
+
+  const displayCup = useMemo(() => {
+    if (!current) {
+      return null;
+    }
+    return {
+      ...current,
+      visible: quickEditDraft?.visible ?? current.visible,
+      sanctioned: quickEditDraft?.sanctioned ?? current.sanctioned,
+      featured: quickEditDraft?.featured ?? current.featured,
+    };
+  }, [current, quickEditDraft]);
+
+  if (!current || !displayCup) {
     return null;
   }
 
@@ -279,54 +296,30 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
             subtleTitle
             className="p-6"
           >
-            <div>
-              <div className={DETAIL_PROP_ROW_CLASS}>
-                <span className="text-sm text-slate-500 dark:text-slate-400">
-                  {t('cups.propertyPublic')}
-                </span>
-                {current.visible ? (
-                  <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
-                    {t('common.yes')}
-                  </Badge>
-                ) : (
-                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
-                    {t('common.no')}
-                  </Badge>
-                )}
-              </div>
-              <div className={DETAIL_PROP_ROW_CLASS}>
-                <span className="text-sm text-slate-500 dark:text-slate-400">
-                  {t('cups.propertySanctioned')}
-                </span>
-                {current.sanctioned ? (
-                  <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
-                    {t('common.yes')}
-                  </Badge>
-                ) : (
-                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
-                    {t('common.no')}
-                  </Badge>
-                )}
-              </div>
-              <div className={DETAIL_PROP_ROW_CLASS}>
-                <span className="text-sm text-slate-500 dark:text-slate-400">
-                  {t('cups.propertyFeatured')}
-                </span>
-                {current.featured ? (
-                  <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
-                    {t('common.yes')}
-                  </Badge>
-                ) : (
-                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
-                    {t('common.no')}
-                  </Badge>
-                )}
-              </div>
-            </div>
+            <CupPropertiesFields
+              values={{
+                visible: displayCup.visible !== false,
+                sanctioned: displayCup.sanctioned !== false,
+                featured: displayCup.featured === true,
+              }}
+              onVisibleChange={(value) => setQuickEditField('visible', value)}
+              onSanctionedChange={(value) => setQuickEditField('sanctioned', value)}
+              onFeaturedChange={(value) => setQuickEditField('featured', value)}
+            />
           </DetailSection>
         </Card>
         <CupRatings cupId={current.id} />
       </DetailLayout>
+      <ConfirmDialog
+        isOpen={showDiscardQuickEditDialog}
+        title={t('dialog.unsavedChanges')}
+        message={t('cups.quickEditDiscardMessage')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
+        onConfirm={onDiscardQuickEditAndClose}
+        onCancel={() => setShowDiscardQuickEditDialog(false)}
+        variant="warning"
+      />
       <ConfirmDialog
         isOpen={showDelete}
         title="Delete cup?"

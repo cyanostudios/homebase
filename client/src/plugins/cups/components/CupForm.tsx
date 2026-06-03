@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -15,6 +14,10 @@ import { filesApi } from '@/plugins/files/api/filesApi';
 
 import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
+
+import { CupPropertiesFields } from './CupPropertiesFields';
+
+const CUP_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -138,227 +141,200 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
   return (
     <>
       <DetailLayout>
-        <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
-          <DetailSection title="Cup details" className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <Label>Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => {
-                    onFieldChange('name', e.target.value);
-                  }}
-                />
-              </div>
-              <div>
-                <Label>Organizer</Label>
-                <Input
-                  value={form.organizer}
-                  onChange={(e) => {
-                    onFieldChange('organizer', e.target.value);
-                  }}
-                />
-              </div>
-              <div>
-                <Label>Location</Label>
-                <Input
-                  value={form.location}
-                  onChange={(e) => {
-                    onFieldChange('location', e.target.value);
-                  }}
-                />
-              </div>
-              <div>
-                <Label>Start date</Label>
-                <Input
-                  type="date"
-                  value={form.start_date}
-                  onChange={(e) => {
-                    onFieldChange('start_date', e.target.value);
-                  }}
-                />
-              </div>
-              <div>
-                <Label>End date</Label>
-                <Input
-                  type="date"
-                  value={form.end_date}
-                  onChange={(e) => {
-                    onFieldChange('end_date', e.target.value);
-                  }}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label>Categories</Label>
-                <Input
-                  value={form.categories}
-                  onChange={(e) => {
-                    onFieldChange('categories', e.target.value);
-                  }}
-                  placeholder="comma separated"
-                />
-              </div>
-              <div>
-                <Label>Match format</Label>
-                <Input
-                  value={form.match_format}
-                  onChange={(e) => {
-                    onFieldChange('match_format', e.target.value);
-                  }}
-                  placeholder="e.g. 5 vs 5"
-                />
-              </div>
-              <div>
-                <Label>Teams</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.team_count}
-                  onChange={(e) => {
-                    onFieldChange('team_count', e.target.value);
-                  }}
-                  placeholder="team count"
-                />
-              </div>
-              <div>
-                <Label>Registration URL</Label>
-                <Input
-                  value={form.registration_url}
-                  onChange={(e) => {
-                    onFieldChange('registration_url', e.target.value);
-                  }}
-                />
-              </div>
-              <div>
-                <Label>Source URL</Label>
-                <Input
-                  value={form.source_url}
-                  onChange={(e) => {
-                    onFieldChange('source_url', e.target.value);
-                  }}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label>Description</Label>
-                <Textarea
-                  value={form.description}
-                  onChange={(e) => {
-                    onFieldChange('description', e.target.value);
-                  }}
-                  rows={6}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <div className="space-y-2 rounded-md border border-border px-3 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <Label>Visible on public site</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Controls whether the cup appears in Cupappen.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={form.visible}
-                      onCheckedChange={(checked) => {
-                        onFieldChange('visible', checked);
-                      }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <Label>Sanctioned cup</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Indicates whether this cup is sanctioned.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={form.sanctioned}
-                      onCheckedChange={(checked) => {
-                        onFieldChange('sanctioned', checked);
-                      }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <Label>Featured</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Highlights this cup in the top section on Cupappen.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={form.featured}
-                      onCheckedChange={(checked) => {
-                        onFieldChange('featured', checked);
-                      }}
-                    />
-                  </div>
-                  <div className="border-t border-border pt-3 mt-1 space-y-2">
-                    <div>
-                      <Label>Hero image (Cupappen featured cards)</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Upload a cover image for the featured card. If empty, a default photo is
-                        used on the public site.
-                      </p>
-                    </div>
-                    {form.featured_image_url ? (
-                      <div className="flex flex-wrap items-end gap-3">
-                        <img
-                          src={form.featured_image_url}
-                          alt=""
-                          className="h-24 w-40 rounded-md object-cover border border-border"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            onFieldChange('featured_image_url', '');
-                          }}
-                        >
-                          Remove image
-                        </Button>
-                      </div>
-                    ) : null}
-                    <Input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      disabled={imageUploadBusy}
-                      className="cursor-pointer"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = '';
-                        if (!file) {
-                          return;
-                        }
-                        setImageUploadError(null);
-                        setImageUploadBusy(true);
-                        try {
-                          const items = await filesApi.uploadFiles([file]);
-                          const url = items[0]?.url;
-                          if (url) {
-                            onFieldChange('featured_image_url', url);
-                          } else {
-                            setImageUploadError('No file URL returned');
-                          }
-                        } catch {
-                          setImageUploadError('Upload failed');
-                        } finally {
-                          setImageUploadBusy(false);
-                        }
-                      }}
-                    />
-                    {imageUploadBusy ? (
-                      <p className="text-xs text-muted-foreground">Uploading…</p>
-                    ) : null}
-                    {imageUploadError ? (
-                      <p className="text-xs text-destructive">{imageUploadError}</p>
-                    ) : null}
-                  </div>
+        <div className="space-y-3">
+          <Card padding="none" className={CUP_FORM_CARD_CLASS}>
+            <DetailSection title="Cup details" className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="md:col-span-2">
+                  <Label>Name</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => {
+                      onFieldChange('name', e.target.value);
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Organizer</Label>
+                  <Input
+                    value={form.organizer}
+                    onChange={(e) => {
+                      onFieldChange('organizer', e.target.value);
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Location</Label>
+                  <Input
+                    value={form.location}
+                    onChange={(e) => {
+                      onFieldChange('location', e.target.value);
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Start date</Label>
+                  <Input
+                    type="date"
+                    value={form.start_date}
+                    onChange={(e) => {
+                      onFieldChange('start_date', e.target.value);
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>End date</Label>
+                  <Input
+                    type="date"
+                    value={form.end_date}
+                    onChange={(e) => {
+                      onFieldChange('end_date', e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Categories</Label>
+                  <Input
+                    value={form.categories}
+                    onChange={(e) => {
+                      onFieldChange('categories', e.target.value);
+                    }}
+                    placeholder="comma separated"
+                  />
+                </div>
+                <div>
+                  <Label>Match format</Label>
+                  <Input
+                    value={form.match_format}
+                    onChange={(e) => {
+                      onFieldChange('match_format', e.target.value);
+                    }}
+                    placeholder="e.g. 5 vs 5"
+                  />
+                </div>
+                <div>
+                  <Label>Teams</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.team_count}
+                    onChange={(e) => {
+                      onFieldChange('team_count', e.target.value);
+                    }}
+                    placeholder="team count"
+                  />
+                </div>
+                <div>
+                  <Label>Registration URL</Label>
+                  <Input
+                    value={form.registration_url}
+                    onChange={(e) => {
+                      onFieldChange('registration_url', e.target.value);
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Source URL</Label>
+                  <Input
+                    value={form.source_url}
+                    onChange={(e) => {
+                      onFieldChange('source_url', e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={form.description}
+                    onChange={(e) => {
+                      onFieldChange('description', e.target.value);
+                    }}
+                    rows={6}
+                  />
                 </div>
               </div>
+            </DetailSection>
+          </Card>
+
+          <Card padding="none" className={CUP_FORM_CARD_CLASS}>
+            <div className="space-y-2 p-6">
+              <CupPropertiesFields
+                variant="form"
+                showSectionHeader
+                values={{
+                  visible: form.visible,
+                  sanctioned: form.sanctioned,
+                  featured: form.featured,
+                }}
+                onVisibleChange={(value) => onFieldChange('visible', value)}
+                onSanctionedChange={(value) => onFieldChange('sanctioned', value)}
+                onFeaturedChange={(value) => onFieldChange('featured', value)}
+              />
+              <div className="rounded-lg border border-border p-4 space-y-2">
+                <div>
+                  <Label>Hero image (Cupappen featured cards)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Upload a cover image for the featured card. If empty, a default photo is used on
+                    the public site.
+                  </p>
+                </div>
+                {form.featured_image_url ? (
+                  <div className="flex flex-wrap items-end gap-3">
+                    <img
+                      src={form.featured_image_url}
+                      alt=""
+                      className="h-24 w-40 rounded-md object-cover border border-border"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        onFieldChange('featured_image_url', '');
+                      }}
+                    >
+                      Remove image
+                    </Button>
+                  </div>
+                ) : null}
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  disabled={imageUploadBusy}
+                  className="cursor-pointer"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) {
+                      return;
+                    }
+                    setImageUploadError(null);
+                    setImageUploadBusy(true);
+                    try {
+                      const items = await filesApi.uploadFiles([file]);
+                      const url = items[0]?.url;
+                      if (url) {
+                        onFieldChange('featured_image_url', url);
+                      } else {
+                        setImageUploadError('No file URL returned');
+                      }
+                    } catch {
+                      setImageUploadError('Upload failed');
+                    } finally {
+                      setImageUploadBusy(false);
+                    }
+                  }}
+                />
+                {imageUploadBusy ? (
+                  <p className="text-xs text-muted-foreground">Uploading…</p>
+                ) : null}
+                {imageUploadError ? (
+                  <p className="text-xs text-destructive">{imageUploadError}</p>
+                ) : null}
+              </div>
             </div>
-          </DetailSection>
-        </Card>
+          </Card>
+        </div>
       </DetailLayout>
       {validationErrors.length > 0 && (
         <Card padding="sm" className="mt-3 border-destructive/40 bg-destructive/5">

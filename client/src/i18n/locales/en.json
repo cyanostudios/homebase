@@ -710,6 +710,7 @@
     "propertySanctioned": "Sanctioned",
     "propertyFeatured": "Featured",
     "cupProperties": "Properties",
+    "quickEditDiscardMessage": "You have unsaved changes to cup properties. Do you want to discard them?",
     "heroImageView": "Hero image (public site)",
     "heroImageNone": "No image uploaded — Cupappen uses a default photo for featured cards."
   },

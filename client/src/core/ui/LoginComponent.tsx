@@ -1,13 +1,16 @@
 import { LogIn, UserPlus } from 'lucide-react';
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/core/api/AppContext';
+import { navPageToPath } from '@/core/routing/routeMap';
 
 type AuthMode = 'login' | 'signup';
 
 export function LoginComponent() {
   const { login, signup } = useApp();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>('login');
   const isDev = import.meta.env.DEV;
   const [email, setEmail] = useState(isDev ? 'admin@homebase.se' : '');
@@ -50,13 +53,16 @@ export function LoginComponent() {
         const result = await signup(email, password);
         if (!result.success) {
           setError(result.error || 'Signup failed. Please try again.');
+        } else {
+          navigate(navPageToPath.dashboard, { replace: true });
         }
-        // If successful, user is auto-logged in by AppContext
       } else {
         // Login mode
         const result = await login(email, password);
         if (!result.success) {
           setError(result.error || 'Invalid email or password');
+        } else {
+          navigate(navPageToPath.dashboard, { replace: true });
         }
       }
     } catch {

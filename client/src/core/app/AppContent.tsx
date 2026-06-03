@@ -36,6 +36,8 @@ import type { NavPage } from '@/core/ui/Sidebar';
 import { resolveSlug } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
+const DASHBOARD_PATH = navPageToPath.dashboard;
+
 // Helper: find current item from any plugin context
 function findCurrentItem(pluginContexts: any[]): any {
   for (const { plugin, context } of pluginContexts) {
@@ -142,6 +144,18 @@ export function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPage: NavPage = useMemo(() => pathToNavPage(location.pathname), [location.pathname]);
+
+  // Logged-out users should not keep a deep plugin URL; after login they land on dashboard.
+  // Session refresh while still logged in keeps the current path (no redirect when authenticated).
+  useEffect(() => {
+    if (isLoading || isAuthenticated) {
+      return;
+    }
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    if (path !== DASHBOARD_PATH && path !== '/dashboard') {
+      navigate(DASHBOARD_PATH, { replace: true });
+    }
+  }, [isLoading, isAuthenticated, location.pathname, navigate]);
 
   // Clear bulk selection in all plugins when user navigates to another page (sidebar)
   // So selection is not cleared when opening view (list unmounts) but is cleared when switching plugin

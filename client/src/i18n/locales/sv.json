@@ -710,6 +710,7 @@
     "propertySanctioned": "Sanktionerad",
     "propertyFeatured": "Utvald",
     "cupProperties": "Egenskaper",
+    "quickEditDiscardMessage": "Du har osparade ändringar i cup-egenskaper. Vill du kasta dem?",
     "heroImageView": "Hjältebild (publik sajt)",
     "heroImageNone": "Ingen bild uppladdad — Cupappen använder standardfoto på utvalda kort."
   },
