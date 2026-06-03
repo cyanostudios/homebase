@@ -38,7 +38,7 @@ const PluginLoader = require('../plugin-loader');
 // Core infrastructure
 const Bootstrap = require('./core/Bootstrap');
 const { activityLogMiddleware } = require('./core/middleware/activityLog');
-const { csrfTokenHandler } = require('./core/middleware/csrf');
+const { csrfProtection, csrfTokenHandler } = require('./core/middleware/csrf');
 const { errorHandler } = require('./core/middleware/errorHandler');
 const { globalLimiter, authLimiter } = require('./core/middleware/rateLimit');
 const { setupCoreRoutes } = require('./core/routes');
