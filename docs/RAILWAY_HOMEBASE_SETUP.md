@@ -63,7 +63,11 @@ Exportera från Mail-pluginet (samma DB som `DATABASE_URL` / Neon main):
 ```bash
 npm run export:system-email-from-mail -- --write-railway-file
 # → .env.railway.resend (gitignored) — klistra in i Railway Variables, redeploy
+# eller med Railway CLI inloggad:
+./scripts/railway-apply-resend-vars.sh
 ```
+
+**Resend-avsändare:** `onboarding@resend.dev` fungerar för test (samma som ofta i Mail-pluginet). För egen domän, verifiera domänen i [Resend Dashboard](https://resend.com/domains) och sätt `RESEND_FROM` till t.ex. `noreply@dinverifieradedomän.se`.
 
 Verifiera efter deploy:
 
