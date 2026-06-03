@@ -70,6 +70,26 @@ describe('Security: CSRF middleware', () => {
     csrfProtection({}, {}, () => done());
   });
 
+  it('csrfProtection issues a token when ENABLE_CSRF is true (session mode)', async () => {
+    process.env.ENABLE_CSRF = 'true';
+    jest.resetModules();
+    const express = require('express');
+    const session = require('express-session');
+    const { csrfProtection, csrfTokenHandler } = require('../core/middleware/csrf');
+    const app = express();
+    app.use(
+      session({
+        secret: 'test-csrf-session-secret-32chars',
+        resave: false,
+        saveUninitialized: true,
+      }),
+    );
+    app.get('/api/csrf-token', csrfProtection, csrfTokenHandler);
+    const res = await request(app).get('/api/csrf-token').expect(200);
+    expect(typeof res.body.csrfToken).toBe('string');
+    expect(res.body.csrfToken).not.toBe('csrf-disabled');
+  });
+
   it('csrfTokenHandler returns csrf-disabled when CSRF off', () => {
     return new Promise((resolve, reject) => {
       delete process.env.ENABLE_CSRF;

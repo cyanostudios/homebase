@@ -45,6 +45,14 @@ function errorHandler(error, req, res, next) {
     return res.status(error.statusCode).json(error.toJSON());
   }
 
+  if (error.message === 'misconfigured csrf') {
+    logger.error('CSRF middleware misconfigured (session/cookie-parser)', error);
+    return res.status(500).json({
+      error: 'CSRF middleware misconfigured',
+      code: 'CSRF_MISCONFIGURED',
+    });
+  }
+
   // CSRF (csurf) — client should refresh token via GET /api/csrf-token
   if (error.code === 'EBADCSRFTOKEN') {
     return res.status(403).json({

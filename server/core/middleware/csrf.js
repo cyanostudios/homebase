@@ -17,13 +17,9 @@ let csrfProtection;
 const enableCsrf = process.env.ENABLE_CSRF === 'true';
 
 if (enableCsrf && csrf) {
-  csrfProtection = csrf({
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-    },
-  });
+  // Session-backed secret (req.session.csrfSecret). Do not use csurf's separate
+  // cookie mode here — it requires cookie-parser on req.cookies, which we do not use.
+  csrfProtection = csrf({ cookie: false });
 } else {
   // CSRF protection disabled
   csrfProtection = (req, res, next) => {
