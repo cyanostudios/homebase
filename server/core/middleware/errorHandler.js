@@ -45,6 +45,14 @@ function errorHandler(error, req, res, next) {
     return res.status(error.statusCode).json(error.toJSON());
   }
 
+  // CSRF (csurf) — client should refresh token via GET /api/csrf-token
+  if (error.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({
+      error: 'Invalid or missing CSRF token',
+      code: 'CSRF_INVALID',
+    });
+  }
+
   // Handle validation errors from express-validator
   if (error.array && typeof error.array === 'function') {
     return res.status(400).json({

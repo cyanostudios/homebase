@@ -46,6 +46,13 @@ export async function apiFetch(
     }
     if (token) {
       headers.set('X-CSRF-Token', token);
+    } else if (methodNeedsCsrf(method)) {
+      // ENABLE_CSRF=true but token endpoint did not return a token — retry once
+      token = await fetchCsrfToken();
+      if (token) {
+        csrfTokenCache = token;
+        headers.set('X-CSRF-Token', token);
+      }
     }
   }
 

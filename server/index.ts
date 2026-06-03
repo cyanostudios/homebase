@@ -224,8 +224,8 @@ function requirePlugin(pluginName: string) {
 // Initialize plugin system
 const pluginLoader = new PluginLoader(pool, requirePlugin, requireAuth);
 
-// CSRF token endpoint
-app.get('/api/csrf-token', csrfTokenHandler);
+// CSRF token endpoint (csrfProtection must run first so req.csrfToken() exists when ENABLE_CSRF=true)
+app.get('/api/csrf-token', csrfProtection, csrfTokenHandler);
 
 // Global rate limiting
 app.use('/api', globalLimiter);
