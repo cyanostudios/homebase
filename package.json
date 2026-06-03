@@ -43,6 +43,7 @@
     "migrate:slots-category": "node scripts/run-slots-category-migration.js",
     "migrate:remove-cups-plugin-access": "node scripts/run-remove-cups-plugin-access-migration.js",
     "migrate:ingest-plugin-access": "node scripts/run-grant-ingest-plugin-access-migration.js",
+    "set:tenant-plugins": "node scripts/set-tenant-plugin-access.js",
     "migrate:ingest-tenants": "node scripts/run-ingest-tenant-migrations.js",
     "migrate:cups-upsert-index": "node scripts/run-cups-upsert-index-migration.js",
     "migrate:cups-team-count": "node scripts/run-cups-team-count-migration.js",
