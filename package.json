@@ -67,7 +67,8 @@
     "verify:neon": "node scripts/verify-neon.js",
     "repair:neon-tenants": "node scripts/repair-neon-tenants.js",
     "fix:sessions-table": "node scripts/fix-sessions-table.js",
-    "copy:user-to-main": "node scripts/copy-user-to-production-main.js"
+    "copy:user-to-main": "node scripts/copy-user-to-production-main.js",
+    "remap:tenant-user-id": "node scripts/remap-tenant-user-id.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.967.0",

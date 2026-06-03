@@ -112,6 +112,13 @@ npm run copy:user-to-main -- --email=user@homebase.se
 
 Samma e-post/lösenord fungerar sedan på Railway. `TARGET` ska vara samma Neon **main** som Railway `DATABASE_URL`.
 
+Skriptet kör automatiskt **remap** av `user_id` i tenant-DB (lokalt id 7 → produktion id 2) så data syns. Om du kopierat manuellt tidigare:
+
+```bash
+MAIN_DATABASE_URL='<Railway Neon main>' \
+  node scripts/remap-tenant-user-id.js --from=7 --to=2 --email=user@homebase.se
+```
+
 Loggar vid start: `BACKEND_VERSION=…`, `File uploads: Cloudflare R2` (om R2 satt).
 
 ### Build failar på `husky: not found`

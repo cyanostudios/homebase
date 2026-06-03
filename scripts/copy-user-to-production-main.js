@@ -141,6 +141,35 @@ async function main() {
     await copyPluginAccess(target, targetUser.id, tenantId, plugins);
     console.log(`✅ Plugin access copied (${plugins.filter((p) => p.enabled).length} enabled)`);
 
+    if (sourceUser.id !== targetUser.id) {
+      console.log(
+        `\n--- Remapping tenant DB user_id ${sourceUser.id} → ${targetUser.id} (required for data visibility) ---`,
+      );
+      const { spawnSync } = require('child_process');
+      const remap = spawnSync(
+        'node',
+        [
+          path.join(__dirname, 'remap-tenant-user-id.js'),
+          `--from=${sourceUser.id}`,
+          `--to=${targetUser.id}`,
+        ],
+        {
+          stdio: 'inherit',
+          env: {
+            ...process.env,
+            TENANT_DATABASE_URL: sourceTenant.neon_connection_string,
+          },
+        },
+      );
+      if (remap.status !== 0) {
+        console.error('❌ Tenant user_id remap failed — run manually:');
+        console.error(
+          `   TENANT_DATABASE_URL='...' node scripts/remap-tenant-user-id.js --from=${sourceUser.id} --to=${targetUser.id}`,
+        );
+        process.exit(remap.status || 1);
+      }
+    }
+
     console.log('\nDone. Log in on Railway with the same email and password as locally.');
     console.log(
       `(Neon workspace project stays ${sourceTenant.neon_project_id}; target user id is ${targetUser.id})`,
