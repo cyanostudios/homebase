@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { DEFAULT_AVAILABLE_PLUGINS } = require('../config/constants');
+const { ALL_DISCOVERED_PLUGINS } = require('../config/constants');
 const AuthService = require('../services/auth/AuthService');
 const PasswordResetService = require('../services/auth/PasswordResetService');
 const ServiceManager = require('../ServiceManager');
@@ -84,12 +84,17 @@ router.post(
         return res.status(500).json({ error: 'Login failed: Invalid response from auth service' });
       }
 
+      const sessionPlugins =
+        user.role === 'superuser'
+          ? ALL_DISCOVERED_PLUGINS
+          : ensureSettingsInPlugins(user.plugins || []);
+
       // Save user info in session (settings plugin always in plugins)
       req.session.user = {
         id: user.id,
         email: user.email,
         role: user.role,
-        plugins: ensureSettingsInPlugins(user.plugins || []),
+        plugins: ensureSettingsInPlugins(sessionPlugins),
       };
 
       req.session.tenantConnectionString = tenantConnectionString;
@@ -127,7 +132,7 @@ router.post(
             id: user.id,
             email: user.email,
             role: user.role,
-            plugins: ensureSettingsInPlugins(user.plugins || []),
+            plugins: ensureSettingsInPlugins(sessionPlugins),
           },
         });
       });
@@ -334,10 +339,10 @@ router.get(
       const tenantOwnerUserId = req.session.tenantOwnerUserId ?? null;
 
       // Resolve plugins for current tenant context (owner = currentTenantUserId)
-      // Superuser always gets all available plugins (including newly added ones)
+      // Superuser gets every discovered plugin (including DEFAULT_DISABLED_PLUGINS e.g. mail)
       let plugins = req.session.user.plugins || [];
       if (req.session.user.role === 'superuser') {
-        plugins = DEFAULT_AVAILABLE_PLUGINS || [];
+        plugins = ALL_DISCOVERED_PLUGINS || [];
       } else {
         try {
           const ctx =

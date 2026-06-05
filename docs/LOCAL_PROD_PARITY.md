@@ -65,6 +65,10 @@ FRONTEND_URL=http://localhost:3001
 
 Without these, local dev shows the reset link on screen instead of sending mail.
 
+`onboarding@resend.dev` only delivers to the Resend account owner — use a **verified domain** in `RESEND_FROM` to test real recipients (same as Railway prod).
+
+**Mail plugin in sidebar:** not enabled by default for new tenants (`DEFAULT_DISABLED_PLUGINS`). Enable with `npm run set:tenant-plugins -- --email=... --enable=mail`. Superuser (`admin@`) sees all plugins including Mail via `ALL_DISCOVERED_PLUGINS`.
+
 ---
 
 ## 2. Ongoing: change both environments
