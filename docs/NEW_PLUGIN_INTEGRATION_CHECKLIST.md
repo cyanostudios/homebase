@@ -39,8 +39,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 ## 3) Panel contract (mandatory)
 
 - Context + hook expose the patterns in **`PLUGIN_RUNTIME_CONVENTIONS.md`** (e.g. `is{Singular}PanelOpen`, `current{Singular}`, `panelMode`, `save{Singular}`, `close{Singular}Panel`, open helpers).
-- **Create / edit `*Form.tsx`:** use **inline Save/Cancel** in the form body. Do **not** register `window.submit*Form` / `window.cancel*Form` for create/edit (see **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`** §12 — panel footer does not drive form save for those modes).
-- **Settings `*SettingsForm.tsx`:** register `window.submit*Form` / `window.cancel*Form` where the shell footer must drive save/cancel in `panelMode === 'settings'` (see **`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`** §7).
+- **Create / edit / settings `*Form.tsx`:** implement **`PanelFormHandle`** (`forwardRef` + `useImperativeHandle`) so panel header Save/Cancel calls `formRef.current.submit()` / `.cancel()`. Do **not** use `window.submit*Form` globals (see golden template + **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`** §12).
 - **View:** use `DetailLayout` with quick actions, export (if applicable), information sidebar, and **`DetailActivityLog`** when the backend exposes the standard activity pattern on `/api/<plugin>/:id` (same idea as contacts, notes, tasks, slots, matches).
 
 > **Note:** `PLUGIN_RUNTIME_CONVENTIONS.md` still documents `window.submit*` / `window.cancel*` for historical shell integration. For **new** CRUD plugins, treat **§12 of the design alignment checklist** as the source of truth for create/edit forms unless product explicitly needs header/footer-driven submit.

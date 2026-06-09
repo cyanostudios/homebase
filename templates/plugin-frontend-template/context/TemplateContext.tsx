@@ -1,6 +1,18 @@
 // templates/plugin-frontend-template/context/TemplateContext.tsx
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+  useRef,
+} from 'react';
+import { useLocation } from 'react-router-dom';
+
 import { useApp } from '@/core/api/AppContext';
+import { resolveSlug } from '@/core/utils/slugUtils';
+
 import { templateApi } from '../api/templateApi';
 import type {
   PanelMode,
@@ -11,7 +23,9 @@ import type {
 } from '../types/your-items';
 
 // Scaffold: replace "your-items" with your plugin's plural-kebab name; replace YourItem with your domain model.
-// Checklist: docs/NEW_PLUGIN_INTEGRATION_CHECKLIST.md — backend initializer: `function initializeX(context)` only.
+// Forms use PanelFormHandle (forwardRef + useImperativeHandle) — not window.submit* globals.
+// Deep-link: pathname sync below — see docs/PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md §1.
+// Checklist: docs/NEW_PLUGIN_INTEGRATION_CHECKLIST.md
 
 interface YourItemsContextType {
   isYourItemsPanelOpen: boolean;
@@ -45,6 +59,7 @@ export function YourItemsProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ProviderProps) {
+  const location = useLocation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   const [isYourItemsPanelOpen, setIsYourItemsPanelOpen] = useState(false);
@@ -54,21 +69,6 @@ export function YourItemsProvider({
   const [yourItems, setYourItems] = useState<YourItem[]>([]);
   const [settings, setSettings] = useState<YourItemsSettings | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      void loadItems();
-      void loadSettings();
-    } else {
-      setYourItems([]);
-      setSettings(null);
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    registerPanelCloseFunction('your-items', closeYourItemsPanel);
-    return () => unregisterPanelCloseFunction('your-items');
-  }, []);
 
   const loadItems = useCallback(async () => {
     try {
@@ -87,6 +87,16 @@ export function YourItemsProvider({
       console.error('Failed to load your-items settings:', err);
     }
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void loadItems();
+      void loadSettings();
+    } else {
+      setYourItems([]);
+      setSettings(null);
+    }
+  }, [isAuthenticated, loadItems, loadSettings]);
 
   const validate = (data: YourItemPayload): ValidationError[] => {
     const errors: ValidationError[] = [];
@@ -135,6 +145,39 @@ export function YourItemsProvider({
     setPanelMode('create');
     setValidationErrors([]);
   };
+
+  const openYourItemForViewRef = useRef<(item: YourItem) => void>(() => {});
+  openYourItemForViewRef.current = openYourItemForView;
+
+  const yourItemsDeepLinkPathSyncedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (yourItems.length === 0) {
+      return;
+    }
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments[0] !== 'your-items') {
+      return;
+    }
+    const slug = segments[1] ?? '';
+    if (!slug) {
+      yourItemsDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (yourItemsDeepLinkPathSyncedRef.current === pathKey) {
+      return;
+    }
+    const item = resolveSlug(slug, yourItems, 'title');
+    yourItemsDeepLinkPathSyncedRef.current = pathKey;
+    if (item) {
+      openYourItemForViewRef.current(item as YourItem);
+    }
+  }, [location.pathname, yourItems]);
+
+  useEffect(() => {
+    registerPanelCloseFunction('your-items', closeYourItemsPanel);
+    return () => unregisterPanelCloseFunction('your-items');
+  }, []);
 
   const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
