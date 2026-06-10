@@ -1,13 +1,27 @@
-import { CalendarDays, Info, LayoutGrid, Mail, StickyNote, Trash2, Users } from 'lucide-react';
+import {
+  CalendarDays,
+  Copy,
+  Edit,
+  Inbox,
+  Info,
+  LayoutGrid,
+  Mail,
+  StickyNote,
+  Trash2,
+  Users,
+  Zap,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -44,20 +58,156 @@ import { ResponsibleRow, SeriesTeamBadge } from './ResponsibleRow';
 import { SeasonCalendar } from './SeasonCalendar';
 import { TeamNotesSection } from './TeamNotesSection';
 import { TrainingSchedule } from './TrainingSchedule';
+import { requestsApi } from '@/plugins/requests/api/requestsApi';
+import { TeamRequestsSection } from '@/plugins/requests/components/TeamRequestsSection';
+import { useRequests } from '@/plugins/requests/hooks/useRequests';
 
-type TeamViewTab = 'overview' | 'schedule' | 'responsibles' | 'notes';
+type TeamViewTab = 'overview' | 'schedule' | 'responsibles' | 'notes' | 'requests';
+
+const TEAM_VIEW_TABS: TeamViewTab[] = ['overview', 'schedule', 'responsibles', 'notes', 'requests'];
+
+function parseTeamViewTab(value: string | null): TeamViewTab {
+  if (value && TEAM_VIEW_TABS.includes(value as TeamViewTab)) {
+    return value as TeamViewTab;
+  }
+  return 'overview';
+}
+
+function TeamQuickActionsCard({
+  team,
+  onEdit,
+  onDeleteClick,
+  onDuplicate,
+  getDuplicateConfig,
+}: {
+  team: Team;
+  onEdit: (team: Team) => void;
+  onDeleteClick: () => void;
+  onDuplicate: () => void;
+  getDuplicateConfig: (
+    item: Team | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
+}) {
+  const { t } = useTranslation();
+  const canDuplicate = Boolean(getDuplicateConfig(team));
+  const actionRowClass = DETAIL_QUICK_ACTION_ROW_CLASS;
+
+  return (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('teams.quickActions')} icon={Zap} subtleTitle className="p-4">
+        <div className="flex flex-col items-start gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={(props) => (
+              <Edit
+                {...props}
+                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
+              />
+            )}
+            className={actionRowClass}
+            onClick={() => onEdit(team)}
+          >
+            {t('common.edit')}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={(props) => (
+              <Trash2
+                {...props}
+                className={cn(props.className, 'text-red-600 dark:text-red-400')}
+              />
+            )}
+            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
+            onClick={onDeleteClick}
+          >
+            {t('common.delete')}
+          </Button>
+          {canDuplicate && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={(props) => (
+                <Copy
+                  {...props}
+                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
+                />
+              )}
+              className={actionRowClass}
+              onClick={onDuplicate}
+            >
+              {t('common.duplicate')}
+            </Button>
+          )}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+}
 
 export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: Team | null }) {
   const { t } = useTranslation();
   const { user } = useApp();
   const team = teamProp ?? item ?? null;
-  const { saveTeam, deleteTeam } = useTeams();
+  const {
+    saveTeam,
+    deleteTeam,
+    openTeamForEdit,
+    getDuplicateConfig,
+    executeDuplicate,
+    setRecentlyDuplicatedTeamId,
+  } = useTeams();
   const { contacts, openContactForView } = useContacts();
+  const { openRequestForView } = useRequests();
   const canSendEmail =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
-  const [activeTab, setActiveTab] = useState<TeamViewTab>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseTeamViewTab(searchParams.get('tab'));
+  const setActiveTab = useCallback(
+    (tab: TeamViewTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'overview') {
+            next.delete('tab');
+          } else {
+            next.set('tab', tab);
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+  const [requestsCount, setRequestsCount] = useState(0);
+
+  useEffect(() => {
+    if (!team?.id) {
+      setRequestsCount(0);
+      return;
+    }
+    let cancelled = false;
+    setRequestsCount(0);
+    requestsApi
+      .getRequests({ team_id: Number(team.id) })
+      .then((data) => {
+        if (!cancelled) setRequestsCount(data.length);
+      })
+      .catch(() => {
+        if (!cancelled) setRequestsCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [team?.id]);
   const [showResponsiblesEmailDialog, setShowResponsiblesEmailDialog] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [pendingRemoveResponsible, setPendingRemoveResponsible] = useState<{
     key: string;
     name: string;
@@ -175,11 +325,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     setViewingResponsible({ contact, role, seriesTeam });
   };
 
-  const tabs: { id: TeamViewTab; label: string; icon: LucideIcon }[] = [
+  const notesCount = team.team_notes?.length ?? 0;
+
+  const tabs: { id: TeamViewTab; label: string; icon: LucideIcon; count?: number }[] = [
     { id: 'overview', label: t('teams.tabs.overview'), icon: LayoutGrid },
     { id: 'schedule', label: t('teams.tabs.schedule'), icon: CalendarDays },
     { id: 'responsibles', label: t('teams.tabs.responsibles'), icon: Users },
-    { id: 'notes', label: t('teams.tabs.notes'), icon: StickyNote },
+    { id: 'notes', label: t('teams.tabs.notes'), icon: StickyNote, count: notesCount },
+    { id: 'requests', label: t('teams.tabs.requests'), icon: Inbox, count: requestsCount },
   ];
 
   const notesListSection = (
@@ -215,7 +368,6 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                 hasSeriesTeams={hasSeriesTeams}
                 seriesTeamDisplayLabel={getSeriesTeamDisplayLabel(team, responsible.seriesTeam)}
                 seriesTeamColor={getSeriesTeamColorForName(team, responsible.seriesTeam)}
-                contactDetailsOnSecondRow={!allowRemove}
                 onOpenContact={
                   contact
                     ? () =>
@@ -268,7 +420,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     <>
       <DetailLayout
         sidebar={
-          <div className="space-y-3">
+          <div className="space-y-4">
+            <TeamQuickActionsCard
+              team={team}
+              onEdit={openTeamForEdit}
+              onDeleteClick={() => setShowDelete(true)}
+              onDuplicate={() => setShowDuplicateDialog(true)}
+              getDuplicateConfig={getDuplicateConfig}
+            />
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('teams.view.information')}
@@ -300,21 +459,13 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                     </span>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  className="mt-3 w-full justify-start text-destructive hover:text-destructive"
-                  onClick={() => setShowDelete(true)}
-                >
-                  {t('teams.view.deleteTeam')}
-                </Button>
               </DetailSection>
             </Card>
             <DetailActivityLog
               entityType="team"
               entityId={team.id}
               title={t('teams.activity')}
+              limit={5}
               refreshKey={team.updated_at}
             />
           </div>
@@ -409,22 +560,39 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                   variant="ghost"
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    'h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
+                    'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
                     'flex items-center gap-1.5 sm:gap-2',
                     isActive
-                      ? 'border-primary bg-primary/10 text-primary hover:bg-primary/15'
-                      : 'border-transparent bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
+                      ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
+                      : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
                   )}
                 >
                   <TabIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span>{tab.label}</span>
+                  <span>
+                    {tab.label}
+                    {tab.count != null ? (
+                      <>
+                        {' '}
+                        <span
+                          className={cn(
+                            'tabular-nums font-semibold',
+                            isActive
+                              ? 'text-primary'
+                              : 'text-muted-foreground group-hover:text-primary',
+                          )}
+                        >
+                          ({tab.count})
+                        </span>
+                      </>
+                    ) : null}
+                  </span>
                 </Button>
               );
             })}
           </div>
 
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3">
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection title={t('teams.view.weeklySchedule')} className="p-4">
                   <TrainingSchedule trainingTimes={team.training_times} variant="overview" />
@@ -432,7 +600,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
               </Card>
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection title={t('teams.view.seasonBreaks')} className="p-4">
-                  <SeasonCalendar seasonBreaks={team.season_breaks} />
+                  <SeasonCalendar seasonBreaks={team.season_breaks} omitPast />
                 </DetailSection>
               </Card>
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -443,6 +611,15 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection title={t('teams.tabs.notes')} className="p-4">
                   {notesListSection}
+                </DetailSection>
+              </Card>
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection title={t('teams.tabs.requests')} className="p-4">
+                  <TeamRequestsSection
+                    teamId={team.id}
+                    compact
+                    onOpenRequest={openRequestForView}
+                  />
                 </DetailSection>
               </Card>
             </div>
@@ -478,6 +655,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
               </DetailSection>
             </Card>
           )}
+
+          {activeTab === 'requests' && (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.tabs.requests')} className="p-4">
+                <TeamRequestsSection teamId={team.id} onOpenRequest={openRequestForView} />
+              </DetailSection>
+            </Card>
+          )}
         </div>
       </DetailLayout>
       <ConfirmDialog
@@ -492,6 +677,26 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
         }}
         onCancel={() => setShowDelete(false)}
         variant="danger"
+      />
+      <DuplicateDialog
+        isOpen={showDuplicateDialog}
+        onConfirm={(newName) => {
+          executeDuplicate(team, newName)
+            .then(({ closePanel, highlightId }) => {
+              closePanel();
+              if (highlightId) {
+                setRecentlyDuplicatedTeamId(highlightId);
+              }
+              setShowDuplicateDialog(false);
+            })
+            .catch(() => {
+              setShowDuplicateDialog(false);
+            });
+        }}
+        onCancel={() => setShowDuplicateDialog(false)}
+        defaultName={getDuplicateConfig(team)?.defaultName ?? ''}
+        nameLabel={getDuplicateConfig(team)?.nameLabel ?? t('teams.form.nameLabel')}
+        confirmOnly={Boolean(getDuplicateConfig(team)?.confirmOnly)}
       />
       <ConfirmDialog
         isOpen={pendingRemoveResponsible !== null}

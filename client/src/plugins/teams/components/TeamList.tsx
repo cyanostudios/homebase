@@ -1,4 +1,4 @@
-import { Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
+import { LayoutGrid, Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -79,6 +79,7 @@ export function TeamList() {
     toggleTeamSelected,
     deleteTeams,
     selectedCount,
+    recentlyDuplicatedTeamId,
   } = useTeams();
   const { getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -148,6 +149,16 @@ export function TeamList() {
     }),
     [teams],
   );
+
+  const ageGroupCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: teams.length };
+    for (const team of teams) {
+      if (team.age_group) {
+        counts[team.age_group] = (counts[team.age_group] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [teams]);
 
   const visibleIds = useMemo(() => filtered.map((team) => team.id), [filtered]);
 
@@ -238,6 +249,71 @@ export function TeamList() {
           />
         </div>
 
+        {ageGroups.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setAgeGroupFilter('all')}
+              className={cn(
+                'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
+                'flex items-center gap-1.5 sm:gap-2',
+                ageGroupFilter === 'all'
+                  ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
+                  : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>
+                {t('teams.filterAll')}{' '}
+                <span
+                  className={cn(
+                    'tabular-nums font-semibold',
+                    ageGroupFilter === 'all'
+                      ? 'text-primary'
+                      : 'text-muted-foreground group-hover:text-primary',
+                  )}
+                >
+                  ({ageGroupCounts.all})
+                </span>
+              </span>
+            </Button>
+            {ageGroups.map((group) => {
+              const isActive = ageGroupFilter === group;
+              return (
+                <Button
+                  key={group}
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setAgeGroupFilter(isActive ? 'all' : group)}
+                  className={cn(
+                    'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
+                    'flex items-center gap-1.5 sm:gap-2',
+                    isActive
+                      ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
+                      : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                  )}
+                >
+                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>
+                    {group}{' '}
+                    <span
+                      className={cn(
+                        'tabular-nums font-semibold',
+                        isActive
+                          ? 'text-primary'
+                          : 'text-muted-foreground group-hover:text-primary',
+                      )}
+                    >
+                      ({ageGroupCounts[group] ?? 0})
+                    </span>
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+        )}
+
         {selectedCount > 0 && (
           <BulkActionBar
             selectedCount={selectedCount}
@@ -265,7 +341,7 @@ export function TeamList() {
         />
 
         <Card className="rounded-xl border-0 overflow-visible bg-transparent shadow-none">
-          <div className="mx-1 mt-1 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 dark:bg-slate-950">
+          <div className="mx-1 mt-1 rounded-xl bg-white px-4 py-3 dark:bg-slate-950">
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -275,37 +351,6 @@ export function TeamList() {
                 className="h-8 bg-background pl-9 text-xs"
               />
             </div>
-            {ageGroups.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1">
-                <button
-                  type="button"
-                  className={cn(
-                    'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                    ageGroupFilter === 'all'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  )}
-                  onClick={() => setAgeGroupFilter('all')}
-                >
-                  {t('teams.filterAll')}
-                </button>
-                {ageGroups.map((group) => (
-                  <button
-                    key={group}
-                    type="button"
-                    className={cn(
-                      'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                      ageGroupFilter === group
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                    )}
-                    onClick={() => setAgeGroupFilter(ageGroupFilter === group ? 'all' : group)}
-                  >
-                    {group}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {filtered.length === 0 ? (
@@ -325,6 +370,7 @@ export function TeamList() {
                   key={team.id}
                   team={team}
                   selected={isSelected(team.id)}
+                  highlighted={recentlyDuplicatedTeamId === String(team.id)}
                   onClick={() => attemptNavigation(() => openTeamForView(team))}
                   checkbox={
                     <input

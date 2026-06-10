@@ -5,6 +5,7 @@ import {
   CheckSquare,
   Calculator,
   Files as FilesIcon,
+  Inbox,
   Mail,
   Store,
   Trophy,
@@ -149,6 +150,9 @@ import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 // Teams
 import { TeamsNullProvider } from '@/plugins/teams/context/TeamContext';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
+// Requests
+import { RequestsNullProvider } from '@/plugins/requests/context/RequestContext';
+import { useRequests } from '@/plugins/requests/hooks/useRequests';
 
 // ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
 // These are loaded on-demand: List when navigating to a plugin page,
@@ -167,6 +171,22 @@ const ContactView = React.lazy(() =>
 const ContactsDashboardWidget = React.lazy(() =>
   import('@/plugins/contacts/components/ContactsDashboardWidget').then((m) => ({
     default: m.ContactsDashboardWidget,
+  })),
+);
+
+// Requests
+const RequestList = React.lazy(() =>
+  import('@/plugins/requests/components/RequestList').then((m) => ({ default: m.RequestList })),
+);
+const RequestForm = React.lazy(() =>
+  import('@/plugins/requests/components/RequestForm').then((m) => ({ default: m.RequestForm })),
+);
+const RequestView = React.lazy(() =>
+  import('@/plugins/requests/components/RequestView').then((m) => ({ default: m.RequestView })),
+);
+const RequestsDashboardWidget = React.lazy(() =>
+  import('@/plugins/requests/components/RequestsDashboardWidget').then((m) => ({
+    default: m.RequestsDashboardWidget,
   })),
 );
 
@@ -579,6 +599,30 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentFlush: true,
     slugField: (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
     contentViewKey: 'matchesContentView',
+  },
+  {
+    name: 'requests',
+    Provider: RequestsNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/requests/context/RequestProvider').then((m) => m.RequestProvider),
+    NullProvider: RequestsNullProvider,
+    hook: useRequests,
+    panelKey: 'isRequestPanelOpen',
+    components: {
+      List: RequestList,
+      Form: RequestForm,
+      View: RequestView,
+    },
+    navigation: {
+      category: 'Booking',
+      label: 'Requests',
+      icon: Inbox,
+      order: 0,
+    },
+    dashboardWidget: RequestsDashboardWidget,
+    displayPrefix: 'REQ',
+    contentFlush: true,
+    slugField: 'title',
   },
   {
     name: 'slots',

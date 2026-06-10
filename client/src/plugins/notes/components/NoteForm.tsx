@@ -27,6 +27,10 @@ import { NoteSettingsForm } from './NoteSettingsForm';
 const NOTE_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
+function isEmptyRichText(html: string): boolean {
+  return html.replace(/<[^>]*>/g, '').trim() === '';
+}
+
 interface NoteFormState {
   title: string;
   content: string;
@@ -121,32 +125,22 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     }
   }, [formData, onSave, markClean, currentNote, resetForm, isCurrentlySubmitting]);
 
-  const handleCancel = useCallback(() => {
-    attemptAction(() => {
-      onCancel();
-    });
-  }, [attemptAction, onCancel]);
-
   useImperativeHandle(
     ref,
     () => ({
       submit: () => handleSubmit(),
-      cancel: handleCancel,
+      cancel: () => attemptAction(onCancel),
     }),
-    [handleSubmit, handleCancel],
+    [handleSubmit, attemptAction, onCancel],
   );
 
-  const handleDiscardChanges = () => {
+  const handleDiscardChanges = useCallback(() => {
     if (!currentNote) {
       resetForm();
-      setTimeout(() => {
-        confirmDiscard();
-      }, 0);
-    } else {
-      confirmDiscard();
-      onCancel();
     }
-  };
+    confirmDiscard();
+    onCancel();
+  }, [currentNote, confirmDiscard, onCancel, resetForm]);
 
   const updateField = (field: keyof NoteFormState, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -157,11 +151,14 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
   };
 
   const handleContentChange = (content: string, mentions: any[]) => {
+    // TipTap may normalize '' to '<p></p>' on init — don't treat that as a user edit
+    if (!isEmptyRichText(content) || !isEmptyRichText(formData.content)) {
+      markDirty();
+    }
     setFormData((prev) => ({ ...prev, content, mentions }));
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
-    markDirty();
   };
 
   const getFieldError = (fieldName: string) => {
@@ -171,7 +168,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
   const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
 
   if (panelMode === 'settings') {
-    return <NoteSettingsForm onCancel={onCancel} />;
+    return <NoteSettingsForm ref={ref} onCancel={onCancel} />;
   }
 
   const formSidebar = currentNote ? (

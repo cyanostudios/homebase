@@ -49,7 +49,9 @@
     "removeContactMessage": "Are you sure you want to remove {{name}} from this match?",
     "view": "View",
     "import": "Import",
-    "settings": "Settings"
+    "settings": "Settings",
+    "remove": "Remove",
+    "clearFilters": "Clear filters"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -88,7 +90,9 @@
     "cups": "Cups",
     "cup": "Cup",
     "teams": "Teams",
-    "team": "Team"
+    "team": "Team",
+    "requests": "Requests",
+    "request": "Request"
   },
   "preferences": {
     "title": "Preferences",
@@ -734,6 +738,7 @@
     "nextTraining": "Next training: {{day}} {{time}}",
     "dashboardActive": "{{count}} active",
     "activity": "Activity",
+    "quickActions": "Quick actions",
     "status": {
       "active": "Active",
       "dormant": "Dormant",
@@ -773,7 +778,8 @@
       "overview": "Overview",
       "schedule": "Schedule",
       "responsibles": "Responsibles",
-      "notes": "Notes"
+      "notes": "Notes",
+      "requests": "Requests"
     },
     "view": {
       "information": "Information",
@@ -923,6 +929,107 @@
     "resetSuccess": "Your password has been updated. You can sign in now.",
     "resetFailed": "Could not reset password. The link may have expired.",
     "resetInvalidLink": "Invalid reset link"
+  },
+  "requests": {
+    "listDescription": "{{count}} requests",
+    "addRequest": "Add request",
+    "createRequest": "Create request",
+    "newRequest": "New request",
+    "editRequest": "Edit request",
+    "searchPlaceholder": "Search requests ({{count}})",
+    "filterAll": "All",
+    "noYet": "No requests yet. Add your first request to get started.",
+    "noYetForTeam": "No requests for this team yet.",
+    "noMatchTitle": "No requests found",
+    "noMatch": "Try another filter or search.",
+    "showingCount": "Showing {{shown}} of {{total}} requests",
+    "itemSingular": "request",
+    "itemPlural": "requests",
+    "moreCount": "+{{count}} more",
+    "teamRow": {
+      "submitted": "Submitted",
+      "unknownSubmitter": "Unknown submitter"
+    },
+    "daysAgoToday": "today",
+    "daysAgoSingular": "1 day ago",
+    "daysAgo": "{{count}} days ago",
+    "statNew": "New",
+    "statOpen": "In progress",
+    "statCompleted": "Completed",
+    "statExternal": "External",
+    "statNotRelated": "Not related",
+    "dashboardOpen": "{{count}} open",
+    "dashboardExternal": "{{count}} external",
+    "sourceExternal": "External",
+    "sourceInternal": "Internal",
+    "activity": "Activity",
+    "type": {
+      "general": "General inquiry",
+      "pitch_booking": "Pitch booking",
+      "person_registration": "Person registration",
+      "other": "Other"
+    },
+    "status": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "form": {
+      "details": "Details",
+      "properties": "Properties",
+      "submitter": "Submitter",
+      "assignees": "Assignees",
+      "internalNotes": "Internal notes",
+      "title": "Title",
+      "titlePlaceholder": "Describe the request...",
+      "description": "Description",
+      "descriptionPlaceholder": "Add more details...",
+      "requestType": "Request type",
+      "status": "Status",
+      "priority": "Priority",
+      "team": "Related team",
+      "generalRequest": "General inquiry (no team)",
+      "submitterName": "Name",
+      "submitterNamePlaceholder": "Full name",
+      "submitterEmail": "Email",
+      "submitterEmailPlaceholder": "email@example.com",
+      "linkedContact": "Linked contact",
+      "searchContact": "Search contacts...",
+      "addAssigneePlaceholder": "Search and add assignee...",
+      "internalNotesPlaceholder": "Internal notes (not visible to submitter)...",
+      "attachmentsAfterSave": "Save the request first to upload attachments."
+    },
+    "view": {
+      "information": "Information",
+      "quickActions": "Quick actions",
+      "properties": "Request properties",
+      "status": "Status & Priority",
+      "description": "Description",
+      "submitter": "Submitter",
+      "submittedOn": "Submitted",
+      "phone": "Phone",
+      "linkedContact": "Linked contact",
+      "assignees": "Assignees",
+      "internalNotes": "Internal notes",
+      "id": "ID",
+      "source": "Source",
+      "created": "Created",
+      "team": "Team",
+      "deleteRequest": "Delete request",
+      "deleteConfirm": "Delete \"{{title}}\"? This action cannot be undone.",
+      "openContact": "Open contact: {{name}}"
+    },
+    "settings": {
+      "title": "Requests settings",
+      "typesSection": "Request types",
+      "typesHint": "Manage the types available when creating or filtering requests. Drag to reorder. Built-in types cannot be renamed but can be removed.",
+      "builtIn": "Built-in",
+      "addType": "Add",
+      "addTypePlaceholder": "New type label...",
+      "noTypes": "No types configured.",
+      "confirmRemove": "Remove this type?"
+    }
   },
   "app": {
     "createTaskFromNote": "Create task from note",

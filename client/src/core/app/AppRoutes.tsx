@@ -79,6 +79,11 @@ const PublicTaskView = React.lazy(() =>
     default: m.PublicTaskView,
   })),
 );
+const PublicRequestForm = React.lazy(() =>
+  import('@/plugins/requests/components/PublicRequestForm').then((m) => ({
+    default: m.PublicRequestForm,
+  })),
+);
 
 function PublicTokenRoute({ Component }: { Component: React.ComponentType<{ token: string }> }) {
   const { token } = useParams<{ token: string }>();
@@ -102,6 +107,17 @@ export function AppRoutes() {
       />
       <Route path="/public/note/:token" element={<PublicTokenRoute Component={PublicNoteView} />} />
       <Route path="/public/task/:token" element={<PublicTokenRoute Component={PublicTaskView} />} />
+
+      <Route
+        path="/public/request"
+        element={
+          <React.Suspense fallback={null}>
+            <div className="min-h-screen bg-background">
+              <PublicRequestForm lang="sv" />
+            </div>
+          </React.Suspense>
+        }
+      />
 
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 

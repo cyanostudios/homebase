@@ -49,7 +49,9 @@
     "removeContactMessage": "Är du säker på att du vill ta bort {{name}} från den här matchen?",
     "view": "Visa",
     "import": "Importera",
-    "settings": "Inställningar"
+    "settings": "Inställningar",
+    "remove": "Ta bort",
+    "clearFilters": "Rensa filter"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -88,7 +90,9 @@
     "cups": "Cuper",
     "cup": "Cup",
     "teams": "Lag",
-    "team": "Lag"
+    "team": "Lag",
+    "requests": "Ärenden",
+    "request": "Ärende"
   },
   "preferences": {
     "title": "Inställningar",
@@ -734,6 +738,7 @@
     "nextTraining": "Nästa träning: {{day}} {{time}}",
     "dashboardActive": "{{count}} aktiva",
     "activity": "Aktivitet",
+    "quickActions": "Snabbåtgärder",
     "status": {
       "active": "Aktiv",
       "dormant": "Vilande",
@@ -773,7 +778,8 @@
       "overview": "Översikt",
       "schedule": "Schema",
       "responsibles": "Ansvariga",
-      "notes": "Anteckningar"
+      "notes": "Anteckningar",
+      "requests": "Ärenden"
     },
     "view": {
       "information": "Information",
@@ -923,6 +929,107 @@
     "resetSuccess": "Lösenordet är uppdaterat. Du kan logga in nu.",
     "resetFailed": "Kunde inte återställa lösenordet. Länken kan ha gått ut.",
     "resetInvalidLink": "Ogiltig återställningslänk"
+  },
+  "requests": {
+    "listDescription": "{{count}} ärenden",
+    "addRequest": "Lägg till ärende",
+    "createRequest": "Skapa ärende",
+    "newRequest": "Nytt ärende",
+    "editRequest": "Redigera ärende",
+    "searchPlaceholder": "Sök ärenden ({{count}})",
+    "filterAll": "Alla",
+    "noYet": "Inga ärenden ännu. Lägg till ditt första ärende för att komma igång.",
+    "noYetForTeam": "Inga ärenden för detta lag ännu.",
+    "noMatchTitle": "Inga ärenden hittades",
+    "noMatch": "Prova ett annat filter eller sök.",
+    "showingCount": "Visar {{shown}} av {{total}} ärenden",
+    "itemSingular": "ärende",
+    "itemPlural": "ärenden",
+    "moreCount": "+{{count}} till",
+    "teamRow": {
+      "submitted": "Inskickad",
+      "unknownSubmitter": "Okänd inlämnare"
+    },
+    "daysAgoToday": "idag",
+    "daysAgoSingular": "1 dag sedan",
+    "daysAgo": "{{count}} dagar sedan",
+    "statNew": "Nya",
+    "statOpen": "Pågående",
+    "statCompleted": "Avslutade",
+    "statExternal": "Externa",
+    "statNotRelated": "Ej kopplad",
+    "dashboardOpen": "{{count}} öppna",
+    "dashboardExternal": "{{count}} externa",
+    "sourceExternal": "Externt",
+    "sourceInternal": "Internt",
+    "activity": "Aktivitet",
+    "type": {
+      "general": "Allmän fråga",
+      "pitch_booking": "Planbooking",
+      "person_registration": "Personregistrering",
+      "other": "Övrigt"
+    },
+    "status": {
+      "not_started": "Ej påbörjad",
+      "in_progress": "Pågående",
+      "completed": "Avslutad",
+      "cancelled": "Avbruten"
+    },
+    "form": {
+      "details": "Detaljer",
+      "properties": "Egenskaper",
+      "submitter": "Inlämnare",
+      "assignees": "Tilldelade",
+      "internalNotes": "Interna anteckningar",
+      "title": "Titel",
+      "titlePlaceholder": "Beskriv ärendet...",
+      "description": "Beskrivning",
+      "descriptionPlaceholder": "Lägg till mer information...",
+      "requestType": "Ärendetyp",
+      "status": "Status",
+      "priority": "Prioritet",
+      "team": "Kopplat lag",
+      "generalRequest": "Allmän fråga (inget lag)",
+      "submitterName": "Namn",
+      "submitterNamePlaceholder": "Förnamn Efternamn",
+      "submitterEmail": "E-post",
+      "submitterEmailPlaceholder": "email@exempel.se",
+      "linkedContact": "Kopplad kontakt",
+      "searchContact": "Sök kontakter...",
+      "addAssigneePlaceholder": "Sök och lägg till tilldelad...",
+      "internalNotesPlaceholder": "Interna anteckningar (ej synliga för inlämnaren)...",
+      "attachmentsAfterSave": "Spara ärendet först för att kunna ladda upp bilagor."
+    },
+    "view": {
+      "information": "Information",
+      "quickActions": "Snabbåtgärder",
+      "properties": "Ärendegenskaper",
+      "status": "Status och prioritet",
+      "description": "Beskrivning",
+      "submitter": "Inlämnare",
+      "submittedOn": "Inskickad",
+      "phone": "Telefon",
+      "linkedContact": "Kopplad kontakt",
+      "assignees": "Tilldelade",
+      "internalNotes": "Interna anteckningar",
+      "id": "ID",
+      "source": "Källa",
+      "created": "Skapad",
+      "team": "Lag",
+      "deleteRequest": "Radera ärende",
+      "deleteConfirm": "Radera \"{{title}}\"? Åtgärden kan inte ångras.",
+      "openContact": "Öppna kontakt: {{name}}"
+    },
+    "settings": {
+      "title": "Ärendeinställningar",
+      "typesSection": "Ärendetyper",
+      "typesHint": "Hantera de typer som visas när du skapar eller filtrerar ärenden. Dra för att ändra ordning. Inbyggda typer kan inte döpas om men kan tas bort.",
+      "builtIn": "Inbyggd",
+      "addType": "Lägg till",
+      "addTypePlaceholder": "Ny typnamn...",
+      "noTypes": "Inga typer konfigurerade.",
+      "confirmRemove": "Ta bort denna typ?"
+    }
   },
   "app": {
     "createTaskFromNote": "Skapa uppgift från anteckning",

@@ -108,10 +108,14 @@ export const createPanelHandlers = (
     }
     if (formRef.current) {
       formRef.current.cancel();
-    } else if (isDev && currentPlugin.name !== 'settings') {
-      console.warn(
-        `[panelHandlers] Header Cancel: no form handle registered for plugin "${currentPlugin.name}". See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
-      );
+    } else {
+      // Form may still be loading (lazy/Suspense) — close panel directly
+      handleCancel();
+      if (isDev && currentPlugin.name !== 'settings') {
+        console.warn(
+          `[panelHandlers] Header Cancel: no form handle registered for plugin "${currentPlugin.name}"; closed panel directly. See docs/PLUGIN_RUNTIME_CONVENTIONS.md`,
+        );
+      }
     }
   };
 

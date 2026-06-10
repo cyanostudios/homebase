@@ -34,6 +34,7 @@
     "migrate:contacts-tags": "node scripts/run-contacts-tags-migration.js",
     "migrate:tenant-memberships": "node scripts/run-tenant-memberships-migration.js",
     "migrate:matches": "node scripts/run-matches-migration.js",
+    "migrate:requests": "node scripts/run-requests-migration.js",
     "migrate:teams": "node scripts/run-teams-migration.js",
     "migrate:teams-team-notes": "node scripts/run-teams-team-notes-migration.js",
     "migrate:teams-series-teams": "node scripts/run-teams-series-teams-migration.js",

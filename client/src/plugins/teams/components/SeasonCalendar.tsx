@@ -38,14 +38,25 @@ function daysBetween(startDate: string, endDate: string): number | null {
   return Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
 }
 
-export function SeasonCalendar({ seasonBreaks }: { seasonBreaks: SeasonBreak[] }) {
+export function SeasonCalendar({
+  seasonBreaks,
+  omitPast = false,
+}: {
+  seasonBreaks: SeasonBreak[];
+  /** When true, hide breaks that have already ended. */
+  omitPast?: boolean;
+}) {
   const { t } = useTranslation();
 
-  if (!seasonBreaks.length) {
+  const visibleBreaks = omitPast
+    ? seasonBreaks.filter((sb) => getSeasonBreakTiming(sb.startDate, sb.endDate) !== 'past')
+    : seasonBreaks;
+
+  if (!visibleBreaks.length) {
     return <p className="text-sm text-muted-foreground">{t('teams.view.noBreaks')}</p>;
   }
 
-  const sortedBreaks = sortSeasonBreaks(seasonBreaks);
+  const sortedBreaks = sortSeasonBreaks(visibleBreaks);
 
   return (
     <div className="space-y-2">

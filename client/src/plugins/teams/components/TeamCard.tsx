@@ -40,11 +40,13 @@ export function getNextTraining(team: Team): TrainingTime | null {
 export function TeamCard({
   team,
   selected,
+  highlighted,
   onClick,
   checkbox,
 }: {
   team: Team;
   selected?: boolean;
+  highlighted?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
 }) {
@@ -56,6 +58,7 @@ export function TeamCard({
     <Card
       className={cn(
         'group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border-0 bg-white p-0 shadow-sm transition-all dark:bg-slate-950',
+        highlighted && 'bg-green-50 dark:bg-green-950/30',
         selected
           ? 'bg-plugin-subtle ring-1 border-plugin-subtle'
           : 'hover:border-plugin-subtle hover:shadow-md',

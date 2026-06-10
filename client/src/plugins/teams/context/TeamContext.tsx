@@ -34,6 +34,16 @@ export type TeamsContextType = {
   clearValidationErrors: () => void;
   getDeleteMessage: (item: Team | null) => string;
 
+  getDuplicateConfig: (
+    item: Team | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
+  executeDuplicate: (
+    item: Team,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
+  recentlyDuplicatedTeamId: string | null;
+  setRecentlyDuplicatedTeamId: (id: string | null) => void;
+
   navigateToPrevItem: () => void;
   navigateToNextItem: () => void;
   hasPrevItem: boolean;
@@ -79,6 +89,10 @@ const EMPTY_TEAMS_CONTEXT: TeamsContextType = {
   isSelected: () => false,
   clearValidationErrors: () => {},
   getDeleteMessage: () => '',
+  getDuplicateConfig: () => null,
+  executeDuplicate: async () => ({ closePanel: () => {} }),
+  recentlyDuplicatedTeamId: null,
+  setRecentlyDuplicatedTeamId: () => {},
   navigateToPrevItem: () => {},
   navigateToNextItem: () => {},
   hasPrevItem: false,

@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { resolveSlug } from '@/core/utils/slugUtils';
@@ -25,6 +27,7 @@ export function TeamProvider({
   isAuthenticated: boolean;
   onCloseOtherPanels: () => void;
 }) {
+  const { t } = useTranslation();
   const location = useLocation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/teams');
@@ -37,6 +40,7 @@ export function TeamProvider({
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsContentView, setTeamsContentView] = useState<'list' | 'settings'>('list');
   const [isSaving, setIsSaving] = useState(false);
+  const [recentlyDuplicatedTeamId, setRecentlyDuplicatedTeamId] = useState<string | null>(null);
 
   const {
     selectedIds: selectedTeamIds,
@@ -211,6 +215,35 @@ export function TeamProvider({
     [],
   );
 
+  const createTeamDuplicate = useCallback(async (item: Team, newName: string): Promise<Team> => {
+    const payload: TeamPayload = {
+      name: (newName ?? '').trim() || item.name?.trim() || 'Untitled',
+      age_group: item.age_group,
+      gender: item.gender,
+      player_count: item.player_count,
+      series_team_count: item.series_team_count,
+      series_teams: item.series_teams,
+      status: item.status,
+      status_note: item.status_note,
+      team_notes: item.team_notes,
+      training_times: item.training_times,
+      season_breaks: item.season_breaks,
+      responsibles: item.responsibles,
+      color: item.color,
+    };
+    const created = await teamsApi.createTeam(payload);
+    setTeams((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: Team) => `Copy of ${item.name?.trim() || t('nav.teams')}`,
+    nameLabel: t('teams.form.nameLabel'),
+    confirmOnly: false,
+    createDuplicate: createTeamDuplicate,
+    closePanel: closeTeamPanel,
+  });
+
   const openTeamSettings = useCallback(() => {
     clearTeamSelection();
     setTeamsContentView('settings');
@@ -265,6 +298,10 @@ export function TeamProvider({
     isSelected,
     clearValidationErrors,
     getDeleteMessage,
+    getDuplicateConfig,
+    executeDuplicate,
+    recentlyDuplicatedTeamId,
+    setRecentlyDuplicatedTeamId,
     navigateToPrevItem,
     navigateToNextItem,
     hasPrevItem,
