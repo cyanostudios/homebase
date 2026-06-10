@@ -10,6 +10,7 @@ export const navPageToPath: Record<NavPage, string> = {
   contacts: '/contacts',
   notes: '/notes',
   tasks: '/tasks',
+  teams: '/teams',
   matches: '/matches',
   slots: '/slots',
   cups: '/cups',

@@ -10,7 +10,7 @@ The user wants **local and production kept in sync** until they explicitly say o
 ## Code changes
 
 - Implement once; deploy via merge to `main` (Railway) when they ask to push/deploy.
-- Branch workflow: `homebase-v3.6` for work, merge to `main` for production.
+- Branch workflow: `homebase-v3.7` for work, merge to `main` for production.
 
 ## Database / config / plugin access
 

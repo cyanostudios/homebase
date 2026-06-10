@@ -2,7 +2,7 @@
 
 **Default mode (until you say otherwise):** operational and config changes should apply to **both** local dev and Railway production.
 
-**Code** is already shared via git (`homebase-v3.6` → merge to `main` → Railway deploy).
+**Code** is already shared via git (`homebase-v3.7` → merge to `main` → Railway deploy).
 
 **Data / access** are separate unless you wire them as below.
 

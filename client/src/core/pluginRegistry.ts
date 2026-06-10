@@ -146,6 +146,9 @@ import { useSlotsContext as useSlots } from '@/plugins/slots/context/SlotsContex
 // Tasks
 import { TaskNullProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
+// Teams
+import { TeamsNullProvider } from '@/plugins/teams/context/TeamContext';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
 
 // ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
 // These are loaded on-demand: List when navigating to a plugin page,
@@ -164,6 +167,22 @@ const ContactView = React.lazy(() =>
 const ContactsDashboardWidget = React.lazy(() =>
   import('@/plugins/contacts/components/ContactsDashboardWidget').then((m) => ({
     default: m.ContactsDashboardWidget,
+  })),
+);
+
+// Teams
+const TeamList = React.lazy(() =>
+  import('@/plugins/teams/components/TeamList').then((m) => ({ default: m.TeamList })),
+);
+const TeamForm = React.lazy(() =>
+  import('@/plugins/teams/components/TeamForm').then((m) => ({ default: m.TeamForm })),
+);
+const TeamView = React.lazy(() =>
+  import('@/plugins/teams/components/TeamView').then((m) => ({ default: m.TeamView })),
+);
+const TeamsDashboardWidget = React.lazy(() =>
+  import('@/plugins/teams/components/TeamsDashboardWidget').then((m) => ({
+    default: m.TeamsDashboardWidget,
   })),
 );
 
@@ -511,6 +530,32 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentViewKey: 'filesContentView',
   },
   {
+    name: 'teams',
+    Provider: TeamsNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/teams/context/TeamProvider').then((m) => m.TeamProvider),
+    NullProvider: TeamsNullProvider,
+    hook: useTeams,
+    panelKey: 'isTeamPanelOpen',
+    components: {
+      List: TeamList,
+      Form: TeamForm,
+      View: TeamView,
+    },
+    navigation: {
+      category: 'Sport',
+      label: 'Teams',
+      icon: Users,
+      order: 0,
+    },
+    dashboardWidget: TeamsDashboardWidget,
+    displayPrefix: 'TEAM',
+    contentFlush: true,
+    slugField: 'name',
+    contentViewKey: 'teamsContentView',
+    noPrimaryAction: true,
+  },
+  {
     name: 'matches',
     Provider: MatchNullProvider as React.ComponentType<ProviderProps>,
     providerLoader: () =>
@@ -524,10 +569,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: MatchView,
     },
     navigation: {
-      category: 'Main',
+      category: 'Sport',
       label: 'Matches',
       icon: Trophy,
-      order: 4,
+      order: 1,
     },
     dashboardWidget: MatchesDashboardWidget,
     displayPrefix: 'MAT',
@@ -549,10 +594,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: SlotView,
     },
     navigation: {
-      category: 'Main',
+      category: 'Booking',
       label: 'Slots',
       icon: Store,
-      order: 5,
+      order: 1,
     },
     dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
@@ -575,10 +620,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: CupView,
     },
     navigation: {
-      category: 'Main',
+      category: 'Sport',
       label: 'Cups',
       icon: Trophy,
-      order: 6,
+      order: 2,
     },
     dashboardWidget: CupsDashboardWidget,
     displayPrefix: 'CUP',
