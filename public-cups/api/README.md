@@ -35,7 +35,7 @@ Prioritetsordning för databasanslutning:
 - `CUPS_ALLOWED_ORIGINS` (kommaseparerad lista, t.ex. `https://cupappen.se,https://www.cupappen.se`)
 - `CUPS_CACHE_TTL` (sekunder, default `0` = avstängd)
 - `CUPS_DEBUG_ERRORS` (`1` för detaljerade fel i utveckling, default `0`)
-- `CUPS_PUBLIC_SITE_URL` (valfri, t.ex. `https://cupappen.se` – används av `sitemap.php` för `<loc>`; standard är `https://cupappen.se`)
+- `CUPS_PUBLIC_SITE_URL` (valfri, t.ex. `https://www.cupappen.se` – används av `sitemap.php` för `<loc>`; standard är `https://www.cupappen.se`)
 
 ## Exempel (Apache/Nginx env)
 

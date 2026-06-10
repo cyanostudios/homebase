@@ -10,6 +10,11 @@ if ($uriPath !== '/' && $targetPath !== false && str_starts_with($targetPath, $d
     return false;
 }
 
+if ($uriPath === '/sitemap.xml') {
+    require __DIR__ . '/api/sitemap.php';
+    return true;
+}
+
 if ($uriPath === '/cup' || str_starts_with($uriPath, '/cup/')) {
     // cup.php applies its own security headers.
     require __DIR__ . '/cup.php';

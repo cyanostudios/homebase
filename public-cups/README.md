@@ -58,7 +58,7 @@ Miljövariabler: [`railway.env.example`](railway.env.example). Lokalt: `npm run 
 ## SEO
 
 - **JSON-LD (schema.org `ItemList` + `Event`)** fylls i i [`app.js`](app.js) efter att cupdata laddats (`#cups-json-ld`), med t.ex. `eventStatus`, `image` (om `featured_image_url`), `offers` där anmälnings-URL finns, m.m.
-- **Sitemap index:** `sitemap.xml` pekar mot den **dynamiska** sitemapen `api/sitemap.php` (URL-sats med startsida + en post per cup som `https://cupappen.se/#cup-{id}` med `lastmod` från `updated_at`). **Obligatoriskt** att webbservern kör `api/sitemap.php` med PHP. Bas-URL (utöver `https://cupappen.se` som standard) kan styras med miljövariabeln `CUPS_PUBLIC_SITE_URL` i produktion.
+- **Sitemap:** `/sitemap.xml` serveras dynamiskt via `api/sitemap.php` (urlset med startsida + en post per cup som `https://www.cupappen.se/cup/{slug}-{year}` med `lastmod` från `updated_at`). Använd **www** i Search Console — apex `cupappen.se` redirectar till startsidan via Cloudflare. Bas-URL styrs med `CUPS_PUBLIC_SITE_URL` (standard `https://www.cupappen.se`).
 - Databasanslutning delas av `api/cups.php` och `api/sitemap.php` via `api/pdo_env.php` (`getPdoFromEnv()`).
 
 ## Plattformen (admin)
