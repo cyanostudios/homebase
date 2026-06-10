@@ -189,20 +189,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
 
   return (
     <>
-      <DetailLayout
-        title={item ? t('requests.editRequest') : t('requests.newRequest')}
-        onClose={() => attemptClose()}
-        footer={
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => attemptClose()}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="button" variant="primary" size="sm" onClick={handleSubmit}>
-              {item ? t('common.save') : t('requests.createRequest')}
-            </Button>
-          </div>
-        }
-      >
+      <DetailLayout>
         <div className="space-y-4">
           {generalError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
