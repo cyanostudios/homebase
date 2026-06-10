@@ -9,6 +9,12 @@
 		php_fastcgi 127.0.0.1:9000
 	}
 
+	@sitemap path /sitemap.xml
+	handle @sitemap {
+		rewrite * /api/sitemap.php
+		php_fastcgi 127.0.0.1:9000
+	}
+
 	@cupApi path /api/*
 	handle @cupApi {
 		php_fastcgi 127.0.0.1:9000

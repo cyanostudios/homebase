@@ -8,15 +8,33 @@ require_once __DIR__ . '/security_headers.php';
 
 applyPublicCupsSecurityHeaders('xml');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if ($method !== 'GET' && $method !== 'HEAD') {
     http_response_code(405);
     header('Content-Type: text/plain; charset=utf-8');
     echo 'Method not allowed';
     exit;
 }
+$isHead = $method === 'HEAD';
+if ($isHead) {
+    ob_start();
+}
+
+function finishSitemapResponse(bool $isHead): void
+{
+    if (!$isHead) {
+        return;
+    }
+    $len = ob_get_length();
+    ob_end_clean();
+    if ($len !== false && $len > 0) {
+        header('Content-Length: ' . (string) $len);
+    }
+    exit;
+}
 
 /**
- * Publik bas-URL (utan avslutande snedstreck), t.ex. https://cupappen.se
+ * Publik bas-URL (utan avslutande snedstreck), t.ex. https://www.cupappen.se
  */
 function publicSiteBaseUrl(): string
 {
@@ -26,7 +44,7 @@ function publicSiteBaseUrl(): string
         return $raw;
     }
 
-    return 'https://cupappen.se';
+    return 'https://www.cupappen.se';
 }
 
 /**
@@ -115,6 +133,7 @@ try {
     echo '    <priority>1.0</priority>' . "\n";
     echo '  </url>' . "\n";
     echo '</urlset>';
+    finishSitemapResponse($isHead);
     exit;
 }
 
@@ -144,3 +163,4 @@ foreach ($rows as $row) {
     echo '  </url>' . "\n";
 }
 echo '</urlset>';
+finishSitemapResponse($isHead);

@@ -1,8 +1,8 @@
 User-agent: *
 Allow: /
-# LLM / AI crawler guidance: see https://cupappen.se/llms.txt
+# LLM / AI crawler guidance: see https://www.cupappen.se/llms.txt
 
-Sitemap: https://cupappen.se/sitemap.xml
+Sitemap: https://www.cupappen.se/sitemap.xml
 
 User-agent: GPTBot
 Allow: /

@@ -13,8 +13,8 @@ function h(?string $value): string
 
 function siteBaseUrl(): string
 {
-    $raw = trim((string) (getenv('CUPS_PUBLIC_SITE_URL') ?: 'https://cupappen.se'));
-    return rtrim($raw !== '' ? $raw : 'https://cupappen.se', '/');
+    $raw = trim((string) (getenv('CUPS_PUBLIC_SITE_URL') ?: 'https://www.cupappen.se'));
+    return rtrim($raw !== '' ? $raw : 'https://www.cupappen.se', '/');
 }
 
 /** Absolut bild-/resurslänk för OG/JSON-LD (hanterar /relativa vägar mot site base). */
@@ -340,7 +340,7 @@ if ($pathParts === null) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Sidan hittades inte · Cupappen</title>
-  <link rel="canonical" href="https://cupappen.se/" />
+  <link rel="canonical" href="<?= h(siteBaseUrl() . '/') ?>" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>

@@ -823,7 +823,7 @@ function compareByDate(a, b) {
 }
 
 function publicSiteOrigin() {
-  return typeof window !== 'undefined' ? window.location.origin : 'https://cupappen.se';
+  return typeof window !== 'undefined' ? window.location.origin : 'https://www.cupappen.se';
 }
 
 function cupDetailAbsoluteUrl(cup) {

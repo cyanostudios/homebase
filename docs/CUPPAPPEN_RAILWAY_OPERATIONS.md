@@ -56,7 +56,15 @@ curl -sS https://www.cupappen.se/api/cups.php | head -c 200
 # 3) Ska INTE vara HTML
 curl -sS -o /dev/null -w "%{content_type}\n" https://www.cupappen.se/api/cups.php
 # application/json; charset=utf-8
+
+# 4) Sitemap — ska vara XML (inte HTML / SPA-fallback)
+curl -sS -o /dev/null -w "%{content_type}\n" https://www.cupappen.se/sitemap.xml
+# application/xml; charset=utf-8
+curl -sS https://www.cupappen.se/sitemap.xml | head -3
+# <?xml version="1.0" ...
 ```
+
+**Search Console:** Skicka in `https://www.cupappen.se/sitemap.xml` — **inte** apex `https://cupappen.se/sitemap.xml` (Cloudflare redirectar apex-sökvägar till startsidan).
 
 ### 4. Startloggar (Container)
 
