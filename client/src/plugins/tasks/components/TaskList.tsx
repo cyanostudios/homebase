@@ -43,6 +43,7 @@ import {
 } from '../types/tasks';
 import { getTasksExportConfig } from '../utils/taskExportConfig';
 
+import { TaskCard } from './TaskCard';
 import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
 
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
@@ -615,71 +616,30 @@ export const TaskList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
               {sortedTasks.map((task, index) => {
                 const taskIsSelected = isSelected(task.id);
                 const assignedContacts = getAssignedContacts(task);
                 return (
-                  <Card
+                  <TaskCard
                     key={task.id}
-                    className={cn(
-                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
-                      taskIsSelected
-                        ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
-                        : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
-                      recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
-                    )}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                        return;
-                      }
-                      e.preventDefault();
-                      handleOpenForView(task);
-                    }}
-                    data-list-item={JSON.stringify(task)}
-                    data-plugin-name="tasks"
-                    role="button"
-                    aria-label={`Open task ${task.title}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                    task={task}
+                    selected={taskIsSelected}
+                    highlighted={recentlyDuplicatedTaskId === String(task.id)}
+                    onClick={() => handleOpenForView(task)}
+                    assignedNames={assignedContacts.map((c) => c.companyName)}
+                    checkbox={
                       <input
                         type="checkbox"
                         checked={taskIsSelected}
                         onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
                         onChange={() => onVisibleRowCheckboxChange(task.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer h-4 w-4"
+                        className="h-4 w-4 cursor-pointer"
                         aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
                       />
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Badge className={TASK_STATUS_COLORS[task.status]}>
-                          {formatStatusForDisplay(task.status)}
-                        </Badge>
-                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                          {task.priority}
-                        </Badge>
-                      </div>
-                    </div>
-                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
-                      {task.title}
-                    </h3>
-                    <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
-                      {assignedContacts.length > 0 && (
-                        <div className="plugin-contacts truncate font-medium text-plugin">
-                          Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
-                        </div>
-                      )}
-                      {shouldShowDueDate(task) && (
-                        <div className={formatDueDate(task.dueDate)?.className || ''}>
-                          {formatDueDate(task.dueDate)?.text}
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
-                      <div>Updated: {new Date(task.updatedAt).toLocaleDateString()}</div>
-                      <div>Created: {new Date(task.createdAt).toLocaleDateString()}</div>
-                    </div>
-                  </Card>
+                    }
+                  />
                 );
               })}
             </div>

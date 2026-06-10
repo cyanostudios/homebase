@@ -313,6 +313,10 @@
   "contacts": {
     "searchPlaceholder": "Search {{count}} contacts...",
     "description": "Manage your companies and personal contacts",
+    "type": {
+      "company": "Company",
+      "private": "Private"
+    },
     "stats": {
       "total": "Total",
       "companies": "Companies",

@@ -37,7 +37,6 @@ import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -45,8 +44,10 @@ import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
+import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
 import { contactExportConfig } from '../utils/contactExportConfig';
 
+import { ContactCard } from './ContactCard';
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
 
 type SortField = 'name' | 'type' | 'email' | 'time';
@@ -89,16 +90,10 @@ function ContactAvatar({ contact }: { contact: Contact }) {
 }
 
 function TypeBadge({ type }: { type: 'company' | 'private' }) {
+  const { t } = useTranslation();
   return (
-    <Badge
-      className={cn(
-        'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
-        type === 'company'
-          ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
-          : 'bg-green-50/50 text-green-700 dark:text-green-300 dark:bg-green-950/30',
-      )}
-    >
-      {type === 'company' ? 'Company' : 'Private'}
+    <Badge className={cn(CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS[type])}>
+      {t(`contacts.type.${type}`)}
     </Badge>
   );
 }
@@ -671,7 +666,7 @@ export const ContactList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
               {sortedContacts.map((contact, index) => {
                 const contactIsSelected = isSelected(contact.id);
                 const timeTrackingActiveHere =
@@ -679,96 +674,26 @@ export const ContactList: React.FC = () => {
                   String(contact.id) === activeTimeTrackingContactId;
                 const hasTimeLogged = contactIdsWithTimeEntries.has(contact.id);
                 return (
-                  <Card
+                  <ContactCard
                     key={contact.id}
-                    className={cn(
-                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
-                      contactIsSelected
-                        ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
-                        : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
-                      recentlyDuplicatedContactId === String(contact.id) && HIGHLIGHT_CLASS,
-                    )}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                        return;
-                      }
-                      e.preventDefault();
-                      handleOpenForView(contact);
-                    }}
-                    data-list-item={JSON.stringify(contact)}
-                    data-plugin-name="contacts"
-                    role="button"
-                    aria-label={`Open contact ${contact.companyName}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                    contact={contact}
+                    selected={contactIsSelected}
+                    highlighted={recentlyDuplicatedContactId === String(contact.id)}
+                    onClick={() => handleOpenForView(contact)}
+                    hasTimeLogged={hasTimeLogged}
+                    timeTrackingActive={timeTrackingActiveHere}
+                    checkbox={
                       <input
                         type="checkbox"
                         checked={contactIsSelected}
                         onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
                         onChange={() => onVisibleRowCheckboxChange(contact.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer h-4 w-4"
+                        className="h-4 w-4 cursor-pointer"
                         aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                       />
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <ContactAvatar contact={contact} />
-                        <TypeBadge type={contact.contactType} />
-                        {hasTimeLogged && (
-                          <Badge
-                            variant="outline"
-                            className="h-5 shrink-0 px-1.5 text-[10px] font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50"
-                          >
-                            <Timer className="h-2.5 w-2.5" aria-hidden />
-                            {t('contacts.timeLoggedBadge')}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex min-w-0 items-start gap-2">
-                      <h3 className="line-clamp-1 min-w-0 flex-1 text-base font-semibold leading-snug">
-                        {contact.companyName}
-                      </h3>
-                      {timeTrackingActiveHere && (
-                        <span
-                          className="mt-0.5 inline-flex shrink-0"
-                          title={t('contacts.timeTrackingActive')}
-                        >
-                          <Timer
-                            className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
-                            aria-hidden
-                          />
-                          <span className="sr-only">{t('contacts.timeTrackingActive')}</span>
-                        </span>
-                      )}
-                    </div>
-                    {(contact.organizationNumber || contact.personalNumber) && (
-                      <div className="text-xs text-muted-foreground leading-snug">
-                        {contact.contactType === 'company' && contact.organizationNumber && (
-                          <span>Org: {contact.organizationNumber}</span>
-                        )}
-                        {contact.contactType === 'private' && contact.personalNumber && (
-                          <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                        <span className="truncate">{contact.email}</span>
-                      </div>
-                      {contact.phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                          <span>{contact.phone}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-auto flex flex-col gap-1 text-[10px] text-muted-foreground leading-snug">
-                      <div className="font-mono">{formatDisplayNumber('contacts', contact.id)}</div>
-                      <div>Updated: {new Date(contact.updatedAt).toLocaleDateString()}</div>
-                      <div>Created: {new Date(contact.createdAt).toLocaleDateString()}</div>
-                    </div>
-                  </Card>
+                    }
+                  />
                 );
               })}
             </div>

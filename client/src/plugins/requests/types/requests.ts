@@ -119,6 +119,20 @@ export function formatSubmittedDate(iso: string | undefined): string | null {
   });
 }
 
+/** Grid card avatar background by how many days since submission. */
+export function getRequestAgeAvatarColor(days: number): string {
+  if (days === 0) {
+    return 'bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-800 dark:from-emerald-900/60 dark:to-emerald-950 dark:text-emerald-200';
+  }
+  if (days <= 7) {
+    return 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700 dark:from-slate-800 dark:to-slate-900 dark:text-slate-200';
+  }
+  if (days <= 30) {
+    return 'bg-gradient-to-br from-amber-100 to-amber-200 text-amber-900 dark:from-amber-900/60 dark:to-amber-950 dark:text-amber-200';
+  }
+  return 'bg-gradient-to-br from-red-100 to-red-200 text-red-800 dark:from-red-900/60 dark:to-red-950 dark:text-red-200';
+}
+
 export function getDaysSinceSubmission(iso: string | undefined): number | null {
   const date = parseRequestDate(iso);
   if (!date) {

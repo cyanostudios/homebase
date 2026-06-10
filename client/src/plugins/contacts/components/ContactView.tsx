@@ -55,6 +55,7 @@ import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
+import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
 
 interface ContactViewProps {
   contact: Contact;
@@ -661,10 +662,8 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     <div>
                       <Badge
                         className={cn(
-                          'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
-                          isCompany
-                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
-                            : 'bg-green-50/50 text-green-700 dark:text-green-300 dark:bg-green-950/30',
+                          CONTACT_TYPE_BADGE_CLASS,
+                          CONTACT_TYPE_COLORS[contact.contactType],
                         )}
                       >
                         {isCompany ? 'Company' : 'Private'}

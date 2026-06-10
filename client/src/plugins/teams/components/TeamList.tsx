@@ -13,12 +13,13 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useTeams } from '../hooks/useTeams';
-import { isTeamOnBreak, type TeamStatus } from '../types/teams';
+import { isTeamOnBreak, TEAM_GENDERS, type TeamGender, type TeamStatus } from '../types/teams';
 
 import { TeamCard } from './TeamCard';
 import { TeamsSettingsView } from './TeamsSettingsView';
 
 type StatusFilter = 'all' | TeamStatus;
+type GenderFilter = 'all' | TeamGender;
 
 function StatCard({
   label,
@@ -84,7 +85,7 @@ export function TeamList() {
   const { getSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [search, setSearch] = useState('');
-  const [ageGroupFilter, setAgeGroupFilter] = useState<string>('all');
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [activeSeason, setActiveSeason] = useState<string>('');
@@ -107,22 +108,10 @@ export function TeamList() {
     };
   }, [getSettings, settingsVersion]);
 
-  const ageGroups = useMemo(() => {
-    const groups = new Set<string>();
-    for (const team of teams) {
-      if (team.age_group) {
-        groups.add(team.age_group);
-      }
-    }
-    return Array.from(groups).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }),
-    );
-  }, [teams]);
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return teams.filter((team) => {
-      if (ageGroupFilter !== 'all' && team.age_group !== ageGroupFilter) {
+      if (genderFilter !== 'all' && team.gender !== genderFilter) {
         return false;
       }
       if (statusFilter === 'break') {
@@ -135,11 +124,12 @@ export function TeamList() {
       if (!q) {
         return true;
       }
-      return [team.name, team.age_group]
+      const genderLabel = team.gender ? t(`teams.gender.${team.gender}`) : '';
+      return [team.name, team.age_group, genderLabel]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [teams, search, ageGroupFilter, statusFilter]);
+  }, [teams, search, genderFilter, statusFilter, t]);
 
   const stats = useMemo(
     () => ({
@@ -150,11 +140,11 @@ export function TeamList() {
     [teams],
   );
 
-  const ageGroupCounts = useMemo(() => {
+  const genderCounts = useMemo(() => {
     const counts: Record<string, number> = { all: teams.length };
     for (const team of teams) {
-      if (team.age_group) {
-        counts[team.age_group] = (counts[team.age_group] ?? 0) + 1;
+      if (team.gender) {
+        counts[team.gender] = (counts[team.gender] ?? 0) + 1;
       }
     }
     return counts;
@@ -249,70 +239,66 @@ export function TeamList() {
           />
         </div>
 
-        {ageGroups.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setAgeGroupFilter('all')}
-              className={cn(
-                'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
-                'flex items-center gap-1.5 sm:gap-2',
-                ageGroupFilter === 'all'
-                  ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                  : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>
-                {t('teams.filterAll')}{' '}
-                <span
-                  className={cn(
-                    'tabular-nums font-semibold',
-                    ageGroupFilter === 'all'
-                      ? 'text-primary'
-                      : 'text-muted-foreground group-hover:text-primary',
-                  )}
-                >
-                  ({ageGroupCounts.all})
-                </span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setGenderFilter('all')}
+            className={cn(
+              'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
+              'flex items-center gap-1.5 sm:gap-2',
+              genderFilter === 'all'
+                ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
+                : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
+            )}
+          >
+            <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span>
+              {t('teams.filterAll')}{' '}
+              <span
+                className={cn(
+                  'tabular-nums font-semibold',
+                  genderFilter === 'all'
+                    ? 'text-primary'
+                    : 'text-muted-foreground group-hover:text-primary',
+                )}
+              >
+                ({genderCounts.all})
               </span>
-            </Button>
-            {ageGroups.map((group) => {
-              const isActive = ageGroupFilter === group;
-              return (
-                <Button
-                  key={group}
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setAgeGroupFilter(isActive ? 'all' : group)}
-                  className={cn(
-                    'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
-                    'flex items-center gap-1.5 sm:gap-2',
-                    isActive
-                      ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                      : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
-                  )}
-                >
-                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span>
-                    {group}{' '}
-                    <span
-                      className={cn(
-                        'tabular-nums font-semibold',
-                        isActive
-                          ? 'text-primary'
-                          : 'text-muted-foreground group-hover:text-primary',
-                      )}
-                    >
-                      ({ageGroupCounts[group] ?? 0})
-                    </span>
+            </span>
+          </Button>
+          {TEAM_GENDERS.map((gender) => {
+            const isActive = genderFilter === gender;
+            return (
+              <Button
+                key={gender}
+                type="button"
+                variant="ghost"
+                onClick={() => setGenderFilter(isActive ? 'all' : gender)}
+                className={cn(
+                  'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
+                  'flex items-center gap-1.5 sm:gap-2',
+                  isActive
+                    ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
+                    : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                )}
+              >
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>
+                  {t(`teams.gender.${gender}`)}{' '}
+                  <span
+                    className={cn(
+                      'tabular-nums font-semibold',
+                      isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-primary',
+                    )}
+                  >
+                    ({genderCounts[gender] ?? 0})
                   </span>
-                </Button>
-              );
-            })}
-          </div>
-        )}
+                </span>
+              </Button>
+            );
+          })}
+        </div>
 
         {selectedCount > 0 && (
           <BulkActionBar

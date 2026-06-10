@@ -313,6 +313,10 @@
   "contacts": {
     "searchPlaceholder": "Sök {{count}} kontakter...",
     "description": "Hantera dina företag och personliga kontakter",
+    "type": {
+      "company": "Företag",
+      "private": "Privat"
+    },
     "stats": {
       "total": "Totalt",
       "companies": "Företag",

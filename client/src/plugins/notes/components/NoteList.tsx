@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import { useNotes } from '../hooks/useNotes';
 import { notesExportConfig } from '../utils/noteExportConfig';
 
+import { NoteCard } from './NoteCard';
 import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsView';
 
 const NOTES_SETTINGS_KEY = 'notes';
@@ -529,32 +530,17 @@ export const NoteList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
               {sortedNotes.map((note, index) => {
                 const noteIsSelected = isSelected(note.id);
                 return (
-                  <Card
+                  <NoteCard
                     key={note.id}
-                    className={cn(
-                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
-                      noteIsSelected
-                        ? 'plugin-notes border-plugin-subtle bg-plugin-subtle ring-1 ring-plugin-subtle/50'
-                        : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md',
-                      recentlyDuplicatedNoteId === String(note.id) && HIGHLIGHT_CLASS,
-                    )}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                        return;
-                      }
-                      e.preventDefault();
-                      handleOpenForView(note);
-                    }}
-                    data-list-item={JSON.stringify(note)}
-                    data-plugin-name="notes"
-                    role="button"
-                    aria-label={`Open note ${note.title}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                    note={note}
+                    selected={noteIsSelected}
+                    highlighted={recentlyDuplicatedNoteId === String(note.id)}
+                    onClick={() => handleOpenForView(note)}
+                    checkbox={
                       <input
                         type="checkbox"
                         checked={noteIsSelected}
@@ -566,35 +552,8 @@ export const NoteList: React.FC = () => {
                           noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
                         }
                       />
-                      <span className="text-[10px] text-muted-foreground">
-                        {note.mentions?.length ?? 0} {String(t('notes.mentions')).toLowerCase()}
-                      </span>
-                    </div>
-                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
-                      {note.title}
-                    </h3>
-                    <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs text-muted-foreground">
-                      <p className="line-clamp-3">{truncateContent(note.content, 150)}</p>
-                      <div className="text-[10px]">
-                        {note.mentions && note.mentions.length > 0 ? (
-                          <span className="font-medium plugin-contacts text-plugin">
-                            @{note.mentions[0].contactName}
-                            {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
-                          </span>
-                        ) : (
-                          <span>{t('notes.noMentions')}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
-                      <div>
-                        {t('common.updated')}: {new Date(note.updatedAt).toLocaleDateString()}
-                      </div>
-                      <div>
-                        {t('slots.created')}: {new Date(note.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </Card>
+                    }
+                  />
                 );
               })}
             </div>
