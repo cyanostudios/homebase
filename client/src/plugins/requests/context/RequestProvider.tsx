@@ -170,6 +170,21 @@ export function RequestProvider({
     }
   }, [location.pathname, requests]);
 
+  const createRequest = useCallback(
+    async (data: RequestPayload): Promise<Request> => {
+      const created = await requestsApi.createRequest({
+        request_type: requestTypes[0] ?? DEFAULT_REQUEST_TYPES[0],
+        status: 'not started',
+        priority: 'Medium',
+        source: 'internal',
+        ...data,
+      });
+      setRequests((prev) => [created, ...prev]);
+      return created;
+    },
+    [requestTypes],
+  );
+
   const saveRequest = useCallback(
     async (data: RequestPayload, requestId?: string): Promise<boolean> => {
       if (!String(data?.title || '').trim()) {
@@ -275,6 +290,7 @@ export function RequestProvider({
     closeRequestSettingsView,
     closeRequestPanel,
     saveRequest,
+    createRequest,
     deleteRequest,
     deleteRequests,
     selectedRequestIds,

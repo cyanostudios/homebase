@@ -42,7 +42,7 @@ import {
   createTeamNoteId,
   formatSeriesTeamLabel,
   getDisplaySeriesTeams,
-  getOngoingSeasonBreak,
+  getOngoingSeasonBreaks,
   getSeriesTeamColorForName,
   getSeriesTeamDisplayLabel,
   getSeriesTeamOptions,
@@ -233,8 +233,8 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     () => (team ? getDisplaySeriesTeams(team.series_teams ?? [], team.series_team_count) : []),
     [team],
   );
-  const ongoingSeasonBreak = useMemo(
-    () => (team ? getOngoingSeasonBreak(team.season_breaks ?? []) : null),
+  const ongoingSeasonBreaks = useMemo(
+    () => (team ? getOngoingSeasonBreaks(team.season_breaks ?? []) : []),
     [team],
   );
   const responsiblesEmailRecipients = useMemo((): BulkEmailRecipient[] => {
@@ -512,14 +512,20 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                 >
                   {t(`teams.status.${team.status}`)}
                 </span>
-                {team.status === 'active' && ongoingSeasonBreak ? (
-                  <span
-                    className={SEASON_BREAK_HEADER_BADGE_CLASS}
-                    title={ongoingSeasonBreak.name || t('teams.view.seasonBreakActive')}
-                  >
-                    {ongoingSeasonBreak.name || t('teams.view.seasonBreakActive')}
-                  </span>
-                ) : null}
+                {team.status === 'active'
+                  ? ongoingSeasonBreaks.map((seasonBreak, index) => {
+                      const label = seasonBreak.name || t('teams.view.seasonBreakActive');
+                      return (
+                        <span
+                          key={`${seasonBreak.startDate}-${seasonBreak.endDate}-${index}`}
+                          className={SEASON_BREAK_HEADER_BADGE_CLASS}
+                          title={label}
+                        >
+                          {label}
+                        </span>
+                      );
+                    })
+                  : null}
               </div>
             </div>
             <div

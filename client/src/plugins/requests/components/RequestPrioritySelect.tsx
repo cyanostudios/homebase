@@ -22,23 +22,32 @@ interface RequestPrioritySelectProps {
   request: Request;
   onPriorityChange: (priority: RequestPriority) => void;
   hideInlineLabel?: boolean;
+  /** Smaller trigger for inline lists (e.g. team requests tab). */
+  compact?: boolean;
 }
 
 export function RequestPrioritySelect({
   request,
   onPriorityChange,
   hideInlineLabel = false,
+  compact = false,
 }: RequestPrioritySelectProps) {
   const { t } = useTranslation();
 
   const selectEl = (
     <Select value={request.priority} onValueChange={(v) => onPriorityChange(v as RequestPriority)}>
-      <SelectTrigger className="h-9 w-[180px] rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50">
+      <SelectTrigger
+        className={cn(
+          'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
+          compact ? 'h-7 w-[100px]' : 'h-9 w-[180px]',
+        )}
+      >
         <SelectValue placeholder="Select priority">
           <Badge
             variant="outline"
             className={cn(
-              'flex h-5 items-center border-transparent px-2 text-xs font-medium',
+              'flex items-center border-transparent px-2 font-medium',
+              compact ? 'h-5 text-[10px]' : 'h-5 text-xs',
               REQUEST_PRIORITY_COLORS[request.priority],
             )}
           >

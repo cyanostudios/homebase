@@ -2,18 +2,14 @@ import { ChevronRight, Inbox, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { requestsApi } from '../api/requestsApi';
-import type { Request, RequestStatus } from '../types/requests';
-import {
-  REQUEST_PRIORITY_COLORS,
-  formatSubmittedDateWithAge,
-  getTypeLabel,
-} from '../types/requests';
+import type { Request, RequestPriority, RequestStatus } from '../types/requests';
+import { formatSubmittedDateWithAge, getTypeLabel } from '../types/requests';
 
+import { RequestPrioritySelect } from './RequestPrioritySelect';
 import { RequestStatusSelect } from './RequestStatusSelect';
 
 function getSubmitterDisplay(request: Request, t: (key: string) => string): string {
@@ -80,6 +76,28 @@ export function TeamRequestsSection({
       );
     }
   }, []);
+
+  const handlePriorityChange = useCallback(
+    async (request: Request, newPriority: RequestPriority) => {
+      const previousPriority = request.priority;
+      setRequests((prev) =>
+        prev.map((r) => (r.id === request.id ? { ...r, priority: newPriority } : r)),
+      );
+      try {
+        const updated = await requestsApi.updateRequest(request.id, {
+          title: request.title,
+          priority: newPriority,
+        });
+        setRequests((prev) => prev.map((r) => (r.id === request.id ? updated : r)));
+      } catch (error) {
+        console.error('Failed to update request priority:', error);
+        setRequests((prev) =>
+          prev.map((r) => (r.id === request.id ? { ...r, priority: previousPriority } : r)),
+        );
+      }
+    },
+    [],
+  );
 
   const displayRequests = compact ? requests.slice(0, 5) : requests;
 
@@ -149,15 +167,12 @@ export function TeamRequestsSection({
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
             >
-              <Badge
-                variant="outline"
-                className={cn(
-                  'h-5 border-transparent px-2 text-[10px] font-medium',
-                  REQUEST_PRIORITY_COLORS[request.priority],
-                )}
-              >
-                {request.priority}
-              </Badge>
+              <RequestPrioritySelect
+                request={request}
+                onPriorityChange={(priority) => void handlePriorityChange(request, priority)}
+                hideInlineLabel
+                compact
+              />
               <RequestStatusSelect
                 request={request}
                 onStatusChange={(status) => void handleStatusChange(request, status)}

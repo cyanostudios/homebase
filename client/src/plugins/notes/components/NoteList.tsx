@@ -37,6 +37,7 @@ import { useNotes } from '../hooks/useNotes';
 import { notesExportConfig } from '../utils/noteExportConfig';
 
 import { NoteCard } from './NoteCard';
+import { NoteQuickAdd } from './NoteQuickAdd';
 import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsView';
 
 const NOTES_SETTINGS_KEY = 'notes';
@@ -124,7 +125,9 @@ export const NoteList: React.FC = () => {
     selectedCount,
     isSelected,
     recentlyDuplicatedNoteId,
+    setRecentlyDuplicatedNoteId,
     openNotePanel,
+    createNote,
   } = useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
@@ -333,6 +336,14 @@ export const NoteList: React.FC = () => {
       openNoteForView(note);
     });
   };
+
+  const handleQuickCreate = useCallback(
+    async (title: string) => {
+      const note = await createNote({ title, content: '' });
+      setRecentlyDuplicatedNoteId(String(note.id));
+    },
+    [createNote, setRecentlyDuplicatedNoteId],
+  );
 
   const truncateContent = (content: string, maxLength: number = 100) => {
     const plain = stripHtml(content);
@@ -556,6 +567,11 @@ export const NoteList: React.FC = () => {
                   />
                 );
               })}
+              <NoteQuickAdd
+                viewMode="grid"
+                onCreate={handleQuickCreate}
+                className="col-span-full"
+              />
             </div>
           ) : (
             <Card className="shadow-none">
@@ -685,8 +701,16 @@ export const NoteList: React.FC = () => {
                   })}
                 </TableBody>
               </Table>
+              <NoteQuickAdd viewMode="list" onCreate={handleQuickCreate} />
             </Card>
           )}
+
+          {sortedNotes.length === 0 ? (
+            <div className="px-1 pt-3">
+              <NoteQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
+            </div>
+          ) : null}
+
           <div
             className={cn(
               'px-4 py-2 text-xs text-muted-foreground',

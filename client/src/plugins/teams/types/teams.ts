@@ -347,14 +347,16 @@ export function getSeasonBreakTiming(startDate: string, endDate: string): Season
   return 'upcoming';
 }
 
+/** All season breaks that include today. */
+export function getOngoingSeasonBreaks(seasonBreaks: SeasonBreak[]): SeasonBreak[] {
+  return seasonBreaks.filter(
+    (seasonBreak) => getSeasonBreakTiming(seasonBreak.startDate, seasonBreak.endDate) === 'ongoing',
+  );
+}
+
 /** First season break that includes today, if any. */
 export function getOngoingSeasonBreak(seasonBreaks: SeasonBreak[]): SeasonBreak | null {
-  for (const seasonBreak of seasonBreaks) {
-    if (getSeasonBreakTiming(seasonBreak.startDate, seasonBreak.endDate) === 'ongoing') {
-      return seasonBreak;
-    }
-  }
-  return null;
+  return getOngoingSeasonBreaks(seasonBreaks)[0] ?? null;
 }
 
 /** Status break or an ongoing season break by calendar date. */
@@ -365,7 +367,7 @@ export function isTeamOnBreak(team: {
   if (team.status === 'break') {
     return true;
   }
-  return getOngoingSeasonBreak(team.season_breaks ?? []) !== null;
+  return getOngoingSeasonBreaks(team.season_breaks ?? []).length > 0;
 }
 
 /** Row styles for season breaks by timing. */

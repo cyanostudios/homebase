@@ -23,6 +23,7 @@ export type RequestsContextType = {
   closeRequestSettingsView: () => void;
   closeRequestPanel: () => void;
   saveRequest: (data: RequestPayload, requestId?: string) => Promise<boolean>;
+  createRequest: (data: RequestPayload) => Promise<Request>;
   deleteRequest: (id: string) => Promise<void>;
   deleteRequests: (ids: string[]) => Promise<void>;
 
@@ -73,6 +74,7 @@ const EMPTY_REQUESTS_CONTEXT: RequestsContextType = {
   closeRequestSettingsView: () => {},
   closeRequestPanel: () => {},
   saveRequest: async () => false,
+  createRequest: async () => ({}) as Request,
   deleteRequest: async () => {},
   deleteRequests: async () => {},
   selectedRequestIds: [],

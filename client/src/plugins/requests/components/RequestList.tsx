@@ -12,7 +12,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +45,10 @@ import {
 import type { Request, RequestStatus } from '../types/requests';
 
 import { RequestCard } from './RequestCard';
+import { RequestQuickAdd } from './RequestQuickAdd';
 import { RequestsSettingsView } from './RequestsSettingsView';
+
+const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 
 type StatusFilter = 'all' | RequestStatus;
 type TypeFilter = 'all' | string;
@@ -124,6 +127,7 @@ export function RequestList() {
     toggleRequestSelected,
     deleteRequests,
     selectedCount,
+    createRequest,
   } = useRequests();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [search, setSearch] = useState('');
@@ -134,6 +138,7 @@ export function RequestList() {
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [recentlyQuickAddedId, setRecentlyQuickAddedId] = useState<string | null>(null);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   const teamById = useMemo(() => {
@@ -254,6 +259,14 @@ export function RequestList() {
   const handleOpenForView = (request: Request) => {
     attemptNavigation(() => openRequestForView(request));
   };
+
+  const handleQuickCreate = useCallback(
+    async (title: string) => {
+      const request = await createRequest({ title });
+      setRecentlyQuickAddedId(String(request.id));
+    },
+    [createRequest],
+  );
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -543,6 +556,7 @@ export function RequestList() {
                   key={request.id}
                   request={request}
                   selected={isSelected(request.id)}
+                  highlighted={recentlyQuickAddedId === String(request.id)}
                   teamName={request.teamId ? teamById.get(request.teamId) || null : null}
                   onClick={() => handleOpenForView(request)}
                   checkbox={
@@ -558,6 +572,11 @@ export function RequestList() {
                   }
                 />
               ))}
+              <RequestQuickAdd
+                viewMode="grid"
+                onCreate={handleQuickCreate}
+                className="col-span-full"
+              />
             </div>
           ) : (
             <Card className="border-0 shadow-none">
@@ -659,6 +678,7 @@ export function RequestList() {
                         className={cn(
                           'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
                           requestIsSelected && 'bg-plugin-subtle',
+                          recentlyQuickAddedId === String(request.id) && HIGHLIGHT_CLASS,
                         )}
                         tabIndex={0}
                         data-list-item={JSON.stringify(request)}
@@ -725,8 +745,16 @@ export function RequestList() {
                   })}
                 </TableBody>
               </Table>
+              <RequestQuickAdd viewMode="list" onCreate={handleQuickCreate} />
             </Card>
           )}
+
+          {sorted.length === 0 ? (
+            <div className="px-1 pt-3">
+              <RequestQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
+            </div>
+          ) : null}
+
           <div
             className={cn(
               'px-4 py-2 text-xs text-muted-foreground',

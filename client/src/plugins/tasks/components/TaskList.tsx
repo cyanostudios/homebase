@@ -44,6 +44,7 @@ import {
 import { getTasksExportConfig } from '../utils/taskExportConfig';
 
 import { TaskCard } from './TaskCard';
+import { TaskQuickAdd } from './TaskQuickAdd';
 import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
 
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
@@ -123,6 +124,8 @@ export const TaskList: React.FC = () => {
     selectedCount,
     isSelected,
     recentlyDuplicatedTaskId,
+    setRecentlyDuplicatedTaskId,
+    createTask,
   } = useTasks();
   const { contacts, getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -434,6 +437,14 @@ export const TaskList: React.FC = () => {
     attemptNavigation(() => openTaskForView(task));
   };
 
+  const handleQuickCreate = useCallback(
+    async (title: string) => {
+      const task = await createTask({ title, content: '' });
+      setRecentlyDuplicatedTaskId(String(task.id));
+    },
+    [createTask, setRecentlyDuplicatedTaskId],
+  );
+
   if (tasksContentView === 'settings') {
     return (
       <div className="plugin-tasks min-h-full bg-background">
@@ -642,6 +653,11 @@ export const TaskList: React.FC = () => {
                   />
                 );
               })}
+              <TaskQuickAdd
+                viewMode="grid"
+                onCreate={handleQuickCreate}
+                className="col-span-full"
+              />
             </div>
           ) : isMobile ? (
             <Card className="border-0 shadow-none">
@@ -711,6 +727,7 @@ export const TaskList: React.FC = () => {
                   );
                 })}
               </div>
+              <TaskQuickAdd viewMode="list" onCreate={handleQuickCreate} />
             </Card>
           ) : (
             <Card className="border-0 shadow-none">
@@ -875,8 +892,16 @@ export const TaskList: React.FC = () => {
                   })}
                 </TableBody>
               </Table>
+              <TaskQuickAdd viewMode="list" onCreate={handleQuickCreate} />
             </Card>
           )}
+
+          {sortedTasks.length === 0 ? (
+            <div className="px-1 pt-3">
+              <TaskQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
+            </div>
+          ) : null}
+
           <div
             className={cn(
               'px-4 py-2 text-xs text-muted-foreground',
