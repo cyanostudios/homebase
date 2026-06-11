@@ -92,7 +92,9 @@
     "teams": "Lag",
     "team": "Lag",
     "requests": "Ärenden",
-    "request": "Ärende"
+    "request": "Ärende",
+    "schedule": "Schema",
+    "schedules": "Scheman"
   },
   "preferences": {
     "title": "Inställningar",
@@ -1036,6 +1038,65 @@
       "addTypePlaceholder": "Ny typnamn...",
       "noTypes": "Inga typer konfigurerade.",
       "confirmRemove": "Ta bort denna typ?"
+    }
+  },
+  "schedule": {
+    "title": "Schema",
+    "listDescription": "Överblick över alla lags träningstider i verksamheten.",
+    "addCalendar": "Lägg till kalender",
+    "editCalendar": "Redigera kalender",
+    "searchPlaceholder": "Sök kalendrar ({{count}})",
+    "filterAll": "Alla",
+    "filterTeams": "Lagkalender",
+    "filterCustom": "Egna",
+    "noMatchTitle": "Inga kalendrar hittades",
+    "noMatch": "Prova ett annat filter eller en annan sökning.",
+    "noYet": "Inga egna kalendrar ännu. Skapa t.ex. en sommar- eller vinterkalender.",
+    "noYetWithTeams": "Lagkalendern skapas automatiskt när du öppnar Schema. Du kan även skapa egna kalendrar.",
+    "showingCount": "Visar {{shown}} av {{total}} kalendrar",
+    "gridView": "Rutnätsvy",
+    "listView": "Listvy",
+    "name": "Namn",
+    "namePlaceholder": "t.ex. Sommarkalender",
+    "type": "Typ",
+    "events": "Händelser",
+    "eventCount": "{{count}} händelser",
+    "teamTrainingsLabel": "Lagets träningstider",
+    "teamsCalendar": "Lagkalender",
+    "teamsCalendarBadge": "Lag",
+    "teamsCalendarReadOnly": "Denna kalender hämtas från lagens träningstider och kan inte redigeras eller raderas.",
+    "customCalendarBadge": "Egen",
+    "weeklySchedule": "Veckoschema",
+    "dateEvents": "Datumhändelser",
+    "noDateEvents": "Inga datumhändelser ännu.",
+    "addEvent": "Lägg till händelse",
+    "information": "Information",
+    "quickActions": "Snabbåtgärder",
+    "deleteCalendarTitle": "Radera kalender",
+    "deleteCalendarDescription": "Radera \"{{name}}\"? Alla händelser i kalendern raderas också.",
+    "deleteEventTitle": "Radera händelse",
+    "deleteEventDescription": "Radera \"{{title}}\"?",
+    "tabs": {
+      "overview": "Översikt",
+      "events": "Händelser"
+    },
+    "form": {
+      "details": "Kalenderdetaljer",
+      "colorLabel": "Färg"
+    },
+    "event": {
+      "title": "Titel",
+      "titlePlaceholder": "t.ex. Lagmöte",
+      "type": "Typ",
+      "recurring": "Veckovis",
+      "dateBased": "Specifikt datum",
+      "day": "Dag",
+      "date": "Datum",
+      "startTime": "Start",
+      "endTime": "Slut",
+      "location": "Plats",
+      "locationPlaceholder": "Valfritt",
+      "add": "Lägg till händelse"
     }
   },
   "app": {

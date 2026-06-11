@@ -10,6 +10,7 @@ import {
   Store,
   Trophy,
   Download,
+  CalendarDays,
 } from 'lucide-react';
 import React from 'react';
 
@@ -153,6 +154,9 @@ import { useTeams } from '@/plugins/teams/hooks/useTeams';
 // Requests
 import { RequestsNullProvider } from '@/plugins/requests/context/RequestContext';
 import { useRequests } from '@/plugins/requests/hooks/useRequests';
+// Schedule
+import { ScheduleNullProvider } from '@/plugins/schedule/context/ScheduleContext';
+import { useSchedule } from '@/plugins/schedule/hooks/useSchedule';
 
 // ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
 // These are loaded on-demand: List when navigating to a plugin page,
@@ -204,6 +208,11 @@ const TeamsDashboardWidget = React.lazy(() =>
   import('@/plugins/teams/components/TeamsDashboardWidget').then((m) => ({
     default: m.TeamsDashboardWidget,
   })),
+);
+
+// Schedule
+const ScheduleList = React.lazy(() =>
+  import('@/plugins/schedule/components/ScheduleList').then((m) => ({ default: m.ScheduleList })),
 );
 
 // Cups
@@ -573,6 +582,24 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentFlush: true,
     slugField: 'name',
     contentViewKey: 'teamsContentView',
+    noPrimaryAction: true,
+  },
+  {
+    name: 'schedule',
+    Provider: ScheduleNullProvider as React.ComponentType<ProviderProps>,
+    NullProvider: ScheduleNullProvider,
+    hook: useSchedule,
+    panelKey: 'isSchedulePanelOpen',
+    components: {
+      List: ScheduleList,
+    },
+    navigation: {
+      category: 'Sport',
+      label: 'Schedule',
+      icon: CalendarDays,
+      order: 1,
+    },
+    contentFlush: true,
     noPrimaryAction: true,
   },
   {

@@ -92,7 +92,9 @@
     "teams": "Teams",
     "team": "Team",
     "requests": "Requests",
-    "request": "Request"
+    "request": "Request",
+    "schedule": "Schedule",
+    "schedules": "Schedules"
   },
   "preferences": {
     "title": "Preferences",
@@ -1036,6 +1038,65 @@
       "addTypePlaceholder": "New type label...",
       "noTypes": "No types configured.",
       "confirmRemove": "Remove this type?"
+    }
+  },
+  "schedule": {
+    "title": "Schedule",
+    "listDescription": "Overview of all team training times across the organization.",
+    "addCalendar": "Add calendar",
+    "editCalendar": "Edit calendar",
+    "searchPlaceholder": "Search calendars ({{count}})",
+    "filterAll": "All",
+    "filterTeams": "Teams calendar",
+    "filterCustom": "Custom",
+    "noMatchTitle": "No calendars found",
+    "noMatch": "Try another filter or search.",
+    "noYet": "No custom calendars yet. Create a summer or winter calendar to get started.",
+    "noYetWithTeams": "The teams calendar appears automatically when you open Schedule. You can also create your own calendars.",
+    "showingCount": "Showing {{shown}} of {{total}} calendars",
+    "gridView": "Grid view",
+    "listView": "List view",
+    "name": "Name",
+    "namePlaceholder": "e.g. Summer calendar",
+    "type": "Type",
+    "events": "Events",
+    "eventCount": "{{count}} events",
+    "teamTrainingsLabel": "Team training times",
+    "teamsCalendar": "Teams calendar",
+    "teamsCalendarBadge": "Teams",
+    "teamsCalendarReadOnly": "This calendar is synced from team training times and cannot be edited or deleted.",
+    "customCalendarBadge": "Custom",
+    "weeklySchedule": "Weekly schedule",
+    "dateEvents": "Date events",
+    "noDateEvents": "No date events yet.",
+    "addEvent": "Add event",
+    "information": "Information",
+    "quickActions": "Quick actions",
+    "deleteCalendarTitle": "Delete calendar",
+    "deleteCalendarDescription": "Delete \"{{name}}\"? All events in this calendar will also be deleted.",
+    "deleteEventTitle": "Delete event",
+    "deleteEventDescription": "Delete \"{{title}}\"?",
+    "tabs": {
+      "overview": "Overview",
+      "events": "Events"
+    },
+    "form": {
+      "details": "Calendar details",
+      "colorLabel": "Color"
+    },
+    "event": {
+      "title": "Title",
+      "titlePlaceholder": "e.g. Team meeting",
+      "type": "Type",
+      "recurring": "Weekly",
+      "dateBased": "Specific date",
+      "day": "Day",
+      "date": "Date",
+      "startTime": "Start",
+      "endTime": "End",
+      "location": "Location",
+      "locationPlaceholder": "Optional",
+      "add": "Add event"
     }
   },
   "app": {

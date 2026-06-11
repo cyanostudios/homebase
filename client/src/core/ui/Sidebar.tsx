@@ -26,6 +26,7 @@ export type NavPage =
   | 'tasks'
   | 'requests'
   | 'teams'
+  | 'schedule'
   | 'matches'
   | 'slots'
   | 'cups'
