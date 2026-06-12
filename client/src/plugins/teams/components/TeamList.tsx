@@ -1,4 +1,4 @@
-import { LayoutGrid, Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
+import { BarChart2, LayoutGrid, Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +17,7 @@ import { isTeamOnBreak, TEAM_GENDERS, type TeamGender, type TeamStatus } from '.
 
 import { TeamCard } from './TeamCard';
 import { TeamsSettingsView } from './TeamsSettingsView';
+import { TeamsStatisticsView } from './TeamsStatisticsView';
 
 type StatusFilter = 'all' | TeamStatus;
 type GenderFilter = 'all' | TeamGender;
@@ -72,6 +73,8 @@ export function TeamList() {
     openTeamPanel,
     openTeamSettings,
     closeTeamSettingsView,
+    openTeamStatistics,
+    closeTeamStatisticsView,
     openTeamForView,
     selectedTeamIds,
     mergeIntoTeamSelection,
@@ -182,6 +185,29 @@ export function TeamList() {
     );
   }
 
+  if (teamsContentView === 'statistics') {
+    return (
+      <div className="plugin-teams min-h-full bg-background">
+        <div className="px-6 py-4">
+          <TeamsStatisticsView
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeTeamStatisticsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="plugin-teams min-h-full bg-background px-6 py-4">
       <div className="space-y-4">
@@ -202,6 +228,16 @@ export function TeamList() {
               title={t('common.settings')}
             >
               {t('common.settings')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={BarChart2}
+              className="h-9 px-2.5 text-xs"
+              onClick={openTeamStatistics}
+              title={t('common.statistics')}
+            >
+              {t('common.statistics')}
             </Button>
             <Button
               variant="primary"

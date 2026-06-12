@@ -4,8 +4,17 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 
-import type { TrainingTime } from '../types/teams';
-import { WEEK_DAYS } from '../types/teams';
+import type { TeamColor, TrainingTime } from '../types/teams';
+import { SERIES_TEAM_ROW_STYLES, WEEK_DAYS } from '../types/teams';
+
+function getTrainingSlotClassName(teamColor?: TeamColor) {
+  const colorStyles = teamColor ? SERIES_TEAM_ROW_STYLES[teamColor] : null;
+
+  return cn(
+    'flex w-full flex-col items-center gap-0.5 rounded-md border px-1.5 py-1.5',
+    colorStyles ?? 'border-plugin-subtle/60 bg-background/80 text-foreground',
+  );
+}
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -18,9 +27,6 @@ function getTrainingsForDay(trainingTimes: TrainingTime[], day: string): Trainin
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 }
 
-const TRAINING_SLOT_CLASS =
-  'flex w-full flex-col items-center gap-0.5 rounded-md border border-plugin-subtle/60 bg-background/80 px-1.5 py-1.5';
-
 function TrainingTimeBlock({ training }: { training: TrainingTime }) {
   const timeLabel = training.endTime
     ? `${training.startTime}–${training.endTime}`
@@ -28,11 +34,9 @@ function TrainingTimeBlock({ training }: { training: TrainingTime }) {
 
   return (
     <div className="flex w-full min-w-0 flex-col items-center gap-0.5">
-      <span className="truncate text-xs font-semibold leading-tight text-foreground">
-        {timeLabel}
-      </span>
+      <span className="truncate text-xs font-semibold leading-tight">{timeLabel}</span>
       {training.location ? (
-        <span className="inline-flex max-w-full items-center gap-0.5 text-[10px] leading-tight text-muted-foreground">
+        <span className="inline-flex max-w-full items-center gap-0.5 text-[10px] leading-tight opacity-75">
           <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
           <span className="truncate">{training.location}</span>
         </span>
@@ -43,13 +47,16 @@ function TrainingTimeBlock({ training }: { training: TrainingTime }) {
 
 export function TrainingSchedule({
   trainingTimes,
+  teamColor,
   variant = 'overview',
 }: {
   trainingTimes: TrainingTime[];
+  teamColor?: TeamColor;
   /** overview: earliest time per day, corner badge if more; detailed: all slots as separate boxes */
   variant?: 'overview' | 'detailed';
 }) {
   const { t } = useTranslation();
+  const slotClassName = getTrainingSlotClassName(teamColor);
 
   return (
     <div className="grid grid-cols-7 gap-1.5 overflow-visible pt-1 pr-1">
@@ -82,7 +89,7 @@ export function TrainingSchedule({
             {!hasTraining ? (
               <span className="text-xs text-muted-foreground/50">—</span>
             ) : variant === 'overview' ? (
-              <div className={TRAINING_SLOT_CLASS}>
+              <div className={slotClassName}>
                 <TrainingTimeBlock training={dayTrainings[0]} />
               </div>
             ) : (
@@ -90,7 +97,7 @@ export function TrainingSchedule({
                 {dayTrainings.map((training, index) => (
                   <div
                     key={`${day}-${training.startTime}-${training.endTime}-${index}`}
-                    className={TRAINING_SLOT_CLASS}
+                    className={slotClassName}
                   >
                     <TrainingTimeBlock training={training} />
                   </div>

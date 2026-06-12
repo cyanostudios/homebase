@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { activityLogApi, ActivityLogEntry } from '@/core/api/activityLogApi';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { getActivityActorLabel, getActivityDetailLines } from '@/core/utils/activityLogDisplay';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
@@ -114,31 +115,37 @@ export function DetailActivityLog({
             </div>
           ) : (
             <ul className="space-y-3 text-xs">
-              {logs.map((entry) => (
-                <li key={entry.id} className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className={cn(
-                        'inline-flex px-1.5 py-0.5 rounded font-medium capitalize',
-                        ACTION_COLORS[entry.action] ?? 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {actionLabel(entry.action)}
-                    </span>
-                    <span className="text-muted-foreground shrink-0">
-                      {formatDateTimeShort(entry.createdAt)}
-                    </span>
-                  </div>
-                  {entry.action === 'update' && entry.metadata?.changeSummary && (
-                    <span className="text-muted-foreground block">
-                      {entry.metadata.changeSummary}
-                    </span>
-                  )}
-                  {entry.entityName && (
-                    <span className="text-muted-foreground truncate block">{entry.entityName}</span>
-                  )}
-                </li>
-              ))}
+              {logs.map((entry) => {
+                const actor =
+                  getActivityActorLabel(entry) ?? t('activityLog.unknownUser', 'Unknown user');
+                const details = getActivityDetailLines(entry, t, { hideEntityName: true });
+                return (
+                  <li key={entry.id} className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={cn(
+                          'inline-flex px-1.5 py-0.5 rounded font-medium capitalize',
+                          ACTION_COLORS[entry.action] ?? 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {actionLabel(entry.action)}
+                      </span>
+                      <span className="text-muted-foreground shrink-0">
+                        {formatDateTimeShort(entry.createdAt)}
+                      </span>
+                    </div>
+                    <span className="text-foreground/80 font-medium truncate block">{actor}</span>
+                    {details.map((line, index) => (
+                      <span
+                        key={`${entry.id}-detail-${index}`}
+                        className="text-muted-foreground block"
+                      >
+                        {line}
+                      </span>
+                    ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </DetailSection>

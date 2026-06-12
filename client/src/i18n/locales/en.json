@@ -50,6 +50,7 @@
     "view": "View",
     "import": "Import",
     "settings": "Settings",
+    "statistics": "Statistics",
     "remove": "Remove",
     "clearFilters": "Clear filters"
   },
@@ -842,6 +843,7 @@
       "seriesTeamNamePlaceholder": "e.g. White, Blue",
       "seriesTeamLevelLabel": "Level",
       "seriesTeamLevelPlaceholder": "e.g. Div 3, Boys",
+      "seriesTeamNoColor": "No color",
       "addSeriesTeam": "Add series team",
       "seriesTeamLabel": "Series team",
       "seriesTeamAll": "Whole team",
@@ -879,6 +881,32 @@
       "seasonSection": "Season",
       "activeSeason": "Active season",
       "activeSeasonHint": "Shown in the list header, e.g. \"Season 2026\"."
+    },
+    "statistics": {
+      "title": "Teams statistics",
+      "overview": "Team overview",
+      "totalTeams": "Total teams",
+      "active": "Active",
+      "onBreak": "On break",
+      "dormant": "Dormant",
+      "totalPlayers": "Total players",
+      "genderDistribution": "Gender distribution",
+      "unknownGender": "Not set",
+      "ageGroups": "Age groups",
+      "seriesParticipation": "Series participation",
+      "withSeries": "With series teams",
+      "withoutSeries": "Without series teams",
+      "totalSeriesTeams": "Total series teams",
+      "responsibles": "Responsibles",
+      "withoutResponsibles": "Teams without responsibles",
+      "requests": "Requests",
+      "requestsTotal": "Total requests",
+      "requestsOpen": "Open requests",
+      "requestsCompleted": "Completed",
+      "requestsUnlinked": "Unlinked",
+      "topOpenRequests": "Most open requests by team",
+      "openOfTotal": "{{open}} open · {{total}} total",
+      "noOpenRequests": "No teams with open requests right now."
     }
   },
   "dashboard": {
@@ -1097,6 +1125,29 @@
       "location": "Location",
       "locationPlaceholder": "Optional",
       "add": "Add event"
+    }
+  },
+  "activityLog": {
+    "title": "Activity",
+    "noActivity": "No activity yet",
+    "reset": "Reset",
+    "resetConfirmTitle": "Clear activity log?",
+    "resetConfirmMessage": "This will permanently delete all activity log entries. This cannot be undone. Are you sure?",
+    "resetConfirmButton": "Clear all",
+    "unknownUser": "Unknown user",
+    "changedFields": "Changed: {{fields}}",
+    "createdEntity": "Created {{name}}",
+    "deletedEntity": "Deleted {{name}}",
+    "exportFormat": "Format: {{format}}",
+    "settingsCategory": "Category: {{category}}",
+    "bulkCount": "{{count}} items",
+    "action": {
+      "create": "Created",
+      "update": "Updated",
+      "delete": "Deleted",
+      "export": "Exported",
+      "settings": "Settings",
+      "mail_sent": "Email sent"
     }
   },
   "app": {

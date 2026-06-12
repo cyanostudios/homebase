@@ -73,9 +73,9 @@ function sanitizeSeriesTeams(value) {
         st.level != null && String(st.level).trim()
           ? decodeHtmlEntities(String(st.level).trim()).slice(0, 100)
           : null,
-      color: TEAM_COLORS.includes(st.color) ? st.color : 'green',
+      color: TEAM_COLORS.includes(st.color) ? st.color : null,
     }))
-    .filter((st) => st.name)
+    .filter((st) => st.name || st.level)
     .slice(0, 50);
 }
 

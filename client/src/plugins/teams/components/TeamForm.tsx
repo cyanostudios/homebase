@@ -36,11 +36,11 @@ import {
   getSeriesTeamColorForName,
   getSeriesTeamDisplayLabel,
   getSeriesTeamOptions,
-  resolveSeriesTeamColor,
+  isSeriesTeamEntryFilled,
+  TEAM_COLORS,
   responsibleKey,
   RESPONSIBLE_ROLES,
   RESPONSIBLE_ROLE_BADGES,
-  TEAM_COLORS,
   TEAM_COLOR_GRADIENTS,
   TEAM_GENDERS,
   TEAM_STATUSES,
@@ -111,7 +111,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
         Array.from({ length: item.series_team_count }, (_, i) => ({
           name: `Serielag ${i + 1}`,
           level: '',
-          color: resolveSeriesTeamColor(null, i),
+          color: null,
         })),
       );
     } else {
@@ -195,10 +195,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
   };
 
   const addSeriesTeam = () => {
-    setSeriesTeams((prev) => [
-      ...prev,
-      { name: '', level: '', color: resolveSeriesTeamColor(null, prev.length) },
-    ]);
+    setSeriesTeams((prev) => [...prev, { name: '', level: '', color: null }]);
     markDirty();
   };
 
@@ -252,13 +249,11 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
       age_group: form.age_group.trim() || null,
       gender: form.gender || undefined,
       player_count: form.player_count.trim() ? Number(form.player_count) : 0,
-      series_teams: seriesTeams
-        .filter((st) => st.name.trim())
-        .map((st, index) => ({
-          name: st.name.trim(),
-          level: st.level?.trim() || null,
-          color: resolveSeriesTeamColor(st.color, index),
-        })),
+      series_teams: seriesTeams.filter(isSeriesTeamEntryFilled).map((st) => ({
+        name: st.name.trim(),
+        level: st.level?.trim() || null,
+        color: st.color && TEAM_COLORS.includes(st.color) ? st.color : null,
+      })),
       status: form.status,
       training_times: trainingTimes.filter((tt) => tt.day),
       season_breaks: seasonBreaks.filter((sb) => sb.startDate && sb.endDate),
@@ -406,7 +401,11 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       <Label className="text-[11px]">{t('teams.form.colorLabel')}</Label>
                       <div className="pt-1.5">
                         <SeriesTeamColorPicker
-                          value={resolveSeriesTeamColor(seriesTeam.color, index)}
+                          value={
+                            seriesTeam.color && TEAM_COLORS.includes(seriesTeam.color)
+                              ? seriesTeam.color
+                              : null
+                          }
                           onChange={(color) => updateSeriesTeam(index, { color })}
                         />
                       </div>

@@ -1,4 +1,4 @@
-@import './core/styles/poppins.css';
+@import './core/styles/noto-sans.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

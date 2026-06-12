@@ -157,7 +157,6 @@ import { useRequests } from '@/plugins/requests/hooks/useRequests';
 // Schedule
 import { ScheduleNullProvider } from '@/plugins/schedule/context/ScheduleContext';
 import { useSchedule } from '@/plugins/schedule/hooks/useSchedule';
-
 // ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
 // These are loaded on-demand: List when navigating to a plugin page,
 // Form/View when opening a panel, dashboardWidget when Dashboard is rendered.

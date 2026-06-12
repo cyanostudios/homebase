@@ -9,7 +9,7 @@ export type TeamsContextType = {
   panelMode: 'create' | 'edit' | 'view' | 'settings';
   validationErrors: TeamValidationError[];
   teams: Team[];
-  teamsContentView: 'list' | 'settings';
+  teamsContentView: 'list' | 'settings' | 'statistics';
   isSaving: boolean;
   refreshTeams: () => Promise<void>;
 
@@ -18,6 +18,8 @@ export type TeamsContextType = {
   openTeamForView: (team: Team) => void;
   openTeamSettings: () => void;
   closeTeamSettingsView: () => void;
+  openTeamStatistics: () => void;
+  closeTeamStatisticsView: () => void;
   closeTeamPanel: () => void;
   saveTeam: (data: TeamPayload, teamId?: string) => Promise<boolean>;
   deleteTeam: (id: string) => Promise<void>;
@@ -33,6 +35,8 @@ export type TeamsContextType = {
 
   clearValidationErrors: () => void;
   getDeleteMessage: (item: Team | null) => string;
+  getPanelTitle: (mode: string, item: Team | null) => string;
+  getPanelSubtitle: (mode: string, item: Team | null) => React.ReactNode;
 
   getDuplicateConfig: (
     item: Team | null,
@@ -76,6 +80,8 @@ const EMPTY_TEAMS_CONTEXT: TeamsContextType = {
   openTeamForView: () => {},
   openTeamSettings: () => {},
   closeTeamSettingsView: () => {},
+  openTeamStatistics: () => {},
+  closeTeamStatisticsView: () => {},
   closeTeamPanel: () => {},
   saveTeam: async () => false,
   deleteTeam: async () => {},
@@ -89,6 +95,8 @@ const EMPTY_TEAMS_CONTEXT: TeamsContextType = {
   isSelected: () => false,
   clearValidationErrors: () => {},
   getDeleteMessage: () => '',
+  getPanelTitle: () => '',
+  getPanelSubtitle: () => null,
   getDuplicateConfig: () => null,
   executeDuplicate: async () => ({ closePanel: () => {} }),
   recentlyDuplicatedTeamId: null,

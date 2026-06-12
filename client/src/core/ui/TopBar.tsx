@@ -78,7 +78,6 @@ function TopBarInner({
     if (currentPage === 'settings') {
       return 'Settings';
     }
-
     for (const plugin of PLUGIN_REGISTRY) {
       if (plugin.name === currentPage && plugin.navigation?.label) {
         return plugin.navigation.label;

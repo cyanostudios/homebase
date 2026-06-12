@@ -38,7 +38,9 @@ export function TeamProvider({
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<TeamValidationError>();
   const [teams, setTeams] = useState<Team[]>([]);
-  const [teamsContentView, setTeamsContentView] = useState<'list' | 'settings'>('list');
+  const [teamsContentView, setTeamsContentView] = useState<'list' | 'settings' | 'statistics'>(
+    'list',
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [recentlyDuplicatedTeamId, setRecentlyDuplicatedTeamId] = useState<string | null>(null);
 
@@ -254,6 +256,16 @@ export function TeamProvider({
     setTeamsContentView('list');
   }, []);
 
+  const openTeamStatistics = useCallback(() => {
+    clearTeamSelection();
+    setTeamsContentView('statistics');
+    onCloseOtherPanels();
+  }, [clearTeamSelection, onCloseOtherPanels]);
+
+  const closeTeamStatisticsView = useCallback(() => {
+    setTeamsContentView('list');
+  }, []);
+
   const teamsOrderedByName = useMemo(
     () =>
       [...teams].sort((a, b) =>
@@ -271,6 +283,27 @@ export function TeamProvider({
     totalItems,
   } = usePluginNavigation(teamsOrderedByName, currentTeam, openTeamForView);
 
+  const getPanelTitle = useCallback(
+    (mode: string) => {
+      if (mode === 'view') {
+        return '';
+      }
+      if (mode === 'edit') {
+        return t('panel.editItem', { item: t('nav.team') });
+      }
+      if (mode === 'create') {
+        return t('panel.createItem', { item: t('nav.team') });
+      }
+      if (mode === 'settings') {
+        return t('panel.settingsItem', { item: t('nav.teams') });
+      }
+      return t('nav.team');
+    },
+    [t],
+  );
+
+  const getPanelSubtitle = useCallback(() => null, []);
+
   const value: TeamsContextType = {
     isTeamPanelOpen,
     currentTeam,
@@ -285,6 +318,8 @@ export function TeamProvider({
     openTeamForView,
     openTeamSettings,
     closeTeamSettingsView,
+    openTeamStatistics,
+    closeTeamStatisticsView,
     closeTeamPanel,
     saveTeam,
     deleteTeam,
@@ -298,6 +333,8 @@ export function TeamProvider({
     isSelected,
     clearValidationErrors,
     getDeleteMessage,
+    getPanelTitle,
+    getPanelSubtitle,
     getDuplicateConfig,
     executeDuplicate,
     recentlyDuplicatedTeamId,

@@ -44,7 +44,6 @@ export function pathToNavPage(pathname: string): NavPage {
   if (clean === '/settings') {
     return 'settings';
   }
-
   const parts = clean.split('/').filter(Boolean);
   const plugin = parts[0] as NavPage;
   const sub = parts[1];

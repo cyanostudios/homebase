@@ -9,12 +9,18 @@ export interface ActivityLogEntry {
   entityType: 'contact' | 'note' | 'task' | 'estimate' | 'invoice' | 'file' | 'settings' | 'slot';
   entityId: number | null;
   entityName: string | null;
+  /** Resolved actor label (email) from metadata or main DB lookup */
+  actorLabel?: string | null;
   metadata: {
     ip?: string;
     userAgent?: string;
     exportFormat?: string;
+    actor_user_id?: number;
+    actor_email?: string;
+    actor_name?: string;
     /** Human-readable list of changed fields for update actions (e.g. "Capacity, Location") */
     changeSummary?: string;
+    count?: number;
     [key: string]: any;
   };
   createdAt: string;

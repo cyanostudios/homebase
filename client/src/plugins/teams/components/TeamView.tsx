@@ -45,12 +45,13 @@ import {
   getOngoingSeasonBreaks,
   getSeriesTeamColorForName,
   getSeriesTeamDisplayLabel,
+  getSeriesTeamKey,
   getSeriesTeamOptions,
   responsibleKey,
   isLightTeamColor,
-  resolveSeriesTeamColor,
   SEASON_BREAK_HEADER_BADGE_CLASS,
   TEAM_COLOR_GRADIENTS,
+  TEAM_HEADER_BADGE_CLASS,
 } from '../types/teams';
 
 import { ResponsibleContactDialog } from './ResponsibleContactDialog';
@@ -484,7 +485,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
               <div className="min-w-0">
                 <p
                   className={cn(
-                    'text-xs font-medium',
+                    'text-sm font-semibold',
                     isLightTeamColor(team.color) ? 'text-muted-foreground' : 'text-white/70',
                   )}
                 >
@@ -497,14 +498,16 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
               <div className="flex max-w-[55%] flex-shrink-0 flex-wrap items-center justify-end gap-1.5">
                 {headerSeriesTeams.map((seriesTeam, index) => (
                   <SeriesTeamBadge
-                    key={`${seriesTeam.name}-${index}`}
+                    key={`${getSeriesTeamKey(seriesTeam)}-${index}`}
                     label={formatSeriesTeamLabel(seriesTeam)}
-                    color={resolveSeriesTeamColor(seriesTeam.color, index)}
+                    color={getSeriesTeamColorForName(team, getSeriesTeamKey(seriesTeam))}
+                    size="header"
                   />
                 ))}
                 <span
                   className={cn(
-                    'inline-flex flex-shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium',
+                    'inline-flex flex-shrink-0 items-center rounded-full',
+                    TEAM_HEADER_BADGE_CLASS,
                     isLightTeamColor(team.color)
                       ? 'bg-foreground/10 text-foreground'
                       : 'bg-white/20 text-white',
@@ -518,7 +521,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                       return (
                         <span
                           key={`${seasonBreak.startDate}-${seasonBreak.endDate}-${index}`}
-                          className={SEASON_BREAK_HEADER_BADGE_CLASS}
+                          className={cn(SEASON_BREAK_HEADER_BADGE_CLASS, TEAM_HEADER_BADGE_CLASS)}
                           title={label}
                         >
                           {label}
@@ -601,7 +604,11 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             <div className="grid grid-cols-1 gap-3">
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection title={t('teams.view.weeklySchedule')} className="p-4">
-                  <TrainingSchedule trainingTimes={team.training_times} variant="overview" />
+                  <TrainingSchedule
+                    trainingTimes={team.training_times}
+                    teamColor={team.color}
+                    variant="overview"
+                  />
                 </DetailSection>
               </Card>
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -635,7 +642,11 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             <div className="space-y-3">
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection title={t('teams.view.weeklySchedule')} className="p-4">
-                  <TrainingSchedule trainingTimes={team.training_times} variant="detailed" />
+                  <TrainingSchedule
+                    trainingTimes={team.training_times}
+                    teamColor={team.color}
+                    variant="detailed"
+                  />
                 </DetailSection>
               </Card>
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>

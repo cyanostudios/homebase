@@ -22,38 +22,39 @@ export interface SeriesTeam {
   color?: TeamColor | null;
 }
 
-export function resolveSeriesTeamColor(
-  color: string | null | undefined,
-  fallbackIndex = 0,
-): TeamColor {
-  if (color && TEAM_COLORS.includes(color as TeamColor)) {
-    return color as TeamColor;
+/** Stable key for selects/responsibles: name if set, otherwise level. */
+export function getSeriesTeamKey(seriesTeam: SeriesTeam): string {
+  const name = seriesTeam.name.trim();
+  if (name) {
+    return name;
   }
-  return TEAM_COLORS[Math.abs(fallbackIndex) % TEAM_COLORS.length];
+  return seriesTeam.level?.trim() || '';
 }
 
-export function getSeriesTeamForName(
+export function isSeriesTeamEntryFilled(seriesTeam: SeriesTeam): boolean {
+  return Boolean(getSeriesTeamKey(seriesTeam));
+}
+
+export function getSeriesTeamForKey(
   team: { series_teams?: SeriesTeam[] },
-  seriesTeamName: string | null | undefined,
+  seriesTeamKey: string | null | undefined,
 ): SeriesTeam | null {
-  const name = seriesTeamName?.trim();
-  if (!name) {
+  const key = seriesTeamKey?.trim();
+  if (!key) {
     return null;
   }
-  return (team.series_teams || []).find((st) => st.name.trim() === name) ?? null;
+  return (team.series_teams || []).find((st) => getSeriesTeamKey(st) === key) ?? null;
 }
 
 export function getSeriesTeamColorForName(
   team: { series_teams?: SeriesTeam[] },
-  seriesTeamName: string | null | undefined,
-  fallbackIndex = 0,
-): TeamColor {
-  const match = getSeriesTeamForName(team, seriesTeamName);
-  if (match) {
-    const index = (team.series_teams || []).findIndex((st) => st.name.trim() === match.name.trim());
-    return resolveSeriesTeamColor(match.color, index >= 0 ? index : fallbackIndex);
+  seriesTeamKey: string | null | undefined,
+): TeamColor | null {
+  const match = getSeriesTeamForKey(team, seriesTeamKey);
+  if (!match?.color || !TEAM_COLORS.includes(match.color)) {
+    return null;
   }
-  return resolveSeriesTeamColor(null, fallbackIndex);
+  return match.color;
 }
 
 export interface SeriesTeamOption {
@@ -65,9 +66,9 @@ export function getDisplaySeriesTeams(
   seriesTeams: SeriesTeam[],
   seriesTeamCount = 0,
 ): SeriesTeam[] {
-  const named = seriesTeams.filter((st) => st.name.trim());
-  if (named.length > 0) {
-    return named;
+  const filled = seriesTeams.filter(isSeriesTeamEntryFilled);
+  if (filled.length > 0) {
+    return filled;
   }
   if (seriesTeamCount <= 0) {
     return [];
@@ -75,32 +76,35 @@ export function getDisplaySeriesTeams(
   return Array.from({ length: seriesTeamCount }, (_, i) => ({
     name: `Serielag ${i + 1}`,
     level: null,
-    color: resolveSeriesTeamColor(null, i),
+    color: null,
   }));
 }
 
 export function formatSeriesTeamLabel(seriesTeam: SeriesTeam): string {
   const name = seriesTeam.name.trim();
   const level = seriesTeam.level?.trim();
-  if (!name) {
-    return '';
+  if (name && level) {
+    return `${name} · ${level}`;
   }
-  return level ? `${name} · ${level}` : name;
+  if (name) {
+    return name;
+  }
+  return level || '';
 }
 
 export function getSeriesTeamDisplayLabel(
   team: { series_teams?: SeriesTeam[] },
-  seriesTeamName: string | null | undefined,
+  seriesTeamKey: string | null | undefined,
 ): string | null {
-  const name = seriesTeamName?.trim();
-  if (!name) {
+  const key = seriesTeamKey?.trim();
+  if (!key) {
     return null;
   }
-  const match = (team.series_teams || []).find((st) => st.name.trim() === name);
+  const match = getSeriesTeamForKey(team, key);
   if (match) {
     return formatSeriesTeamLabel(match);
   }
-  return name;
+  return key;
 }
 
 export interface Responsible {
@@ -146,10 +150,10 @@ export function getSeriesTeamOptions(team: {
   series_teams?: SeriesTeam[];
   series_team_count?: number;
 }): SeriesTeamOption[] {
-  const named = (team.series_teams || []).filter((st) => st.name.trim());
-  if (named.length > 0) {
-    return named.map((st) => ({
-      value: st.name.trim(),
+  const filled = (team.series_teams || []).filter(isSeriesTeamEntryFilled);
+  if (filled.length > 0) {
+    return filled.map((st) => ({
+      value: getSeriesTeamKey(st),
       label: formatSeriesTeamLabel(st),
     }));
   }
@@ -281,6 +285,10 @@ export const SERIES_TEAM_ROW_STYLES: Record<TeamColor, string> = {
     'border-slate-200/80 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-950/40 dark:text-slate-200',
 };
 
+/** Neutral pill badge when a series team has no theme color. */
+export const SERIES_TEAM_BADGE_NEUTRAL_STYLE =
+  'bg-muted text-muted-foreground dark:bg-slate-800 dark:text-slate-300';
+
 /** Pill badge classes per series team color. */
 export const SERIES_TEAM_BADGE_STYLES: Record<TeamColor, string> = {
   green: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
@@ -378,6 +386,9 @@ export const SEASON_BREAK_TIMING_STYLES: Record<SeasonBreakTiming, string> = {
   upcoming: 'border-border/60 bg-card',
 };
 
+/** Shared sizing for badges in the team gradient header (~25% smaller than the enlarged header badges). */
+export const TEAM_HEADER_BADGE_CLASS = 'px-4 py-1.5 text-xs font-medium';
+
 /** Season break badge on the team gradient header (ongoing break). */
 export const SEASON_BREAK_HEADER_BADGE_CLASS =
-  'inline-flex max-w-[10rem] flex-shrink-0 items-center truncate rounded-full bg-red-500/40 px-2.5 py-1 text-xs font-medium text-white';
+  'inline-flex max-w-[11rem] flex-shrink-0 items-center truncate rounded-full bg-red-500/40 text-white';

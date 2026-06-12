@@ -16,7 +16,7 @@ export type ResolvedPrimaryAction = null | {
   variant?: 'secondary';
 };
 
-type ListOrSettings = 'list' | 'settings' | undefined;
+type ListOrSettings = 'list' | 'settings' | 'statistics' | undefined;
 
 export function resolvePrimaryAction(
   currentPage: string,
@@ -40,8 +40,8 @@ export function resolvePrimaryAction(
   const currentContentView = contentViewKey
     ? (context[contentViewKey] as ListOrSettings)
     : undefined;
-  const inSettings = currentContentView === 'settings';
-  if (inSettings) {
+  const inAlternateView = currentContentView === 'settings' || currentContentView === 'statistics';
+  if (inAlternateView) {
     return null;
   }
 

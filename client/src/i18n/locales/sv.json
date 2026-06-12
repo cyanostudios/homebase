@@ -50,6 +50,7 @@
     "view": "Visa",
     "import": "Importera",
     "settings": "Inställningar",
+    "statistics": "Statistik",
     "remove": "Ta bort",
     "clearFilters": "Rensa filter"
   },
@@ -842,6 +843,7 @@
       "seriesTeamNamePlaceholder": "t.ex. Vit, Blå",
       "seriesTeamLevelLabel": "Nivå",
       "seriesTeamLevelPlaceholder": "t.ex. Div 3, Pojk",
+      "seriesTeamNoColor": "Ingen färg",
       "addSeriesTeam": "Lägg till serielag",
       "seriesTeamLabel": "Serielag",
       "seriesTeamAll": "Hela laget",
@@ -879,6 +881,32 @@
       "seasonSection": "Säsong",
       "activeSeason": "Aktiv säsong",
       "activeSeasonHint": "Visas i listans sidhuvud, t.ex. \"Säsong 2026\"."
+    },
+    "statistics": {
+      "title": "Lagstatistik",
+      "overview": "Lagöversikt",
+      "totalTeams": "Totalt antal lag",
+      "active": "Aktiva",
+      "onBreak": "På paus",
+      "dormant": "Vilande",
+      "totalPlayers": "Totalt antal spelare",
+      "genderDistribution": "Könsfördelning",
+      "unknownGender": "Ej angivet",
+      "ageGroups": "Åldersgrupper",
+      "seriesParticipation": "Seriedeltagande",
+      "withSeries": "Med serielag",
+      "withoutSeries": "Utan serielag",
+      "totalSeriesTeams": "Totalt serielag",
+      "responsibles": "Ansvariga",
+      "withoutResponsibles": "Lag utan ansvariga",
+      "requests": "Förfrågningar",
+      "requestsTotal": "Totalt antal förfrågningar",
+      "requestsOpen": "Öppna förfrågningar",
+      "requestsCompleted": "Slutförda",
+      "requestsUnlinked": "Olänkade",
+      "topOpenRequests": "Flest öppna förfrågningar per lag",
+      "openOfTotal": "{{open}} öppna · {{total}} totalt",
+      "noOpenRequests": "Inga lag med öppna förfrågningar just nu."
     }
   },
   "dashboard": {
@@ -1097,6 +1125,29 @@
       "location": "Plats",
       "locationPlaceholder": "Valfritt",
       "add": "Lägg till händelse"
+    }
+  },
+  "activityLog": {
+    "title": "Aktivitet",
+    "noActivity": "Ingen aktivitet ännu",
+    "reset": "Rensa",
+    "resetConfirmTitle": "Rensa aktivitetslogg?",
+    "resetConfirmMessage": "Detta tar permanent bort alla aktivitetsloggar. Det går inte att ångra. Är du säker?",
+    "resetConfirmButton": "Rensa alla",
+    "unknownUser": "Okänd användare",
+    "changedFields": "Ändrat: {{fields}}",
+    "createdEntity": "Skapade {{name}}",
+    "deletedEntity": "Tog bort {{name}}",
+    "exportFormat": "Format: {{format}}",
+    "settingsCategory": "Kategori: {{category}}",
+    "bulkCount": "{{count}} objekt",
+    "action": {
+      "create": "Skapad",
+      "update": "Uppdaterad",
+      "delete": "Borttagen",
+      "export": "Exporterad",
+      "settings": "Inställningar",
+      "mail_sent": "E-post skickad"
     }
   },
   "app": {

@@ -10,7 +10,9 @@ import type { Responsible, TeamColor } from '../types/teams';
 import {
   RESPONSIBLE_ROLES,
   RESPONSIBLE_ROLE_BADGES,
+  SERIES_TEAM_BADGE_NEUTRAL_STYLE,
   SERIES_TEAM_BADGE_STYLES,
+  TEAM_HEADER_BADGE_CLASS,
 } from '../types/teams';
 
 function getInitials(name: string): string {
@@ -22,12 +24,21 @@ function getInitials(name: string): string {
     .join('');
 }
 
-export function SeriesTeamBadge({ label, color = 'green' }: { label: string; color?: TeamColor }) {
+export function SeriesTeamBadge({
+  label,
+  color = null,
+  size = 'default',
+}: {
+  label: string;
+  color?: TeamColor | null;
+  size?: 'default' | 'header';
+}) {
   return (
     <span
       className={cn(
-        'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
-        SERIES_TEAM_BADGE_STYLES[color],
+        'inline-flex flex-shrink-0 items-center rounded-full font-medium',
+        size === 'header' ? TEAM_HEADER_BADGE_CLASS : 'px-2 py-0.5 text-[10px]',
+        color ? SERIES_TEAM_BADGE_STYLES[color] : SERIES_TEAM_BADGE_NEUTRAL_STYLE,
       )}
     >
       {label}
@@ -42,7 +53,7 @@ export function ResponsibleRow({
   onRemove,
   hasSeriesTeams = false,
   seriesTeamDisplayLabel,
-  seriesTeamColor = 'green',
+  seriesTeamColor = null,
   contactDetailsOnSecondRow = false,
 }: {
   responsible: Responsible;
@@ -53,7 +64,7 @@ export function ResponsibleRow({
   hasSeriesTeams?: boolean;
   /** Formatted series team label including level, when linked to a series team. */
   seriesTeamDisplayLabel?: string | null;
-  seriesTeamColor?: TeamColor;
+  seriesTeamColor?: TeamColor | null;
   /** When true, phone and email render on a second line below name and badges. */
   contactDetailsOnSecondRow?: boolean;
 }) {
