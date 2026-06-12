@@ -26,13 +26,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
+import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useRequests } from '../hooks/useRequests';
 import {
   formatRequestStatusForDisplay,

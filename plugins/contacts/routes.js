@@ -12,7 +12,6 @@ const {
 } = require('../../server/core/middleware/validation');
 
 function createContactRoutes(controller, context) {
-  // V3: Get requirePlugin from context.middleware instead of parameter
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name); // auth/enablement guard

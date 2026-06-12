@@ -113,7 +113,7 @@ function activityLogMiddleware(req, res, next) {
   }
 
   // Skip activity log routes to avoid recursion
-  if (req.path.startsWith('/api/activity-log')) {
+  if (req.path.startsWith('/api/settings/activity-log')) {
     return next();
   }
 

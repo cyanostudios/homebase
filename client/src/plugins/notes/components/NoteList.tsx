@@ -30,6 +30,7 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
+import { stripHtml } from '@/core/utils/textUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -97,15 +98,6 @@ function getInitialViewMode(): ViewMode {
     return 'list';
   }
   return window.sessionStorage.getItem(NOTES_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
-}
-
-function stripHtml(html: string): string {
-  if (!html) {
-    return '';
-  }
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent ?? tmp.innerText ?? '';
 }
 
 export const NoteList: React.FC = () => {

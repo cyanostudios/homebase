@@ -14,18 +14,18 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 import type { Task } from '../types/tasks';
-
-const TASK_PRIORITY_ICONS: Record<Task['priority'], LucideIcon> = {
-  Low: SignalLow,
-  Medium: SignalMedium,
-  High: SignalHigh,
-};
 import {
   TASK_PRIORITY_AVATAR_COLORS,
   TASK_PRIORITY_COLORS,
   TASK_STATUS_COLORS,
   formatStatusForDisplay,
 } from '../types/tasks';
+
+const TASK_PRIORITY_ICONS: Record<Task['priority'], LucideIcon> = {
+  Low: SignalLow,
+  Medium: SignalMedium,
+  High: SignalHigh,
+};
 
 function formatDueDate(dueDate: Date | null) {
   if (!dueDate) {

@@ -9,9 +9,9 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
 
-export type TaskViewMode = 'grid' | 'list';
+type TaskViewMode = 'grid' | 'list';
 
-export interface TaskSettingsFormProps {
+interface TaskSettingsFormProps {
   onCancel: () => void;
 }
 

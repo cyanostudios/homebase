@@ -9,6 +9,8 @@ const {
   RESOURCE_TASK,
   resolvePublicShareTenantFromToken,
 } = require('../../server/core/services/publicShareRouting');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const TenantContextService = require('../../server/core/services/tenant/TenantContextService');
 
 /**
  * PostgreSQLAdapter wraps pg errors in AppError (top-level code is DATABASE_ERROR).
@@ -226,8 +228,6 @@ class TaskModel {
 
   async bulkDelete(req, idsTextArray) {
     try {
-      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
-      // Use core BulkOperationsHelper for generic bulk delete logic
       return await BulkOperationsHelper.bulkDelete(req, 'tasks', idsTextArray);
     } catch (error) {
       Logger.error('Failed to bulk delete tasks', error);
@@ -304,7 +304,6 @@ class TaskModel {
       let tenantConnectionString = req.session?.tenantConnectionString;
       if (!tenantConnectionString && req.session?.user?.id) {
         try {
-          const TenantContextService = require('../../server/core/services/tenant/TenantContextService');
           const tctx = new TenantContextService();
           const ctx = await tctx.getTenantContextByUserId(req.session.user.id);
           tenantConnectionString = ctx?.tenantConnectionString ?? null;

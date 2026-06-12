@@ -1,7 +1,7 @@
-export type RequestType = 'general' | 'pitch_booking' | 'person_registration' | 'other';
+type RequestType = 'general' | 'pitch_booking' | 'person_registration' | 'other';
 export type RequestStatus = 'not started' | 'in progress' | 'completed' | 'cancelled';
 export type RequestPriority = 'Low' | 'Medium' | 'High';
-export type RequestSource = 'internal' | 'external';
+type RequestSource = 'internal' | 'external';
 
 /** Built-in default types — used as fallback when no custom types are configured in settings. */
 export const DEFAULT_REQUEST_TYPES: string[] = [
@@ -85,13 +85,6 @@ export const REQUEST_PRIORITY_COLORS: Record<RequestPriority, string> = {
   Low: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
   Medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   High: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-};
-
-export const REQUEST_TYPE_ICONS: Record<RequestType, string> = {
-  general: '💬',
-  pitch_booking: '⚽',
-  person_registration: '👤',
-  other: '📋',
 };
 
 export const REQUEST_SOURCE_COLORS: Record<RequestSource, string> = {

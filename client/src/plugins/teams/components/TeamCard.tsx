@@ -15,7 +15,7 @@ import {
 } from '../types/teams';
 
 /** Picks the next training relative to today's weekday (wraps around the week). */
-export function getNextTraining(team: Team): TrainingTime | null {
+function getNextTraining(team: Team): TrainingTime | null {
   const trainings = (team.training_times || []).filter((t) => t.day);
   if (!trainings.length) {
     return null;

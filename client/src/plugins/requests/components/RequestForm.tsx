@@ -17,15 +17,15 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
-import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
-import { useRequestTeams } from '../hooks/useRequestTeams';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
 import type { RequestPayload } from '../api/requestsApi';
+import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
 import { REQUEST_PRIORITIES, REQUEST_STATUSES, getTypeLabel } from '../types/requests';

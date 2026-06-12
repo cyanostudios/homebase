@@ -4,13 +4,13 @@ const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const ServiceManager = require('../../server/core/ServiceManager');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 class EstimateModel {
   constructor() {
     // No pool needed - ServiceManager provides database service
   }
 
-  // Get context for database operations
   _getContext(req) {
     if (!req) {
       throw new Error('Request object is required');
@@ -27,7 +27,6 @@ class EstimateModel {
     };
   }
 
-  // Existing calculation method (unchanged)
   calculateTotals(lineItems, estimateDiscount = 0) {
     let subtotal = 0;
     let totalDiscount = 0;
@@ -60,7 +59,6 @@ class EstimateModel {
     };
   }
 
-  // Transform database row to JS object
   transformRow(row) {
     if (!row) return null;
 
@@ -119,7 +117,6 @@ class EstimateModel {
     };
   }
 
-  // Get next estimate number (uses transaction)
   async getNextEstimateNumber(req) {
     try {
       const database = ServiceManager.get('database', req);
@@ -192,7 +189,6 @@ class EstimateModel {
     }
   }
 
-  // Create estimate
   async create(req, estimateData) {
     try {
       const db = Database.get(req);
@@ -208,7 +204,6 @@ class EstimateModel {
         total,
       } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
 
-      // Use database.insert for automatic tenant isolation
       const result = await db.insert('estimates', {
         estimate_number: estimateNumber,
         contact_id: estimateData.contactId || null,
@@ -250,12 +245,10 @@ class EstimateModel {
     }
   }
 
-  // Get all estimates for user
   async getAll(req) {
     try {
       const db = Database.get(req);
 
-      // Tenant isolation automatic
       const rows = await db.query('SELECT * FROM estimates ORDER BY created_at DESC', []);
 
       return rows.map((row) => this.transformRow(row));
@@ -265,7 +258,6 @@ class EstimateModel {
     }
   }
 
-  // Get single estimate by ID
   async getById(req, estimateId) {
     try {
       const db = Database.get(req);
@@ -280,12 +272,10 @@ class EstimateModel {
     }
   }
 
-  // Update estimate
   async update(req, estimateId, estimateData) {
     try {
       const db = Database.get(req);
 
-      // Verify estimate exists (ownership check automatic)
       const currentEstimate = await this.getById(req, estimateId);
       if (!currentEstimate) {
         throw new AppError('Estimate not found', 404, AppError.CODES.NOT_FOUND);
@@ -305,7 +295,6 @@ class EstimateModel {
         total,
       } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
 
-      // Use database.update for automatic tenant isolation
       const result = await db.update('estimates', estimateId, {
         contact_id: estimateData.contactId || null,
         contact_name: estimateData.contactName || '',
@@ -344,11 +333,8 @@ class EstimateModel {
     }
   }
 
-  // Delete estimate
   async bulkDelete(req, idsTextArray) {
     try {
-      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
-      // Use core BulkOperationsHelper for generic bulk delete logic
       return await BulkOperationsHelper.bulkDelete(req, 'estimates', idsTextArray);
     } catch (error) {
       Logger.error('Failed to bulk delete estimates', error);
@@ -363,7 +349,6 @@ class EstimateModel {
     try {
       const db = Database.get(req);
 
-      // Delete the estimate (tenant isolation automatic)
       await db.deleteRecord('estimates', estimateId);
 
       Logger.info('Estimate deleted', { estimateId });
@@ -379,7 +364,6 @@ class EstimateModel {
     }
   }
 
-  // Get status transition statistics
   async getStatusStats(req, startDate = null, endDate = null) {
     try {
       const db = Database.get(req);
@@ -443,7 +427,6 @@ class EstimateModel {
     }
   }
 
-  // Get aggregated reason statistics
   async getReasonStats(req, status, startDate = null, endDate = null) {
     try {
       const db = Database.get(req);
@@ -493,7 +476,6 @@ class EstimateModel {
     }
   }
 
-  // SHARING METHODS
   generateShareToken() {
     const bytes = crypto.randomBytes(24);
     return this.base62Encode(bytes);
@@ -517,7 +499,6 @@ class EstimateModel {
       const context = this._getContext(req);
       const pool = context.pool;
 
-      // Verify estimate exists and user owns it
       const estimate = await this.getById(req, estimateId);
       if (!estimate) {
         throw new AppError('Estimate not found or access denied', 404, AppError.CODES.NOT_FOUND);
@@ -556,7 +537,6 @@ class EstimateModel {
     }
   }
 
-  // Get estimate by share token (PUBLIC - no tenant isolation)
   async getEstimateByShareToken(req, shareToken) {
     try {
       const pool = req.tenantPool || this._getContext(req).pool;
@@ -613,7 +593,6 @@ class EstimateModel {
       const context = this._getContext(req);
       const pool = context.pool;
 
-      // Verify estimate exists and user owns it
       const estimate = await this.getById(req, estimateId);
       if (!estimate) {
         throw new AppError('Estimate not found or access denied', 404, AppError.CODES.NOT_FOUND);
@@ -682,7 +661,6 @@ class EstimateModel {
         throw new AppError('Share not found or access denied', 404, AppError.CODES.NOT_FOUND);
       }
 
-      // Delete the share
       const deleteResult = await pool.query(
         'DELETE FROM estimate_shares WHERE id = $1 RETURNING *',
         [shareId],

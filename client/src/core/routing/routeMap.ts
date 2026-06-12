@@ -54,16 +54,3 @@ export function pathToNavPage(pathname: string): NavPage {
 
   return plugin || 'dashboard';
 }
-
-/**
- * Given a NavPage and an optional item ID, returns the full URL path.
- * For pages with item panels (e.g. /notes/42). Item ID is only appended
- * for plugin pages – not for dashboard/settings/invoices sub-routes.
- */
-export function itemPath(page: NavPage, id?: string | number): string {
-  const base = navPageToPath[page];
-  if (id !== undefined && id !== null) {
-    return `${base}/${id}`;
-  }
-  return base;
-}

@@ -3,18 +3,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
+import { stripHtml } from '@/core/utils/textUtils';
 import { cn } from '@/lib/utils';
 
 import type { Note } from '../types/notes';
-
-function stripHtml(html: string): string {
-  if (!html) {
-    return '';
-  }
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent ?? tmp.innerText ?? '';
-}
 
 function truncateContent(content: string, maxLength = 150): string {
   const plain = stripHtml(content);

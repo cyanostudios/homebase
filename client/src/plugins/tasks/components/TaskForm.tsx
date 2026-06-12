@@ -8,11 +8,8 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-const RichTextEditor = React.lazy(() =>
-  import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
-);
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -24,8 +21,11 @@ import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskSettingsForm } from './TaskSettingsForm';
 
+const RichTextEditor = React.lazy(() =>
+  import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
+);
+
 const TASK_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
-const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
 type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];

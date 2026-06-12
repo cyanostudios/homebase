@@ -1,16 +1,16 @@
-export interface TeamRequestRank {
+interface TeamRequestRank {
   teamId: string;
   teamName: string;
   openCount: number;
   totalCount: number;
 }
 
-export interface AgeGroupCount {
+interface AgeGroupCount {
   ageGroup: string;
   count: number;
 }
 
-export interface RoleCount {
+interface RoleCount {
   role: string;
   count: number;
 }

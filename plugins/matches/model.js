@@ -2,6 +2,7 @@
 // V3 with @homebase/core SDK
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 const SPORT_TYPES = ['football', 'handball'];
 const FORMATS_BY_SPORT = {
@@ -214,7 +215,6 @@ class MatchModel {
 
   async bulkDelete(req, idsTextArray) {
     try {
-      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
       return await BulkOperationsHelper.bulkDelete(req, 'matches', idsTextArray);
     } catch (error) {
       Logger.error('Failed to bulk delete matches', error);

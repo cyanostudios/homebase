@@ -31,7 +31,7 @@ function getAssignedNames(
     .join(', ');
 }
 
-export function taskToTxtContent(task: Task): string {
+function taskToTxtContent(task: Task): string {
   const due = task.dueDate ? formatDate(task.dueDate) : '—';
   return `${task.title}\n\n${task.content || ''}\n\nStatus: ${task.status}\nPriority: ${task.priority}\nDue: ${due}\nCreated: ${formatDate(task.createdAt)}`;
 }
@@ -40,11 +40,11 @@ export function getTaskExportBaseFilename(task: Task): string {
   return (task.title || 'task').replace(/[^a-z0-9]/gi, '_').toLowerCase();
 }
 
-export function getTaskExportFilename(task: Task, extension: string): string {
+function getTaskExportFilename(task: Task, extension: string): string {
   return `${getTaskExportBaseFilename(task)}.${extension}`;
 }
 
-export function taskToCsvRow(
+function taskToCsvRow(
   task: Task,
   contacts: { id: string; companyName?: string }[],
 ): Record<string, any> {
@@ -69,7 +69,7 @@ export function taskToCsvRow(
   };
 }
 
-export function taskToPdfRow(
+function taskToPdfRow(
   task: Task,
   contacts: { id: string; companyName?: string }[],
 ): Record<string, any> {

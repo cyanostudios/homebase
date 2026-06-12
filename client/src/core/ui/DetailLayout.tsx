@@ -2,6 +2,9 @@ import React from 'react';
 
 import { cn } from '@/lib/utils';
 
+/** Shared max width for detail panel forms (main column). */
+export const PANEL_MAX_WIDTH = 'max-w-[920px]';
+
 interface DetailLayoutProps {
   children: React.ReactNode;
   sidebar?: React.ReactNode;

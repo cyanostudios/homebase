@@ -231,7 +231,7 @@ function TaskExportOptionsCard({
   );
 }
 
-export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
+export function TaskView({ task }: TaskViewProps) {
   const { t } = useTranslation();
   const { openContactForView } = useContacts();
   const {
@@ -617,4 +617,4 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       />
     </>
   );
-};
+}

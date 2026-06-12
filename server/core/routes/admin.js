@@ -17,7 +17,6 @@ const adminService = new AdminService();
  * @param {Function} authMiddleware - Auth middleware
  */
 function setupAdminRoutes(mainPool, authMiddleware) {
-  // pool = mainPool; // Managed by Service layer
   requireAuth = authMiddleware;
 }
 

@@ -58,11 +58,9 @@ async function checkPasswordResetSchema(database) {
  */
 router.get('/health', async (req, res) => {
   try {
-    // Get services
     const database = ServiceManager.get('database');
     const connectionPool = ServiceManager.get('connectionPool');
 
-    // Test database connection
     await database.query('SELECT 1');
     const authSchema = await checkAuthSchema(database);
     const passwordReset = await checkPasswordResetSchema(database);
@@ -78,10 +76,8 @@ router.get('/health', async (req, res) => {
     const neonApi = await checkNeonApiForHealth();
     const neonReady = neonApi.status === 'ok' || neonApi.status === 'skipped';
 
-    // Get loaded plugins
     const loadedPlugins = pluginLoaderInstance ? pluginLoaderInstance.getAllPlugins() : [];
 
-    // Get pool statistics
     const poolStats = connectionPool.getPoolStats();
 
     const fullyHealthy = authSchema.authReady && neonReady;

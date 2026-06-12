@@ -35,7 +35,7 @@ export function isSeriesTeamEntryFilled(seriesTeam: SeriesTeam): boolean {
   return Boolean(getSeriesTeamKey(seriesTeam));
 }
 
-export function getSeriesTeamForKey(
+function getSeriesTeamForKey(
   team: { series_teams?: SeriesTeam[] },
   seriesTeamKey: string | null | undefined,
 ): SeriesTeam | null {
@@ -245,7 +245,6 @@ export const WEEK_DAYS = [
   'saturday',
   'sunday',
 ] as const;
-export type WeekDay = (typeof WEEK_DAYS)[number];
 
 /** Gradient classes for team theme colors (cards, detail header, avatar icons). */
 export const TEAM_COLOR_GRADIENTS: Record<TeamColor, string> = {
@@ -360,11 +359,6 @@ export function getOngoingSeasonBreaks(seasonBreaks: SeasonBreak[]): SeasonBreak
   return seasonBreaks.filter(
     (seasonBreak) => getSeasonBreakTiming(seasonBreak.startDate, seasonBreak.endDate) === 'ongoing',
   );
-}
-
-/** First season break that includes today, if any. */
-export function getOngoingSeasonBreak(seasonBreaks: SeasonBreak[]): SeasonBreak | null {
-  return getOngoingSeasonBreaks(seasonBreaks)[0] ?? null;
 }
 
 /** Status break or an ongoing season break by calendar date. */

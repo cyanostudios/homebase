@@ -2,6 +2,7 @@
 // V3 with @homebase/core SDK
 const { Logger, Database, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 const CAPACITY_MIN = 1;
 const CAPACITY_MAX = 5;
@@ -382,7 +383,6 @@ class SlotsModel {
 
   async bulkDelete(req, idsTextArray) {
     try {
-      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
       return await BulkOperationsHelper.bulkDelete(req, 'slots', idsTextArray);
     } catch (error) {
       Logger.error('Failed to bulk delete slots', error);

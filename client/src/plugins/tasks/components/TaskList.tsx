@@ -1,7 +1,6 @@
 import {
-  ArrowUp,
   ArrowDown,
-  Trash2,
+  ArrowUp,
   FileSpreadsheet,
   FileText,
   Grid3x3,
@@ -9,6 +8,7 @@ import {
   Plus,
   Search,
   Settings,
+  Trash2,
   X,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -31,6 +31,7 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
+import { stripHtml } from '@/core/utils/textUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -106,7 +107,7 @@ function StatCard({
   );
 }
 
-export const TaskList: React.FC = () => {
+export function TaskList() {
   const { t } = useTranslation();
   const {
     tasks,
@@ -184,15 +185,6 @@ export const TaskList: React.FC = () => {
       setSortField(field);
       setSortOrder('asc');
     }
-  };
-
-  const stripHtml = (html: string): string => {
-    if (!html) {
-      return '';
-    }
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent ?? tmp.innerText ?? '';
   };
 
   const getAssignedContacts = useCallback(
@@ -916,4 +908,4 @@ export const TaskList: React.FC = () => {
       </div>
     </div>
   );
-};
+}

@@ -7,6 +7,7 @@ const {
   ensureStorageProvidersRegistered,
 } = require('../../server/core/storage/registerDefaultAdapters');
 const StorageProviderRegistry = require('../../server/core/storage/StorageProviderRegistry');
+const { AppError } = require('../../server/core/errors/AppError');
 
 class FilesService {
   constructor(model, attachmentModel) {
@@ -105,7 +106,6 @@ class FilesService {
    * @param {{ pluginName: string, entityId: string, fileId: string }} data
    */
   async attachFile(req, data) {
-    const { AppError } = require('../../server/core/errors/AppError');
     const pluginName = String(data.pluginName ?? '').trim();
     const entityId = String(data.entityId ?? '').trim();
     const fileId = String(data.fileId ?? '').trim();
@@ -147,7 +147,6 @@ class FilesService {
    * @param {{ pluginName: string, entityId: string }} params
    */
   async getAttachmentsForEntity(req, params) {
-    const { AppError } = require('../../server/core/errors/AppError');
     const pluginName = String(params?.pluginName ?? '').trim();
     const entityId = String(params?.entityId ?? '').trim();
     if (!pluginName || !entityId) {
@@ -165,14 +164,12 @@ class FilesService {
    * @param {string} attachmentId
    */
   async detachFile(req, attachmentId) {
-    const { AppError } = require('../../server/core/errors/AppError');
     const id = String(attachmentId ?? '').trim();
     if (!id) {
       throw new AppError('attachmentId is required', 400, AppError.CODES.VALIDATION_ERROR);
     }
     const att = await this.attachmentModel.getById(req, id);
     if (!att) {
-      const { AppError } = require('../../server/core/errors/AppError');
       throw new AppError('Attachment not found', 404, AppError.CODES.NOT_FOUND);
     }
     await this.attachmentModel.delete(req, id);

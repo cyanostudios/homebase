@@ -2,6 +2,7 @@
 // V3 with @homebase/core SDK
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 const TEAM_STATUSES = ['active', 'dormant', 'break'];
 const TEAM_GENDERS = ['boys', 'girls', 'mixed'];
@@ -441,7 +442,6 @@ class TeamModel {
 
   async bulkDelete(req, idsTextArray) {
     try {
-      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
       return await BulkOperationsHelper.bulkDelete(req, 'teams', idsTextArray);
     } catch (error) {
       Logger.error('Failed to bulk delete teams', error);

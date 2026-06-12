@@ -1,6 +1,7 @@
 // plugins/requests/model.js
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 const DEFAULT_REQUEST_TYPE = 'general';
 const REQUEST_STATUSES = ['not started', 'in progress', 'completed', 'cancelled'];
@@ -395,7 +396,6 @@ class RequestModel {
 
   async bulkDelete(req, idsTextArray) {
     try {
-      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
       return await BulkOperationsHelper.bulkDelete(req, 'requests', idsTextArray);
     } catch (error) {
       Logger.error('Failed to bulk delete requests', error);

@@ -8,7 +8,6 @@ const { AppError } = require('../errors/AppError');
  * Must be last in the middleware stack
  */
 function errorHandler(error, req, res, next) {
-  // Get logger from ServiceManager
   let logger;
   try {
     const ServiceManager = require('../ServiceManager');
@@ -23,8 +22,6 @@ function errorHandler(error, req, res, next) {
     logger = { error: console.error, warn: console.warn, info: console.log, debug: console.log };
   }
 
-  // Log error details (server-side only)
-  // Always log to console for debugging
   console.error('Error handler caught:', {
     message: error.message,
     stack: error.stack,
@@ -40,7 +37,6 @@ function errorHandler(error, req, res, next) {
     ip: req.ip,
   });
 
-  // Handle AppError (operational errors)
   if (error instanceof AppError) {
     return res.status(error.statusCode).json(error.toJSON());
   }
@@ -61,7 +57,6 @@ function errorHandler(error, req, res, next) {
     });
   }
 
-  // Handle validation errors from express-validator
   if (error.array && typeof error.array === 'function') {
     return res.status(400).json({
       error: 'Validation failed',
@@ -70,7 +65,6 @@ function errorHandler(error, req, res, next) {
     });
   }
 
-  // Handle database errors
   if (error.code && error.code.startsWith('23')) {
     // PostgreSQL constraint violation
     return res.status(400).json({
@@ -79,11 +73,8 @@ function errorHandler(error, req, res, next) {
     });
   }
 
-  // Handle unknown errors
-  // In development, show more details for debugging
   const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
 
-  // Always log full error to console for debugging
   console.error('=== ERROR HANDLER ===');
   console.error('Error:', error);
   console.error('Message:', error.message);

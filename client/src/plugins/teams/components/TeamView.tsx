@@ -34,6 +34,9 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import type { Contact } from '@/plugins/contacts/types/contacts';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import { requestsApi } from '@/plugins/requests/api/requestsApi';
+import { TeamRequestsSection } from '@/plugins/requests/components/TeamRequestsSection';
+import { useRequests } from '@/plugins/requests/hooks/useRequests';
 
 import { useTeams } from '../hooks/useTeams';
 import type { Team, TeamNote } from '../types/teams';
@@ -59,9 +62,6 @@ import { ResponsibleRow, SeriesTeamBadge } from './ResponsibleRow';
 import { SeasonCalendar } from './SeasonCalendar';
 import { TeamNotesSection } from './TeamNotesSection';
 import { TrainingSchedule } from './TrainingSchedule';
-import { requestsApi } from '@/plugins/requests/api/requestsApi';
-import { TeamRequestsSection } from '@/plugins/requests/components/TeamRequestsSection';
-import { useRequests } from '@/plugins/requests/hooks/useRequests';
 
 type TeamViewTab = 'overview' | 'schedule' | 'responsibles' | 'notes' | 'requests';
 
