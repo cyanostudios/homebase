@@ -992,6 +992,7 @@
     "daysAgo": "{{count}} days ago",
     "statNew": "New",
     "statOpen": "In progress",
+    "statActive": "Active",
     "statCompleted": "Completed",
     "statExternal": "External",
     "statNotRelated": "Not related",

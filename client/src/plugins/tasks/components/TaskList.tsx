@@ -137,7 +137,7 @@ export const TaskList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
-  const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
+  const [activeFilter, setActiveFilter] = useState<TaskFilter>('open');
   const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('view');
 
   useEffect(() => {

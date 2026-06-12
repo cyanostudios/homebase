@@ -992,6 +992,7 @@
     "daysAgo": "{{count}} dagar sedan",
     "statNew": "Nya",
     "statOpen": "Pågående",
+    "statActive": "Aktiva",
     "statCompleted": "Avslutade",
     "statExternal": "Externa",
     "statNotRelated": "Ej kopplad",

@@ -3,7 +3,6 @@ import {
   ArrowUp,
   Grid3x3,
   Inbox,
-  LayoutGrid,
   List as ListIcon,
   Plus,
   Search,
@@ -50,7 +49,7 @@ import { RequestsSettingsView } from './RequestsSettingsView';
 
 const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 
-type StatusFilter = 'all' | RequestStatus;
+type StatusFilter = 'all' | 'active' | RequestStatus;
 type TypeFilter = 'all' | string;
 type TeamFilter = 'all' | 'unlinked';
 type SortField = 'title' | 'status' | 'priority' | 'type' | 'updated_at' | 'created_at';
@@ -131,7 +130,7 @@ export function RequestList() {
   } = useRequests();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -152,7 +151,11 @@ export function RequestList() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return requests.filter((req) => {
-      if (statusFilter !== 'all' && req.status !== statusFilter) return false;
+      if (statusFilter === 'active') {
+        if (req.status !== 'not started' && req.status !== 'in progress') return false;
+      } else if (statusFilter !== 'all' && req.status !== statusFilter) {
+        return false;
+      }
       if (typeFilter !== 'all' && req.requestType !== typeFilter) return false;
       if (teamFilter === 'unlinked' && req.teamId != null) return false;
       if (!q) return true;
@@ -166,7 +169,8 @@ export function RequestList() {
   const stats = useMemo(
     () => ({
       all: requests.length,
-      open: requests.filter((r) => r.status === 'in progress').length,
+      active: requests.filter((r) => r.status === 'not started' || r.status === 'in progress')
+        .length,
       completed: requests.filter((r) => r.status === 'completed').length,
       external: requests.filter((r) => r.source === 'external').length,
       unlinked: requests.filter((r) => r.teamId == null).length,
@@ -276,12 +280,12 @@ export function RequestList() {
     });
 
   const hasActiveFilters = Boolean(
-    search || statusFilter !== 'all' || typeFilter !== 'all' || teamFilter !== 'all',
+    search || statusFilter !== 'active' || typeFilter !== 'all' || teamFilter !== 'all',
   );
 
   const clearAllFilters = () => {
     setSearch('');
-    setStatusFilter('all');
+    setStatusFilter('active');
     setTypeFilter('all');
     setTeamFilter('all');
   };
@@ -351,18 +355,18 @@ export function RequestList() {
             onClick={() => setStatusFilter('all')}
           />
           <StatCard
-            label={t('requests.statOpen')}
-            value={stats.open}
+            label={t('requests.statActive')}
+            value={stats.active}
             dotClassName="bg-blue-500"
-            active={statusFilter === 'in progress'}
-            onClick={() => setStatusFilter(statusFilter === 'in progress' ? 'all' : 'in progress')}
+            active={statusFilter === 'active'}
+            onClick={() => setStatusFilter(statusFilter === 'active' ? 'all' : 'active')}
           />
           <StatCard
             label={t('requests.statCompleted')}
             value={stats.completed}
             dotClassName="bg-emerald-500"
             active={statusFilter === 'completed'}
-            onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
+            onClick={() => setStatusFilter(statusFilter === 'completed' ? 'active' : 'completed')}
           />
           <StatCard
             label={t('requests.statExternal')}
@@ -381,33 +385,6 @@ export function RequestList() {
 
         {requestTypes.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setTypeFilter('all')}
-              className={cn(
-                'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
-                'flex items-center gap-1.5 sm:gap-2',
-                typeFilter === 'all'
-                  ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                  : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
-              )}
-            >
-              <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>
-                {t('requests.filterAll')}{' '}
-                <span
-                  className={cn(
-                    'tabular-nums font-semibold',
-                    typeFilter === 'all'
-                      ? 'text-primary'
-                      : 'text-muted-foreground group-hover:text-primary',
-                  )}
-                >
-                  ({typeCounts.all})
-                </span>
-              </span>
-            </Button>
             {requestTypes.map((type) => {
               const isActive = typeFilter === type;
               return (
