@@ -5,6 +5,13 @@ const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const ServiceManager = require('../../server/core/ServiceManager');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const {
+  registerPublicShareRoute,
+  RESOURCE_ESTIMATE,
+} = require('../../server/core/services/publicShareRouting');
+const {
+  resolveTenantConnectionStringForShare,
+} = require('../../server/core/utils/shareRoutingHelper');
 
 class EstimateModel {
   constructor() {
@@ -517,6 +524,24 @@ class EstimateModel {
       );
 
       Logger.info('Share created', { estimateId, shareId: result.rows[0].id });
+
+      const createdToken = result.rows[0].share_token;
+      const tenantConnectionString = await resolveTenantConnectionStringForShare(req);
+      if (tenantConnectionString) {
+        try {
+          await registerPublicShareRoute(createdToken, RESOURCE_ESTIMATE, tenantConnectionString);
+        } catch (routeErr) {
+          Logger.error('public_share_routing register failed', routeErr, {
+            estimateId,
+            tokenPrefix: createdToken.substring(0, 8),
+          });
+        }
+      } else {
+        Logger.warn(
+          'Estimate share created in tenant DB but public_share_routing not registered (no tenant connection string)',
+          { estimateId },
+        );
+      }
 
       return {
         id: result.rows[0].id.toString(),

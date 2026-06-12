@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const config = require('./plugin.config');
+const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
 const MATCH_FORMATS = ['3vs3', '5vs5', '6vs6', '7vs7', '8vs8', '9vs9', '11vs11'];
@@ -16,6 +17,7 @@ function createMatchRoutes(controller, context) {
   router.post(
     '/',
     gate,
+    csrfProtection,
     commonRules.optionalString('name', 255),
     commonRules.optionalInteger('match_number', 1, 999999),
     commonRules.optionalEnum('match_type', ['series', 'cup', 'friendly']),
@@ -36,6 +38,7 @@ function createMatchRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     commonRules.optionalString('name', 255),
     commonRules.optionalInteger('match_number', 1, 999999),
@@ -57,12 +60,13 @@ function createMatchRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
   );
 
-  router.delete('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
     controller.delete(req, res),
   );
 

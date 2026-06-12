@@ -5,6 +5,7 @@ const router = express.Router();
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { publicEndpointLimiter } = require('../../server/core/middleware/rateLimit');
 
 function createTaskRoutes(controller, context) {
   const requirePlugin =
@@ -12,13 +13,14 @@ function createTaskRoutes(controller, context) {
   const gate = requirePlugin(config.name); // auth/enablement guard
 
   // Public read-only task by share token (no auth; requires session tenant pool like notes)
-  router.get('/public/:token', (req, res) => {
+  router.get('/public/:token', publicEndpointLimiter, (req, res) => {
     controller.getPublicTask(req, res);
   });
 
   router.post(
     '/shares',
     gate,
+    csrfProtection,
     commonRules.requiredId('taskId'),
     commonRules.requiredDate('validUntil'),
     validateRequest,
@@ -34,6 +36,7 @@ function createTaskRoutes(controller, context) {
   router.delete(
     '/shares/:shareId',
     gate,
+    csrfProtection,
     commonRules.id('shareId'),
     validateRequest,
     (req, res) => {
@@ -50,7 +53,7 @@ function createTaskRoutes(controller, context) {
   router.post(
     '/',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.plainString('title', 1, 255),
     commonRules.htmlContent('content', 100000),
     commonRules.array('mentions', 50),
@@ -68,7 +71,7 @@ function createTaskRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.plainString('title', 1, 255),
     commonRules.htmlContent('content', 100000),
@@ -87,23 +90,16 @@ function createTaskRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
-    // /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
   );
 
   // DELETE /api/tasks/:id - Delete task
-  router.delete(
-    '/:id',
-    gate,
-    /* csrfProtection, */ // Temporarily disabled
-    commonRules.id('id'),
-    validateRequest,
-    (req, res) => {
-      controller.delete(req, res);
-    },
-  );
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) => {
+    controller.delete(req, res);
+  });
 
   return router;
 }

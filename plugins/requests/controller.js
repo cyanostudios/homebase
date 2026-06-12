@@ -57,9 +57,7 @@ class RequestController {
         userId: Context.getUserId(req),
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res
-        .status(500)
-        .json({ error: 'Failed to update request', message: error.message || 'Unknown error' });
+      res.status(500).json({ error: 'Failed to update request' });
     }
   }
 

@@ -2,6 +2,9 @@ import React, { createContext, useContext } from 'react';
 
 export interface ScheduleContextType {
   isSchedulePanelOpen: boolean;
+  scheduleContentView: 'list' | 'settings';
+  openScheduleSettings: () => void;
+  closeScheduleSettingsView: () => void;
 }
 
 const ScheduleContext = createContext<ScheduleContextType | undefined>(undefined);
@@ -16,6 +19,9 @@ export function useScheduleContext() {
 
 const EMPTY_SCHEDULE_CONTEXT: ScheduleContextType = {
   isSchedulePanelOpen: false,
+  scheduleContentView: 'list',
+  openScheduleSettings: () => {},
+  closeScheduleSettingsView: () => {},
 };
 
 export function ScheduleNullProvider({ children }: { children: React.ReactNode }) {

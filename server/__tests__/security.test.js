@@ -115,8 +115,15 @@ describe('Security: CSRF middleware', () => {
 
 describe('Security: public share routing module', () => {
   it('exports resource type constants', () => {
-    const { RESOURCE_TASK, RESOURCE_NOTE } = require('../core/services/publicShareRouting');
+    const {
+      RESOURCE_TASK,
+      RESOURCE_NOTE,
+      RESOURCE_ESTIMATE,
+      RESOURCE_INVOICE,
+    } = require('../core/services/publicShareRouting');
     expect(RESOURCE_TASK).toBe('task');
     expect(RESOURCE_NOTE).toBe('note');
+    expect(RESOURCE_ESTIMATE).toBe('estimate');
+    expect(RESOURCE_INVOICE).toBe('invoice');
   });
 });

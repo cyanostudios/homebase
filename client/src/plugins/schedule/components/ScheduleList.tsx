@@ -1,50 +1,229 @@
-import { Users } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import { Check, Settings, Users, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import type { TrainingTime } from '@/plugins/teams/types/teams';
 
-import { buildTeamSlots, type ScheduleSlot } from '../types/schedule';
+import { useSchedule } from '../hooks/useSchedule';
+import { useSchedulePendingChanges } from '../hooks/useSchedulePendingChanges';
+import { useScheduleSettings } from '../hooks/useScheduleSettings';
+import {
+  buildTeamSlots,
+  isSlotVisibleInGrid,
+  type ScheduleSlot,
+  type ScheduleTrainingDialogState,
+} from '../types/schedule';
 
-import { ScheduleWeekView } from './ScheduleWeekView';
+import { ScheduleSettingsView } from './ScheduleSettingsView';
+import { ScheduleTimeGrid } from './ScheduleTimeGrid';
+import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
 
 export function ScheduleList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { teams } = useTeams();
-  const { attemptNavigation } = useGlobalNavigationGuard();
+  const { scheduleContentView, openScheduleSettings, closeScheduleSettingsView } = useSchedule();
+  const { gridSettings, isLoading: isGridSettingsLoading } = useScheduleSettings();
+  const {
+    displayTeams,
+    isDirty,
+    isSaving,
+    saveError,
+    setSaveError,
+    getSlotHighlight,
+    updateTeamTimes,
+    commit,
+    discard,
+  } = useSchedulePendingChanges(teams);
+  const { attemptNavigation, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
   const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [dialogState, setDialogState] = useState<ScheduleTrainingDialogState>(null);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 
-  const weekSlots = useMemo(() => buildTeamSlots(teams, teamFilter), [teamFilter, teams]);
+  useEffect(() => {
+    registerUnsavedChangesChecker('schedule-list', () => isDirty);
+    return () => unregisterUnsavedChangesChecker('schedule-list');
+  }, [isDirty, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+
+  const weekSlots = useMemo(() => {
+    const slots = buildTeamSlots(displayTeams, teamFilter);
+    return slots.filter((slot) => isSlotVisibleInGrid(slot, gridSettings));
+  }, [displayTeams, gridSettings, teamFilter]);
 
   const handleSlotClick = useCallback(
     (slot: ScheduleSlot) => {
       if (!slot.teamId) {
         return;
       }
-      const team = teams.find((item) => String(item.id) === String(slot.teamId));
+      const team = displayTeams.find((item) => String(item.id) === String(slot.teamId));
       if (!team) {
         return;
       }
       attemptNavigation(() => {
-        navigate(`/teams/${buildSlug(team, teams, 'name')}`);
+        navigate(`/teams/${buildSlug(team, displayTeams, 'name')}`);
       });
     },
-    [attemptNavigation, navigate, teams],
+    [attemptNavigation, displayTeams, navigate],
   );
+
+  const handleSlotMove = useCallback(
+    (slot: ScheduleSlot, newDay: string, newStartTime: string, newEndTime: string) => {
+      if (!slot.teamId) {
+        return;
+      }
+
+      updateTeamTimes(String(slot.teamId), (times) =>
+        times.map((training, index) =>
+          index === slot.trainingIndex
+            ? { ...training, day: newDay, startTime: newStartTime, endTime: newEndTime }
+            : training,
+        ),
+      );
+    },
+    [updateTeamTimes],
+  );
+
+  const handleAddSlot = useCallback(
+    (day: string, startMinutes: number) => {
+      setDialogState({ mode: 'create', day, startMinutes });
+      setSaveError(null);
+    },
+    [setSaveError],
+  );
+
+  const handleEditSlot = useCallback(
+    (slot: ScheduleSlot) => {
+      setDialogState({ mode: 'edit', slot });
+      setSaveError(null);
+    },
+    [setSaveError],
+  );
+
+  const handleCreateTraining = useCallback(
+    async (teamId: string, training: TrainingTime) => {
+      updateTeamTimes(teamId, (times) => [...times, training]);
+      return true;
+    },
+    [updateTeamTimes],
+  );
+
+  const handleUpdateTraining = useCallback(
+    async (slot: ScheduleSlot, training: TrainingTime) => {
+      if (!slot.teamId) {
+        return false;
+      }
+
+      updateTeamTimes(String(slot.teamId), (times) =>
+        times.map((item, index) =>
+          index === slot.trainingIndex ? { ...item, ...training } : item,
+        ),
+      );
+      return true;
+    },
+    [updateTeamTimes],
+  );
+
+  const handleDeleteTraining = useCallback(
+    async (slot: ScheduleSlot) => {
+      if (!slot.teamId) {
+        return false;
+      }
+
+      updateTeamTimes(String(slot.teamId), (times) =>
+        times.filter((_, index) => index !== slot.trainingIndex),
+      );
+      return true;
+    },
+    [updateTeamTimes],
+  );
+
+  const handleCommit = useCallback(async () => {
+    const ok = await commit();
+    if (!ok) {
+      setSaveError(t('schedule.saveError'));
+    }
+  }, [commit, setSaveError, t]);
+
+  const preferredTeamId = teamFilter !== 'all' ? teamFilter : undefined;
+
+  if (scheduleContentView === 'settings') {
+    return (
+      <div className="plugin-schedule min-h-full bg-background">
+        <div className="px-6 py-4">
+          <ScheduleSettingsView
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={() => attemptNavigation(closeScheduleSettingsView)}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="plugin-schedule min-h-full bg-background px-6 py-4">
       <div className="space-y-4">
-        <div className="min-w-0">
-          <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.schedule')}</h2>
-          <p className="text-sm text-muted-foreground">{t('schedule.listDescription')}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.schedule')}</h2>
+            <p className="text-sm text-muted-foreground">{t('schedule.listDescription')}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {isDirty ? (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-9 px-3 text-xs"
+                  disabled={isSaving}
+                  onClick={() => setShowDiscardDialog(true)}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleCommit}
+                  variant="primary"
+                  size="sm"
+                  icon={Check}
+                  disabled={isSaving}
+                  className="h-9 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
+                >
+                  {isSaving ? t('common.saving') : t('common.update')}
+                </Button>
+              </>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={Settings}
+              className="h-9 px-2.5 text-xs"
+              onClick={() => attemptNavigation(openScheduleSettings)}
+              title={t('schedule.settings.title')}
+            >
+              {t('schedule.settings.title')}
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -102,9 +281,50 @@ export function ScheduleList() {
           <h3 className="mb-3 text-sm font-semibold text-foreground">
             {t('schedule.weeklySchedule')}
           </h3>
-          <ScheduleWeekView slots={weekSlots} onSlotClick={handleSlotClick} />
+          {saveError ? <p className="mb-2 text-xs text-destructive">{saveError}</p> : null}
+          {isGridSettingsLoading ? (
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+          ) : (
+            <ScheduleTimeGrid
+              slots={weekSlots}
+              gridSettings={gridSettings}
+              savingSlotId={null}
+              getSlotHighlight={getSlotHighlight}
+              onSlotClick={handleSlotClick}
+              onEditSlot={handleEditSlot}
+              onAddSlot={handleAddSlot}
+              onSlotMove={handleSlotMove}
+            />
+          )}
         </Card>
       </div>
+
+      <ConfirmDialog
+        isOpen={showDiscardDialog}
+        title={t('dialog.unsavedChanges')}
+        message={t('teams.form.unsavedMessage')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
+        onConfirm={() => {
+          discard();
+          setShowDiscardDialog(false);
+        }}
+        onCancel={() => setShowDiscardDialog(false)}
+        variant="warning"
+      />
+
+      {dialogState ? (
+        <ScheduleTrainingDialog
+          state={dialogState}
+          teams={displayTeams}
+          preferredTeamId={preferredTeamId}
+          isSaving={false}
+          onClose={() => setDialogState(null)}
+          onCreate={handleCreateTraining}
+          onUpdate={handleUpdateTraining}
+          onDelete={handleDeleteTraining}
+        />
+      ) : null}
     </div>
   );
 }

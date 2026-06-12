@@ -4,10 +4,33 @@ const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const {
+  registerPublicShareRoute,
+  RESOURCE_INVOICE,
+} = require('../../server/core/services/publicShareRouting');
+const {
+  resolveTenantConnectionStringForShare,
+} = require('../../server/core/utils/shareRoutingHelper');
 
 class InvoiceModel {
   constructor() {
     // No pool needed - ServiceManager provides database service
+  }
+
+  _getContext(req) {
+    if (!req) {
+      throw new Error('Request object is required');
+    }
+
+    const pool = req.tenantPool;
+    if (!pool) {
+      throw new Error('Tenant pool not found in request. Ensure auth middleware is applied.');
+    }
+
+    return {
+      pool,
+      userId: req.session?.currentTenantUserId || req.session?.user?.id,
+    };
   }
 
   calculateTotals(lineItems, invoiceDiscount = 0) {
@@ -561,7 +584,7 @@ class InvoiceModel {
 
   async createShare(req, invoiceId, validUntil) {
     try {
-      const db = Database.get(req);
+      const context = this._getContext(req);
       const pool = context.pool;
 
       const invoice = await this.getById(req, invoiceId);
@@ -582,6 +605,24 @@ class InvoiceModel {
       );
 
       Logger.info('Share created', { invoiceId, shareId: result.rows[0].id });
+
+      const createdToken = result.rows[0].share_token;
+      const tenantConnectionString = await resolveTenantConnectionStringForShare(req);
+      if (tenantConnectionString) {
+        try {
+          await registerPublicShareRoute(createdToken, RESOURCE_INVOICE, tenantConnectionString);
+        } catch (routeErr) {
+          Logger.error('public_share_routing register failed', routeErr, {
+            invoiceId,
+            tokenPrefix: createdToken.substring(0, 8),
+          });
+        }
+      } else {
+        Logger.warn(
+          'Invoice share created in tenant DB but public_share_routing not registered (no tenant connection string)',
+          { invoiceId },
+        );
+      }
 
       return {
         id: result.rows[0].id.toString(),

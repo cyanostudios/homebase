@@ -8,6 +8,8 @@ const {
 } = require('../../server/core/storage/registerDefaultAdapters');
 const StorageProviderRegistry = require('../../server/core/storage/StorageProviderRegistry');
 const { AppError } = require('../../server/core/errors/AppError');
+const { validateUploadedFileMime } = require('../../server/core/utils/uploadMimeValidation');
+const { ALLOWED_UPLOAD_MIME } = require('./allowedMime');
 
 class FilesService {
   constructor(model, attachmentModel) {
@@ -57,6 +59,8 @@ class FilesService {
     const provider = await StorageProviderRegistry.resolveForUpload(req);
     const created = [];
     for (const f of files) {
+      await validateUploadedFileMime(f, ALLOWED_UPLOAD_MIME);
+
       const utf8Name = f.originalname
         ? Buffer.from(f.originalname, 'latin1').toString('utf8')
         : 'file';

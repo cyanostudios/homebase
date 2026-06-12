@@ -2,8 +2,10 @@
 // Estimates routes with V2 security (CSRF protection and input validation)
 const express = require('express');
 const config = require('./plugin.config');
+const { query } = require('express-validator');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { publicEndpointLimiter } = require('../../server/core/middleware/rateLimit');
 
 function createEstimateRoutes(controller, context) {
   const requirePlugin =
@@ -17,7 +19,7 @@ function createEstimateRoutes(controller, context) {
   router.post(
     '/',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
@@ -27,17 +29,32 @@ function createEstimateRoutes(controller, context) {
   router.get('/number/next', gate, (req, res) => controller.getNextEstimateNumber(req, res));
 
   // Statistics routes (must come before /:id to avoid conflicts)
-  router.get('/stats/status', gate, (req, res) => controller.getStatusStats(req, res));
-  router.get('/stats/reasons/:status', gate, (req, res) => controller.getReasonStats(req, res));
+  router.get(
+    '/stats/status',
+    gate,
+    query('startDate').optional().isISO8601().withMessage('startDate must be ISO 8601'),
+    query('endDate').optional().isISO8601().withMessage('endDate must be ISO 8601'),
+    validateRequest,
+    (req, res) => controller.getStatusStats(req, res),
+  );
+  router.get(
+    '/stats/reasons/:status',
+    gate,
+    query('startDate').optional().isISO8601().withMessage('startDate must be ISO 8601'),
+    query('endDate').optional().isISO8601().withMessage('endDate must be ISO 8601'),
+    validateRequest,
+    (req, res) => controller.getReasonStats(req, res),
+  );
 
-  // Public routes (no authentication required) - MOVED BEFORE /:id to prevent conflicts
-  router.get('/public/:token', (req, res) => controller.getPublicEstimate(req, res));
+  router.get('/public/:token', publicEndpointLimiter, (req, res) =>
+    controller.getPublicEstimate(req, res),
+  );
 
   // DELETE /api/estimates/batch - Bulk delete (MUST be before '/:id' route)
   router.delete(
     '/batch',
     gate,
-    // /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
@@ -48,7 +65,7 @@ function createEstimateRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
@@ -56,13 +73,8 @@ function createEstimateRoutes(controller, context) {
     (req, res) => controller.updateEstimate(req, res),
   );
 
-  router.delete(
-    '/:id',
-    gate,
-    /* csrfProtection, */ // Temporarily disabled
-    commonRules.id('id'),
-    validateRequest,
-    (req, res) => controller.deleteEstimate(req, res),
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.deleteEstimate(req, res),
   );
 
   // PDF generation route (requires authentication)
@@ -72,7 +84,7 @@ function createEstimateRoutes(controller, context) {
   router.post(
     '/shares',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.requiredId('estimateId'),
     commonRules.date('validUntil'),
     validateRequest,
@@ -84,7 +96,7 @@ function createEstimateRoutes(controller, context) {
   router.delete(
     '/shares/:shareId',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('shareId'),
     validateRequest,
     (req, res) => controller.revokeShare(req, res),

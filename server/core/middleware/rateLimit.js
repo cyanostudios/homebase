@@ -89,10 +89,27 @@ const uploadLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const parsedPublicMax = parseInt(process.env.PUBLIC_RATE_LIMIT_MAX || '', 10);
+const publicEndpointMax =
+  Number.isFinite(parsedPublicMax) && parsedPublicMax > 0 ? parsedPublicMax : 60;
+
+/**
+ * Rate limiter for unauthenticated public endpoints (booking, requests, share links).
+ * Always enforced (not skipped in development).
+ */
+const publicEndpointLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: publicEndpointMax,
+  message: 'Too many requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   globalLimiter,
   authLimiter,
   emailLimiter,
   uploadLimiter,
+  publicEndpointLimiter,
   enforceRateLimits,
 };

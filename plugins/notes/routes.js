@@ -5,6 +5,7 @@ const router = express.Router();
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { publicEndpointLimiter } = require('../../server/core/middleware/rateLimit');
 
 function createNoteRoutes(controller, context) {
   const requirePlugin =
@@ -12,7 +13,7 @@ function createNoteRoutes(controller, context) {
   const gate = requirePlugin(config.name); // auth/enablement guard
 
   // Public read-only note by share token (no auth)
-  router.get('/public/:token', (req, res) => {
+  router.get('/public/:token', publicEndpointLimiter, (req, res) => {
     controller.getPublicNote(req, res);
   });
 
@@ -51,7 +52,7 @@ function createNoteRoutes(controller, context) {
   router.post(
     '/',
     gate,
-    // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
+    csrfProtection,
     commonRules.plainString('title', 1, 255),
     commonRules.htmlContent('content', 100000),
     commonRules.array('mentions', 50), // Max 50 mentions
@@ -65,7 +66,7 @@ function createNoteRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
-    // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.plainString('title', 1, 255),
     commonRules.htmlContent('content', 100000),
@@ -80,23 +81,16 @@ function createNoteRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
-    // /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
   );
 
   // DELETE /api/notes/:id - Delete note
-  router.delete(
-    '/:id',
-    gate,
-    // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
-    commonRules.id('id'),
-    validateRequest,
-    (req, res) => {
-      controller.delete(req, res);
-    },
-  );
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) => {
+    controller.delete(req, res);
+  });
 
   return router;
 }

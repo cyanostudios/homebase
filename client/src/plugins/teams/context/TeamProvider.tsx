@@ -13,7 +13,7 @@ import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { teamsApi } from '../api/teamsApi';
 import type { TeamPayload } from '../api/teamsApi';
-import type { Team, TeamValidationError } from '../types/teams';
+import type { Team, TeamValidationError, TrainingTime } from '../types/teams';
 
 import { TeamsContext } from './TeamContext';
 import type { TeamsContextType } from './TeamContext';
@@ -147,6 +147,111 @@ export function TeamProvider({
       openTeamForViewRef.current(item as Team);
     }
   }, [location.pathname, teams]);
+
+  const buildTeamPayload = useCallback((team: Team, trainingTimes: TrainingTime[]): TeamPayload => {
+    return {
+      name: team.name,
+      age_group: team.age_group,
+      gender: team.gender,
+      player_count: team.player_count,
+      series_team_count: team.series_team_count,
+      series_teams: team.series_teams,
+      status: team.status,
+      status_note: team.status_note,
+      team_notes: team.team_notes,
+      training_times: trainingTimes,
+      season_breaks: team.season_breaks,
+      responsibles: team.responsibles,
+      color: team.color,
+    };
+  }, []);
+
+  const persistTrainingTimes = useCallback(
+    async (teamId: string, newTimes: TrainingTime[]): Promise<boolean> => {
+      const team = teams.find((item) => String(item.id) === String(teamId));
+      if (!team) {
+        return false;
+      }
+
+      const previousTimes = team.training_times;
+      const optimisticTeam: Team = { ...team, training_times: newTimes };
+
+      setTeams((prev) =>
+        prev.map((item) => (String(item.id) === String(teamId) ? optimisticTeam : item)),
+      );
+      if (currentTeam && String(currentTeam.id) === String(teamId)) {
+        setCurrentTeam(optimisticTeam);
+      }
+
+      try {
+        const updated = await teamsApi.updateTeam(String(teamId), buildTeamPayload(team, newTimes));
+        setTeams((prev) =>
+          prev.map((item) => (String(item.id) === String(teamId) ? updated : item)),
+        );
+        if (currentTeam && String(currentTeam.id) === String(teamId)) {
+          setCurrentTeam(updated);
+        }
+        return true;
+      } catch {
+        setTeams((prev) =>
+          prev.map((item) =>
+            String(item.id) === String(teamId) ? { ...item, training_times: previousTimes } : item,
+          ),
+        );
+        if (currentTeam && String(currentTeam.id) === String(teamId)) {
+          setCurrentTeam({ ...team, training_times: previousTimes });
+        }
+        return false;
+      }
+    },
+    [buildTeamPayload, currentTeam, teams],
+  );
+
+  const updateTeamTrainingTimes = useCallback(
+    async (
+      teamId: string,
+      trainingIndex: number,
+      patch: Partial<TrainingTime>,
+    ): Promise<boolean> => {
+      const team = teams.find((item) => String(item.id) === String(teamId));
+      if (!team) {
+        return false;
+      }
+
+      const newTimes = team.training_times.map((training, index) =>
+        index === trainingIndex ? { ...training, ...patch } : training,
+      );
+      return persistTrainingTimes(teamId, newTimes);
+    },
+    [persistTrainingTimes, teams],
+  );
+
+  const addTeamTrainingTime = useCallback(
+    async (teamId: string, training: TrainingTime): Promise<boolean> => {
+      const team = teams.find((item) => String(item.id) === String(teamId));
+      if (!team) {
+        return false;
+      }
+
+      return persistTrainingTimes(teamId, [...team.training_times, training]);
+    },
+    [persistTrainingTimes, teams],
+  );
+
+  const removeTeamTrainingTime = useCallback(
+    async (teamId: string, trainingIndex: number): Promise<boolean> => {
+      const team = teams.find((item) => String(item.id) === String(teamId));
+      if (!team) {
+        return false;
+      }
+
+      return persistTrainingTimes(
+        teamId,
+        team.training_times.filter((_, index) => index !== trainingIndex),
+      );
+    },
+    [persistTrainingTimes, teams],
+  );
 
   const saveTeam = useCallback(
     async (data: TeamPayload, teamId?: string): Promise<boolean> => {
@@ -322,6 +427,10 @@ export function TeamProvider({
     closeTeamStatisticsView,
     closeTeamPanel,
     saveTeam,
+    updateTeamTrainingTimes,
+    addTeamTrainingTime,
+    removeTeamTrainingTime,
+    saveTeamTrainingTimes: persistTrainingTimes,
     deleteTeam,
     deleteTeams,
     selectedTeamIds,

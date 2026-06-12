@@ -6,6 +6,7 @@ const router = express.Router();
 const ServiceManager = require('../ServiceManager');
 const TeamService = require('../services/team/TeamService');
 const { requireTenantRole } = require('../middleware/authorization');
+const { csrfProtection } = require('../middleware/csrf');
 
 let requireAuth = null;
 let teamService = null;
@@ -48,6 +49,7 @@ router.post(
   '/users',
   (req, res, next) => requireAuth(req, res, next),
   requireTenantRole(['admin']),
+  csrfProtection,
   async (req, res) => {
     try {
       const tenantId = req.session.tenantId;
@@ -87,6 +89,7 @@ router.patch(
   '/users/:userId/role',
   (req, res, next) => requireAuth(req, res, next),
   requireTenantRole(['admin']),
+  csrfProtection,
   async (req, res) => {
     try {
       const tenantId = req.session.tenantId;
@@ -122,6 +125,7 @@ router.delete(
   '/users/:userId',
   (req, res, next) => requireAuth(req, res, next),
   requireTenantRole(['admin']),
+  csrfProtection,
   async (req, res) => {
     try {
       const tenantId = req.session.tenantId;

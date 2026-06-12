@@ -28,25 +28,7 @@ function createFilesRoutes(controller, context) {
   const MAX_FILES = 20;
 
   // Common safe document/image types
-  const ALLOWED_MIME = new Set([
-    // images
-    'image/png',
-    'image/jpeg',
-    'image/gif',
-    'image/webp',
-    'image/svg+xml',
-    // docs
-    'application/pdf',
-    'text/plain',
-    'text/csv',
-    'application/zip',
-    'application/vnd.ms-excel',
-    'application/vnd.ms-powerpoint',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
-  ]);
+  const ALLOWED_MIME = require('./allowedMime').ALLOWED_UPLOAD_MIME;
 
   const storage = multer.diskStorage({
     destination: function (_req, _file, cb) {
@@ -110,7 +92,7 @@ function createFilesRoutes(controller, context) {
   router.post(
     '/',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('name', 1, 255),
     commonRules.optionalString('url', 500),
     validateRequest,
@@ -121,7 +103,7 @@ function createFilesRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
@@ -170,13 +152,8 @@ function createFilesRoutes(controller, context) {
   );
 
   // ---- MULTIPART upload: returns array of created FileItems ----
-  router.post(
-    '/upload',
-    gate,
-    uploadLimiter,
-    /* csrfProtection, */ // Temporarily disabled
-    runUpload,
-    (req, res) => controller.upload(req, res, { uploadRoot }),
+  router.post('/upload', gate, uploadLimiter, csrfProtection, runUpload, (req, res) =>
+    controller.upload(req, res, { uploadRoot }),
   );
 
   // ---- RAW file serving by stored filename (behind auth gate) ----
@@ -204,18 +181,15 @@ function createFilesRoutes(controller, context) {
   );
 
   // POST /api/files/cloud/:service/disconnect
-  router.post(
-    '/cloud/:service/disconnect',
-    gate,
-    /* csrfProtection, */ // Temporarily disabled
-    (req, res) => cloudStorageController.disconnect(req, res),
+  router.post('/cloud/:service/disconnect', gate, csrfProtection, (req, res) =>
+    cloudStorageController.disconnect(req, res),
   );
 
   // POST /api/files/cloud/:service/credentials - Save OAuth app credentials (per-user)
   router.post(
     '/cloud/:service/credentials',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('clientId', 1, 500),
     commonRules.string('clientSecret', 1, 500),
     validateRequest,
@@ -235,7 +209,7 @@ function createFilesRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('name', 1, 255).optional(),
     commonRules.optionalString('url', 500),
@@ -243,13 +217,8 @@ function createFilesRoutes(controller, context) {
     (req, res) => controller.update(req, res),
   );
 
-  router.delete(
-    '/:id',
-    gate,
-    /* csrfProtection, */ // Temporarily disabled
-    commonRules.id('id'),
-    validateRequest,
-    (req, res) => controller.delete(req, res),
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.delete(req, res),
   );
 
   return router;

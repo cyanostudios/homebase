@@ -13,6 +13,9 @@ const StorageProviderRegistry = require('../../server/core/storage/StorageProvid
 function wantsInlinePreview(mimeType, filename) {
   if (mimeType && typeof mimeType === 'string') {
     const m = mimeType.toLowerCase();
+    if (m === 'image/svg+xml') {
+      return false;
+    }
     if (
       m.startsWith('image/') ||
       m === 'application/pdf' ||
@@ -25,6 +28,9 @@ function wantsInlinePreview(mimeType, filename) {
   }
   if (filename && typeof filename === 'string') {
     const ext = path.extname(filename).toLowerCase();
+    if (ext === '.svg') {
+      return false;
+    }
     return [
       '.pdf',
       '.png',
@@ -231,7 +237,10 @@ class FilesController {
       if (!filename) return res.status(400).json({ error: 'Missing filename' });
 
       const item = await this.model.getByStoredFilename(req, filename);
-      if (item && item.storageProvider === 'googledrive') {
+      if (!item) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+      if (item.storageProvider === 'googledrive') {
         return res.status(400).json({
           error: 'Use GET /api/files/:id/download for cloud-hosted files',
         });
@@ -258,8 +267,10 @@ class FilesController {
           'Content-Disposition',
           `${disp}; filename*=UTF-8''${encodeURIComponent(suggested)}`,
         );
-        return res.sendFile(abs);
+      } else {
+        res.setHeader('Content-Disposition', 'attachment');
       }
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       return res.sendFile(abs);
     } catch (error) {
       Logger.error('File serve failed', error, { filename: req.params.filename });

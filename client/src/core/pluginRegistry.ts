@@ -586,6 +586,8 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {
     name: 'schedule',
     Provider: ScheduleNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/schedule/context/ScheduleProvider').then((m) => m.ScheduleProvider),
     NullProvider: ScheduleNullProvider,
     hook: useSchedule,
     panelKey: 'isSchedulePanelOpen',
@@ -600,6 +602,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     contentFlush: true,
     noPrimaryAction: true,
+    contentViewKey: 'scheduleContentView',
   },
   {
     name: 'matches',

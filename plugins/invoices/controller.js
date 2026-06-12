@@ -1,6 +1,7 @@
 // plugins/invoices/controller.js
 // Invoices controller - V3 with @homebase/core SDK
 const puppeteer = require('puppeteer');
+const { setPdfHtmlContent } = require('../../server/core/utils/puppeteerPdf');
 const { generatePDFHTML } = require('./pdfTemplate');
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
@@ -160,7 +161,7 @@ class InvoiceController {
       const page = await browser.newPage();
 
       const html = generatePDFHTML(invoice);
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await setPdfHtmlContent(page, html);
 
       const pdfBuffer = await page.pdf({
         format: 'A4',

@@ -108,7 +108,7 @@ class SettingsController {
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Failed to delete activity logs', error, { userId: req.session?.user?.id });
-      res.status(500).json({ error: error.message || 'Failed to delete activity logs' });
+      res.status(500).json({ error: 'Failed to delete activity logs' });
     }
   }
 }

@@ -73,7 +73,7 @@ function errorHandler(error, req, res, next) {
     });
   }
 
-  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   console.error('=== ERROR HANDLER ===');
   console.error('Error:', error);

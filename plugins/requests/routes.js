@@ -4,6 +4,7 @@ const router = express.Router();
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { publicEndpointLimiter } = require('../../server/core/middleware/rateLimit');
 
 // request_type is user-configurable via settings; validate as a plain string instead of enum
 const REQUEST_STATUSES = ['not started', 'in progress', 'completed', 'cancelled'];
@@ -15,8 +16,12 @@ function createRequestRoutes(controller, context) {
   const gate = requirePlugin(config.name);
 
   // Public routes — no auth, no gate, uses publicRequestsPool
-  router.get('/public/teams', (req, res) => controller.publicGetTeams(req, res));
-  router.post('/public/submit', (req, res) => controller.publicSubmit(req, res));
+  router.get('/public/teams', publicEndpointLimiter, (req, res) =>
+    controller.publicGetTeams(req, res),
+  );
+  router.post('/public/submit', publicEndpointLimiter, (req, res) =>
+    controller.publicSubmit(req, res),
+  );
 
   // Authenticated routes
   router.get('/', gate, (req, res) => controller.getAll(req, res));

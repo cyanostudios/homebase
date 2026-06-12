@@ -1,6 +1,8 @@
 // plugins/estimates/pdfTemplate.js
 // PDF-optimized template for estimate rendering
 
+const { escapeHtml } = require('../../server/core/utils/htmlEscape');
+
 function formatDate(date) {
   return new Date(date).toLocaleDateString('sv-SE');
 }
@@ -28,7 +30,7 @@ function generatePDFHTML(estimate) {
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Estimate ${estimate.estimateNumber}</title>
+        <title>Estimate ${escapeHtml(estimate.estimateNumber)}</title>
         <style>
           body {
             font-family: 'Helvetica', 'Arial', sans-serif;
@@ -222,9 +224,9 @@ function generatePDFHTML(estimate) {
           <div class="address-section" style="margin-left: 5%;">
             <div class="address-label">Bill To</div>
             <div class="address-content">
-              <strong>${estimate.contactName || 'Customer'}</strong><br>
-              ${estimate.organizationNumber ? `Org: ${estimate.organizationNumber}<br>` : ''}
-              ${estimate.customerEmail || ''}
+              <strong>${escapeHtml(estimate.contactName || 'Customer')}</strong><br>
+              ${estimate.organizationNumber ? `Org: ${escapeHtml(estimate.organizationNumber)}<br>` : ''}
+              ${escapeHtml(estimate.customerEmail || '')}
             </div>
           </div>
         </div>
@@ -243,7 +245,7 @@ function generatePDFHTML(estimate) {
               .map(
                 (item) => `
               <tr>
-                <td><strong>${item.description || 'Service Item'}</strong></td>
+                <td><strong>${escapeHtml(item.description || 'Service Item')}</strong></td>
                 <td class="text-right">${item.quantity || 1}</td>
                 <td class="text-right">${formatCurrency(item.unitPrice || 0, estimate.currency)}</td>
                 <td class="text-right"><strong>${formatCurrency(item.lineTotal || 0, estimate.currency)}</strong></td>
@@ -296,7 +298,7 @@ function generatePDFHTML(estimate) {
             ? `
         <div class="notes-section">
           <div class="address-label">Notes</div>
-          <div class="notes-content">${estimate.notes}</div>
+          <div class="notes-content">${escapeHtml(estimate.notes)}</div>
         </div>
         `
             : ''

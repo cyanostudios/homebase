@@ -14,7 +14,7 @@ try {
 
 // CSRF protection for state-changing operations
 let csrfProtection;
-const enableCsrf = process.env.ENABLE_CSRF === 'true';
+const enableCsrf = process.env.ENABLE_CSRF === 'true' || process.env.NODE_ENV === 'production';
 
 if (enableCsrf && csrf) {
   // Session-backed secret (req.session.csrfSecret). Do not use csurf's separate
