@@ -37,6 +37,7 @@
     "migrate:requests": "node scripts/run-requests-migration.js",
     "migrate:schedule": "node scripts/run-schedule-migration.js",
     "migrate:schedule-user-id": "node scripts/run-schedule-user-id-migration.js",
+    "migrate:schedule-event-team-id": "node scripts/run-schedule-event-team-id-migration.js",
     "migrate:teams": "node scripts/run-teams-migration.js",
     "migrate:teams-team-notes": "node scripts/run-teams-team-notes-migration.js",
     "migrate:teams-series-teams": "node scripts/run-teams-series-teams-migration.js",

@@ -41,6 +41,7 @@ function getSlotClassName(
   isClickable: boolean,
   highlight: ScheduleSlotHighlight,
   isDragging?: boolean,
+  readOnly?: boolean,
 ) {
   const colorStyles = slot.teamColor ? SERIES_TEAM_ROW_STYLES[slot.teamColor] : null;
 
@@ -52,9 +53,11 @@ function getSlotClassName(
       'border-green-500 ring-2 ring-green-500 bg-green-50/50 dark:bg-green-950/20',
     isDragging && 'opacity-60 ring-2 ring-primary/40',
     isClickable &&
+      !readOnly &&
       (colorStyles
         ? 'cursor-grab active:cursor-grabbing transition-[filter,box-shadow,border-color] hover:brightness-[0.98] hover:shadow-md dark:hover:brightness-110'
         : 'cursor-grab active:cursor-grabbing transition-colors hover:border-primary/40 hover:bg-primary/5'),
+    isClickable && readOnly && 'cursor-pointer',
   );
 }
 
@@ -163,6 +166,7 @@ function DraggableSlot({
   gridSettings,
   savingSlotId,
   getSlotHighlight,
+  readOnly,
   onSlotClick,
   onEditSlot,
 }: {
@@ -170,6 +174,7 @@ function DraggableSlot({
   gridSettings: ScheduleGridSettings;
   savingSlotId: string | null;
   getSlotHighlight?: (slot: ScheduleSlot) => ScheduleSlotHighlight;
+  readOnly?: boolean;
   onSlotClick?: (slot: ScheduleSlot) => void;
   onEditSlot?: (slot: ScheduleSlot) => void;
 }) {
@@ -178,6 +183,7 @@ function DraggableSlot({
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: getSlotDragId(slot),
     data: { slot },
+    disabled: readOnly,
   });
 
   const isClickable = Boolean(slot.teamId && onSlotClick);
@@ -186,16 +192,40 @@ function DraggableSlot({
   const style: React.CSSProperties = {
     top: getSlotTopPx(slot, gridSettings),
     height: Math.max(getSlotHeightPx(slot), GRID_ROW_HEIGHT_PX - 2),
-    transform: CSS.Translate.toString(transform),
+    transform: readOnly ? undefined : CSS.Translate.toString(transform),
     zIndex: isDragging ? 30 : 10,
     ...getColumnStyle(colIndex, colCount),
   };
 
-  const className = getSlotClassName(slot, isClickable, highlight, isDragging);
+  const className = getSlotClassName(slot, isClickable, highlight, isDragging, readOnly);
 
-  if (!isClickable) {
+  if (!isClickable || readOnly) {
     return (
-      <div ref={setNodeRef} className={className} style={style}>
+      <div
+        ref={setNodeRef}
+        className={className}
+        style={style}
+        onClick={
+          readOnly && isClickable
+            ? (event) => {
+                event.stopPropagation();
+                onSlotClick?.(slot);
+              }
+            : undefined
+        }
+        onKeyDown={
+          readOnly && isClickable
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onSlotClick?.(slot);
+                }
+              }
+            : undefined
+        }
+        role={readOnly && isClickable ? 'button' : undefined}
+        tabIndex={readOnly && isClickable ? 0 : undefined}
+      >
         <ScheduleSlotContent slot={slot} />
       </div>
     );
@@ -255,6 +285,7 @@ function DayColumn({
   gridSettings,
   savingSlotId,
   getSlotHighlight,
+  readOnly,
   onSlotClick,
   onEditSlot,
   onAddSlot,
@@ -265,6 +296,7 @@ function DayColumn({
   gridSettings: ScheduleGridSettings;
   savingSlotId: string | null;
   getSlotHighlight?: (slot: ScheduleSlot) => ScheduleSlotHighlight;
+  readOnly?: boolean;
   onSlotClick?: (slot: ScheduleSlot) => void;
   onEditSlot?: (slot: ScheduleSlot) => void;
   onAddSlot?: (day: string, startMinutes: number) => void;
@@ -309,6 +341,7 @@ function DayColumn({
           gridSettings={gridSettings}
           savingSlotId={savingSlotId}
           getSlotHighlight={getSlotHighlight}
+          readOnly={readOnly}
           onSlotClick={onSlotClick}
           onEditSlot={onEditSlot}
         />
@@ -322,6 +355,7 @@ export function ScheduleTimeGrid({
   gridSettings,
   savingSlotId,
   getSlotHighlight,
+  readOnly = false,
   onSlotClick,
   onEditSlot,
   onAddSlot,
@@ -331,6 +365,7 @@ export function ScheduleTimeGrid({
   gridSettings: ScheduleGridSettings;
   savingSlotId: string | null;
   getSlotHighlight?: (slot: ScheduleSlot) => ScheduleSlotHighlight;
+  readOnly?: boolean;
   onSlotClick?: (slot: ScheduleSlot) => void;
   onEditSlot?: (slot: ScheduleSlot) => void;
   onAddSlot?: (day: string, startMinutes: number) => void;
@@ -414,14 +449,16 @@ export function ScheduleTimeGrid({
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        {t('schedule.dragHint')} {t('schedule.clickEmptyHint')}
+        {readOnly
+          ? t('schedule.lockedHint')
+          : `${t('schedule.dragHint')} ${t('schedule.clickEmptyHint')}`}
       </p>
 
       <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
+        sensors={readOnly ? [] : sensors}
+        onDragStart={readOnly ? undefined : handleDragStart}
+        onDragEnd={readOnly ? undefined : handleDragEnd}
+        onDragCancel={readOnly ? undefined : handleDragCancel}
       >
         <div className="overflow-x-auto rounded-lg border border-border/60">
           <div className="min-w-[760px]">
@@ -466,9 +503,10 @@ export function ScheduleTimeGrid({
                   gridSettings={gridSettings}
                   savingSlotId={savingSlotId}
                   getSlotHighlight={getSlotHighlight}
+                  readOnly={readOnly}
                   onSlotClick={onSlotClick}
-                  onEditSlot={onEditSlot}
-                  onAddSlot={onAddSlot}
+                  onEditSlot={readOnly ? undefined : onEditSlot}
+                  onAddSlot={readOnly ? undefined : onAddSlot}
                   suppressClickRef={suppressCellClickRef}
                 />
               ))}

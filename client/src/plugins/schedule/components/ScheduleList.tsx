@@ -1,10 +1,28 @@
-import { Check, Settings, Users, X } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, Lock, Plus, Settings, Users, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -14,14 +32,17 @@ import type { TrainingTime } from '@/plugins/teams/types/teams';
 
 import { useSchedule } from '../hooks/useSchedule';
 import { useSchedulePendingChanges } from '../hooks/useSchedulePendingChanges';
+import { useSchedulePlans } from '../hooks/useSchedulePlans';
 import { useScheduleSettings } from '../hooks/useScheduleSettings';
 import {
   buildTeamSlots,
+  DEFAULT_SCHEDULE_ID,
   isSlotVisibleInGrid,
   type ScheduleSlot,
   type ScheduleTrainingDialogState,
 } from '../types/schedule';
 
+import { PlanView } from './PlanView';
 import { ScheduleSettingsView } from './ScheduleSettingsView';
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
 import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
@@ -30,8 +51,23 @@ export function ScheduleList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { teams } = useTeams();
-  const { scheduleContentView, openScheduleSettings, closeScheduleSettingsView } = useSchedule();
-  const { gridSettings, isLoading: isGridSettingsLoading } = useScheduleSettings();
+  const {
+    scheduleContentView,
+    activeScheduleId,
+    setActiveScheduleId,
+    openScheduleSettings,
+    closeScheduleSettingsView,
+  } = useSchedule();
+  const schedulePlans = useSchedulePlans();
+  const { plans, createPlan, isLoading: isPlansLoading } = schedulePlans;
+  const {
+    getGridSettingsForSchedule,
+    isLoading: isGridSettingsLoading,
+    isLockedForSchedule,
+  } = useScheduleSettings();
+  const defaultGridSettings = getGridSettingsForSchedule(DEFAULT_SCHEDULE_ID);
+  const isDefaultSchedule = activeScheduleId === DEFAULT_SCHEDULE_ID;
+  const isLocked = isLockedForSchedule(activeScheduleId);
   const {
     displayTeams,
     isDirty,
@@ -48,16 +84,78 @@ export function ScheduleList() {
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [dialogState, setDialogState] = useState<ScheduleTrainingDialogState>(null);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newScheduleName, setNewScheduleName] = useState('');
+  const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
+  const [createScheduleError, setCreateScheduleError] = useState<string | null>(null);
+
+  const activeScheduleName = useMemo(() => {
+    if (isDefaultSchedule) {
+      return t('schedule.defaultScheduleName');
+    }
+    return plans.find((plan) => plan.id === activeScheduleId)?.name ?? t('nav.schedule');
+  }, [activeScheduleId, isDefaultSchedule, plans, t]);
 
   useEffect(() => {
-    registerUnsavedChangesChecker('schedule-list', () => isDirty);
+    registerUnsavedChangesChecker('schedule-list', () => isDefaultSchedule && isDirty && !isLocked);
     return () => unregisterUnsavedChangesChecker('schedule-list');
-  }, [isDirty, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+  }, [
+    isDefaultSchedule,
+    isDirty,
+    isLocked,
+    registerUnsavedChangesChecker,
+    unregisterUnsavedChangesChecker,
+  ]);
+
+  useEffect(() => {
+    if (isDefaultSchedule && isLocked && isDirty) {
+      discard();
+    }
+  }, [discard, isDefaultSchedule, isDirty, isLocked]);
+
+  useEffect(() => {
+    if (
+      !isDefaultSchedule &&
+      !isPlansLoading &&
+      !plans.some((plan) => plan.id === activeScheduleId)
+    ) {
+      setActiveScheduleId(DEFAULT_SCHEDULE_ID);
+    }
+  }, [activeScheduleId, isDefaultSchedule, isPlansLoading, plans, setActiveScheduleId]);
 
   const weekSlots = useMemo(() => {
     const slots = buildTeamSlots(displayTeams, teamFilter);
-    return slots.filter((slot) => isSlotVisibleInGrid(slot, gridSettings));
-  }, [displayTeams, gridSettings, teamFilter]);
+    return slots.filter((slot) => isSlotVisibleInGrid(slot, defaultGridSettings));
+  }, [displayTeams, defaultGridSettings, teamFilter]);
+
+  const handleSelectSchedule = useCallback(
+    (scheduleId: string) => {
+      if (scheduleId === activeScheduleId) {
+        return;
+      }
+      attemptNavigation(() => setActiveScheduleId(scheduleId));
+    },
+    [activeScheduleId, attemptNavigation, setActiveScheduleId],
+  );
+
+  const handleCreateSchedule = useCallback(async () => {
+    const name = newScheduleName.trim();
+    if (!name) {
+      return;
+    }
+    setIsCreatingSchedule(true);
+    setCreateScheduleError(null);
+    try {
+      const plan = await createPlan(name);
+      setShowCreateDialog(false);
+      setNewScheduleName('');
+      setActiveScheduleId(plan.id);
+    } catch {
+      setCreateScheduleError(t('schedule.createError'));
+    } finally {
+      setIsCreatingSchedule(false);
+    }
+  }, [createPlan, newScheduleName, setActiveScheduleId, t]);
 
   const handleSlotClick = useCallback(
     (slot: ScheduleSlot) => {
@@ -77,7 +175,7 @@ export function ScheduleList() {
 
   const handleSlotMove = useCallback(
     (slot: ScheduleSlot, newDay: string, newStartTime: string, newEndTime: string) => {
-      if (!slot.teamId) {
+      if (!slot.teamId || isLocked) {
         return;
       }
 
@@ -89,23 +187,29 @@ export function ScheduleList() {
         ),
       );
     },
-    [updateTeamTimes],
+    [isLocked, updateTeamTimes],
   );
 
   const handleAddSlot = useCallback(
     (day: string, startMinutes: number) => {
+      if (isLocked) {
+        return;
+      }
       setDialogState({ mode: 'create', day, startMinutes });
       setSaveError(null);
     },
-    [setSaveError],
+    [isLocked, setSaveError],
   );
 
   const handleEditSlot = useCallback(
     (slot: ScheduleSlot) => {
+      if (isLocked) {
+        return;
+      }
       setDialogState({ mode: 'edit', slot });
       setSaveError(null);
     },
-    [setSaveError],
+    [isLocked, setSaveError],
   );
 
   const handleCreateTraining = useCallback(
@@ -160,6 +264,9 @@ export function ScheduleList() {
       <div className="plugin-schedule min-h-full bg-background">
         <div className="px-6 py-4">
           <ScheduleSettingsView
+            schedulePlans={schedulePlans}
+            defaultScheduleDirty={isDirty}
+            onDiscardDefaultChanges={discard}
             inlineTrailing={
               <Button
                 type="button"
@@ -183,11 +290,13 @@ export function ScheduleList() {
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.schedule')}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.schedule')}</h2>
+            </div>
             <p className="text-sm text-muted-foreground">{t('schedule.listDescription')}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {isDirty ? (
+            {isDefaultSchedule && isDirty && !isLocked ? (
               <>
                 <Button
                   type="button"
@@ -212,6 +321,29 @@ export function ScheduleList() {
                 </Button>
               </>
             ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 gap-1.5 px-3 text-xs font-semibold"
+                >
+                  <span className="truncate">{activeScheduleName}</span>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[12rem]">
+                <DropdownMenuItem onClick={() => handleSelectSchedule(DEFAULT_SCHEDULE_ID)}>
+                  <span>{t('schedule.defaultScheduleName')}</span>
+                </DropdownMenuItem>
+                {plans.map((plan) => (
+                  <DropdownMenuItem key={plan.id} onClick={() => handleSelectSchedule(plan.id)}>
+                    <span className="truncate">{plan.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               type="button"
               variant="ghost"
@@ -222,6 +354,20 @@ export function ScheduleList() {
               title={t('schedule.settings.title')}
             >
               {t('schedule.settings.title')}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              className="h-9 px-3 text-xs"
+              onClick={() => {
+                setShowCreateDialog(true);
+                setCreateScheduleError(null);
+                setNewScheduleName('');
+              }}
+            >
+              {t('schedule.newSchedule')}
             </Button>
           </div>
         </div>
@@ -277,26 +423,46 @@ export function ScheduleList() {
           })}
         </div>
 
-        <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold text-foreground">
-            {t('schedule.weeklySchedule')}
-          </h3>
-          {saveError ? <p className="mb-2 text-xs text-destructive">{saveError}</p> : null}
-          {isGridSettingsLoading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          ) : (
-            <ScheduleTimeGrid
-              slots={weekSlots}
-              gridSettings={gridSettings}
-              savingSlotId={null}
-              getSlotHighlight={getSlotHighlight}
-              onSlotClick={handleSlotClick}
-              onEditSlot={handleEditSlot}
-              onAddSlot={handleAddSlot}
-              onSlotMove={handleSlotMove}
-            />
-          )}
-        </Card>
+        {isDefaultSchedule ? (
+          <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <h3 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+                {activeScheduleName}
+              </h3>
+              {isLocked ? (
+                <span title={t('schedule.lockedBadge')}>
+                  <Lock
+                    className="h-4 w-4 shrink-0 text-muted-foreground"
+                    aria-label={t('schedule.lockedBadge')}
+                  />
+                </span>
+              ) : null}
+            </div>
+            {saveError ? <p className="mb-2 text-xs text-destructive">{saveError}</p> : null}
+            {isGridSettingsLoading ? (
+              <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+            ) : (
+              <ScheduleTimeGrid
+                slots={weekSlots}
+                gridSettings={defaultGridSettings}
+                savingSlotId={null}
+                readOnly={isLocked}
+                getSlotHighlight={isLocked ? undefined : getSlotHighlight}
+                onSlotClick={handleSlotClick}
+                onEditSlot={isLocked ? undefined : handleEditSlot}
+                onAddSlot={isLocked ? undefined : handleAddSlot}
+                onSlotMove={handleSlotMove}
+              />
+            )}
+          </Card>
+        ) : (
+          <PlanView
+            scheduleId={activeScheduleId}
+            scheduleName={activeScheduleName}
+            teamFilter={teamFilter}
+            schedulePlans={schedulePlans}
+          />
+        )}
       </div>
 
       <ConfirmDialog
@@ -313,7 +479,55 @@ export function ScheduleList() {
         variant="warning"
       />
 
-      {dialogState ? (
+      <AlertDialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <CalendarClock className="h-5 w-5 flex-shrink-0 text-primary" />
+              <AlertDialogTitle>{t('schedule.newSchedule')}</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="pt-2">
+              {t('schedule.createTrainingDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">{t('schedule.scheduleName')}</Label>
+            <Input
+              value={newScheduleName}
+              onChange={(event) => setNewScheduleName(event.target.value)}
+              placeholder={t('schedule.namePlaceholder')}
+              className="h-9"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void handleCreateSchedule();
+                }
+              }}
+            />
+            {createScheduleError ? (
+              <p className="text-xs text-destructive">{createScheduleError}</p>
+            ) : null}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCreatingSchedule}>
+              {t('common.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                disabled={!newScheduleName.trim() || isCreatingSchedule}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleCreateSchedule();
+                }}
+              >
+                {isCreatingSchedule ? t('common.saving') : t('common.save')}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {dialogState && isDefaultSchedule ? (
         <ScheduleTrainingDialog
           state={dialogState}
           teams={displayTeams}

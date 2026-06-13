@@ -1,8 +1,12 @@
 import React, { createContext, useContext } from 'react';
 
+import { DEFAULT_SCHEDULE_ID } from '../types/schedule';
+
 export interface ScheduleContextType {
   isSchedulePanelOpen: boolean;
   scheduleContentView: 'list' | 'settings';
+  activeScheduleId: string;
+  setActiveScheduleId: (id: string) => void;
   openScheduleSettings: () => void;
   closeScheduleSettingsView: () => void;
 }
@@ -20,6 +24,8 @@ export function useScheduleContext() {
 const EMPTY_SCHEDULE_CONTEXT: ScheduleContextType = {
   isSchedulePanelOpen: false,
   scheduleContentView: 'list',
+  activeScheduleId: DEFAULT_SCHEDULE_ID,
+  setActiveScheduleId: () => {},
   openScheduleSettings: () => {},
   closeScheduleSettingsView: () => {},
 };

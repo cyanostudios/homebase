@@ -76,6 +76,7 @@ function createScheduleRoutes(controller, context) {
     body('start_time').optional({ values: 'falsy' }).isString().isLength({ max: 10 }),
     body('end_time').optional({ values: 'falsy' }).isString().isLength({ max: 10 }),
     body('location').optional({ values: 'falsy' }).isString().isLength({ max: 255 }),
+    body('team_id').optional({ nullable: true }).isInt({ min: 1 }),
     validateRequest,
     (req, res, next) => controller.createEvent(req, res, next),
   );
@@ -102,6 +103,7 @@ function createScheduleRoutes(controller, context) {
     body('start_time').optional({ values: 'falsy' }).isString().isLength({ max: 10 }),
     body('end_time').optional({ values: 'falsy' }).isString().isLength({ max: 10 }),
     body('location').optional({ values: 'falsy' }).isString().isLength({ max: 255 }),
+    body('team_id').optional({ nullable: true }).isInt({ min: 1 }),
     validateRequest,
     (req, res, next) => controller.updateEvent(req, res, next),
   );

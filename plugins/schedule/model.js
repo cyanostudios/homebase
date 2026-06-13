@@ -58,6 +58,14 @@ function sanitizeEventDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
 }
 
+function sanitizeTeamId(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 class ScheduleModel {
   constructor() {
     this.schedulesTable = 'schedules';
@@ -281,8 +289,9 @@ class ScheduleModel {
           start_time = $5,
           end_time = $6,
           location = $7,
+          team_id = $8,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $8 AND schedule_id = $9
+        WHERE id = $9 AND schedule_id = $10
         RETURNING *
       `;
       const rows = await db.query(sql, [
@@ -293,6 +302,7 @@ class ScheduleModel {
         payload.start_time,
         payload.end_time,
         payload.location,
+        payload.team_id,
         eventId,
         scheduleId,
       ]);
@@ -363,6 +373,7 @@ class ScheduleModel {
         start_time: sanitizeTime(data.start_time),
         end_time: sanitizeTime(data.end_time),
         location: sanitizeLocation(data.location),
+        team_id: sanitizeTeamId(data.team_id),
       };
     }
 
@@ -382,6 +393,7 @@ class ScheduleModel {
       start_time: sanitizeTime(data.start_time),
       end_time: sanitizeTime(data.end_time),
       location: sanitizeLocation(data.location),
+      team_id: sanitizeTeamId(data.team_id),
     };
   }
 
@@ -408,6 +420,7 @@ class ScheduleModel {
       start_time: row.start_time ?? '',
       end_time: row.end_time ?? '',
       location: row.location ?? '',
+      team_id: row.team_id != null ? String(row.team_id) : null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

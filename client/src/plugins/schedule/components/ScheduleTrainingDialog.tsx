@@ -75,6 +75,7 @@ export function ScheduleTrainingDialog({
   teams,
   preferredTeamId,
   isSaving,
+  deleteConfirmText,
   onClose,
   onCreate,
   onUpdate,
@@ -84,6 +85,7 @@ export function ScheduleTrainingDialog({
   teams: Team[];
   preferredTeamId?: string;
   isSaving: boolean;
+  deleteConfirmText?: string;
   onClose: () => void;
   onCreate: (teamId: string, training: TrainingTime) => Promise<boolean>;
   onUpdate: (slot: ScheduleSlot, training: TrainingTime) => Promise<boolean>;
@@ -293,7 +295,9 @@ export function ScheduleTrainingDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('schedule.deleteTraining')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('schedule.deleteTrainingConfirm')}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {deleteConfirmText ?? t('schedule.deleteTrainingConfirm')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isSaving}>{t('common.cancel')}</AlertDialogCancel>

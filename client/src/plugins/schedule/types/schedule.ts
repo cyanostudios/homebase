@@ -1,4 +1,4 @@
-import type { Team, TeamColor } from '@/plugins/teams/types/teams';
+import type { Team, TeamColor, TrainingTime } from '@/plugins/teams/types/teams';
 
 export interface ScheduleSlot {
   day: string;
@@ -10,6 +10,73 @@ export interface ScheduleSlot {
   teamColor?: TeamColor;
   title?: string;
   trainingIndex: number;
+  eventId?: string;
+}
+
+export const DEFAULT_SCHEDULE_ID = 'default';
+
+export interface SchedulePlan {
+  id: string;
+  name: string;
+  color: string;
+  is_team_calendar: boolean;
+  event_count: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PlanEvent {
+  id: string;
+  schedule_id: string;
+  title: string;
+  event_type: 'recurring' | 'date_based';
+  day: string | null;
+  event_date: string | null;
+  start_time: string;
+  end_time: string;
+  location: string;
+  team_id: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SchedulePlanWithEvents extends SchedulePlan {
+  events: PlanEvent[];
+}
+
+export function planEventToSlot(event: PlanEvent, teams: Team[]): ScheduleSlot {
+  const team = event.team_id
+    ? teams.find((item) => String(item.id) === String(event.team_id))
+    : undefined;
+
+  return {
+    day: event.day ?? '',
+    startTime: event.start_time,
+    endTime: event.end_time,
+    location: event.location ?? '',
+    teamId: event.team_id ?? undefined,
+    teamName: team?.name ?? event.title,
+    teamColor: team?.color,
+    title: event.title,
+    eventId: event.id,
+    trainingIndex: -1,
+  };
+}
+
+export function buildPlanSlots(
+  events: PlanEvent[],
+  teams: Team[],
+  teamFilter: string,
+): ScheduleSlot[] {
+  const slots = events
+    .filter((event) => event.event_type === 'recurring' && event.day)
+    .map((event) => planEventToSlot(event, teams));
+
+  if (teamFilter === 'all') {
+    return slots;
+  }
+
+  return slots.filter((slot) => String(slot.teamId) === teamFilter);
 }
 
 export function buildTeamSlots(teams: Team[], teamFilter: string): ScheduleSlot[] {
@@ -41,9 +108,22 @@ export interface ScheduleGridSettings {
   endHour: number;
 }
 
+export interface ScheduleAppSettings extends ScheduleGridSettings {
+  locks?: Record<string, boolean>;
+  gridHours?: Record<string, ScheduleGridSettings>;
+  /** @deprecated migrated to locks.default on load */
+  locked?: boolean;
+}
+
 export const DEFAULT_SCHEDULE_GRID_SETTINGS: ScheduleGridSettings = {
   startHour: 6,
   endHour: 22,
+};
+
+export const DEFAULT_SCHEDULE_APP_SETTINGS: ScheduleAppSettings = {
+  ...DEFAULT_SCHEDULE_GRID_SETTINGS,
+  locks: {},
+  gridHours: {},
 };
 
 export const SCHEDULE_SETTINGS_KEY = 'schedule';
@@ -73,6 +153,25 @@ export function normalizeScheduleGridSettings(
   }
 
   return { startHour, endHour };
+}
+
+export function normalizeScheduleAppSettings(
+  raw?: Partial<ScheduleAppSettings> | null,
+): ScheduleAppSettings {
+  const grid = normalizeScheduleGridSettings(raw);
+  const locks: Record<string, boolean> = { ...(raw?.locks ?? {}) };
+  if (raw?.locked && locks[DEFAULT_SCHEDULE_ID] === undefined) {
+    locks[DEFAULT_SCHEDULE_ID] = Boolean(raw.locked);
+  }
+
+  const gridHours: Record<string, ScheduleGridSettings> = {};
+  if (raw?.gridHours && typeof raw.gridHours === 'object') {
+    for (const [scheduleId, hours] of Object.entries(raw.gridHours)) {
+      gridHours[scheduleId] = normalizeScheduleGridSettings(hours);
+    }
+  }
+
+  return { ...grid, locks, gridHours };
 }
 
 export function timeToMinutes(time: string): number {
@@ -128,6 +227,9 @@ export function getSlotHeightPx(slot: ScheduleSlot): number {
 }
 
 export function getSlotDragId(slot: ScheduleSlot): string {
+  if (slot.eventId) {
+    return `event-${slot.eventId}`;
+  }
   return `training-${slot.teamId}-${slot.trainingIndex}`;
 }
 
@@ -188,6 +290,23 @@ export function computeDayLayout(slots: ScheduleSlot[]): SlotLayout[] {
     const colCount = Math.max(1, ...overlapping.map((item) => item.colIndex + 1));
     return { slot, colIndex, colCount };
   });
+}
+
+export function buildScheduleEventPayload(
+  teamId: string,
+  training: TrainingTime,
+  teams: Pick<Team, 'id' | 'name'>[],
+) {
+  const team = teams.find((item) => String(item.id) === teamId);
+  return {
+    title: team?.name ?? 'Training',
+    event_type: 'recurring' as const,
+    day: training.day,
+    start_time: training.startTime,
+    end_time: training.endTime,
+    location: training.location,
+    team_id: teamId ? Number(teamId) : null,
+  };
 }
 
 export type ScheduleTrainingDialogState =

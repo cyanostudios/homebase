@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
 
+import { DEFAULT_SCHEDULE_ID } from '../types/schedule';
+
 import { ScheduleContext, type ScheduleContextType } from './ScheduleContext';
 
 export function ScheduleProvider({
@@ -15,6 +17,7 @@ export function ScheduleProvider({
 }) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   const [scheduleContentView, setScheduleContentView] = useState<'list' | 'settings'>('list');
+  const [activeScheduleId, setActiveScheduleId] = useState(DEFAULT_SCHEDULE_ID);
 
   const openScheduleSettings = useCallback(() => {
     onCloseOtherPanels();
@@ -33,6 +36,8 @@ export function ScheduleProvider({
   const value: ScheduleContextType = {
     isSchedulePanelOpen: false,
     scheduleContentView,
+    activeScheduleId,
+    setActiveScheduleId,
     openScheduleSettings,
     closeScheduleSettingsView,
   };
