@@ -1,6 +1,7 @@
 // plugins/ingest/services/fetchSourceBrowserFetch.js
 // Headless browser fetch for ingest — separate strategy from generic_http (axios).
 const MAX_EXCERPT = 8000;
+const { validatePublicHttpsUrl } = require('../../../server/core/utils/ssrfUrlGuard');
 const { bufferLooksLikePdf, isPdfContentType, pdfTextFromBuffer } = require('./pdfTextFromBuffer');
 
 /** Fallback if browser.userAgent() is unavailable. */
@@ -245,6 +246,20 @@ async function fetchSourceBrowserFetch(sourceUrl, options = {}) {
       finalUrl: null,
       errorMessage:
         'browser_fetch is not available on this server: headless browser fetching is disabled. Set environment variable INGEST_BROWSER_FETCH=1 (and ensure OS dependencies for Puppeteer/Chromium are installed), or change the source to generic_http.',
+    };
+  }
+
+  const urlCheck = validatePublicHttpsUrl(sourceUrl);
+  if (!urlCheck.ok) {
+    return {
+      ok: false,
+      status: null,
+      contentType: null,
+      contentLength: null,
+      bodyText: null,
+      excerpt: null,
+      finalUrl: null,
+      errorMessage: urlCheck.error,
     };
   }
 

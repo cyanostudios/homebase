@@ -23,7 +23,6 @@ async function checkAuthSchema(database) {
       out[table] = 'ok';
     } catch (err) {
       out[table] = err?.code === '42P01' ? 'missing' : 'error';
-      if (err?.message) out[`${table}Error`] = err.message;
     }
   }
   let userCount = null;
@@ -47,23 +46,31 @@ async function checkPasswordResetSchema(database) {
   } catch (err) {
     return {
       table: err?.code === '42P01' ? 'missing' : 'error',
-      message: err?.message,
     };
   }
 }
 
+function isSuperuser(req) {
+  return req.session?.user?.role === 'superuser';
+}
+
 /**
  * Health check endpoint
- * Returns system status, database health, plugin info, and pool statistics
+ * Public callers receive minimal status; superusers receive full diagnostics.
  */
 router.get('/health', async (req, res) => {
   try {
-    // Get services
     const database = ServiceManager.get('database');
-    const connectionPool = ServiceManager.get('connectionPool');
-
-    // Test database connection
     await database.query('SELECT 1');
+
+    if (!isSuperuser(req)) {
+      return res.status(200).json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const connectionPool = ServiceManager.get('connectionPool');
     const authSchema = await checkAuthSchema(database);
     const passwordReset = await checkPasswordResetSchema(database);
     const systemEmail = {
@@ -77,13 +84,8 @@ router.get('/health', async (req, res) => {
     const tenantProvider = resolveTenantProvider();
     const neonApi = await checkNeonApiForHealth();
     const neonReady = neonApi.status === 'ok' || neonApi.status === 'skipped';
-
-    // Get loaded plugins
     const loadedPlugins = pluginLoaderInstance ? pluginLoaderInstance.getAllPlugins() : [];
-
-    // Get pool statistics
     const poolStats = connectionPool.getPoolStats();
-
     const fullyHealthy = authSchema.authReady && neonReady;
     const status = fullyHealthy ? 'healthy' : 'degraded';
 
@@ -109,7 +111,6 @@ router.get('/health', async (req, res) => {
   } catch (error) {
     res.status(503).json({
       status: 'unhealthy',
-      error: error.message,
       timestamp: new Date().toISOString(),
     });
   }

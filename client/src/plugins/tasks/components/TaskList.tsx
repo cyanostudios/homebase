@@ -1,7 +1,6 @@
 import {
-  ArrowUp,
   ArrowDown,
-  Trash2,
+  ArrowUp,
   FileSpreadsheet,
   FileText,
   Grid3x3,
@@ -9,6 +8,7 @@ import {
   Plus,
   Search,
   Settings,
+  Trash2,
   X,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -31,6 +31,7 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
+import { stripHtml } from '@/core/utils/textUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +44,8 @@ import {
 } from '../types/tasks';
 import { getTasksExportConfig } from '../utils/taskExportConfig';
 
+import { TaskCard } from './TaskCard';
+import { TaskQuickAdd } from './TaskQuickAdd';
 import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
 
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
@@ -104,7 +107,7 @@ function StatCard({
   );
 }
 
-export const TaskList: React.FC = () => {
+export function TaskList() {
   const { t } = useTranslation();
   const {
     tasks,
@@ -122,6 +125,8 @@ export const TaskList: React.FC = () => {
     selectedCount,
     isSelected,
     recentlyDuplicatedTaskId,
+    setRecentlyDuplicatedTaskId,
+    createTask,
   } = useTasks();
   const { contacts, getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -133,7 +138,7 @@ export const TaskList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
-  const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
+  const [activeFilter, setActiveFilter] = useState<TaskFilter>('open');
   const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('view');
 
   useEffect(() => {
@@ -180,15 +185,6 @@ export const TaskList: React.FC = () => {
       setSortField(field);
       setSortOrder('asc');
     }
-  };
-
-  const stripHtml = (html: string): string => {
-    if (!html) {
-      return '';
-    }
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent ?? tmp.innerText ?? '';
   };
 
   const getAssignedContacts = useCallback(
@@ -433,6 +429,14 @@ export const TaskList: React.FC = () => {
     attemptNavigation(() => openTaskForView(task));
   };
 
+  const handleQuickCreate = useCallback(
+    async (title: string) => {
+      const task = await createTask({ title, content: '' });
+      setRecentlyDuplicatedTaskId(String(task.id));
+    },
+    [createTask, setRecentlyDuplicatedTaskId],
+  );
+
   if (tasksContentView === 'settings') {
     return (
       <div className="plugin-tasks min-h-full bg-background">
@@ -615,73 +619,37 @@ export const TaskList: React.FC = () => {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
               {sortedTasks.map((task, index) => {
                 const taskIsSelected = isSelected(task.id);
                 const assignedContacts = getAssignedContacts(task);
                 return (
-                  <Card
+                  <TaskCard
                     key={task.id}
-                    className={cn(
-                      'relative flex h-full min-h-[160px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
-                      taskIsSelected
-                        ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
-                        : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
-                      recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
-                    )}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                        return;
-                      }
-                      e.preventDefault();
-                      handleOpenForView(task);
-                    }}
-                    data-list-item={JSON.stringify(task)}
-                    data-plugin-name="tasks"
-                    role="button"
-                    aria-label={`Open task ${task.title}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                    task={task}
+                    selected={taskIsSelected}
+                    highlighted={recentlyDuplicatedTaskId === String(task.id)}
+                    onClick={() => handleOpenForView(task)}
+                    assignedNames={assignedContacts.map((c) => c.companyName)}
+                    checkbox={
                       <input
                         type="checkbox"
                         checked={taskIsSelected}
                         onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
                         onChange={() => onVisibleRowCheckboxChange(task.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer h-4 w-4"
+                        className="h-4 w-4 cursor-pointer"
                         aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
                       />
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Badge className={TASK_STATUS_COLORS[task.status]}>
-                          {formatStatusForDisplay(task.status)}
-                        </Badge>
-                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                          {task.priority}
-                        </Badge>
-                      </div>
-                    </div>
-                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
-                      {task.title}
-                    </h3>
-                    <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
-                      {assignedContacts.length > 0 && (
-                        <div className="plugin-contacts truncate font-medium text-plugin">
-                          Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
-                        </div>
-                      )}
-                      {shouldShowDueDate(task) && (
-                        <div className={formatDueDate(task.dueDate)?.className || ''}>
-                          {formatDueDate(task.dueDate)?.text}
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
-                      <div>Updated: {new Date(task.updatedAt).toLocaleDateString()}</div>
-                      <div>Created: {new Date(task.createdAt).toLocaleDateString()}</div>
-                    </div>
-                  </Card>
+                    }
+                  />
                 );
               })}
+              <TaskQuickAdd
+                viewMode="grid"
+                onCreate={handleQuickCreate}
+                className="col-span-full"
+              />
             </div>
           ) : isMobile ? (
             <Card className="border-0 shadow-none">
@@ -751,6 +719,7 @@ export const TaskList: React.FC = () => {
                   );
                 })}
               </div>
+              <TaskQuickAdd viewMode="list" onCreate={handleQuickCreate} />
             </Card>
           ) : (
             <Card className="border-0 shadow-none">
@@ -915,8 +884,16 @@ export const TaskList: React.FC = () => {
                   })}
                 </TableBody>
               </Table>
+              <TaskQuickAdd viewMode="list" onCreate={handleQuickCreate} />
             </Card>
           )}
+
+          {sortedTasks.length === 0 ? (
+            <div className="px-1 pt-3">
+              <TaskQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
+            </div>
+          ) : null}
+
           <div
             className={cn(
               'px-4 py-2 text-xs text-muted-foreground',
@@ -931,4 +908,4 @@ export const TaskList: React.FC = () => {
       </div>
     </div>
   );
-};
+}

@@ -143,7 +143,7 @@ export const YourItemList: React.FC = () => {
   return (
     <div className="space-y-4">
       <Card className="shadow-none plugin-your-items">
-        <Table>
+        <Table rowBorders={false}>
           <TableHeader>
             <TableRow>
               <TableHead

@@ -67,23 +67,45 @@ npm run export:system-email-from-mail -- --write-railway-file
 ./scripts/railway-apply-resend-vars.sh
 ```
 
-**Resend-avsändare:** `onboarding@resend.dev` fungerar för test (samma som ofta i Mail-pluginet). För egen domän, verifiera domänen i [Resend Dashboard](https://resend.com/domains) och sätt `RESEND_FROM` till t.ex. `noreply@dinverifieradedomän.se`.
+**Resend-avsändare (`RESEND_FROM`):**
 
-Verifiera efter deploy:
+| Avsändare                    | Prod-lösenordsåterställning                                                                                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `onboarding@resend.dev`      | Endast till Resend-kontots e-post (test). Andra mottagare → **HTTP 500** vid send.                         |
+| `noreply@<verifierad-domän>` | Alla användare i `users` (krävs i prod). Verifiera domän i [Resend → Domains](https://resend.com/domains). |
+
+Använd **samma** verifierade `from` som i Mail → Inställningar när Mail skickar via Resend.
+
+**Verifiera efter deploy** (ersätt URL och test-e-post):
+
+```bash
+PROD_APP_URL=https://<din-url> npm run verify:prod-system-email
+# eller med annan mottagare:
+PROD_APP_URL=https://<din-url> TEST_EMAIL=user@homebase.se npm run verify:prod-system-email
+```
+
+Förväntat:
+
+1. `GET /api/health` → `systemEmail.configured: true`, `passwordReset.table: ok`
+2. `POST /api/auth/forgot-password` → **HTTP 200** (generiskt meddelande, ingen e-post-enumeration)
+3. Resend Dashboard → Logs: utgående mail
+4. Klicka länk → `/reset-password/<token>` → nytt lösenord → login
 
 ```bash
 curl -sS https://<din-url>/api/health | jq '.systemEmail, .passwordReset'
-# systemEmail.configured ska vara true
 ```
 
-```bash
-curl -sS -X POST 'https://<din-url>/api/auth/forgot-password' \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"user@homebase.se"}'
-# HTTP 200, inte 503 EMAIL_NOT_CONFIGURED
-```
+**Prod-status (verifierad):** Homebase på Railway med `RESEND_*` + verifierad domän — health, forgot-password, mail och reset-flöde OK.
 
-Engångstabell (om du vill köra manuellt): `npm run migrate:password-reset` med Neon main `DATABASE_URL`. Efter commit `d6b2d4d` skapas tabellen även automatiskt vid första forgot-anrop.
+Engångstabell (om du vill köra manuellt): `npm run migrate:password-reset` med Neon main `DATABASE_URL`. Efter `d6b2d4d` skapas tabellen även automatiskt vid första forgot-anrop.
+
+### Glömt lösenord: felsökning
+
+| Symptom                                                      | Orsak                                                            | Åtgärd                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **503** `EMAIL_NOT_CONFIGURED`                               | `RESEND_API_KEY` saknas i runtime                                | Sätt variabler på **Homebase**-tjänsten (inte Cupappen), redeploy |
+| **500** «Could not process password reset request»           | Resend nekar send (ofta `onboarding@resend.dev` → fel mottagare) | Verifierad domän + `RESEND_FROM` på den domänen                   |
+| Health `systemEmail.configured: false` efter variabler satta | Gammal process utan omstart                                      | Redeploy / Restart Railway-tjänsten                               |
 
 ### Rekommenderat
 

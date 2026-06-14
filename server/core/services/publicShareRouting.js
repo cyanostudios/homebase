@@ -1,11 +1,13 @@
 // server/core/services/publicShareRouting.js
-// Main-DB registry so anonymous users can open task/note share links (no session tenant).
+// Main-DB registry so anonymous users can open share links (no session tenant).
 
 const ServiceManager = require('../ServiceManager');
 const { Logger } = require('@homebase/core');
 
 const RESOURCE_TASK = 'task';
 const RESOURCE_NOTE = 'note';
+const RESOURCE_ESTIMATE = 'estimate';
+const RESOURCE_INVOICE = 'invoice';
 
 function isMissingRoutingTableError(err) {
   if (!err) return false;
@@ -14,7 +16,7 @@ function isMissingRoutingTableError(err) {
 
 /**
  * @param {string} shareToken
- * @param {'task'|'note'} resourceType
+ * @param {'task'|'note'|'estimate'|'invoice'} resourceType
  * @param {string} tenantConnectionString
  */
 async function registerPublicShareRoute(shareToken, resourceType, tenantConnectionString) {
@@ -50,12 +52,19 @@ async function unregisterPublicShareRoute(shareToken) {
   }
 }
 
+const RESOURCE_BY_PATH_SEGMENT = {
+  tasks: RESOURCE_TASK,
+  notes: RESOURCE_NOTE,
+  estimates: RESOURCE_ESTIMATE,
+  invoices: RESOURCE_INVOICE,
+};
+
 /**
  * Resolve tenant pool for a public share token (main-DB public_share_routing).
- * Used by GET middleware and by note/task models when req.tenantPool is still missing.
+ * Used by GET middleware and by share models when req.tenantPool is still missing.
  * Does not override an existing req.tenantPool.
  * @param {import('express').Request} req
- * @param {'task'|'note'} resourceType
+ * @param {'task'|'note'|'estimate'|'invoice'} resourceType
  * @param {string} shareToken
  */
 async function resolvePublicShareTenantFromToken(req, resourceType, shareToken) {
@@ -92,7 +101,7 @@ async function resolvePublicShareTenantFromToken(req, resourceType, shareToken) 
 }
 
 /**
- * For GET /api/tasks|notes/public/:token — sets req.tenantPool when routing row exists.
+ * For GET /api/{plugin}/public/:token — sets req.tenantPool when routing row exists.
  * Does not override an existing req.tenantPool.
  * @param {import('express').Request} req
  */
@@ -105,12 +114,12 @@ async function attachPublicShareTenantPool(req) {
   }
 
   const path = req.path || '';
-  const match = path.match(/^\/api\/(tasks|notes)\/public\/([^/]+)\/?$/);
+  const match = path.match(/^\/api\/(tasks|notes|estimates|invoices)\/public\/([^/]+)\/?$/);
   if (!match) {
     return;
   }
 
-  const resourceType = match[1] === 'tasks' ? RESOURCE_TASK : RESOURCE_NOTE;
+  const resourceType = RESOURCE_BY_PATH_SEGMENT[match[1]];
   const token = decodeURIComponent(match[2]);
   await resolvePublicShareTenantFromToken(req, resourceType, token);
 }
@@ -118,6 +127,8 @@ async function attachPublicShareTenantPool(req) {
 module.exports = {
   RESOURCE_TASK,
   RESOURCE_NOTE,
+  RESOURCE_ESTIMATE,
+  RESOURCE_INVOICE,
   registerPublicShareRoute,
   unregisterPublicShareRoute,
   attachPublicShareTenantPool,

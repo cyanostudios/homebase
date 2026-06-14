@@ -2,6 +2,7 @@
 // Estimates controller - V3 with @homebase/core SDK
 const EstimateModel = require('./model');
 const puppeteer = require('puppeteer');
+const { setPdfHtmlContent } = require('../../server/core/utils/puppeteerPdf');
 const { generatePDFHTML } = require('./pdfTemplate');
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
@@ -11,7 +12,6 @@ class EstimateController {
     this.model = model;
   }
 
-  // Get all estimates for user
   async getEstimates(req, res) {
     try {
       const estimates = await this.model.getAll(req);
@@ -27,7 +27,6 @@ class EstimateController {
     }
   }
 
-  // Get single estimate
   async getEstimate(req, res) {
     try {
       const { id } = req.params;
@@ -52,7 +51,6 @@ class EstimateController {
     }
   }
 
-  // Create new estimate
   async createEstimate(req, res) {
     try {
       const estimate = await this.model.create(req, req.body);
@@ -68,7 +66,6 @@ class EstimateController {
     }
   }
 
-  // Update estimate with status reasons support
   async updateEstimate(req, res) {
     try {
       const { id } = req.params;
@@ -145,7 +142,6 @@ class EstimateController {
     }
   }
 
-  // Delete estimate
   async deleteEstimate(req, res) {
     try {
       const { id } = req.params;
@@ -165,7 +161,6 @@ class EstimateController {
     }
   }
 
-  // Get next estimate number
   async getNextEstimateNumber(req, res) {
     try {
       const estimateNumber = await this.model.getNextEstimateNumber(req);
@@ -181,7 +176,6 @@ class EstimateController {
     }
   }
 
-  // Get status statistics
   async getStatusStats(req, res) {
     try {
       const { startDate, endDate } = req.query;
@@ -199,7 +193,6 @@ class EstimateController {
     }
   }
 
-  // Get reason statistics
   async getReasonStats(req, res) {
     try {
       const { status } = req.params;
@@ -225,20 +218,17 @@ class EstimateController {
     }
   }
 
-  // Generate PDF
   async generatePDF(req, res) {
     let browser = null;
 
     try {
       const { id } = req.params;
 
-      // Get estimate data
       const estimate = await this.model.getById(req, id);
       if (!estimate) {
         return res.status(404).json({ error: 'Estimate not found' });
       }
 
-      // Launch Puppeteer browser
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -246,13 +236,10 @@ class EstimateController {
 
       const page = await browser.newPage();
 
-      // Generate HTML content using PDF template
       const html = generatePDFHTML(estimate);
 
-      // Set HTML content
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await setPdfHtmlContent(page, html);
 
-      // Generate PDF
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
@@ -266,7 +253,6 @@ class EstimateController {
 
       Logger.info('PDF generated', { estimateId: id, estimateNumber: estimate.estimateNumber });
 
-      // Set response headers for download
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
@@ -275,7 +261,6 @@ class EstimateController {
       res.setHeader('Content-Length', pdfBuffer.length);
       res.removeHeader('Content-Encoding');
 
-      // Send PDF as binary
       res.end(pdfBuffer);
     } catch (error) {
       Logger.error('PDF generation failed', error, { estimateId: req.params.id });
@@ -287,9 +272,6 @@ class EstimateController {
     }
   }
 
-  // === SHARING ENDPOINTS ===
-
-  // Create share link
   async createShare(req, res) {
     try {
       const { estimateId, validUntil } = req.body;
@@ -324,7 +306,6 @@ class EstimateController {
     }
   }
 
-  // Get estimate by share token (public endpoint)
   async getPublicEstimate(req, res) {
     try {
       const { token } = req.params;
@@ -355,7 +336,6 @@ class EstimateController {
     }
   }
 
-  // Get shares for estimate
   async getShares(req, res) {
     try {
       const { estimateId } = req.params;
@@ -376,7 +356,6 @@ class EstimateController {
     }
   }
 
-  // Revoke share
   async revokeShare(req, res) {
     try {
       const { shareId } = req.params;

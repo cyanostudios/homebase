@@ -324,7 +324,10 @@ class PostgreSQLAdapter extends DatabaseService {
       this.logger?.error('INSERT failed - DETAILED ERROR', error, {
         table,
         sql: sql.trim(),
-        params: params,
+        paramSummary: {
+          count: params?.length ?? 0,
+          types: Array.isArray(params) ? params.map((p) => typeof p) : [],
+        },
         userId: userId,
         dataKeys: columns,
         errorCode: error.code,

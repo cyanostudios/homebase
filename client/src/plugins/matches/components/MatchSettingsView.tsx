@@ -1,23 +1,31 @@
 // Matches settings as full-page content (like Core Settings): tab row + card + footer.
 
-import { Check, LayoutGrid, List } from 'lucide-react';
+import { Check, CloudDownload, LayoutGrid, List, Settings2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { cn } from '@/lib/utils';
+import { matchesApi } from '../api/matchesApi';
 
 const MATCHES_SETTINGS_KEY = 'matches';
+const DEFAULT_API_BASE_URL = 'https://forening-api.svenskfotboll.se';
+const MASKED_API_KEY = '••••••••';
 
 type MatchViewMode = 'grid' | 'list';
 
-export type MatchSettingsCategory = 'view';
+export type MatchSettingsCategory = 'view' | 'api';
 
-const matchSettingsCategories = [{ id: 'view' as const, label: 'View', icon: LayoutGrid }];
+const matchSettingsCategories = [
+  { id: 'view' as const, label: 'View', icon: LayoutGrid },
+  { id: 'api' as const, label: 'API', icon: Settings2 },
+];
 
 interface MatchSettingsViewProps {
   selectedCategory?: MatchSettingsCategory;
@@ -42,8 +50,15 @@ export function MatchSettingsView({
 
   const [viewMode, setViewMode] = useState<MatchViewMode>('list');
   const [initialViewMode, setInitialViewMode] = useState<MatchViewMode>('list');
+  const [apiBaseUrl, setApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
+  const [initialApiBaseUrl, setInitialApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
+  const [apiKey, setApiKey] = useState('');
+  const [hasStoredApiKey, setHasStoredApiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const categoryButtons = useMemo(
     () => (
@@ -65,13 +80,13 @@ export function MatchSettingsView({
               )}
             >
               <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>{category.label}</span>
+              <span>{category.id === 'api' ? t('matches.apiSettings') : category.label}</span>
             </Button>
           );
         })}
       </div>
     ),
-    [activeCategory, setActiveCategory],
+    [activeCategory, setActiveCategory, t],
   );
 
   useEffect(() => {
@@ -90,9 +105,18 @@ export function MatchSettingsView({
         if (cancelled) {
           return;
         }
-        const loaded = settings?.viewMode === 'list' ? 'list' : 'grid';
-        setViewMode(loaded);
-        setInitialViewMode(loaded);
+        const loadedView = settings?.viewMode === 'list' ? 'list' : 'grid';
+        const loadedBaseUrl =
+          typeof settings?.apiBaseUrl === 'string' && settings.apiBaseUrl.trim()
+            ? settings.apiBaseUrl.trim()
+            : DEFAULT_API_BASE_URL;
+        const storedKey = typeof settings?.apiKey === 'string' && settings.apiKey.trim();
+        setViewMode(loadedView);
+        setInitialViewMode(loadedView);
+        setApiBaseUrl(loadedBaseUrl);
+        setInitialApiBaseUrl(loadedBaseUrl);
+        setHasStoredApiKey(Boolean(storedKey));
+        setApiKey(storedKey ? MASKED_API_KEY : '');
       })
       .catch(() => {})
       .finally(() => {
@@ -105,19 +129,61 @@ export function MatchSettingsView({
     };
   }, [getSettings]);
 
-  const isDirty = viewMode !== initialViewMode;
+  const isViewDirty = viewMode !== initialViewMode;
+  const isApiDirty =
+    apiBaseUrl.trim() !== initialApiBaseUrl.trim() ||
+    (apiKey.trim() !== '' && !apiKey.startsWith('••••'));
+  const isDirty = activeCategory === 'view' ? isViewDirty : isApiDirty;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
+    setImportError(null);
     try {
-      await updateSettings(MATCHES_SETTINGS_KEY, { viewMode });
-      setInitialViewMode(viewMode);
+      if (activeCategory === 'view') {
+        await updateSettings(MATCHES_SETTINGS_KEY, { viewMode });
+        setInitialViewMode(viewMode);
+      } else {
+        const payload: Record<string, string> = {
+          apiBaseUrl: apiBaseUrl.trim() || DEFAULT_API_BASE_URL,
+        };
+        if (apiKey.trim() && !apiKey.startsWith('••••')) {
+          payload.apiKey = apiKey.trim();
+        }
+        await updateSettings(MATCHES_SETTINGS_KEY, payload);
+        setInitialApiBaseUrl(payload.apiBaseUrl);
+        if (payload.apiKey) {
+          setHasStoredApiKey(true);
+          setApiKey(MASKED_API_KEY);
+        }
+      }
     } catch (error) {
       console.error('Failed to save matches settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [viewMode, updateSettings]);
+  }, [activeCategory, apiBaseUrl, apiKey, updateSettings, viewMode]);
+
+  const handleImport = useCallback(async () => {
+    setIsImporting(true);
+    setImportMessage(null);
+    setImportError(null);
+    try {
+      const result = await matchesApi.importMatches();
+      const summary = t('matches.importDone', {
+        imported: result.imported,
+        updated: result.updated,
+      });
+      setImportMessage(summary);
+      if (result.errors?.length) {
+        setImportError(result.errors.join(' '));
+      }
+    } catch (error) {
+      console.error('Failed to import matches:', error);
+      setImportError(t('matches.importError'));
+    } finally {
+      setIsImporting(false);
+    }
+  }, [t]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('matches.loading')}</div>;
@@ -179,6 +245,49 @@ export function MatchSettingsView({
             <p className="mt-2 text-sm text-muted-foreground">
               Matches will be displayed in the selected layout by default.
             </p>
+          </DetailSection>
+        )}
+
+        {activeCategory === 'api' && (
+          <DetailSection title={t('matches.apiSettings')} className="pt-0">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="matches-api-base-url">{t('matches.apiBaseUrl')}</Label>
+                <Input
+                  id="matches-api-base-url"
+                  value={apiBaseUrl}
+                  onChange={(e) => setApiBaseUrl(e.target.value)}
+                  placeholder={DEFAULT_API_BASE_URL}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="matches-api-key">{t('matches.apiKey')}</Label>
+                <Input
+                  id="matches-api-key"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={hasStoredApiKey ? MASKED_API_KEY : t('matches.apiKeyPlaceholder')}
+                />
+                <p className="text-xs text-muted-foreground">{t('matches.apiKeyHint')}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  icon={CloudDownload}
+                  disabled={isImporting || !hasStoredApiKey}
+                  onClick={() => void handleImport()}
+                >
+                  {isImporting ? t('matches.importing') : t('matches.importNow')}
+                </Button>
+              </div>
+              {importMessage ? (
+                <p className="text-sm text-emerald-700 dark:text-emerald-400">{importMessage}</p>
+              ) : null}
+              {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
+            </div>
           </DetailSection>
         )}
       </Card>

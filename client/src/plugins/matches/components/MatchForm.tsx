@@ -1,5 +1,12 @@
 import { Info, X } from 'lucide-react';
-import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
@@ -16,7 +23,7 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DateTimePicker } from '@/core/ui/DateTimePicker';
-import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -24,14 +31,16 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
 import { useMatches } from '../hooks/useMatches';
-import { type MatchMention, type SportType, SPORT_TYPES, getFormatsForSport } from '../types/match';
-
-import { MatchSettingsForm } from './MatchSettingsForm';
+import {
+  type MatchMention,
+  type SportType,
+  SPORT_TYPES,
+  getFormatsForSport,
+  getMatchFormScoreFields,
+} from '../types/match';
 
 const MATCH_FORM_CARD_CLASS =
   'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
-const PANEL_MAX_WIDTH = 'max-w-[920px]';
-
 interface MatchFormState {
   name: string;
   match_number: string;
@@ -45,6 +54,13 @@ interface MatchFormState {
   sport_type: SportType;
   format: string;
   total_minutes: string;
+  competition_name: string;
+  home_score: string;
+  away_score: string;
+  result: string;
+  is_canceled: boolean;
+  is_finished: boolean;
+  is_postponed: boolean;
 }
 
 type AssignableContact = {
@@ -78,8 +94,9 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
 ) {
   const { t } = useTranslation();
   const { contacts } = useApp();
-  const assignableContacts = (contacts as AssignableContact[]).filter(
-    (c) => c.isAssignable !== false,
+  const assignableContacts = useMemo(
+    () => (contacts as AssignableContact[]).filter((c) => c.isAssignable !== false),
+    [contacts],
   );
   const { validationErrors, clearValidationErrors, panelMode } = useMatches();
   const {
@@ -107,6 +124,13 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
     sport_type: 'football',
     format: '',
     total_minutes: '',
+    competition_name: '',
+    home_score: '',
+    away_score: '',
+    result: '',
+    is_canceled: false,
+    is_finished: false,
+    is_postponed: false,
   });
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -132,6 +156,13 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
       sport_type: 'football',
       format: '',
       total_minutes: '',
+      competition_name: '',
+      home_score: '',
+      away_score: '',
+      result: '',
+      is_canceled: false,
+      is_finished: false,
+      is_postponed: false,
     });
     setSelectedContactIds([]);
     markClean();
@@ -141,6 +172,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
     if (currentMatch) {
       const formats = getFormatsForSport((currentMatch.sport_type as SportType) || 'football');
       const format = formats.includes(currentMatch.format) ? currentMatch.format : '';
+      const scoreFields = getMatchFormScoreFields(currentMatch);
       setFormData({
         name: currentMatch.name ?? '',
         match_number:
@@ -163,6 +195,13 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
           currentMatch.total_minutes !== null && currentMatch.total_minutes !== undefined
             ? String(currentMatch.total_minutes)
             : '',
+        competition_name: currentMatch.competition_name ?? '',
+        home_score: scoreFields.home_score,
+        away_score: scoreFields.away_score,
+        result: scoreFields.result,
+        is_canceled: Boolean(currentMatch.is_canceled),
+        is_finished: Boolean(currentMatch.is_finished),
+        is_postponed: Boolean(currentMatch.is_postponed),
       });
       const fromMentions =
         currentMatch.mentions?.map((m: MatchMention) => String(m.contactId)).filter(Boolean) ?? [];
@@ -172,16 +211,12 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
           : [];
       setSelectedContactIds(fromMentions.length > 0 ? fromMentions : fromContactId);
       markClean();
-    } else if (panelMode !== 'settings') {
+    } else {
       resetForm();
     }
   }, [currentMatch, panelMode, markClean, resetForm]);
 
   const handleSubmit = useCallback(async () => {
-    if (panelMode === 'settings') {
-      onCancel();
-      return;
-    }
     if (isSubmitting) {
       return;
     }
@@ -212,6 +247,17 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
       start_time: formData.start_time ? new Date(formData.start_time).toISOString() : '',
       total_minutes:
         formData.total_minutes.trim() === '' ? null : parseInt(formData.total_minutes, 10),
+      competition_name: formData.competition_name.trim() || null,
+      home_score: formData.home_score.trim() === '' ? null : parseInt(formData.home_score, 10),
+      away_score: formData.away_score.trim() === '' ? null : parseInt(formData.away_score, 10),
+      result:
+        formData.result.trim() ||
+        (formData.home_score.trim() !== '' && formData.away_score.trim() !== ''
+          ? `${formData.home_score.trim()}-${formData.away_score.trim()}`
+          : null),
+      is_canceled: formData.is_canceled,
+      is_finished: formData.is_finished,
+      is_postponed: formData.is_postponed,
       contact_id: selectedContactIds[0] ?? null,
       mentions,
     };
@@ -252,11 +298,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
     [handleSubmit, handleCancel],
   );
 
-  if (panelMode === 'settings') {
-    return <MatchSettingsForm onCancel={onCancel} />;
-  }
-
-  const updateField = (field: keyof MatchFormState, value: string) => {
+  const updateField = (field: keyof MatchFormState, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     markDirty();
     clearValidationErrors();
@@ -299,9 +341,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
               <span className="font-medium">
                 {currentMatch.created_at
                   ? new Date(currentMatch.created_at).toLocaleDateString()
-                  : currentMatch.createdAt
-                    ? new Date(currentMatch.createdAt).toLocaleDateString()
-                    : '—'}
+                  : '—'}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -309,9 +349,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
               <span className="font-medium">
                 {currentMatch.updated_at
                   ? new Date(currentMatch.updated_at).toLocaleDateString()
-                  : currentMatch.updatedAt
-                    ? new Date(currentMatch.updatedAt).toLocaleDateString()
-                    : '—'}
+                  : '—'}
               </span>
             </div>
           </div>
@@ -569,10 +607,97 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       className="h-10 text-sm"
                     />
                   </div>
-                  <div>
-                    <Label className={FIELD_LABEL_CLASS}>{t('matches.futureInfo')}</Label>
-                    <Input value="" disabled className="h-10 text-sm" placeholder="—" />
+                </div>
+
+                {/* Competition / Result */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="sm:col-span-3">
+                    <Label htmlFor="match-competition" className={FIELD_LABEL_CLASS}>
+                      {t('matches.competitionName')}
+                    </Label>
+                    <Input
+                      id="match-competition"
+                      value={formData.competition_name}
+                      onChange={(e) => updateField('competition_name', e.target.value)}
+                      className="h-10 text-sm"
+                    />
                   </div>
+                  <div className="sm:col-span-3">
+                    <Label className={FIELD_LABEL_CLASS}>{t('matches.result')}</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="match-home-score" className="text-xs text-muted-foreground">
+                          {t('matches.homeScore')}
+                        </Label>
+                        <Input
+                          id="match-home-score"
+                          type="number"
+                          min={0}
+                          max={999}
+                          value={formData.home_score}
+                          onChange={(e) => updateField('home_score', e.target.value)}
+                          className="h-10 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="match-away-score" className="text-xs text-muted-foreground">
+                          {t('matches.awayScore')}
+                        </Label>
+                        <Input
+                          id="match-away-score"
+                          type="number"
+                          min={0}
+                          max={999}
+                          value={formData.away_score}
+                          onChange={(e) => updateField('away_score', e.target.value)}
+                          className="h-10 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <Label htmlFor="match-result-text" className="text-xs text-muted-foreground">
+                        {t('matches.resultText')}
+                      </Label>
+                      <Input
+                        id="match-result-text"
+                        value={formData.result}
+                        onChange={(e) => updateField('result', e.target.value)}
+                        placeholder="2-1"
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                  </div>
+                  {!currentMatch?.is_external ? (
+                    <div className="sm:col-span-3 flex flex-wrap gap-4">
+                      <label className="inline-flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_canceled}
+                          onChange={(e) => updateField('is_canceled', e.target.checked)}
+                          className="h-4 w-4 rounded border-border"
+                        />
+                        {t('matches.statusCanceled')}
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_postponed}
+                          onChange={(e) => updateField('is_postponed', e.target.checked)}
+                          className="h-4 w-4 rounded border-border"
+                        />
+                        {t('matches.statusPostponed')}
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_finished}
+                          onChange={(e) => updateField('is_finished', e.target.checked)}
+                          className="h-4 w-4 rounded border-border"
+                        />
+                        {t('matches.statusFinished')}
+                      </label>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Contacts (last row) */}

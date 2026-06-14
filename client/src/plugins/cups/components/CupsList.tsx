@@ -37,6 +37,7 @@ import type { IngestSource } from '@/plugins/ingest/types/ingest';
 import { useCups } from '../hooks/useCups';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
+import { CupCard } from './CupCard';
 import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
@@ -714,26 +715,15 @@ export function CupsList() {
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
               {filteredAndSorted.map((cup, index) => (
-                <Card
+                <CupCard
                   key={cup.id}
-                  className={cn(
-                    'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
-                    cup.deleted_at !== null && cup.deleted_at !== undefined && 'opacity-60',
-                    isSelected(cup.id)
-                      ? 'plugin-cups bg-plugin-subtle ring-1 border-plugin-subtle'
-                      : 'hover:border-plugin-subtle hover:plugin-cups hover:shadow-md',
-                  )}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                      return;
-                    }
-                    attemptNavigation(() => openCupForView(cup));
-                  }}
-                  role="button"
-                >
-                  <div className="flex items-center justify-between gap-2">
+                  cup={cup}
+                  selected={isSelected(cup.id)}
+                  ingestTitle={ingestTitleForCup(cup.ingest_source_id) || null}
+                  onClick={() => attemptNavigation(() => openCupForView(cup))}
+                  checkbox={
                     <input
                       type="checkbox"
                       checked={isSelected(cup.id)}
@@ -742,33 +732,8 @@ export function CupsList() {
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 cursor-pointer"
                     />
-                    {cup.deleted_at !== null && cup.deleted_at !== undefined && (
-                      <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
-                        Removed
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-sm font-semibold leading-snug">{cup.name || '—'}</h3>
-                  <div className="flex min-h-0 flex-1 flex-col gap-2 text-xs text-muted-foreground">
-                    <div>
-                      {cup.location || '—'}
-                      {' · '}
-                      {cup.start_date ? new Date(cup.start_date).toLocaleDateString('sv-SE') : '—'}
-                      {' · '}
-                      {cup.visible ? t('common.visible') : t('common.hidden')}
-                      {' · '}
-                      {cup.featured ? t('cups.featured') : t('cups.notFeatured')}
-                    </div>
-                    {ingestTitleForCup(cup.ingest_source_id) ? (
-                      <div>
-                        {t('cups.ingestLine', { title: ingestTitleForCup(cup.ingest_source_id) })}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="mt-auto text-[10px] leading-snug text-muted-foreground">
-                    {t('common.updated')}: {new Date(cup.updated_at).toLocaleDateString('sv-SE')}
-                  </div>
-                </Card>
+                  }
+                />
               ))}
             </div>
           ) : (

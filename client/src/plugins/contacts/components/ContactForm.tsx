@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -33,8 +33,6 @@ import { ContactSettingsForm } from './ContactSettingsForm';
 
 const CONTACT_FORM_CARD_CLASS =
   'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
-const PANEL_MAX_WIDTH = 'max-w-[920px]';
-
 interface ContactPerson {
   id: string;
   name: string;

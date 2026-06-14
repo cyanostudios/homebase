@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState, ReactNode } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
@@ -11,13 +11,16 @@ import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { matchesApi } from '../api/matchesApi';
 import { Match, MatchMention, ValidationError } from '../types/match';
 
 import { MatchContext } from './MatchContext';
 import type { MatchContextType } from './MatchContext';
+
+const matchSlugNameField = (match: Record<string, any>) =>
+  `${match.home_team ?? ''}-vs-${match.away_team ?? ''}`;
 
 interface MatchProviderProps {
   children: ReactNode;
@@ -39,13 +42,14 @@ export function MatchProvider({
     registerMatchesNavigation,
     user,
   } = useApp();
+  const navigate = useNavigate();
   const { navigateToItem, navigateToBase } = useItemUrl('/matches');
   const pluginActions = usePluginActions('match');
   const hasSlotsPlugin = Boolean(user?.plugins?.includes('slots'));
 
   const [isMatchPanelOpen, setIsMatchPanelOpen] = useState(false);
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -117,11 +121,7 @@ export function MatchProvider({
     if (matchesDeepLinkPathSyncedRef.current === pathKey) {
       return;
     }
-    const item = resolveSlug(
-      slug,
-      matches,
-      (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
-    );
+    const item = resolveSlug(slug, matches, matchSlugNameField);
     matchesDeepLinkPathSyncedRef.current = pathKey;
     if (item) {
       openMatchForViewRef.current(item as Match);
@@ -155,37 +155,27 @@ export function MatchProvider({
       setValidationErrors([]);
       onCloseOtherPanels();
       if (match) {
-        navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
+        navigateToItem(match, matches, matchSlugNameField);
       }
-    },
-    [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches, setValidationErrors],
-  );
-
-  const openMatchForEdit = useCallback(
-    (match: Match) => {
-      clearMatchSelectionCore();
-      setRecentlyDuplicatedMatchId(null);
-      setCurrentMatch(match);
-      setPanelMode('edit');
-      setIsMatchPanelOpen(true);
-      setValidationErrors([]);
-      onCloseOtherPanels();
-      navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
     },
     [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches, setValidationErrors],
   );
 
   const openMatchForView = useCallback(
     (match: Match) => {
+      if (!window.location.pathname.startsWith('/matches')) {
+        navigate(`/matches/${buildSlug(match, matches, matchSlugNameField)}`);
+        return;
+      }
       setRecentlyDuplicatedMatchId(null);
       setCurrentMatch(match);
       setPanelMode('view');
       setIsMatchPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
-      navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
+      navigateToItem(match, matches, matchSlugNameField);
     },
-    [onCloseOtherPanels, navigateToItem, matches, setValidationErrors],
+    [navigate, onCloseOtherPanels, navigateToItem, matches, setValidationErrors],
   );
 
   const openMatchForViewRef = useRef(openMatchForView);
@@ -251,20 +241,19 @@ export function MatchProvider({
     [currentMatch?.mentions],
   );
 
-  const hasQuickEditChanges = Boolean(
-    currentMatch &&
-      panelMode === 'view' &&
-      (() => {
-        const saved = Array.isArray(currentMatch.mentions) ? currentMatch.mentions : [];
-        const draft = mentionsDraft ?? saved;
-        if (draft.length !== saved.length) {
-          return true;
-        }
-        const savedIds = [...saved].map((m) => String(m.contactId)).sort();
-        const draftIds = [...draft].map((m) => String(m.contactId)).sort();
-        return savedIds.some((id, i) => draftIds[i] !== id);
-      })(),
-  );
+  const hasQuickEditChanges = useMemo(() => {
+    if (!currentMatch || panelMode !== 'view') {
+      return false;
+    }
+    const saved = Array.isArray(currentMatch.mentions) ? currentMatch.mentions : [];
+    const draft = mentionsDraft ?? saved;
+    if (draft.length !== saved.length) {
+      return true;
+    }
+    const savedIds = [...saved].map((m) => String(m.contactId)).sort();
+    const draftIds = [...draft].map((m) => String(m.contactId)).sort();
+    return savedIds.some((id, i) => draftIds[i] !== id);
+  }, [currentMatch, panelMode, mentionsDraft]);
 
   const openMatchSettings = useCallback(() => {
     clearMatchSelectionCore();
@@ -403,9 +392,6 @@ export function MatchProvider({
       if (mode === 'create') {
         return t('matches.newMatch');
       }
-      if (mode === 'settings') {
-        return t('matches.settingsMatches');
-      }
       return t('matches.match');
     },
     [t],
@@ -477,107 +463,163 @@ export function MatchProvider({
     closePanel: closeMatchPanel,
   });
 
-  const detailFooterActions = pluginActions
-    .filter((action) => action.id !== 'create-slot-from-match' || hasSlotsPlugin)
-    .map((action) => ({
-      id: action.id,
-      label: action.id === 'create-slot-from-match' ? t('app.createSlotFromMatch') : action.label,
-      icon: action.icon,
-      disabled: action.id === 'create-slot-from-match' ? !openToSlotDialog : false,
-      onClick: (match: Match) => {
-        try {
-          if (action.id === 'create-slot-from-match') {
-            const matchDate = match?.start_time ? new Date(match.start_time) : null;
-            const isPast = Boolean(
-              matchDate && !Number.isNaN(matchDate.getTime()) && matchDate < new Date(),
-            );
-            if (isPast) {
-              setQuickActionDialogMessage(t('matches.cannotCreateSlotFromPastMatch'));
-              setShowQuickActionDialog(true);
-              return;
-            }
-          }
-          const handler =
-            action.id === 'create-slot-from-match' && openToSlotDialog
-              ? (m: Match) => openToSlotDialog(m)
-              : (action.onClick as (m: Match) => void | Promise<void>);
-          const maybePromise: unknown = handler(match);
-          if (maybePromise && typeof (maybePromise as Promise<void>).catch === 'function') {
-            (maybePromise as Promise<void>).catch((err: unknown) => {
+  const closeQuickActionDialog = useCallback(() => setShowQuickActionDialog(false), []);
+
+  const detailFooterActions = useMemo(
+    () =>
+      pluginActions
+        .filter((action) => action.id !== 'create-slot-from-match' || hasSlotsPlugin)
+        .map((action) => ({
+          id: action.id,
+          label:
+            action.id === 'create-slot-from-match' ? t('app.createSlotFromMatch') : action.label,
+          icon: action.icon,
+          disabled: action.id === 'create-slot-from-match' ? !openToSlotDialog : false,
+          onClick: (match: Match) => {
+            try {
+              if (action.id === 'create-slot-from-match') {
+                const matchDate = match?.start_time ? new Date(match.start_time) : null;
+                const isPast = Boolean(
+                  matchDate && !Number.isNaN(matchDate.getTime()) && matchDate < new Date(),
+                );
+                if (isPast) {
+                  setQuickActionDialogMessage(t('matches.cannotCreateSlotFromPastMatch'));
+                  setShowQuickActionDialog(true);
+                  return;
+                }
+              }
+              const handler =
+                action.id === 'create-slot-from-match' && openToSlotDialog
+                  ? (m: Match) => openToSlotDialog(m)
+                  : (action.onClick as (m: Match) => void | Promise<void>);
+              const maybePromise: unknown = handler(match);
+              if (maybePromise && typeof (maybePromise as Promise<void>).catch === 'function') {
+                (maybePromise as Promise<void>).catch((err: unknown) => {
+                  const msg =
+                    (err as { message?: string; error?: string })?.message ??
+                    (err as { message?: string; error?: string })?.error ??
+                    'Quick action failed';
+                  setQuickActionDialogMessage(msg);
+                  setShowQuickActionDialog(true);
+                });
+              }
+            } catch (err: unknown) {
               const msg =
                 (err as { message?: string; error?: string })?.message ??
                 (err as { message?: string; error?: string })?.error ??
                 'Quick action failed';
               setQuickActionDialogMessage(msg);
               setShowQuickActionDialog(true);
-            });
-          }
-        } catch (err: unknown) {
-          const msg =
-            (err as { message?: string; error?: string })?.message ??
-            (err as { message?: string; error?: string })?.error ??
-            'Quick action failed';
-          setQuickActionDialogMessage(msg);
-          setShowQuickActionDialog(true);
-        }
-      },
-      className:
-        action.id === 'create-slot-from-match'
-          ? 'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
-          : 'h-9 text-xs px-3',
-    }));
+            }
+          },
+          className:
+            action.id === 'create-slot-from-match'
+              ? 'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
+              : 'h-9 text-xs px-3',
+        })),
+    [hasSlotsPlugin, openToSlotDialog, pluginActions, t],
+  );
 
-  const value: MatchContextType = {
-    isMatchPanelOpen,
-    currentMatch,
-    panelMode,
-    validationErrors,
-    matches,
-    openMatchPanel,
-    openMatchForEdit,
-    openMatchForView,
-    openMatchSettings,
-    closeMatchSettingsView,
-    closeMatchPanel,
-    matchesContentView,
-    saveMatch,
-    deleteMatch,
-    deleteMatches,
-    clearValidationErrors,
-    selectedMatchIds,
-    toggleMatchSelected: toggleMatchSelectedCore,
-    selectAllMatches: selectAllMatchesCore,
-    mergeIntoMatchSelection: mergeIntoMatchSelectionCore,
-    clearMatchSelection: clearMatchSelectionCore,
-    selectedCount,
-    isSelected,
-    getPanelTitle,
-    getPanelSubtitle,
-    getDeleteMessage,
-    getDuplicateConfig,
-    executeDuplicate,
-    recentlyDuplicatedMatchId,
-    setRecentlyDuplicatedMatchId,
-    detailFooterActions,
-    showQuickActionDialog,
-    quickActionDialogMessage,
-    closeQuickActionDialog: () => setShowQuickActionDialog(false),
-    displayMentions,
-    addContactToDraft,
-    removeContactFromDraft,
-    hasQuickEditChanges,
-    onApplyQuickEdit,
-    showDiscardQuickEditDialog,
-    setShowDiscardQuickEditDialog,
-    getCloseHandler,
-    onDiscardQuickEditAndClose,
-    navigateToPrevItem,
-    navigateToNextItem,
-    hasPrevItem,
-    hasNextItem,
-    currentItemIndex,
-    totalItems,
-  };
+  const value: MatchContextType = useMemo(
+    () => ({
+      isMatchPanelOpen,
+      currentMatch,
+      panelMode,
+      validationErrors,
+      matches,
+      openMatchPanel,
+      openMatchForView,
+      openMatchSettings,
+      closeMatchSettingsView,
+      closeMatchPanel,
+      matchesContentView,
+      saveMatch,
+      deleteMatch,
+      deleteMatches,
+      clearValidationErrors,
+      selectedMatchIds,
+      toggleMatchSelected: toggleMatchSelectedCore,
+      selectAllMatches: selectAllMatchesCore,
+      mergeIntoMatchSelection: mergeIntoMatchSelectionCore,
+      clearMatchSelection: clearMatchSelectionCore,
+      selectedCount,
+      isSelected,
+      getPanelTitle,
+      getPanelSubtitle,
+      getDeleteMessage,
+      getDuplicateConfig,
+      executeDuplicate,
+      recentlyDuplicatedMatchId,
+      setRecentlyDuplicatedMatchId,
+      detailFooterActions,
+      showQuickActionDialog,
+      quickActionDialogMessage,
+      closeQuickActionDialog,
+      displayMentions,
+      addContactToDraft,
+      removeContactFromDraft,
+      hasQuickEditChanges,
+      onApplyQuickEdit,
+      showDiscardQuickEditDialog,
+      setShowDiscardQuickEditDialog,
+      getCloseHandler,
+      onDiscardQuickEditAndClose,
+      navigateToPrevItem,
+      navigateToNextItem,
+      hasPrevItem,
+      hasNextItem,
+      currentItemIndex,
+      totalItems,
+    }),
+    [
+      isMatchPanelOpen,
+      currentMatch,
+      panelMode,
+      validationErrors,
+      matches,
+      openMatchPanel,
+      openMatchForView,
+      openMatchSettings,
+      closeMatchSettingsView,
+      closeMatchPanel,
+      matchesContentView,
+      saveMatch,
+      deleteMatch,
+      deleteMatches,
+      clearValidationErrors,
+      selectedMatchIds,
+      toggleMatchSelectedCore,
+      selectAllMatchesCore,
+      mergeIntoMatchSelectionCore,
+      clearMatchSelectionCore,
+      selectedCount,
+      isSelected,
+      getPanelTitle,
+      getPanelSubtitle,
+      getDeleteMessage,
+      getDuplicateConfig,
+      executeDuplicate,
+      recentlyDuplicatedMatchId,
+      detailFooterActions,
+      showQuickActionDialog,
+      quickActionDialogMessage,
+      closeQuickActionDialog,
+      displayMentions,
+      addContactToDraft,
+      removeContactFromDraft,
+      hasQuickEditChanges,
+      onApplyQuickEdit,
+      showDiscardQuickEditDialog,
+      getCloseHandler,
+      onDiscardQuickEditAndClose,
+      navigateToPrevItem,
+      navigateToNextItem,
+      hasPrevItem,
+      hasNextItem,
+      currentItemIndex,
+      totalItems,
+    ],
+  );
 
   return <MatchContext.Provider value={value}>{children}</MatchContext.Provider>;
 }

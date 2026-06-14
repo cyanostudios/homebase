@@ -189,17 +189,21 @@ class ActivityLogService {
         params,
       );
 
+      const logs = logsResult.rows.map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        action: row.action,
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        entityName: row.entity_name,
+        metadata: row.metadata || {},
+        createdAt: row.created_at,
+      }));
+
+      const enrichedLogs = await this._enrichActorLabels(logs);
+
       return {
-        logs: logsResult.rows.map((row) => ({
-          id: row.id,
-          userId: row.user_id,
-          action: row.action,
-          entityType: row.entity_type,
-          entityId: row.entity_id,
-          entityName: row.entity_name,
-          metadata: row.metadata || {},
-          createdAt: row.created_at,
-        })),
+        logs: enrichedLogs,
         total,
       };
     } catch (error) {
@@ -212,6 +216,46 @@ class ActivityLogService {
 
       throw error;
     }
+  }
+
+  /**
+   * Attach actorLabel (email) to each log entry from metadata or main DB lookup.
+   * @param {Array} logs
+   * @returns {Promise<Array>}
+   */
+  async _enrichActorLabels(logs) {
+    const missingActorIds = [
+      ...new Set(
+        logs
+          .filter((log) => !log.metadata?.actor_email && log.metadata?.actor_user_id != null)
+          .map((log) => log.metadata.actor_user_id),
+      ),
+    ];
+
+    let emailByUserId = {};
+    if (missingActorIds.length > 0) {
+      try {
+        const mainPool = ServiceManager.getMainPool();
+        if (mainPool) {
+          const result = await mainPool.query(
+            'SELECT id, email FROM users WHERE id = ANY($1::int[])',
+            [missingActorIds],
+          );
+          emailByUserId = Object.fromEntries((result.rows || []).map((row) => [row.id, row.email]));
+        }
+      } catch {
+        // Non-fatal: fall back to metadata only
+      }
+    }
+
+    return logs.map((log) => {
+      const actorLabel =
+        log.metadata?.actor_email ||
+        emailByUserId[log.metadata?.actor_user_id] ||
+        log.metadata?.actor_name ||
+        null;
+      return { ...log, actorLabel };
+    });
   }
 
   /**

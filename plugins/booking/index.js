@@ -6,7 +6,7 @@ const BookingModel = require('./model');
 const BookingController = require('./controller');
 const createBookingRoutes = require('./routes');
 const config = require('./plugin.config');
-const ServiceManager = require('../../server/core/ServiceManager');
+const { publicEndpointLimiter } = require('../../server/core/middleware/rateLimit');
 
 let bookingPool = null;
 
@@ -68,8 +68,10 @@ function initializeBookingPlugin(context) {
 
   router.use(bookingMiddleware);
 
-  router.get('/slots', (req, res) => controller.getSlots(req, res));
-  router.post('/slots/:id/book', (req, res) => controller.bookSlot(req, res));
+  router.get('/slots', publicEndpointLimiter, (req, res) => controller.getSlots(req, res));
+  router.post('/slots/:id/book', publicEndpointLimiter, (req, res) =>
+    controller.bookSlot(req, res),
+  );
 
   return {
     config,

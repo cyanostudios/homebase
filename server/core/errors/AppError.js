@@ -15,11 +15,15 @@ class AppError extends Error {
   }
 
   toJSON() {
-    return {
+    const includeDetails = process.env.NODE_ENV === 'development';
+    const payload = {
       error: this.message,
       code: this.code,
-      ...(this.details && { details: this.details }),
     };
+    if (includeDetails && this.details) {
+      payload.details = this.details;
+    }
+    return payload;
   }
 }
 

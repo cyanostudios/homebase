@@ -2,7 +2,7 @@
 
 **Default mode (until you say otherwise):** operational and config changes should apply to **both** local dev and Railway production.
 
-**Code** is already shared via git (`homebase-v3.6` → merge to `main` → Railway deploy).
+**Code** is already shared via git (`homebase-v3.7` → merge to `main` → Railway deploy).
 
 **Data / access** are separate unless you wire them as below.
 
@@ -65,6 +65,10 @@ FRONTEND_URL=http://localhost:3001
 
 Without these, local dev shows the reset link on screen instead of sending mail.
 
+`onboarding@resend.dev` only delivers to the Resend account owner — use a **verified domain** in `RESEND_FROM` to test real recipients (same as Railway prod).
+
+**Mail plugin in sidebar:** not enabled by default for new tenants (`DEFAULT_DISABLED_PLUGINS`). Enable with `npm run set:tenant-plugins -- --email=... --enable=mail`. Superuser (`admin@`) sees all plugins including Mail via `ALL_DISCOVERED_PLUGINS`.
+
 ---
 
 ## 2. Ongoing: change both environments
@@ -76,9 +80,16 @@ Without these, local dev shows the reset link on screen instead of sending mail.
 | Plugin access (manual) | `npm run set:tenant-plugins -- ...` (uses `DATABASE_URL`) | `TARGET_DATABASE_URL='...' npm run set:tenant-plugins -- ...` |
 | Main DB user/tenant    | `npm run copy:user-from-prod`                             | `npm run copy:user-to-main` (local → prod)                    |
 | Migrations (main)      | `DATABASE_URL=local npm run migrate:...`                  | `PROD_MAIN_DATABASE_URL=... npm run migrate:...`              |
-| Migrations (tenant)    | Use tenant connection from prod sync                      | Railway / Neon console                                        |
+| Migrations (tenant)    | Use tenant connection from prod sync; scripts below       | Railway / Neon console / same scripts on prod tenants         |
+| Tenant plugins 076–089 | `npm run migrate:teams` (etc.) on local tenants           | Same scripts with prod `DATABASE_URL` / tenant connections    |
+
+**Tenant migration scripts (jun 2026):** `migrate:teams`, `migrate:teams-team-notes`, `migrate:teams-series-teams`, `migrate:requests`, `migrate:schedule`, `migrate:schedule-user-id`, `migrate:schedule-event-team-id`, `migrate:matches-team-external`, `migrate:matches-result`. See `server/migrations/README.md` §076–089.
 
 ### Plugin access (`--both`)
+
+```bash
+npm run set:tenant-plugins -- --both --email=user@homebase.se --enable=teams,requests,schedule,matches
+```
 
 ```bash
 npm run set:tenant-plugins -- --both --email=user@homebase.se --disable=matches,slots --enable=tasks

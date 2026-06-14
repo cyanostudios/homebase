@@ -1,6 +1,6 @@
 # Homebase UI & UX Standards (V3 Premium)
 
-**Last Updated:** May 2026
+**Last Updated:** June 2026
 
 This document defines the strict UI/UX standards for the Homebase V3 "Premium" design language. All plugins must adhere to these guidelines to ensure a cohesive user experience.
 
@@ -15,7 +15,7 @@ The v3.6 alignment introduced shared primitive behavior that all plugins should 
 
 ### 0.1 List view shell (contacts-style, rolled out 2026-04)
 
-All plugin list views (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoices`, `files`, `mail`, `pulses`, `ingest`, `cups`, `contacts`) should match this shell. **Settings** is excluded (not a data list).
+All plugin list views (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoices`, `files`, `mail`, `pulses`, `ingest`, `cups`, `contacts`, `teams`, `requests`, `schedule`) should match this shell. **Settings** is excluded (not a data list).
 
 | Element              | Standard                                                                                                                                                 |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -27,6 +27,11 @@ All plugin list views (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoi
 | **Badges**           | `border-0 rounded-md px-2 py-0.5 text-xs font-semibold`; subtle fill, not outline                                                                        |
 
 Reference implementation: `client/src/plugins/contacts/components/ContactList.tsx`. Rollout completed in commit `4021082`; do not reintroduce per-plugin border/outline table styles.
+
+**Additional reference implementations (2026-06):**
+
+- **Grid cards:** `TeamCard` (`client/src/plugins/teams/components/TeamCard.tsx`) — colored stripe, status badge, next training.
+- **Time grid:** `ScheduleTimeGrid` (`client/src/plugins/schedule/components/ScheduleTimeGrid.tsx`) — week grid with drag/drop training slots.
 
 ## 1. List Views (Tables)
 
@@ -158,9 +163,11 @@ List views place toolbar actions inside the main list card (same shell as table/
 - **Size:** `size="sm"`, `className="h-9 text-xs px-3"`.
 - **Icon + label:** Use the `icon` prop (e.g. `icon={Settings}`) and put the label as children (e.g. `Settings`). Do not use icon-only buttons for primary toolbar actions like Settings—use the same style as in Files, Contacts, and Mail.
 
-### 3.2 Plugin settings panel
+### 3.2 Plugin settings
 
-When a plugin has a settings screen that opens in the detail panel (e.g. Files cloud storage, Mail SMTP):
+**Full-page settings (teams, matches, requests, schedule):** Settings open on the list route via `*ContentView === 'settings'` and dedicated `*SettingsView` components with inline Save/Cancel. No `panelMode === 'settings'` in the detail `Form`.
+
+**Panel settings (legacy — Files, Mail, etc.):** When a plugin opens settings in the detail panel:
 
 - **Content:** Use `DetailSection` to group settings (e.g. "Cloud storage", "Email provider").
 - **Header/Footer actions:** In form modes (create/edit/settings), the panel uses Close + Save/Update actions with shared behavior. Actions may be rendered in header and/or footer, but the close/save handlers must be the same to keep unsaved-changes behavior consistent.

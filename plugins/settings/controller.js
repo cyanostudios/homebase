@@ -1,4 +1,5 @@
 // plugins/settings/controller.js
+const { Context } = require('@homebase/core');
 const ServiceManager = require('../../server/core/ServiceManager');
 const ActivityLogService = require('../../server/core/services/activity-log/ActivityLogService');
 
@@ -9,26 +10,26 @@ class SettingsController {
 
   async getAll(req, res) {
     try {
-      const userId = req.session.user.id;
+      const userId = Context.getUserId(req);
       const settings = await this.model.getAll(userId);
       res.json({ settings });
     } catch (error) {
       const logger = ServiceManager.get('logger');
-      logger.error('Failed to fetch settings', error, { userId: req.session.user.id });
+      logger.error('Failed to fetch settings', error, { userId: Context.getUserId(req) });
       res.status(500).json({ error: 'Failed to fetch settings' });
     }
   }
 
   async getCategory(req, res) {
     try {
-      const userId = req.session.user.id;
+      const userId = Context.getUserId(req);
       const { category } = req.params;
       const settings = await this.model.getCategory(userId, category);
       res.json({ settings });
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Failed to fetch settings category', error, {
-        userId: req.session.user.id,
+        userId: Context.getUserId(req),
         category: req.params.category,
       });
       res.status(500).json({ error: 'Failed to fetch settings category' });
@@ -37,7 +38,7 @@ class SettingsController {
 
   async updateCategory(req, res) {
     try {
-      const userId = req.session.user.id;
+      const userId = Context.getUserId(req);
       const { category } = req.params;
       const { settings } = req.body;
 
@@ -61,7 +62,7 @@ class SettingsController {
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Failed to update settings', error, {
-        userId: req.session.user.id,
+        userId: Context.getUserId(req),
         category: req.params.category,
       });
       res.status(500).json({ error: 'Failed to update settings' });
@@ -107,7 +108,7 @@ class SettingsController {
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Failed to delete activity logs', error, { userId: req.session?.user?.id });
-      res.status(500).json({ error: error.message || 'Failed to delete activity logs' });
+      res.status(500).json({ error: 'Failed to delete activity logs' });
     }
   }
 }

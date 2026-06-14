@@ -2,7 +2,7 @@
 const express = require('express');
 const { body, query } = require('express-validator');
 
-const router = express.Router();
+const { validatePublicHttpsUrl } = require('../../server/core/utils/ssrfUrlGuard');
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
@@ -17,7 +17,22 @@ const fetchMethodRule = body('fetchMethod')
   .isIn(FETCH_METHODS)
   .withMessage(`fetchMethod must be one of: ${FETCH_METHODS.join(', ')}`);
 
+function sourceUrlRule() {
+  return body('sourceUrl')
+    .trim()
+    .isLength({ min: 1, max: 2000 })
+    .withMessage('sourceUrl must be between 1 and 2000 characters')
+    .custom((value) => {
+      const check = validatePublicHttpsUrl(value);
+      if (!check.ok) {
+        throw new Error(check.error);
+      }
+      return true;
+    });
+}
+
 function createIngestRoutes(controller, context) {
+  const router = express.Router();
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name);
@@ -31,19 +46,7 @@ function createIngestRoutes(controller, context) {
     gate,
     csrfProtection,
     commonRules.plainString('name', 1, 255),
-    body('sourceUrl')
-      .trim()
-      .isLength({ min: 1, max: 2000 })
-      .withMessage('sourceUrl must be between 1 and 2000 characters')
-      .custom((value) => {
-        try {
-          // eslint-disable-next-line no-new
-          new URL(value);
-          return true;
-        } catch {
-          throw new Error('sourceUrl must be a valid URL');
-        }
-      }),
+    sourceUrlRule(),
     sourceTypeRule,
     fetchMethodRule,
     body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
@@ -86,19 +89,7 @@ function createIngestRoutes(controller, context) {
     csrfProtection,
     commonRules.id('id'),
     commonRules.plainString('name', 1, 255),
-    body('sourceUrl')
-      .trim()
-      .isLength({ min: 1, max: 2000 })
-      .withMessage('sourceUrl must be between 1 and 2000 characters')
-      .custom((value) => {
-        try {
-          // eslint-disable-next-line no-new
-          new URL(value);
-          return true;
-        } catch {
-          throw new Error('sourceUrl must be a valid URL');
-        }
-      }),
+    sourceUrlRule(),
     sourceTypeRule,
     fetchMethodRule,
     body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),

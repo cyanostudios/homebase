@@ -3,8 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// Plugins that should NOT be enabled by default for new users
-// (e.g., read-only plugins, experimental plugins, or plugins requiring special setup)
+// Plugins not auto-granted on signup (enable per tenant: set-tenant-plugins --enable=mail).
+// Superuser still sees them via ALL_DISCOVERED_PLUGINS in /api/auth/me.
 const DEFAULT_DISABLED_PLUGINS = ['mail'];
 
 // Dynamically discover available plugins
@@ -40,7 +40,9 @@ const getAvailablePlugins = () => {
   return Array.from(plugins).sort(); // Sort for consistent ordering
 };
 
-const AVAILABLE_PLUGINS = getAvailablePlugins().filter(
+const ALL_DISCOVERED_PLUGINS = getAvailablePlugins();
+
+const AVAILABLE_PLUGINS = ALL_DISCOVERED_PLUGINS.filter(
   (plugin) => !DEFAULT_DISABLED_PLUGINS.includes(plugin),
 );
 
@@ -60,6 +62,9 @@ module.exports = {
     EDITOR: 'editor',
     ADMIN: 'admin',
   },
+
+  // All plugins on disk (including DEFAULT_DISABLED_PLUGINS) — for superuser nav
+  ALL_DISCOVERED_PLUGINS,
 
   // Default Plugins
   // Dynamically populated from filesystem (validated: must have plugin.config.js)

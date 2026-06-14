@@ -57,7 +57,6 @@ class TaskController {
 
       res.status(500).json({
         error: 'Failed to update task',
-        message: error.message || 'Unknown error',
       });
     }
   }

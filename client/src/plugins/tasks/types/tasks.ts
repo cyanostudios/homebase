@@ -64,6 +64,14 @@ export const TASK_PRIORITY_COLORS = {
   High: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-100 dark:border-red-800 font-medium',
 } as const;
 
+/** Grid card avatar background by priority. */
+export const TASK_PRIORITY_AVATAR_COLORS = {
+  Low: 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 dark:from-blue-900/60 dark:to-blue-950 dark:text-blue-200',
+  Medium:
+    'bg-gradient-to-br from-yellow-100 to-amber-200 text-amber-900 dark:from-yellow-900/60 dark:to-amber-950 dark:text-amber-200',
+  High: 'bg-gradient-to-br from-red-100 to-red-200 text-red-800 dark:from-red-900/60 dark:to-red-950 dark:text-red-200',
+} as const;
+
 export const TASK_STATUS_OPTIONS = [
   'not started',
   'in progress',

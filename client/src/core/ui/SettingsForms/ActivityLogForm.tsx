@@ -3,6 +3,7 @@
 
 import { ChevronDown, FilterX, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
 import { activityLogApi, ActivityLogEntry, ActivityLogParams } from '@/core/api/activityLogApi';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { getActivityActorLabel, getActivityDetailLines } from '@/core/utils/activityLogDisplay';
 import { notesApi } from '@/plugins/notes/api/notesApi';
 
 interface ActivityLogFormProps {
@@ -35,6 +37,7 @@ const ACTION_COLORS: Record<string, string> = {
 const formatValue = (val: string) => val.charAt(0).toUpperCase() + val.slice(1);
 
 export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
+  const { t } = useTranslation();
   const { user } = useApp();
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -257,14 +260,21 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
                 <TableRow>
                   <TableHead>Date/Time</TableHead>
                   <TableHead>Action</TableHead>
+                  <TableHead>User</TableHead>
                   <TableHead>Entity Type</TableHead>
-                  <TableHead>Entity Name</TableHead>
+                  <TableHead>Details</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log) => {
                   const isExpanded = expandedRows.has(log.id);
+                  const actor = getActivityActorLabel(log);
+                  const details = getActivityDetailLines(log, t);
+                  const detailText =
+                    details.join(' · ') ||
+                    log.entityName ||
+                    (log.entityId != null ? `#${log.entityId}` : null);
                   return (
                     <React.Fragment key={log.id}>
                       <TableRow>
@@ -274,9 +284,16 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
                             {formatValue(log.action)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">{formatValue(log.entityType)}</TableCell>
                         <TableCell className="text-sm">
-                          {log.entityName || <span className="text-muted-foreground">—</span>}
+                          {actor || <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-sm">{formatValue(log.entityType)}</TableCell>
+                        <TableCell className="text-sm max-w-[240px]">
+                          {detailText ? (
+                            <span className="line-clamp-2">{detailText}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -293,8 +310,24 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
                       </TableRow>
                       {isExpanded && (
                         <TableRow>
-                          <TableCell colSpan={5} className="bg-muted/30">
+                          <TableCell colSpan={6} className="bg-muted/30">
                             <div className="space-y-2 p-2">
+                              {actor && (
+                                <div className="text-xs">
+                                  <span className="font-medium">User:</span> {actor}
+                                </div>
+                              )}
+                              {details.length > 0 && (
+                                <div className="text-xs">
+                                  <span className="font-medium">Details:</span>{' '}
+                                  {details.join(' · ')}
+                                </div>
+                              )}
+                              {log.entityName && (
+                                <div className="text-xs">
+                                  <span className="font-medium">Entity:</span> {log.entityName}
+                                </div>
+                              )}
                               {log.entityId && (
                                 <div className="text-xs">
                                   <span className="font-medium">Entity ID:</span> {log.entityId}

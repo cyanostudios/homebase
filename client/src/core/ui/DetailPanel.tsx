@@ -31,6 +31,9 @@ export function DetailPanel({
   mode: _mode = 'view',
   isMobile = false,
 }: DetailPanelProps) {
+  const hasTitle = typeof title === 'string' ? title.trim().length > 0 : Boolean(title);
+  const hasSubtitle = Boolean(subtitle);
+  const showTitleBlock = hasTitle || hasSubtitle;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const previousTitleRef = useRef<string>('');
   const previousOpenRef = useRef(false);
@@ -83,15 +86,21 @@ export function DetailPanel({
           side="right"
           className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full border-0 shadow-none bg-background"
         >
-          <SheetHeader className="px-6 pt-6 pb-4 flex-shrink-0 flex flex-row items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <SheetTitle className="text-left">{title}</SheetTitle>
-              {subtitle && (
-                <div className="text-sm text-muted-foreground text-left mt-2">
-                  {typeof subtitle === 'string' ? <p>{subtitle}</p> : subtitle}
-                </div>
-              )}
-            </div>
+          <SheetHeader
+            className={`px-6 pt-6 flex-shrink-0 flex flex-row items-start justify-between gap-4 ${showTitleBlock ? 'pb-4' : 'pb-2'}`}
+          >
+            {showTitleBlock ? (
+              <div className="min-w-0 flex-1">
+                {hasTitle ? <SheetTitle className="text-left">{title}</SheetTitle> : null}
+                {subtitle && (
+                  <div className="text-sm text-muted-foreground text-left mt-2">
+                    {typeof subtitle === 'string' ? <p>{subtitle}</p> : subtitle}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="min-w-0 flex-1" />
+            )}
             <div className="flex items-center gap-1 flex-shrink-0">
               {headerRight}
               {showCloseButton && (
@@ -135,20 +144,30 @@ export function DetailPanel({
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-0 bg-background">
       {/* Fixed Header */}
-      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-        <div className="flex flex-1 items-center gap-4 min-w-0 mr-4">
-          {typeof title === 'string' ? (
-            <h2 className="text-lg font-semibold tracking-tight truncate shrink-0">
-              {title.length > 70 ? `${title.substring(0, 70)}...` : title}
-            </h2>
-          ) : (
-            <div className="text-lg font-semibold tracking-tight shrink-0 min-w-0">{title}</div>
-          )}
-          {subtitle && (
-            <div className="text-sm text-muted-foreground flex-1 min-w-0">
-              {typeof subtitle === 'string' ? <p className="truncate">{subtitle}</p> : subtitle}
-            </div>
-          )}
+      <div
+        className={`flex flex-shrink-0 items-center justify-between px-6 ${showTitleBlock ? 'py-4' : 'py-2'}`}
+      >
+        <div className="mr-4 flex min-w-0 flex-1 items-center gap-4">
+          {showTitleBlock ? (
+            <>
+              {hasTitle ? (
+                typeof title === 'string' ? (
+                  <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
+                    {title.length > 70 ? `${title.substring(0, 70)}...` : title}
+                  </h2>
+                ) : (
+                  <div className="min-w-0 shrink-0 text-lg font-semibold tracking-tight">
+                    {title}
+                  </div>
+                )
+              ) : null}
+              {subtitle && (
+                <div className="min-w-0 flex-1 text-sm text-muted-foreground">
+                  {typeof subtitle === 'string' ? <p className="truncate">{subtitle}</p> : subtitle}
+                </div>
+              )}
+            </>
+          ) : null}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {headerRight}

@@ -1,6 +1,7 @@
 // plugins/ingest/services/fetchSource.js
 // Fetch strategies for ingest: generic_http (axios) and browser_fetch (separate module). No site-specific parsing.
 const axios = require('axios');
+const { validatePublicHttpsUrl } = require('../../../server/core/utils/ssrfUrlGuard');
 const { fetchSourceBrowserFetch } = require('./fetchSourceBrowserFetch');
 const { bufferLooksLikePdf, isPdfContentType, pdfTextFromBuffer } = require('./pdfTextFromBuffer');
 
@@ -57,6 +58,20 @@ async function fetchSourceGenericHttp(sourceUrl, options = {}) {
       ? options.cookieHeader.trim()
       : undefined;
   try {
+    const urlCheck = validatePublicHttpsUrl(sourceUrl);
+    if (!urlCheck.ok) {
+      return {
+        ok: false,
+        status: null,
+        contentType: null,
+        contentLength: null,
+        bodyText: null,
+        excerpt: null,
+        finalUrl: null,
+        errorMessage: urlCheck.error,
+      };
+    }
+
     const res = await axios.get(sourceUrl, {
       timeout: 30000,
       maxContentLength: MAX_BYTES,
@@ -196,6 +211,20 @@ async function fetchSource(input) {
       excerpt: null,
       finalUrl: null,
       errorMessage: 'Invalid URL',
+    };
+  }
+
+  const urlCheck = validatePublicHttpsUrl(sourceUrl);
+  if (!urlCheck.ok) {
+    return {
+      ok: false,
+      status: null,
+      contentType: null,
+      contentLength: null,
+      bodyText: null,
+      excerpt: null,
+      finalUrl: null,
+      errorMessage: urlCheck.error,
     };
   }
 

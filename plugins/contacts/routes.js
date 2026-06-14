@@ -12,7 +12,6 @@ const {
 } = require('../../server/core/middleware/validation');
 
 function createContactRoutes(controller, context) {
-  // V3: Get requirePlugin from context.middleware instead of parameter
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name); // auth/enablement guard
@@ -31,7 +30,7 @@ function createContactRoutes(controller, context) {
   router.post(
     '/',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('companyName', 1, 255),
     commonRules.optionalString('email', 255),
     commonRules.email('email'),
@@ -49,7 +48,7 @@ function createContactRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('companyName', 1, 255),
     commonRules.optionalString('email', 255),
@@ -68,7 +67,7 @@ function createContactRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
-    // /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
@@ -104,16 +103,9 @@ function createContactRoutes(controller, context) {
   );
 
   // DELETE /api/contacts/:id - Delete contact
-  router.delete(
-    '/:id',
-    gate,
-    /* csrfProtection, */ // Temporarily disabled
-    commonRules.id('id'),
-    validateRequest,
-    (req, res) => {
-      controller.delete(req, res);
-    },
-  );
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) => {
+    controller.delete(req, res);
+  });
 
   return router;
 }

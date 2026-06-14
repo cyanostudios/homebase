@@ -24,6 +24,9 @@ export type NavPage =
   | 'invoices-payments'
   | 'invoices-reports'
   | 'tasks'
+  | 'requests'
+  | 'teams'
+  | 'schedule'
   | 'matches'
   | 'slots'
   | 'cups'
@@ -302,6 +305,8 @@ export function Sidebar({
 
     const categoryToKey: Record<string, string> = {
       Main: 'main',
+      Sport: 'sport',
+      Booking: 'booking',
       Business: 'business',
       'E-commerce': 'ecommerce',
       Tools: 'tools',

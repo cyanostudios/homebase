@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { DEFAULT_AVAILABLE_PLUGINS } = require('../config/constants');
+const { ALL_DISCOVERED_PLUGINS } = require('../config/constants');
 const AuthService = require('../services/auth/AuthService');
 const PasswordResetService = require('../services/auth/PasswordResetService');
 const ServiceManager = require('../ServiceManager');
@@ -25,6 +25,28 @@ function ensureSettingsInPlugins(plugins) {
     list.push('settings');
   }
   return list;
+}
+
+/**
+ * Regenerate session ID after authentication to mitigate session fixation.
+ * @param {import('express').Request} req
+ * @param {object} sessionPayload
+ * @param {(err: Error|null) => void} done
+ */
+function persistAuthenticatedSession(req, sessionPayload, done) {
+  req.session.regenerate((regenErr) => {
+    if (regenErr) {
+      done(regenErr);
+      return;
+    }
+    req.session.user = sessionPayload.user;
+    req.session.tenantConnectionString = sessionPayload.tenantConnectionString;
+    req.session.tenantId = sessionPayload.tenantId ?? null;
+    req.session.tenantRole = sessionPayload.tenantRole ?? null;
+    req.session.tenantOwnerUserId = sessionPayload.tenantOwnerUserId ?? null;
+    req.session.currentTenantUserId = sessionPayload.currentTenantUserId ?? null;
+    req.session.save(done);
+  });
 }
 
 /**
@@ -84,22 +106,11 @@ router.post(
         return res.status(500).json({ error: 'Login failed: Invalid response from auth service' });
       }
 
-      // Save user info in session (settings plugin always in plugins)
-      req.session.user = {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        plugins: ensureSettingsInPlugins(user.plugins || []),
-      };
+      const sessionPlugins =
+        user.role === 'superuser'
+          ? ALL_DISCOVERED_PLUGINS
+          : ensureSettingsInPlugins(user.plugins || []);
 
-      req.session.tenantConnectionString = tenantConnectionString;
-      req.session.tenantId = tenantId ?? null;
-      req.session.tenantRole = tenantRole ?? null;
-      req.session.tenantOwnerUserId = tenantOwnerUserId ?? null;
-      // Tenant DB scope: use owner id so all members see shared data (existing tables filter by user_id)
-      req.session.currentTenantUserId = tenantOwnerUserId ?? user.id;
-
-      // Log tenant routing info
       const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
       logger.info('User logged in', {
         userId: user.id,
@@ -107,30 +118,45 @@ router.post(
         tenantDb: dbHost,
       });
 
-      // Save session explicitly before responding
-      req.session.save((err) => {
-        if (err) {
-          logger.error('Session save failed after login', err, {
-            userId: user.id,
-            errorMessage: err.message,
-            errorStack: err.stack,
-          });
-          return res.status(500).json({
-            error: 'Session creation failed',
-            code: 'SESSION_SAVE_FAILED',
-            hint: 'Main DB sessions table may lack PRIMARY KEY on sid. Run: npm run fix:sessions-table',
-          });
-        }
-
-        res.json({
+      persistAuthenticatedSession(
+        req,
+        {
           user: {
             id: user.id,
             email: user.email,
             role: user.role,
-            plugins: ensureSettingsInPlugins(user.plugins || []),
+            plugins: ensureSettingsInPlugins(sessionPlugins),
           },
-        });
-      });
+          tenantConnectionString,
+          tenantId,
+          tenantRole,
+          tenantOwnerUserId,
+          currentTenantUserId: tenantOwnerUserId ?? user.id,
+        },
+        (err) => {
+          if (err) {
+            logger.error('Session save failed after login', err, {
+              userId: user.id,
+              errorMessage: err.message,
+              errorStack: err.stack,
+            });
+            return res.status(500).json({
+              error: 'Session creation failed',
+              code: 'SESSION_SAVE_FAILED',
+              hint: 'Main DB sessions table may lack PRIMARY KEY on sid. Run: npm run fix:sessions-table',
+            });
+          }
+
+          res.json({
+            user: {
+              id: user.id,
+              email: user.email,
+              role: user.role,
+              plugins: ensureSettingsInPlugins(sessionPlugins),
+            },
+          });
+        },
+      );
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Login failed', error, {
@@ -246,69 +272,74 @@ router.post('/logout', (req, res) => {
  * POST /signup
  * Create new user account with tenant database
  */
-router.post('/signup', async (req, res) => {
-  const { email, password, plugins } = req.body;
+router.post(
+  '/signup',
+  (req, res, next) => authLimiter(req, res, next),
+  async (req, res) => {
+    const { email, password, plugins } = req.body;
 
-  try {
-    const { user, tenantDb } = await authService.signup({ email, password, plugins });
+    try {
+      const { user, tenantDb } = await authService.signup({ email, password, plugins });
 
-    // Auto-login: new account is tenant owner
-    req.session.user = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      plugins: ensureSettingsInPlugins(user.plugins || []),
-    };
+      persistAuthenticatedSession(
+        req,
+        {
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            plugins: ensureSettingsInPlugins(user.plugins || []),
+          },
+          tenantConnectionString: tenantDb.connectionString,
+          tenantId: tenantDb.tenantId ?? null,
+          tenantRole: 'admin',
+          tenantOwnerUserId: user.id,
+          currentTenantUserId: user.id,
+        },
+        (err) => {
+          if (err) {
+            const logger = ServiceManager.get('logger');
+            logger.error('Session save failed after signup', err, { userId: user.id });
+            return res.status(500).json({
+              error: 'Session creation failed',
+              code: 'SESSION_SAVE_FAILED',
+              hint: 'Main DB sessions table may lack PRIMARY KEY on sid. Run: npm run fix:sessions-table',
+            });
+          }
 
-    req.session.tenantConnectionString = tenantDb.connectionString;
-    req.session.tenantId = tenantDb.tenantId ?? null;
-    req.session.tenantRole = 'admin';
-    req.session.tenantOwnerUserId = user.id;
-    req.session.currentTenantUserId = user.id;
+          res.status(201).json({
+            user: { ...user, plugins: ensureSettingsInPlugins(user.plugins || []) },
+          });
+        },
+      );
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Signup failed', error, { email: req.body.email });
 
-    // Save session before responding
-    req.session.save((err) => {
-      if (err) {
-        const logger = ServiceManager.get('logger');
-        logger.error('Session save failed after signup', err, { userId: user.id });
-        return res.status(500).json({
-          error: 'Session creation failed',
-          code: 'SESSION_SAVE_FAILED',
-          hint: 'Main DB sessions table may lack PRIMARY KEY on sid. Run: npm run fix:sessions-table',
+      if (error.message.includes('Email already registered')) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error.message.includes('Invalid plugins')) {
+        return res.status(400).json({
+          error: error.message,
+          availablePlugins: error.availablePlugins,
+        });
+      }
+      if (error.message.includes('Password')) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error?.code === '42P01') {
+        return res.status(503).json({
+          error:
+            'Database schema missing on main DB. Run: DATABASE_URL=<neon-main> npm run railway:migrate',
+          code: 'SCHEMA_MISSING',
         });
       }
 
-      res.status(201).json({
-        user: { ...user, plugins: ensureSettingsInPlugins(user.plugins || []) },
-      });
-    });
-  } catch (error) {
-    const logger = ServiceManager.get('logger');
-    logger.error('Signup failed', error, { email: req.body.email });
-
-    if (error.message.includes('Email already registered')) {
-      return res.status(400).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to create account. Please try again.' });
     }
-    if (error.message.includes('Invalid plugins')) {
-      return res.status(400).json({
-        error: error.message,
-        availablePlugins: error.availablePlugins,
-      });
-    }
-    if (error.message.includes('Password')) {
-      return res.status(400).json({ error: error.message });
-    }
-    if (error?.code === '42P01') {
-      return res.status(503).json({
-        error:
-          'Database schema missing on main DB. Run: DATABASE_URL=<neon-main> npm run railway:migrate',
-        code: 'SCHEMA_MISSING',
-      });
-    }
-
-    res.status(500).json({ error: 'Failed to create account. Please try again.' });
-  }
-});
+  },
+);
 
 /**
  * GET /me
@@ -334,10 +365,10 @@ router.get(
       const tenantOwnerUserId = req.session.tenantOwnerUserId ?? null;
 
       // Resolve plugins for current tenant context (owner = currentTenantUserId)
-      // Superuser always gets all available plugins (including newly added ones)
+      // Superuser gets every discovered plugin (including DEFAULT_DISABLED_PLUGINS e.g. mail)
       let plugins = req.session.user.plugins || [];
       if (req.session.user.role === 'superuser') {
-        plugins = DEFAULT_AVAILABLE_PLUGINS || [];
+        plugins = ALL_DISCOVERED_PLUGINS || [];
       } else {
         try {
           const ctx =

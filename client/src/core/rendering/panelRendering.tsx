@@ -65,10 +65,11 @@ export const createPanelRenderers = (
     // DYNAMIC: Generate form props based on plugin name using helper
     const singularCapName = getSingularCap(currentPlugin.name);
     const currentItemProp = `current${singularCapName}`;
+    const pluginCurrentItem = currentPluginContext?.[currentItemProp] ?? currentItem ?? null;
 
     const formProps = {
-      [currentItemProp]: currentItem,
-      currentItem: currentItem, // Fallback generic prop
+      [currentItemProp]: pluginCurrentItem,
+      currentItem: pluginCurrentItem, // Fallback generic prop
       onSave: handleSave,
       onCancel: handleCancel,
       ...(currentPlugin.getFormExtraProps?.(currentPluginContext) ?? {}),

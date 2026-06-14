@@ -4,6 +4,61 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-06 – Teams, Requests, Schedule + Matches FOGIS
+
+**Sammanfattning:** Tre nya plugins (Teams, Requests, Schedule), utökad Matches-integration med SvFF FOGIS-import, cross-plugin URL-navigation, UI-polish och plugin-cleanup. Utvecklingsbranch: `homebase-v3.7` → merge till `main` för Railway.
+
+### Teams (`109d832`, `af46680`, `4f415c1`, cleanup)
+
+- **Datamodell:** `teams` med `training_times`, `series_teams`, `season_breaks`, `responsibles`, `team_notes`, `color`, `external_team_id` (088).
+- **Vyer:** list/grid (`TeamList`, `TeamCard`), detail med flikar (overview, schedule, responsibles, notes, requests, matches), statistikvy (`TeamsStatisticsView`), reorderable overview cards (`TeamsSettingsView`).
+- **Settings:** full-page `TeamsSettingsView` (active season, overview card order). Panel-`TeamSettingsForm` borttagen (död kod).
+- **Cross-plugin:** `TeamMatchesSection`, `TeamRequestsSection`; klick öppnar match/team via URL (se cross-plugin nedan).
+- **Import:** per-team FOGIS-matchimport när `external_team_id` är satt (`4f415c1`).
+
+### Requests (`e101cea`)
+
+- **Tabell:** `requests` (080), `user_id` (082). Plugin-access: 081 (`MAIN_DB_ONLY`).
+- **UX:** list/filter (default öppna/aktiva — `44a4ee8`), `TeamRequestsSection`, publikt formulär (`PublicRequestForm`).
+- **Koppling:** `team_id` till Teams.
+
+### Schedule (`6996331`, `05fd39f`, `718ae6e`)
+
+- **Tabell:** `schedule_events` (083), `user_id` (085), `team_id` på events (086). Plugin-access: 084 (`MAIN_DB_ONLY`).
+- **UI:** `ScheduleList`, `ScheduleTimeGrid`, `ScheduleTrainingDialog`, `PlanView` (custom plans: lock, import, transfer to default).
+- **Deferred saves:** `useSchedulePendingChanges` + `saveTeamTrainingTimes` i `TeamProvider` — schemaändringar sparas batchvis.
+
+### Matches (utökningar, inkl. ocommittat arbete)
+
+- **FOGIS-import:** [`plugins/matches/services/matchImportService.js`](../plugins/matches/services/matchImportService.js) — SvFF Club API `/club/upcoming-games`, headers `ApiKey` + `Ocp-Apim-Subscription-Key`, per-team filter via `external_team_id`.
+- **Schema:** 087 (`team_id`, `external_id` på matches), 089 (`home_score`, `away_score`, `result`, `competition_name`, `is_canceled`, `is_finished`, `is_postponed`).
+- **UI:** resultat/status i view/form/list, `MatchQuickInfoDialog` från Teams, `MatchTeamBadge`, `MatchStatusBadges`.
+- **Settings:** full-page `MatchSettingsView` (API URL, import). Panel-`MatchSettingsForm` borttagen.
+
+### Cross-plugin URL-navigation
+
+- **`useItemUrl().navigateToItem`** navigerar **bara** när URL redan är på pluginens baspath (`client/src/core/hooks/useItemUrl.ts`).
+- **Cross-plugin:** anropa `navigate('/<plugin>/<slug>')` — `AppContent` URL-sync öppnar panelen automatiskt.
+- **Exempel:** `MatchTeamBadge` → `/teams/{slug}`; `openMatchForView` från Teams → `/matches/{slug}` när användaren inte redan är på `/matches`.
+- **Dokumentation:** `docs/MENTIONS_AND_CROSS_PLUGIN_UI.md` § Cross-plugin URL navigation.
+
+### UI / core (`d80f251`, `87bf544`, `ac3b933`, `af46680`)
+
+- Enhetliga grid-kort, inline quick-create (notes/tasks/requests).
+- Förbättrad activity log (`activityLogDisplay.ts`, `DetailActivityLog`).
+- Död kod borttagen: bl.a. `SettingsList.tsx`, `useEstimateStatusActions`, oanvända panel-settings-former.
+- Plugin-cleanup (matches/teams): memoized context values, delade utilities (`formatMatchDateTime`, `MatchStatusBadges`).
+
+### Drift
+
+- **Tenant-migrationer:** se `server/migrations/README.md` §076–089.
+- **Plugin-access:** `npm run set:tenant-plugins -- --both --email=… --enable=teams,requests,schedule,matches`
+- **Parity:** kör tenant-migrationer lokalt och på prod; logga ut/in efter plugin-ändringar (`docs/LOCAL_PROD_PARITY.md`).
+
+**Commits:** `109d832` … `4f415c1` (14 st sedan `d07880b`).
+
+---
+
 ## 2026-06 – Railway prod: CSRF 500 + rate-limit 429 (fix + docs)
 
 **Sammanfattning:** Produktion (`ENABLE_CSRF=true`) gav 500 på `/api/csrf-token` och kedja av 429 på plugin-API. Orsak + fix dokumenterade i Railway-guiden.
@@ -594,7 +649,7 @@ _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slo
 - **Notes:** Import fanns redan som flik under Notes-inställningar.
 - **Contacts:** Import-knappen flyttad från list-headern till Settings. Ny flik "Import" i `ContactSettingsView` med beskrivning och knapp som öppnar ImportWizard (samma schema och `importContacts`). Import-knapp och ImportWizard borttagna från `ContactList`.
 - **Tasks:** Samma – flik "Import" i `TaskSettingsView`, Import-knapp och ImportWizard borttagna från `TaskList`.
-- **Övriga plugins:** Ingen CSV-import (ImportWizard) i övriga; Matches har endast "Import from API (coming soon)" i settings.
+- **Övriga plugins:** Ingen CSV-import (ImportWizard) i övriga. **Matches** har FOGIS API-import i settings (`MatchSettingsView`); se changelog §2026-06 Teams/Requests/Schedule.
 
 ### Enhetlig knappdesign (list-header, detail-footer, settings)
 

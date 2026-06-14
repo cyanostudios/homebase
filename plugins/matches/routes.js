@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const config = require('./plugin.config');
+const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
 const MATCH_FORMATS = ['3vs3', '5vs5', '6vs6', '7vs7', '8vs8', '9vs9', '11vs11'];
@@ -13,9 +14,23 @@ function createMatchRoutes(controller, context) {
 
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
+  router.get('/by-team/:teamId', gate, commonRules.id('teamId'), validateRequest, (req, res) =>
+    controller.getAllByTeam(req, res),
+  );
+
+  router.post(
+    '/import',
+    gate,
+    csrfProtection,
+    commonRules.optionalInteger('teamId', 1, Number.MAX_SAFE_INTEGER),
+    validateRequest,
+    (req, res) => controller.importMatches(req, res),
+  );
+
   router.post(
     '/',
     gate,
+    csrfProtection,
     commonRules.optionalString('name', 255),
     commonRules.optionalInteger('match_number', 1, 999999),
     commonRules.optionalEnum('match_type', ['series', 'cup', 'friendly']),
@@ -29,6 +44,11 @@ function createMatchRoutes(controller, context) {
     commonRules.optionalEnum('format', MATCH_FORMATS),
     commonRules.optionalInteger('total_minutes', 1, 999),
     commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
+    commonRules.optionalInteger('team_id', 1, Number.MAX_SAFE_INTEGER),
+    commonRules.optionalInteger('home_score', 0, 999),
+    commonRules.optionalInteger('away_score', 0, 999),
+    commonRules.optionalString('result', 50),
+    commonRules.optionalString('competition_name', 255),
     validateRequest,
     (req, res) => controller.create(req, res),
   );
@@ -36,6 +56,7 @@ function createMatchRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     commonRules.optionalString('name', 255),
     commonRules.optionalInteger('match_number', 1, 999999),
@@ -50,6 +71,11 @@ function createMatchRoutes(controller, context) {
     commonRules.optionalEnum('format', MATCH_FORMATS),
     commonRules.optionalInteger('total_minutes', 1, 999),
     commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
+    commonRules.optionalInteger('team_id', 1, Number.MAX_SAFE_INTEGER),
+    commonRules.optionalInteger('home_score', 0, 999),
+    commonRules.optionalInteger('away_score', 0, 999),
+    commonRules.optionalString('result', 50),
+    commonRules.optionalString('competition_name', 255),
     validateRequest,
     (req, res) => controller.update(req, res),
   );
@@ -57,12 +83,13 @@ function createMatchRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
   );
 
-  router.delete('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
     controller.delete(req, res),
   );
 

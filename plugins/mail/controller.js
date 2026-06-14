@@ -72,8 +72,6 @@ class MailController {
       ) {
         msg =
           'Gmail kräver inloggning. Fyll i användarnamn och app-lösenord i Mail-inställningar, eller byt till Resend.';
-      } else if (error?.message) {
-        msg = error.message;
       }
       res.status(500).json({ error: msg });
     }
@@ -263,8 +261,6 @@ class MailController {
       ) {
         msg =
           'Gmail kräver inloggning. Fyll i användarnamn och app-lösenord, eller byt till Resend för enklare konfiguration.';
-      } else if (error?.message) {
-        msg = error.message;
       }
       res.status(500).json({ error: msg });
     }

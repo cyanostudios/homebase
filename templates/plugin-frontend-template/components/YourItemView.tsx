@@ -1,9 +1,14 @@
 import React from 'react';
 import { Edit, Info, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DetailLayout } from '@/core/ui/DetailLayout';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
+
 import type { YourItem } from '../types/your-items';
 import { useYourItems } from '../hooks/useYourItems';
 
@@ -12,6 +17,7 @@ interface YourItemViewProps {
 }
 
 export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
+  const { t } = useTranslation();
   const { openYourItemForEdit, deleteYourItem } = useYourItems();
   if (!item) return null;
 
@@ -33,7 +39,7 @@ export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
                   className="h-9 justify-start rounded-md px-3 text-xs"
                   onClick={() => openYourItemForEdit(item)}
                 >
-                  Edit
+                  {t('common.edit')}
                 </Button>
                 <Button
                   type="button"
@@ -43,7 +49,7 @@ export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
                   className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
                   onClick={() => void deleteYourItem(item.id)}
                 >
-                  Delete
+                  {t('common.delete')}
                 </Button>
               </div>
             </DetailSection>
@@ -53,7 +59,7 @@ export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
               <div className="space-y-3 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">ID</span>
-                  <span className="font-mono">#{item.id}</span>
+                  <span className="font-mono">{formatDisplayNumber('your-items', item.id)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Created</span>
@@ -66,6 +72,12 @@ export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
               </div>
             </DetailSection>
           </Card>
+          <DetailActivityLog
+            entityType="your_item"
+            entityId={item.id}
+            title="Activity"
+            refreshKey={item.updatedAt}
+          />
         </div>
       }
     >

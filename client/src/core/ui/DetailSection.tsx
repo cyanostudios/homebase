@@ -14,7 +14,8 @@ export type DetailSectionIconPlugin =
   | 'files'
   | 'slots'
   | 'matches'
-  | 'ingest';
+  | 'ingest'
+  | 'requests';
 
 interface DetailSectionProps {
   title: string | React.ReactNode;

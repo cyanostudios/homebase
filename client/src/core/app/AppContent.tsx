@@ -240,15 +240,32 @@ export function AppContent() {
     const pluginName = parts[0];
     const itemSlug = parts[1];
 
+    const isInvoicesSubRoute =
+      pluginName === 'invoices' &&
+      itemSlug &&
+      ['recurring', 'payments', 'reports'].includes(itemSlug);
+
+    const panelBelongsToUrl = (plugin: { name: string }) =>
+      Boolean(pluginName && plugin.name === pluginName && itemSlug && !isInvoicesSubRoute);
+
+    // Close panels that no longer match the URL (e.g. browser back from /teams/foo → /schedule).
+    pluginContextsRef.current.forEach(({ plugin, context }) => {
+      if (!context?.[plugin.panelKey] || panelBelongsToUrl(plugin)) {
+        return;
+      }
+      const closeFn = context[`close${getSingularCap(plugin.name)}Panel`] as
+        | (() => void)
+        | undefined;
+      if (typeof closeFn === 'function') {
+        closeFn();
+      }
+    });
+
     // Skip non-plugin pages and invoices sub-routes (recurring/payments/reports)
     if (!pluginName || ['dashboard', 'settings'].includes(pluginName)) {
       return;
     }
-    if (
-      pluginName === 'invoices' &&
-      itemSlug &&
-      ['recurring', 'payments', 'reports'].includes(itemSlug)
-    ) {
+    if (isInvoicesSubRoute) {
       return;
     }
 

@@ -219,6 +219,23 @@ Rate limits måste dimensioneras för **parallella** SPA-anrop, inte bara enstak
 
 ---
 
+### Cross-plugin `openXForView` utan URL-navigering
+
+❌ **What we did (that didn't work):**  
+Anropa `openTeamForView(team)` eller `openMatchForView(match)` från ett annat plugin utan att byta route. `useItemUrl().navigateToItem` gör inget när pathname inte redan är på pluginens baspath. Panelen öppnas kort, URL-sync i `AppContent` stänger den, och användaren landar i listvyn.
+
+✅ **What we do instead (that works):**
+
+- Cross-plugin: `navigate('/<plugin>/<slug>')` med `buildSlug` — `AppContent` öppnar panelen via URL-sync.
+- Same-plugin: `openXForView` + `navigateToItem` fungerar som vanligt.
+
+💡 **Why (lesson learned):**  
+`useItemUrl` är medvetet begränsad till att undvika URL-pollution under panel-interaktioner inom samma plugin. Cross-plugin-länkar ska alltid gå via router.
+
+**Referens:** `client/src/core/hooks/useItemUrl.ts`, `MatchTeamBadge`, `MatchProvider.openMatchForView`, `docs/MENTIONS_AND_CROSS_PLUGIN_UI.md` § Cross-plugin URL navigation.
+
+---
+
 ### Undvik “dubbel panel”-special-casing
 
 ❌ **What we did (that didn't work):**

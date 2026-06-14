@@ -72,6 +72,10 @@ export const createPanelTitles = (
       return pluginContext.getPanelTitle(currentMode, currentItem);
     }
 
+    if (currentPlugin.name === 'teams' && pluginContext?.getPanelTitle) {
+      return pluginContext.getPanelTitle(currentMode, currentItem);
+    }
+
     // Central title from current item: order title → companyName/name → plugin display numbers → id.
     if (currentMode === 'view' && currentItem) {
       const cfg = IMPORT_PLUGIN_CONFIG[currentPlugin.name];

@@ -48,6 +48,11 @@ async function main() {
     if (forgotBody.code === 'EMAIL_NOT_CONFIGURED') {
       console.log('\n→ Add RESEND_API_KEY and RESEND_FROM in Railway Variables, then redeploy.');
       console.log('→ Run: npm run print:mail-resend-hints');
+    } else if (forgotRes.status === 500) {
+      console.log(
+        '\n→ Likely Resend send failed: onboarding@resend.dev only allows the Resend account email.',
+      );
+      console.log('→ Use a verified domain in RESEND_FROM (see docs/RAILWAY_HOMEBASE_SETUP.md).');
     }
   }
 

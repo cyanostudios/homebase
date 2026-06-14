@@ -1,8 +1,10 @@
-// Badge colors for list view (same style as tasks plugin)
+/** Type badge colors — matches ContactView detail. */
 export const CONTACT_TYPE_COLORS = {
-  company: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-  private: 'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
+  company: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
+  private: 'bg-green-50/50 text-green-700 dark:text-green-300 dark:bg-green-950/30',
 } as const;
+
+export const CONTACT_TYPE_BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
 
 export interface Contact {
   id: string;

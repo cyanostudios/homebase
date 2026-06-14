@@ -5,10 +5,12 @@ import {
   CheckSquare,
   Calculator,
   Files as FilesIcon,
+  Inbox,
   Mail,
   Store,
   Trophy,
   Download,
+  CalendarDays,
 } from 'lucide-react';
 import React from 'react';
 
@@ -146,7 +148,15 @@ import { useSlotsContext as useSlots } from '@/plugins/slots/context/SlotsContex
 // Tasks
 import { TaskNullProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
-
+// Teams
+import { TeamsNullProvider } from '@/plugins/teams/context/TeamContext';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
+// Requests
+import { RequestsNullProvider } from '@/plugins/requests/context/RequestContext';
+import { useRequests } from '@/plugins/requests/hooks/useRequests';
+// Schedule
+import { ScheduleNullProvider } from '@/plugins/schedule/context/ScheduleContext';
+import { useSchedule } from '@/plugins/schedule/hooks/useSchedule';
 // ─── Lazy UI components: List / Form / View / dashboardWidget ─────────────────
 // These are loaded on-demand: List when navigating to a plugin page,
 // Form/View when opening a panel, dashboardWidget when Dashboard is rendered.
@@ -165,6 +175,43 @@ const ContactsDashboardWidget = React.lazy(() =>
   import('@/plugins/contacts/components/ContactsDashboardWidget').then((m) => ({
     default: m.ContactsDashboardWidget,
   })),
+);
+
+// Requests
+const RequestList = React.lazy(() =>
+  import('@/plugins/requests/components/RequestList').then((m) => ({ default: m.RequestList })),
+);
+const RequestForm = React.lazy(() =>
+  import('@/plugins/requests/components/RequestForm').then((m) => ({ default: m.RequestForm })),
+);
+const RequestView = React.lazy(() =>
+  import('@/plugins/requests/components/RequestView').then((m) => ({ default: m.RequestView })),
+);
+const RequestsDashboardWidget = React.lazy(() =>
+  import('@/plugins/requests/components/RequestsDashboardWidget').then((m) => ({
+    default: m.RequestsDashboardWidget,
+  })),
+);
+
+// Teams
+const TeamList = React.lazy(() =>
+  import('@/plugins/teams/components/TeamList').then((m) => ({ default: m.TeamList })),
+);
+const TeamForm = React.lazy(() =>
+  import('@/plugins/teams/components/TeamForm').then((m) => ({ default: m.TeamForm })),
+);
+const TeamView = React.lazy(() =>
+  import('@/plugins/teams/components/TeamView').then((m) => ({ default: m.TeamView })),
+);
+const TeamsDashboardWidget = React.lazy(() =>
+  import('@/plugins/teams/components/TeamsDashboardWidget').then((m) => ({
+    default: m.TeamsDashboardWidget,
+  })),
+);
+
+// Schedule
+const ScheduleList = React.lazy(() =>
+  import('@/plugins/schedule/components/ScheduleList').then((m) => ({ default: m.ScheduleList })),
 );
 
 // Cups
@@ -511,6 +558,53 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentViewKey: 'filesContentView',
   },
   {
+    name: 'teams',
+    Provider: TeamsNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/teams/context/TeamProvider').then((m) => m.TeamProvider),
+    NullProvider: TeamsNullProvider,
+    hook: useTeams,
+    panelKey: 'isTeamPanelOpen',
+    components: {
+      List: TeamList,
+      Form: TeamForm,
+      View: TeamView,
+    },
+    navigation: {
+      category: 'Sport',
+      label: 'Teams',
+      icon: Users,
+      order: 0,
+    },
+    dashboardWidget: TeamsDashboardWidget,
+    displayPrefix: 'TEAM',
+    contentFlush: true,
+    slugField: 'name',
+    contentViewKey: 'teamsContentView',
+    noPrimaryAction: true,
+  },
+  {
+    name: 'schedule',
+    Provider: ScheduleNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/schedule/context/ScheduleProvider').then((m) => m.ScheduleProvider),
+    NullProvider: ScheduleNullProvider,
+    hook: useSchedule,
+    panelKey: 'isSchedulePanelOpen',
+    components: {
+      List: ScheduleList,
+    },
+    navigation: {
+      category: 'Sport',
+      label: 'Schedule',
+      icon: CalendarDays,
+      order: 1,
+    },
+    contentFlush: true,
+    noPrimaryAction: true,
+    contentViewKey: 'scheduleContentView',
+  },
+  {
     name: 'matches',
     Provider: MatchNullProvider as React.ComponentType<ProviderProps>,
     providerLoader: () =>
@@ -524,16 +618,40 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: MatchView,
     },
     navigation: {
-      category: 'Main',
+      category: 'Sport',
       label: 'Matches',
       icon: Trophy,
-      order: 4,
+      order: 1,
     },
     dashboardWidget: MatchesDashboardWidget,
     displayPrefix: 'MAT',
     contentFlush: true,
     slugField: (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
     contentViewKey: 'matchesContentView',
+  },
+  {
+    name: 'requests',
+    Provider: RequestsNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/requests/context/RequestProvider').then((m) => m.RequestProvider),
+    NullProvider: RequestsNullProvider,
+    hook: useRequests,
+    panelKey: 'isRequestPanelOpen',
+    components: {
+      List: RequestList,
+      Form: RequestForm,
+      View: RequestView,
+    },
+    navigation: {
+      category: 'Booking',
+      label: 'Requests',
+      icon: Inbox,
+      order: 0,
+    },
+    dashboardWidget: RequestsDashboardWidget,
+    displayPrefix: 'REQ',
+    contentFlush: true,
+    slugField: 'title',
   },
   {
     name: 'slots',
@@ -549,10 +667,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: SlotView,
     },
     navigation: {
-      category: 'Main',
+      category: 'Booking',
       label: 'Slots',
       icon: Store,
-      order: 5,
+      order: 1,
     },
     dashboardWidget: SlotsDashboardWidget,
     displayPrefix: 'SLT',
@@ -575,10 +693,10 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: CupView,
     },
     navigation: {
-      category: 'Main',
+      category: 'Sport',
       label: 'Cups',
       icon: Trophy,
-      order: 6,
+      order: 2,
     },
     dashboardWidget: CupsDashboardWidget,
     displayPrefix: 'CUP',

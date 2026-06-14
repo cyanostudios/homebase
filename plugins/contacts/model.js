@@ -2,6 +2,7 @@
 // Contacts model - V3 with @homebase/core SDK
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 class ContactModel {
   constructor() {
@@ -135,8 +136,6 @@ class ContactModel {
 
   async bulkDelete(req, idsTextArray) {
     try {
-      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
-      // Use core BulkOperationsHelper for generic bulk delete logic
       return await BulkOperationsHelper.bulkDelete(req, 'contacts', idsTextArray);
     } catch (error) {
       Logger.error('Failed to bulk delete contacts', error);

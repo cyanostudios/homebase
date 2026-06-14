@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const ServiceManager = require('../ServiceManager');
 const AdminService = require('../services/admin/AdminService');
+const { csrfProtection } = require('../middleware/csrf');
 
 // Dependencies will be injected by setupAdminRoutes()
 let requireAuth = null;
@@ -17,7 +18,6 @@ const adminService = new AdminService();
  * @param {Function} authMiddleware - Auth middleware
  */
 function setupAdminRoutes(mainPool, authMiddleware) {
-  // pool = mainPool; // Managed by Service layer
   requireAuth = authMiddleware;
 }
 
@@ -39,6 +39,7 @@ router.post(
   '/update-role',
   (req, res, next) => requireAuth(req, res, next),
   requireSuperuser,
+  csrfProtection,
   async (req, res) => {
     try {
       const { email, role } = req.body;
@@ -72,6 +73,7 @@ router.delete(
   '/tenants/:userId',
   (req, res, next) => requireAuth(req, res, next),
   requireSuperuser,
+  csrfProtection,
   async (req, res) => {
     try {
       const { userId } = req.params;
@@ -104,6 +106,7 @@ router.delete(
   '/users/:userId',
   (req, res, next) => requireAuth(req, res, next),
   requireSuperuser,
+  csrfProtection,
   async (req, res) => {
     try {
       const { userId } = req.params;

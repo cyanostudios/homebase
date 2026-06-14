@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const config = require('./plugin.config');
+const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
 const slotEndAfterStart = body('slot_end')
@@ -24,6 +25,7 @@ function createSlotsRoutes(controller, context) {
   router.post(
     '/',
     gate,
+    csrfProtection,
     commonRules.optionalString('name', 255),
     commonRules.optionalString('location', 255),
     commonRules.requiredDate('slot_time'),
@@ -41,6 +43,7 @@ function createSlotsRoutes(controller, context) {
   router.post(
     '/batch',
     gate,
+    csrfProtection,
     (req, res, next) => {
       if (!req.body || !Array.isArray(req.body.slots)) {
         return res.status(400).json({
@@ -62,6 +65,7 @@ function createSlotsRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     commonRules.optionalString('name', 255),
     commonRules.optionalString('location', 255),
@@ -80,12 +84,13 @@ function createSlotsRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
   );
 
-  router.delete('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
     controller.delete(req, res),
   );
 
@@ -96,6 +101,7 @@ function createSlotsRoutes(controller, context) {
   router.delete(
     '/bookings/:bookingId',
     gate,
+    csrfProtection,
     commonRules.id('bookingId'),
     validateRequest,
     (req, res) => controller.deleteBooking(req, res),

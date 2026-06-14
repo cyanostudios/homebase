@@ -4,9 +4,9 @@ const express = require('express');
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { publicEndpointLimiter } = require('../../server/core/middleware/rateLimit');
 
 function createInvoiceRoutes(controller, context) {
-  // V3: Get requirePlugin from context.middleware instead of parameter
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const router = express.Router();
@@ -21,7 +21,7 @@ function createInvoiceRoutes(controller, context) {
   router.post(
     '/',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
@@ -29,13 +29,15 @@ function createInvoiceRoutes(controller, context) {
   );
 
   // Public (NO auth) — keep before /:id to avoid conflicts
-  router.get('/public/:token', (req, res) => controller.getPublicInvoice(req, res));
+  router.get('/public/:token', publicEndpointLimiter, (req, res) =>
+    controller.getPublicInvoice(req, res),
+  );
 
   // DELETE /api/invoices/batch - Bulk delete (MUST be before '/:id' route)
   router.delete(
     '/batch',
     gate,
-    // /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
@@ -45,7 +47,7 @@ function createInvoiceRoutes(controller, context) {
   router.put(
     '/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
@@ -53,13 +55,8 @@ function createInvoiceRoutes(controller, context) {
     (req, res) => controller.updateInvoice(req, res),
   );
 
-  router.delete(
-    '/:id',
-    gate,
-    /* csrfProtection, */ // Temporarily disabled
-    commonRules.id('id'),
-    validateRequest,
-    (req, res) => controller.deleteInvoice(req, res),
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.deleteInvoice(req, res),
   );
 
   // PDF (auth required)
@@ -69,7 +66,7 @@ function createInvoiceRoutes(controller, context) {
   router.post(
     '/shares',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('invoiceId'),
     commonRules.date('validUntil'),
     validateRequest,
@@ -81,7 +78,7 @@ function createInvoiceRoutes(controller, context) {
   router.delete(
     '/shares/:shareId',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('shareId'),
     validateRequest,
     (req, res) => controller.revokeShare(req, res),

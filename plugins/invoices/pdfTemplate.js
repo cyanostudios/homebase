@@ -1,6 +1,8 @@
 // plugins/invoices/pdfTemplate.js
 // PDF template for invoices: shows issue/due dates, payment terms and paid/overdue badges.
 
+const { escapeHtml } = require('../../server/core/utils/htmlEscape');
+
 function formatDate(d) {
   if (!d) return '';
   const date = new Date(d);
@@ -51,7 +53,7 @@ function generatePDFHTML(invoice) {
 
   const isPaid = invoice.status === 'paid';
   const isOverdue = invoice.status === 'overdue';
-  const numberLabel = invoice.invoiceNumber || `DRAFT-${invoice.id}`;
+  const numberLabel = escapeHtml(invoice.invoiceNumber || `DRAFT-${invoice.id}`);
 
   return `
   <!DOCTYPE html>
@@ -120,13 +122,13 @@ function generatePDFHTML(invoice) {
       <div class="details">
         <div class="col">
           <div class="section-title">Bill To</div>
-          <div><strong>${invoice.contactName || 'Customer Name'}</strong></div>
-          ${invoice.organizationNumber ? `<div>Org.nr: ${invoice.organizationNumber}</div>` : ''}
+          <div><strong>${escapeHtml(invoice.contactName || 'Customer Name')}</strong></div>
+          ${invoice.organizationNumber ? `<div>Org.nr: ${escapeHtml(invoice.organizationNumber)}</div>` : ''}
         </div>
         <div class="col">
           <div class="section-title">Payment</div>
-          <div><strong>Terms:</strong> ${invoice.paymentTerms || '30 days net'}</div>
-          <div><strong>Currency:</strong> ${invoice.currency || 'SEK'}</div>
+          <div><strong>Terms:</strong> ${escapeHtml(invoice.paymentTerms || '30 days net')}</div>
+          <div><strong>Currency:</strong> ${escapeHtml(invoice.currency || 'SEK')}</div>
           ${invoice.paidAt ? `<div><strong>Paid At:</strong> ${formatDate(invoice.paidAt)}</div>` : ''}
         </div>
       </div>
@@ -146,8 +148,8 @@ function generatePDFHTML(invoice) {
               (li) => `
             <tr>
               <td>
-                <div><strong>${li.name || li.title || 'Item'}</strong></div>
-                ${li.description ? `<div style="color:#6b7280; font-size:12px;">${li.description}</div>` : ''}
+                <div><strong>${escapeHtml(li.name || li.title || 'Item')}</strong></div>
+                ${li.description ? `<div style="color:#6b7280; font-size:12px;">${escapeHtml(li.description)}</div>` : ''}
               </td>
               <td>${li.quantity || 0}</td>
               <td class="right">${formatCurrency(li.unitPrice || 0, invoice.currency)}</td>
@@ -189,7 +191,7 @@ function generatePDFHTML(invoice) {
         invoice.notes
           ? `
         <div class="notes">
-          ${invoice.notes}
+          ${escapeHtml(invoice.notes)}
         </div>
       `
           : ''

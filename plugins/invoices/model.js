@@ -3,19 +3,41 @@
 const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const {
+  registerPublicShareRoute,
+  RESOURCE_INVOICE,
+} = require('../../server/core/services/publicShareRouting');
+const {
+  resolveTenantConnectionStringForShare,
+} = require('../../server/core/utils/shareRoutingHelper');
 
 class InvoiceModel {
   constructor() {
     // No pool needed - ServiceManager provides database service
   }
 
-  // Existing calculation method (unchanged)
+  _getContext(req) {
+    if (!req) {
+      throw new Error('Request object is required');
+    }
+
+    const pool = req.tenantPool;
+    if (!pool) {
+      throw new Error('Tenant pool not found in request. Ensure auth middleware is applied.');
+    }
+
+    return {
+      pool,
+      userId: req.session?.currentTenantUserId || req.session?.user?.id,
+    };
+  }
+
   calculateTotals(lineItems, invoiceDiscount = 0) {
     let subtotal = 0;
     let totalDiscount = 0;
     let totalVat = 0;
 
-    // Handle empty lineItems array
     if (!Array.isArray(lineItems) || lineItems.length === 0) {
       return {
         subtotal: 0,
@@ -57,7 +79,6 @@ class InvoiceModel {
     };
   }
 
-  // Transform database row to JS object
   transformRow(row) {
     if (!row) return null;
 
@@ -100,11 +121,9 @@ class InvoiceModel {
     };
   }
 
-  // Get next invoice number
   // Using same approach as contacts plugin - simple query with automatic tenant isolation
   async getNextInvoiceNumber(req) {
     try {
-      // Log initial state for debugging
       Logger.info('Getting next invoice number', {
         hasSession: !!req?.session,
         hasUser: !!req?.session?.user,
@@ -116,7 +135,6 @@ class InvoiceModel {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
 
-      // Validate context
       if (!context.userId) {
         const errorMsg = 'User ID is required. Please ensure you are logged in.';
         Logger.error(errorMsg, null, {
@@ -137,18 +155,12 @@ class InvoiceModel {
       const currentYear = new Date().getFullYear();
       const pattern = `${currentYear}-%`;
 
-      // Use db.query() which automatically handles tenant isolation
-      // It will add user_id filter if not present in the query
-      // The query will become: WHERE invoice_number LIKE $1 AND user_id = $2
       Logger.info('Executing query for invoice numbers', {
         userId: context.userId,
         year: currentYear,
         pattern: pattern,
       });
 
-      // Query will automatically add user_id filter via _addTenantFilter()
-      // So final query will be: WHERE invoice_number LIKE $1 AND user_id = $2
-      // And params will be: [pattern, userId]
       const result = await db.query(
         `SELECT invoice_number 
          FROM invoices 
@@ -184,7 +196,6 @@ class InvoiceModel {
 
       const invoiceNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
 
-      // Verify empty DB case handling
       if (!rows || rows.length === 0) {
         Logger.info(`Empty DB case: rows.length=0 -> returning ${invoiceNumber}`);
       }
@@ -198,7 +209,6 @@ class InvoiceModel {
 
       return invoiceNumber;
     } catch (error) {
-      // Enhanced error logging
       const errorDetails = {
         userId: req?.session?.user?.id,
         currentTenantUserId: req?.session?.currentTenantUserId,
@@ -224,14 +234,11 @@ class InvoiceModel {
 
       Logger.error('Failed to get next invoice number - DETAILED ERROR', error, errorDetails);
 
-      // Return more descriptive error message
       if (error instanceof AppError) {
         throw error;
       }
 
-      // Check for specific database errors
       if (error?.code === '42P01') {
-        // Table does not exist
         throw new AppError(
           'Invoices table not found. Please run database migrations.',
           500,
@@ -240,7 +247,6 @@ class InvoiceModel {
       }
 
       if (error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT') {
-        // Connection error
         throw new AppError(
           'Database connection failed. Please check your database configuration.',
           500,
@@ -248,7 +254,6 @@ class InvoiceModel {
         );
       }
 
-      // Generic error with original message
       throw new AppError(
         `Failed to get next invoice number: ${error?.message || 'Unknown database error'}`,
         500,
@@ -257,7 +262,6 @@ class InvoiceModel {
     }
   }
 
-  // Create invoice
   async create(req, invoiceData) {
     try {
       Logger.info('Creating invoice', {
@@ -295,7 +299,6 @@ class InvoiceModel {
         total,
       } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
 
-      // Convert contactId to int if it's a string
       const contactId = invoiceData.contactId
         ? typeof invoiceData.contactId === 'string'
           ? parseInt(invoiceData.contactId, 10)
@@ -336,7 +339,6 @@ class InvoiceModel {
         lineItemsCount: invoiceData.lineItems?.length || 0,
       });
 
-      // Use database.insert for automatic tenant isolation
       const result = await db.insert('invoices', {
         invoice_number: invoiceNumber,
         contact_id: contactId,
@@ -370,7 +372,6 @@ class InvoiceModel {
 
       return this.transformRow(result);
     } catch (error) {
-      // Enhanced error logging with full context
       Logger.error('Failed to create invoice - DETAILED ERROR', error, {
         userId: req?.session?.user?.id,
         currentTenantUserId: req?.session?.currentTenantUserId,
@@ -394,7 +395,6 @@ class InvoiceModel {
         throw error;
       }
 
-      // Return detailed error message
       throw new AppError(
         `Failed to create invoice: ${error.message || 'Unknown database error'}`,
         500,
@@ -410,12 +410,10 @@ class InvoiceModel {
     }
   }
 
-  // Get all invoices for user
   async getAll(req) {
     try {
       const db = Database.get(req);
 
-      // Tenant isolation automatic
       const rows = await db.query('SELECT * FROM invoices ORDER BY created_at DESC', []);
 
       return rows.map((row) => this.transformRow(row));
@@ -425,7 +423,6 @@ class InvoiceModel {
     }
   }
 
-  // Get single invoice by ID
   async getById(req, invoiceId) {
     try {
       const db = Database.get(req);
@@ -443,12 +440,10 @@ class InvoiceModel {
     }
   }
 
-  // Update invoice
   async update(req, invoiceId, invoiceData) {
     try {
       const db = Database.get(req);
 
-      // Verify invoice exists (ownership check automatic)
       const currentInvoice = await this.getById(req, invoiceId);
       if (!currentInvoice) {
         throw new AppError('Invoice not found', 404, AppError.CODES.NOT_FOUND);
@@ -466,7 +461,6 @@ class InvoiceModel {
         total,
       } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
 
-      // Convert contactId to int if it's a string
       const contactId = invoiceData.contactId
         ? typeof invoiceData.contactId === 'string'
           ? parseInt(invoiceData.contactId, 10)
@@ -478,7 +472,6 @@ class InvoiceModel {
           : invoiceData.estimateId
         : null;
 
-      // Use database.update for automatic tenant isolation
       const result = await db.update('invoices', invoiceId, {
         contact_id: contactId,
         contact_name: invoiceData.contactName || '',
@@ -522,13 +515,11 @@ class InvoiceModel {
       const pool = req.tenantPool;
       const userId = req.session?.user?.id;
 
-      // First, delete all invoice_shares for these invoices
       if (pool && userId) {
         const ids = Array.isArray(idsTextArray)
           ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
           : [];
         if (ids.length > 0) {
-          // Convert string IDs to integers for INTEGER column comparison
           const integerIds = ids.map((id) => {
             const parsed = parseInt(id, 10);
             if (isNaN(parsed)) {
@@ -544,8 +535,6 @@ class InvoiceModel {
         }
       }
 
-      // Use core BulkOperationsHelper for generic bulk delete logic
-      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
       return await BulkOperationsHelper.bulkDelete(req, 'invoices', idsTextArray);
     } catch (error) {
       Logger.error('Failed to bulk delete invoices', error);
@@ -556,12 +545,10 @@ class InvoiceModel {
     }
   }
 
-  // Delete invoice
   async delete(req, invoiceId) {
     try {
       const db = Database.get(req);
 
-      // Delete the invoice (tenant isolation automatic)
       await db.deleteRecord('invoices', invoiceId);
 
       Logger.info('Invoice deleted', { invoiceId });
@@ -577,7 +564,6 @@ class InvoiceModel {
     }
   }
 
-  // SHARING METHODS
   generateShareToken() {
     const bytes = crypto.randomBytes(24);
     return this.base62Encode(bytes);
@@ -598,10 +584,9 @@ class InvoiceModel {
 
   async createShare(req, invoiceId, validUntil) {
     try {
-      const db = Database.get(req);
+      const context = this._getContext(req);
       const pool = context.pool;
 
-      // Verify invoice exists and user owns it
       const invoice = await this.getById(req, invoiceId);
       if (!invoice) {
         throw new AppError('Invoice not found or access denied', 404, AppError.CODES.NOT_FOUND);
@@ -620,6 +605,24 @@ class InvoiceModel {
       );
 
       Logger.info('Share created', { invoiceId, shareId: result.rows[0].id });
+
+      const createdToken = result.rows[0].share_token;
+      const tenantConnectionString = await resolveTenantConnectionStringForShare(req);
+      if (tenantConnectionString) {
+        try {
+          await registerPublicShareRoute(createdToken, RESOURCE_INVOICE, tenantConnectionString);
+        } catch (routeErr) {
+          Logger.error('public_share_routing register failed', routeErr, {
+            invoiceId,
+            tokenPrefix: createdToken.substring(0, 8),
+          });
+        }
+      } else {
+        Logger.warn(
+          'Invoice share created in tenant DB but public_share_routing not registered (no tenant connection string)',
+          { invoiceId },
+        );
+      }
 
       return {
         id: result.rows[0].id.toString(),
@@ -640,7 +643,6 @@ class InvoiceModel {
     }
   }
 
-  // Get invoice by share token (PUBLIC - no tenant isolation)
   async getInvoiceByShareToken(req, shareToken) {
     try {
       const pool = req.tenantPool || this._getContext(req).pool;
@@ -697,13 +699,11 @@ class InvoiceModel {
       const context = this._getContext(req);
       const pool = context.pool;
 
-      // Verify invoice exists and user owns it
       const invoice = await this.getById(req, invoiceId);
       if (!invoice) {
         throw new AppError('Invoice not found or access denied', 404, AppError.CODES.NOT_FOUND);
       }
 
-      // Get shares filtered by user_id for tenant isolation
       const result = await pool.query(
         `
         SELECT * FROM invoice_shares 
@@ -738,7 +738,6 @@ class InvoiceModel {
       const context = this._getContext(req);
       const pool = context.pool;
 
-      // Verify share belongs to user's invoice
       const shareCheck = await pool.query(
         'SELECT invoice_id FROM invoice_shares WHERE id = $1 AND user_id = $2',
         [shareId, context.userId],
@@ -755,7 +754,6 @@ class InvoiceModel {
         throw new AppError('Share not found or access denied', 404, AppError.CODES.NOT_FOUND);
       }
 
-      // Delete the share with user_id check for tenant isolation
       const deleteResult = await pool.query(
         'DELETE FROM invoice_shares WHERE id = $1 AND user_id = $2 RETURNING *',
         [shareId, context.userId],
