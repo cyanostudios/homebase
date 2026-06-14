@@ -258,7 +258,16 @@
     "activity": "Aktivitet",
     "relatedSlots": "Slots",
     "noRelatedSlots": "Inga slots kopplade till den här matchen än",
-    "open": "Öppna"
+    "open": "Öppna",
+    "apiSettings": "API-import",
+    "apiKey": "API-nyckel",
+    "apiKeyPlaceholder": "Ange prenumerationsnyckel",
+    "apiKeyHint": "Lagras säkert för server-side import. Varje lag behöver ett externt lag-ID.",
+    "apiBaseUrl": "API-bas-URL",
+    "importNow": "Importera nu",
+    "importing": "Importerar...",
+    "importDone": "{{imported}} importerade, {{updated}} uppdaterade.",
+    "importError": "Kunde inte importera matcher. Kontrollera API-nyckel och lag-ID."
   },
   "bulk": {
     "selected": "{{count}} valda",
@@ -788,8 +797,17 @@
       "schedule": "Schema",
       "responsibles": "Ansvariga",
       "notes": "Anteckningar",
-      "requests": "Ärenden"
+      "requests": "Ärenden",
+      "matches": "Matcher"
     },
+    "externalTeamId": "Externt lag-ID",
+    "externalTeamIdPlaceholder": "FOGIS lagId",
+    "externalTeamIdHint": "Används för att importera matcher från externt API för detta lag.",
+    "nextMatch": "Nästa match",
+    "noUpcomingMatches": "Inga kommande matcher.",
+    "noMatchesForTeam": "Inga matcher för detta lag ännu.",
+    "upcomingMatches": "Kommande",
+    "pastMatches": "Spelade",
     "view": {
       "information": "Information",
       "weeklySchedule": "Träningsschema vecka",
@@ -880,7 +898,17 @@
       "title": "Lag-inställningar",
       "seasonSection": "Säsong",
       "activeSeason": "Aktiv säsong",
-      "activeSeasonHint": "Visas i listans sidhuvud, t.ex. \"Säsong 2026\"."
+      "activeSeasonHint": "Visas i listans sidhuvud, t.ex. \"Säsong 2026\".",
+      "overviewSection": "Översiktskort",
+      "overviewHint": "Dra för att ändra ordningen på korten i varje lags översikt.",
+      "cards": {
+        "schedule": "Träningsschema",
+        "seasonBreaks": "Säsongsuppehåll",
+        "responsibles": "Ansvariga",
+        "notes": "Anteckningar",
+        "requests": "Förfrågningar",
+        "matches": "Matcher"
+      }
     },
     "statistics": {
       "title": "Lagstatistik",

@@ -32,6 +32,7 @@ function createTeamRoutes(controller, context) {
     commonRules.optionalEnum('status', TEAM_STATUSES),
     commonRules.htmlContent('status_note', 20000),
     commonRules.optionalEnum('color', TEAM_COLORS),
+    commonRules.optionalString('external_team_id', 100),
     validateRequest,
     (req, res) => controller.create(req, res),
   );
@@ -49,6 +50,7 @@ function createTeamRoutes(controller, context) {
     commonRules.optionalEnum('status', TEAM_STATUSES),
     commonRules.htmlContent('status_note', 20000),
     commonRules.optionalEnum('color', TEAM_COLORS),
+    commonRules.optionalString('external_team_id', 100),
     validateRequest,
     (req, res) => controller.update(req, res),
   );

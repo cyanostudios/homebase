@@ -1,6 +1,6 @@
 import { createApiClient } from '@/core/api/createApiClient';
 
-import { Match, MatchMention } from '../types/match';
+import { Match, MatchImportResult, MatchMention } from '../types/match';
 
 function parseMentions(row: Record<string, unknown>): MatchMention[] {
   let raw = row.mentions;
@@ -48,6 +48,10 @@ function rowToMatch(row: Record<string, unknown>): Match {
         : null,
     contact_id:
       row.contact_id !== null && row.contact_id !== undefined ? String(row.contact_id) : null,
+    team_id: row.team_id != null ? String(row.team_id) : null,
+    external_id: row.external_id != null ? String(row.external_id) : null,
+    is_external: Boolean(row.is_external),
+    external_source: row.external_source != null ? String(row.external_source) : null,
     mentions: parseMentions(row),
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
@@ -60,6 +64,16 @@ class MatchesApi {
   async getMatches(): Promise<Match[]> {
     const rows = await this.request('');
     return (rows || []).map((row: Record<string, unknown>) => rowToMatch(row));
+  }
+
+  async getMatchesByTeam(teamId: string): Promise<Match[]> {
+    const rows = await this.request(`/by-team/${teamId}`);
+    return (rows || []).map((row: Record<string, unknown>) => rowToMatch(row));
+  }
+
+  async importMatches(teamId?: string): Promise<MatchImportResult> {
+    const body = teamId ? { teamId: Number(teamId) } : {};
+    return this.request('/import', { method: 'POST', body: JSON.stringify(body) });
   }
 
   async getMatch(id: string): Promise<Match> {
@@ -81,6 +95,7 @@ class MatchesApi {
     format?: string | null;
     total_minutes?: number | null;
     contact_id?: string | null;
+    team_id?: string | null;
     mentions?: MatchMention[];
   }): Promise<Match> {
     const fallbackName =
@@ -99,6 +114,7 @@ class MatchesApi {
       format: data.format,
       total_minutes: data.total_minutes ?? null,
       contact_id: data.contact_id ?? null,
+      team_id: data.team_id != null ? Number(data.team_id) : null,
       mentions: data.mentions ?? [],
     };
     const row = await this.request('', { method: 'POST', body: JSON.stringify(body) });
@@ -122,6 +138,7 @@ class MatchesApi {
       format: data.format,
       total_minutes: data.total_minutes ?? null,
       contact_id: data.contact_id ?? null,
+      ...('team_id' in data ? { team_id: data.team_id != null ? Number(data.team_id) : null } : {}),
       mentions: data.mentions ?? [],
     };
     const row = await this.request(`/${id}`, { method: 'PUT', body: JSON.stringify(body) });

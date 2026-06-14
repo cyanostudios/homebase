@@ -78,6 +78,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
     player_count: '',
     status: 'active' as Team['status'],
     color: 'green' as Team['color'],
+    external_team_id: '',
   });
   const [seriesTeams, setSeriesTeams] = useState<SeriesTeam[]>([]);
   const [trainingTimes, setTrainingTimes] = useState<TrainingTime[]>([]);
@@ -103,6 +104,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
       player_count: item?.player_count != null ? String(item.player_count) : '',
       status: item?.status || 'active',
       color: item?.color || 'green',
+      external_team_id: item?.external_team_id || '',
     });
     if (item?.series_teams?.length) {
       setSeriesTeams([...item.series_teams]);
@@ -260,6 +262,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
       responsibles,
       team_notes: teamNotes,
       color: form.color,
+      external_team_id: form.external_team_id.trim() || null,
     });
     if (ok) {
       markClean();
@@ -366,6 +369,17 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       />
                     ))}
                   </div>
+                </div>
+                <div className="md:col-span-2">
+                  <Label>{t('teams.externalTeamId')}</Label>
+                  <Input
+                    value={form.external_team_id}
+                    onChange={(e) => onFieldChange('external_team_id', e.target.value)}
+                    placeholder={t('teams.externalTeamIdPlaceholder')}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('teams.externalTeamIdHint')}
+                  </p>
                 </div>
               </div>
             </DetailSection>

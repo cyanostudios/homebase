@@ -258,7 +258,16 @@
     "activity": "Activity",
     "relatedSlots": "Slots",
     "noRelatedSlots": "No slots linked to this match yet",
-    "open": "Open"
+    "open": "Open",
+    "apiSettings": "API import",
+    "apiKey": "API key",
+    "apiKeyPlaceholder": "Enter subscription key",
+    "apiKeyHint": "Stored securely for server-side import. Each team needs an external team ID.",
+    "apiBaseUrl": "API base URL",
+    "importNow": "Import now",
+    "importing": "Importing...",
+    "importDone": "{{imported}} imported, {{updated}} updated.",
+    "importError": "Could not import matches. Check API key and team IDs."
   },
   "bulk": {
     "selected": "{{count}} selected",
@@ -788,8 +797,17 @@
       "schedule": "Schedule",
       "responsibles": "Responsibles",
       "notes": "Notes",
-      "requests": "Requests"
+      "requests": "Requests",
+      "matches": "Matches"
     },
+    "externalTeamId": "External team ID",
+    "externalTeamIdPlaceholder": "FOGIS team ID",
+    "externalTeamIdHint": "Used to import matches from the external API for this team.",
+    "nextMatch": "Next match",
+    "noUpcomingMatches": "No upcoming matches.",
+    "noMatchesForTeam": "No matches for this team yet.",
+    "upcomingMatches": "Upcoming",
+    "pastMatches": "Played",
     "view": {
       "information": "Information",
       "weeklySchedule": "Weekly training schedule",
@@ -880,7 +898,17 @@
       "title": "Teams settings",
       "seasonSection": "Season",
       "activeSeason": "Active season",
-      "activeSeasonHint": "Shown in the list header, e.g. \"Season 2026\"."
+      "activeSeasonHint": "Shown in the list header, e.g. \"Season 2026\".",
+      "overviewSection": "Overview cards",
+      "overviewHint": "Drag to reorder the cards shown in each team's overview.",
+      "cards": {
+        "schedule": "Training schedule",
+        "seasonBreaks": "Season breaks",
+        "responsibles": "Responsibles",
+        "notes": "Notes",
+        "requests": "Requests",
+        "matches": "Matches"
+      }
     },
     "statistics": {
       "title": "Teams statistics",

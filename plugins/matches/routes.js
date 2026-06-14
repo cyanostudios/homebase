@@ -14,6 +14,19 @@ function createMatchRoutes(controller, context) {
 
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
+  router.get('/by-team/:teamId', gate, commonRules.id('teamId'), validateRequest, (req, res) =>
+    controller.getAllByTeam(req, res),
+  );
+
+  router.post(
+    '/import',
+    gate,
+    csrfProtection,
+    commonRules.optionalInteger('teamId', 1, Number.MAX_SAFE_INTEGER),
+    validateRequest,
+    (req, res) => controller.importMatches(req, res),
+  );
+
   router.post(
     '/',
     gate,
@@ -31,6 +44,7 @@ function createMatchRoutes(controller, context) {
     commonRules.optionalEnum('format', MATCH_FORMATS),
     commonRules.optionalInteger('total_minutes', 1, 999),
     commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
+    commonRules.optionalInteger('team_id', 1, Number.MAX_SAFE_INTEGER),
     validateRequest,
     (req, res) => controller.create(req, res),
   );
@@ -53,6 +67,7 @@ function createMatchRoutes(controller, context) {
     commonRules.optionalEnum('format', MATCH_FORMATS),
     commonRules.optionalInteger('total_minutes', 1, 999),
     commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
+    commonRules.optionalInteger('team_id', 1, Number.MAX_SAFE_INTEGER),
     validateRequest,
     (req, res) => controller.update(req, res),
   );

@@ -123,6 +123,12 @@ function stableJson(value) {
   return JSON.stringify(value);
 }
 
+function sanitizeExternalTeamId(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, 100) : null;
+}
+
 class TeamModel {
   static getChangeSummary(existing, teamData) {
     const labels = {
@@ -139,6 +145,7 @@ class TeamModel {
       season_breaks: 'Season breaks',
       responsibles: 'Responsibles',
       color: 'Color',
+      external_team_id: 'External team ID',
     };
     const changed = [];
 
@@ -225,6 +232,11 @@ class TeamModel {
       const prev = existing.color || 'green';
       if (next !== prev) changed.push(labels.color);
     }
+    if ('external_team_id' in teamData) {
+      const next = sanitizeExternalTeamId(teamData.external_team_id);
+      const prev = sanitizeExternalTeamId(existing.external_team_id);
+      if (next !== prev) changed.push(labels.external_team_id);
+    }
 
     return changed.length === 0 ? null : changed.join(', ');
   }
@@ -272,6 +284,7 @@ class TeamModel {
         season_breaks,
         responsibles,
         color,
+        external_team_id,
       } = teamData;
 
       const trimmedName = decodeHtmlEntities((name || '').toString().trim());
@@ -299,6 +312,7 @@ class TeamModel {
         season_breaks: JSON.stringify(sanitizeSeasonBreaks(season_breaks)),
         responsibles: JSON.stringify(sanitizeResponsibles(responsibles)),
         color: TEAM_COLORS.includes(color) ? color : 'green',
+        external_team_id: sanitizeExternalTeamId(external_team_id),
       });
 
       Logger.info('Team created', { teamId: result.id });
@@ -338,6 +352,7 @@ class TeamModel {
         season_breaks,
         responsibles,
         color,
+        external_team_id,
       } = teamData;
 
       const trimmedName = decodeHtmlEntities((name || '').toString().trim());
@@ -408,6 +423,10 @@ class TeamModel {
               ? color
               : 'green'
             : (current.color ?? 'green'),
+        external_team_id:
+          external_team_id !== undefined
+            ? sanitizeExternalTeamId(external_team_id)
+            : (current.external_team_id ?? null),
       });
 
       Logger.info('Team updated', { teamId });
@@ -466,6 +485,8 @@ class TeamModel {
       season_breaks: sanitizeSeasonBreaks(row.season_breaks),
       responsibles: sanitizeResponsibles(row.responsibles),
       color: row.color || 'green',
+      external_team_id:
+        row.external_team_id != null ? sanitizeExternalTeamId(row.external_team_id) : null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

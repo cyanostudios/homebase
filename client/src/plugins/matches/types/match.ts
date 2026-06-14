@@ -30,9 +30,26 @@ export interface Match {
   format: string | null;
   total_minutes: number | null;
   contact_id: string | null;
+  team_id: string | null;
+  external_id: string | null;
+  is_external: boolean;
+  external_source: string | null;
   mentions: MatchMention[];
   created_at: string;
   updated_at: string;
+}
+
+export interface MatchImportResult {
+  imported: number;
+  updated: number;
+  errors: string[];
+  teams: Array<{
+    teamId: string;
+    teamName: string;
+    imported: number;
+    updated: number;
+    error?: string;
+  }>;
 }
 
 export interface ValidationError {

@@ -40,6 +40,10 @@ function rowToTeam(row: Record<string, unknown>): Team {
     season_breaks: parseJsonArray<SeasonBreak>(row.season_breaks),
     responsibles: parseJsonArray<Responsible>(row.responsibles),
     color: (row.color as Team['color']) ?? 'green',
+    external_team_id:
+      row.external_team_id != null && String(row.external_team_id).trim()
+        ? String(row.external_team_id).trim()
+        : null,
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
   };
@@ -59,6 +63,7 @@ export interface TeamPayload {
   season_breaks?: SeasonBreak[];
   responsibles?: Responsible[];
   color?: Team['color'];
+  external_team_id?: string | null;
 }
 
 class TeamsApi {

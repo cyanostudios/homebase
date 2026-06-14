@@ -17,11 +17,15 @@ const ALLOWED_SETTINGS_CATEGORIES = new Set([
   'schedule',
 ]);
 
+/** Known keys per category (documentation; partial updates merge via JSONB ||). */
+const MATCHES_SETTINGS_KEYS = new Set(['viewMode', 'apiKey', 'apiBaseUrl']);
+
 function isAllowedSettingsCategory(category) {
   return typeof category === 'string' && ALLOWED_SETTINGS_CATEGORIES.has(category.trim());
 }
 
 module.exports = {
   ALLOWED_SETTINGS_CATEGORIES,
+  MATCHES_SETTINGS_KEYS,
   isAllowedSettingsCategory,
 };

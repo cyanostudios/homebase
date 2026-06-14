@@ -30,6 +30,22 @@ function validateSportAndFormat(sportType, format) {
   }
 }
 
+function sanitizeTeamId(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function sanitizeExternalId(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, 255) : null;
+}
+
 class MatchModel {
   _deriveName({ name, home_team, away_team }) {
     const trimmed = typeof name === 'string' ? name.trim() : '';
@@ -49,10 +65,102 @@ class MatchModel {
         'SELECT * FROM matches ORDER BY start_time DESC, created_at DESC',
         [],
       );
-      return rows.map(this.transformRow);
+      return rows.map((row) => this.transformRow(row));
     } catch (error) {
       Logger.error('Failed to fetch matches', error);
       throw new AppError('Failed to fetch matches', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async getAllByTeam(req, teamId) {
+    try {
+      const db = Database.get(req);
+      const parsedTeamId = sanitizeTeamId(teamId);
+      if (!parsedTeamId) {
+        throw new AppError('Invalid team id', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+      const rows = await db.query(
+        'SELECT * FROM matches WHERE team_id = $1 ORDER BY start_time ASC, created_at ASC',
+        [parsedTeamId],
+      );
+      return rows.map((row) => this.transformRow(row));
+    } catch (error) {
+      Logger.error('Failed to fetch team matches', error, { teamId });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to fetch team matches', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async upsertExternal(req, teamId, externalMatches) {
+    try {
+      const db = Database.get(req);
+      const parsedTeamId = sanitizeTeamId(teamId);
+      if (!parsedTeamId) {
+        throw new AppError('Invalid team id', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+      if (!Array.isArray(externalMatches)) {
+        throw new AppError(
+          'externalMatches must be an array',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      let imported = 0;
+      let updated = 0;
+
+      for (const matchData of externalMatches) {
+        const externalId = sanitizeExternalId(matchData.external_id);
+        if (!externalId) {
+          continue;
+        }
+
+        const payload = {
+          name: this._deriveName({
+            name: matchData.name,
+            home_team: matchData.home_team,
+            away_team: matchData.away_team,
+          }),
+          match_number: null,
+          match_type:
+            matchData.match_type != null && String(matchData.match_type).trim()
+              ? String(matchData.match_type).trim()
+              : null,
+          referee_count: 1,
+          map_link: null,
+          home_team: (matchData.home_team || '').trim() || null,
+          away_team: (matchData.away_team || '').trim() || null,
+          location: (matchData.location || '').trim() || null,
+          start_time: matchData.start_time || null,
+          sport_type: matchData.sport_type || 'football',
+          format: (matchData.format ?? '').toString().trim(),
+          total_minutes: null,
+          contact_id: null,
+          mentions: JSON.stringify([]),
+          team_id: parsedTeamId,
+          external_id: externalId,
+          is_external: true,
+          external_source: (matchData.external_source || '').trim() || null,
+        };
+
+        const existing = await db.query('SELECT id FROM matches WHERE external_id = $1', [
+          externalId,
+        ]);
+
+        if (existing.length > 0) {
+          await db.update('matches', existing[0].id, payload);
+          updated += 1;
+        } else {
+          await db.insert('matches', payload);
+          imported += 1;
+        }
+      }
+
+      return { imported, updated };
+    } catch (error) {
+      Logger.error('Failed to upsert external matches', error, { teamId });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to upsert external matches', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -74,6 +182,10 @@ class MatchModel {
         total_minutes,
         contact_id,
         mentions,
+        team_id,
+        external_id,
+        is_external,
+        external_source,
       } = matchData;
       validateSportAndFormat(sport_type, format);
       const nextName = this._deriveName({ name, home_team, away_team });
@@ -105,6 +217,10 @@ class MatchModel {
         total_minutes: total_minutes != null ? parseInt(total_minutes, 10) : null,
         contact_id: contact_id || null,
         mentions: JSON.stringify(Array.isArray(mentions) ? mentions : []),
+        team_id: sanitizeTeamId(team_id),
+        external_id: sanitizeExternalId(external_id),
+        is_external: Boolean(is_external),
+        external_source: (external_source || '').trim() || null,
       });
 
       Logger.info('Match created', { matchId: result.id });
@@ -146,6 +262,10 @@ class MatchModel {
         total_minutes,
         contact_id,
         mentions,
+        team_id,
+        external_id,
+        is_external,
+        external_source,
       } = matchData;
       validateSportAndFormat(sport_type, format);
       const nextName = this._deriveName({ name, home_team, away_team });
@@ -185,6 +305,17 @@ class MatchModel {
           mentions !== undefined
             ? JSON.stringify(Array.isArray(mentions) ? mentions : [])
             : existing[0].mentions,
+        team_id: team_id !== undefined ? sanitizeTeamId(team_id) : (existing[0].team_id ?? null),
+        external_id:
+          external_id !== undefined
+            ? sanitizeExternalId(external_id)
+            : (existing[0].external_id ?? null),
+        is_external:
+          is_external !== undefined ? Boolean(is_external) : Boolean(existing[0].is_external),
+        external_source:
+          external_source !== undefined
+            ? (external_source || '').trim() || null
+            : (existing[0].external_source ?? null),
       });
 
       Logger.info('Match updated', { matchId });
@@ -257,6 +388,10 @@ class MatchModel {
       format: row.format,
       total_minutes: row.total_minutes,
       contact_id: row.contact_id != null ? row.contact_id.toString() : null,
+      team_id: row.team_id != null ? String(row.team_id) : null,
+      external_id: row.external_id != null ? String(row.external_id) : null,
+      is_external: Boolean(row.is_external),
+      external_source: row.external_source != null ? String(row.external_source) : null,
       mentions,
       created_at: row.created_at,
       updated_at: row.updated_at,

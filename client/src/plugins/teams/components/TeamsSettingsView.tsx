@@ -1,6 +1,6 @@
 // Teams settings as full-page content: header + card + save footer.
 
-import { CalendarRange, Check } from 'lucide-react';
+import { CalendarRange, Check, Grip, LayoutGrid } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,6 +9,14 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { cn } from '@/lib/utils';
+
+import {
+  getAvailableOverviewCardIds,
+  normalizeCardOrder,
+  type OverviewCardId,
+} from '../types/teamOverviewCards';
 
 const TEAMS_SETTINGS_KEY = 'teams';
 
@@ -19,11 +27,19 @@ interface TeamsSettingsViewProps {
 export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
+  const enabledPlugins = useEnabledPlugins();
+  const hasMatchesPlugin = enabledPlugins.has('matches');
 
   const [activeSeason, setActiveSeason] = useState('');
   const [initialSeason, setInitialSeason] = useState('');
+  const [overviewCardOrder, setOverviewCardOrder] = useState<OverviewCardId[]>(() =>
+    getAvailableOverviewCardIds(hasMatchesPlugin),
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReorderingCards, setIsReorderingCards] = useState(false);
+  const [draggingCardId, setDraggingCardId] = useState<OverviewCardId | null>(null);
+  const [dragOverCardId, setDragOverCardId] = useState<OverviewCardId | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,12 +51,14 @@ export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {
         const loaded = String(settings?.activeSeason || new Date().getFullYear());
         setActiveSeason(loaded);
         setInitialSeason(loaded);
+        setOverviewCardOrder(normalizeCardOrder(settings?.overviewCardOrder, hasMatchesPlugin));
       })
       .catch(() => {
         if (!cancelled) {
           const fallback = String(new Date().getFullYear());
           setActiveSeason(fallback);
           setInitialSeason(fallback);
+          setOverviewCardOrder(getAvailableOverviewCardIds(hasMatchesPlugin));
         }
       })
       .finally(() => {
@@ -51,7 +69,7 @@ export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {
     return () => {
       cancelled = true;
     };
-  }, [getSettings]);
+  }, [getSettings, hasMatchesPlugin]);
 
   const isDirty = activeSeason !== initialSeason;
 
@@ -66,6 +84,64 @@ export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {
       setIsSaving(false);
     }
   }, [activeSeason, updateSettings]);
+
+  const reorderCards = useCallback(
+    async (sourceId: OverviewCardId, targetId: OverviewCardId) => {
+      if (sourceId === targetId) {
+        return;
+      }
+      const fromIndex = overviewCardOrder.indexOf(sourceId);
+      const toIndex = overviewCardOrder.indexOf(targetId);
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+        return;
+      }
+
+      const next = [...overviewCardOrder];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+
+      setOverviewCardOrder(next);
+      setIsReorderingCards(true);
+      try {
+        await updateSettings(TEAMS_SETTINGS_KEY, { overviewCardOrder: next });
+      } catch (error) {
+        console.error('Failed to save overview card order:', error);
+        setOverviewCardOrder(overviewCardOrder);
+      } finally {
+        setIsReorderingCards(false);
+      }
+    },
+    [overviewCardOrder, updateSettings],
+  );
+
+  const handleDragStart = (e: React.DragEvent, cardId: OverviewCardId) => {
+    setDraggingCardId(cardId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', cardId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, cardId: OverviewCardId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggingCardId && draggingCardId !== cardId) {
+      setDragOverCardId(cardId);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: OverviewCardId) => {
+    e.preventDefault();
+    const sourceId = (e.dataTransfer.getData('text/plain') || draggingCardId) as OverviewCardId;
+    if (sourceId) {
+      await reorderCards(sourceId, targetId);
+    }
+    setDraggingCardId(null);
+    setDragOverCardId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingCardId(null);
+    setDragOverCardId(null);
+  };
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
@@ -102,6 +178,54 @@ export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {
             <p className="mt-2 text-sm text-muted-foreground">
               {t('teams.settings.activeSeasonHint')}
             </p>
+          </div>
+        </DetailSection>
+      </Card>
+
+      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+        <DetailSection
+          title={
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>{t('teams.settings.overviewSection')}</span>
+            </div>
+          }
+          className="pt-0"
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{t('teams.settings.overviewHint')}</p>
+            <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
+              {overviewCardOrder.map((cardId) => (
+                <li
+                  key={cardId}
+                  draggable={!isReorderingCards}
+                  onDragStart={(e) => handleDragStart(e, cardId)}
+                  onDragOver={(e) => handleDragOver(e, cardId)}
+                  onDrop={(e) => void handleDrop(e, cardId)}
+                  onDragEnd={handleDragEnd}
+                  onDragLeave={() => {
+                    if (dragOverCardId === cardId) {
+                      setDragOverCardId(null);
+                    }
+                  }}
+                  className={cn(
+                    'flex items-center justify-between gap-3 px-4 py-2.5 transition-colors',
+                    draggingCardId === cardId && 'opacity-50',
+                    dragOverCardId === cardId && 'bg-muted/60',
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Grip
+                      className="h-3.5 w-3.5 flex-shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
+                      aria-hidden
+                    />
+                    <span className="text-sm font-medium">
+                      {t(`teams.settings.cards.${cardId}`)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </DetailSection>
       </Card>

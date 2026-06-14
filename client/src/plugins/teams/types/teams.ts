@@ -199,6 +199,7 @@ export interface Team {
   season_breaks: SeasonBreak[];
   responsibles: Responsible[];
   color: TeamColor;
+  external_team_id: string | null;
   created_at: string;
   updated_at: string;
 }

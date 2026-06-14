@@ -8,6 +8,7 @@ import {
   Mail,
   StickyNote,
   Trash2,
+  Trophy,
   Users,
   Zap,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
@@ -37,9 +39,12 @@ import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { requestsApi } from '@/plugins/requests/api/requestsApi';
 import { TeamRequestsSection } from '@/plugins/requests/components/TeamRequestsSection';
 import { useRequests } from '@/plugins/requests/hooks/useRequests';
+import { matchesApi } from '@/plugins/matches/api/matchesApi';
+import { useMatches } from '@/plugins/matches/hooks/useMatches';
 
 import { useTeams } from '../hooks/useTeams';
 import type { Team, TeamNote } from '../types/teams';
+import { normalizeCardOrder, type OverviewCardId } from '../types/teamOverviewCards';
 import {
   buildResponsiblesGroupMailto,
   createTeamNoteId,
@@ -60,12 +65,20 @@ import {
 import { ResponsibleContactDialog } from './ResponsibleContactDialog';
 import { ResponsibleRow, SeriesTeamBadge } from './ResponsibleRow';
 import { SeasonCalendar } from './SeasonCalendar';
+import { TeamMatchesSection } from './TeamMatchesSection';
 import { TeamNotesSection } from './TeamNotesSection';
 import { TrainingSchedule } from './TrainingSchedule';
 
-type TeamViewTab = 'overview' | 'schedule' | 'responsibles' | 'notes' | 'requests';
+type TeamViewTab = 'overview' | 'schedule' | 'responsibles' | 'notes' | 'requests' | 'matches';
 
-const TEAM_VIEW_TABS: TeamViewTab[] = ['overview', 'schedule', 'responsibles', 'notes', 'requests'];
+const TEAM_VIEW_TABS: TeamViewTab[] = [
+  'overview',
+  'schedule',
+  'responsibles',
+  'notes',
+  'requests',
+  'matches',
+];
 
 function parseTeamViewTab(value: string | null): TeamViewTab {
   if (value && TEAM_VIEW_TABS.includes(value as TeamViewTab)) {
@@ -152,7 +165,7 @@ function TeamQuickActionsCard({
 
 export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: Team | null }) {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user, getSettings, settingsVersion } = useApp();
   const team = teamProp ?? item ?? null;
   const {
     saveTeam,
@@ -164,6 +177,9 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
   } = useTeams();
   const { contacts, openContactForView } = useContacts();
   const { openRequestForView } = useRequests();
+  const { openMatchForView } = useMatches();
+  const enabledPlugins = useEnabledPlugins();
+  const hasMatchesPlugin = enabledPlugins.has('matches');
   const canSendEmail =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
   const [searchParams, setSearchParams] = useSearchParams();
@@ -186,6 +202,26 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     [setSearchParams],
   );
   const [requestsCount, setRequestsCount] = useState(0);
+  const [upcomingMatchCount, setUpcomingMatchCount] = useState(0);
+  const [overviewCardOrder, setOverviewCardOrder] = useState<OverviewCardId[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings('teams')
+      .then((settings) => {
+        if (!cancelled) {
+          setOverviewCardOrder(settings?.overviewCardOrder ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOverviewCardOrder(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
 
   useEffect(() => {
     if (!team?.id) {
@@ -206,6 +242,31 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
       cancelled = true;
     };
   }, [team?.id]);
+
+  useEffect(() => {
+    if (!team?.id || !hasMatchesPlugin) {
+      setUpcomingMatchCount(0);
+      return;
+    }
+    let cancelled = false;
+    setUpcomingMatchCount(0);
+    matchesApi
+      .getMatchesByTeam(team.id)
+      .then((data) => {
+        if (!cancelled) {
+          const now = Date.now();
+          setUpcomingMatchCount(
+            data.filter((match) => new Date(match.start_time).getTime() >= now).length,
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUpcomingMatchCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasMatchesPlugin, team?.id]);
   const [showResponsiblesEmailDialog, setShowResponsiblesEmailDialog] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
@@ -275,6 +336,11 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     [team, contactById],
   );
 
+  const orderedOverviewCards = useMemo(
+    () => normalizeCardOrder(overviewCardOrder, hasMatchesPlugin),
+    [overviewCardOrder, hasMatchesPlugin],
+  );
+
   if (!team) {
     return null;
   }
@@ -295,6 +361,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
         season_breaks: team.season_breaks,
         responsibles: team.responsibles,
         color: team.color,
+        external_team_id: team.external_team_id,
         ...patch,
       },
       team.id,
@@ -334,6 +401,16 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     { id: 'responsibles', label: t('teams.tabs.responsibles'), icon: Users },
     { id: 'notes', label: t('teams.tabs.notes'), icon: StickyNote, count: notesCount },
     { id: 'requests', label: t('teams.tabs.requests'), icon: Inbox, count: requestsCount },
+    ...(hasMatchesPlugin
+      ? [
+          {
+            id: 'matches' as const,
+            label: t('teams.tabs.matches'),
+            icon: Trophy,
+            count: upcomingMatchCount,
+          },
+        ]
+      : []),
   ];
 
   const notesListSection = (
@@ -352,6 +429,65 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
       onRemoveRequest={setPendingRemoveNote}
     />
   );
+
+  const renderOverviewCard = (cardId: OverviewCardId) => {
+    switch (cardId) {
+      case 'schedule':
+        return (
+          <Card key={cardId} padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection title={t('teams.view.weeklySchedule')} className="p-4">
+              <TrainingSchedule
+                trainingTimes={team.training_times}
+                teamColor={team.color}
+                variant="overview"
+              />
+            </DetailSection>
+          </Card>
+        );
+      case 'seasonBreaks':
+        return (
+          <Card key={cardId} padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection title={t('teams.view.seasonBreaks')} className="p-4">
+              <SeasonCalendar seasonBreaks={team.season_breaks} omitPast />
+            </DetailSection>
+          </Card>
+        );
+      case 'responsibles':
+        return (
+          <Card key={cardId} padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection title={t('teams.tabs.responsibles')} className="p-4">
+              {responsiblesSection(false)}
+            </DetailSection>
+          </Card>
+        );
+      case 'notes':
+        return (
+          <Card key={cardId} padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection title={t('teams.tabs.notes')} className="p-4">
+              {notesListSection}
+            </DetailSection>
+          </Card>
+        );
+      case 'requests':
+        return (
+          <Card key={cardId} padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection title={t('teams.tabs.requests')} className="p-4">
+              <TeamRequestsSection teamId={team.id} compact onOpenRequest={openRequestForView} />
+            </DetailSection>
+          </Card>
+        );
+      case 'matches':
+        return (
+          <Card key={cardId} padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection title={t('teams.tabs.matches')} className="p-4">
+              <TeamMatchesSection teamId={team.id} compact onOpenMatch={openMatchForView} />
+            </DetailSection>
+          </Card>
+        );
+      default:
+        return null;
+    }
+  };
 
   const responsiblesSection = (allowRemove: boolean) => (
     <div className="space-y-2">
@@ -602,39 +738,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
 
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 gap-3">
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title={t('teams.view.weeklySchedule')} className="p-4">
-                  <TrainingSchedule
-                    trainingTimes={team.training_times}
-                    teamColor={team.color}
-                    variant="overview"
-                  />
-                </DetailSection>
-              </Card>
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title={t('teams.view.seasonBreaks')} className="p-4">
-                  <SeasonCalendar seasonBreaks={team.season_breaks} omitPast />
-                </DetailSection>
-              </Card>
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title={t('teams.tabs.responsibles')} className="p-4">
-                  {responsiblesSection(false)}
-                </DetailSection>
-              </Card>
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title={t('teams.tabs.notes')} className="p-4">
-                  {notesListSection}
-                </DetailSection>
-              </Card>
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title={t('teams.tabs.requests')} className="p-4">
-                  <TeamRequestsSection
-                    teamId={team.id}
-                    compact
-                    onOpenRequest={openRequestForView}
-                  />
-                </DetailSection>
-              </Card>
+              {orderedOverviewCards.map((cardId) => renderOverviewCard(cardId))}
             </div>
           )}
 
@@ -677,6 +781,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('teams.tabs.requests')} className="p-4">
                 <TeamRequestsSection teamId={team.id} onOpenRequest={openRequestForView} />
+              </DetailSection>
+            </Card>
+          )}
+
+          {hasMatchesPlugin && activeTab === 'matches' && (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.tabs.matches')} className="p-4">
+                <TeamMatchesSection teamId={team.id} onOpenMatch={openMatchForView} />
               </DetailSection>
             </Card>
           )}

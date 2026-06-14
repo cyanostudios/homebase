@@ -1,6 +1,7 @@
 // plugins/matches/controller.js
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { importMatches } = require('./services/matchImportService');
 
 class MatchController {
   constructor(model) {
@@ -15,6 +16,32 @@ class MatchController {
       Logger.error('Get matches failed', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to fetch matches' });
+    }
+  }
+
+  async getAllByTeam(req, res) {
+    try {
+      const matches = await this.model.getAllByTeam(req, req.params.teamId);
+      res.json(matches);
+    } catch (error) {
+      Logger.error('Get team matches failed', error, {
+        teamId: req.params.teamId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch team matches' });
+    }
+  }
+
+  async importMatches(req, res) {
+    try {
+      const teamId = req.body?.teamId ?? req.body?.team_id ?? null;
+      const result = await importMatches(req, this.model, { teamId });
+      res.json(result);
+    } catch (error) {
+      Logger.error('Import matches failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to import matches' });
     }
   }
 
