@@ -1,4 +1,3 @@
-type RequestType = 'general' | 'pitch_booking' | 'person_registration' | 'other';
 export type RequestStatus = 'not started' | 'in progress' | 'completed' | 'cancelled';
 export type RequestPriority = 'Low' | 'Medium' | 'High';
 type RequestSource = 'internal' | 'external';
@@ -27,7 +26,7 @@ export interface Request {
   id: string;
   title: string;
   description: string | null;
-  requestType: RequestType;
+  requestType: string;
   status: RequestStatus;
   priority: RequestPriority;
   teamId: number | null;
