@@ -80,9 +80,16 @@ Without these, local dev shows the reset link on screen instead of sending mail.
 | Plugin access (manual) | `npm run set:tenant-plugins -- ...` (uses `DATABASE_URL`) | `TARGET_DATABASE_URL='...' npm run set:tenant-plugins -- ...` |
 | Main DB user/tenant    | `npm run copy:user-from-prod`                             | `npm run copy:user-to-main` (local → prod)                    |
 | Migrations (main)      | `DATABASE_URL=local npm run migrate:...`                  | `PROD_MAIN_DATABASE_URL=... npm run migrate:...`              |
-| Migrations (tenant)    | Use tenant connection from prod sync                      | Railway / Neon console                                        |
+| Migrations (tenant)    | Use tenant connection from prod sync; scripts below       | Railway / Neon console / same scripts on prod tenants         |
+| Tenant plugins 076–089 | `npm run migrate:teams` (etc.) on local tenants           | Same scripts with prod `DATABASE_URL` / tenant connections    |
+
+**Tenant migration scripts (jun 2026):** `migrate:teams`, `migrate:teams-team-notes`, `migrate:teams-series-teams`, `migrate:requests`, `migrate:schedule`, `migrate:schedule-user-id`, `migrate:schedule-event-team-id`, `migrate:matches-team-external`, `migrate:matches-result`. See `server/migrations/README.md` §076–089.
 
 ### Plugin access (`--both`)
+
+```bash
+npm run set:tenant-plugins -- --both --email=user@homebase.se --enable=teams,requests,schedule,matches
+```
 
 ```bash
 npm run set:tenant-plugins -- --both --email=user@homebase.se --disable=matches,slots --enable=tasks

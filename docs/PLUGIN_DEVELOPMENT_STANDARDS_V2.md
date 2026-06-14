@@ -15,9 +15,11 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
 
 ## Plugin Contract v2 (official)
 
-- Panel modes are standardized: `'create' | 'edit' | 'view' | 'settings'`.
+- Panel modes for **detail panel:** `'create' | 'edit' | 'view'`. Plugin-specific settings screens use `*ContentView === 'settings'` on the list route (see `PLUGIN_RUNTIME_CONVENTIONS.md`).
 - **Create/edit:** The `*Form` component owns **inline Save/Cancel** buttons. `PanelFooter` does not render form actions for those modes.
-- **Settings:** Only `*SettingsForm` registers `window.submit<Plugins>Form` / `window.cancel<Plugins>Form` for `PanelFooter` integration (settings mode).
+- **Settings (two patterns):**
+  - **Full-page (preferred for data plugins):** `TeamsSettingsView`, `MatchSettingsView`, etc. on list route via `openXSettings()` + `*ContentView`.
+  - **Panel settings (legacy, e.g. Files/Mail):** `*SettingsForm` in panel + `window.submit*` globals for `PanelFooter`.
 - Each plugin must expose `Form` in `components` inside `client/src/core/pluginRegistry.ts`.
 - Detail view must follow shared shell patterns:
   - `DetailLayout` main + sidebar
@@ -174,7 +176,9 @@ Use the same UI components and styling as other plugins so list views and toolba
 
 ## 7. Plugin settings page (when the plugin has a settings screen)
 
-If the plugin exposes a settings screen (e.g. cloud storage, SMTP, preferences), implement the following so the panel opens, shows settings content, and Close/Save work correctly.
+> **Jun 2026:** Teams, Matches, Requests, and Schedule use **full-page** `*SettingsView` on the list route (`*ContentView === 'settings'`). The panel-settings pattern below still applies to plugins like Files and Mail.
+
+If the plugin exposes a settings screen (e.g. cloud storage, SMTP, preferences), implement one of:
 
 - **Context:** Extend `panelMode` to include `'settings'` (e.g. `'create' | 'edit' | 'view' | 'settings'`). Expose `openMyPluginSettings` (or `openMyPluginPanel` with a dedicated entry point) that sets `panelMode` to `'settings'` and opens the panel. Expose `closeMyPluginPanel` so the panel can be closed from shared panel actions (header/footer).
 - **List toolbar:** Add a Settings button in the list toolbar that calls the open-settings function (same button style as in section 6).

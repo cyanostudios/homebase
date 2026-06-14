@@ -6,7 +6,7 @@ import type { Team, TeamValidationError, TrainingTime } from '../types/teams';
 export type TeamsContextType = {
   isTeamPanelOpen: boolean;
   currentTeam: Team | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: TeamValidationError[];
   teams: Team[];
   teamsContentView: 'list' | 'settings' | 'statistics';
@@ -22,13 +22,6 @@ export type TeamsContextType = {
   closeTeamStatisticsView: () => void;
   closeTeamPanel: () => void;
   saveTeam: (data: TeamPayload, teamId?: string) => Promise<boolean>;
-  updateTeamTrainingTimes: (
-    teamId: string,
-    trainingIndex: number,
-    patch: Partial<TrainingTime>,
-  ) => Promise<boolean>;
-  addTeamTrainingTime: (teamId: string, training: TrainingTime) => Promise<boolean>;
-  removeTeamTrainingTime: (teamId: string, trainingIndex: number) => Promise<boolean>;
   saveTeamTrainingTimes: (teamId: string, trainingTimes: TrainingTime[]) => Promise<boolean>;
   deleteTeam: (id: string) => Promise<void>;
   deleteTeams: (ids: string[]) => Promise<void>;
@@ -92,9 +85,6 @@ const EMPTY_TEAMS_CONTEXT: TeamsContextType = {
   closeTeamStatisticsView: () => {},
   closeTeamPanel: () => {},
   saveTeam: async () => false,
-  updateTeamTrainingTimes: async () => false,
-  addTeamTrainingTime: async () => false,
-  removeTeamTrainingTime: async () => false,
   saveTeamTrainingTimes: async () => false,
   deleteTeam: async () => {},
   deleteTeams: async () => {},

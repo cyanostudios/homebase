@@ -341,6 +341,29 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     [overviewCardOrder, hasMatchesPlugin],
   );
 
+  const notesCount = team?.team_notes?.length ?? 0;
+
+  const tabs = useMemo(
+    (): { id: TeamViewTab; label: string; icon: LucideIcon; count?: number }[] => [
+      { id: 'overview', label: t('teams.tabs.overview'), icon: LayoutGrid },
+      { id: 'schedule', label: t('teams.tabs.schedule'), icon: CalendarDays },
+      { id: 'responsibles', label: t('teams.tabs.responsibles'), icon: Users },
+      { id: 'notes', label: t('teams.tabs.notes'), icon: StickyNote, count: notesCount },
+      { id: 'requests', label: t('teams.tabs.requests'), icon: Inbox, count: requestsCount },
+      ...(hasMatchesPlugin
+        ? [
+            {
+              id: 'matches' as const,
+              label: t('teams.tabs.matches'),
+              icon: Trophy,
+              count: upcomingMatchCount,
+            },
+          ]
+        : []),
+    ],
+    [hasMatchesPlugin, notesCount, requestsCount, t, upcomingMatchCount],
+  );
+
   if (!team) {
     return null;
   }
@@ -392,26 +415,6 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
   const showResponsibleContact = (contact: Contact, role: string, seriesTeam?: string | null) => {
     setViewingResponsible({ contact, role, seriesTeam });
   };
-
-  const notesCount = team.team_notes?.length ?? 0;
-
-  const tabs: { id: TeamViewTab; label: string; icon: LucideIcon; count?: number }[] = [
-    { id: 'overview', label: t('teams.tabs.overview'), icon: LayoutGrid },
-    { id: 'schedule', label: t('teams.tabs.schedule'), icon: CalendarDays },
-    { id: 'responsibles', label: t('teams.tabs.responsibles'), icon: Users },
-    { id: 'notes', label: t('teams.tabs.notes'), icon: StickyNote, count: notesCount },
-    { id: 'requests', label: t('teams.tabs.requests'), icon: Inbox, count: requestsCount },
-    ...(hasMatchesPlugin
-      ? [
-          {
-            id: 'matches' as const,
-            label: t('teams.tabs.matches'),
-            icon: Trophy,
-            count: upcomingMatchCount,
-          },
-        ]
-      : []),
-  ];
 
   const notesListSection = (
     <TeamNotesSection

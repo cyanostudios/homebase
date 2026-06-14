@@ -1,8 +1,8 @@
 # Mentions and Cross-Plugin UI
 
-**Last Updated:** February 2026
+**Last Updated:** June 2026
 
-This document describes the core @-mention system and how plugins use it for rich text that references contacts. All mention logic lives in core; plugins consume core components and provide callbacks for navigation.
+This document describes the core @-mention system, cross-plugin navigation patterns, and how plugins link to each other without tight coupling.
 
 ## Mention type
 
@@ -81,6 +81,47 @@ AppContext provides `getNotesForContact(contactId)` and `getTasksWithMentionsFor
 - `String(mention.contactId) === String(contactId)`
 
 This is applied in the AppContext implementations of these getters so that cross-plugin lists remain correct regardless of ID representation.
+
+## Cross-plugin URL navigation
+
+When opening an item in **another** plugin (e.g. Teams → match, match badge → team, Schedule → team), do **not** rely on `openXForView` alone if the user is on a different route.
+
+### Why `useItemUrl` is not enough
+
+[`useItemUrl`](../client/src/core/hooks/useItemUrl.ts) only updates the URL when already on that plugin's base path:
+
+```ts
+if (window.location.pathname.startsWith(basePath)) {
+  navigate(`${basePath}/${slug}`);
+}
+```
+
+Calling `openTeamForView(team)` from `/matches/...` sets panel state but leaves the URL on `/matches`. `AppContent` then closes the team panel (URL mismatch) and the user sees the matches list.
+
+### Correct pattern
+
+Navigate to the target plugin URL; URL-sync in `AppContent` opens the panel:
+
+```ts
+import { useNavigate } from 'react-router-dom';
+import { buildSlug } from '@/core/utils/slugUtils';
+
+navigate(`/teams/${buildSlug(team, teams, 'name')}`);
+```
+
+For matches, slug field is typically `` `${home_team}-vs-${away_team}` `` (see `matchSlugNameField` in `MatchProvider`).
+
+**Provider helpers** may wrap this: e.g. `openMatchForView` checks `pathname.startsWith('/matches')` and navigates cross-plugin when false.
+
+### Examples in codebase
+
+| From                       | To    | Implementation                             |
+| -------------------------- | ----- | ------------------------------------------ |
+| `MatchTeamBadge`           | Team  | `navigate('/teams/…')`                     |
+| `TeamMatchesSection` popup | Match | `openMatchForView` → cross-plugin navigate |
+| `ScheduleList` slot click  | Team  | `navigate('/teams/…')`                     |
+
+Use `attemptNavigation()` from `useGlobalNavigationGuard` when unsaved changes may be open.
 
 ## See also
 

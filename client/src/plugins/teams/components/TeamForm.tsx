@@ -51,7 +51,6 @@ import { SeriesTeamBadge } from './ResponsibleRow';
 import { SeriesTeamColorPicker } from './SeriesTeamColorPicker';
 import { SeriesTeamSelect } from './SeriesTeamSelect';
 import { TeamNotesSection } from './TeamNotesSection';
-import { TeamSettingsForm } from './TeamSettingsForm';
 
 const TEAM_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
@@ -67,7 +66,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
   ref,
 ) {
   const { t } = useTranslation();
-  const { validationErrors, clearValidationErrors, panelMode } = useTeams();
+  const { validationErrors, clearValidationErrors } = useTeams();
   const { contacts } = useApp();
   const item = currentTeam ?? currentItem ?? null;
 
@@ -277,10 +276,6 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
     }),
     [submit, attemptAction, onCancel],
   );
-
-  if (panelMode === 'settings') {
-    return <TeamSettingsForm ref={ref} onCancel={onCancel} />;
-  }
 
   return (
     <>

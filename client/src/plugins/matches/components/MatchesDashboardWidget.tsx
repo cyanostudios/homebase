@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
@@ -8,9 +8,10 @@ import { useMatches } from '@/plugins/matches/hooks/useMatches';
 export function MatchesDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
   const { matches } = useMatches();
 
-  const upcoming = matches.filter(
-    (m) => m.start_time && new Date(m.start_time) > new Date(),
-  ).length;
+  const upcoming = useMemo(
+    () => matches.filter((m) => m.start_time && new Date(m.start_time) > new Date()).length,
+    [matches],
+  );
 
   return (
     <div className="space-y-3">

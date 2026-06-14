@@ -42,6 +42,13 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - **Create / edit / settings `*Form.tsx`:** implement **`PanelFormHandle`** (`forwardRef` + `useImperativeHandle`) so panel header Save/Cancel calls `formRef.current.submit()` / `.cancel()`. Do **not** use `window.submit*Form` globals (see golden template + **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`** §12).
 - **View:** use `DetailLayout` with quick actions, export (if applicable), information sidebar, and **`DetailActivityLog`** when the backend exposes the standard activity pattern on `/api/<plugin>/:id` (same idea as contacts, notes, tasks, slots, matches).
 
+**Reference plugins (2026-06):**
+
+- **Multi-tab detail view:** `TeamView` — overview cards, schedule, responsibles, notes, requests, matches tabs.
+- **Team relations:** `Requests` (`team_id`, `TeamRequestsSection`), `Matches` (`team_id`, `TeamMatchesSection`).
+- **Full-page settings:** `TeamsSettingsView`, `MatchSettingsView`, `ScheduleSettingsView` via `*ContentView === 'settings'` (not panel `Form`).
+- **Cross-plugin links:** `ScheduleList` → teams via URL; see `MENTIONS_AND_CROSS_PLUGIN_UI.md`.
+
 > **Note:** `PLUGIN_RUNTIME_CONVENTIONS.md` still documents `window.submit*` / `window.cancel*` for historical shell integration. For **new** CRUD plugins, treat **§12 of the design alignment checklist** as the source of truth for create/edit forms unless product explicitly needs header/footer-driven submit.
 
 ---

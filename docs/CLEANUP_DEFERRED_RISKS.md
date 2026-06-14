@@ -22,13 +22,16 @@ Risknivåer: **Hög** = säkerhet/data/prod synligt, **Medel** = teknisk skuld/r
 
 ## 2. Stora refaktorer — skjutna till framtida PR
 
-| Fil / område                                             | Storlek (ca)           | Risk om den växer | Notering                                                                |
-| -------------------------------------------------------- | ---------------------- | ----------------- | ----------------------------------------------------------------------- |
-| `plugins/cups/services/parseCupSource.js`                | ~2722 rader            | **Medel**         | SvFF-import, svår att testa; bör delas i parser / normalizer / persist. |
-| `client/src/plugins/contacts/components/ContactList.tsx` | ~1094                  | **Medel**         | List+filter+export i en komponent.                                      |
-| `client/src/plugins/contacts/components/ContactForm.tsx` | ~1074                  | **Medel**         | Form + validering + mentions.                                           |
-| `client/src/plugins/slots/components/SlotView.tsx`       | ~1032                  | **Medel**         | Delvis `dateFormat` men fortfarande monolit.                            |
-| **Slots/Matches list-logik**                             | Flera list-komponenter | **Låg–Medel**     | Duplicerad sortering/filter/export-mönster.                             |
+| Fil / område                                             | Storlek (ca)           | Risk om den växer | Notering                                                                                |
+| -------------------------------------------------------- | ---------------------- | ----------------- | --------------------------------------------------------------------------------------- |
+| `plugins/cups/services/parseCupSource.js`                | ~2722 rader            | **Medel**         | SvFF-import, svår att testa; bör delas i parser / normalizer / persist.                 |
+| `client/src/plugins/contacts/components/ContactList.tsx` | ~1094                  | **Medel**         | List+filter+export i en komponent.                                                      |
+| `client/src/plugins/contacts/components/ContactForm.tsx` | ~1074                  | **Medel**         | Form + validering + mentions.                                                           |
+| `client/src/plugins/slots/components/SlotView.tsx`       | ~1032                  | **Medel**         | Delvis `dateFormat` men fortfarande monolit.                                            |
+| **Slots/Matches list-logik**                             | Flera list-komponenter | **Låg–Medel**     | Duplicerad sortering/filter/export-mönster.                                             |
+| **TeamView / TeamForm / MatchView**                      | ~800+ rader vardera    | **Medel**         | Jun 2026 cleanup minskade död kod och memoized providers; filerna är fortfarande stora. |
+
+**Jun 2026 (matches/teams cleanup):** Borttagna panel-`*SettingsForm`, oanvända context-metoder, memoized `MatchProvider`/`TeamProvider` context values, delade `formatMatchDateTime` / `MatchStatusBadges`.
 
 ---
 
@@ -36,7 +39,7 @@ Risknivåer: **Hög** = säkerhet/data/prod synligt, **Medel** = teknisk skuld/r
 
 ### 3.1 `createApiClient` — inte alla API:er
 
-Migrerade (10): contacts, notes, slots, matches, tasks, estimates, ingest, mail, pulses.
+Migrerade (13+): contacts, notes, slots, matches, tasks, estimates, ingest, mail, pulses, **teams**, **requests**, **schedule**.
 
 **Kvar med egen `request()`** (olika felhantering / basePath / FormData):
 

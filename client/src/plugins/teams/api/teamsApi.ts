@@ -74,11 +74,6 @@ class TeamsApi {
     return (rows || []).map((row: Record<string, unknown>) => rowToTeam(row));
   }
 
-  async getTeam(id: string): Promise<Team> {
-    const row = await this.request(`/${id}`);
-    return rowToTeam(row);
-  }
-
   async createTeam(data: TeamPayload): Promise<Team> {
     const row = await this.request('', { method: 'POST', body: JSON.stringify(data) });
     return rowToTeam(row);

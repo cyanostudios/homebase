@@ -6,12 +6,11 @@ import type { Match, MatchMention, ValidationError } from '../types/match';
 export interface MatchContextType {
   isMatchPanelOpen: boolean;
   currentMatch: Match | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   matches: Match[];
 
   openMatchPanel: (match: Match | null) => void;
-  openMatchForEdit: (match: Match) => void;
   openMatchForView: (match: Match) => void;
   openMatchSettings: () => void;
   closeMatchSettingsView: () => void;
@@ -91,7 +90,6 @@ const EMPTY_MATCH_CONTEXT: MatchContextType = {
   validationErrors: [],
   matches: [],
   openMatchPanel: () => {},
-  openMatchForEdit: () => {},
   openMatchForView: () => {},
   openMatchSettings: () => {},
   closeMatchSettingsView: () => {},

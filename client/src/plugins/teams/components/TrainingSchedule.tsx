@@ -1,5 +1,5 @@
 import { MapPin, Plus } from 'lucide-react';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
@@ -57,11 +57,18 @@ export function TrainingSchedule({
 }) {
   const { t } = useTranslation();
   const slotClassName = getTrainingSlotClassName(teamColor);
+  const trainingsByDay = useMemo(() => {
+    const map = new Map<string, TrainingTime[]>();
+    for (const day of WEEK_DAYS) {
+      map.set(day, getTrainingsForDay(trainingTimes, day));
+    }
+    return map;
+  }, [trainingTimes]);
 
   return (
     <div className="grid grid-cols-7 gap-1.5 overflow-visible pt-1 pr-1">
       {WEEK_DAYS.map((day) => {
-        const dayTrainings = getTrainingsForDay(trainingTimes, day);
+        const dayTrainings = trainingsByDay.get(day) ?? [];
         const hasTraining = dayTrainings.length > 0;
         const hasMoreTrainings = dayTrainings.length > 1;
 

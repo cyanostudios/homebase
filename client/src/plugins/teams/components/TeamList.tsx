@@ -134,14 +134,21 @@ export function TeamList() {
     });
   }, [teams, search, genderFilter, statusFilter, t]);
 
-  const stats = useMemo(
-    () => ({
-      active: teams.filter((team) => team.status === 'active').length,
-      break: teams.filter((team) => isTeamOnBreak(team)).length,
-      dormant: teams.filter((team) => team.status === 'dormant').length,
-    }),
-    [teams],
-  );
+  const stats = useMemo(() => {
+    let active = 0;
+    let breakCount = 0;
+    let dormant = 0;
+    for (const team of teams) {
+      if (isTeamOnBreak(team)) {
+        breakCount += 1;
+      } else if (team.status === 'dormant') {
+        dormant += 1;
+      } else if (team.status === 'active') {
+        active += 1;
+      }
+    }
+    return { active, break: breakCount, dormant };
+  }, [teams]);
 
   const genderCounts = useMemo(() => {
     const counts: Record<string, number> = { all: teams.length };

@@ -28,7 +28,9 @@ import { slotsApi } from '@/plugins/slots/api/slotsApi';
 import type { Slot } from '@/plugins/slots/types/slots';
 
 import { useMatchContext } from '../context/MatchContext';
-import type { Match } from '../types/match';
+import { MatchTeamBadge } from './MatchTeamBadge';
+import { MatchStatusBadges } from './MatchStatusBadges';
+import { formatMatchScore, hasMatchResult, type Match } from '../types/match';
 
 interface MatchViewProps {
   match?: Match;
@@ -179,15 +181,20 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
     match.total_minutes !== null && match.total_minutes !== undefined
       ? `${match.total_minutes} min`
       : '—';
+  const scoreLabel = formatMatchScore(match);
+  const showResult = hasMatchResult(match);
 
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-matches')}>
       <div className="space-y-5 p-6">
-        {/* Name (own row) */}
+        {/* Name + team badge */}
         <div>
           <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.nameLabel')}</div>
-          <div className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em] text-foreground">
-            {displayName}
+          <div className="mt-0.5 flex flex-wrap items-center gap-2">
+            <span className="text-[17px] font-semibold tracking-[-0.01em] text-foreground">
+              {displayName}
+            </span>
+            {match.team_id ? <MatchTeamBadge teamId={match.team_id} size="header" /> : null}
           </div>
         </div>
 
@@ -269,7 +276,7 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
           </div>
         </div>
 
-        {/* Type / Referees / Future (same row) */}
+        {/* Type / Referees / Competition (same row) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.matchType')}</div>
@@ -282,10 +289,36 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
             </div>
           </div>
           <div>
-            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.futureInfo')}</div>
-            <div className={DETAIL_FIELD_VALUE_CLASS}>—</div>
+            <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.competitionName')}</div>
+            <div className={DETAIL_FIELD_VALUE_CLASS}>
+              {match.competition_name?.trim() ? match.competition_name : '—'}
+            </div>
           </div>
         </div>
+
+        {(showResult || match.is_canceled || match.is_postponed || match.is_finished) && (
+          <>
+            <div className="border-t border-border/50 pt-4" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.result')}</div>
+                <div className={cn(DETAIL_FIELD_VALUE_CLASS, 'text-lg font-semibold tabular-nums')}>
+                  {scoreLabel || '—'}
+                </div>
+              </div>
+              <div>
+                <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.status')}</div>
+                <div className="mt-1">
+                  <MatchStatusBadges
+                    match={match}
+                    showEmptyPlaceholder
+                    emptyPlaceholderClassName={DETAIL_FIELD_VALUE_CLASS}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </Card>
   );
@@ -376,7 +409,24 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   const { contacts, openContactForView } = useContacts();
   const { contacts: appContacts, user, openSlotForView } = useApp();
   const allContacts = (appContacts ?? contacts) as AssignableContact[];
-  const assignableContacts = allContacts.filter((c) => c.isAssignable !== false);
+  const assignableContacts = useMemo(
+    () => allContacts.filter((c) => c.isAssignable !== false),
+    [allContacts],
+  );
+  const contactsById = useMemo(() => {
+    const map = new Map<string, AssignableContact>();
+    for (const contact of allContacts) {
+      map.set(String(contact.id), contact);
+    }
+    return map;
+  }, [allContacts]);
+  const viewableContactsById = useMemo(() => {
+    const map = new Map<string, (typeof contacts)[number]>();
+    for (const contact of contacts) {
+      map.set(String(contact.id), contact);
+    }
+    return map;
+  }, [contacts]);
   const {
     getDeleteMessage,
     deleteMatch,
@@ -630,10 +680,8 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
               {displayMentions && displayMentions.length > 0 && (
                 <div className="space-y-2 pt-0.5">
                   {displayMentions.map((m) => {
-                    const contact = allContacts.find((c) => String(c.id) === String(m.contactId));
-                    const contactForView = contacts.find(
-                      (c) => String(c.id) === String(m.contactId),
-                    );
+                    const contact = contactsById.get(String(m.contactId));
+                    const contactForView = viewableContactsById.get(String(m.contactId));
                     const name = contact?.companyName ?? m.contactName ?? m.contactId;
                     const meta = [contact?.email, contact?.phone, contact?.phone2].filter(Boolean);
                     return (

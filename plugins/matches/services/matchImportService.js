@@ -1,5 +1,5 @@
 // plugins/matches/services/matchImportService.js
-// Fetches matches from external API and upserts into tenant DB.
+// Fetches matches from SvFF FOGIS Club API and upserts into tenant DB.
 
 const axios = require('axios');
 const { Logger } = require('@homebase/core');
@@ -8,6 +8,7 @@ const { AppError } = require('../../../server/core/errors/AppError');
 
 const DEFAULT_API_BASE_URL = 'https://forening-api.svenskfotboll.se';
 const API_SUBSCRIPTION_HEADER = 'Ocp-Apim-Subscription-Key';
+const API_KEY_HEADER = 'ApiKey';
 const EXTERNAL_SOURCE = 'svff-forening';
 
 function sanitizeExternalTeamId(value) {
@@ -16,51 +17,26 @@ function sanitizeExternalTeamId(value) {
   return trimmed ? trimmed.slice(0, 100) : null;
 }
 
-function pickString(obj, keys) {
-  for (const key of keys) {
-    const value = obj?.[key];
-    if (value != null && String(value).trim()) {
-      return String(value).trim();
-    }
+function parseSeasonYear(activeSeason) {
+  const match = String(activeSeason || '').match(/\d{4}/);
+  if (match) {
+    return Number.parseInt(match[0], 10);
   }
-  return '';
+  return new Date().getFullYear();
 }
 
-function pickExternalId(obj) {
-  const raw =
-    obj?.id ??
-    obj?.matchId ??
-    obj?.match_id ??
-    obj?.gameId ??
-    obj?.game_id ??
-    obj?.fixtureId ??
-    obj?.fixture_id;
-  if (raw == null || String(raw).trim() === '') {
-    return null;
-  }
-  return String(raw).trim().slice(0, 255);
+function buildSeasonDateRange(seasonYear) {
+  const year = Number.isFinite(seasonYear) ? seasonYear : new Date().getFullYear();
+  return {
+    from: `${year}-01-01`,
+    to: `${year}-12-31`,
+  };
 }
 
-function parseStartTime(obj) {
-  const date = pickString(obj, ['date', 'matchDate', 'match_date', 'datum', 'startDate']);
-  const time = pickString(obj, ['time', 'startTime', 'start_time', 'tid', 'kickoff']);
-  if (date && time) {
-    const normalizedTime = time.length === 5 ? `${time}:00` : time;
-    const parsed = new Date(`${date}T${normalizedTime}`);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString();
-    }
-  }
-  const combined = pickString(obj, [
-    'start_time',
-    'startTime',
-    'datetime',
-    'dateTime',
-    'matchStart',
-    'match_start',
-  ]);
-  if (combined) {
-    const parsed = new Date(combined);
+function parseFogisStartTime(raw) {
+  const timeAsDateTime = raw?.timeAsDateTime;
+  if (timeAsDateTime != null && String(timeAsDateTime).trim()) {
+    const parsed = new Date(String(timeAsDateTime).trim());
     if (!Number.isNaN(parsed.getTime())) {
       return parsed.toISOString();
     }
@@ -68,65 +44,34 @@ function parseStartTime(obj) {
   return null;
 }
 
-function inferMatchType(obj) {
-  const raw = pickString(obj, [
-    'match_type',
-    'matchType',
-    'type',
-    'competitionType',
-    'competition_type',
-    'tavlingstyp',
-  ]).toLowerCase();
-  if (!raw) return 'series';
-  if (raw.includes('cup')) return 'cup';
-  if (raw.includes('vänskap') || raw.includes('friendly') || raw.includes('trän'))
+function inferMatchType(raw) {
+  const rawType = String(raw?.competitionCategoryName || raw?.competitionName || '').toLowerCase();
+  if (!rawType) return 'series';
+  if (rawType.includes('cup')) return 'cup';
+  if (rawType.includes('vänskap') || rawType.includes('friendly') || rawType.includes('trän')) {
     return 'friendly';
-  if (raw.includes('serie') || raw.includes('series')) return 'series';
+  }
+  if (rawType.includes('serie') || rawType.includes('series')) return 'series';
   return 'series';
 }
 
 function mapExternalMatch(raw, team) {
-  const externalId = pickExternalId(raw);
-  if (!externalId) {
+  const gameId = raw?.gameId;
+  if (gameId == null || String(gameId).trim() === '') {
     return null;
   }
 
-  const homeTeam = pickString(raw, [
-    'home_team',
-    'homeTeam',
-    'home',
-    'hemmalag',
-    'homeTeamName',
-    'home_team_name',
-    'lag1namn',
-    'lag1',
-  ]);
-  const awayTeam = pickString(raw, [
-    'away_team',
-    'awayTeam',
-    'away',
-    'bortalag',
-    'awayTeamName',
-    'away_team_name',
-    'lag2namn',
-    'lag2',
-  ]);
-  const startTime = parseStartTime(raw);
+  const startTime = parseFogisStartTime(raw);
   if (!startTime) {
     return null;
   }
 
-  const location = pickString(raw, [
-    'location',
-    'venue',
-    'arena',
-    'plats',
-    'matchVenue',
-    'match_venue',
-  ]);
+  const homeTeam = String(raw?.homeTeamName || '').trim();
+  const awayTeam = String(raw?.awayTeamName || '').trim();
+  const location = String(raw?.venueName || '').trim();
 
   return {
-    external_id: externalId,
+    external_id: String(gameId).trim().slice(0, 255),
     home_team: homeTeam || team.name,
     away_team: awayTeam || 'TBD',
     location: location || null,
@@ -137,6 +82,20 @@ function mapExternalMatch(raw, team) {
     team_id: Number(team.id),
     is_external: true,
     external_source: EXTERNAL_SOURCE,
+    home_score:
+      raw?.goalsScoredHomeTeam != null && raw.goalsScoredHomeTeam !== ''
+        ? Number(raw.goalsScoredHomeTeam)
+        : null,
+    away_score:
+      raw?.goalsScoredAwayTeam != null && raw.goalsScoredAwayTeam !== ''
+        ? Number(raw.goalsScoredAwayTeam)
+        : null,
+    result: String(raw?.result || '').trim() || null,
+    competition_name:
+      String(raw?.competitionName || raw?.competitionCategoryName || '').trim() || null,
+    is_canceled: Boolean(raw?.isCanceled),
+    is_finished: Boolean(raw?.isFinished),
+    is_postponed: Boolean(raw?.isPostponed),
   };
 }
 
@@ -162,26 +121,55 @@ function normalizeApiMatches(payload) {
   return [];
 }
 
+function filterGamesForTeam(games, externalTeamId) {
+  const teamIdNum = Number(externalTeamId);
+  if (!Number.isFinite(teamIdNum)) {
+    return [];
+  }
+  return games.filter((game) => {
+    const homeTeamId = Number(game?.homeTeamId);
+    const awayTeamId = Number(game?.awayTeamId);
+    return homeTeamId === teamIdNum || awayTeamId === teamIdNum;
+  });
+}
+
 async function getMatchesSettings(userId) {
   const mainPool = ServiceManager.getMainPool();
-  const result = await mainPool.query(
-    'SELECT settings FROM user_settings WHERE user_id = $1 AND category = $2',
-    [userId, 'matches'],
-  );
-  const settings = result.rows[0]?.settings || {};
-  const apiBaseUrl = (settings.apiBaseUrl || DEFAULT_API_BASE_URL)
+  const [matchesResult, teamsResult] = await Promise.all([
+    mainPool.query('SELECT settings FROM user_settings WHERE user_id = $1 AND category = $2', [
+      userId,
+      'matches',
+    ]),
+    mainPool.query('SELECT settings FROM user_settings WHERE user_id = $1 AND category = $2', [
+      userId,
+      'teams',
+    ]),
+  ]);
+
+  const matchesSettings = matchesResult.rows[0]?.settings || {};
+  const teamsSettings = teamsResult.rows[0]?.settings || {};
+  const apiBaseUrl = (matchesSettings.apiBaseUrl || DEFAULT_API_BASE_URL)
     .toString()
     .trim()
     .replace(/\/$/, '');
-  const apiKey = (settings.apiKey || '').toString().trim();
-  return { apiBaseUrl, apiKey };
+  const apiKey = (matchesSettings.apiKey || '').toString().trim();
+  const seasonYear = parseSeasonYear(teamsSettings.activeSeason);
+
+  return { apiBaseUrl, apiKey, seasonYear };
 }
 
-async function fetchTeamMatchesFromApi({ apiBaseUrl, apiKey, externalTeamId }) {
-  const url = `${apiBaseUrl}/club/team-games/${encodeURIComponent(externalTeamId)}`;
+async function fetchUpcomingGamesFromApi({ apiBaseUrl, apiKey, seasonYear }) {
+  const { from, to } = buildSeasonDateRange(seasonYear);
+  const url = `${apiBaseUrl}/club/upcoming-games`;
   const response = await axios.get(url, {
+    params: {
+      from,
+      to,
+      w: 3,
+    },
     headers: {
       [API_SUBSCRIPTION_HEADER]: apiKey,
+      [API_KEY_HEADER]: apiKey,
       Accept: 'application/json',
     },
     timeout: 30000,
@@ -189,6 +177,11 @@ async function fetchTeamMatchesFromApi({ apiBaseUrl, apiKey, externalTeamId }) {
   });
 
   if (response.status === 401 || response.status === 403) {
+    Logger.error('SvFF API auth failed', null, {
+      status: response.status,
+      url,
+      seasonYear,
+    });
     throw new AppError('Invalid API key or access denied', 401, AppError.CODES.UNAUTHORIZED);
   }
   if (response.status === 404) {
@@ -211,7 +204,7 @@ async function importMatches(req, matchModel, { teamId } = {}) {
     throw new AppError('User context required', 401, AppError.CODES.UNAUTHORIZED);
   }
 
-  const { apiBaseUrl, apiKey } = await getMatchesSettings(userId);
+  const { apiBaseUrl, apiKey, seasonYear } = await getMatchesSettings(userId);
   if (!apiKey) {
     throw new AppError(
       'API key not configured. Add it in Matches settings.',
@@ -253,6 +246,20 @@ async function importMatches(req, matchModel, { teamId } = {}) {
     };
   }
 
+  let allGames;
+  try {
+    allGames = await fetchUpcomingGamesFromApi({ apiBaseUrl, apiKey, seasonYear });
+  } catch (error) {
+    const message =
+      error instanceof AppError
+        ? error.message
+        : error?.message || 'Failed to fetch matches from external API';
+    Logger.error('Match import failed while fetching club games', error, { seasonYear });
+    throw error instanceof AppError
+      ? error
+      : new AppError(message, 502, AppError.CODES.SERVICE_UNAVAILABLE);
+  }
+
   let totalImported = 0;
   let totalUpdated = 0;
   const errors = [];
@@ -260,11 +267,7 @@ async function importMatches(req, matchModel, { teamId } = {}) {
 
   for (const team of teams) {
     try {
-      const rawMatches = await fetchTeamMatchesFromApi({
-        apiBaseUrl,
-        apiKey,
-        externalTeamId: team.external_team_id,
-      });
+      const rawMatches = filterGamesForTeam(allGames, team.external_team_id);
       const mapped = rawMatches.map((raw) => mapExternalMatch(raw, team)).filter(Boolean);
 
       const result = await matchModel.upsertExternal(req, team.id, mapped);
@@ -308,5 +311,7 @@ module.exports = {
   importMatches,
   mapExternalMatch,
   normalizeApiMatches,
+  filterGamesForTeam,
+  parseSeasonYear,
   DEFAULT_API_BASE_URL,
 };

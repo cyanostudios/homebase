@@ -4,7 +4,8 @@
 
 ## Aktuell kodrad
 
-- **`main`** — standard branch för utveckling och deploy (Railway Homebase, monolith API + SPA).
+- **`main`** — deploy till Railway (monolith API + SPA).
+- **`homebase-v3.7`** — aktiv utvecklingsbranch; merge till `main` för produktion.
 - **`homebase-v3.6`** / **`homebase-V3.5`** — äldre feature-branches; behålls på remote men är inte canonical.
 - **Node:** `>=22.18 <23` (`package.json` → `engines`).
 
@@ -19,6 +20,7 @@
 | Ny plugin (checklista)              | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)                                                             |
 | Plugin-standarder (obligatoriskt)   | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                               |
 | UI/UX (V3 + list shell v3.6)        | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                                                                                 |
+| Cross-plugin navigation (URL)       | [`MENTIONS_AND_CROSS_PLUGIN_UI.md`](MENTIONS_AND_CROSS_PLUGIN_UI.md) § Cross-plugin URL navigation                                       |
 | Säkerhet, CSRF, `apiFetch`          | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                       |
 | Deploy (allmänt)                    | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                                                                                   |
 | Railway Homebase                    | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md) (§5–7: CSRF, rate limit, konsol)                                                |
@@ -40,17 +42,18 @@
 
 ## Kod som dokumentationen ska matcha
 
-| Koncept                  | Verifierad plats i kod                   |
-| ------------------------ | ---------------------------------------- |
-| Server entry             | `server/index.ts`                        |
-| Plugin discovery         | `plugin-loader.js` (root)                |
-| Frontend API + CSRF      | `client/src/core/api/apiFetch.ts`        |
-| Delad plugin-HTTP-klient | `client/src/core/api/createApiClient.ts` |
-| Datum (sv-SE)            | `client/src/core/utils/dateFormat.ts`    |
-| Ikoner i TS              | `client/src/types/icons.ts` (`AppIcon`)  |
-| ESLint                   | `eslint.config.cjs` (flat config)        |
-| Prod build + SPA         | `npm run build` → `dist/public/`         |
-| Railway                  | `railway.toml`, `nixpacks.toml`          |
+| Koncept                  | Verifierad plats i kod                                                        |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| Server entry             | `server/index.ts`                                                             |
+| Plugin discovery         | `plugin-loader.js` (root)                                                     |
+| Frontend API + CSRF      | `client/src/core/api/apiFetch.ts`                                             |
+| Delad plugin-HTTP-klient | `client/src/core/api/createApiClient.ts`                                      |
+| Datum (sv-SE)            | `client/src/core/utils/dateFormat.ts`                                         |
+| Ikoner i TS              | `client/src/types/icons.ts` (`AppIcon`)                                       |
+| ESLint                   | `eslint.config.cjs` (flat config)                                             |
+| Prod build + SPA         | `npm run build` → `dist/public/`                                              |
+| Plugin routes            | `client/src/core/routing/routeMap.ts` (`/teams`, `/requests`, `/schedule`, …) |
+| Railway                  | `railway.toml`, `nixpacks.toml`                                               |
 
 ## Dokumentationspolicy
 
@@ -66,3 +69,4 @@
 | `CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md`                                           | `UI_AND_UX_STANDARDS_V3.md` §0                                         |
 | `RAILWAY_CRON_EXAMPLE.md`                                                          | `CUPS_AUTO_REFRESH_CRON.md` § Railway Cron                             |
 | `REFACTORING_EXISTING_PLUGINS.md` (700+ rader, felaktiga `ServiceManager`-exempel) | `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` + `CORE_SERVICES_ARCHITECTURE.md` |
+| Plugin `TeamSettingsForm` / `MatchSettingsForm` (panel-settings)                   | Full-page `TeamsSettingsView` / `MatchSettingsView` via `*ContentView` |

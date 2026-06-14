@@ -10,6 +10,7 @@ import {
   TEAM_COLOR_GRADIENTS,
   TEAM_COLOR_STRIPES,
   TEAM_STATUS_BADGES,
+  isTeamOnBreak,
   teamColorGradientTextClass,
   WEEK_DAYS,
 } from '../types/teams';
@@ -53,6 +54,7 @@ export function TeamCard({
   const { t } = useTranslation();
   const nextTraining = getNextTraining(team);
   const genderLabel = team.gender ? t(`teams.gender.${team.gender}`) : null;
+  const onSeasonBreak = isTeamOnBreak(team);
 
   return (
     <Card
@@ -96,10 +98,10 @@ export function TeamCard({
             <span
               className={cn(
                 'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
-                TEAM_STATUS_BADGES[team.status],
+                onSeasonBreak ? 'bg-orange-100 text-orange-700' : TEAM_STATUS_BADGES[team.status],
               )}
             >
-              {t(`teams.status.${team.status}`)}
+              {onSeasonBreak ? t('teams.status.break') : t(`teams.status.${team.status}`)}
             </span>
             <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-plugin" />
           </div>

@@ -1,5 +1,5 @@
 import { Users } from 'lucide-react';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
@@ -10,7 +10,10 @@ import { useTeams } from '../hooks/useTeams';
 export function TeamsDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
   const { t } = useTranslation();
   const { teams } = useTeams();
-  const activeCount = teams.filter((team) => team.status === 'active').length;
+  const activeCount = useMemo(
+    () => teams.filter((team) => team.status === 'active').length,
+    [teams],
+  );
   return (
     <Card
       padding="md"

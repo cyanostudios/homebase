@@ -1,5 +1,83 @@
 # Migrations
 
+## 076–089 – Teams, Requests, Schedule, Matches (jun 2026)
+
+### Teams (076–079, 088)
+
+- **`076-teams.sql`** — tabell `teams` (tenant-DB). Körs via:
+
+```bash
+npm run migrate:teams
+```
+
+- **`077-grant-teams-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Lägger till `teams` i `tenant_plugin_access` / `user_plugin_access`. Kör på huvuddatabasen (Neon SQL editor eller `DATABASE_URL`/`PROD_MAIN_DATABASE_URL`), eller använd `npm run set:tenant-plugins -- --enable=teams`.
+- **`078-teams-team-notes.sql`** — kolumn/JSON för `team_notes`:
+
+```bash
+npm run migrate:teams-team-notes
+```
+
+- **`079-teams-series-teams.sql`** — `series_teams` JSON:
+
+```bash
+npm run migrate:teams-series-teams
+```
+
+- **`088-teams-add-external-id.sql`** — `external_team_id` (FOGIS-koppling). Körs tillsammans med 087:
+
+```bash
+npm run migrate:matches-team-external
+```
+
+### Requests (080–082)
+
+- **`080-requests.sql`**, **`082-requests-add-user-id.sql`** — tabell `requests` + `user_id`:
+
+```bash
+npm run migrate:requests
+```
+
+- **`081-grant-requests-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Samma mönster som 077; alternativt `set:tenant-plugins --enable=requests`.
+
+### Schedule (083–086)
+
+- **`083-schedule.sql`** — tabell `schedule_events`:
+
+```bash
+npm run migrate:schedule
+```
+
+- **`084-grant-schedule-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Samma mönster som 077.
+- **`085-schedule-add-user-id.sql`**:
+
+```bash
+npm run migrate:schedule-user-id
+```
+
+- **`086-schedule-event-team-id.sql`** — `team_id` på schedule events:
+
+```bash
+npm run migrate:schedule-event-team-id
+```
+
+### Matches (087, 089)
+
+- **`087-matches-add-team-external.sql`** — `team_id`, `external_id` på `matches` (körs med 088):
+
+```bash
+npm run migrate:matches-team-external
+```
+
+- **`089-matches-add-result-status.sql`** — `home_score`, `away_score`, `result`, `competition_name`, `is_canceled`, `is_finished`, `is_postponed`:
+
+```bash
+npm run migrate:matches-result
+```
+
+**Parity:** kör tenant-scripts mot alla tenants lokalt och på prod (se `docs/LOCAL_PROD_PARITY.md`). `MAIN_DB_ONLY`-filer körs en gång per huvuddatabas.
+
+---
+
 ## 054 / 055 / 056 – Ingest-plugin
 
 - **`054-ingest-sources-and-runs.sql`** — tabeller `ingest_sources` och `ingest_runs` på **tenant-/data-databaser**. Körs som vanliga tenant-migrationer.

@@ -21,13 +21,14 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useMatches } from '../hooks/useMatches';
-import type { Match } from '../types/match';
+import { formatMatchScore, type Match } from '../types/match';
 
 import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
+import { MatchTeamBadge } from './MatchTeamBadge';
 
 const MATCHES_SETTINGS_KEY = 'matches';
 type ViewMode = 'grid' | 'list';
-type SortField = 'start_time' | 'home_team' | 'location' | 'updatedAt';
+type SortField = 'start_time' | 'home_team' | 'location';
 type SortOrder = 'asc' | 'desc';
 type MatchFilter = 'all' | 'upcoming' | 'futsal' | 'withLocation';
 const MATCHES_VIEW_MODE_STORAGE_KEY = 'matches:viewMode';
@@ -91,7 +92,6 @@ export function MatchList() {
     openMatchForView,
     openMatchSettings,
     closeMatchSettingsView,
-    deleteMatch: _deleteMatch,
     deleteMatches,
     selectedMatchIds,
     toggleMatchSelected,
@@ -176,6 +176,7 @@ export function MatchList() {
         (m.away_team ?? '').toLowerCase().includes(needle) ||
         (m.location ?? '').toLowerCase().includes(needle) ||
         (m.sport_type ?? '').toLowerCase().includes(needle) ||
+        (formatMatchScore(m) ?? '').toLowerCase().includes(needle) ||
         timeStr.includes(needle)
       );
     });
@@ -197,12 +198,6 @@ export function MatchList() {
           aVal = (a.location ?? '').toLowerCase();
           bVal = (b.location ?? '').toLowerCase();
           break;
-        case 'updatedAt':
-          aVal = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-          bVal = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-          return sortOrder === 'asc'
-            ? (aVal as number) - (bVal as number)
-            : (bVal as number) - (aVal as number);
         default:
           aVal = '';
           bVal = '';
@@ -272,6 +267,15 @@ export function MatchList() {
 
   const formatDateTime = (s: string | null) =>
     s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+
+  const formatMatchLabel = (match: Match) =>
+    match.name?.trim() || `${match.home_team} – ${match.away_team}`;
+
+  const formatMatchWithResult = (match: Match) => {
+    const score = formatMatchScore(match);
+    const teams = `${match.home_team} – ${match.away_team}`;
+    return score ? `${teams} (${score})` : teams;
+  };
 
   if (matchesContentView === 'settings') {
     return (
@@ -492,11 +496,16 @@ export function MatchList() {
                       </span>
                     </div>
                     <h3 className="line-clamp-1 text-base font-semibold leading-snug">
-                      {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
+                      {formatMatchLabel(match)}
                     </h3>
                     <div className="text-xs leading-snug text-muted-foreground">
-                      {match.home_team} – {match.away_team}
+                      {formatMatchWithResult(match)}
                     </div>
+                    {match.team_id ? (
+                      <div>
+                        <MatchTeamBadge teamId={match.team_id} />
+                      </div>
+                    ) : null}
                     {match.location && (
                       <div className="truncate text-xs text-muted-foreground">{match.location}</div>
                     )}
@@ -572,6 +581,8 @@ export function MatchList() {
                           ))}
                       </div>
                     </TableHead>
+                    <TableHead className="text-xs">{t('matches.team')}</TableHead>
+                    <TableHead className="text-xs">{t('matches.result')}</TableHead>
                     <TableHead
                       className="cursor-pointer hover:bg-muted/50 select-none text-xs"
                       onClick={() => {
@@ -586,27 +597,6 @@ export function MatchList() {
                       <div className="flex items-center gap-2">
                         <span>Time</span>
                         {sortField === 'start_time' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="h-3 w-3 inline" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3 inline" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="text-right cursor-pointer hover:bg-muted/50 select-none text-xs"
-                      onClick={() => {
-                        if (sortField === 'updatedAt') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField('updatedAt');
-                          setSortOrder('asc');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        <span>Updated</span>
-                        {sortField === 'updatedAt' &&
                           (sortOrder === 'asc' ? (
                             <ArrowUp className="h-3 w-3 inline" />
                           ) : (
@@ -647,9 +637,7 @@ export function MatchList() {
                           aria-label={isSelected(match.id) ? 'Unselect match' : 'Select match'}
                         />
                       </TableCell>
-                      <TableCell className="font-semibold">
-                        {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
-                      </TableCell>
+                      <TableCell className="font-semibold">{formatMatchLabel(match)}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">
                         {match.sport_type}
                         {match.format ? ` · ${match.format}` : ''}
@@ -660,13 +648,18 @@ export function MatchList() {
                       <TableCell className="text-muted-foreground text-xs">
                         {match.location || '—'}
                       </TableCell>
+                      <TableCell className="text-xs">
+                        {match.team_id ? (
+                          <MatchTeamBadge teamId={match.team_id} />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="tabular-nums text-xs font-medium">
+                        {formatMatchScore(match) || '—'}
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-xs">
                         {formatDateTime(match.start_time)}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground text-xs">
-                        {match.updated_at
-                          ? new Date(match.updated_at).toLocaleDateString('sv-SE')
-                          : '—'}
                       </TableCell>
                     </TableRow>
                   ))}

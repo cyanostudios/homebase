@@ -4,25 +4,19 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
-import type { Match } from '@/plugins/matches/types/match';
-
-function formatMatchDateTime(startTime: string, locale: string): string {
-  if (!startTime) return '';
-  const date = new Date(startTime);
-  if (Number.isNaN(date.getTime())) return startTime;
-  return date.toLocaleString(locale, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import { MatchQuickInfoDialog } from '@/plugins/matches/components/MatchQuickInfoDialog';
+import { formatMatchDateTime, formatMatchScore, type Match } from '@/plugins/matches/types/match';
 
 function isUpcomingMatch(match: Match): boolean {
   const date = new Date(match.start_time);
   if (Number.isNaN(date.getTime())) return false;
   return date.getTime() >= Date.now();
+}
+
+function formatMatchTeamsLine(match: Match): string {
+  const score = formatMatchScore(match);
+  const teams = `${match.home_team} – ${match.away_team}`;
+  return score ? `${teams} (${score})` : teams;
 }
 
 interface TeamMatchesSectionProps {
@@ -39,6 +33,7 @@ export function TeamMatchesSection({
   const { t, i18n } = useTranslation();
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewingMatch, setViewingMatch] = useState<Match | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +66,11 @@ export function TeamMatchesSection({
     [matches],
   );
 
+  const handleOpenMatchPreview = (match: Match) => {
+    if (!onOpenMatch) return;
+    setViewingMatch(match);
+  };
+
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">{t('common.loading')}</p>;
   }
@@ -87,32 +87,42 @@ export function TeamMatchesSection({
     }
 
     return (
-      <button
-        type="button"
-        onClick={() => onOpenMatch?.(nextMatch)}
-        disabled={!onOpenMatch}
-        className={cn(
-          'flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-3 text-left',
-          onOpenMatch && 'cursor-pointer transition-opacity hover:opacity-80',
-          !onOpenMatch && 'cursor-default',
-        )}
-      >
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('teams.nextMatch')}
-          </p>
-          <p className="truncate text-sm font-medium">
-            {nextMatch.home_team} – {nextMatch.away_team}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">
-            {formatMatchDateTime(nextMatch.start_time, i18n.language)}
-            {nextMatch.location ? ` · ${nextMatch.location}` : ''}
-          </p>
-        </div>
-        {onOpenMatch ? (
-          <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-        ) : null}
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => handleOpenMatchPreview(nextMatch)}
+          disabled={!onOpenMatch}
+          className={cn(
+            'flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-3 text-left',
+            onOpenMatch && 'cursor-pointer transition-opacity hover:opacity-80',
+            !onOpenMatch && 'cursor-default',
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('teams.nextMatch')}
+            </p>
+            <p className="truncate text-sm font-medium">{formatMatchTeamsLine(nextMatch)}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {formatMatchDateTime(nextMatch.start_time, i18n.language)}
+              {nextMatch.location ? ` · ${nextMatch.location}` : ''}
+            </p>
+          </div>
+          {onOpenMatch ? (
+            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+          ) : null}
+        </button>
+        <MatchQuickInfoDialog
+          isOpen={viewingMatch !== null}
+          match={viewingMatch}
+          onClose={() => setViewingMatch(null)}
+          onOpenMatch={() => {
+            if (!viewingMatch) return;
+            onOpenMatch?.(viewingMatch);
+            setViewingMatch(null);
+          }}
+        />
+      </>
     );
   }
 
@@ -132,7 +142,7 @@ export function TeamMatchesSection({
     >
       <button
         type="button"
-        onClick={() => onOpenMatch?.(match)}
+        onClick={() => handleOpenMatchPreview(match)}
         disabled={!onOpenMatch}
         className={cn(
           'min-w-0 flex-1 text-left',
@@ -140,12 +150,11 @@ export function TeamMatchesSection({
           !onOpenMatch && 'cursor-default',
         )}
       >
-        <p className="truncate text-sm font-medium">
-          {match.home_team} – {match.away_team}
-        </p>
+        <p className="truncate text-sm font-medium">{formatMatchTeamsLine(match)}</p>
         <p className="truncate text-xs text-muted-foreground">
           {formatMatchDateTime(match.start_time, i18n.language)}
           {match.location ? ` · ${match.location}` : ''}
+          {match.competition_name ? ` · ${match.competition_name}` : ''}
         </p>
       </button>
       {onOpenMatch ? (
@@ -155,23 +164,35 @@ export function TeamMatchesSection({
   );
 
   return (
-    <div className="space-y-4">
-      {upcomingMatches.length > 0 ? (
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('teams.upcomingMatches')}
-          </p>
-          {upcomingMatches.map(renderMatchRow)}
-        </div>
-      ) : null}
-      {pastMatches.length > 0 ? (
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('teams.pastMatches')}
-          </p>
-          {pastMatches.map(renderMatchRow)}
-        </div>
-      ) : null}
-    </div>
+    <>
+      <div className="space-y-4">
+        {upcomingMatches.length > 0 ? (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('teams.upcomingMatches')}
+            </p>
+            {upcomingMatches.map(renderMatchRow)}
+          </div>
+        ) : null}
+        {pastMatches.length > 0 ? (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('teams.pastMatches')}
+            </p>
+            {pastMatches.map(renderMatchRow)}
+          </div>
+        ) : null}
+      </div>
+      <MatchQuickInfoDialog
+        isOpen={viewingMatch !== null}
+        match={viewingMatch}
+        onClose={() => setViewingMatch(null)}
+        onOpenMatch={() => {
+          if (!viewingMatch) return;
+          onOpenMatch?.(viewingMatch);
+          setViewingMatch(null);
+        }}
+      />
+    </>
   );
 }

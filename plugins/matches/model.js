@@ -46,6 +46,30 @@ function sanitizeExternalId(value) {
   return trimmed ? trimmed.slice(0, 255) : null;
 }
 
+function sanitizeScore(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 999 ? parsed : null;
+}
+
+function sanitizeResult(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, 50) : null;
+}
+
+function sanitizeCompetitionName(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, 255) : null;
+}
+
 class MatchModel {
   _deriveName({ name, home_team, away_team }) {
     const trimmed = typeof name === 'string' ? name.trim() : '';
@@ -141,6 +165,13 @@ class MatchModel {
           external_id: externalId,
           is_external: true,
           external_source: (matchData.external_source || '').trim() || null,
+          home_score: sanitizeScore(matchData.home_score),
+          away_score: sanitizeScore(matchData.away_score),
+          result: sanitizeResult(matchData.result),
+          competition_name: sanitizeCompetitionName(matchData.competition_name),
+          is_canceled: Boolean(matchData.is_canceled),
+          is_finished: Boolean(matchData.is_finished),
+          is_postponed: Boolean(matchData.is_postponed),
         };
 
         const existing = await db.query('SELECT id FROM matches WHERE external_id = $1', [
@@ -186,6 +217,13 @@ class MatchModel {
         external_id,
         is_external,
         external_source,
+        home_score,
+        away_score,
+        result: matchResult,
+        competition_name,
+        is_canceled,
+        is_finished,
+        is_postponed,
       } = matchData;
       validateSportAndFormat(sport_type, format);
       const nextName = this._deriveName({ name, home_team, away_team });
@@ -221,6 +259,13 @@ class MatchModel {
         external_id: sanitizeExternalId(external_id),
         is_external: Boolean(is_external),
         external_source: (external_source || '').trim() || null,
+        home_score: sanitizeScore(home_score),
+        away_score: sanitizeScore(away_score),
+        result: sanitizeResult(matchResult),
+        competition_name: sanitizeCompetitionName(competition_name),
+        is_canceled: Boolean(is_canceled),
+        is_finished: Boolean(is_finished),
+        is_postponed: Boolean(is_postponed),
       });
 
       Logger.info('Match created', { matchId: result.id });
@@ -266,6 +311,13 @@ class MatchModel {
         external_id,
         is_external,
         external_source,
+        home_score,
+        away_score,
+        result: matchResult,
+        competition_name,
+        is_canceled,
+        is_finished,
+        is_postponed,
       } = matchData;
       validateSportAndFormat(sport_type, format);
       const nextName = this._deriveName({ name, home_team, away_team });
@@ -316,6 +368,22 @@ class MatchModel {
           external_source !== undefined
             ? (external_source || '').trim() || null
             : (existing[0].external_source ?? null),
+        home_score:
+          home_score !== undefined ? sanitizeScore(home_score) : (existing[0].home_score ?? null),
+        away_score:
+          away_score !== undefined ? sanitizeScore(away_score) : (existing[0].away_score ?? null),
+        result:
+          matchResult !== undefined ? sanitizeResult(matchResult) : (existing[0].result ?? null),
+        competition_name:
+          competition_name !== undefined
+            ? sanitizeCompetitionName(competition_name)
+            : (existing[0].competition_name ?? null),
+        is_canceled:
+          is_canceled !== undefined ? Boolean(is_canceled) : Boolean(existing[0].is_canceled),
+        is_finished:
+          is_finished !== undefined ? Boolean(is_finished) : Boolean(existing[0].is_finished),
+        is_postponed:
+          is_postponed !== undefined ? Boolean(is_postponed) : Boolean(existing[0].is_postponed),
       });
 
       Logger.info('Match updated', { matchId });
@@ -392,6 +460,15 @@ class MatchModel {
       external_id: row.external_id != null ? String(row.external_id) : null,
       is_external: Boolean(row.is_external),
       external_source: row.external_source != null ? String(row.external_source) : null,
+      home_score:
+        row.home_score !== null && row.home_score !== undefined ? Number(row.home_score) : null,
+      away_score:
+        row.away_score !== null && row.away_score !== undefined ? Number(row.away_score) : null,
+      result: row.result != null ? String(row.result) : null,
+      competition_name: row.competition_name != null ? String(row.competition_name) : null,
+      is_canceled: Boolean(row.is_canceled),
+      is_finished: Boolean(row.is_finished),
+      is_postponed: Boolean(row.is_postponed),
       mentions,
       created_at: row.created_at,
       updated_at: row.updated_at,

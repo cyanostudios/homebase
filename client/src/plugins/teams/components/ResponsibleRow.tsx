@@ -54,7 +54,6 @@ export function ResponsibleRow({
   hasSeriesTeams = false,
   seriesTeamDisplayLabel,
   seriesTeamColor = null,
-  contactDetailsOnSecondRow = false,
 }: {
   responsible: Responsible;
   contact: Contact | null;
@@ -65,8 +64,6 @@ export function ResponsibleRow({
   /** Formatted series team label including level, when linked to a series team. */
   seriesTeamDisplayLabel?: string | null;
   seriesTeamColor?: TeamColor | null;
-  /** When true, phone and email render on a second line below name and badges. */
-  contactDetailsOnSecondRow?: boolean;
 }) {
   const { t } = useTranslation();
   const name = contact?.companyName || `Contact ${responsible.contactId}`;
@@ -101,12 +98,7 @@ export function ResponsibleRow({
   ) : null;
 
   return (
-    <div
-      className={cn(
-        'flex gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5',
-        contactDetailsOnSecondRow ? 'items-start' : 'items-center',
-      )}
-    >
+    <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5">
       <button
         type="button"
         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
@@ -115,45 +107,30 @@ export function ResponsibleRow({
       >
         {getInitials(name) || '?'}
       </button>
-      <div
-        className={cn(
-          'min-w-0 flex-1',
-          contactDetailsOnSecondRow
-            ? 'flex flex-col gap-1'
-            : 'flex flex-wrap items-center gap-x-3 gap-y-1',
-        )}
-      >
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <button
-            type="button"
-            className={cn(
-              'truncate text-sm font-semibold',
-              onOpenContact && 'hover:text-plugin hover:underline',
-            )}
-            onClick={onOpenContact}
-          >
-            {name}
-          </button>
-          <span
-            className={cn(
-              'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
-              RESPONSIBLE_ROLE_BADGES[roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES],
-            )}
-          >
-            {t(`teams.roles.${roleKey}`)}
-          </span>
-          {seriesTeamBadgeLabel ? (
-            <SeriesTeamBadge label={seriesTeamBadgeLabel} color={seriesTeamColor} />
-          ) : null}
-          {!contactDetailsOnSecondRow && phoneRow}
-          {!contactDetailsOnSecondRow && emailRow}
-        </div>
-        {contactDetailsOnSecondRow && (phoneRow || emailRow) ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-            {phoneRow}
-            {emailRow}
-          </div>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+        <button
+          type="button"
+          className={cn(
+            'truncate text-sm font-semibold',
+            onOpenContact && 'hover:text-plugin hover:underline',
+          )}
+          onClick={onOpenContact}
+        >
+          {name}
+        </button>
+        <span
+          className={cn(
+            'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+            RESPONSIBLE_ROLE_BADGES[roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES],
+          )}
+        >
+          {t(`teams.roles.${roleKey}`)}
+        </span>
+        {seriesTeamBadgeLabel ? (
+          <SeriesTeamBadge label={seriesTeamBadgeLabel} color={seriesTeamColor} />
         ) : null}
+        {phoneRow}
+        {emailRow}
       </div>
       {onRemove && (
         <Button

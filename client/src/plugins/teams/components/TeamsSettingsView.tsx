@@ -90,28 +90,40 @@ export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {
       if (sourceId === targetId) {
         return;
       }
-      const fromIndex = overviewCardOrder.indexOf(sourceId);
-      const toIndex = overviewCardOrder.indexOf(targetId);
-      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+
+      let nextOrder: OverviewCardId[] | null = null;
+      let rollbackOrder: OverviewCardId[] | null = null;
+
+      setOverviewCardOrder((prev) => {
+        const fromIndex = prev.indexOf(sourceId);
+        const toIndex = prev.indexOf(targetId);
+        if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+          return prev;
+        }
+
+        const next = [...prev];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+        nextOrder = next;
+        rollbackOrder = prev;
+        return next;
+      });
+
+      if (!nextOrder || !rollbackOrder) {
         return;
       }
 
-      const next = [...overviewCardOrder];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-
-      setOverviewCardOrder(next);
       setIsReorderingCards(true);
       try {
-        await updateSettings(TEAMS_SETTINGS_KEY, { overviewCardOrder: next });
+        await updateSettings(TEAMS_SETTINGS_KEY, { overviewCardOrder: nextOrder });
       } catch (error) {
         console.error('Failed to save overview card order:', error);
-        setOverviewCardOrder(overviewCardOrder);
+        setOverviewCardOrder(rollbackOrder);
       } finally {
         setIsReorderingCards(false);
       }
     },
-    [overviewCardOrder, updateSettings],
+    [updateSettings],
   );
 
   const handleDragStart = (e: React.DragEvent, cardId: OverviewCardId) => {

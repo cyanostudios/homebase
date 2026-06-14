@@ -45,6 +45,10 @@ function createMatchRoutes(controller, context) {
     commonRules.optionalInteger('total_minutes', 1, 999),
     commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
     commonRules.optionalInteger('team_id', 1, Number.MAX_SAFE_INTEGER),
+    commonRules.optionalInteger('home_score', 0, 999),
+    commonRules.optionalInteger('away_score', 0, 999),
+    commonRules.optionalString('result', 50),
+    commonRules.optionalString('competition_name', 255),
     validateRequest,
     (req, res) => controller.create(req, res),
   );
@@ -68,6 +72,10 @@ function createMatchRoutes(controller, context) {
     commonRules.optionalInteger('total_minutes', 1, 999),
     commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
     commonRules.optionalInteger('team_id', 1, Number.MAX_SAFE_INTEGER),
+    commonRules.optionalInteger('home_score', 0, 999),
+    commonRules.optionalInteger('away_score', 0, 999),
+    commonRules.optionalString('result', 50),
+    commonRules.optionalString('competition_name', 255),
     validateRequest,
     (req, res) => controller.update(req, res),
   );

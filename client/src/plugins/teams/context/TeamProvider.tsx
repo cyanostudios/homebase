@@ -34,7 +34,7 @@ export function TeamProvider({
 
   const [isTeamPanelOpen, setIsTeamPanelOpen] = useState(false);
   const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<TeamValidationError>();
   const [teams, setTeams] = useState<Team[]>([]);
@@ -86,18 +86,15 @@ export function TeamProvider({
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeTeamPanel]);
 
   const openTeamPanel = useCallback(
-    (team: Team | null) => {
+    (_team: Team | null) => {
       clearTeamSelection();
-      setCurrentTeam(team);
-      setPanelMode(team ? 'edit' : 'create');
+      setCurrentTeam(null);
+      setPanelMode('create');
       setIsTeamPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
-      if (team) {
-        navigateToItem(team, teams, 'name');
-      }
     },
-    [clearTeamSelection, navigateToItem, teams, onCloseOtherPanels, setValidationErrors],
+    [clearTeamSelection, onCloseOtherPanels, setValidationErrors],
   );
 
   const openTeamForEdit = useCallback(
@@ -205,52 +202,6 @@ export function TeamProvider({
       }
     },
     [buildTeamPayload, currentTeam, teams],
-  );
-
-  const updateTeamTrainingTimes = useCallback(
-    async (
-      teamId: string,
-      trainingIndex: number,
-      patch: Partial<TrainingTime>,
-    ): Promise<boolean> => {
-      const team = teams.find((item) => String(item.id) === String(teamId));
-      if (!team) {
-        return false;
-      }
-
-      const newTimes = team.training_times.map((training, index) =>
-        index === trainingIndex ? { ...training, ...patch } : training,
-      );
-      return persistTrainingTimes(teamId, newTimes);
-    },
-    [persistTrainingTimes, teams],
-  );
-
-  const addTeamTrainingTime = useCallback(
-    async (teamId: string, training: TrainingTime): Promise<boolean> => {
-      const team = teams.find((item) => String(item.id) === String(teamId));
-      if (!team) {
-        return false;
-      }
-
-      return persistTrainingTimes(teamId, [...team.training_times, training]);
-    },
-    [persistTrainingTimes, teams],
-  );
-
-  const removeTeamTrainingTime = useCallback(
-    async (teamId: string, trainingIndex: number): Promise<boolean> => {
-      const team = teams.find((item) => String(item.id) === String(teamId));
-      if (!team) {
-        return false;
-      }
-
-      return persistTrainingTimes(
-        teamId,
-        team.training_times.filter((_, index) => index !== trainingIndex),
-      );
-    },
-    [persistTrainingTimes, teams],
   );
 
   const saveTeam = useCallback(
@@ -399,9 +350,6 @@ export function TeamProvider({
       if (mode === 'create') {
         return t('panel.createItem', { item: t('nav.team') });
       }
-      if (mode === 'settings') {
-        return t('panel.settingsItem', { item: t('nav.teams') });
-      }
       return t('nav.team');
     },
     [t],
@@ -409,52 +357,93 @@ export function TeamProvider({
 
   const getPanelSubtitle = useCallback(() => null, []);
 
-  const value: TeamsContextType = {
-    isTeamPanelOpen,
-    currentTeam,
-    panelMode,
-    validationErrors,
-    teams,
-    teamsContentView,
-    isSaving,
-    refreshTeams: loadTeams,
-    openTeamPanel,
-    openTeamForEdit,
-    openTeamForView,
-    openTeamSettings,
-    closeTeamSettingsView,
-    openTeamStatistics,
-    closeTeamStatisticsView,
-    closeTeamPanel,
-    saveTeam,
-    updateTeamTrainingTimes,
-    addTeamTrainingTime,
-    removeTeamTrainingTime,
-    saveTeamTrainingTimes: persistTrainingTimes,
-    deleteTeam,
-    deleteTeams,
-    selectedTeamIds,
-    toggleTeamSelected,
-    selectAllTeams,
-    mergeIntoTeamSelection,
-    clearTeamSelection,
-    selectedCount,
-    isSelected,
-    clearValidationErrors,
-    getDeleteMessage,
-    getPanelTitle,
-    getPanelSubtitle,
-    getDuplicateConfig,
-    executeDuplicate,
-    recentlyDuplicatedTeamId,
-    setRecentlyDuplicatedTeamId,
-    navigateToPrevItem,
-    navigateToNextItem,
-    hasPrevItem,
-    hasNextItem,
-    currentItemIndex,
-    totalItems,
-  };
+  const value: TeamsContextType = useMemo(
+    () => ({
+      isTeamPanelOpen,
+      currentTeam,
+      panelMode,
+      validationErrors,
+      teams,
+      teamsContentView,
+      isSaving,
+      refreshTeams: loadTeams,
+      openTeamPanel,
+      openTeamForEdit,
+      openTeamForView,
+      openTeamSettings,
+      closeTeamSettingsView,
+      openTeamStatistics,
+      closeTeamStatisticsView,
+      closeTeamPanel,
+      saveTeam,
+      saveTeamTrainingTimes: persistTrainingTimes,
+      deleteTeam,
+      deleteTeams,
+      selectedTeamIds,
+      toggleTeamSelected,
+      selectAllTeams,
+      mergeIntoTeamSelection,
+      clearTeamSelection,
+      selectedCount,
+      isSelected,
+      clearValidationErrors,
+      getDeleteMessage,
+      getPanelTitle,
+      getPanelSubtitle,
+      getDuplicateConfig,
+      executeDuplicate,
+      recentlyDuplicatedTeamId,
+      setRecentlyDuplicatedTeamId,
+      navigateToPrevItem,
+      navigateToNextItem,
+      hasPrevItem,
+      hasNextItem,
+      currentItemIndex,
+      totalItems,
+    }),
+    [
+      isTeamPanelOpen,
+      currentTeam,
+      panelMode,
+      validationErrors,
+      teams,
+      teamsContentView,
+      isSaving,
+      loadTeams,
+      openTeamPanel,
+      openTeamForEdit,
+      openTeamForView,
+      openTeamSettings,
+      closeTeamSettingsView,
+      openTeamStatistics,
+      closeTeamStatisticsView,
+      closeTeamPanel,
+      saveTeam,
+      persistTrainingTimes,
+      deleteTeam,
+      deleteTeams,
+      selectedTeamIds,
+      toggleTeamSelected,
+      selectAllTeams,
+      mergeIntoTeamSelection,
+      clearTeamSelection,
+      selectedCount,
+      isSelected,
+      clearValidationErrors,
+      getDeleteMessage,
+      getPanelTitle,
+      getPanelSubtitle,
+      getDuplicateConfig,
+      executeDuplicate,
+      recentlyDuplicatedTeamId,
+      navigateToPrevItem,
+      navigateToNextItem,
+      hasPrevItem,
+      hasNextItem,
+      currentItemIndex,
+      totalItems,
+    ],
+  );
 
   return <TeamsContext.Provider value={value}>{children}</TeamsContext.Provider>;
 }

@@ -52,6 +52,15 @@ function rowToMatch(row: Record<string, unknown>): Match {
     external_id: row.external_id != null ? String(row.external_id) : null,
     is_external: Boolean(row.is_external),
     external_source: row.external_source != null ? String(row.external_source) : null,
+    home_score:
+      row.home_score !== null && row.home_score !== undefined ? Number(row.home_score) : null,
+    away_score:
+      row.away_score !== null && row.away_score !== undefined ? Number(row.away_score) : null,
+    result: row.result != null ? String(row.result) : null,
+    competition_name: row.competition_name != null ? String(row.competition_name) : null,
+    is_canceled: Boolean(row.is_canceled),
+    is_finished: Boolean(row.is_finished),
+    is_postponed: Boolean(row.is_postponed),
     mentions: parseMentions(row),
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
@@ -96,6 +105,13 @@ class MatchesApi {
     total_minutes?: number | null;
     contact_id?: string | null;
     team_id?: string | null;
+    home_score?: number | null;
+    away_score?: number | null;
+    result?: string | null;
+    competition_name?: string | null;
+    is_canceled?: boolean;
+    is_finished?: boolean;
+    is_postponed?: boolean;
     mentions?: MatchMention[];
   }): Promise<Match> {
     const fallbackName =
@@ -115,6 +131,13 @@ class MatchesApi {
       total_minutes: data.total_minutes ?? null,
       contact_id: data.contact_id ?? null,
       team_id: data.team_id != null ? Number(data.team_id) : null,
+      home_score: data.home_score ?? null,
+      away_score: data.away_score ?? null,
+      result: data.result?.trim() || null,
+      competition_name: data.competition_name?.trim() || null,
+      is_canceled: Boolean(data.is_canceled),
+      is_finished: Boolean(data.is_finished),
+      is_postponed: Boolean(data.is_postponed),
       mentions: data.mentions ?? [],
     };
     const row = await this.request('', { method: 'POST', body: JSON.stringify(body) });
@@ -139,6 +162,15 @@ class MatchesApi {
       total_minutes: data.total_minutes ?? null,
       contact_id: data.contact_id ?? null,
       ...('team_id' in data ? { team_id: data.team_id != null ? Number(data.team_id) : null } : {}),
+      ...('home_score' in data ? { home_score: data.home_score ?? null } : {}),
+      ...('away_score' in data ? { away_score: data.away_score ?? null } : {}),
+      ...('result' in data ? { result: data.result?.trim() || null } : {}),
+      ...('competition_name' in data
+        ? { competition_name: data.competition_name?.trim() || null }
+        : {}),
+      ...('is_canceled' in data ? { is_canceled: Boolean(data.is_canceled) } : {}),
+      ...('is_finished' in data ? { is_finished: Boolean(data.is_finished) } : {}),
+      ...('is_postponed' in data ? { is_postponed: Boolean(data.is_postponed) } : {}),
       mentions: data.mentions ?? [],
     };
     const row = await this.request(`/${id}`, { method: 'PUT', body: JSON.stringify(body) });
