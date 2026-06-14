@@ -1,7 +1,7 @@
 // plugins/ingest/services/fetchSource.js
 // Fetch strategies for ingest: generic_http (axios) and browser_fetch (separate module). No site-specific parsing.
 const axios = require('axios');
-const { validatePublicHttpsUrl } = require('../../server/core/utils/ssrfUrlGuard');
+const { validatePublicHttpsUrl } = require('../../../server/core/utils/ssrfUrlGuard');
 const { fetchSourceBrowserFetch } = require('./fetchSourceBrowserFetch');
 const { bufferLooksLikePdf, isPdfContentType, pdfTextFromBuffer } = require('./pdfTextFromBuffer');
 

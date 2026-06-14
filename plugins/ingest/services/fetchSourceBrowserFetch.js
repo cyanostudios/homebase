@@ -1,7 +1,7 @@
 // plugins/ingest/services/fetchSourceBrowserFetch.js
 // Headless browser fetch for ingest — separate strategy from generic_http (axios).
 const MAX_EXCERPT = 8000;
-const { validatePublicHttpsUrl } = require('../../server/core/utils/ssrfUrlGuard');
+const { validatePublicHttpsUrl } = require('../../../server/core/utils/ssrfUrlGuard');
 const { bufferLooksLikePdf, isPdfContentType, pdfTextFromBuffer } = require('./pdfTextFromBuffer');
 
 /** Fallback if browser.userAgent() is unavailable. */
