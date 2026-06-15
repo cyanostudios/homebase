@@ -39,7 +39,14 @@ export function ContactProvider({
 }: ContactProviderProps) {
   const { t } = useTranslation();
   const location = useLocation();
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData, user } = useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    refreshData,
+    user,
+    syncSharedContacts,
+    registerSharedDataRefresh,
+  } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/contacts');
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
@@ -164,12 +171,79 @@ export function ContactProvider({
   } = useBulkSelection();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadContacts();
-    } else {
+    if (!isAuthenticated) {
       setContacts([]);
+      return;
     }
-  }, [isAuthenticated]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const contactsData = await contactsApi.getContacts();
+        if (cancelled) {
+          return;
+        }
+        const transformedContacts: Contact[] = contactsData.map((contact: any) => ({
+          ...contact,
+          tags: Array.isArray(contact.tags) ? contact.tags : [],
+          createdAt: new Date(contact.createdAt),
+          updatedAt: new Date(contact.updatedAt),
+        }));
+        setContacts(transformedContacts);
+        syncSharedContacts(transformedContacts);
+        try {
+          const { contactIds } = await contactsApi.getContactIdsWithTimeEntries();
+          if (!cancelled) {
+            setContactIdsWithTimeEntries((prev) => {
+              const next = new Set(prev);
+              for (const id of contactIds) {
+                next.add(id);
+              }
+              return next;
+            });
+          }
+        } catch (timeIdsErr) {
+          if (!cancelled) {
+            console.error('Failed to load contacts with time entries:', timeIdsErr);
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to load contacts:', error);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, syncSharedContacts]);
+
+  const loadContacts = useCallback(async () => {
+    const contactsData = await contactsApi.getContacts();
+    const transformedContacts: Contact[] = contactsData.map((contact: any) => ({
+      ...contact,
+      tags: Array.isArray(contact.tags) ? contact.tags : [],
+      createdAt: new Date(contact.createdAt),
+      updatedAt: new Date(contact.updatedAt),
+    }));
+    setContacts(transformedContacts);
+    syncSharedContacts(transformedContacts);
+    try {
+      const { contactIds } = await contactsApi.getContactIdsWithTimeEntries();
+      setContactIdsWithTimeEntries((prev) => {
+        const next = new Set(prev);
+        for (const id of contactIds) {
+          next.add(id);
+        }
+        return next;
+      });
+    } catch (timeIdsErr) {
+      console.error('Failed to load contacts with time entries:', timeIdsErr);
+    }
+  }, [syncSharedContacts]);
+
+  useEffect(() => {
+    return registerSharedDataRefresh('contacts', loadContacts);
+  }, [registerSharedDataRefresh, loadContacts]);
 
   /** Top-bar time widget POST cannot use ContactContext — sync badge via browser event */
   useEffect(() => {
@@ -184,33 +258,6 @@ export function ContactProvider({
     window.addEventListener(CONTACT_TIME_ENTRY_ADDED, handler);
     return () => window.removeEventListener(CONTACT_TIME_ENTRY_ADDED, handler);
   }, [setContactHasTimeEntries]);
-
-  const loadContacts = async () => {
-    try {
-      const contactsData = await contactsApi.getContacts();
-      const transformedContacts: Contact[] = contactsData.map((contact: any) => ({
-        ...contact,
-        tags: Array.isArray(contact.tags) ? contact.tags : [],
-        createdAt: new Date(contact.createdAt),
-        updatedAt: new Date(contact.updatedAt),
-      }));
-      setContacts(transformedContacts);
-      try {
-        const { contactIds } = await contactsApi.getContactIdsWithTimeEntries();
-        setContactIdsWithTimeEntries((prev) => {
-          const next = new Set(prev);
-          for (const id of contactIds) {
-            next.add(id);
-          }
-          return next;
-        });
-      } catch (timeIdsErr) {
-        console.error('Failed to load contacts with time entries:', timeIdsErr);
-      }
-    } catch (error) {
-      console.error('Failed to load contacts:', error);
-    }
-  };
 
   const validateContact = useCallback(
     (contactData: any): ValidationError[] => {

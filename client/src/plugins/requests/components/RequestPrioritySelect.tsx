@@ -39,7 +39,7 @@ export function RequestPrioritySelect({
       <SelectTrigger
         className={cn(
           'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
-          compact ? 'h-7 w-[100px]' : 'h-9 w-[180px]',
+          compact ? 'h-7 w-[100px]' : 'h-9 w-full sm:w-[180px]',
         )}
       >
         <SelectValue placeholder="Select priority">

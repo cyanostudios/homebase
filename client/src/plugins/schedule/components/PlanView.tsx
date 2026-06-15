@@ -5,6 +5,7 @@ import { Lock } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { buildSlug } from '@/core/utils/slugUtils';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import type { TrainingTime } from '@/plugins/teams/types/teams';
 
@@ -23,6 +24,7 @@ import {
 } from '../types/schedule';
 
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
+import { ScheduleWeekView } from './ScheduleWeekView';
 import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
 
 export function PlanView({
@@ -37,6 +39,7 @@ export function PlanView({
   schedulePlans: SchedulePlansState;
 }) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { teams } = useTeams();
   const { addPlanEventCount, adjustPlanEventCount, eventsRevision } = schedulePlans;
@@ -268,16 +271,20 @@ export function PlanView({
           <p className="mb-3 text-sm text-muted-foreground">{t('schedule.noScheduleEvents')}</p>
         ) : null}
         {!isLoading && !isGridSettingsLoading ? (
-          <ScheduleTimeGrid
-            slots={weekSlots}
-            gridSettings={gridSettings}
-            savingSlotId={savingSlotId}
-            readOnly={isLocked}
-            onSlotClick={handleSlotClick}
-            onEditSlot={isLocked ? undefined : handleEditSlot}
-            onAddSlot={isLocked ? undefined : handleAddSlot}
-            onSlotMove={handleSlotMove}
-          />
+          isMobile ? (
+            <ScheduleWeekView slots={weekSlots} onSlotClick={handleSlotClick} />
+          ) : (
+            <ScheduleTimeGrid
+              slots={weekSlots}
+              gridSettings={gridSettings}
+              savingSlotId={savingSlotId}
+              readOnly={isLocked}
+              onSlotClick={handleSlotClick}
+              onEditSlot={isLocked ? undefined : handleEditSlot}
+              onAddSlot={isLocked ? undefined : handleAddSlot}
+              onSlotMove={handleSlotMove}
+            />
+          )
         ) : null}
       </Card>
 

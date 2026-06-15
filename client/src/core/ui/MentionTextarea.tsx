@@ -27,21 +27,34 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   const [suggestionPosition, setSuggestionPosition] = useState({ top: 0, left: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const cursorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const loadContacts = async () => {
       try {
         const response = await apiFetch('/api/contacts');
-        if (response.ok) {
-          const contactsData = await response.json();
+        if (!response.ok || cancelled) {
+          return;
+        }
+        const contactsData = await response.json();
+        if (!cancelled) {
           setContacts(contactsData);
         }
       } catch (error) {
-        console.error('Failed to load contacts for mentions:', error);
+        if (!cancelled) {
+          console.error('Failed to load contacts for mentions:', error);
+        }
       }
     };
 
-    loadContacts();
+    void loadContacts();
+    return () => {
+      cancelled = true;
+      if (cursorTimeoutRef.current) {
+        clearTimeout(cursorTimeoutRef.current);
+      }
+    };
   }, []);
 
   const extractMentions = (text: string): Mention[] => {
@@ -204,7 +217,11 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
 
     setShowSuggestions(false);
 
-    setTimeout(() => {
+    if (cursorTimeoutRef.current) {
+      clearTimeout(cursorTimeoutRef.current);
+    }
+    cursorTimeoutRef.current = setTimeout(() => {
+      cursorTimeoutRef.current = null;
       const newCursorPos = mentionStart + mentionText.length + 1;
       textarea.setSelectionRange(newCursorPos, newCursorPos);
       textarea.focus();

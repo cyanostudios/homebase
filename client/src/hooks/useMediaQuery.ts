@@ -21,3 +21,8 @@ export function useMediaQuery(query: string): boolean {
 
   return matches;
 }
+
+/** True when viewport is below Tailwind `md` (768px). */
+export function useIsMobile(): boolean {
+  return useMediaQuery('(max-width: 767px)');
+}

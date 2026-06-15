@@ -9,6 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { resolvePrimaryAction } from '@/core/actions/resolvePrimaryAction';
 import { useApp } from '@/core/api/AppContext';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import {
   buildDuplicateDialogOnConfirm,
   buildMatchToSlotOnConfirm,
@@ -122,7 +123,7 @@ export function AppContent() {
   const formRef = useRef<PanelFormHandle | null>(null);
 
   // State
-  const [isMobileView, setIsMobileView] = useState(false);
+  const isMobileView = useIsMobile();
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showToTaskDialog, setShowToTaskDialog] = useState(false);
   const [noteForTask, setNoteForTask] = useState<{
@@ -300,14 +301,6 @@ export function AppContent() {
       }
     }
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps -- pluginContexts is stable
-
-  // Screen size detection
-  useEffect(() => {
-    const checkScreenSize = () => setIsMobileView(window.innerWidth < 768);
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
 
   // Keyboard handler
   useEffect(() => {

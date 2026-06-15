@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 const SIDEBAR_WIDTH = '12rem';
@@ -56,17 +57,7 @@ const SidebarProvider = React.forwardRef<
     ref,
   ) => {
     const [openMobile, setOpenMobile] = React.useState(false);
-    const [isMobile, setIsMobile] = React.useState(false);
-
-    // Handle mobile view
-    React.useEffect(() => {
-      const checkMobile = () => {
-        setIsMobile(window.innerWidth < 768);
-      };
-      checkMobile();
-      window.addEventListener('resize', checkMobile);
-      return () => window.removeEventListener('resize', checkMobile);
-    }, []);
+    const isMobile = useIsMobile();
 
     // This is a simple implementation, you can use a more
     // complex approach if you have server-side rendering.

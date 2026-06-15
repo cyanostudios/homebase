@@ -30,6 +30,7 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useRequestTeams } from '../hooks/useRequestTeams';
@@ -129,6 +130,7 @@ export function RequestList() {
     createRequest,
   } = useRequests();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
@@ -554,6 +556,31 @@ export function RequestList() {
                 onCreate={handleQuickCreate}
                 className="col-span-full"
               />
+            </div>
+          ) : isMobile ? (
+            <div className="space-y-2 p-4">
+              {sorted.map((request, index) => (
+                <RequestCard
+                  key={request.id}
+                  request={request}
+                  selected={isSelected(request.id)}
+                  highlighted={recentlyQuickAddedId === String(request.id)}
+                  teamName={request.teamId ? teamById.get(request.teamId) || null : null}
+                  onClick={() => handleOpenForView(request)}
+                  checkbox={
+                    <input
+                      type="checkbox"
+                      checked={isSelected(request.id)}
+                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                      onChange={() => onVisibleRowCheckboxChange(request.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-4 w-4 cursor-pointer"
+                      aria-label={isSelected(request.id) ? 'Unselect request' : 'Select request'}
+                    />
+                  }
+                />
+              ))}
+              <RequestQuickAdd viewMode="list" onCreate={handleQuickCreate} className="w-full" />
             </div>
           ) : (
             <Card className="border-0 shadow-none">

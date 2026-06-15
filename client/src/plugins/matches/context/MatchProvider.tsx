@@ -85,23 +85,29 @@ export function MatchProvider({
     return () => unregisterPanelCloseFunction('matches');
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeMatchPanel]);
 
-  const loadMatches = useCallback(async () => {
-    try {
-      const data = await matchesApi.getMatches();
-      setMatches(data);
-    } catch (error: any) {
-      const msg = error?.message || error?.error || t('matches.loadFailed');
-      setValidationErrors([{ field: 'general', message: msg }]);
-    }
-  }, [t, setValidationErrors]);
-
   useEffect(() => {
-    if (isAuthenticated) {
-      loadMatches();
-    } else {
+    if (!isAuthenticated) {
       setMatches([]);
+      return;
     }
-  }, [isAuthenticated, loadMatches]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await matchesApi.getMatches();
+        if (!cancelled) {
+          setMatches(data);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          const msg = error?.message || error?.error || t('matches.loadFailed');
+          setValidationErrors([{ field: 'general', message: msg }]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, setValidationErrors, t]);
 
   const matchesDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {

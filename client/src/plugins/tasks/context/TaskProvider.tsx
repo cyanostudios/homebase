@@ -46,6 +46,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     contacts,
     refreshData,
     registerTasksNavigation,
+    syncSharedTasks,
+    registerSharedDataRefresh,
   } = useApp();
   const { registerAction } = useActionRegistry();
   const { navigateToItem, navigateToBase } = useItemUrl('/tasks');
@@ -93,30 +95,54 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     };
   }, [closeTaskPanel, registerPanelCloseFunction, unregisterPanelCloseFunction]);
 
-  const loadTasks = useCallback(async () => {
-    try {
-      const tasksData = await tasksApi.getTasks();
-      const transformedTasks = tasksData.map((task: any) => ({
-        ...task,
-        createdAt: new Date(task.createdAt),
-        updatedAt: new Date(task.updatedAt),
-        dueDate: task.dueDate ? new Date(task.dueDate) : null,
-      }));
-      setTasks(transformedTasks);
-    } catch (error: any) {
-      console.error('Failed to load tasks:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to load tasks';
-      setValidationErrors([{ field: 'general', message: errorMessage }]);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setTasks([]);
+      return;
     }
-  }, [setValidationErrors]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const tasksData = await tasksApi.getTasks();
+        if (cancelled) {
+          return;
+        }
+        const transformedTasks = tasksData.map((task: any) => ({
+          ...task,
+          createdAt: new Date(task.createdAt),
+          updatedAt: new Date(task.updatedAt),
+          dueDate: task.dueDate ? new Date(task.dueDate) : null,
+        }));
+        setTasks(transformedTasks);
+        syncSharedTasks(transformedTasks);
+      } catch (error: any) {
+        if (!cancelled) {
+          console.error('Failed to load tasks:', error);
+          const errorMessage = error?.message || error?.error || 'Failed to load tasks';
+          setValidationErrors([{ field: 'general', message: errorMessage }]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, setValidationErrors, syncSharedTasks]);
+
+  const loadTasks = useCallback(async () => {
+    const tasksData = await tasksApi.getTasks();
+    const transformedTasks = tasksData.map((task: any) => ({
+      ...task,
+      createdAt: new Date(task.createdAt),
+      updatedAt: new Date(task.updatedAt),
+      dueDate: task.dueDate ? new Date(task.dueDate) : null,
+    }));
+    setTasks(transformedTasks);
+    syncSharedTasks(transformedTasks);
+  }, [syncSharedTasks]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadTasks();
-    } else {
-      setTasks([]);
-    }
-  }, [isAuthenticated, loadTasks]);
+    return registerSharedDataRefresh('tasks', loadTasks);
+  }, [registerSharedDataRefresh, loadTasks]);
 
   const validateTask = useCallback((taskData: any): ValidationError[] => {
     const errors: ValidationError[] = [];

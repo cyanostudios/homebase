@@ -15,6 +15,7 @@ export function usePomodoroTimer() {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const autoStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const completeSessionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const loadedSettings = loadSettings();
@@ -133,7 +134,13 @@ export function usePomodoroTimer() {
       intervalRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            setTimeout(completeSession, 0);
+            if (completeSessionTimeoutRef.current) {
+              clearTimeout(completeSessionTimeoutRef.current);
+            }
+            completeSessionTimeoutRef.current = setTimeout(() => {
+              completeSessionTimeoutRef.current = null;
+              completeSession();
+            }, 0);
             return 0;
           }
           return prev - 1;
@@ -162,6 +169,9 @@ export function usePomodoroTimer() {
     return () => {
       if (autoStartTimeoutRef.current) {
         clearTimeout(autoStartTimeoutRef.current);
+      }
+      if (completeSessionTimeoutRef.current) {
+        clearTimeout(completeSessionTimeoutRef.current);
       }
     };
   }, []);

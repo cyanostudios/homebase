@@ -84,6 +84,7 @@ export function DetailPanel({
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           side="right"
+          showCloseButton={false}
           className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full border-0 shadow-none bg-background"
         >
           <SheetHeader

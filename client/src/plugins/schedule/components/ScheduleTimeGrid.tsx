@@ -92,7 +92,7 @@ function ScheduleSlotContent({ slot, compact = false }: { slot: ScheduleSlot; co
         </span>
       ) : null}
       {slot.location && !compact ? (
-        <span className="inline-flex max-w-full items-center gap-0.5 text-[9px] leading-tight opacity-75">
+        <span className="inline-flex max-w-full items-center gap-0.5 text-[11px] leading-tight opacity-75">
           <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
           <span className="truncate">{slot.location}</span>
         </span>
@@ -258,7 +258,7 @@ function DraggableSlot({
       {onEditSlot ? (
         <button
           type="button"
-          className="absolute right-0.5 top-0.5 z-20 hidden h-5 w-5 items-center justify-center rounded bg-background/90 text-foreground shadow-sm group-hover/slot:flex"
+          className="absolute right-0.5 top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded bg-background/90 text-foreground shadow-sm sm:opacity-0 sm:transition-opacity sm:group-hover/slot:opacity-100"
           aria-label={t('schedule.editSlot')}
           onClick={(event) => {
             event.stopPropagation();

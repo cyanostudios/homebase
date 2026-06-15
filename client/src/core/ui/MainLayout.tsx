@@ -1,6 +1,8 @@
 import type { AppIcon } from '@/types/icons';
 import React, { useState, useEffect, useCallback } from 'react';
 
+import { useIsMobile } from '@/hooks/useMediaQuery';
+
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
 import { ContentSurface } from './ContentSurface';
@@ -57,15 +59,7 @@ export function MainLayout({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
   const [headerTitleSuffix, setHeaderTitleSuffix] = useState<React.ReactNode>(null);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detect mobile screen size
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useIsMobile();
 
   // Clear trailing and title suffix when page changes
   useEffect(() => {

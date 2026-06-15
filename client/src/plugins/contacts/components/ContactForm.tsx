@@ -464,7 +464,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
                         Contact Type
                       </Label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <Button
                           type="button"
                           variant={formData.contactType === 'company' ? 'default' : 'outline'}

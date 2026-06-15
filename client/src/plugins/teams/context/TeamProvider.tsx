@@ -54,23 +54,35 @@ export function TeamProvider({
     isSelected,
   } = useBulkSelection();
 
-  const loadTeams = useCallback(async () => {
-    try {
-      setTeams(await teamsApi.getTeams());
-    } catch (error: any) {
-      setValidationErrors([
-        { field: 'general', message: error?.message || 'Failed to load teams' },
-      ]);
-    }
-  }, [setValidationErrors]);
-
   useEffect(() => {
-    if (isAuthenticated) {
-      loadTeams();
-    } else {
+    if (!isAuthenticated) {
       setTeams([]);
+      return;
     }
-  }, [isAuthenticated, loadTeams]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await teamsApi.getTeams();
+        if (!cancelled) {
+          setTeams(data);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setValidationErrors([
+            { field: 'general', message: error?.message || 'Failed to load teams' },
+          ]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, setValidationErrors]);
+
+  const loadTeams = useCallback(async () => {
+    const data = await teamsApi.getTeams();
+    setTeams(data);
+  }, []);
 
   const closeTeamPanel = useCallback(() => {
     setIsTeamPanelOpen(false);

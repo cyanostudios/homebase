@@ -33,6 +33,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
@@ -130,10 +131,10 @@ export function TaskList() {
   } = useTasks();
   const { contacts, getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -170,13 +171,6 @@ export function TaskList() {
     },
     [updateSettings],
   );
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -566,7 +560,7 @@ export function TaskList() {
         >
           <div
             className={cn(
-              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
+              'flex flex-shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-3',
               viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
             )}
           >

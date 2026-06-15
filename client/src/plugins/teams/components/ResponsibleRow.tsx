@@ -41,7 +41,7 @@ export function SeriesTeamBadge({
         color ? SERIES_TEAM_BADGE_STYLES[color] : SERIES_TEAM_BADGE_NEUTRAL_STYLE,
       )}
     >
-      {label}
+      <span className="max-w-[12rem] truncate">{label}</span>
     </span>
   );
 }

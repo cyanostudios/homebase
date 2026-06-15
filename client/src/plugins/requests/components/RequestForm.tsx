@@ -223,7 +223,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label className="text-xs">{t('requests.form.requestType')}</Label>
                     <Select
@@ -273,7 +273,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           {/* Status + Priority */}
           <Card padding="none" className={FORM_CARD_CLASS}>
             <DetailSection title={t('requests.form.properties')} className="p-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">{t('requests.form.status')}</Label>
                   <Select
@@ -319,7 +319,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           <Card padding="none" className={FORM_CARD_CLASS}>
             <DetailSection title={t('requests.form.submitter')} className="p-4">
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label className="text-xs">{t('requests.form.submitterName')}</Label>
                     <Input
