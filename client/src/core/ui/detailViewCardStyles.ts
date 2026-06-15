@@ -12,7 +12,7 @@ export const DETAIL_FIELD_LABEL_ICON_CLASS = 'h-3 w-3 shrink-0';
 export const DETAIL_FIELD_VALUE_CLASS = 'text-[14px] font-medium text-foreground';
 
 export const DETAIL_PROP_ROW_CLASS =
-  'flex items-center justify-between py-3 border-b border-border/50 last:border-0';
+  'flex flex-col gap-2 py-3 border-b border-border/50 last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-0';
 
 export const DETAIL_NOTE_CALLOUT_CLASS =
   'flex items-start gap-3 p-3.5 rounded-md border-l-4 border-amber-400 bg-amber-50/70 mt-4 dark:bg-amber-950/20 dark:border-amber-600';

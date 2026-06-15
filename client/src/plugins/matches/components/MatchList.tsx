@@ -18,12 +18,14 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useMatches } from '../hooks/useMatches';
 import { formatMatchScore, type Match } from '../types/match';
 
 import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
+import { MatchStatusBadges } from './MatchStatusBadges';
 import { MatchTeamBadge } from './MatchTeamBadge';
 
 const MATCHES_SETTINGS_KEY = 'matches';
@@ -104,6 +106,7 @@ export function MatchList() {
   } = useMatches();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const isMobile = useIsMobile();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('start_time');
@@ -399,7 +402,7 @@ export function MatchList() {
         >
           <div
             className={cn(
-              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
+              'flex flex-shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-3',
               viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
             )}
           >
@@ -523,6 +526,80 @@ export function MatchList() {
                 );
               })}
             </div>
+          ) : isMobile ? (
+            <Card className="shadow-none">
+              <div className="space-y-2 p-4">
+                {filteredAndSorted.map((match, index) => {
+                  const selected = isSelected(match.id);
+                  return (
+                    <Card
+                      key={match.id}
+                      className={cn(
+                        'cursor-pointer p-4 transition-colors hover:bg-accent',
+                        selected && 'bg-plugin-subtle',
+                        recentlyDuplicatedMatchId === String(match.id) &&
+                          'bg-green-50 dark:bg-green-950/30',
+                      )}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                          return;
+                        }
+                        handleOpenForView(match);
+                      }}
+                      data-list-item={JSON.stringify(match)}
+                      data-plugin-name="matches"
+                      role="button"
+                      aria-label={`Open ${match.home_team} – ${match.away_team}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-2 flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(match.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-0.5 h-5 w-5 flex-shrink-0 cursor-pointer"
+                              aria-label={selected ? 'Deselect match' : 'Select match'}
+                            />
+                            <h3 className="min-w-0 flex-1 truncate text-base font-semibold">
+                              {formatMatchLabel(match)}
+                            </h3>
+                          </div>
+                          <p className="mb-1 text-sm text-muted-foreground">
+                            {formatMatchWithResult(match)}
+                          </p>
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <MatchStatusBadges match={match} />
+                            {formatMatchScore(match) ? (
+                              <span className="text-xs font-medium tabular-nums">
+                                {formatMatchScore(match)}
+                              </span>
+                            ) : null}
+                          </div>
+                          {match.team_id ? (
+                            <div className="mb-2">
+                              <MatchTeamBadge teamId={match.team_id} />
+                            </div>
+                          ) : null}
+                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                            <span>{formatDateTime(match.start_time)}</span>
+                            {match.location ? (
+                              <span className="truncate">{match.location}</span>
+                            ) : null}
+                            <span>
+                              {match.sport_type}
+                              {match.format ? ` · ${match.format}` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </Card>
           ) : (
             <Card className="shadow-none">
               <Table rowBorders={false}>

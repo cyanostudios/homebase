@@ -634,7 +634,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                 </p>
                 <h2 className="mt-0.5 truncate text-2xl font-bold tracking-tight">{team.name}</h2>
               </div>
-              <div className="flex max-w-[55%] flex-shrink-0 flex-wrap items-center justify-end gap-1.5">
+              <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center justify-end gap-1.5">
                 {headerSeriesTeams.map((seriesTeam, index) => (
                   <SeriesTeamBadge
                     key={`${getSeriesTeamKey(seriesTeam)}-${index}`}
@@ -672,7 +672,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             </div>
             <div
               className={cn(
-                'mt-5 flex items-center divide-x',
+                'mt-5 flex flex-wrap items-center divide-x',
                 isLightTeamColor(team.color) ? 'divide-border/60' : 'divide-white/20',
               )}
             >
@@ -682,7 +682,13 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                 { value: team.training_times.length, label: t('teams.view.statTrainingsPerWeek') },
                 { value: team.responsibles.length, label: t('teams.view.statResponsibles') },
               ].map((stat, index) => (
-                <div key={index} className={cn('flex-1 text-center', index === 0 && 'pl-0')}>
+                <div
+                  key={index}
+                  className={cn(
+                    'min-w-[calc(50%-1px)] flex-1 basis-[calc(50%-1px)] text-center sm:min-w-0 sm:basis-0',
+                    index === 0 && 'pl-0',
+                  )}
+                >
                   <p className="text-xl font-bold leading-none">{stat.value}</p>
                   <p
                     className={cn(

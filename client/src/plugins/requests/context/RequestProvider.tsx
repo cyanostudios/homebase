@@ -78,23 +78,34 @@ export function RequestProvider({
     isSelected,
   } = useBulkSelection();
 
-  const loadRequests = useCallback(async () => {
-    try {
-      setRequests(await requestsApi.getRequests());
-    } catch (error: any) {
-      setValidationErrors([
-        { field: 'general', message: error?.message || 'Failed to load requests' },
-      ]);
-    }
-  }, [setValidationErrors]);
-
   useEffect(() => {
-    if (isAuthenticated) {
-      loadRequests();
-    } else {
+    if (!isAuthenticated) {
       setRequests([]);
+      return;
     }
-  }, [isAuthenticated, loadRequests]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await requestsApi.getRequests();
+        if (!cancelled) {
+          setRequests(data);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setValidationErrors([
+            { field: 'general', message: error?.message || 'Failed to load requests' },
+          ]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, setValidationErrors]);
+
+  const loadRequests = useCallback(async () => {
+    setRequests(await requestsApi.getRequests());
+  }, []);
 
   const closeRequestPanel = useCallback(() => {
     setIsRequestPanelOpen(false);

@@ -40,6 +40,7 @@ import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
@@ -164,6 +165,7 @@ export const ContactList: React.FC = () => {
   const { getSettings, updateSettings, settingsVersion, user } = useApp();
   const activeTimeTrackingContactId = useOptionalActiveTimeTrackingContactId();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const isMobile = useIsMobile();
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const canSendEmail =
@@ -173,7 +175,6 @@ export const ContactList: React.FC = () => {
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -210,13 +211,6 @@ export const ContactList: React.FC = () => {
     },
     [updateSettings],
   );
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -612,7 +606,7 @@ export const ContactList: React.FC = () => {
         >
           <div
             className={cn(
-              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
+              'flex flex-shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-3',
               viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
             )}
           >

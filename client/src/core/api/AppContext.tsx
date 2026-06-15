@@ -15,6 +15,7 @@ import {
 } from 'react';
 
 import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
+import { pomodoroAudio } from '@/core/widgets/pomodoro/pomodoroAudio';
 import i18n from '@/i18n';
 import type { Contact, Estimate, Match, Note, Slot, Task } from '@/types/pluginTypes';
 
@@ -112,6 +113,11 @@ interface AppContextType {
 
   // Data refresh
   refreshData: () => Promise<void>;
+  /** Plugin providers push shared cross-plugin data (single source of truth). */
+  syncSharedContacts: (contacts: Contact[]) => void;
+  syncSharedNotes: (notes: Note[]) => void;
+  syncSharedTasks: (tasks: Task[]) => void;
+  registerSharedDataRefresh: (key: string, fn: () => Promise<void>) => () => void;
 
   // Settings
   getSettings: (category?: string) => Promise<any>;
@@ -223,6 +229,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
 
   const panelCloseFunctionsRef = useRef<Map<string, () => void>>(new Map());
+  const sharedDataRefreshHandlersRef = useRef<Map<string, () => Promise<void>>>(new Map());
 
   const [openNoteForView, setOpenNoteForView] = useState<((note: Note) => void) | undefined>(
     undefined,
@@ -305,63 +312,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadData = useCallback(async () => {
-    const plugins = user?.plugins ?? [];
-    const hasContacts = plugins.includes('contacts');
-    const hasNotes = plugins.includes('notes');
-    const hasTasks = plugins.includes('tasks');
+  const syncSharedContacts = useCallback((data: Contact[]) => {
+    setContacts(data);
+  }, []);
 
-    try {
-      const [contactsData, notesData, tasksData] = await Promise.all([
-        hasContacts ? api.getContacts() : Promise.resolve([]),
-        hasNotes ? api.getNotes() : Promise.resolve([]),
-        hasTasks ? api.getTasks() : Promise.resolve([]),
-      ]);
+  const syncSharedNotes = useCallback((data: Note[]) => {
+    setNotes(data);
+  }, []);
 
-      const transformedContacts = (contactsData || []).map((contact: any) => ({
-        ...contact,
-        createdAt: new Date(contact.createdAt),
-        updatedAt: new Date(contact.updatedAt),
-      }));
+  const syncSharedTasks = useCallback((data: Task[]) => {
+    setTasks(data);
+  }, []);
 
-      const transformedNotes = (notesData || []).map((note: any) => ({
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt),
-      }));
-
-      const transformedTasks = (tasksData || []).map((task: any) => ({
-        ...task,
-        assignedTo: task.assigned_to,
-        createdFromNote: task.created_from_note,
-        dueDate: task.due_date ? new Date(task.due_date) : null,
-        createdAt: new Date(task.created_at),
-        updatedAt: new Date(task.updated_at),
-      }));
-
-      setContacts(transformedContacts);
-      setNotes(transformedNotes);
-      setTasks(transformedTasks);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-    }
-  }, [user?.plugins]);
+  const registerSharedDataRefresh = useCallback((key: string, fn: () => Promise<void>) => {
+    sharedDataRefreshHandlersRef.current.set(key, fn);
+    return () => {
+      sharedDataRefreshHandlersRef.current.delete(key);
+    };
+  }, []);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      loadData();
-    } else {
+    if (!isAuthenticated) {
       setContacts([]);
       setNotes([]);
       setTasks([]);
     }
-  }, [isAuthenticated, user, loadData]);
+  }, [isAuthenticated]);
 
   const refreshData = useCallback(async () => {
-    if (isAuthenticated) {
-      await loadData();
+    if (!isAuthenticated) {
+      return;
     }
-  }, [isAuthenticated, loadData]);
+    const handlers = [...sharedDataRefreshHandlersRef.current.values()];
+    await Promise.all(handlers.map((handler) => handler()));
+  }, [isAuthenticated]);
 
   const login = useCallback(
     async (
@@ -416,6 +400,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      pomodoroAudio.close();
       setUser(null);
       setIsAuthenticated(false);
       setContacts([]);
@@ -656,6 +641,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unregisterPanelCloseFunction,
 
       refreshData,
+      syncSharedContacts,
+      syncSharedNotes,
+      syncSharedTasks,
+      registerSharedDataRefresh,
 
       getSettings,
       updateSettings,
@@ -695,6 +684,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       registerPanelCloseFunction,
       unregisterPanelCloseFunction,
       refreshData,
+      syncSharedContacts,
+      syncSharedNotes,
+      syncSharedTasks,
+      registerSharedDataRefresh,
       getSettings,
       updateSettings,
       settingsVersion,

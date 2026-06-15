@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import type { TrainingTime } from '@/plugins/teams/types/teams';
@@ -45,10 +46,12 @@ import {
 import { PlanView } from './PlanView';
 import { ScheduleSettingsView } from './ScheduleSettingsView';
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
+import { ScheduleWeekView } from './ScheduleWeekView';
 import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
 
 export function ScheduleList() {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { teams } = useTeams();
   const {
@@ -441,6 +444,8 @@ export function ScheduleList() {
             {saveError ? <p className="mb-2 text-xs text-destructive">{saveError}</p> : null}
             {isGridSettingsLoading ? (
               <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+            ) : isMobile ? (
+              <ScheduleWeekView slots={weekSlots} onSlotClick={handleSlotClick} />
             ) : (
               <ScheduleTimeGrid
                 slots={weekSlots}

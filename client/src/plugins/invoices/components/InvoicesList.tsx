@@ -13,6 +13,7 @@ import { GroupedList } from '@/core/ui/GroupedList';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
@@ -80,21 +81,13 @@ export function InvoicesList() {
     isSelected,
   } = useInvoices();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const isMobile = useIsMobile();
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [activeFilter, setActiveFilter] = useState<InvoiceFilter>('all');
-
-  // Detect mobile screen size
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Read currentPage from localStorage (same as App.tsx does)
   useEffect(() => {

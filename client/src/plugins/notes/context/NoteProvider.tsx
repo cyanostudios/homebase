@@ -37,6 +37,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     registerNotesNavigation,
     openToTaskDialog,
     user,
+    syncSharedNotes,
+    registerSharedDataRefresh,
   } = useApp();
   const pluginActions = usePluginActions('note');
   const hasTasksPlugin = Boolean(user?.plugins?.includes('tasks'));
@@ -77,29 +79,52 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     };
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeNotePanel]);
 
-  const loadNotes = useCallback(async () => {
-    try {
-      const notesData = await notesApi.getNotes();
-      const transformedNotes = notesData.map((note: any) => ({
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt),
-      }));
-      setNotes(transformedNotes);
-    } catch (error: any) {
-      console.error('Failed to load notes:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to load notes';
-      setValidationErrors([{ field: 'general', message: errorMessage }]);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setNotes([]);
+      return;
     }
-  }, [setValidationErrors]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const notesData = await notesApi.getNotes();
+        if (cancelled) {
+          return;
+        }
+        const transformedNotes = notesData.map((note: any) => ({
+          ...note,
+          createdAt: new Date(note.createdAt),
+          updatedAt: new Date(note.updatedAt),
+        }));
+        setNotes(transformedNotes);
+        syncSharedNotes(transformedNotes);
+      } catch (error: any) {
+        if (!cancelled) {
+          console.error('Failed to load notes:', error);
+          const errorMessage = error?.message || error?.error || 'Failed to load notes';
+          setValidationErrors([{ field: 'general', message: errorMessage }]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, setValidationErrors, syncSharedNotes]);
+
+  const loadNotes = useCallback(async () => {
+    const notesData = await notesApi.getNotes();
+    const transformedNotes = notesData.map((note: any) => ({
+      ...note,
+      createdAt: new Date(note.createdAt),
+      updatedAt: new Date(note.updatedAt),
+    }));
+    setNotes(transformedNotes);
+    syncSharedNotes(transformedNotes);
+  }, [syncSharedNotes]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadNotes();
-    } else {
-      setNotes([]);
-    }
-  }, [isAuthenticated, loadNotes]);
+    return registerSharedDataRefresh('notes', loadNotes);
+  }, [registerSharedDataRefresh, loadNotes]);
 
   const validateNote = useCallback((noteData: any): ValidationError[] => {
     const errors: ValidationError[] = [];

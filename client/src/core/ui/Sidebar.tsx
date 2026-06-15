@@ -11,7 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 export type NavPage =
@@ -262,7 +262,7 @@ export function Sidebar({
 }: SidebarProps) {
   const enabledPlugins = useEnabledPlugins();
   const { t, i18n } = useTranslation();
-  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isMobile = useIsMobile();
   const [userOpenSubmenus, setUserOpenSubmenus] = useState<Set<string>>(() => new Set());
 
   const navCategories = useMemo(() => {

@@ -1,5 +1,5 @@
 import { Play, Pause, RotateCcw, SkipForward, X, Settings } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -32,6 +32,12 @@ export function PomodoroTimer({
   const expanded = onToggle ? isExpanded : internalExpanded;
   const handleToggle = onToggle || (() => setInternalExpanded((v) => !v));
   const handleClose = onClose || (() => setInternalExpanded(false));
+
+  useEffect(() => {
+    return () => {
+      pomodoroAudio.close();
+    };
+  }, []);
 
   const {
     timeDisplay,

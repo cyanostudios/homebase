@@ -73,6 +73,13 @@ class PomodoroAudio {
       new Notification(title, { body, icon: '/favicon.ico', silent: false });
     }
   }
+
+  close() {
+    if (this.audioContext) {
+      void this.audioContext.close();
+      this.audioContext = null;
+    }
+  }
 }
 
 export const pomodoroAudio = new PomodoroAudio();
