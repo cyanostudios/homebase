@@ -1,4 +1,4 @@
-import { ArrowUpToLine, Clock, Download, Eraser, Lock, Trash2, Unlock } from 'lucide-react';
+import { ArrowUpToLine, Clock, Copy, Download, Eraser, Lock, Trash2, Unlock } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 
@@ -171,6 +172,8 @@ export function ScheduleSettingsView({
     plans,
     renamePlan,
     deletePlan,
+    duplicatePlan,
+    createPlan,
     addPlanEventCount,
     setPlanEventCount,
     bumpPlanEventsRevision,
@@ -189,9 +192,12 @@ export function ScheduleSettingsView({
   const [planToDelete, setPlanToDelete] = useState<{ id: string; name: string } | null>(null);
   const [planToClear, setPlanToClear] = useState<{ id: string; name: string } | null>(null);
   const [planToTransfer, setPlanToTransfer] = useState<{ id: string; name: string } | null>(null);
+  const [planToDuplicate, setPlanToDuplicate] = useState<{ id: string; name: string } | null>(null);
+  const [defaultToDuplicate, setDefaultToDuplicate] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const [clearingPlanId, setClearingPlanId] = useState<string | null>(null);
   const [transferringPlanId, setTransferringPlanId] = useState<string | null>(null);
   const [importingPlanId, setImportingPlanId] = useState<string | null>(null);
@@ -316,24 +322,29 @@ export function ScheduleSettingsView({
     }
   }, [isLockedForSchedule, onDiscardDefaultChanges, planToTransfer, saveTeamTrainingTimes, t]);
 
+  const importTeamsToPlan = useCallback(
+    async (planId: string) => {
+      let importedCount = 0;
+      for (const team of teams) {
+        const teamId = String(team.id);
+        const trainingTimes = team.training_times ?? [];
+        for (const training of trainingTimes) {
+          await scheduleApi.createEvent(planId, buildScheduleEventPayload(teamId, training, teams));
+          importedCount += 1;
+        }
+      }
+      addPlanEventCount(planId, importedCount);
+      return importedCount;
+    },
+    [addPlanEventCount, teams],
+  );
+
   const handleImportFromTeams = useCallback(
     async (planId: string) => {
       setImportingPlanId(planId);
       setImportMessage(null);
       try {
-        let importedCount = 0;
-        for (const team of teams) {
-          const teamId = String(team.id);
-          const trainingTimes = team.training_times ?? [];
-          for (const training of trainingTimes) {
-            await scheduleApi.createEvent(
-              planId,
-              buildScheduleEventPayload(teamId, training, teams),
-            );
-            importedCount += 1;
-          }
-        }
-        addPlanEventCount(planId, importedCount);
+        const importedCount = await importTeamsToPlan(planId);
         setImportMessage({
           planId,
           type: 'success',
@@ -349,7 +360,76 @@ export function ScheduleSettingsView({
         setImportingPlanId(null);
       }
     },
-    [addPlanEventCount, t, teams],
+    [importTeamsToPlan, t],
+  );
+
+  const copyGridSettingsToPlan = useCallback(
+    async (sourceId: string, targetId: string) => {
+      const sourceGrid = getGridSettingsForSchedule(sourceId);
+      await setGridSettingsForSchedule(targetId, sourceGrid);
+    },
+    [getGridSettingsForSchedule, setGridSettingsForSchedule],
+  );
+
+  const handleDuplicatePlan = useCallback(
+    async (newName: string) => {
+      if (!planToDuplicate) {
+        return;
+      }
+      setIsDuplicating(true);
+      setImportMessage(null);
+      try {
+        const plan = await duplicatePlan(planToDuplicate.id, newName);
+        await copyGridSettingsToPlan(planToDuplicate.id, plan.id);
+        setActiveScheduleId(plan.id);
+        setImportMessage({
+          planId: plan.id,
+          type: 'success',
+          text: t('schedule.duplicateScheduleDone', { name: plan.name }),
+        });
+        setPlanToDuplicate(null);
+      } catch {
+        setImportMessage({
+          planId: planToDuplicate.id,
+          type: 'error',
+          text: t('schedule.duplicateScheduleError'),
+        });
+      } finally {
+        setIsDuplicating(false);
+      }
+    },
+    [copyGridSettingsToPlan, duplicatePlan, planToDuplicate, setActiveScheduleId, t],
+  );
+
+  const handleDuplicateDefaultSchedule = useCallback(
+    async (newName: string) => {
+      setIsDuplicating(true);
+      setImportMessage(null);
+      try {
+        const plan = await createPlan(newName);
+        await copyGridSettingsToPlan(DEFAULT_SCHEDULE_ID, plan.id);
+        const importedCount = await importTeamsToPlan(plan.id);
+        setActiveScheduleId(plan.id);
+        setImportMessage({
+          planId: plan.id,
+          type: 'success',
+          text: t('schedule.duplicateDefaultScheduleDone', {
+            name: plan.name,
+            count: importedCount,
+          }),
+        });
+        setDefaultToDuplicate(false);
+      } catch {
+        setImportMessage({
+          planId: DEFAULT_SCHEDULE_ID,
+          type: 'error',
+          text: t('schedule.duplicateScheduleError'),
+        });
+      } finally {
+        setIsDuplicating(false);
+      }
+    },
+    [copyGridSettingsToPlan, createPlan, importTeamsToPlan, setActiveScheduleId, t],
   );
 
   if (isLoading) {
@@ -403,6 +483,26 @@ export function ScheduleSettingsView({
               <div className="flex flex-wrap items-center gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      icon={Copy}
+                      className="h-9 px-3 text-xs"
+                      disabled={isDuplicating}
+                      onClick={() => setDefaultToDuplicate(true)}
+                    >
+                      {isDuplicating && defaultToDuplicate
+                        ? t('common.loading')
+                        : t('schedule.duplicateSchedule')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    {t('schedule.duplicateDefaultScheduleHint')}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     {defaultLocked ? (
                       <Button
                         type="button"
@@ -436,6 +536,17 @@ export function ScheduleSettingsView({
                   </TooltipContent>
                 </Tooltip>
               </div>
+              {importMessage?.planId === DEFAULT_SCHEDULE_ID ? (
+                <p
+                  className={
+                    importMessage.type === 'error'
+                      ? 'text-xs text-destructive'
+                      : 'text-xs text-muted-foreground'
+                  }
+                >
+                  {importMessage.text}
+                </p>
+              ) : null}
             </div>
           </DetailSection>
         </Card>
@@ -539,6 +650,26 @@ export function ScheduleSettingsView({
                           type="button"
                           variant="secondary"
                           size="sm"
+                          icon={Copy}
+                          className="h-9 px-3 text-xs"
+                          disabled={isDuplicating}
+                          onClick={() => setPlanToDuplicate({ id: plan.id, name: plan.name })}
+                        >
+                          {isDuplicating && planToDuplicate?.id === plan.id
+                            ? t('common.loading')
+                            : t('schedule.duplicateSchedule')}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        {t('schedule.duplicateScheduleHint')}
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
                           icon={ArrowUpToLine}
                           className="h-9 px-3 text-xs"
                           disabled={transferringPlanId === plan.id}
@@ -627,6 +758,26 @@ export function ScheduleSettingsView({
             </Card>
           );
         })}
+
+        <DuplicateDialog
+          isOpen={Boolean(planToDuplicate)}
+          title={t('schedule.duplicateSchedule')}
+          nameLabel={t('schedule.scheduleName')}
+          defaultName={planToDuplicate ? `${t('common.copyOf')} ${planToDuplicate.name}` : ''}
+          confirmText={t('schedule.duplicateSchedule')}
+          onConfirm={(newName) => void handleDuplicatePlan(newName)}
+          onCancel={() => setPlanToDuplicate(null)}
+        />
+
+        <DuplicateDialog
+          isOpen={defaultToDuplicate}
+          title={t('schedule.duplicateSchedule')}
+          nameLabel={t('schedule.scheduleName')}
+          defaultName={`${t('common.copyOf')} ${t('schedule.defaultScheduleName')}`}
+          confirmText={t('schedule.duplicateSchedule')}
+          onConfirm={(newName) => void handleDuplicateDefaultSchedule(newName)}
+          onCancel={() => setDefaultToDuplicate(false)}
+        />
 
         <ConfirmDialog
           isOpen={Boolean(planToTransfer)}

@@ -43,6 +43,12 @@ export function useSchedulePlans() {
     setPlans((prev) => prev.filter((plan) => plan.id !== id));
   }, []);
 
+  const duplicatePlan = useCallback(async (id: string, name: string) => {
+    const plan = await scheduleApi.duplicateSchedule(id, name.trim());
+    setPlans((prev) => [plan, ...prev]);
+    return plan;
+  }, []);
+
   const addPlanEventCount = useCallback((id: string, count: number) => {
     setPlans((prev) =>
       prev.map((plan) =>
@@ -79,6 +85,7 @@ export function useSchedulePlans() {
     createPlan,
     renamePlan,
     deletePlan,
+    duplicatePlan,
     addPlanEventCount,
     adjustPlanEventCount,
     setPlanEventCount,

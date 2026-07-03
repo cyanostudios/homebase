@@ -39,6 +39,15 @@ class ScheduleController {
     }
   }
 
+  async duplicate(req, res, next) {
+    try {
+      const schedule = await this.model.duplicate(req, req.params.id, req.body);
+      res.json(schedule);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async delete(req, res, next) {
     try {
       await this.model.delete(req, req.params.id);

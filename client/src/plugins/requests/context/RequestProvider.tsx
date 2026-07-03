@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
@@ -7,7 +7,7 @@ import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { requestsApi } from '../api/requestsApi';
 import type { RequestPayload } from '../api/requestsApi';
@@ -29,6 +29,7 @@ export function RequestProvider({
   onCloseOtherPanels: () => void;
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, getSettings, updateSettings } =
     useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/requests');
@@ -150,6 +151,10 @@ export function RequestProvider({
   const openRequestForViewRef = useRef<(request: Request) => void>(() => {});
   const openRequestForView = useCallback(
     (request: Request) => {
+      if (!window.location.pathname.startsWith('/requests')) {
+        navigate(`/requests/${buildSlug(request, requests, 'title')}`);
+        return;
+      }
       setCurrentRequest(request);
       setPanelMode('view');
       setIsRequestPanelOpen(true);
@@ -157,12 +162,13 @@ export function RequestProvider({
       onCloseOtherPanels();
       navigateToItem(request, requests, 'title');
     },
-    [navigateToItem, requests, onCloseOtherPanels, setValidationErrors],
+    [navigate, navigateToItem, requests, onCloseOtherPanels, setValidationErrors],
   );
   useEffect(() => {
     openRequestForViewRef.current = openRequestForView;
   }, [openRequestForView]);
 
+  const requestsDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!requests.length) {
       return;
@@ -173,9 +179,15 @@ export function RequestProvider({
     }
     const slug = segments[1] ?? '';
     if (!slug) {
+      requestsDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (requestsDeepLinkPathSyncedRef.current === pathKey) {
       return;
     }
     const item = resolveSlug(slug, requests, 'title');
+    requestsDeepLinkPathSyncedRef.current = pathKey;
     if (item) {
       openRequestForViewRef.current(item as Request);
     }

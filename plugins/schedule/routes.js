@@ -56,6 +56,20 @@ function createScheduleRoutes(controller, context) {
   );
 
   router.post(
+    '/:id/duplicate',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.plainString('name', 1, 255),
+    body('color')
+      .optional({ values: 'falsy' })
+      .isIn(SCHEDULE_COLORS)
+      .withMessage(`color must be one of: ${SCHEDULE_COLORS.join(', ')}`),
+    validateRequest,
+    (req, res, next) => controller.duplicate(req, res, next),
+  );
+
+  router.post(
     '/:scheduleId/events',
     gate,
     csrfProtection,
