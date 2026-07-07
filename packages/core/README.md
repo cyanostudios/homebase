@@ -15,19 +15,14 @@ npm install @homebase/core
 ## Usage
 
 ```javascript
-const { Logger, Database, Router } = require('@homebase/core');
+const { Logger, Database } = require('@homebase/core');
 
-// In your plugin
-class MyPlugin {
-  constructor() {
-    this.logger = Logger.get();
-    this.db = Database.get();
-  }
-
-  async getData(userId) {
-    this.logger.info('Fetching data', { userId });
-    return await this.db.query('SELECT * FROM my_table WHERE user_id = $1', [userId]);
-  }
+// In your plugin model/routes — always pass req for tenant context
+async function listItems(req) {
+  const logger = Logger.get();
+  const db = Database.get(req);
+  logger.info('Fetching items');
+  return await db.query('SELECT * FROM my_table WHERE category = $1', ['electronics']);
 }
 ```
 

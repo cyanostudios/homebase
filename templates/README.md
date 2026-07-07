@@ -7,13 +7,15 @@ Start here when adding a new Homebase plugin (local dev only until you merge/dep
 | `plugin-backend-template/`  | `plugins/<name>/`            |
 | `plugin-frontend-template/` | `client/src/plugins/<name>/` |
 
-## Current conventions (2026)
+## Current conventions (2026-07)
 
-- **Backend:** `function initializeX(context)` only — gate routes with `context.middleware.requirePlugin`, tenant DB via `Database.get(req)`, CSRF on mutating routes.
-- **Frontend forms:** `React.forwardRef<PanelFormHandle>` + `useImperativeHandle` (panel header Save/Cancel). **No** `window.submit*Form` globals.
-- **Deep links:** `useLocation` + `resolveSlug` + pathname ref in Provider (see `TemplateContext.tsx`).
-- **Lists:** `<Table rowBorders={false}>`, `ContentToolbar` in `setHeaderTrailing`.
-- **Detail:** `DetailLayout`, `DetailActivityLog` in view/edit sidebar when activity logging is wired.
+- **Backend:** `function initializeX(context)` — gate routes with `context.middleware.requirePlugin`, tenant DB via `Database.get(req)`, CSRF on mutating routes.
+- **Frontend context:** split `*Context.tsx` (types + hook) and `*Provider.tsx` (implementation), like `contacts` / `notes` / `requests`.
+- **URL navigation:** `useItemUrl('/<plugin>')` + `navigateToBase()` on panel close; deep-link via `resolveSlug` + pathname ref in Provider.
+- **Forms:** `React.forwardRef<PanelFormHandle>` + **inline Save/Cancel** in the form body (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12). No `window.submit*Form` globals.
+- **List shell v3.6:** in-card toolbar (search, grid/list toggle) — see `UI_AND_UX_STANDARDS_V3.md` §0.1 and `YourItemList.tsx`. Do **not** use `ContentToolbar` in `setHeaderTrailing` for list views.
+- **Settings:** full-page `*SettingsView` opened from the list (not panel-settings). See `YourItemsSettingsView.tsx`.
+- **Dates:** `formatDate` / `formatDateTime` from `@/core/utils/dateFormat` (sv-SE).
 - **API:** `createApiClient('/your-items')` — path must match `routeBase` in `plugin.config.js`.
 
 ## Checklist
@@ -24,3 +26,10 @@ Start here when adding a new Homebase plugin (local dev only until you merge/dep
 4. Register in `client/src/core/pluginRegistry.ts` + `routeMap.ts`
 5. Add migration under `server/migrations/` (see `000-your-items.example.sql`)
 6. Enable for your user: `npm run set:tenant-plugins -- --email=... --enable=<name>`
+
+## Reference plugins
+
+| Pattern                     | Reference                                                   |
+| --------------------------- | ----------------------------------------------------------- |
+| CRUD + list shell           | `client/src/plugins/contacts/`                              |
+| Richer provider (URL, bulk) | `client/src/plugins/notes/`, `client/src/plugins/requests/` |

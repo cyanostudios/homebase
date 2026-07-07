@@ -1,6 +1,6 @@
 # Tenant Users and RBAC
 
-**Last updated:** February 2026
+**Last updated:** July 2026
 
 This document describes the multi-user-per-tenant architecture: several users (User, Editor, Admin) per tenant with shared plugin access and tenant-scoped roles. It also covers **legacy compatibility**: login and plugin access work even if the new migration has not been run.
 

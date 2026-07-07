@@ -4,6 +4,46 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Plugin golden templates (etapp 1–3)
+
+**Sammanfattning:** Frontend-mallen uppdaterad till v3.6-konventioner (contacts/notes som referens). Backend-mallen oförändrad; valfri kommentar om `/batch`.
+
+### Mallar
+
+- **`templates/plugin-frontend-template/`:** Context/Provider uppdelat (`YourItemsContext` + `YourItemsProvider`); v3.6 list shell med in-card toolbar; `useItemUrl` + deep-link; full-page `YourItemsSettingsView`; inline Save/Cancel i formulär; `formatDate` i vy/lista; borttagen `TemplateContext` och panel-settings (`YourItemSettingsForm`).
+- **`templates/README.md`:** dokumenterar nya konventioner; avråder från `ContentToolbar` i listvyer.
+- **`templates/plugin-backend-template/routes.js`:** kommentar om valfritt `DELETE /batch`.
+
+---
+
+## 2026-07 – Dokumentationsstädning (inaktuellt borttaget)
+
+**Sammanfattning:** Root README och `DEVELOPMENT_GUIDE_V2` förenklade; föråldrad plugin-/migrations-/testinformation borttagen; metadata uppdaterad.
+
+### Dokumentation
+
+- **`README.md` (root):** borttagen marknadsföring (overifierade metrics), föråldrad roadmap (multi-tenant som "Future", "Complete API testing suite"), duplicerad snabbstart. Ersatt med kort ingång som pekar till `docs/README.md`.
+- **`docs/DEVELOPMENT_GUIDE_V2.md`:** borttagen ~550 rader föråldrat innehåll (trasig markdown, `npm run migrate`/`test:integration`, `ServiceManager.get('cache')`, duplicerad plugin-workflow). Ersatt med canonical pekare till checklistor, `server/migrations/`, troubleshooting-tabell.
+- **`packages/core/README.md`:** SDK-exempel korrigerat (`Database.get(req)`).
+- **`docs/TENANT_USERS_AND_RBAC.md`**, **`docs/PLUGIN_ARCHITECTURE_V3.md`:** uppdaterat "Last updated".
+- **`docs/README.md`:** borttagna referenser till äldre branches `homebase-v3.6` / `homebase-V3.5`.
+
+**Oförändrat medvetet:** `CHANGELOG.md` (historik), `LESSONS_LEARNED.md` (anti-patterns), `REFACTORING_EXISTING_PLUGINS.md` (kort referens), `CLEANUP_DEFERRED_RISKS.md` (backlog).
+
+---
+
+## 2026-07 – Dokumentationsindex (etapp 1)
+
+**Sammanfattning:** `docs/README.md` utökad med AI-team, local/prod parity och tydligare status för `REFACTORING_EXISTING_PLUGINS.md`. Metadata-datum synkade.
+
+### Dokumentation
+
+- **`docs/README.md`:** ny sektion `docs/ai/` (engineering principles, team workflow, cursor-implementation, roller, AI-changelog); `LOCAL_PROD_PARITY.md` i snabbstart och canonical-lista; `REFACTORING_EXISTING_PLUGINS.md` förtydligad som kort referens (inte borttagen fil).
+- **`docs/REFACTORING_EXISTING_PLUGINS.md`:** index-pekare till canonical docs.
+- **`docs/LESSONS_LEARNED.md`:** footer `Senast uppdaterad` → 2026-06 (stämmer med CSRF/rate-limit-innehåll).
+
+---
+
 ## 2026-06 – Teams, Requests, Schedule + Matches FOGIS
 
 **Sammanfattning:** Tre nya plugins (Teams, Requests, Schedule), utökad Matches-integration med SvFF FOGIS-import, cross-plugin URL-navigation, UI-polish och plugin-cleanup. Utvecklingsbranch: `homebase-v3.7` → merge till `main` för Railway.
@@ -896,4 +936,4 @@ _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slo
 
 ---
 
-**Senast uppdaterad:** 2026-04-21
+**Senast uppdaterad:** 2026-07-07

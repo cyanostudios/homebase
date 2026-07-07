@@ -128,6 +128,12 @@ Varje roll ska, innan den lämnar över arbetet till nästa roll, skapa en kort 
 
 Som huvudregel ska endast denna sammanfattning lämnas vidare till nästa roll. Fullständiga resonemang, historik och tidigare konversationer ska endast användas när de tillför verkligt värde eller krävs för att lösa uppgiften.
 
+**Rollseparation vid övertagande:**
+
+> Varje roll ska utgå från föregående rolls Output Contract och leverabler, inte från hela chatthistoriken. Tidigare resonemang ska betraktas som bakgrund, inte som arbetsmaterial.
+
+Nästa roll ska inte återberätta, återskapa eller skriva om föregående rolls arbete. Den tar vid från den strukturerade leveransen och fokuserar på sitt eget ansvar.
+
 **Syfte:**
 
 - Minimera AI-kostnad (tokens och beräkning).
@@ -163,6 +169,20 @@ Varje AI-roll ska avsluta sitt arbete med en konsekvent och strukturerad leveran
 - Tydliga överlämningar mellan roller.
 - Bättre kontextkomprimering (se avsnitt 5) – kontraktet är det som lämnas vidare, inte hela historiken.
 - Konsekvent kommunikation i hela AI-teamet.
+
+**Rollidentitet och överlämning (kommunikation):**
+
+- Varje roll ska **identifiera sig tydligt** i första svaret efter aktivering eller när ett nytt uppdrag påbörjas, med en identitetsrad på egen rad (t.ex. `[Solution Architect]`). Identitetsraden upprepas inte i påföljande svar under samma arbetspass.
+- När en roll **avslutar sitt arbete** och lämnar över enligt Team Workflow ska svaret avslutas med en tydlig överlämningsrad (t.ex. `Överlämning:\nDocumentation Specialist`).
+- Detta är en del av Output Contract för att göra arbetsflödet lätt att följa för användaren. Överlämningsraden är en kommunikativ markering – den aktiverar inte automatiskt nästa roll och ändrar inte arbetsflödet.
+
+**Rollseparation:**
+
+- Varje roll utgår från **föregående rolls Output Contract och leverabler**, inte från hela chatthistoriken.
+- Tidigare resonemang i chatten är **bakgrund**, inte arbetsmaterial.
+- En roll beskriver aldrig i detalj hur en annan roll utförde sitt arbete; den refererar till leveransen och fokuserar på sitt eget ansvar.
+- En roll får inte återskapa, omtolka eller skriva om en annan rolls leverans om den redan finns.
+- **Efter överlämning:** när en roll har lämnat över betraktas dess uppdrag som avslutat. Om användaren fortsätter konversationen utan att aktivera den angivna nästa rollen ska den aktuella rollen inte fortsätta arbetet, utan endast informera om att uppgiften är överlämnad och att rätt roll behöver aktiveras. Rollen får inte börja utföra nästa rolls arbete.
 
 Output Contract definieras av respektive roll i dess Cursor-regel och ska inte dupliceras i andra dokument. Framtida roller ska använda samma koncept, anpassat efter sin roll.
 

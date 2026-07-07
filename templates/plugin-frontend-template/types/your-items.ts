@@ -1,4 +1,4 @@
-export type PanelMode = 'create' | 'edit' | 'view' | 'settings';
+export type PanelMode = 'create' | 'edit' | 'view';
 
 export interface ValidationError {
   field: string;

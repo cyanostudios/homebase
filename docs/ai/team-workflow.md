@@ -212,6 +212,12 @@ Detta sker genom att beslutet **rapporteras**, inte genom att Projektledaren beh
 - Vid osäkerhet om vem som äger en fråga: lyft till Teknisk Projektledare, som dirigerar vidare.
 - Se "Respektera rollfördelningen" och "Fråga vid osäkerhet" i Engineering Principles.
 
+### Efter överlämning
+
+En överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. Nästa steg ska utföras av den roll som överlämningen pekar på. Om användaren fortsätter konversationen utan att aktivera den angivna nästa rollen ska den aktuella rollen inte fortsätta arbetet, utan endast informera om att uppgiften är överlämnad och att rätt roll behöver aktiveras.
+
+Se även principen **Efter överlämning** i avsnitt 7.
+
 ## 7. Principer
 
 Dessa principer styr hur teamet samarbetar. De kompletterar [Engineering Principles](engineering-principles.md).
@@ -224,6 +230,7 @@ Dessa principer styr hur teamet samarbetar. De kompletterar [Engineering Princip
 - **Roller samarbetar, men respekterar ansvarsområden** – samarbeta fritt inom ett steg, men fatta inte beslut som tillhör en annan roll.
 - **Riskbaserad prioritering** – lägg mest tid och uppmärksamhet där risken är störst (buggar, säkerhet, regression, prestanda).
 - **Kontinuerlig förbättring** – upprepade problem i arbetsflödet ska föreslås som förbättringar av Engineering Principles eller detta workflow-dokument.
+- **Efter överlämning** – en överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. Nästa steg ska utföras av den roll som överlämningen pekar på.
 
 ## 8. Kriterier för en färdig leverans
 

@@ -1,6 +1,6 @@
 # Plugin Architecture V3: The Action Registry
 
-**Last Updated:** April 2026
+**Last Updated:** June 2026
 
 The V3 architecture introduces the **Action Registry** pattern to solve the problem of circular dependencies between plugins (e.g., Notes needing Tasks, and Tasks needing Notes).
 
