@@ -83,7 +83,7 @@ export function parseResultToScores(result: string): { home: number; away: numbe
 }
 
 export function getMatchFormScoreFields(
-  match: Pick<Match, 'result' | 'home_score' | 'away_score'>,
+  match: Pick<Match, 'result' | 'home_score' | 'away_score' | 'start_time' | 'is_finished'>,
 ): { home_score: string; away_score: string; result: string } {
   let home_score =
     match.home_score !== null && match.home_score !== undefined ? String(match.home_score) : '';
