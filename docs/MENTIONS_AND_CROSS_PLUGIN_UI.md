@@ -1,6 +1,6 @@
 # Mentions and Cross-Plugin UI
 
-**Last Updated:** June 2026
+**Last Updated:** July 2026
 
 This document describes the core @-mention system, cross-plugin navigation patterns, and how plugins link to each other without tight coupling.
 
@@ -76,7 +76,18 @@ No plugin should implement its own mention input or rendering logic; use these c
 
 ## Cross-plugin matching (AppContext)
 
-AppContext provides `getNotesForContact(contactId)` and `getTasksWithMentionsForContact(contactId)` so that ContactView can show “Note mentions” and “Task mentions” for a contact. To avoid type mismatches (e.g. numeric vs string IDs from the API), comparisons use string normalization:
+AppContext provides getters so **ContactView** can show related entities without each view calling plugin APIs directly:
+
+| Getter                           | Data source                                 | Notes                                                      |
+| -------------------------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| `getNotesForContact`             | API fetch                                   | —                                                          |
+| `getTasksForContact`             | `AppContext` tasks (from `syncSharedTasks`) | Assigned tasks                                             |
+| `getTasksWithMentionsForContact` | `AppContext` tasks                          | Mention-based                                              |
+| `getSlotsForContact`             | `AppContext` slots (from `syncSharedSlots`) | `filterSlotsForContact` — primary `contact_id` or mentions |
+
+`SlotsProvider` syncs its list via `syncSharedSlots` whenever `slots` changes. **MatchView** reads related slots from `useSlotsContext().slots` filtered by `match_id` (no separate `GET /api/slots`).
+
+To avoid type mismatches (e.g. numeric vs string IDs from the API), comparisons use string normalization:
 
 - `String(mention.contactId) === String(contactId)`
 

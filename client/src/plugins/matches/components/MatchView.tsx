@@ -1,5 +1,5 @@
 import { Copy, ExternalLink, Info, Search, Trash2, Users, Zap } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -24,8 +24,7 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import type { AppIcon } from '@/types/icons';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
-import { slotsApi } from '@/plugins/slots/api/slotsApi';
-import type { Slot } from '@/plugins/slots/types/slots';
+import { useSlotsContext } from '@/plugins/slots/context/SlotsContext';
 
 import { useMatchContext } from '../context/MatchContext';
 import { MatchTeamBadge } from './MatchTeamBadge';
@@ -451,8 +450,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [pendingRemoveContactId, setPendingRemoveContactId] = useState<string | null>(null);
   const [pendingRemoveContactName, setPendingRemoveContactName] = useState<string>('');
-  const [relatedSlots, setRelatedSlots] = useState<Slot[]>([]);
-  const [relatedSlotsLoading, setRelatedSlotsLoading] = useState(false);
+  const { slots: allSlots } = useSlotsContext();
 
   const addableContacts = useMemo(
     () =>
@@ -487,36 +485,12 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   const matchId = match?.id;
   const hasSlotsPlugin = Boolean(user?.plugins?.includes('slots'));
 
-  useEffect(() => {
-    let cancelled = false;
+  const relatedSlots = useMemo(() => {
     if (!hasSlotsPlugin || !matchId) {
-      setRelatedSlots([]);
-      return;
+      return [];
     }
-    setRelatedSlotsLoading(true);
-    slotsApi
-      .getSlots()
-      .then((slots) => {
-        if (cancelled) {
-          return;
-        }
-        const filtered = (slots ?? []).filter((s) => String(s.match_id ?? '') === String(matchId));
-        setRelatedSlots(filtered);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setRelatedSlots([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setRelatedSlotsLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [hasSlotsPlugin, matchId]);
+    return allSlots.filter((slot) => String(slot.match_id ?? '') === String(matchId));
+  }, [hasSlotsPlugin, matchId, allSlots]);
 
   if (!match) {
     return null;
@@ -537,18 +511,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
             <MatchMetadataCard match={match} />
             {hasSlotsPlugin && (
               <>
-                {relatedSlotsLoading ? (
-                  <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                    <DetailSection
-                      title={t('matches.relatedSlots')}
-                      icon={Info}
-                      iconPlugin="slots"
-                      className="p-4"
-                    >
-                      <p className="text-sm text-muted-foreground">{t('matches.loading')}</p>
-                    </DetailSection>
-                  </Card>
-                ) : relatedSlots.length === 0 ? (
+                {relatedSlots.length === 0 ? (
                   <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                     <DetailSection
                       title={t('matches.relatedSlots')}

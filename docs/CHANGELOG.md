@@ -4,6 +4,21 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Slots: minskade API-anrop och delad cache
+
+**Sammanfattning:** Slots-pluginet hämtar inte längre hela listan globalt var 30:e sekund; cross-plugin-vyer återanvänder provider-cache istället för egna `GET /api/slots`.
+
+### Frontend
+
+- **`SlotsProvider`:** Polling begränsad till `/slots`-routen när fliken är synlig (30s) + refetch vid `focus`/`visibilitychange`. Registrerad i `registerSharedDataRefresh('slots')`. Synkar till AppContext via `syncSharedSlots`.
+- **`AppContext`:** Ny delad `slots[]` och `syncSharedSlots`; `getSlotsForContact` filtrerar client-side (`filterSlotsForContact`) utan extra API-anrop.
+- **`MatchView`:** Relaterade slots hämtas från `useSlotsContext().slots` (filter på `match_id`), inte egen `slotsApi.getSlots()`.
+- **`slotContactUtils.ts`:** Ny `filterSlotsForContact()` för kontakt–slot-kopplingar.
+
+**Oförändrat:** Backend routes och auktorisering; initial load vid inloggning kvar.
+
+---
+
 ## 2026-07 – Plugin golden templates (etapp 1–3)
 
 **Sammanfattning:** Frontend-mallen uppdaterad till v3.6-konventioner (contacts/notes som referens). Backend-mallen oförändrad; valfri kommentar om `/batch`.

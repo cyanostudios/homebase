@@ -49,6 +49,8 @@ export function SlotsProvider({
     registerSlotsNavigation,
     contacts: appContacts = [],
     user,
+    syncSharedSlots,
+    registerSharedDataRefresh,
   } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/slots');
   const { registerAction } = useActionRegistry();
@@ -199,32 +201,64 @@ export function SlotsProvider({
       setSlots(data);
     } catch (error: unknown) {
       setValidationErrors([
-        { field: 'general', message: extractErrorMsg(error, t('slots.loadFailed')) },
+        { field: 'general', message: extractErrorMsg(error, 'Failed to load slots') },
       ]);
     }
-  }, [t, setValidationErrors]);
+  }, [setValidationErrors]);
 
   const refreshSlots = useCallback(async () => {
     await loadSlots();
   }, [loadSlots]);
 
   useEffect(() => {
+    syncSharedSlots(slots);
+  }, [slots, syncSharedSlots]);
+
+  useEffect(() => {
     if (isAuthenticated) {
-      loadSlots();
+      void loadSlots();
     } else {
       setSlots([]);
     }
   }, [isAuthenticated, loadSlots]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    return registerSharedDataRefresh('slots', loadSlots);
+  }, [registerSharedDataRefresh, loadSlots]);
+
+  const isOnSlotsRoute = location.pathname === '/slots' || location.pathname.startsWith('/slots/');
+
+  useEffect(() => {
+    if (!isAuthenticated || !isOnSlotsRoute) {
       return;
     }
-    const intervalId = setInterval(() => {
-      loadSlots();
-    }, 30000);
-    return () => clearInterval(intervalId);
-  }, [isAuthenticated, loadSlots]);
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void loadSlots();
+      }
+    };
+
+    const intervalId = window.setInterval(refreshIfVisible, 30000);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadSlots();
+      }
+    };
+    const onFocus = () => {
+      void loadSlots();
+    };
+
+    window.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [isAuthenticated, isOnSlotsRoute, loadSlots]);
 
   const validateSlot = useCallback((data: Record<string, unknown>): ValidationError[] => {
     const errors: ValidationError[] = [];

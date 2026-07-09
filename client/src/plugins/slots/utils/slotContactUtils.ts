@@ -238,3 +238,14 @@ export function formatSlotInfoHtml(slot: Slot, locale: string = 'sv-SE'): string
   </tbody>
 </table>`;
 }
+
+/** Slots where contact is primary assignee or mentioned (for cross-plugin contact views). */
+export function filterSlotsForContact(slots: Slot[], contactId: string): Slot[] {
+  const id = String(contactId);
+  return slots.filter(
+    (slot) =>
+      (slot.contact_id != null && String(slot.contact_id) === id) ||
+      (Array.isArray(slot.mentions) &&
+        slot.mentions.some((mention) => String(mention.contactId) === id)),
+  );
+}
