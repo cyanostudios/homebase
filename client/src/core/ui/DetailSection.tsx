@@ -15,6 +15,7 @@ export type DetailSectionIconPlugin =
   | 'slots'
   | 'matches'
   | 'ingest'
+  | 'guides'
   | 'requests';
 
 interface DetailSectionProps {

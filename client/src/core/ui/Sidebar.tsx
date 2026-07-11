@@ -32,6 +32,7 @@ export type NavPage =
   | 'cups'
   | 'files'
   | 'ingest'
+  | 'guides'
   | 'mail'
   | 'pulses'
   | 'settings';
@@ -333,6 +334,7 @@ export function Sidebar({
 
     const categoryToKey: Record<string, string> = {
       Main: 'main',
+      Content: 'content',
       Sport: 'sport',
       Booking: 'booking',
       Business: 'business',

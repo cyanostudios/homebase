@@ -11,6 +11,7 @@ import {
   Trophy,
   Download,
   CalendarDays,
+  MapPin,
 } from 'lucide-react';
 import React from 'react';
 
@@ -123,6 +124,9 @@ import { useFiles } from '@/plugins/files/hooks/useFiles';
 // Ingest
 import { IngestNullProvider } from '@/plugins/ingest/context/IngestContext';
 import { useIngest } from '@/plugins/ingest/hooks/useIngest';
+// Guides
+import { GuideNullProvider } from '@/plugins/guides/context/GuidesContext';
+import { useGuides } from '@/plugins/guides/hooks/useGuides';
 // Invoices
 import { InvoicesNullProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
@@ -283,6 +287,17 @@ const IngestSourceView = React.lazy(() =>
   import('@/plugins/ingest/components/IngestSourceView').then((m) => ({
     default: m.IngestSourceView,
   })),
+);
+
+// Guides
+const GuideList = React.lazy(() =>
+  import('@/plugins/guides/components/GuideList').then((m) => ({ default: m.GuideList })),
+);
+const GuideForm = React.lazy(() =>
+  import('@/plugins/guides/components/GuideForm').then((m) => ({ default: m.GuideForm })),
+);
+const GuideView = React.lazy(() =>
+  import('@/plugins/guides/components/GuideView').then((m) => ({ default: m.GuideView })),
 );
 
 // Invoices
@@ -730,6 +745,29 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       typeof context?.runIngestImport === 'function'
         ? { runIngestImport: context.runIngestImport as (id: string) => Promise<void> }
         : {},
+  },
+  {
+    name: 'guides',
+    Provider: GuideNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/guides/context/GuidesProvider').then((m) => m.GuidesProvider),
+    NullProvider: GuideNullProvider,
+    hook: useGuides,
+    panelKey: 'isGuidePanelOpen',
+    components: {
+      List: GuideList,
+      Form: GuideForm,
+      View: GuideView,
+    },
+    navigation: {
+      category: 'Content',
+      label: 'Guides',
+      icon: MapPin,
+      order: 0,
+    },
+    displayPrefix: 'GDS',
+    contentFlush: true,
+    slugField: 'displayName',
   },
   {
     name: 'mail',

@@ -4,6 +4,133 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Guide CMS Epic 4 (`guides`-plugin)
+
+**Sammanfattning:** VariantPresentation CRUD i API och UI under GuideStop — `variantType`, `language`, `presentationText`, `publicationStatus`, `stalenessStatus`. Auto-create av quick/normal/deep vid stop create; staleness vid `canonicalNarrative`-ändring. Full grindordning godkänd (backend + frontend, QA, Security).
+
+### Backend
+
+- **Migration:** `094-guide-variant-presentations.sql` — tabell `guide_variant_presentations` (FK till `guide_stops`, CASCADE); unik `(stop_id, variant_type, language)`; backfill för befintliga stopp.
+- **API:** `GET/POST /api/guides/:placeId/stops/:stopId/variants`, `GET/PUT/DELETE …/variants/:variantId`.
+- **Validering:** `parseVariantType`, `parsePublicationStatus`, `parseStalenessStatus`, `parseLanguage` i [`plugins/guides/validation.js`](../plugins/guides/validation.js).
+- **Sidoeffekter:** `createStop` skapar 3 default-varianter; `updateStop` markerar varianter `stale` vid narrative-ändring.
+- **Tester:** 60 st i `plugins/guides/__tests__/`.
+
+### Frontend
+
+- **Variant-sektion:** [`GuideVariantsSection.tsx`](../client/src/plugins/guides/components/GuideVariantsSection.tsx) inbäddad i [`GuideStopsSection.tsx`](../client/src/plugins/guides/components/GuideStopsSection.tsx) — lista, create/edit, delete med bekräftelse.
+- **API-klient:** `getVariants`, `createVariant`, `updateVariant`, `deleteVariant` i [`guidesApi.ts`](../client/src/plugins/guides/api/guidesApi.ts).
+- **Typer:** `GuideVariantPresentation`, payloads, enum-helpers i [`types/guides.ts`](../client/src/plugins/guides/types/guides.ts).
+- **i18n:** `guides.variants`, `guides.variantTypes.*`, `guides.publication.*`, `guides.staleness.*` m.m.
+
+### Drift
+
+- Kör `npm run migrate:guides` lokalt och prod (inkluderar `094`).
+
+### Begränsningar
+
+- Variantlistan laddas inte om automatiskt efter narrative-ändring på stopp (stale-badge efter reload).
+- `stalenessStatus` ej klientskrivbar.
+- Default-varianter kan raderas.
+- `publicationStatus` utan transition-regler i v1.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 4.
+
+---
+
+## 2026-07 – Guide CMS Epic 3 (`guides`-plugin)
+
+**Sammanfattning:** GuideStop CRUD i API och UI under Place — `title`, `sequenceOrder`, `canonicalNarrative`, `editorialStatus`. Full grindordning godkänd (backend + frontend, QA, Security).
+
+### Backend
+
+- **Migration:** `093-guide-stops.sql` — tabell `guide_stops` (FK till `guide_master_guides`, CASCADE).
+- **API:** `GET/POST /api/guides/:placeId/stops`, `GET/PUT/DELETE …/stops/:stopId`, `PUT …/stops/reorder`.
+- **Validering:** `parseGuideStopEditorialStatus`, `guideStopEditorialStatusBodyRule` i [`plugins/guides/validation.js`](../plugins/guides/validation.js).
+- **Tenant-scope:** join `guide_places` på alla stop-queries.
+- **Tester:** 36 st i `plugins/guides/__tests__/`.
+
+### Frontend
+
+- **Stopp-sektion:** [`GuideStopsSection.tsx`](../client/src/plugins/guides/components/GuideStopsSection.tsx) i `GuideView` — lista, create/edit, upp/ner-omordning, delete med bekräftelse.
+- **API-klient:** `getStops`, `createStop`, `updateStop`, `deleteStop`, `reorderStops` i [`guidesApi.ts`](../client/src/plugins/guides/api/guidesApi.ts).
+- **Typer:** `GuideStop`, `GuideStopPayload` i [`types/guides.ts`](../client/src/plugins/guides/types/guides.ts).
+- **i18n:** `guides.addStop`, `guides.canonicalNarrative`, felmeddelanden m.m.
+
+### Drift
+
+- Kör `npm run migrate:guides` lokalt och prod (inkluderar `093`).
+
+### Begränsningar
+
+- Reorder kräver full lista av `stopIds` för platsen.
+- Sekvensluckor efter delete.
+- Upp/ner-omordning (ej drag-and-drop).
+- `sourceLanguage`-ändringsregel vid befintliga stopp — öppen affärsfråga.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 3.
+
+---
+
+## 2026-07 – Guide CMS Epic 2 (`guides`-plugin)
+
+**Sammanfattning:** MasterGuide kan uppdateras via API och redigeras i UI — `sourceLanguage` och `masterGuideEditorialStatus` (`draft` \| `in-progress` \| `complete`). Full grindordning godkänd (backend + frontend, QA, Security).
+
+### Backend
+
+- **API:** utökad `PUT /api/guides/:id` med valfria `sourceLanguage`, `masterGuideEditorialStatus`.
+- **Validering:** `parseMasterGuideEditorialStatus`, `masterGuideEditorialStatusBodyRule` i [`plugins/guides/validation.js`](../plugins/guides/validation.js).
+- **Tenant-scope:** MasterGuide-UPDATE joinar `guide_places` (samma mönster som Epic 1 SELECT).
+- **Ingen ny migration.**
+
+### Frontend
+
+- **Master guide i vy:** `GuideView` visar källspråk och redaktionell status; tom sektion för Guide stops (placeholder).
+- **Redigering:** `GuideForm` — `sourceLanguage` (create + edit), `masterGuideEditorialStatus` (edit only).
+- **Provider:** `GuidesProvider` skickar båda fälten vid update.
+- **Typer:** `MasterGuideEditorialStatus`, `MASTER_GUIDE_EDITORIAL_STATUSES` i [`types/guides.ts`](../client/src/plugins/guides/types/guides.ts).
+- **i18n:** `guides.masterGuide`, `guides.editorial.*`, `guides.guideStops`, `guides.stopsNoYet`.
+
+### Leverans
+
+- **`.gitignore`:** `/guides/` (repo-root only) — plugin-sökvägar `client/src/plugins/guides/` och `plugins/guides/` spårbara i git.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 2.
+
+---
+
+## 2026-07 – Guide CMS Epic 1 (`guides`-plugin)
+
+**Sammanfattning:** Nytt plugin för audioguide-redaktion: Place CRUD med atomisk MasterGuide vid skapande. Säkerhetsgodkänd efter tenant-isoleringsfix (migration 092).
+
+### Backend
+
+- **Plugin:** [`plugins/guides/`](../plugins/guides/) — route `/api/guides`, gate `requirePlugin('guides')`, CSRF på POST/PUT/DELETE.
+- **Tabeller (tenant DB):** `guide_places` (090), `guide_master_guides` (090), `user_id` på places (092).
+- **Validering:** delad [`plugins/guides/validation.js`](../plugins/guides/validation.js) för `sourceLanguage` och `lifecycleStatus`.
+- **Tenant-scope:** `user_id` sätts vid INSERT; PostgreSQLAdapter filtrerar LIST/GET/UPDATE/DELETE.
+
+### Frontend
+
+- **Plugin:** [`client/src/plugins/guides/`](../client/src/plugins/guides/) — list/form/view, kategori Content, sidebar `guides`.
+- **API-klient:** `guidesApi.ts` via `createApiClient('/guides')`.
+
+### Drift
+
+- **Migrationer:** `090-guides.sql`, `092-guide-places-user-id.sql` (tenant); `091-grant-guides-plugin-access.sql` (main).
+- **Kör:** `npm run migrate:guides` (lokal + prod parity).
+- **Plugin-access:** `npm run set:tenant-plugins -- --both --email=… --enable=guides` vid behov; logga ut/in efteråt.
+
+### Begränsningar (v1)
+
+- Ingen GuideStop, Variant, Audio eller public API.
+- MasterGuide-metadata (`sourceLanguage`, `masterGuideEditorialStatus`) redigeras i UI från Epic 2.
+- Full CRUD för alla med plugin-åtkomst inom tenant.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 1.
+
+---
+
 ## 2026-07 – Slots: minskade API-anrop och delad cache
 
 **Sammanfattning:** Slots-pluginet hämtar inte längre hela listan globalt var 30:e sekund; cross-plugin-vyer återanvänder provider-cache istället för egna `GET /api/slots`.
