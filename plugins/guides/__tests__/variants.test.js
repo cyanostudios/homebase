@@ -120,9 +120,11 @@ describe('GuidesModel guide variants', () => {
 
     await model.updateStop({}, '1', '5', { canonicalNarrative: 'New narrative' });
 
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(3);
     expect(query.mock.calls[1][0]).toContain("staleness_status = 'stale'");
     expect(query.mock.calls[1][1]).toEqual(['5', '1']);
+    expect(query.mock.calls[2][0]).toContain("status = 'stale'");
+    expect(query.mock.calls[2][0]).toContain('guide_audio');
   });
 
   test('updateStop does not mark variants stale when canonicalNarrative unchanged', async () => {

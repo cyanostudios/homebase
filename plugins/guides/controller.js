@@ -251,6 +251,87 @@ class GuidesController {
       res.status(500).json({ error: 'Failed to delete variant' });
     }
   }
+
+  async getAudio(req, res) {
+    try {
+      const audio = await this.model.getAudio(
+        req,
+        req.params.id,
+        req.params.stopId,
+        req.params.variantId,
+      );
+      res.json(audio);
+    } catch (error) {
+      Logger.error('Get guide audio failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        variantId: req.params.variantId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch audio' });
+    }
+  }
+
+  async createAudio(req, res) {
+    try {
+      const audio = await this.model.createAudio(
+        req,
+        req.params.id,
+        req.params.stopId,
+        req.params.variantId,
+        req.body,
+      );
+      res.json(audio);
+    } catch (error) {
+      Logger.error('Create guide audio failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        variantId: req.params.variantId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to create audio' });
+    }
+  }
+
+  async updateAudio(req, res) {
+    try {
+      const audio = await this.model.updateAudio(
+        req,
+        req.params.id,
+        req.params.stopId,
+        req.params.variantId,
+        req.body,
+      );
+      res.json(audio);
+    } catch (error) {
+      Logger.error('Update guide audio failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        variantId: req.params.variantId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to update audio' });
+    }
+  }
+
+  async deleteAudio(req, res) {
+    try {
+      await this.model.deleteAudio(req, req.params.id, req.params.stopId, req.params.variantId);
+      res.json({ deleted: true });
+    } catch (error) {
+      Logger.error('Delete guide audio failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        variantId: req.params.variantId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to delete audio' });
+    }
+  }
 }
 
 module.exports = GuidesController;

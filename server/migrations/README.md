@@ -1,13 +1,14 @@
 # Migrations
 
-## 090–094 – Guides (jul 2026)
+## 090–095 – Guides (jul 2026)
 
-### Guides (090, 092, 093, 094)
+### Guides (090, 092, 093, 094, 095)
 
 - **`090-guides.sql`** — tabeller `guide_places`, `guide_master_guides` (tenant-DB).
 - **`092-guide-places-user-id.sql`** — kolumn `user_id` på `guide_places` (krävs för PostgreSQLAdapter tenant-filter). Körs efter 090.
 - **`093-guide-stops.sql`** — tabell `guide_stops` (Epic 3). Körs efter 092.
 - **`094-guide-variant-presentations.sql`** — tabell `guide_variant_presentations` (Epic 4). Körs efter 093.
+- **`095-guide-audio.sql`** — tabell `guide_audio` (Epic 5, 1:1 mot variant). Körs efter 094.
 
 ```bash
 npm run migrate:guides

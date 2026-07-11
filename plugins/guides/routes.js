@@ -12,6 +12,8 @@ const {
   variantTypeBodyRule,
   languageBodyRule,
   publicationStatusBodyRule,
+  audioStatusBodyRule,
+  providerKeyBodyRule,
 } = require('./validation');
 
 function createGuidesRoutes(controller, context) {
@@ -155,6 +157,91 @@ function createGuidesRoutes(controller, context) {
     commonRules.id('variantId'),
     validateRequest,
     (req, res) => controller.deleteVariant(req, res),
+  );
+
+  router.get(
+    '/:id/stops/:stopId/variants/:variantId/audio',
+    gate,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    commonRules.id('variantId'),
+    validateRequest,
+    (req, res) => controller.getAudio(req, res),
+  );
+
+  router.post(
+    '/:id/stops/:stopId/variants/:variantId/audio',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    commonRules.id('variantId'),
+    audioStatusBodyRule(),
+    providerKeyBodyRule(),
+    body('storageRef')
+      .optional({ values: 'null' })
+      .isString()
+      .isLength({ max: 500 })
+      .withMessage('storageRef must not exceed 500 characters'),
+    body('durationMs')
+      .optional({ values: 'null' })
+      .isInt({ min: 0 })
+      .withMessage('durationMs must be a non-negative integer'),
+    body('mimeType')
+      .optional({ values: 'null' })
+      .isString()
+      .isLength({ max: 100 })
+      .withMessage('mimeType must not exceed 100 characters'),
+    body('errorMessage')
+      .optional({ values: 'null' })
+      .isString()
+      .isLength({ max: 5000 })
+      .withMessage('errorMessage must not exceed 5000 characters'),
+    validateRequest,
+    (req, res) => controller.createAudio(req, res),
+  );
+
+  router.put(
+    '/:id/stops/:stopId/variants/:variantId/audio',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    commonRules.id('variantId'),
+    audioStatusBodyRule(),
+    providerKeyBodyRule(),
+    body('storageRef')
+      .optional({ values: 'null' })
+      .isString()
+      .isLength({ max: 500 })
+      .withMessage('storageRef must not exceed 500 characters'),
+    body('durationMs')
+      .optional({ values: 'null' })
+      .isInt({ min: 0 })
+      .withMessage('durationMs must be a non-negative integer'),
+    body('mimeType')
+      .optional({ values: 'null' })
+      .isString()
+      .isLength({ max: 100 })
+      .withMessage('mimeType must not exceed 100 characters'),
+    body('errorMessage')
+      .optional({ values: 'null' })
+      .isString()
+      .isLength({ max: 5000 })
+      .withMessage('errorMessage must not exceed 5000 characters'),
+    validateRequest,
+    (req, res) => controller.updateAudio(req, res),
+  );
+
+  router.delete(
+    '/:id/stops/:stopId/variants/:variantId/audio',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    commonRules.id('variantId'),
+    validateRequest,
+    (req, res) => controller.deleteAudio(req, res),
   );
 
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>

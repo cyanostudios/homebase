@@ -4,6 +4,12 @@
 const { body } = require('express-validator');
 const { AppError } = require('../../server/core/errors/AppError');
 
+const { ensureAudioProvidersRegistered } = require('./audio/registerDefaultProviders');
+const AudioProviderRegistry = require('./audio/AudioProviderRegistry');
+
+const AUDIO_STATUSES = ['pending', 'processing', 'ready', 'failed', 'stale'];
+const DEFAULT_AUDIO_STATUS = 'pending';
+const DEFAULT_PROVIDER_KEY = 'noop';
 const PLACE_LIFECYCLE_STATUSES = ['draft', 'active', 'archived'];
 const MASTER_GUIDE_EDITORIAL_STATUSES = ['draft', 'in-progress', 'complete'];
 const GUIDE_STOP_EDITORIAL_STATUSES = MASTER_GUIDE_EDITORIAL_STATUSES;
@@ -178,6 +184,48 @@ function publicationStatusBodyRule() {
     .withMessage('publicationStatus must be draft, ready, or published');
 }
 
+function parseAudioStatus(value) {
+  if (value === null || value === undefined || value === '') {
+    return DEFAULT_AUDIO_STATUS;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (!AUDIO_STATUSES.includes(normalized)) {
+    throw new AppError('Invalid audio status', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  return normalized;
+}
+
+function parseProviderKey(value) {
+  ensureAudioProvidersRegistered();
+  const normalized = String(value ?? DEFAULT_PROVIDER_KEY)
+    .trim()
+    .toLowerCase();
+  if (!AudioProviderRegistry.has(normalized)) {
+    throw new AppError('Invalid audio provider', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  return normalized.slice(0, 50);
+}
+
+function audioStatusBodyRule() {
+  return body('status')
+    .optional({ values: 'falsy' })
+    .custom((value) => {
+      parseAudioStatus(value);
+      return true;
+    })
+    .withMessage('status must be pending, processing, ready, failed, or stale');
+}
+
+function providerKeyBodyRule() {
+  return body('providerKey')
+    .optional({ values: 'falsy' })
+    .custom((value) => {
+      parseProviderKey(value);
+      return true;
+    })
+    .withMessage('providerKey must be a registered audio provider');
+}
+
 module.exports = {
   PLACE_LIFECYCLE_STATUSES,
   MASTER_GUIDE_EDITORIAL_STATUSES,
@@ -185,11 +233,14 @@ module.exports = {
   VARIANT_TYPES,
   PUBLICATION_STATUSES,
   STALENESS_STATUSES,
+  AUDIO_STATUSES,
   DEFAULT_SOURCE_LANGUAGE,
   DEFAULT_LIFECYCLE_STATUS,
   DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
   DEFAULT_PUBLICATION_STATUS,
   DEFAULT_STALENESS_STATUS,
+  DEFAULT_AUDIO_STATUS,
+  DEFAULT_PROVIDER_KEY,
   parseSourceLanguage,
   parseLifecycleStatus,
   parseMasterGuideEditorialStatus,
@@ -198,10 +249,14 @@ module.exports = {
   parsePublicationStatus,
   parseStalenessStatus,
   parseLanguage,
+  parseAudioStatus,
+  parseProviderKey,
   sourceLanguageBodyRule,
   masterGuideEditorialStatusBodyRule,
   guideStopEditorialStatusBodyRule,
   variantTypeBodyRule,
   languageBodyRule,
   publicationStatusBodyRule,
+  audioStatusBodyRule,
+  providerKeyBodyRule,
 };

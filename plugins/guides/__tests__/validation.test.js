@@ -7,6 +7,7 @@ const {
   VARIANT_TYPES,
   PUBLICATION_STATUSES,
   STALENESS_STATUSES,
+  AUDIO_STATUSES,
   parseGuideStopEditorialStatus,
   parseLifecycleStatus,
   parseMasterGuideEditorialStatus,
@@ -15,6 +16,8 @@ const {
   parsePublicationStatus,
   parseStalenessStatus,
   parseLanguage,
+  parseAudioStatus,
+  parseProviderKey,
 } = require('../validation');
 
 describe('guides validation', () => {
@@ -140,5 +143,33 @@ describe('guides validation', () => {
   test('parseLanguage delegates to parseSourceLanguage', () => {
     expect(parseLanguage('en')).toBe('en');
     expect(() => parseLanguage('invalid')).toThrow(AppError);
+  });
+
+  test('parseAudioStatus accepts known values', () => {
+    expect(parseAudioStatus('ready')).toBe('ready');
+    expect(parseAudioStatus('stale')).toBe('stale');
+  });
+
+  test('parseAudioStatus defaults empty values to pending', () => {
+    expect(parseAudioStatus(null)).toBe('pending');
+    expect(parseAudioStatus(undefined)).toBe('pending');
+    expect(parseAudioStatus('')).toBe('pending');
+  });
+
+  test('parseAudioStatus rejects unknown values', () => {
+    expect(() => parseAudioStatus('generating')).toThrow(AppError);
+  });
+
+  test('AUDIO_STATUSES contains pending, processing, ready, failed, stale', () => {
+    expect(AUDIO_STATUSES).toEqual(['pending', 'processing', 'ready', 'failed', 'stale']);
+  });
+
+  test('parseProviderKey accepts registered providers', () => {
+    expect(parseProviderKey('noop')).toBe('noop');
+    expect(parseProviderKey()).toBe('noop');
+  });
+
+  test('parseProviderKey rejects unknown providers', () => {
+    expect(() => parseProviderKey('elevenlabs')).toThrow(AppError);
   });
 });

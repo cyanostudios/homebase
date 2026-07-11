@@ -6,6 +6,8 @@ const {
   DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
   DEFAULT_PUBLICATION_STATUS,
   DEFAULT_STALENESS_STATUS,
+  DEFAULT_AUDIO_STATUS,
+  DEFAULT_PROVIDER_KEY,
   VARIANT_TYPES,
   parseLifecycleStatus,
   parseMasterGuideEditorialStatus,
@@ -14,12 +16,15 @@ const {
   parseVariantType,
   parsePublicationStatus,
   parseLanguage,
+  parseAudioStatus,
+  parseProviderKey,
 } = require('./validation');
 
 const PLACES_TABLE = 'guide_places';
 const MASTER_GUIDES_TABLE = 'guide_master_guides';
 const STOPS_TABLE = 'guide_stops';
 const VARIANTS_TABLE = 'guide_variant_presentations';
+const AUDIO_TABLE = 'guide_audio';
 
 function sanitizeDisplayName(value) {
   const trimmed = (value || '').toString().trim();
@@ -53,6 +58,37 @@ function sanitizePresentationText(value) {
   if (value === null || value === undefined) return null;
   const trimmed = String(value).trim();
   return trimmed ? trimmed.slice(0, 50000) : null;
+}
+
+function sanitizeStorageRef(value) {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, 500) : null;
+}
+
+function sanitizeMimeType(value) {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, 100) : null;
+}
+
+function sanitizeErrorMessage(value) {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, 5000) : null;
+}
+
+function sanitizeDurationMs(value) {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new AppError(
+      'durationMs must be a non-negative integer',
+      400,
+      AppError.CODES.VALIDATION_ERROR,
+    );
+  }
+  return parsed;
 }
 
 function narrativesEqual(a, b) {
@@ -362,6 +398,27 @@ class GuidesModel {
           AND gs.id = $1
           AND mg.place_id = $2
           AND gvp.staleness_status <> 'stale'
+      `,
+      [stopId, placeId],
+    );
+    await this._markAudioStaleForStop(db, stopId, placeId);
+  }
+
+  async _markAudioStaleForStop(db, stopId, placeId) {
+    await db.query(
+      `
+        UPDATE ${AUDIO_TABLE} ga
+        SET
+          status = 'stale',
+          updated_at = CURRENT_TIMESTAMP
+        FROM ${VARIANTS_TABLE} gvp
+        INNER JOIN ${STOPS_TABLE} gs ON gs.id = gvp.stop_id
+        INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gs.master_guide_id
+        INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+        WHERE ga.variant_presentation_id = gvp.id
+          AND gs.id = $1
+          AND mg.place_id = $2
+          AND ga.status <> 'stale'
       `,
       [stopId, placeId],
     );
@@ -831,6 +888,193 @@ class GuidesModel {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to delete guide variant', error, { placeId, stopId, variantId });
       throw new AppError('Failed to delete variant', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  transformAudioRow(row, placeId, stopId, variantId) {
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      variantId: String(variantId ?? row.variant_presentation_id),
+      stopId: String(stopId),
+      placeId: String(placeId),
+      status: row.status ?? DEFAULT_AUDIO_STATUS,
+      providerKey: row.provider_key ?? DEFAULT_PROVIDER_KEY,
+      storageRef: row.storage_ref ?? null,
+      durationMs: row.duration_ms ?? null,
+      mimeType: row.mime_type ?? null,
+      errorMessage: row.error_message ?? null,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async getAudio(req, placeId, stopId, variantId) {
+    try {
+      await this.getVariantById(req, placeId, stopId, variantId);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          SELECT ga.*
+          FROM ${AUDIO_TABLE} ga
+          INNER JOIN ${VARIANTS_TABLE} gvp ON gvp.id = ga.variant_presentation_id
+          INNER JOIN ${STOPS_TABLE} gs ON gs.id = gvp.stop_id
+          INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gs.master_guide_id
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE ga.variant_presentation_id = $1
+            AND gvp.stop_id = $2
+            AND mg.place_id = $3
+        `,
+        [variantId, stopId, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      return this.transformAudioRow(rows[0], placeId, stopId, variantId);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to fetch guide audio', error, { placeId, stopId, variantId });
+      throw new AppError('Failed to fetch audio', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async createAudio(req, placeId, stopId, variantId, data) {
+    try {
+      await this.getVariantById(req, placeId, stopId, variantId);
+      const status = parseAudioStatus(data.status);
+      const providerKey = parseProviderKey(data.providerKey);
+      const storageRef = sanitizeStorageRef(data.storageRef);
+      const durationMs = data.durationMs !== undefined ? sanitizeDurationMs(data.durationMs) : null;
+      const mimeType = sanitizeMimeType(data.mimeType);
+      const errorMessage = sanitizeErrorMessage(data.errorMessage);
+
+      const db = Database.get(req);
+      try {
+        const rows = await db.query(
+          `
+            INSERT INTO ${AUDIO_TABLE} (
+              variant_presentation_id,
+              status,
+              provider_key,
+              storage_ref,
+              duration_ms,
+              mime_type,
+              error_message
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+          `,
+          [variantId, status, providerKey, storageRef, durationMs, mimeType, errorMessage],
+        );
+
+        Logger.info('Guide audio created', { placeId, stopId, variantId, audioId: rows[0].id });
+        return this.transformAudioRow(rows[0], placeId, stopId, variantId);
+      } catch (error) {
+        if (error.code === '23505') {
+          throw new AppError('Audio already exists for this variant', 409, AppError.CODES.CONFLICT);
+        }
+        throw error;
+      }
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to create guide audio', error, { placeId, stopId, variantId });
+      throw new AppError('Failed to create audio', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updateAudio(req, placeId, stopId, variantId, data) {
+    try {
+      const existing = await this.getAudio(req, placeId, stopId, variantId);
+      const status = data.status !== undefined ? parseAudioStatus(data.status) : existing.status;
+      const providerKey =
+        data.providerKey !== undefined ? parseProviderKey(data.providerKey) : existing.providerKey;
+      const storageRef =
+        data.storageRef !== undefined ? sanitizeStorageRef(data.storageRef) : existing.storageRef;
+      const durationMs =
+        data.durationMs !== undefined ? sanitizeDurationMs(data.durationMs) : existing.durationMs;
+      const mimeType =
+        data.mimeType !== undefined ? sanitizeMimeType(data.mimeType) : existing.mimeType;
+      const errorMessage =
+        data.errorMessage !== undefined
+          ? sanitizeErrorMessage(data.errorMessage)
+          : existing.errorMessage;
+
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          UPDATE ${AUDIO_TABLE} ga
+          SET
+            status = $1,
+            provider_key = $2,
+            storage_ref = $3,
+            duration_ms = $4,
+            mime_type = $5,
+            error_message = $6,
+            updated_at = CURRENT_TIMESTAMP
+          FROM ${VARIANTS_TABLE} gvp
+          INNER JOIN ${STOPS_TABLE} gs ON gs.id = gvp.stop_id
+          INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gs.master_guide_id
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE ga.variant_presentation_id = gvp.id
+            AND ga.variant_presentation_id = $7
+            AND gvp.stop_id = $8
+            AND mg.place_id = $9
+          RETURNING ga.*
+        `,
+        [
+          status,
+          providerKey,
+          storageRef,
+          durationMs,
+          mimeType,
+          errorMessage,
+          variantId,
+          stopId,
+          placeId,
+        ],
+      );
+
+      if (!rows.length) {
+        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      Logger.info('Guide audio updated', { placeId, stopId, variantId });
+      return this.transformAudioRow(rows[0], placeId, stopId, variantId);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update guide audio', error, { placeId, stopId, variantId });
+      throw new AppError('Failed to update audio', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async deleteAudio(req, placeId, stopId, variantId) {
+    try {
+      await this.getVariantById(req, placeId, stopId, variantId);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          DELETE FROM ${AUDIO_TABLE} ga
+          USING ${VARIANTS_TABLE} gvp, ${STOPS_TABLE} gs, ${MASTER_GUIDES_TABLE} mg, ${PLACES_TABLE} p
+          WHERE ga.variant_presentation_id = gvp.id
+            AND gvp.stop_id = gs.id
+            AND gs.master_guide_id = mg.id
+            AND mg.place_id = p.id
+            AND ga.variant_presentation_id = $1
+            AND gvp.stop_id = $2
+            AND mg.place_id = $3
+          RETURNING ga.id
+        `,
+        [variantId, stopId, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      Logger.info('Guide audio deleted', { placeId, stopId, variantId });
+      return { id: String(rows[0].id) };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to delete guide audio', error, { placeId, stopId, variantId });
+      throw new AppError('Failed to delete audio', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 }

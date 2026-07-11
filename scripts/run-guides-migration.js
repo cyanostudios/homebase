@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/run-guides-migration.js
-// Run guides migrations (090, 092, 093, 094 tenant; 091 main)
+// Run guides migrations (090, 092, 093, 094, 095 tenant; 091 main)
 
 const { Pool } = require('pg');
 const fs = require('fs');
@@ -15,6 +15,7 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/092-guide-places-user-id.sql'),
   path.join(__dirname, '../server/migrations/093-guide-stops.sql'),
   path.join(__dirname, '../server/migrations/094-guide-variant-presentations.sql'),
+  path.join(__dirname, '../server/migrations/095-guide-audio.sql'),
 ];
 const MAIN_MIGRATION = path.join(
   __dirname,

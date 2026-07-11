@@ -2,6 +2,247 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Guide CMS – Epic 5 (slutförd 2026-07-11, backend)
+
+**Status:** Slutförd — Backend, QA, Security, Documentation, TPM godkända.
+
+Grindordning: Backend → QA → Security → Dokumentation → TPM-avslut.
+
+### Omfattning
+
+- Audio metadata CRUD under VariantPresentation (backend only).
+- Fält: `status`, `providerKey`, `storageRef`, `durationMs`, `mimeType`, `errorMessage`.
+- Provider-agnostiskt interface (`AudioProvider`) med `noop`-stub och registry.
+- Staleness-propagation: audio markeras `stale` när `canonicalNarrative` ändras på stopp (samma trigger som variant-staleness).
+- **Ej inkluderat:** extern TTS, faktisk ljudgenerering, public API, frontend UI.
+
+### Databas
+
+Migration **`095-guide-audio.sql`** (tenant DB):
+
+| Kolumn                    | Typ                                | Notering                                |
+| ------------------------- | ---------------------------------- | --------------------------------------- |
+| `variant_presentation_id` | FK → `guide_variant_presentations` | UNIQUE, ON DELETE CASCADE (1:1)         |
+| `status`                  | VARCHAR(50) NOT NULL               | Default `pending`; se statuslista nedan |
+| `provider_key`            | VARCHAR(50) NOT NULL               | Default `noop`                          |
+| `storage_ref`             | VARCHAR(500)                       | Valfritt; framtida lagringsreferens     |
+| `duration_ms`             | INTEGER                            | Valfritt; icke-negativt heltal          |
+| `mime_type`               | VARCHAR(100)                       | Valfritt                                |
+| `error_message`           | TEXT                               | Valfritt; max 5 000 tecken i API        |
+
+**Statusvärden:** `pending` \| `processing` \| `ready` \| `failed` \| `stale`.
+
+Kör: `npm run migrate:guides` (inkluderar 090, 092, 093, 094, **095** per tenant).
+
+### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
+
+| Metod  | Path                                                           | Beskrivning                             |
+| ------ | -------------------------------------------------------------- | --------------------------------------- |
+| GET    | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Hämta audio för variant (404 om saknas) |
+| POST   | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Skapa audio (409 om redan finns)        |
+| PUT    | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Uppdatera audio (partiell update)       |
+| DELETE | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Ta bort audio                           |
+
+**Request (create):** `{ status?, providerKey?, storageRef?, durationMs?, mimeType?, errorMessage? }` — default `status: pending`, `providerKey: noop`.
+
+**Request (update):** samma fält, alla valfria.
+
+**Response (`Audio`):** `id`, `variantId`, `stopId`, `placeId`, `status`, `providerKey`, `storageRef`, `durationMs`, `mimeType`, `errorMessage`, `createdAt`, `updatedAt`.
+
+**Semantik:**
+
+- 1:1 mot variant — ingen separat `audioId` i URL.
+- Audio skapas **inte** automatiskt vid variant-skapande; opt-in via POST.
+- Vid **GuideStop update**: om `canonicalNarrative` ändras markeras befintlig audio för stoppets varianter som `status: stale` (parallellt med variant `stalenessStatus`).
+- `noop`-provider registreras vid plugin-init men anropas **inte** i CRUD-flödet i v1.
+
+### Provider-lager (`plugins/guides/audio/`)
+
+| Fil                             | Roll                                                    |
+| ------------------------------- | ------------------------------------------------------- |
+| `AudioProvider.js`              | Bas-kontrakt: `generate`, `getStatus`, `cancel`         |
+| `adapters/NoopAudioProvider.js` | Stub — returnerar `pending` utan externa anrop          |
+| `AudioProviderRegistry.js`      | `register`, `get`, `has`, `listNames`, `resolveDefault` |
+| `registerDefaultProviders.js`   | Registrerar `noop` vid första anrop                     |
+
+### Validering (backend: `plugins/guides/validation.js`)
+
+- `AUDIO_STATUSES`, `DEFAULT_AUDIO_STATUS`, `DEFAULT_PROVIDER_KEY`
+- `parseAudioStatus()`, `parseProviderKey()` (mot registry)
+- Route-regler: `audioStatusBodyRule()`, `providerKeyBodyRule()`
+
+### Tenant-isolering
+
+`guide_audio` joinar `guide_variant_presentations` → `guide_stops` → `guide_master_guides` → `guide_places` för tenant-filter. `createAudio` INSERT efter tenant-scopad `getVariantById`.
+
+### Frontend
+
+Ej tillämpligt i Epic 5 (backend only).
+
+### Tester
+
+78 backend-tester i `plugins/guides/__tests__/` (18 nya/uppdaterade för audio). Inga frontend-enhetstester.
+
+Kör: `npm run check` och `npm test -- plugins/guides/__tests__` (hela sviten: 126 tester).
+
+### Säkerhet (godkänd 2026-07-11)
+
+| ID  | Risk                                            | Beslut                                                     |
+| --- | ----------------------------------------------- | ---------------------------------------------------------- |
+| S10 | `createAudio` INSERT utan tenant-join           | Accepterad — föregås av `getVariantById` (samma som S2)    |
+| S11 | Fri `storageRef` utan format-validering         | Accepterad v1 — provider ej kopplad till filåtkomst        |
+| S12 | `status=ready` utan `storageRef`/filverifiering | Accepterad — redaktionell integritet, autentiserad access  |
+| S13 | Klientstyrd `errorMessage`                      | Accepterad — max 5 000 tecken; rendera som plain text i UI |
+| S14 | `providerKey` begränsad till registry           | Mitigerad — endast `noop` registrerad i v1                 |
+
+### Kända begränsningar
+
+- Ingen faktisk ljudgenerering eller provider-anrop i v1.
+- Audio och variant-staleness uppdateras i separata queries (ej atomisk transaktion).
+- `storageRef`-validering krävs innan provider-integration (se S11-rekommendation).
+- Frontend för audio-hantering saknas.
+
+### Nästa steg
+
+- Epic 6 — se planeringssektion nedan (arkitekturgranskning före implementation).
+
+---
+
+## Guide CMS – Epic 6 (planerad, ej implementerad)
+
+**Status:** Scope definierad av TPM — väntar på Lösningsarkitektens slutgranskning innan Backend aktiveras.
+
+**Typ:** Arkitektur- och flödesdefinition. Ingen implementation, ingen extern leverantör, inga konkreta adapter-implementationer.
+
+### Mål
+
+Definiera hur Guide CMS går från metadata-only audio (Epic 5) till ett komplett produktionsflöde där redaktörer kan initiera generering, följa status och använda färdigt ljud — med tydlig separation mellan domän, provider-kontrakt och implementation.
+
+### Scope — ingår
+
+#### 1. Audio Provider-gränssnitt (domänkontrakt)
+
+Utöka/refaktorera befintligt stub-kontrakt i `plugins/guides/audio/AudioProvider.js` till ett **fullständigt domänkontrakt** som beskriver:
+
+| Operation   | Ansvar                                                                     |
+| ----------- | -------------------------------------------------------------------------- |
+| `generate`  | Initiera ljudgenerering från variantpresentation (text, språk, varianttyp) |
+| `getStatus` | Hämta asynkront genereringsstatus                                          |
+| `cancel`    | Avbryt pågående generering                                                 |
+
+**Kontraktsregler (att specificera):**
+
+- Input: domänobjekt (variantId, presentationText, language) — inte leverantörsspecifika parametrar.
+- Output: normaliserat resultat (`status`, ev. `durationMs`, `mimeType`, `errorMessage`) — ingen rå leverantörsrespons.
+- Provider väljs via `providerKey` i `guide_audio`; registry mönster från Epic 5 behålls.
+- `noop` förblir utvecklings-/teststub; produktionsprovider är **interface + kontrakt**, inte implementation i Epic 6.
+
+#### 2. Storage Provider-gränssnitt (domän ↔ plattform)
+
+Koppla audio-domänen till befintlig plattformsabstraktion `server/core/storage/StorageProvider.js`:
+
+| StorageProvider (plattform) | Audio-domän (guides)                            |
+| --------------------------- | ----------------------------------------------- |
+| `upload`                    | Lagra genererad ljudfil efter provider-leverans |
+| `download`                  | Hämta för förhandsgranskning (redaktör)         |
+| `delete`                    | Rensa vid audio-delete eller regenerering       |
+
+**Kontraktsregler (att specificera):**
+
+- `storageRef` i `guide_audio` är **domänreferens** (nyckel/schema), inte fysisk sökväg.
+- Format/schema för `storageRef` valideras i domänlagret innan storage-anrop.
+- Tenant-scope: lagringsnycklar inkluderar tenant-kontext (samma princip som övriga plugins).
+- Separation: AudioProvider genererar bytes/metadata; StorageProvider persisterar; domänservice orkestrerar.
+
+#### 3. Produktionsflöde för audio (backend-orkestrering)
+
+Sekvens att definiera (state machine, ej implementera):
+
+```
+[variant har presentationText]
+    → redaktör initierar generering (eller auto-trigger — beslut i arkitektur)
+    → guide_audio.status: pending → processing
+    → AudioProvider.generate()
+    → vid success: StorageProvider.upload() → storageRef satt → status: ready
+    → vid failure: status: failed, errorMessage satt
+    → vid narrative-ändring: status: stale (befintlig Epic 5-regel)
+    → regenerering: invalidera/gå via processing igen
+```
+
+**Beslutspunkter för arkitekt:**
+
+- Synkront vs asynkront genereringsflöde i v1.
+- Om POST audio ska trigga generering eller separat `…/audio/generate`-endpoint.
+- Regler för `ready`: krävs `storageRef` + `durationMs`?
+- Transaktionsgränser (metadata + storage upload).
+- Idempotens vid dubbel generering.
+
+#### 4. Frontend-flöde för audio (redaktör)
+
+UX-flöde att definiera (UI/UX-designer involveras vid implementation, men flödet specificeras i Epic 6):
+
+| Steg | Redaktörshandling                   | Förväntat systembeteende                                   |
+| ---- | ----------------------------------- | ---------------------------------------------------------- |
+| 1    | Öppnar variant med presentationText | Audio-sektion visas (saknas → "ingen audio")               |
+| 2    | Skapar/initierar audio              | POST eller generate-action → status `pending`/`processing` |
+| 3    | Väntar / uppdaterar                 | Status-badge (pending, processing, ready, failed, stale)   |
+| 4    | Lyssnar (ready)                     | Förhandsgranskning via download-URL eller stream-endpoint  |
+| 5    | Regenererar (stale/failed)          | Ny generering; bekräftelse vid overwrite                   |
+| 6    | Tar bort                            | DELETE audio + ev. storage cleanup                         |
+
+**UI-principer:**
+
+- `errorMessage`, `storageRef` som plain text (säkerhet S13).
+- Ingen provider-specifik konfiguration i UI v1.
+- Staleness synlig efter narrative-ändring (koppling till befintlig variant-staleness).
+
+#### 5. Lagerseparation (domän / provider / implementation)
+
+| Lager                       | Plats (planerat)                                   | Ansvar                                            | Får inte                              |
+| --------------------------- | -------------------------------------------------- | ------------------------------------------------- | ------------------------------------- |
+| **Domän**                   | `plugins/guides/model.js`, `validation.js`, routes | CRUD, state transitions, staleness, orchestration | Känna till leverantörs-API            |
+| **Provider-kontrakt**       | `plugins/guides/audio/AudioProvider.js`, registry  | Interface, normaliserat I/O                       | DB-access, HTTP till externa tjänster |
+| **Provider-implementation** | `plugins/guides/audio/adapters/*` (framtida)       | Extern generering                                 | Domänregler, tenant-filter            |
+| **Storage-kontrakt**        | `server/core/storage/StorageProvider.js`           | Persistens-abstraktion                            | Guide-specifik affärslogik            |
+| **Storage-implementation**  | `server/core/storage/adapters/*`                   | Fysisk lagring                                    | Audio-generering                      |
+| **Frontend**                | `client/src/plugins/guides/`                       | Redaktörsflöde, statusvisning                     | Direkt provider-anrop                 |
+
+### Scope — ingår ej
+
+- Konkreta externa leverantörer eller adapter-implementationer.
+- API-nycklar, hemligheter, konfiguration per leverantör.
+- Public/mobil read-API för slutanvändare.
+- Batch-generering, kösystem, webhooks (om ej beslutat i arkitektur).
+- Implementation av backend, frontend eller migrationer.
+
+### Rekommenderad grindordning (efter arkitekturgodkännande)
+
+1. **Lösningsarkitekt** — slutgranskning av kontrakt, state machine, API-yta, lagergränser.
+2. **UI/UX-designer** — wireframes/flöde för frontend-delen.
+3. **Backend Developer** — orkestrering, generate-endpoint, storage-koppling, utökade tester.
+4. **Frontend Developer** — audio-sektion i variant-vy.
+5. **QA → Security → Documentation → TPM**
+
+### Definition of Done (Epic 6, när implementation startar)
+
+- Arkitektur godkänd av Lösningsarkitekt.
+- Audio Provider-kontrakt dokumenterat och versionerat.
+- Storage-koppling dokumenterad (`storageRef`-schema, tenant-scope).
+- Produktionsflöde som state diagram + API-lista.
+- Frontend-flöde godkänt av UI/UX.
+- Minst en fungerande stub-provider + storage-integration i dev (utan extern leverantör).
+- Tester, säkerhetsgranskning, dokumentation — per Team Workflow.
+
+### Öppna frågor till Lösningsarkitekt
+
+1. Separat `POST …/audio/generate` vs utökad `POST …/audio`?
+2. Synkront flöde i v1 eller jobb/poll-mönster?
+3. Ska `noop`-provider simulera hela flödet (inkl. fake upload) i dev?
+4. Hur exponeras förhandsgranskning — signed URL, proxy-endpoint, eller direkt storage-ref?
+5. Atomisk cleanup vid DELETE (DB + storage) — transaktion eller compensating delete?
+
+---
+
 ## Guide CMS – Epic 4 (klar 2026-07-11)
 
 Grindordning: Backend → QA → Security → Dokumentation → Frontend → QA → Security (godkänd) → Dokumentation.
@@ -117,7 +358,7 @@ Kör: `npm run check` och `npm test -- plugins/guides/__tests__`
 
 ### Nästa steg
 
-- Epic 5: Audio.
+- Epic 5 (Audio metadata, backend) — se § Guide CMS – Epic 5 ovan.
 
 ---
 

@@ -220,4 +220,87 @@ describe('guides tenant filter compatibility', () => {
     expect(filtered).toContain('FROM guide_stops gs');
     expect(filtered).toContain('AND user_id = $3');
   });
+
+  test('guide audio GET joins guide_places for user_id scope', () => {
+    const sql = `
+          SELECT ga.*
+          FROM guide_audio ga
+          INNER JOIN guide_variant_presentations gvp ON gvp.id = ga.variant_presentation_id
+          INNER JOIN guide_stops gs ON gs.id = gvp.stop_id
+          INNER JOIN guide_master_guides mg ON mg.id = gs.master_guide_id
+          INNER JOIN guide_places p ON p.id = mg.place_id
+          WHERE ga.variant_presentation_id = $1
+            AND gvp.stop_id = $2
+            AND mg.place_id = $3
+        `;
+    const filtered = adapter._addTenantFilter(sql, userId);
+    expect(filtered).toContain('INNER JOIN guide_places p');
+    expect(filtered).toContain('AND user_id = $4');
+  });
+
+  test('guide audio UPDATE joins guide_places for user_id scope', () => {
+    const sql = `
+          UPDATE guide_audio ga
+          SET
+            status = $1,
+            provider_key = $2,
+            storage_ref = $3,
+            duration_ms = $4,
+            mime_type = $5,
+            error_message = $6,
+            updated_at = CURRENT_TIMESTAMP
+          FROM guide_variant_presentations gvp
+          INNER JOIN guide_stops gs ON gs.id = gvp.stop_id
+          INNER JOIN guide_master_guides mg ON mg.id = gs.master_guide_id
+          INNER JOIN guide_places p ON p.id = mg.place_id
+          WHERE ga.variant_presentation_id = gvp.id
+            AND ga.variant_presentation_id = $7
+            AND gvp.stop_id = $8
+            AND mg.place_id = $9
+          RETURNING ga.*
+        `;
+    const filtered = adapter._addTenantFilter(sql, userId);
+    expect(filtered).toContain('FROM guide_variant_presentations gvp');
+    expect(filtered).toContain('AND user_id = $10');
+    expect(filtered).toContain('RETURNING ga.*');
+  });
+
+  test('guide audio DELETE uses guide_places for user_id scope', () => {
+    const sql = `
+          DELETE FROM guide_audio ga
+          USING guide_variant_presentations gvp, guide_stops gs, guide_master_guides mg, guide_places p
+          WHERE ga.variant_presentation_id = gvp.id
+            AND gvp.stop_id = gs.id
+            AND gs.master_guide_id = mg.id
+            AND mg.place_id = p.id
+            AND ga.variant_presentation_id = $1
+            AND gvp.stop_id = $2
+            AND mg.place_id = $3
+          RETURNING ga.id
+        `;
+    const filtered = adapter._addTenantFilter(sql, userId);
+    expect(filtered).toContain('guide_places p');
+    expect(filtered).toContain('AND user_id = $4');
+    expect(filtered).toContain('RETURNING ga.id');
+  });
+
+  test('guide audio staleness UPDATE joins guide_places for user_id scope', () => {
+    const sql = `
+          UPDATE guide_audio ga
+          SET
+            status = 'stale',
+            updated_at = CURRENT_TIMESTAMP
+          FROM guide_variant_presentations gvp
+          INNER JOIN guide_stops gs ON gs.id = gvp.stop_id
+          INNER JOIN guide_master_guides mg ON mg.id = gs.master_guide_id
+          INNER JOIN guide_places p ON p.id = mg.place_id
+          WHERE ga.variant_presentation_id = gvp.id
+            AND gs.id = $1
+            AND mg.place_id = $2
+            AND ga.status <> 'stale'
+        `;
+    const filtered = adapter._addTenantFilter(sql, userId);
+    expect(filtered).toContain('FROM guide_variant_presentations gvp');
+    expect(filtered).toContain('AND user_id = $3');
+  });
 });

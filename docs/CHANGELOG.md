@@ -4,6 +4,36 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Guide CMS Epic 5 (`guides`-plugin, backend)
+
+**Status:** Slutförd (Backend, QA, Security, Documentation, TPM).
+
+**Sammanfattning:** Audio metadata CRUD under VariantPresentation — `status`, `providerKey`, `storageRef`, `durationMs`, `mimeType`, `errorMessage`. Provider-interface med `noop`-stub; staleness-propagation vid `canonicalNarrative`-ändring. Backend-grindordning godkänd.
+
+### Backend
+
+- **Migration:** `095-guide-audio.sql` — tabell `guide_audio` (UNIQUE FK till `guide_variant_presentations`, CASCADE).
+- **API:** `GET/POST/PUT/DELETE /api/guides/:placeId/stops/:stopId/variants/:variantId/audio` (1:1, ingen separat `audioId`).
+- **Provider:** `plugins/guides/audio/` — `AudioProvider`, `NoopAudioProvider`, `AudioProviderRegistry` (registreras i `index.js`).
+- **Validering:** `parseAudioStatus`, `parseProviderKey`, `audioStatusBodyRule`, `providerKeyBodyRule` i [`plugins/guides/validation.js`](../plugins/guides/validation.js).
+- **Staleness:** `_markAudioStaleForStop` vid narrative-ändring på stopp.
+- **Tester:** 78 st i `plugins/guides/__tests__/` (18 nya/uppdaterade för audio).
+
+### Drift
+
+- Kör `npm run migrate:guides` lokalt och prod (inkluderar `095`).
+- Logga ut/in efter plugin-access-ändringar (parity).
+
+### Ej inkluderat
+
+- Extern TTS, faktisk generering, public API, frontend UI.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 5.
+
+**Nästa:** Epic 6 planerad — se `docs/ai/CHANGELOG.md` § Guide CMS – Epic 6.
+
+---
+
 ## 2026-07 – Guide CMS Epic 4 (`guides`-plugin)
 
 **Sammanfattning:** VariantPresentation CRUD i API och UI under GuideStop — `variantType`, `language`, `presentationText`, `publicationStatus`, `stalenessStatus`. Auto-create av quick/normal/deep vid stop create; staleness vid `canonicalNarrative`-ändring. Full grindordning godkänd (backend + frontend, QA, Security).
