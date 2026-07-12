@@ -8,7 +8,7 @@ import { ContentLayoutProvider } from './ContentLayoutContext';
 import { ContentSurface } from './ContentSurface';
 import { DetailPanel } from './DetailPanel';
 import { Sidebar } from './Sidebar';
-import type { NavPage } from './Sidebar';
+import type { NavPage } from '@/core/navigation/navTypes';
 import { TopBar } from './TopBar';
 
 interface MainLayoutProps {

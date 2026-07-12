@@ -1,41 +1,19 @@
-import { ChevronDown, ChevronRight, Home } from 'lucide-react';
-
-import type { AppIcon } from '@/types/icons';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { categoryOrder } from '@/core/navigationConfig';
-import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import { buildNavCategories } from '@/core/navigation/buildNavCategories';
+import { findActiveCategoryId, findSubmenuParentPage } from '@/core/navigation/collapsibleState';
+import type { NavPage } from '@/core/navigation/navTypes';
+import {
+  SidebarNavContent,
+  type SidebarNavContentProps,
+} from '@/core/ui/sidebar/SidebarNavContent';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useIsMobile } from '@/hooks/useMediaQuery';
-import { cn } from '@/lib/utils';
+import { toggleSetItem } from '@/lib/setUtils';
 
-export type NavPage =
-  | 'dashboard'
-  | 'contacts'
-  | 'notes'
-  | 'estimates'
-  | 'invoices'
-  | 'invoices-recurring'
-  | 'invoices-payments'
-  | 'invoices-reports'
-  | 'tasks'
-  | 'requests'
-  | 'teams'
-  | 'schedule'
-  | 'matches'
-  | 'slots'
-  | 'cups'
-  | 'files'
-  | 'ingest'
-  | 'guides'
-  | 'mail'
-  | 'pulses'
-  | 'settings';
+export type { NavPage } from '@/core/navigation/navTypes';
 
 interface SidebarProps {
   currentPage: NavPage;
@@ -43,244 +21,6 @@ interface SidebarProps {
   mobileOpen: boolean;
   onMobileOpenChange: (open: boolean) => void;
 }
-
-type SubmenuNavItem = {
-  label: string;
-  icon: AppIcon;
-  page: NavPage;
-  order: number;
-};
-
-type NavItemData = {
-  label: string;
-  icon: AppIcon;
-  page: NavPage;
-  order: number;
-  badge?: {
-    label: string;
-    variant: 'default' | 'secondary' | 'destructive' | 'outline';
-  };
-  submenu?: SubmenuNavItem[];
-};
-
-type NavCategory = {
-  title: string;
-  items: NavItemData[];
-};
-
-const NavSubItem = React.memo(function NavSubItem({
-  item,
-  isActive,
-  onNavigate,
-}: {
-  item: SubmenuNavItem;
-  isActive: boolean;
-  onNavigate: (page: NavPage) => void;
-}) {
-  const SubIcon = item.icon;
-  const handleClick = useCallback(() => {
-    onNavigate(item.page);
-  }, [onNavigate, item.page]);
-
-  return (
-    <Button
-      variant="ghost"
-      type="button"
-      onClick={handleClick}
-      className={cn(
-        'group w-full flex items-center gap-3 rounded-md px-3 py-2 text-[14px] transition-colors justify-start h-auto',
-        isActive
-          ? 'bg-primary/10 text-primary font-semibold hover:bg-primary/10 hover:text-primary'
-          : 'text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary',
-      )}
-    >
-      <SubIcon
-        className={cn(
-          'h-4 w-4 flex-shrink-0 transition-colors',
-          isActive
-            ? 'text-primary/70 group-hover:text-primary/70'
-            : 'text-slate-400 dark:text-slate-500 group-hover:text-primary/70',
-        )}
-      />
-      <span className={cn('truncate', isActive ? 'font-medium' : '')}>{item.label}</span>
-    </Button>
-  );
-});
-
-const NavItem = React.memo(function NavItem({
-  item,
-  isActive,
-  activeSubPage,
-  isSubmenuOpen,
-  onNavigate,
-  onToggleSubmenu,
-}: {
-  item: NavItemData;
-  isActive: boolean;
-  /** Om aktuell route är en underrad under detta item, annars null */
-  activeSubPage: NavPage | null;
-  isSubmenuOpen: boolean;
-  onNavigate: (page: NavPage) => void;
-  onToggleSubmenu: (itemLabel: string) => void;
-}) {
-  const Icon = item.icon;
-  const hasSubmenu = Boolean(item.submenu && item.submenu.length > 0);
-
-  const handleNavigateTop = useCallback(() => {
-    onNavigate(item.page);
-  }, [onNavigate, item.page]);
-
-  const handleToggle = useCallback(() => {
-    onToggleSubmenu(item.label);
-  }, [onToggleSubmenu, item.label]);
-
-  const buttonClass = cn(
-    'group w-full flex items-center gap-3 rounded-md px-3 py-2 text-[14px] transition-colors',
-    'justify-start',
-    isActive
-      ? 'bg-primary/10 text-primary font-semibold hover:bg-primary/10 hover:text-primary'
-      : 'text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary',
-  );
-
-  const content = (
-    <>
-      <Icon
-        className={cn(
-          'h-4 w-4 flex-shrink-0 transition-colors',
-          isActive
-            ? 'text-primary/70 group-hover:text-primary/70'
-            : 'text-slate-400 dark:text-slate-500 group-hover:text-primary/70',
-        )}
-      />
-      <span className={cn('truncate', isActive ? 'font-medium' : '')}>{item.label}</span>
-      {item.badge && (
-        <Badge variant={item.badge.variant} className="ml-auto">
-          {item.badge.label}
-        </Badge>
-      )}
-      {hasSubmenu &&
-        (isSubmenuOpen ? (
-          <ChevronDown className={cn('h-3.5 w-3.5', item.badge ? '' : 'ml-auto')} />
-        ) : (
-          <ChevronRight className={cn('h-3.5 w-3.5', item.badge ? '' : 'ml-auto')} />
-        ))}
-    </>
-  );
-
-  if (hasSubmenu && item.submenu) {
-    return (
-      <Collapsible open={isSubmenuOpen} onOpenChange={handleToggle} className="w-full">
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" type="button" className={cn(buttonClass, 'h-auto')}>
-            {content}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="pl-6 pt-1 pb-1 space-y-1">
-            {item.submenu.map((subItem) => (
-              <NavSubItem
-                key={subItem.label}
-                item={subItem}
-                isActive={activeSubPage !== null && subItem.page === activeSubPage}
-                onNavigate={onNavigate}
-              />
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    );
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      type="button"
-      onClick={handleNavigateTop}
-      className={cn(buttonClass, 'h-auto')}
-    >
-      {content}
-    </Button>
-  );
-});
-
-const SidebarNavContent = React.memo(function SidebarNavContent({
-  navCategories,
-  currentPage,
-  autoOpenLabels,
-  userOpenSubmenus,
-  openCategories,
-  onNavigate,
-  onToggleSubmenu,
-  onToggleCategory,
-}: {
-  navCategories: NavCategory[];
-  currentPage: NavPage;
-  autoOpenLabels: ReadonlySet<string>;
-  userOpenSubmenus: ReadonlySet<string>;
-  openCategories: ReadonlySet<string>;
-  onNavigate: (page: NavPage) => void;
-  onToggleSubmenu: (itemLabel: string) => void;
-  onToggleCategory: (title: string) => void;
-}) {
-  return (
-    <div className="flex-1 overflow-y-auto px-3 pt-4">
-      <div className="flex flex-col gap-1">
-        {navCategories.map((category) => {
-          const isCategoryOpen = openCategories.has(category.title);
-          return (
-            <Collapsible
-              key={category.title}
-              open={isCategoryOpen}
-              onOpenChange={() => onToggleCategory(category.title)}
-            >
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="group w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
-                >
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
-                    {category.title}
-                  </span>
-                  {isCategoryOpen ? (
-                    <ChevronDown className="h-3 w-3 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:group-hover:text-slate-500 transition-colors" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:group-hover:text-slate-500 transition-colors" />
-                  )}
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <nav className="flex flex-col items-stretch gap-[2px] pb-2 pt-0.5">
-                  {category.items.map((item) => {
-                    const hasSubmenu = Boolean(item.submenu && item.submenu.length > 0);
-                    const activeSubPage =
-                      item.submenu?.some((s) => s.page === currentPage) === true
-                        ? currentPage
-                        : null;
-                    const isItemActive = item.page === currentPage || activeSubPage !== null;
-                    const isSubmenuOpen =
-                      hasSubmenu &&
-                      (autoOpenLabels.has(item.label) || userOpenSubmenus.has(item.label));
-                    return (
-                      <NavItem
-                        key={item.label}
-                        item={item}
-                        isActive={isItemActive}
-                        activeSubPage={activeSubPage}
-                        isSubmenuOpen={isSubmenuOpen}
-                        onNavigate={onNavigate}
-                        onToggleSubmenu={onToggleSubmenu}
-                      />
-                    );
-                  })}
-                </nav>
-              </CollapsibleContent>
-            </Collapsible>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
 
 export function Sidebar({
   currentPage,
@@ -291,97 +31,56 @@ export function Sidebar({
   const enabledPlugins = useEnabledPlugins();
   const { t, i18n } = useTranslation();
   const isMobile = useIsMobile();
-  const [userOpenSubmenus, setUserOpenSubmenus] = useState<Set<string>>(() => new Set());
+  const [userOpenSubmenus, setUserOpenSubmenus] = useState<Set<NavPage>>(() => new Set());
+  const [userClosedSubmenus, setUserClosedSubmenus] = useState<Set<NavPage>>(() => new Set());
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
+  const didInitCategoriesRef = useRef(false);
 
-  const navCategories = useMemo(() => {
-    const categoriesMap = new Map<string, NavItemData[]>();
-    categoriesMap.set('Main', [
-      { label: t('nav.dashboard'), icon: Home, page: 'dashboard' as NavPage, order: 0 },
-    ]);
+  const navCategories = useMemo(
+    () => buildNavCategories(enabledPlugins, t),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t follows i18n.language on locale change
+    [enabledPlugins, i18n.language],
+  );
 
-    PLUGIN_REGISTRY.forEach((plugin) => {
-      const isEnabled = enabledPlugins.has(plugin.name);
-      if (isEnabled && plugin.navigation) {
-        const { category, icon, order, submenu, badge } = plugin.navigation;
-        if (!categoriesMap.has(category)) {
-          categoriesMap.set(category, []);
-        }
-        const sortedSubmenu = submenu
-          ? [...submenu]
-              .sort((a, b) => a.order - b.order)
-              .map((sub) => ({
-                label: t(`nav.${sub.page}` as 'nav.slots'),
-                icon: sub.icon,
-                page: sub.page as NavPage,
-                order: sub.order,
-              }))
-          : undefined;
-        categoriesMap.get(category)!.push({
-          label: t(`nav.${plugin.name}` as 'nav.slots'),
-          icon,
-          page: plugin.name as NavPage,
-          order,
-          badge,
-          submenu: sortedSubmenu,
-        });
-      }
-    });
+  const activeCategoryId = useMemo(
+    () => findActiveCategoryId(navCategories, currentPage),
+    [currentPage, navCategories],
+  );
 
-    categoriesMap.forEach((items) => {
-      items.sort((a, b) => a.order - b.order);
-    });
-
-    const categoryToKey: Record<string, string> = {
-      Main: 'main',
-      Content: 'content',
-      Sport: 'sport',
-      Booking: 'booking',
-      Business: 'business',
-      'E-commerce': 'ecommerce',
-      Tools: 'tools',
-      Account: 'account',
-    };
-    return categoryOrder
-      .filter((category) => categoriesMap.has(category))
-      .map((category) => ({
-        title: t(`nav.${categoryToKey[category] || category.toLowerCase()}` as 'nav.main'),
-        items: categoriesMap.get(category)!,
-      }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- t följer i18n.language vid språkbyte
-  }, [enabledPlugins, i18n.language]);
-
-  const activeCategoryTitle = useMemo(() => {
-    for (const cat of navCategories) {
-      for (const item of cat.items) {
-        if (item.page === currentPage) return cat.title;
-        if (item.submenu?.some((s) => s.page === currentPage)) return cat.title;
-      }
+  useLayoutEffect(() => {
+    if (!didInitCategoriesRef.current && activeCategoryId) {
+      didInitCategoriesRef.current = true;
+      setOpenCategories(new Set([activeCategoryId]));
     }
-    return null;
-  }, [currentPage, navCategories]);
+  }, [activeCategoryId]);
 
   useEffect(() => {
-    if (activeCategoryTitle) {
-      setOpenCategories((prev) => {
-        if (prev.has(activeCategoryTitle)) return prev;
-        const next = new Set(prev);
-        next.add(activeCategoryTitle);
-        return next;
-      });
+    if (!activeCategoryId) {
+      return;
     }
-  }, [activeCategoryTitle]);
-
-  const autoOpenLabels = useMemo(() => {
-    const labels = new Set<string>();
-    navCategories.forEach((category) => {
-      category.items.forEach((item) => {
-        if (item.submenu?.some((sub) => sub.page === currentPage)) {
-          labels.add(item.label);
-        }
-      });
+    setOpenCategories((prev) => {
+      if (prev.has(activeCategoryId)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.add(activeCategoryId);
+      return next;
     });
-    return labels;
+  }, [activeCategoryId]);
+
+  useEffect(() => {
+    const parentPage = findSubmenuParentPage(navCategories, currentPage);
+    if (!parentPage) {
+      return;
+    }
+    setUserClosedSubmenus((prev) => {
+      if (!prev.has(parentPage)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.delete(parentPage);
+      return next;
+    });
   }, [currentPage, navCategories]);
 
   const handleNavigate = useCallback(
@@ -394,44 +93,31 @@ export function Sidebar({
     [isMobile, onMobileOpenChange, onPageChange],
   );
 
-  const handleToggleSubmenu = useCallback((itemLabel: string) => {
-    setUserOpenSubmenus((prev) => {
-      const next = new Set(prev);
-      if (next.has(itemLabel)) {
-        next.delete(itemLabel);
-      } else {
-        next.add(itemLabel);
-      }
-      return next;
-    });
+  const handleSubmenuOpenChange = useCallback((page: NavPage, open: boolean) => {
+    setUserOpenSubmenus((prev) => toggleSetItem(prev, page, open));
+    setUserClosedSubmenus((prev) => toggleSetItem(prev, page, !open));
   }, []);
 
-  const handleToggleCategory = useCallback((title: string) => {
-    setOpenCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(title)) {
-        next.delete(title);
-      } else {
-        next.add(title);
-      }
-      return next;
-    });
+  const handleCategoryOpenChange = useCallback((categoryId: string, open: boolean) => {
+    setOpenCategories((prev) => toggleSetItem(prev, categoryId, open));
   }, []);
+
+  const navContentProps: SidebarNavContentProps = {
+    navCategories,
+    currentPage,
+    userOpenSubmenus,
+    userClosedSubmenus,
+    openCategories,
+    onNavigate: handleNavigate,
+    onSubmenuOpenChange: handleSubmenuOpenChange,
+    onCategoryOpenChange: handleCategoryOpenChange,
+  };
 
   return (
     <>
       <aside className="fixed left-0 top-0 z-10 hidden h-screen w-[252px] flex-shrink-0 bg-workspace border-r border-border/50 md:flex">
         <div className="flex h-full flex-col pt-14">
-          <SidebarNavContent
-            navCategories={navCategories}
-            currentPage={currentPage}
-            autoOpenLabels={autoOpenLabels}
-            userOpenSubmenus={userOpenSubmenus}
-            openCategories={openCategories}
-            onNavigate={handleNavigate}
-            onToggleSubmenu={handleToggleSubmenu}
-            onToggleCategory={handleToggleCategory}
-          />
+          <SidebarNavContent {...navContentProps} />
         </div>
       </aside>
 
@@ -442,16 +128,7 @@ export function Sidebar({
           </SheetHeader>
           <div className="px-2 pb-6 pt-2">
             <div className="flex flex-col">
-              <SidebarNavContent
-                navCategories={navCategories}
-                currentPage={currentPage}
-                autoOpenLabels={autoOpenLabels}
-                userOpenSubmenus={userOpenSubmenus}
-                openCategories={openCategories}
-                onNavigate={handleNavigate}
-                onToggleSubmenu={handleToggleSubmenu}
-                onToggleCategory={handleToggleCategory}
-              />
+              <SidebarNavContent {...navContentProps} />
             </div>
           </div>
         </SheetContent>

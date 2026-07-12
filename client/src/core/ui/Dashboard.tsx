@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
-import type { NavPage } from '@/core/ui/Sidebar';
+import type { NavPage } from '@/core/navigation/navTypes';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 
