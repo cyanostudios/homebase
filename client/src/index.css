@@ -88,6 +88,8 @@
     /* Indigo */
     --plugin-ingest: 24 95% 53%;
     /* Orange */
+    --plugin-guides: 160 84% 39%;
+    /* Emerald */
   }
 
   .dark {
@@ -141,6 +143,7 @@
     --plugin-matches: 173 80% 40%;
     --plugin-slots: 250 60% 58%;
     --plugin-ingest: 24 95% 53%;
+    --plugin-guides: 160 84% 39%;
   }
 
   * {
@@ -209,6 +212,10 @@
 
   .plugin-ingest {
     --plugin-color: var(--plugin-ingest);
+  }
+
+  .plugin-guides {
+    --plugin-color: var(--plugin-guides);
   }
 
   /* Utility classes using the assigned variable */

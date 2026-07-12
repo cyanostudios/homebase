@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DetailLayout } from '@/core/ui/DetailLayout';
+import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import type { YourItem } from '../types/your-items';
@@ -21,8 +22,8 @@ export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
   const { openYourItemForEdit, deleteYourItem } = useYourItems();
   if (!item) return null;
 
-  const created = new Date(item.createdAt).toLocaleDateString();
-  const updated = new Date(item.updatedAt).toLocaleDateString();
+  const created = formatDate(item.createdAt);
+  const updated = formatDate(item.updatedAt);
 
   return (
     <DetailLayout

@@ -17,6 +17,7 @@ import {
 import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
 import { pomodoroAudio } from '@/core/widgets/pomodoro/pomodoroAudio';
 import i18n from '@/i18n';
+import { filterSlotsForContact } from '@/plugins/slots/utils/slotContactUtils';
 import type { Contact, Estimate, Match, Note, Slot, Task } from '@/types/pluginTypes';
 
 interface User {
@@ -56,6 +57,7 @@ interface AppContextType {
   // Cross-plugin data (read-only for cross-references)
   contacts: Contact[];
   notes: Note[];
+  slots: Slot[];
 
   // Cross-plugin references
   getNotesForContact: (contactId: string) => Promise<Note[]>;
@@ -117,6 +119,7 @@ interface AppContextType {
   syncSharedContacts: (contacts: Contact[]) => void;
   syncSharedNotes: (notes: Note[]) => void;
   syncSharedTasks: (tasks: Task[]) => void;
+  syncSharedSlots: (slots: Slot[]) => void;
   registerSharedDataRefresh: (key: string, fn: () => Promise<void>) => () => void;
 
   // Settings
@@ -227,6 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
 
   const panelCloseFunctionsRef = useRef<Map<string, () => void>>(new Map());
   const sharedDataRefreshHandlersRef = useRef<Map<string, () => Promise<void>>>(new Map());
@@ -324,6 +328,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTasks(data);
   }, []);
 
+  const syncSharedSlots = useCallback((data: Slot[]) => {
+    setSlots(data);
+  }, []);
+
   const registerSharedDataRefresh = useCallback((key: string, fn: () => Promise<void>) => {
     sharedDataRefreshHandlersRef.current.set(key, fn);
     return () => {
@@ -336,6 +344,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContacts([]);
       setNotes([]);
       setTasks([]);
+      setSlots([]);
     }
   }, [isAuthenticated]);
 
@@ -406,6 +415,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContacts([]);
       setNotes([]);
       setTasks([]);
+      setSlots([]);
     }
   }, []);
 
@@ -502,21 +512,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!user?.plugins?.includes('slots')) {
         return [];
       }
-      try {
-        const rows = await api.request('/slots');
-        const id = String(contactId);
-        return (rows || []).filter(
-          (row: { contact_id?: number | string | null; mentions?: { contactId: string }[] }) =>
-            (row.contact_id !== null &&
-              row.contact_id !== undefined &&
-              String(row.contact_id) === id) ||
-            (Array.isArray(row.mentions) && row.mentions.some((m) => String(m.contactId) === id)),
-        );
-      } catch {
-        return [];
-      }
+      return filterSlotsForContact(slots, contactId);
     },
-    [user?.plugins],
+    [user?.plugins, slots],
   );
 
   const getMatchesForContact = useCallback(
@@ -611,6 +609,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       contacts,
       notes,
+      slots,
 
       getNotesForContact,
       getContactsForNote,
@@ -644,6 +643,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       syncSharedContacts,
       syncSharedNotes,
       syncSharedTasks,
+      syncSharedSlots,
       registerSharedDataRefresh,
 
       getSettings,
@@ -659,6 +659,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isLoading,
       contacts,
       notes,
+      slots,
       getNotesForContact,
       getContactsForNote,
       getEstimatesForContact,
@@ -687,6 +688,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       syncSharedContacts,
       syncSharedNotes,
       syncSharedTasks,
+      syncSharedSlots,
       registerSharedDataRefresh,
       getSettings,
       updateSettings,

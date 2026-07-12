@@ -71,6 +71,14 @@ class ScheduleApi {
     await this.request(`/${id}`, { method: 'DELETE' });
   }
 
+  async duplicateSchedule(id: string, name: string): Promise<SchedulePlan> {
+    const row = await this.request(`/${id}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    return rowToPlan(row);
+  }
+
   async getSchedule(id: string): Promise<SchedulePlanWithEvents> {
     const row = await this.request(`/${id}`);
     const plan = rowToPlan(row);

@@ -1,6 +1,8 @@
 # Refactoring existing plugins
 
 > **Status (2026-05):** Legacy migration till `@homebase/core` och V2 tenant-DB är i stort sett **klar** för contacts, notes, tasks, estimates, m.fl. Detta dokument är en **kort referens**, inte en steg-för-steg-guide med gamla `ServiceManager.get('storage')`-exempel (de tjänsterna finns inte i runtime).
+>
+> **Index:** Den långa guiden togs bort maj 2026. Canonical mönster: `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` + `CORE_SERVICES_ARCHITECTURE.md`. Se `docs/README.md`.
 
 ## Canonical patterns
 

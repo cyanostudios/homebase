@@ -24,6 +24,7 @@ import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
+import { isInvoicesSubRoute } from '@/core/routing/invoicesRoutes';
 import { navPageToPath, pathToNavPage } from '@/core/routing/routeMap';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -33,7 +34,7 @@ import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
-import type { NavPage } from '@/core/ui/Sidebar';
+import type { NavPage } from '@/core/navigation/navTypes';
 import { resolveSlug } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
@@ -241,13 +242,10 @@ export function AppContent() {
     const pluginName = parts[0];
     const itemSlug = parts[1];
 
-    const isInvoicesSubRoute =
-      pluginName === 'invoices' &&
-      itemSlug &&
-      ['recurring', 'payments', 'reports'].includes(itemSlug);
+    const isInvoicesSubRouteMatch = isInvoicesSubRoute(pluginName, itemSlug);
 
     const panelBelongsToUrl = (plugin: { name: string }) =>
-      Boolean(pluginName && plugin.name === pluginName && itemSlug && !isInvoicesSubRoute);
+      Boolean(pluginName && plugin.name === pluginName && itemSlug && !isInvoicesSubRouteMatch);
 
     // Close panels that no longer match the URL (e.g. browser back from /teams/foo → /schedule).
     pluginContextsRef.current.forEach(({ plugin, context }) => {
@@ -266,7 +264,7 @@ export function AppContent() {
     if (!pluginName || ['dashboard', 'settings'].includes(pluginName)) {
       return;
     }
-    if (isInvoicesSubRoute) {
+    if (isInvoicesSubRouteMatch) {
       return;
     }
 

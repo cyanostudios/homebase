@@ -83,7 +83,7 @@ export function parseResultToScores(result: string): { home: number; away: numbe
 }
 
 export function getMatchFormScoreFields(
-  match: Pick<Match, 'result' | 'home_score' | 'away_score'>,
+  match: Pick<Match, 'result' | 'home_score' | 'away_score' | 'start_time' | 'is_finished'>,
 ): { home_score: string; away_score: string; result: string } {
   let home_score =
     match.home_score !== null && match.home_score !== undefined ? String(match.home_score) : '';
@@ -110,21 +110,48 @@ export function getMatchFormScoreFields(
   };
 }
 
+export function isMatchStarted(match: Pick<Match, 'start_time'>): boolean {
+  if (!match.start_time) {
+    return false;
+  }
+  const start = new Date(match.start_time);
+  if (Number.isNaN(start.getTime())) {
+    return false;
+  }
+  return start.getTime() <= Date.now();
+}
+
 export function formatMatchScore(
-  match: Pick<Match, 'result' | 'home_score' | 'away_score'>,
+  match: Pick<Match, 'result' | 'home_score' | 'away_score' | 'is_finished' | 'start_time'>,
 ): string | null {
   const resultText = match.result?.trim();
+  const hasNumericScores = match.home_score != null && match.away_score != null;
+
+  if (match.is_finished) {
+    if (resultText) {
+      return resultText;
+    }
+    if (hasNumericScores) {
+      return `${match.home_score}–${match.away_score}`;
+    }
+    return null;
+  }
+
+  if (!isMatchStarted(match)) {
+    return null;
+  }
+
   if (resultText) {
     return resultText;
   }
-  if (match.home_score != null && match.away_score != null) {
+  if (hasNumericScores) {
     return `${match.home_score}–${match.away_score}`;
   }
   return null;
 }
 
 export function hasMatchResult(
-  match: Pick<Match, 'result' | 'home_score' | 'away_score' | 'is_finished'>,
+  match: Pick<Match, 'result' | 'home_score' | 'away_score' | 'is_finished' | 'start_time'>,
 ): boolean {
   return Boolean(formatMatchScore(match)) || match.is_finished;
 }

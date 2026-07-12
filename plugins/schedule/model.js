@@ -194,6 +194,95 @@ class ScheduleModel {
     }
   }
 
+  async duplicate(req, scheduleId, data) {
+    try {
+      const db = Database.get(req);
+      const userId = db.getUserId();
+      if (!userId) {
+        throw new AppError('User context required', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const sourceRows = await db.query(`SELECT * FROM ${this.schedulesTable} WHERE id = $1`, [
+        scheduleId,
+      ]);
+      if (!sourceRows.length) {
+        throw new AppError('Schedule not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const source = sourceRows[0];
+      if (source.is_team_calendar) {
+        throw new AppError('Teams calendar cannot be duplicated', 403, AppError.CODES.FORBIDDEN);
+      }
+
+      const newName = sanitizeName(data.name);
+      if (!newName) {
+        throw new AppError('Schedule name is required', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+
+      const newSchedule = await db.transaction(async (tx) => {
+        const scheduleRows = await tx.query(
+          `
+            INSERT INTO ${this.schedulesTable} (name, color, is_team_calendar, user_id)
+            VALUES ($1, $2, false, $3)
+            RETURNING *
+          `,
+          [newName, sanitizeColor(data.color ?? source.color), userId],
+        );
+        const created = scheduleRows[0];
+        const newId = created.id;
+
+        await tx.query(
+          `
+            INSERT INTO ${this.eventsTable} (
+              user_id,
+              schedule_id,
+              title,
+              event_type,
+              day,
+              event_date,
+              start_time,
+              end_time,
+              location,
+              team_id
+            )
+            SELECT
+              $2,
+              $3,
+              title,
+              event_type,
+              day,
+              event_date,
+              start_time,
+              end_time,
+              location,
+              team_id
+            FROM ${this.eventsTable}
+            WHERE schedule_id = $1
+          `,
+          [scheduleId, userId, newId],
+        );
+
+        const countRows = await tx.query(
+          `SELECT COUNT(*)::int AS event_count FROM ${this.eventsTable} WHERE schedule_id = $1`,
+          [newId],
+        );
+
+        return { ...created, event_count: countRows[0]?.event_count ?? 0 };
+      });
+
+      Logger.info('Schedule duplicated', {
+        sourceScheduleId: scheduleId,
+        newScheduleId: newSchedule.id,
+      });
+      return this.transformScheduleRow(newSchedule);
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      Logger.error('Failed to duplicate schedule', error, { scheduleId });
+      throw new AppError('Failed to duplicate schedule', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async delete(req, scheduleId) {
     try {
       const db = Database.get(req);

@@ -8,6 +8,7 @@
     "dev:ui": "vite --port 3001",
     "dev:all": "concurrently -k -n API,UI -c auto \"npm:dev:api\" \"npm:dev:ui\"",
     "dev:public-booking": "npx serve public-booking -p 3003",
+    "dev:public-requests": "npx serve public-requests -p 3005",
     "dev:public-cups": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; if command -v php >/dev/null 2>&1; then php -S 0.0.0.0:3004 -t public-cups public-cups/router.php; else echo \"php not found; using static serve fallback (detail routes will 404)\"; npx serve public-cups -p 3004; fi'",
     "build": "npm run build:ui && npm run build:api && npm run copy:ui",
     "build:ui": "vite build",
@@ -52,6 +53,7 @@
     "migrate:slots-category": "node scripts/run-slots-category-migration.js",
     "migrate:remove-cups-plugin-access": "node scripts/run-remove-cups-plugin-access-migration.js",
     "migrate:ingest-plugin-access": "node scripts/run-grant-ingest-plugin-access-migration.js",
+    "migrate:guides": "node scripts/run-guides-migration.js",
     "set:tenant-plugins": "node scripts/set-tenant-plugin-access.js",
     "migrate:ingest-tenants": "node scripts/run-ingest-tenant-migrations.js",
     "migrate:cups-upsert-index": "node scripts/run-cups-upsert-index-migration.js",
@@ -183,6 +185,7 @@
     "rollup-plugin-visualizer": "^5.14.0",
     "supertest": "^7.0.0",
     "tailwindcss": "^3.4.17",
+    "ts-jest": "^29.2.5",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.14"

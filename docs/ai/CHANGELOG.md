@@ -1,0 +1,882 @@
+# AI-utvecklingsteam – Changelog
+
+Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
+
+## Guide CMS – Epic 5 (slutförd 2026-07-11, backend)
+
+**Status:** Slutförd — Backend, QA, Security, Documentation, TPM godkända.
+
+Grindordning: Backend → QA → Security → Dokumentation → TPM-avslut.
+
+### Omfattning
+
+- Audio metadata CRUD under VariantPresentation (backend only).
+- Fält: `status`, `providerKey`, `storageRef`, `durationMs`, `mimeType`, `errorMessage`.
+- Provider-agnostiskt interface (`AudioProvider`) med `noop`-stub och registry.
+- Staleness-propagation: audio markeras `stale` när `canonicalNarrative` ändras på stopp (samma trigger som variant-staleness).
+- **Ej inkluderat:** extern TTS, faktisk ljudgenerering, public API, frontend UI.
+
+### Databas
+
+Migration **`095-guide-audio.sql`** (tenant DB):
+
+| Kolumn                    | Typ                                | Notering                                |
+| ------------------------- | ---------------------------------- | --------------------------------------- |
+| `variant_presentation_id` | FK → `guide_variant_presentations` | UNIQUE, ON DELETE CASCADE (1:1)         |
+| `status`                  | VARCHAR(50) NOT NULL               | Default `pending`; se statuslista nedan |
+| `provider_key`            | VARCHAR(50) NOT NULL               | Default `noop`                          |
+| `storage_ref`             | VARCHAR(500)                       | Valfritt; framtida lagringsreferens     |
+| `duration_ms`             | INTEGER                            | Valfritt; icke-negativt heltal          |
+| `mime_type`               | VARCHAR(100)                       | Valfritt                                |
+| `error_message`           | TEXT                               | Valfritt; max 5 000 tecken i API        |
+
+**Statusvärden:** `pending` \| `processing` \| `ready` \| `failed` \| `stale`.
+
+Kör: `npm run migrate:guides` (inkluderar 090, 092, 093, 094, **095** per tenant).
+
+### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
+
+| Metod  | Path                                                           | Beskrivning                             |
+| ------ | -------------------------------------------------------------- | --------------------------------------- |
+| GET    | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Hämta audio för variant (404 om saknas) |
+| POST   | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Skapa audio (409 om redan finns)        |
+| PUT    | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Uppdatera audio (partiell update)       |
+| DELETE | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Ta bort audio                           |
+
+**Request (create):** `{ status?, providerKey?, storageRef?, durationMs?, mimeType?, errorMessage? }` — default `status: pending`, `providerKey: noop`.
+
+**Request (update):** samma fält, alla valfria.
+
+**Response (`Audio`):** `id`, `variantId`, `stopId`, `placeId`, `status`, `providerKey`, `storageRef`, `durationMs`, `mimeType`, `errorMessage`, `createdAt`, `updatedAt`.
+
+**Semantik:**
+
+- 1:1 mot variant — ingen separat `audioId` i URL.
+- Audio skapas **inte** automatiskt vid variant-skapande; opt-in via POST.
+- Vid **GuideStop update**: om `canonicalNarrative` ändras markeras befintlig audio för stoppets varianter som `status: stale` (parallellt med variant `stalenessStatus`).
+- `noop`-provider registreras vid plugin-init men anropas **inte** i CRUD-flödet i v1.
+
+### Provider-lager (`plugins/guides/audio/`)
+
+| Fil                             | Roll                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| `AudioProvider.js`              | Bas-kontrakt: `generate`, `getStatus`, `cancel`                                |
+| `adapters/NoopAudioProvider.js` | Stub i Epic 5; **utökad i Epic 6** — returnerar `audioBuffer` via orkestrering |
+| `AudioProviderRegistry.js`      | `register`, `get`, `has`, `listNames`, `resolveDefault`                        |
+| `registerDefaultProviders.js`   | Registrerar `noop` vid första anrop                                            |
+
+### Validering (backend: `plugins/guides/validation.js`)
+
+- `AUDIO_STATUSES`, `DEFAULT_AUDIO_STATUS`, `DEFAULT_PROVIDER_KEY`
+- `parseAudioStatus()`, `parseProviderKey()` (mot registry)
+- Route-regler: `audioStatusBodyRule()`, `providerKeyBodyRule()`
+
+### Tenant-isolering
+
+`guide_audio` joinar `guide_variant_presentations` → `guide_stops` → `guide_master_guides` → `guide_places` för tenant-filter. `createAudio` INSERT efter tenant-scopad `getVariantById`.
+
+### Frontend
+
+Ej tillämpligt i Epic 5 (backend only).
+
+### Tester
+
+78 backend-tester i `plugins/guides/__tests__/` (18 nya/uppdaterade för audio). Inga frontend-enhetstester.
+
+Kör: `npm run check` och `npm test -- plugins/guides/__tests__` (hela sviten: 126 tester).
+
+### Säkerhet (godkänd 2026-07-11)
+
+| ID  | Risk                                            | Beslut                                                     |
+| --- | ----------------------------------------------- | ---------------------------------------------------------- |
+| S10 | `createAudio` INSERT utan tenant-join           | Accepterad — föregås av `getVariantById` (samma som S2)    |
+| S11 | Fri `storageRef` utan format-validering         | Accepterad v1 — provider ej kopplad till filåtkomst        |
+| S12 | `status=ready` utan `storageRef`/filverifiering | Accepterad — redaktionell integritet, autentiserad access  |
+| S13 | Klientstyrd `errorMessage`                      | Accepterad — max 5 000 tecken; rendera som plain text i UI |
+| S14 | `providerKey` begränsad till registry           | Mitigerad — endast `noop` registrerad i v1                 |
+
+### Kända begränsningar (vid Epic 5-avslut)
+
+- Ingen faktisk ljudgenerering eller provider-anrop i CRUD-flödet.
+- Audio och variant-staleness uppdateras i separata queries (ej atomisk transaktion).
+- `storageRef`-validering krävs innan provider-integration (se S11-rekommendation).
+- Frontend för audio-hantering saknas.
+
+**Uppdatering (Epic 6):** noop-orkestrering, generate/preview och `GuideAudioSection` tillagda — se Epic 6 § 3b och § 4c.
+
+### Nästa steg (vid Epic 5-avslut)
+
+- Epic 6 — se sektion nedan (slutförd 2026-07-12).
+
+---
+
+## Guide CMS – Epic 6 (slutförd 2026-07-12)
+
+**Status:** Slutförd — Backend, Frontend, QA, Security, Documentation godkända. Väntar TPM-avslut och commit.
+
+Grindordning: Lösningsarkitekt → UI/UX-designer → Backend → QA → Security → Dokumentation → Frontend → QA → Security → Dokumentation → _(TPM)_.
+
+### Arkitekturbeslut (ADR, 2026-07-11)
+
+| #   | Fråga                       | Beslut                                                                                                                                                                          | Motivering                                                                                             |
+| --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| A1  | Separat generate-endpoint?  | **Ja:** `POST …/audio/generate` (+ valfritt `POST …/audio/cancel`)                                                                                                              | Skiljer metadata-CRUD (Epic 5) från arbetsflödesaction; tydligare state machine och CSRF per action    |
+| A2  | Synkront vs async v1?       | **Poll-mönster utan jobbkö:** generate sätter `processing`; noop kan slutföra synkront i samma request; riktiga providers returnerar `processing` → klient pollar `GET …/audio` | Enklast i v1; inget kösystem; kontraktet stödjer async redan                                           |
+| A3  | noop simulerar hela flödet? | **Ja:** noop returnerar minimal ljudbuffer + metadata; orkestrering laddar upp via `StorageProvider`                                                                            | E2E i dev utan extern leverantör; verifierar storage-koppling                                          |
+| A4  | Förhandsgranskning?         | **Proxy-endpoint:** `GET …/audio/preview` (auth + tenant-scope) streamar via `StorageProvider.download`                                                                         | Samma mönster som `files/:id/download`; exponerar inte rå `storageRef`                                 |
+| A5  | DELETE cleanup?             | **Compensating delete:** DB-radering först, sedan best-effort `StorageProvider.delete`; logga vid storage-fel                                                                   | Samma pragmatiska mönster som `filesService.deleteStoredBlob`; atomisk cross-store ej möjlig utan saga |
+| A6  | `storageRef`-format?        | **Namespaced sträng:** `{storageProviderKey}:{externalFileId}` (max 500 tecken, validerad i domän)                                                                              | Ingen ny DB-kolumn i v1; mappar till befintlig `StorageProviderRegistry`                               |
+| A7  | `ready`-krav?               | **Server enforce:** `storageRef` + `mimeType` obligatoriska vid generate; `PUT` blockerar manuell `ready`                                                                       | `POST` CRUD kan fortfarande sätta `ready` (S16)                                                        |
+| A8  | Auto-create audio?          | **`generate` upsertar:** skapar `guide_audio` om saknas (default `pending`/`noop`); **409** om status redan `processing`                                                        | Ett knapptryck i UI; behåller Epic 5 CRUD för manuell metadata                                         |
+
+### Mål
+
+Definiera hur Guide CMS går från metadata-only audio (Epic 5) till ett komplett produktionsflöde där redaktörer kan initiera generering, följa status och använda färdigt ljud — med tydlig separation mellan domän, provider-kontrakt och implementation.
+
+### Scope — ingår
+
+#### 1. Audio Provider-gränssnitt (domänkontrakt)
+
+Utöka/refaktorera befintligt stub-kontrakt i `plugins/guides/audio/AudioProvider.js` till ett **fullständigt domänkontrakt** som beskriver:
+
+| Operation   | Ansvar                                                                     |
+| ----------- | -------------------------------------------------------------------------- |
+| `generate`  | Initiera ljudgenerering från variantpresentation (text, språk, varianttyp) |
+| `getStatus` | Hämta asynkront genereringsstatus                                          |
+| `cancel`    | Avbryt pågående generering                                                 |
+
+**Kontraktsregler (låsta):**
+
+- Input: `{ variantPresentationId, presentationText, language, variantType? }` — domänfält only.
+- Output: `{ status, audioBuffer?|stream?, durationMs?, mimeType?, errorMessage? }` — **inte** `storageRef` (sätts av orkestrering efter upload).
+- Provider väljs via `providerKey` i `guide_audio`; registry från Epic 5.
+- `noop` simulerar generate → buffer → upload i dev (A3).
+
+#### 2. Storage Provider-gränssnitt (domän ↔ plattform)
+
+Koppla audio-domänen till befintlig plattformsabstraktion `server/core/storage/StorageProvider.js` via ny **`AudioOrchestrationService`** i `plugins/guides/audio/`:
+
+| StorageProvider (plattform) | Audio-domän (guides)                            |
+| --------------------------- | ----------------------------------------------- |
+| `upload`                    | Lagra genererad ljudfil efter provider-leverans |
+| `download`                  | Hämta för `GET …/audio/preview`                 |
+| `delete`                    | Rensa vid regenerering eller DELETE             |
+
+**Kontraktsregler (låsta):**
+
+- `storageRef` = `{storageProviderKey}:{externalFileId}` (A6); valideras i domän före storage-anrop.
+- Uppladdning via `StorageProviderRegistry.resolveForUpload(req)` — samma princip som `plugins/files/`.
+- Tenant-scope: `req`-kontext + tenant-filter på alla audio-queries (oförändrat från Epic 5).
+- **Domän orkestrerar; providers persisterar/genererar inte själva.**
+
+#### 3. Produktionsflöde för audio (backend-orkestrering)
+
+State machine (låst):
+
+```mermaid
+stateDiagram-v2
+  [*] --> none
+  none --> pending: POST generate (upsert)
+  pending --> processing: orchestration start
+  processing --> ready: provider OK + upload OK
+  processing --> failed: provider/upload error
+  ready --> stale: canonicalNarrative ändras
+  stale --> processing: POST generate (re-run)
+  failed --> processing: POST generate (retry)
+  processing --> pending: POST cancel
+  ready --> processing: POST generate (confirm overwrite)
+  ready --> [*]: DELETE audio (+ storage cleanup)
+  failed --> [*]: DELETE audio
+  stale --> [*]: DELETE audio
+```
+
+**API-yta (utökning av Epic 5):**
+
+| Metod | Path                                   | Beskrivning                                                   |
+| ----- | -------------------------------------- | ------------------------------------------------------------- |
+| POST  | `…/variants/:variantId/audio/generate` | Upsert audio, validera `presentationText`, kör orkestrering   |
+| POST  | `…/variants/:variantId/audio/cancel`   | Avbryt `processing` → `pending`                               |
+| GET   | `…/variants/:variantId/audio/preview`  | Streama ljud (endast `ready`)                                 |
+| \*    | Epic 5 CRUD                            | Oförändrat; `PUT` får inte sätta `ready` utan blob-validering |
+
+**Orkestreringssekvens (`generate`):**
+
+1. Tenant-scopad variant + audio lookup.
+2. Kräv icke-tom `presentationText`.
+3. Om `processing` → 409.
+4. Om regenerering och befintlig `storageRef` → best-effort storage delete.
+5. Sätt `status: processing`.
+6. `AudioProvider.generate()` → buffer/stream + metadata.
+7. `StorageProvider.upload()` → sätt `storageRef`, `mimeType`, `durationMs`.
+8. Sätt `status: ready` eller `failed` + `errorMessage`.
+
+**Ej i v1:** jobbkö, webhooks, batch-generering, auto-trigger vid variant save.
+
+#### 3b. Backend-implementering (klar 2026-07-12)
+
+**Nya filer** (`plugins/guides/audio/`):
+
+| Fil                             | Roll                                                   |
+| ------------------------------- | ------------------------------------------------------ |
+| `AudioOrchestrationService.js`  | generate, cancel, preview, deleteWithBlob              |
+| `storageRef.js`                 | `{providerKey}:{externalFileId}` parse/format/validate |
+| `uploadAudioBuffer.js`          | Persistens via `StorageProviderRegistry`               |
+| `minimalWav.js`                 | Minimal WAV för noop dev                               |
+| `adapters/NoopAudioProvider.js` | Returnerar `audioBuffer` + metadata (synkront `ready`) |
+
+**Utökade filer:** `model.js` (`getAudioIfExists`, `setAudioGenerationState`, `deleteAudioRecord`; `PUT` blockerar `ready`), `controller.js`, `routes.js`, `index.js`, `AudioProvider.js`.
+
+**API (autentiserat, plugin-gate `guides`, CSRF på POST):**
+
+| Metod | Path                                                                    | Beskrivning                                                                           |
+| ----- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| POST  | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio/generate` | Upsert audio, kräver `presentationText`; noop → `ready` i samma request               |
+| POST  | `…/audio/cancel`                                                        | Avbryt `processing` → `pending`; 409 annars                                           |
+| GET   | `…/audio/preview`                                                       | Streamar ljud (`Content-Disposition: inline`); 404 om ej `ready`; 409 om `processing` |
+| \*    | Epic 5 CRUD                                                             | Oförändrat; `PUT` nekar `status: ready`                                               |
+
+**Semantik:**
+
+- `generate` upsertar `guide_audio` om saknas; **409** om redan `processing`.
+- Regenerering raderar befintlig blob (best-effort) före ny upload.
+- `DELETE …/audio` raderar DB-post + best-effort storage cleanup.
+- `storageRef` sätts endast av orkestrering vid lyckad upload (format `local:guide-audio-{variantId}-{ts}.wav` i dev).
+
+**Tester:** 91 st i `plugins/guides/__tests__/` (+13 backend Epic 6). Hela sviten: **141 tester** (inkl. `guideAudioFormat.test.js`).
+
+Kör: `npm run check` och `npm test`
+
+**Säkerhet (godkänd 2026-07-12, backend + frontend):**
+
+| ID  | Risk                                                                        | Beslut                                                                                                        |
+| --- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| S15 | Klient-skriven `storageRef` på POST/PUT kan peka på delad lokal upload-mapp | Accepterad v1 — frontend använder inte CRUD-vägen; blockera klient-`storageRef` eller tenant-prefix före prod |
+| S16 | `POST …/audio` tillåter `status: ready` utan generate                       | Accepterad v1 — UI anropar endast `generate`                                                                  |
+| S17 | `presentationText` till provider (framtida extern integration)              | Dokumenterad — data minimering vid provider-epic                                                              |
+| S18 | Orphan blobs vid misslyckad storage delete                                  | Accepterad — files-mönster                                                                                    |
+| S19 | `errorMessage` lagras/visas i UI                                            | Mitigerad — React textnoder, max 5 000 tecken server-side                                                     |
+| S20 | Preview-proxy IDOR                                                          | Mitigerad — tenant-join före stream; `storageRef` från DB                                                     |
+| S21 | Path traversal via `storageRef`                                             | Mitigerad — `parseStorageRef` + `path.basename` i local adapter                                               |
+| S22 | Preview nekar `stale` (404) medan UI kan visa spelare                       | Känd avvikelse — funktionell, inte säkerhetslucka; P2-fix valfritt                                            |
+
+**Prod-hardening (P1, ej blockerande v1):** blockera klient-`storageRef` och `ready` på POST.
+
+#### 4. Frontend-flöde för audio (redaktör)
+
+UX-flöde att definiera (UI/UX-designer involveras vid implementation, men flödet specificeras i Epic 6):
+
+| Steg | Redaktörshandling                   | Förväntat systembeteende                                             |
+| ---- | ----------------------------------- | -------------------------------------------------------------------- |
+| 1    | Öppnar variant med presentationText | Audio-sektion: status eller "Ingen audio — generera"                 |
+| 2    | Klickar "Generera"                  | `POST …/audio/generate` → `processing` (ev. direkt `ready` för noop) |
+| 3    | Väntar                              | Poll `GET …/audio` var 2–3 s medan `processing`                      |
+| 4    | Lyssnar (ready)                     | `<audio src="…/audio/preview">` via proxy-endpoint                   |
+| 5    | Regenererar (stale/failed/ready)    | `ConfirmDialog` → `POST generate`                                    |
+| 6    | Tar bort                            | `ConfirmDialog` → `DELETE …/audio`                                   |
+
+**UI-principer (låsta av arkitekt, detaljer av UI/UX):**
+
+- `errorMessage`, `storageRef` som plain text (säkerhet S13).
+- Ingen provider-specifik konfiguration i UI v1.
+- Staleness synlig efter narrative-ändring (koppling till befintlig variant-staleness).
+
+#### 4b. UI/UX-specifikation (godkänd 2026-07-12)
+
+**Placering:** Ny komponent `GuideAudioSection` inbäddad **inuti varje variant-rad** i `GuideVariantsSection` — under `presentationText`, avgränsad med `border-t border-border/40 mt-2 pt-2`.
+
+**Wireframe (text):**
+
+```
+┌─ Variant [quick] [sv] [draft] [stale?]     [edit][delete] ─┐
+│  Presentation text preview…                                  │
+│  ─────────────────────────────────────────────────────────── │
+│  AUDIO                                                       │
+│  [pending]  Ingen ljudfil — generera från presentationstext. │
+│             [ Generera ljud ]                                │
+│  — eller (ready) —                                           │
+│  [ready]  ▶ ━━━━━━━━━━━━━━━ 0:45                            │
+│           [ Generera om ]  [ Ta bort ]                       │
+│  — eller (processing) —                                      │
+│  [processing]  Genererar…  [ Avbryt ]                        │
+│  — eller (failed) —                                          │
+│  [failed]  Generering misslyckades.                          │
+│            {errorMessage plain text, max 2 rader}            │
+│            [ Försök igen ]  [ Ta bort ]                    │
+│  — eller (stale) —                                           │
+│  [stale]  Ljudet matchar inte längre källtexten.             │
+│           ▶ preview (om storage finns) eller inaktiv         │
+│           [ Generera om ]  [ Ta bort ]                       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**States och UI-beteende:**
+
+| `status`     | Badge-färg                      | Primär action         | Sekundär | Preview                |
+| ------------ | ------------------------------- | --------------------- | -------- | ---------------------- |
+| _(saknas)_   | —                               | Generera ljud         | —        | Nej                    |
+| `pending`    | muted/outline                   | Generera ljud         | Ta bort  | Nej                    |
+| `processing` | blå/outline + spinner           | Avbryt                | —        | Nej                    |
+| `ready`      | grön/secondary                  | Generera om (confirm) | Ta bort  | Ja, `<audio controls>` |
+| `failed`     | destructive/outline             | Försök igen           | Ta bort  | Nej                    |
+| `stale`      | amber (samma som variant stale) | Generera om (confirm) | Ta bort  | Ja om blob finns       |
+
+**Knappregler:**
+
+- **Generera ljud** disabled om: `!presentationText?.trim()`, `processing`, eller `parentBusy`.
+- **Generera om / Försök igen** → `ConfirmDialog` med copy som skiljer stale vs failed vs ready-overwrite.
+- **Avbryt** endast vid `processing`; anropar `POST …/cancel`.
+- **Ta bort** → befintlig `ConfirmDialog`-mönster.
+
+**Polling:** Medan `processing`, poll `GET …/audio` var **3 s**; stoppa vid unmount eller terminal status. Visa diskret `text-xs text-muted-foreground` "Uppdaterar…" — ingen fullsidig loader.
+
+**Preview:** `<audio controls className="w-full h-8">` med `src` = preview-URL (samma origin, cookies skickas). `aria-label` från i18n. Visa `durationMs` formaterat som `m:ss` bredvid spelaren om tillgängligt.
+
+**Fel:** 409 → "Generering pågår redan"; 400 utan text → "Presentationstext krävs för ljudgenerering"; övrigt → generiskt felmeddelande.
+
+**i18n-nycklar (förslag):** `guides.audio.title`, `guides.audio.generate`, `guides.audio.regenerate`, `guides.audio.retry`, `guides.audio.cancel`, `guides.audio.deleteTitle`, `guides.audio.deleteDescription`, `guides.audio.regenerateTitle`, `guides.audio.regenerateDescriptionStale`, `guides.audio.regenerateDescriptionReady`, `guides.audio.status.*` (pending, processing, ready, failed, stale), `guides.audio.emptyHint`, `guides.audio.processingHint`, `guides.audio.staleHint`, `guides.audio.noPresentationText`, `guides.audio.loadFailed`.
+
+**Tillgänglighet:** Status som text i badge (inte bara färg); knappar med `aria-label`; preview med native controls (WCAG 4.1.2); fokusordning: badge → preview → primär knapp → sekundär.
+
+**Responsivitet:** Audio-rad `flex-col` på smal skärm, `flex-row items-center` från `sm:`; knappar wrap med `gap-2`.
+
+#### 4c. Frontend-implementering (klar 2026-07-12)
+
+**Nya/utökade filer** (`client/src/plugins/guides/`):
+
+| Fil                                   | Roll                                                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `components/GuideAudioSection.tsx`    | Status-UI, poll, generate/cancel/delete, preview, confirm-dialogs                                 |
+| `api/guidesApi.ts`                    | `getAudio`, `getAudioOrNull`, `generateAudio`, `cancelAudio`, `deleteAudio`, `getAudioPreviewUrl` |
+| `types/guides.ts`                     | `GuideAudio`, `AudioStatus`, `isAudioStatus`                                                      |
+| `utils/guideAudioFormat.ts`           | `formatDurationMs` (m:ss)                                                                         |
+| `components/GuideVariantsSection.tsx` | Inbäddar `GuideAudioSection` per variant-rad                                                      |
+
+**Beteende (verifierat mot § 4b):**
+
+- Alla audio-states: saknas, `pending`, `processing`, `ready`, `failed`, `stale`
+- Poll var 3 s vid `processing`; diskret "Uppdaterar…"
+- Preview via `<audio src="/api/guides/…/audio/preview">` (same-origin, session cookies)
+- `ConfirmDialog` för regenerering (stale/ready/failed) och borttagning
+- `errorMessage` som plain text (`line-clamp-2`); `storageRef` exponeras inte i UI
+- i18n: `guides.audio.*` i `en.json` och `sv.json`
+
+**Kända begränsningar (frontend):**
+
+- Audio-status laddas om vid mount/poll — synkas inte automatiskt vid narrative-ändring på stopp (samma mönster som variant stale-badge).
+- Preview för `stale` kan ge 404 från backend (S22) trots att UI visar spelare när `storageRef` finns.
+- N× `GET …/audio` vid mount (en per variant-rad).
+
+#### 5. Lagerseparation (domän / provider / implementation)
+
+| Lager                       | Plats (planerat)                                    | Ansvar                                                 | Får inte                      |
+| --------------------------- | --------------------------------------------------- | ------------------------------------------------------ | ----------------------------- |
+| **Domän**                   | `plugins/guides/model.js`, `validation.js`, routes  | CRUD, state transitions, staleness, delegerar workflow | Känna till leverantörs-API    |
+| **Orkestrering**            | `plugins/guides/audio/AudioOrchestrationService.js` | generate/cancel/preview/delete-blob                    | Direkt DB-queries (via model) |
+| **Provider-kontrakt**       | `plugins/guides/audio/AudioProvider.js`, registry   | Interface, normaliserat I/O                            | DB-access, storage-upload     |
+| **Provider-implementation** | `plugins/guides/audio/adapters/*` (framtida)        | Extern generering                                      | Domänregler, tenant-filter    |
+| **Storage-kontrakt**        | `server/core/storage/StorageProvider.js`            | Persistens-abstraktion                                 | Guide-specifik affärslogik    |
+| **Storage-implementation**  | `server/core/storage/adapters/*`                    | Fysisk lagring                                         | Audio-generering              |
+| **Frontend**                | `client/src/plugins/guides/` (§ 4c)                 | Redaktörsflöde, statusvisning                          | Direkt provider-anrop         |
+
+### Scope — ingår ej
+
+- Konkreta externa leverantörer eller adapter-implementationer (utöver noop).
+- API-nycklar, hemligheter, konfiguration per leverantör.
+- Public/mobil read-API för slutanvändare.
+- Batch-generering, kösystem, webhooks.
+- Prod-hardening S15/S16 (se säkerhetstabell).
+
+### Rekommenderad grindordning
+
+1. ~~**Lösningsarkitekt**~~ — klar 2026-07-11
+2. ~~**UI/UX-designer**~~ — klar 2026-07-12 (§ 4b)
+3. ~~**Backend Developer**~~ — klar 2026-07-12
+4. ~~**QA → Security → Documentation**~~ — backend klar 2026-07-12
+5. ~~**Frontend Developer**~~ — klar 2026-07-12 (§ 4c)
+6. ~~**QA → Security → Documentation**~~ — frontend klar 2026-07-12
+7. **TPM** — epic-avslut, commit/deploy vid begäran
+
+### Definition of Done
+
+- ~~Arkitektur godkänd (ADR A1–A8).~~
+- ~~Backend: orkestrering, noop, preview, 91 guides-tester.~~
+- ~~Frontend: `GuideAudioSection` enligt § 4b/§ 4c.~~
+- ~~QA, Security, Documentation grindar godkända.~~
+- Commit och deploy — vid användarens begäran (parity local/prod).
+
+### Öppna frågor till Lösningsarkitekt
+
+~~Alla besvarade i ADR-tabellen (A1–A8) ovan.~~
+
+### Nästa steg
+
+- TPM: epic-avslut.
+- Valfritt före prod: P1-hardening (S15/S16).
+- Commit på `homebase-v3.7` när användaren begär det.
+
+---
+
+## Guide CMS – Epic 4 (klar 2026-07-11)
+
+Grindordning: Backend → QA → Security → Dokumentation → Frontend → QA → Security (godkänd) → Dokumentation.
+
+### Omfattning
+
+- VariantPresentation CRUD under Place/GuideStop (backend + frontend).
+- Fält: `variantType`, `language`, `presentationText`, `publicationStatus`, `stalenessStatus`.
+- Auto-skapande av tre varianter (quick/normal/deep) för MasterGuides `sourceLanguage` vid GuideStop create.
+- Staleness-propagation när `canonicalNarrative` ändras på stopp.
+- **Ej inkluderat:** Audio, AI, providers, public API.
+
+### Databas
+
+Migration **`094-guide-variant-presentations.sql`** (tenant DB):
+
+| Kolumn               | Typ                  | Notering                                            |
+| -------------------- | -------------------- | --------------------------------------------------- |
+| `stop_id`            | FK → `guide_stops`   | ON DELETE CASCADE                                   |
+| `variant_type`       | VARCHAR(50) NOT NULL | `quick` \| `normal` \| `deep`                       |
+| `language`           | VARCHAR(10) NOT NULL | ISO-liknande kod (samma regex som `sourceLanguage`) |
+| `presentation_text`  | TEXT                 | Valfritt; max 50 000 tecken i API                   |
+| `publication_status` | VARCHAR(50)          | Default `draft`; `draft` \| `ready` \| `published`  |
+| `staleness_status`   | VARCHAR(50)          | Default `fresh`; `fresh` \| `stale`                 |
+
+Unik index: `(stop_id, variant_type, language)`. Backfill för befintliga stopp (`ON CONFLICT DO NOTHING`).
+
+Kör: `npm run migrate:guides` (inkluderar 090, 092, 093, **094** per tenant).
+
+### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
+
+| Metod  | Path                                                     | Beskrivning                                             |
+| ------ | -------------------------------------------------------- | ------------------------------------------------------- |
+| GET    | `/api/guides/:placeId/stops/:stopId/variants`            | Lista varianter för stopp                               |
+| GET    | `/api/guides/:placeId/stops/:stopId/variants/:variantId` | Hämta variant                                           |
+| POST   | `/api/guides/:placeId/stops/:stopId/variants`            | Skapa variant (`variantType`, `language` obligatoriska) |
+| PUT    | `/api/guides/:placeId/stops/:stopId/variants/:variantId` | Uppdatera variant (partiell update)                     |
+| DELETE | `/api/guides/:placeId/stops/:stopId/variants/:variantId` | Ta bort variant                                         |
+
+**Request (create):** `{ variantType, language, presentationText?, publicationStatus? }`
+
+**Request (update):** `{ presentationText?, publicationStatus? }` — `stalenessStatus` är **ej** klientskrivbar.
+
+**Response (`VariantPresentation`):** `id`, `stopId`, `placeId`, `variantType`, `language`, `presentationText`, `publicationStatus`, `stalenessStatus`, `createdAt`, `updatedAt`.
+
+**Semantik:**
+
+- Vid **GuideStop create** skapas automatiskt tre varianter (`quick`, `normal`, `deep`) för MasterGuides `sourceLanguage`.
+- Vid **GuideStop update**: om `canonicalNarrative` faktiskt ändras markeras alla varianter för stoppet som `stalenessStatus: stale`.
+- Duplicate `(stopId, variantType, language)` vid POST → **409 Conflict**.
+
+### Validering (backend: `plugins/guides/validation.js`)
+
+- `VARIANT_TYPES`, `PUBLICATION_STATUSES`, `STALENESS_STATUSES`
+- `parseVariantType()`, `parsePublicationStatus()`, `parseStalenessStatus()`, `parseLanguage()`
+- Route-regler: `variantTypeBodyRule()`, `languageBodyRule()`, `publicationStatusBodyRule()`
+
+### Tenant-isolering
+
+`guide_variant_presentations` joinar `guide_stops` → `guide_master_guides` → `guide_places` för tenant-filter. `createVariant` INSERT efter tenant-scopad `getStopById`.
+
+### Frontend (`client/src/plugins/guides/`)
+
+| Fil / område                          | Ändring                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `types/guides.ts`                     | `GuideVariantPresentation`, `GuideVariantCreatePayload`, `GuideVariantUpdatePayload`, enum-helpers |
+| `api/guidesApi.ts`                    | `getVariants`, `createVariant`, `updateVariant`, `deleteVariant`                                   |
+| `components/GuideVariantsSection.tsx` | Variantlista per stopp, create/edit-formulär, delete med `ConfirmDialog`                           |
+| `components/GuideStopsSection.tsx`    | Bäddar in `GuideVariantsSection` under varje stopp                                                 |
+| `i18n` (`en.json`, `sv.json`)         | `variants`, `variantTypes`, `publication`, `staleness`, felmeddelanden m.m.                        |
+
+**UI-beteende:**
+
+- Varianter visas inline under varje stopp i `GuideView`.
+- Create: `variantType`, `language`, `presentationText`, `publicationStatus`.
+- Edit: `presentationText`, `publicationStatus`; `variantType`/`language` read-only.
+- `stalenessStatus` visas som read-only badge (amber vid `stale`).
+- `presentationText` renderas som plain text (React escape).
+- Delete kräver bekräftelse (`ConfirmDialog`).
+
+### Tester
+
+60 backend-tester i `plugins/guides/__tests__/`. Inga frontend-enhetstester (konsekvent med övriga plugins).
+
+Kör: `npm run check` och `npm test -- plugins/guides/__tests__`
+
+### Säkerhet (godkänd 2026-07-11)
+
+**Backend:**
+
+| ID  | Risk                                    | Beslut                                  |
+| --- | --------------------------------------- | --------------------------------------- |
+| S2  | `createVariant` INSERT utan tenant-join | Accepterad — föregås av `getStopById`   |
+| S7  | DELETE på default-varianter tillåten    | Accepterad — redaktionell risk          |
+| S8  | Stor textpayload (50 000 tecken)        | Accepterad — autentiserad plugin-access |
+| S9  | Fri `publicationStatus`                 | Accepterad — v1-scope                   |
+
+**Frontend:**
+
+| ID  | Risk                            | Beslut                                             |
+| --- | ------------------------------- | -------------------------------------------------- |
+| F1  | Stored XSS i `presentationText` | Mitigerad — React text rendering                   |
+| F2  | XSS via i18n-interpolation      | Mitigerad — `language` regex-begränsad server-side |
+
+### Kända begränsningar
+
+- Staleness-markering och stop-update körs i separata queries (ej atomisk transaktion).
+- **UI:** variantlistan laddas inte om automatiskt efter `canonicalNarrative`-ändring — stale-badge syns efter sidomladdning eller manuell navigation.
+- Default-varianter (quick/normal/deep) kan raderas via API och UI.
+- Övriga språk än `sourceLanguage` skapas manuellt via POST (valfria i v1).
+- `createStop` kräver migration 094 applicerad.
+- En GET variant-request per stopp vid mount (N+1 vid många stopp).
+
+### Nästa steg
+
+- Epic 5 (Audio metadata, backend) — se § Guide CMS – Epic 5 ovan.
+
+---
+
+## Guide CMS – Epic 3 (klar 2026-07-11)
+
+Grindordning: Backend → QA → Security → Frontend → QA → Security (godkänd) → Dokumentation.
+
+### Omfattning
+
+- GuideStop CRUD under Place/MasterGuide (backend + frontend).
+- Fält: `title`, `sequenceOrder`, `canonicalNarrative`, `editorialStatus`.
+- **Ej inkluderat:** VariantPresentation, Audio, AI, providers, public API.
+
+### Databas
+
+Migration **`093-guide-stops.sql`** (tenant DB):
+
+| Kolumn                | Typ                        | Notering                          |
+| --------------------- | -------------------------- | --------------------------------- |
+| `master_guide_id`     | FK → `guide_master_guides` | ON DELETE CASCADE                 |
+| `title`               | VARCHAR(255) NOT NULL      | Redaktörs-/besökarlabel           |
+| `sequence_order`      | INTEGER NOT NULL           | Unik per master guide             |
+| `canonical_narrative` | TEXT                       | Valfritt; max 50 000 tecken i API |
+| `editorial_status`    | VARCHAR(50)                | Default `draft`                   |
+
+Kör: `npm run migrate:guides` (inkluderar 090, 092, 093 per tenant).
+
+### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
+
+| Metod  | Path                                 | Beskrivning                               |
+| ------ | ------------------------------------ | ----------------------------------------- |
+| GET    | `/api/guides/:placeId/stops`         | Lista stopp (sorterad på `sequenceOrder`) |
+| GET    | `/api/guides/:placeId/stops/:stopId` | Hämta stopp                               |
+| POST   | `/api/guides/:placeId/stops`         | Skapa stopp (`title` obligatoriskt)       |
+| PUT    | `/api/guides/:placeId/stops/:stopId` | Uppdatera stopp (partiell update)         |
+| DELETE | `/api/guides/:placeId/stops/:stopId` | Ta bort stopp                             |
+| PUT    | `/api/guides/:placeId/stops/reorder` | Omordna (`{ stopIds: string[] }`)         |
+
+**Request (create):** `{ title, canonicalNarrative?, editorialStatus? }`
+
+**Request (update):** `{ title?, canonicalNarrative?, editorialStatus? }`
+
+**Response (`GuideStop`):** `id`, `masterGuideId`, `placeId`, `title`, `sequenceOrder`, `canonicalNarrative`, `editorialStatus`, `createdAt`, `updatedAt`.
+
+**Semantik:**
+
+- `sequenceOrder` tilldelas automatiskt (`MAX + 1`) vid create.
+- **Epic 4 tillägg:** sedan Epic 4 backend skapas även tre default-varianter (quick/normal/deep) vid create — se Epic 4 backend-avsnitt.
+- `reorder` kräver att `stopIds` innehåller **alla** stopp för platsen, utan dubbletter.
+- Omordning sker i transaktion (tvåfas för unique constraint på `(master_guide_id, sequence_order)`).
+
+### Validering (`plugins/guides/validation.js`)
+
+- `GUIDE_STOP_EDITORIAL_STATUSES` (samma som MasterGuide)
+- `parseGuideStopEditorialStatus()` — 400 vid ogiltigt värde; tom/null → `draft`
+- `guideStopEditorialStatusBodyRule()` — delad route/model
+
+### Tenant-isolering
+
+`guide_stops` saknar egen `user_id`-kolumn. Alla queries joinar `guide_master_guides` → `guide_places` så PostgreSQLAdapter:s tenant-filter appliceras.
+
+### Frontend (`client/src/plugins/guides/`)
+
+| Fil / område                       | Ändring                                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| `types/guides.ts`                  | `GuideStop`, `GuideStopPayload`, `GuideStopEditorialStatus`, `isGuideStopEditorialStatus()` |
+| `api/guidesApi.ts`                 | `getStops`, `createStop`, `updateStop`, `deleteStop`, `reorderStops`                        |
+| `components/GuideStopsSection.tsx` | Lista, create/edit-formulär, upp/ner-omordning, delete med `ConfirmDialog`                  |
+| `components/GuideView.tsx`         | Ersätter placeholder med `GuideStopsSection`                                                |
+| `i18n` (`en.json`, `sv.json`)      | `addStop`, `stopTitle`, `canonicalNarrative`, felmeddelanden m.m.                           |
+
+**UI-beteende:**
+
+- Stopp laddas i `GuideView` per plats.
+- Redaktör kan lägga till, redigera, ta bort och ordna om stopp (upp/ner).
+- `canonicalNarrative` visar källspråk-hint från platsens `sourceLanguage`.
+- Delete kräver bekräftelse (`ConfirmDialog`).
+
+### Tester
+
+36 backend-tester i `plugins/guides/__tests__/`. Inga frontend-enhetstester (konsekvent med övriga plugins).
+
+Kör: `npm run check` och `npm test -- plugins/guides/__tests__`
+
+### Kända begränsningar
+
+- Sekvensluckor efter delete kompakteras inte.
+- Reorder kräver full `stopIds`-lista (alla stopp för platsen).
+- Regel för `sourceLanguage`-ändring när stopp finns — **ej implementerad**; affärsbeslut kvarstår öppet.
+- Omordning via upp/ner-knappar (ej drag-and-drop).
+- Plain text-lagring av `canonicalNarrative` — säker vid React-rendering; public API (Epic 6) kräver separat granskning.
+- Place-delete i `GuideView` saknar fortfarande `ConfirmDialog` (UX, kvar från Epic 1).
+
+### Nästa steg
+
+- Epic 4: se avsnitt **Guide CMS – Epic 4** ovan (klar).
+
+---
+
+## Guide CMS – Epic 2 (klar 2026-07-10)
+
+Grindordning: Backend → QA → Security → Frontend → QA → Security (godkänd) → Dokumentation.
+
+### Omfattning
+
+- MasterGuide redigerbar via utökad `PUT /api/guides/:id` (backend).
+- Frontend: visa och redigera MasterGuide-metadata; fullsides vy med tom Guide stops-sektion.
+- **Ej inkluderat:** GuideStop, VariantPresentation, Audio, providers, public API.
+
+### API-ändring (backend)
+
+`PUT /api/guides/:id` — nya **valfria** fält (utöver befintliga Place-fält):
+
+| Fält                         | Typ    | Värden                                      |
+| ---------------------------- | ------ | ------------------------------------------- |
+| `sourceLanguage`             | string | `^[a-z]{2}(-[a-z]{2})?$` (samma som create) |
+| `masterGuideEditorialStatus` | string | `draft` \| `in-progress` \| `complete`      |
+
+**Semantik:** Om varken `sourceLanguage` eller `masterGuideEditorialStatus` skickas lämnas MasterGuide oförändrad. Om ett fält skickas mergas det med befintliga värden.
+
+Response oförändrad (`sourceLanguage`, `masterGuideEditorialStatus` i Guide-objektet).
+
+### Validering (`plugins/guides/validation.js`)
+
+- `MASTER_GUIDE_EDITORIAL_STATUSES`
+- `parseMasterGuideEditorialStatus()` — 400 vid ogiltigt värde; tom/null → `draft`
+- `masterGuideEditorialStatusBodyRule()` — delad route/model
+
+### Tenant-isolering
+
+MasterGuide-UPDATE använder `UPDATE guide_master_guides … FROM guide_places` så PostgreSQLAdapter:s `user_id`-filter appliceras (tabellen saknar egen `user_id`-kolumn).
+
+### Frontend (`client/src/plugins/guides/`)
+
+| Fil / område                  | Ändring                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `types/guides.ts`             | `MasterGuideEditorialStatus`, `MASTER_GUIDE_EDITORIAL_STATUSES`, `isMasterGuideEditorialStatus()` |
+| `context/GuidesProvider.tsx`  | Skickar `sourceLanguage` + `masterGuideEditorialStatus` vid update                                |
+| `components/GuideForm.tsx`    | Master guide-kort: `sourceLanguage` (create + edit), editorial status (edit only)                 |
+| `components/GuideView.tsx`    | Tre sektioner: Place details, Master guide metadata, tom Guide stops-placeholder                  |
+| `i18n` (`en.json`, `sv.json`) | `masterGuide`, `masterGuideEditorialStatus`, `guideStops`, `stopsNoYet`, `editorial.*`            |
+
+**UI-beteende:**
+
+- **Create:** `sourceLanguage` redigerbar (default `sv`); editorial status sätts av backend till `draft`.
+- **Edit:** båda fälten redigerbara; sparas via `PUT /api/guides/:id`.
+- **View:** badges för källspråk och redaktionell status; stopp-sektion visar placeholder-text.
+
+### Leveransfix (git)
+
+`.gitignore` ändrad från `guides/` till `/guides/` så att repo-rootens designreferenser ignoreras utan att `client/src/plugins/guides/` och `plugins/guides/` blockeras från git.
+
+### Tester
+
+23 backend-tester i `plugins/guides/__tests__/` (inkl. editorial status, partiell update, tenant-filter på MasterGuide UPDATE). Inga frontend-enhetstester (konsekvent med övriga plugins).
+
+Kör: `npm run check` och `npm test -- plugins/guides/__tests__`
+
+### Kända begränsningar
+
+- `sourceLanguage: null` i body kan defaulta till `sv` (QA-notering, låg risk).
+- Ingen klientvalidering av `sourceLanguage`-format — backend avvisar ogiltiga värden.
+- Delete i `GuideView` saknar `ConfirmDialog` (UX, ej säkerhetsblocker; kvar från Epic 1).
+
+### Nästa steg (historiskt)
+
+Epic 3 backend: se avsnitt **Guide CMS – Epic 3 backend** ovan.
+
+---
+
+## Guide CMS – Epic 1 (klar 2026-07-10)
+
+Grindordning: Backend → QA → Security (omarbetning) → QA → Security (godkänd) → Dokumentation.
+
+### Omfattning
+
+- Nytt `guides`-plugin: Place CRUD med atomisk skapelse av MasterGuide vid create.
+- **Ej inkluderat i Epic 1:** GuideStop, VariantPresentation, Audio, public API, providers.
+- **Affärsregel (låst):** `sourceLanguage` per MasterGuide; endast källspråk obligatoriskt i v1 (default `sv`).
+
+### Backend (`plugins/guides/`)
+
+| Fil                | Syfte                                                     |
+| ------------------ | --------------------------------------------------------- |
+| `plugin.config.js` | Plugin `guides`, route `/api/guides`                      |
+| `routes.js`        | CRUD-routes med `requirePlugin`, CSRF på mutationer       |
+| `controller.js`    | HTTP-hantering                                            |
+| `model.js`         | Place + MasterGuide, tenant-scope via `Database.get(req)` |
+| `validation.js`    | Delad validering för route och model                      |
+
+**API (autentiserat, plugin-gate `guides`):**
+
+| Metod  | Path              | Beskrivning                                   |
+| ------ | ----------------- | --------------------------------------------- |
+| GET    | `/api/guides`     | Lista places (med master guide-fält)          |
+| GET    | `/api/guides/:id` | Hämta place                                   |
+| POST   | `/api/guides`     | Skapa place + MasterGuide (transaktion)       |
+| PUT    | `/api/guides/:id` | Uppdatera place (MasterGuide-fält: se Epic 2) |
+| DELETE | `/api/guides/:id` | Ta bort place (CASCADE master guide)          |
+
+### Frontend (`client/src/plugins/guides/`)
+
+- API: `api/guidesApi.ts`
+- Context: `GuidesContext.tsx`, `GuidesProvider.tsx`
+- Komponenter: `GuideList`, `GuideForm`, `GuideView`
+- Registrering: `client/src/core/pluginRegistry.ts` (kategori Content, prefix GDS)
+- Routing: `routeMap.ts`, sidebar `NavPage` `guides`
+
+### Databas och migrationer
+
+| Migration                             | DB                    | Innehåll                                                  |
+| ------------------------------------- | --------------------- | --------------------------------------------------------- |
+| `090-guides.sql`                      | Tenant                | `guide_places`, `guide_master_guides`                     |
+| `092-guide-places-user-id.sql`        | Tenant                | `user_id` på `guide_places` (tenant-isolering)            |
+| `093-guide-stops.sql`                 | Tenant                | `guide_stops` (Epic 3; se Epic 3-avsnitt)                 |
+| `094-guide-variant-presentations.sql` | Tenant                | `guide_variant_presentations` (Epic 4; se Epic 4-avsnitt) |
+| `091-grant-guides-plugin-access.sql`  | Main (`MAIN_DB_ONLY`) | Plugin-access för befintliga tenants                      |
+
+Kör: `npm run migrate:guides` (alla tenants + main DB). Efter plugin-access: **logga ut/in**.
+
+### Säkerhetsåtgärder (2026-07-10)
+
+Efter första Security-underkännande:
+
+1. **R1 – Tenant-isolering:** `guide_places.user_id` via migration 092; sätts vid INSERT från `Database.get(req).getUserId()` (`currentTenantUserId`). PostgreSQLAdapter auto-filter på LIST/GET/UPDATE/DELETE. Master guide-lookup vid UPDATE joinar `guide_places` för scope.
+2. **R2 – sourceLanguage:** Delad validering i `validation.js` (`parseSourceLanguage`, `sourceLanguageBodyRule`) — regex `^[a-z]{2}(-[a-z]{2})?$`.
+3. **R3 – lifecycleStatus:** Ogiltigt värde ger 400 (`parseLifecycleStatus`); tom/null → `draft`.
+
+### Tester
+
+`plugins/guides/__tests__/`:
+
+- `model.test.js` — transform, create med `user_id`, user context
+- `validation.test.js` — parseSourceLanguage, parseLifecycleStatus
+- `tenantFilter.test.js` — PostgreSQLAdapter-kompatibilitet för CRUD-SQL
+
+Kör: `npm test -- plugins/guides/__tests__`
+
+### Kända begränsningar (v1)
+
+- Alla användare med plugin-åtkomst har full CRUD inom tenant (tenant-delat CMS-innehåll).
+- Delete i UI saknar `ConfirmDialog` (UX, ej säkerhetsblocker).
+- Befintliga rader utan `user_id` backfillas med `user_id = 1` i migration 092 (plattformsstandard, samma som cups/requests).
+
+### Nästa steg (historiskt)
+
+Epic 2: se avsnitt **Guide CMS – Epic 2** ovan.
+
+---
+
+## Guide CMS – Epic 1 implementation (2026-07-09)
+
+- Initial leverans: `guides`-plugin med Place CRUD och atomisk MasterGuide.
+- Se avsnitt **Guide CMS – Epic 1 (klar 2026-07-10)** ovan för fullständig spec efter säkerhetsgodkännande.
+
+---
+
+## v1.3 – Överlämning som verkligt stopp (2026-07-07)
+
+Förstärker rolldisciplin efter överlämning utan att ändra Team Workflow, Stage Gates eller rollbefogenheter.
+
+### Dokumentation
+
+- `docs/ai/team-workflow.md` – princip **Efter överlämning** under Kommunikationsregler och Principer.
+- `docs/ai/cursor-implementation.md` – princip under Output Contract: rollen fortsätter inte arbetet efter överlämning om nästa roll inte aktiveras.
+
+### Cursor-regler (.cursor/rules/)
+
+Alla åtta `role-*.mdc` har ny sektion **Efter överlämning**: rollen är klar efter överlämningsrad; svarar endast med påminnelse vid fortsättningsfraser utan rollaktivering; utför inte nästa rolls arbete.
+
+- `role-technical-project-manager.mdc` – tillägg: TPM får inte återta överlämnad uppgift förrän rollen uttryckligen aktiveras igen.
+
+---
+
+## v1.2 – Rollseparation vid övertagande (2026-07-07)
+
+Förstärker rollseparationen utan att ändra Team Workflow, Stage Gates eller rollbefogenheter.
+
+### Dokumentation
+
+- `docs/ai/cursor-implementation.md` – princip under Kontextkomprimering och Output Contract: utgå från föregående rolls Output Contract, inte hela chatthistoriken.
+
+### Cursor-regler (.cursor/rules/)
+
+Alla åtta `role-*.mdc` har ny sektion **Rollseparation** (eget ansvar, referera leverabler, inte återskapa annan rolls arbete).
+
+- `role-technical-project-manager.mdc` – tillägg **Efter specialistleverans**: TPM utvärderar och rapporterar status utan att återge specialistens detaljerade arbete.
+
+---
+
+## v1.1 – Rollidentitet i kommunikationen (2026-07-07)
+
+Förbättring av användbarheten vid praktisk användning av AI Team Framework. Ingen förändring av roller, ansvar eller arbetsflöde — endast tydligare kommunikation.
+
+### Cursor-regler (.cursor/rules/)
+
+Alla åtta `role-*.mdc` har ny sektion **Rollidentitet i kommunikationen**:
+
+- Identitetsrad vid aktivering eller nytt uppdrag (t.ex. `[Solution Architect]`).
+- Identitetsraden upprepas inte under samma arbetspass.
+- Överlämningsrad vid avslut (t.ex. `Överlämning:\nDocumentation Specialist`).
+- Överlämning är kommunikativ markering — aktiverar inte nästa roll automatiskt.
+
+### Dokumentation
+
+- `docs/ai/cursor-implementation.md` – ny undersektion **Rollidentitet och överlämning (kommunikation)** under Output Contract.
+
+---
+
+## v1.0 – AI Team Framework (2026-07-07)
+
+Första fullständiga versionen av AI Team Framework. Ramverket är projektoberoende och redo för produktion.
+
+### Dokumentation
+
+- `docs/ai/engineering-principles.md` – universella engineering-principer för alla roller och projekt.
+- `docs/ai/team-workflow.md` – arbetsflöde med stage gates, återkopplingsloopar och kommunikationsregler.
+- `docs/ai/cursor-implementation.md` – implementationsprinciper för Cursor, inkl. Output Contract och Kontextkomprimering.
+
+### Roller (docs/ai/roles/)
+
+- `technical-project-manager.md` – koordinerande roll; avgränsar, prioriterar och håller ihop leveransen.
+- `solution-architect.md` – äger teknisk lösning och arkitektur.
+- `ui-ux-designer.md` – äger användarupplevelse, flöden och gränssnittsdesign.
+- `backend-developer.md` – implementerar backend enligt arkitektens design.
+- `frontend-developer.md` – implementerar UI enligt design och arkitektur.
+- `qa-code-reviewer.md` – teamets kvalitetsgrind; granskar objektivt och godkänner eller underkänner.
+- `security-expert.md` – teamets säkerhetsgrind; granskar pragmatiskt och riskbaserat.
+- `documentation-specialist.md` – teamets dokumentationsgrind; dokumenterar verifierad implementation.
+
+### Cursor-regler (.cursor/rules/)
+
+- `engineering-principles.mdc` – alltid aktiv (`alwaysApply: true`); universella principer i varje session.
+- `role-technical-project-manager.mdc`
+- `role-solution-architect.mdc`
+- `role-ui-ux-designer.mdc`
+- `role-backend-developer.mdc`
+- `role-frontend-developer.mdc`
+- `role-qa-code-reviewer.mdc`
+- `role-security-expert.mdc`
+- `role-documentation-specialist.mdc`
+
+### Nyckelkoncept
+
+- **Stage Gates** – sex beslutsgrindar (Grind 1–6) med tydliga ägare och krav för att passera. Grind 2, 3 och 5 är villkorliga och kan markeras N/A av Teknisk Projektledare.
+- **Output Contract** – varje roll avslutar sitt arbete med en rollspecifik, strukturerad leverans. Definieras i respektive Cursor-regel.
+- **Kontextkomprimering** – princip för att minimera AI-kostnad och säkerställa tydliga överlämningar mellan roller.
+- **Single Source of Truth** – `docs/ai/` är alltid primär sanningskälla; Cursor-regler är härledda representationer.

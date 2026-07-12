@@ -7,7 +7,7 @@ import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getTopBarWidgets } from '@/core/widgets';
 import { useTheme } from '@/hooks/useTheme';
 
-import type { NavPage } from './Sidebar';
+import type { NavPage } from '@/core/navigation/navTypes';
 import { TopBarBreadcrumbs } from './topbar/TopBarBreadcrumbs';
 import { TopBarUserMenu } from './topbar/TopBarUserMenu';
 

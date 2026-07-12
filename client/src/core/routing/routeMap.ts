@@ -1,4 +1,5 @@
-import type { NavPage } from '@/core/ui/Sidebar';
+import type { NavPage } from '@/core/navigation/navTypes';
+import { INVOICES_SUBPAGE_SET } from '@/core/routing/invoicesRoutes';
 
 /**
  * Maps every NavPage value to its canonical URL path.
@@ -23,13 +24,11 @@ export const navPageToPath: Record<NavPage, string> = {
   'invoices-reports': '/invoices/reports',
   files: '/files',
   ingest: '/ingest',
+  guides: '/guides',
   mail: '/mail',
   pulses: '/pulses',
   settings: '/settings',
 };
-
-/** Named sub-route segments that belong to invoices pages (not item IDs). */
-const INVOICES_SUBPAGES = new Set(['recurring', 'payments', 'reports']);
 
 /**
  * Derives the active NavPage from a URL pathname.
@@ -48,7 +47,7 @@ export function pathToNavPage(pathname: string): NavPage {
   const plugin = parts[0] as NavPage;
   const sub = parts[1];
 
-  if (plugin === 'invoices' && sub && INVOICES_SUBPAGES.has(sub)) {
+  if (plugin === 'invoices' && sub && INVOICES_SUBPAGE_SET.has(sub)) {
     return `invoices-${sub}` as NavPage;
   }
 

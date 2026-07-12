@@ -42,6 +42,21 @@ This is the canonical replacement for older docs that showed provider orchestrat
 
 AppContext should not contain plugin-specific business logic.
 
+### Shared plugin lists (`syncShared*`)
+
+Heavy plugin providers push their list into AppContext so cross-plugin views can filter client-side without redundant API calls:
+
+| Plugin   | Sync callback        | Cross-plugin getter(s)                                 |
+| -------- | -------------------- | ------------------------------------------------------ |
+| contacts | `syncSharedContacts` | (contacts array on context)                            |
+| notes    | `syncSharedNotes`    | `getNotesForContact`                                   |
+| tasks    | `syncSharedTasks`    | `getTasksForContact`, `getTasksWithMentionsForContact` |
+| slots    | `syncSharedSlots`    | `getSlotsForContact` (via `filterSlotsForContact`)     |
+
+Providers also register `registerSharedDataRefresh('<plugin>', loadFn)` so `refreshData()` can refetch all shared lists.
+
+**Slots refresh behaviour (`SlotsProvider`):** one fetch on authenticate; while the user is on `/slots` and the tab is visible, poll every 30s and refetch on window focus / `visibilitychange`. No global polling on other routes.
+
 ## Server architecture
 
 ## Core service layer

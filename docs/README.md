@@ -6,7 +6,6 @@
 
 - **`main`** — deploy till Railway (monolith API + SPA).
 - **`homebase-v3.7`** — aktiv utvecklingsbranch; merge till `main` för produktion.
-- **`homebase-v3.6`** / **`homebase-V3.5`** — äldre feature-branches; behålls på remote men är inte canonical.
 - **Node:** `>=22.18 <23` (`package.json` → `engines`).
 
 ## Snabbstart (ny utvecklare)
@@ -23,9 +22,22 @@
 | Cross-plugin navigation (URL)       | [`MENTIONS_AND_CROSS_PLUGIN_UI.md`](MENTIONS_AND_CROSS_PLUGIN_UI.md) § Cross-plugin URL navigation                                       |
 | Säkerhet, CSRF, `apiFetch`          | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                       |
 | Deploy (allmänt)                    | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                                                                                   |
+| Local ↔ prod parity                | [`LOCAL_PROD_PARITY.md`](LOCAL_PROD_PARITY.md)                                                                                           |
 | Railway Homebase                    | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md) (§5–7: CSRF, rate limit, konsol)                                                |
 | Cupappen (separat Railway + R2)     | [`CUPPAPPEN_PATHS_AND_STORAGE.md`](CUPPAPPEN_PATHS_AND_STORAGE.md), [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md) |
 | Bundle-analys                       | [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md)                                                                             |
+
+## AI-utvecklingsteam (`docs/ai/`)
+
+Cursor-baserat utvecklingsteam med roller, beslutsgrindar och Output Contract. **Single source of truth** för ramverket; Cursor-regler i `.cursor/rules/` härleds härifrån.
+
+| Ämne                    | Dokument                                                       |
+| ----------------------- | -------------------------------------------------------------- |
+| Engineering Principles  | [`ai/engineering-principles.md`](ai/engineering-principles.md) |
+| Team workflow & grindar | [`ai/team-workflow.md`](ai/team-workflow.md)                   |
+| Cursor-implementation   | [`ai/cursor-implementation.md`](ai/cursor-implementation.md)   |
+| Rollbeskrivningar       | [`ai/roles/`](ai/roles/) (8 roller)                            |
+| AI-team changelog       | [`ai/CHANGELOG.md`](ai/CHANGELOG.md)                           |
 
 ## Canonical dokument
 
@@ -36,6 +48,8 @@
 - **Design-alignment (kopiera från slots/notes):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Mentions & cross-plugin UI:** `MENTIONS_AND_CROSS_PLUGIN_UI.md`
 - **Tenant / RBAC:** `TENANT_USERS_AND_RBAC.md`
+- **Local/prod parity:** `LOCAL_PROD_PARITY.md`
+- **Plugin-migration (kort referens):** `REFACTORING_EXISTING_PLUGINS.md` — lång guide borttagen maj 2026; canonical mönster i `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` + `CORE_SERVICES_ARCHITECTURE.md`
 - **Cups cron (Railway Homebase):** `CUPS_AUTO_REFRESH_CRON.md`
 - **Cupappen drift (Docker, CUPS_DB_URL):** `CUPPAPPEN_RAILWAY_OPERATIONS.md`
 - **Lessons learned / agent-regler:** `LESSONS_LEARNED.md`
@@ -64,9 +78,9 @@
 
 ## Borttagna / sammanslagna dokument (maj 2026)
 
-| Tidigare fil                                                                       | Ersatt av                                                              |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md`                                           | `UI_AND_UX_STANDARDS_V3.md` §0                                         |
-| `RAILWAY_CRON_EXAMPLE.md`                                                          | `CUPS_AUTO_REFRESH_CRON.md` § Railway Cron                             |
-| `REFACTORING_EXISTING_PLUGINS.md` (700+ rader, felaktiga `ServiceManager`-exempel) | `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` + `CORE_SERVICES_ARCHITECTURE.md` |
-| Plugin `TeamSettingsForm` / `MatchSettingsForm` (panel-settings)                   | Full-page `TeamsSettingsView` / `MatchSettingsView` via `*ContentView` |
+| Tidigare fil                                                                       | Ersatt av                                                                                                                                                            |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONTACTS_LISTVIEW_STYLE_ROLLOUT_V36.md`                                           | `UI_AND_UX_STANDARDS_V3.md` §0                                                                                                                                       |
+| `RAILWAY_CRON_EXAMPLE.md`                                                          | `CUPS_AUTO_REFRESH_CRON.md` § Railway Cron                                                                                                                           |
+| `REFACTORING_EXISTING_PLUGINS.md` (700+ rader, felaktiga `ServiceManager`-exempel) | Innehållet flyttades till `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` + `CORE_SERVICES_ARCHITECTURE.md`. Filen finns kvar som **kort referens** — se canonical-listan ovan. |
+| Plugin `TeamSettingsForm` / `MatchSettingsForm` (panel-settings)                   | Full-page `TeamsSettingsView` / `MatchSettingsView` via `*ContentView`                                                                                               |

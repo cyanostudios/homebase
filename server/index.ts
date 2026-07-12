@@ -111,6 +111,8 @@ if (process.env.NODE_ENV === 'production') {
   // Public cups static app local dev defaults (works even without .env override)
   allowedOrigins.push('http://localhost:3004');
   allowedOrigins.push('http://127.0.0.1:3004');
+  allowedOrigins.push('http://localhost:3005');
+  allowedOrigins.push('http://127.0.0.1:3005');
   allowedOrigins.push('http://localhost:3002');
   allowedOrigins.push('http://127.0.0.1:3002');
 }

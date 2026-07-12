@@ -1,5 +1,6 @@
 // templates/plugin-backend-template/routes.js
 // Align with production plugins: context from plugin-loader, shared validation + CSRF hooks.
+// Optional: add DELETE /batch with commonRules.requiredArray('ids') before /:id routes (see notes).
 const express = require('express');
 const router = express.Router();
 const config = require('./plugin.config');

@@ -35,5 +35,5 @@ tools/codex-runner/tmp-codex-*
 # Uploaded files (should not be committed)
 server/uploads/
 
-# Local design guide references
-guides/
+# Local design guide references (repo root only — not plugins/guides)
+/guides/

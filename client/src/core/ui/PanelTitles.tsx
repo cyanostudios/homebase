@@ -92,6 +92,9 @@ export const createPanelTitles = (
       if (currentItem.name) {
         return currentItem.name;
       }
+      if (currentItem.displayName?.trim()) {
+        return currentItem.displayName.trim();
+      }
       if (currentPlugin.name === 'contacts') {
         const name = currentItem.companyName?.trim();
         if (name) {
@@ -240,6 +243,7 @@ export const createPanelTitles = (
     const itemName =
       currentItem.companyName ||
       currentItem.title ||
+      currentItem.displayName?.trim() ||
       (currentItem.estimateNumber
         ? formatDisplayNumber(currentPlugin.name, currentItem.estimateNumber)
         : undefined) ||
