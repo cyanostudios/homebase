@@ -128,30 +128,6 @@ export const MASTER_GUIDE_EDITORIAL_STATUSES: MasterGuideEditorialStatus[] = [
 export const GUIDE_STOP_EDITORIAL_STATUSES: GuideStopEditorialStatus[] =
   MASTER_GUIDE_EDITORIAL_STATUSES;
 
-export function formatGuideLifecycleStatus(status: GuideLifecycleStatus): string {
-  switch (status) {
-    case 'active':
-      return 'Active';
-    case 'archived':
-      return 'Archived';
-    case 'draft':
-    default:
-      return 'Draft';
-  }
-}
-
-export function formatMasterGuideEditorialStatus(status: MasterGuideEditorialStatus): string {
-  switch (status) {
-    case 'in-progress':
-      return 'In progress';
-    case 'complete':
-      return 'Complete';
-    case 'draft':
-    default:
-      return 'Draft';
-  }
-}
-
 export function isMasterGuideEditorialStatus(value: string): value is MasterGuideEditorialStatus {
   return MASTER_GUIDE_EDITORIAL_STATUSES.includes(value as MasterGuideEditorialStatus);
 }

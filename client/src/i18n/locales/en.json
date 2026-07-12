@@ -573,6 +573,12 @@
     "noMatch": "No places match your search.",
     "noYet": "No places yet. Add a place to start building a guide.",
     "addPlace": "Add place",
+    "loadFailed": "Failed to load places.",
+    "displayNameRequired": "Display name is required",
+    "saveFailed": "Failed to save. Please try again.",
+    "deletePlaceTitle": "Delete place",
+    "deletePlaceDescription": "Delete \"{{name}}\"? This cannot be undone.",
+    "deletePlaceFailed": "Failed to delete place.",
     "openPlace": "Open {{name}}",
     "colId": "ID",
     "colName": "Name",
@@ -590,6 +596,7 @@
     "geographicReferencePlaceholder": "e.g. Stockholm, Sweden",
     "lifecycleStatus": "Lifecycle status",
     "sourceLanguage": "Source language",
+    "sourceLanguagePlaceholder": "sv",
     "sourceLanguageHint": "Canonical language for this guide (e.g. sv, en-us).",
     "masterGuide": "Master guide",
     "masterGuideEditorialStatus": "Editorial status",
@@ -689,6 +696,9 @@
       "draft": "Draft",
       "in-progress": "In progress",
       "complete": "Complete"
+    },
+    "validation": {
+      "invalidField": "Invalid value"
     }
   },
   "files": {

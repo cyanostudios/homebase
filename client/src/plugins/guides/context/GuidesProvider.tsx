@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
@@ -22,6 +23,7 @@ export function GuidesProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: GuidesProviderProps) {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
@@ -50,14 +52,14 @@ export function GuidesProvider({
       } catch (err) {
         if (!cancelled) {
           console.error('Failed to load guides:', err);
-          setValidationErrors([{ field: 'general', message: 'Failed to load places.' }]);
+          setValidationErrors([{ field: 'general', message: t('guides.loadFailed') }]);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, setValidationErrors]);
+  }, [isAuthenticated, setValidationErrors, t]);
 
   const closeGuidePanel = useCallback(() => {
     setIsGuidePanelOpen(false);
@@ -143,13 +145,16 @@ export function GuidesProvider({
     }
   }, [location.pathname, guides]);
 
-  const validate = useCallback((data: GuidePayload): GuideValidationError[] => {
-    const errors: GuideValidationError[] = [];
-    if (!data.displayName.trim()) {
-      errors.push({ field: 'displayName', message: 'Display name is required' });
-    }
-    return errors;
-  }, []);
+  const validate = useCallback(
+    (data: GuidePayload): GuideValidationError[] => {
+      const errors: GuideValidationError[] = [];
+      if (!data.displayName.trim()) {
+        errors.push({ field: 'displayName', message: t('guides.displayNameRequired') });
+      }
+      return errors;
+    },
+    [t],
+  );
 
   const saveGuide = useCallback(
     async (raw: GuidePayload): Promise<boolean> => {
@@ -195,14 +200,14 @@ export function GuidesProvider({
         if (Array.isArray(error.errors)) {
           setValidationErrors(error.errors);
         } else {
-          setValidationErrors([{ field: 'general', message: 'Failed to save. Please try again.' }]);
+          setValidationErrors([{ field: 'general', message: t('guides.saveFailed') }]);
         }
         return false;
       } finally {
         setIsSaving(false);
       }
     },
-    [clearValidationErrors, closeGuidePanel, currentGuide, setValidationErrors, validate],
+    [clearValidationErrors, closeGuidePanel, currentGuide, setValidationErrors, t, validate],
   );
 
   const deleteGuide = useCallback(
@@ -215,9 +220,10 @@ export function GuidesProvider({
         }
       } catch (err) {
         console.error('Failed to delete guide place:', err);
+        setValidationErrors([{ field: 'general', message: t('guides.deletePlaceFailed') }]);
       }
     },
-    [closeGuidePanel, currentGuide?.id],
+    [closeGuidePanel, currentGuide?.id, setValidationErrors, t],
   );
 
   const value = useMemo<GuidesContextType>(

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, List as ListIcon, Plus, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Search } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -20,9 +20,9 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useGuides } from '../hooks/useGuides';
-import { formatGuideLifecycleStatus, type Guide } from '../types/guides';
+import { type Guide, type GuideLifecycleStatus } from '../types/guides';
 
-type SortField = 'displayName' | 'updatedAt';
+type SortField = 'id' | 'displayName' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export const GuideList: React.FC = () => {
@@ -51,6 +51,9 @@ export const GuideList: React.FC = () => {
       if (sortField === 'updatedAt') {
         av = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
         bv = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      } else if (sortField === 'id') {
+        av = Number(a.id) || 0;
+        bv = Number(b.id) || 0;
       } else {
         av = a.displayName.toLowerCase();
         bv = b.displayName.toLowerCase();
@@ -77,6 +80,15 @@ export const GuideList: React.FC = () => {
 
   const handleOpenForView = (guide: Guide) => {
     attemptNavigation(() => openGuideForView(guide));
+  };
+
+  const lifecycleLabel = (status: GuideLifecycleStatus) => t(`guides.lifecycle.${status}`);
+
+  const handleRowKeyDown = (e: React.KeyboardEvent, guide: Guide) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleOpenForView(guide);
+    }
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -119,16 +131,6 @@ export const GuideList: React.FC = () => {
                 className="h-9 pl-9 text-xs"
               />
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              icon={ListIcon}
-              className="h-9 px-3 text-xs"
-              disabled
-            >
-              {t('common.list')}
-            </Button>
           </div>
 
           {filteredAndSorted.length === 0 ? (
@@ -139,11 +141,8 @@ export const GuideList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead
-                    className="w-24 cursor-pointer"
-                    onClick={() => handleSort('displayName')}
-                  >
-                    {t('guides.colId')} <SortIcon field="displayName" />
+                  <TableHead className="w-24 cursor-pointer" onClick={() => handleSort('id')}>
+                    {t('guides.colId')} <SortIcon field="id" />
                   </TableHead>
                   <TableHead className="cursor-pointer" onClick={() => handleSort('displayName')}>
                     {t('guides.colName')} <SortIcon field="displayName" />
@@ -169,6 +168,7 @@ export const GuideList: React.FC = () => {
                     role="button"
                     aria-label={t('guides.openPlace', { name: guide.displayName })}
                     onClick={() => handleOpenForView(guide)}
+                    onKeyDown={(e) => handleRowKeyDown(e, guide)}
                   >
                     <TableCell className="font-mono text-xs">
                       {formatDisplayNumber('guides', guide.id)}
@@ -178,9 +178,7 @@ export const GuideList: React.FC = () => {
                       {guide.geographicReference || '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {formatGuideLifecycleStatus(guide.lifecycleStatus)}
-                      </Badge>
+                      <Badge variant="secondary">{lifecycleLabel(guide.lifecycleStatus)}</Badge>
                     </TableCell>
                     <TableCell className="uppercase">{guide.sourceLanguage}</TableCell>
                     <TableCell className="text-muted-foreground">

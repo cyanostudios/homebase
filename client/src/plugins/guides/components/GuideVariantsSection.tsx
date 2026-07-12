@@ -355,9 +355,16 @@ export const GuideVariantsSection: React.FC<GuideVariantsSectionProps> = ({
   return (
     <div className="mt-4 border-t border-border/50 pt-4">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('guides.variants')}
-        </p>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {t('guides.variants')}
+          </p>
+          {!isLoading && variants.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t('guides.variantsCount', { count: variants.length })}
+            </p>
+          )}
+        </div>
         <Button
           type="button"
           variant="secondary"

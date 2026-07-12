@@ -573,6 +573,12 @@
     "noMatch": "Inga platser matchar sökningen.",
     "noYet": "Inga platser än. Lägg till en plats för att börja bygga en guide.",
     "addPlace": "Lägg till plats",
+    "loadFailed": "Kunde inte ladda platser.",
+    "displayNameRequired": "Visningsnamn krävs",
+    "saveFailed": "Kunde inte spara. Försök igen.",
+    "deletePlaceTitle": "Ta bort plats",
+    "deletePlaceDescription": "Ta bort \"{{name}}\"? Detta kan inte ångras.",
+    "deletePlaceFailed": "Kunde inte ta bort plats.",
     "openPlace": "Öppna {{name}}",
     "colId": "ID",
     "colName": "Namn",
@@ -590,6 +596,7 @@
     "geographicReferencePlaceholder": "t.ex. Stockholm, Sverige",
     "lifecycleStatus": "Livscykelstatus",
     "sourceLanguage": "Källspråk",
+    "sourceLanguagePlaceholder": "sv",
     "sourceLanguageHint": "Kanoniskt språk för denna guide (t.ex. sv, en-us).",
     "masterGuide": "Master guide",
     "masterGuideEditorialStatus": "Redaktionell status",
@@ -689,6 +696,9 @@
       "draft": "Utkast",
       "in-progress": "Pågår",
       "complete": "Klar"
+    },
+    "validation": {
+      "invalidField": "Ogiltigt värde"
     }
   },
   "files": {

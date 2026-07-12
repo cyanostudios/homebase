@@ -1,4 +1,5 @@
 import { createApiClient, type ApiRequestError } from '@/core/api/createApiClient';
+import i18n from '@/i18n';
 
 import type {
   Guide,
@@ -21,7 +22,7 @@ function mapValidationDetails(err: ApiError): ApiError {
     err.errors = err.details.map(
       (d: { path?: string; msg?: string; field?: string; message?: string }) => ({
         field: d.path ?? d.field ?? 'general',
-        message: d.msg ?? d.message ?? 'Invalid',
+        message: d.msg ?? d.message ?? i18n.t('guides.validation.invalidField'),
       }),
     );
   }

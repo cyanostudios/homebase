@@ -295,7 +295,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                       id="guide-source-language"
                       value={formData.sourceLanguage ?? 'sv'}
                       onChange={(e) => updateField('sourceLanguage', e.target.value.toLowerCase())}
-                      placeholder="sv"
+                      placeholder={t('guides.sourceLanguagePlaceholder')}
                       className={cn(getFieldError('sourceLanguage') && 'border-destructive')}
                     />
                     <p className="mt-1 text-xs text-muted-foreground">
