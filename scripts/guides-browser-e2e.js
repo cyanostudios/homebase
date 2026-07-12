@@ -124,7 +124,15 @@ async function run() {
     if (page.url().includes('/login')) {
       fail('login', 'Still on login page after submit');
     } else {
-      pass('login', `Logged in as ${EMAIL} → ${page.url()}`);
+      const meCheck = await page.evaluate(async () => {
+        const r = await fetch('/api/auth/me', { credentials: 'include' });
+        return r.status;
+      });
+      if (meCheck !== 200) {
+        fail('login', `Session not established (/api/auth/me → ${meCheck})`);
+      } else {
+        pass('login', `Logged in as ${EMAIL} → ${page.url()}`);
+      }
     }
 
     // --- RBAC: /api/auth/me has guides (same-origin via Vite proxy) ---
