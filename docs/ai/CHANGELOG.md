@@ -2,6 +2,133 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Guide CMS – Epic 7 (slutförd 2026-07-12)
+
+**Status:** Slutförd — Backend, QA, Security, Documentation, TPM godkända. Deployad till `main` / Railway.
+
+Grindordning: Lösningsarkitekt → Backend → QA → Security → Dokumentation → TPM-avslut.
+
+### Omfattning
+
+- Publik **read-only** Guides API utan autentisering (speglar `plugins/public-cups/`).
+- Strikt publiceringsfilter (A3): `lifecycle_status = active`, `publication_status = published`, `staleness_status = fresh`, audio `status = ready`.
+- Ljud via **proxy stream** — exponerar aldrig `storageRef`, `providerKey`, `canonicalNarrative` eller redaktionella fält.
+- Valfritt `?language=` på list- och stops-endpoints.
+- **Ej inkluderat:** frontend-konsument, signed URLs, WAF/CDN framför audio.
+
+### Konfiguration
+
+| Variabel                   | Beskrivning                                          |
+| -------------------------- | ---------------------------------------------------- |
+| `PUBLIC_GUIDES_USER_ID`    | Numeriskt `users.id` vars tenant-DB läses (föredras) |
+| `PUBLIC_GUIDES_USER_EMAIL` | E-post som slås upp mot main DB om id saknas         |
+
+Sätt på Railway och lokalt (`.env.local`) för paritet.
+
+| Miljö       | Värde | Användare                     |
+| ----------- | ----- | ----------------------------- |
+| Prod        | `1`   | `cyanostudios@gmail.com`      |
+| Lokal (dev) | `1`   | Samma tenant vid Neon-paritet |
+
+Utan variabel: plugin laddas men alla endpoints svarar `500` med `{ "error": "Public guides service not configured" }`.
+
+### API (publikt, `publicEndpointLimiter`, ingen auth/CSRF)
+
+| Metod | Path                                                                  | Beskrivning                         |
+| ----- | --------------------------------------------------------------------- | ----------------------------------- |
+| GET   | `/api/public/guides`                                                  | Lista platser med ≥1 public variant |
+| GET   | `/api/public/guides/:placeId`                                         | Platsdetalj (404 om ej public)      |
+| GET   | `/api/public/guides/:placeId/stops`                                   | Stopp + public varianter            |
+| GET   | `/api/public/guides/:placeId/stops/:stopId/variants/:variantId/audio` | Proxy-stream av redo ljud           |
+
+**Query:** `?language=sv` (valfritt) på list- och stops-endpoints. Ogiltigt språk → `400`.
+
+**Path-parametrar:** `placeId`, `stopId`, `variantId` måste vara positiva heltal; annars `400`.
+
+**Svar:**
+
+| Endpoint | 200                                                       | 404                              | 500                           |
+| -------- | --------------------------------------------------------- | -------------------------------- | ----------------------------- |
+| List     | `{ "guides": Place[] }`                                   | —                                | Ej konfigurerad / DB-fel      |
+| Place    | `Place` (objekt)                                          | `{ "error": "Guide not found" }` | Ej konfigurerad / DB-fel      |
+| Stops    | `{ "stops": Stop[] }`                                     | `{ "error": "Guide not found" }` | Ej konfigurerad / DB-fel      |
+| Audio    | Binary stream (`Content-Type` från `mime_type`, `inline`) | `{ "error": "Audio not found" }` | Ej konfigurerad / storage-fel |
+
+**Public DTO:**
+
+- **Place:** `id`, `displayName`, `shortIntro`, `geographicReference`, `sourceLanguage`
+- **Stop:** `id`, `title`, `sequenceOrder`, `variants[]`
+- **Variant:** `id`, `variantType`, `language`, `presentationText`, `hasAudio: true`
+
+**Semantik:**
+
+- Endast platser med minst en variant som uppfyller A3 inkluderas i listan.
+- Icke-publicerade, arkiverade eller stale resurser returnerar samma `404` som okända id — ingen läckage av redaktionell status.
+- Audio kräver `status = ready` **och** icke-tom `storage_ref` i DB.
+- `hasAudio` är alltid `true` på varianter som returneras (A3 garanterar redo audio).
+
+### Implementation
+
+| Fil                                      | Roll                                       |
+| ---------------------------------------- | ------------------------------------------ |
+| `plugins/public-guides/plugin.config.js` | Metadata, `routeBase`                      |
+| `plugins/public-guides/index.js`         | Tenant-pool, middleware, routes, shutdown  |
+| `plugins/public-guides/model.js`         | Separata public SQL/DTO (ej auth `getAll`) |
+| `plugins/public-guides/controller.js`    | HTTP-hantering                             |
+| `server/index.ts`                        | `shutdownPublicGuidesPool` vid shutdown    |
+
+Plugin auto-loadas via `plugin-loader.js` (samma mönster som `public-cups`).
+
+### Tester
+
+`plugins/public-guides/__tests__/model.test.js` — DTO, A3-SQL, språkfilter, audio-gate, id-validering.
+
+Kör: `npm test -- plugins/public-guides/__tests__` (11 tester). Hela guides-sviten: 104 tester (public + auth).
+
+### Säkerhet (godkänd 2026-07-12)
+
+| ID  | Risk                                                           | Beslut                                                                                          |
+| --- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| S23 | Oautentiserad läsning av publicerat innehåll                   | Accepterad — by design (ADR A2/A3); publication gate = access control                           |
+| S24 | Public audio-proxy förstärker S15 om skadlig `storageRef` i DB | Accepterad v1 — ärvd från S15; P1: blockera klient-`storageRef` före prod-publicering           |
+| S25 | ID-gissning inom publicerad katalog                            | Accepterad — publicerat innehåll ska vara upptäckbart                                           |
+| S26 | DoS mot publika endpoints                                      | Mitigerad — `publicEndpointLimiter` (60 req/15 min/IP, alltid aktiv; `PUBLIC_RATE_LIMIT_MAX`)   |
+| S27 | Path traversal via `storageRef` vid stream                     | Mitigerad — samma kedja som Epic 6 S21 (`parseStorageRef` + `path.basename`)                    |
+| S28 | `presentationText` kan innehålla markup                        | Dokumenterad — API-konsument ska behandla som plain text                                        |
+| S29 | R2-lagring (`r2:`) stödjer ej `download()` stream              | Operativ begränsning — verifiera `local:` audio i prod eller implementera R2-stream före launch |
+
+**Prod-hardening (P1, ej blockerande v1):** S15-åtgärd + verifiera audio storage-provider (S29).
+
+### Kända begränsningar (vid Epic 7-avslut)
+
+- Ingen frontend-konsument för public API.
+- `?language=` filtrerar varianter men inte stopp-listan — stopp kan returneras med `variants: []` om inga varianter matchar språket.
+
+### Frontend
+
+Ej tillämpligt i Epic 7 (backend only).
+
+---
+
+## Guide CMS – Roadmap (uppdaterad 2026-07-12)
+
+| Epic | Namn                               | Status       | Leverans                                       |
+| ---- | ---------------------------------- | ------------ | ---------------------------------------------- |
+| 1    | Place + MasterGuide                | **Slutförd** | CRUD, tenant-isolering                         |
+| 2    | GuideStop                          | **Slutförd** | Stopp, narrative, editorial                    |
+| 3    | VariantPresentation                | **Slutförd** | Varianter, publication/staleness               |
+| 4    | Frontend (Epic 1–3)                | **Slutförd** | Guides UI, ListView, forms                     |
+| 5    | Audio metadata (backend)           | **Slutförd** | `guide_audio` CRUD                             |
+| 6    | Audio orchestration + UI           | **Slutförd** | Generate/preview, `GuideAudioSection`          |
+| 7    | Public Read API                    | **Slutförd** | `plugins/public-guides/`, `/api/public/guides` |
+| 8    | TTS-provider                       | Planerad     | Ej påbörjad — nästa fas planeras               |
+| 9    | Publication workflow & gates       | Planerad     | Ej påbörjad                                    |
+| 10   | Prod-hardening (S15/S16, R2 audio) | Planerad     | Ej påbörjad                                    |
+
+**Plattformstatus:** Guide CMS v1-plattformen (Epic 1–7) är **färdig** för redaktionellt arbete och public read API. Teamet pausar inför nästa fas för att planera prioritering (Epic 8–10, frontend-konsument, prod-hardening).
+
+---
+
 ## Guide CMS – Epic 5 (slutförd 2026-07-11, backend)
 
 **Status:** Slutförd — Backend, QA, Security, Documentation, TPM godkända.
