@@ -1,4 +1,6 @@
 import { ArrowDown, ArrowUp, Grid3x3, List as ListIcon, Plus, Search, Settings, X } from 'lucide-react';
+// Canonical list shell reference: client/src/plugins/contacts/components/ContactList.tsx
+// See docs/UI_AND_UX_STANDARDS_V3.md §0.1 for shell, toolbar, table, and bulk-action patterns.
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 

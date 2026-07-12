@@ -580,6 +580,8 @@
     "deletePlaceDescription": "Delete \"{{name}}\"? This cannot be undone.",
     "deletePlaceFailed": "Failed to delete place.",
     "openPlace": "Open {{name}}",
+    "selectPlace": "Select place",
+    "unselectPlace": "Unselect place",
     "colId": "ID",
     "colName": "Name",
     "colLocation": "Location",

@@ -15,7 +15,7 @@ The v3.6 alignment introduced shared primitive behavior that all plugins should 
 
 ### 0.1 List view shell (contacts-style, rolled out 2026-04)
 
-All plugin list views (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoices`, `files`, `mail`, `pulses`, `ingest`, `cups`, `contacts`, `teams`, `requests`, `schedule`) should match this shell. **Settings** is excluded (not a data list).
+All plugin list views (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoices`, `files`, `mail`, `pulses`, `ingest`, `cups`, `contacts`, `teams`, `requests`, `schedule`, `guides`) should match this shell. **Settings** is excluded (not a data list).
 
 | Element              | Standard                                                                                                                                                 |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -223,6 +223,7 @@ To ensure a consistent visual identity, each plugin has a dedicated color theme 
 | Invoices  | `--plugin-invoices`  | Green  | `.plugin-invoices`  |
 | Files     | `--plugin-files`     | Slate  | `.plugin-files`     |
 | Mail      | `--plugin-mail`      | Rose   | `.plugin-mail`      |
+| Guides    | `--plugin-guides`    | Teal   | `.plugin-guides`    |
 
 ### Implementation Pattern
 

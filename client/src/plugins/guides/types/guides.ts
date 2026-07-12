@@ -119,6 +119,15 @@ export function isAudioStatus(value: string): value is AudioStatus {
 
 export const GUIDE_LIFECYCLE_STATUSES: GuideLifecycleStatus[] = ['draft', 'active', 'archived'];
 
+export const GUIDE_LIFECYCLE_COLORS: Record<GuideLifecycleStatus, string> = {
+  draft:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  active:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  archived:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-secondary/50 text-secondary-foreground',
+};
+
 export const MASTER_GUIDE_EDITORIAL_STATUSES: MasterGuideEditorialStatus[] = [
   'draft',
   'in-progress',

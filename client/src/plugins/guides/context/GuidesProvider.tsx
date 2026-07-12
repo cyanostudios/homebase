@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
@@ -36,6 +37,16 @@ export function GuidesProvider({
     usePluginValidation<GuideValidationError>();
   const [guides, setGuides] = useState<Guide[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  const {
+    selectedIds: selectedGuideIds,
+    toggleSelection: toggleGuideSelectedCore,
+    selectAll: selectAllGuidesCore,
+    mergeIntoSelection: mergeIntoGuideSelectionCore,
+    clearSelection: clearGuideSelectionCore,
+    isSelected,
+    selectedCount,
+  } = useBulkSelection();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -226,6 +237,56 @@ export function GuidesProvider({
     [closeGuidePanel, currentGuide?.id, setValidationErrors, t],
   );
 
+  const deleteGuides = useCallback(
+    async (ids: string[]) => {
+      const uniqueIds = Array.from(new Set((ids || []).map(String).filter(Boolean)));
+      if (uniqueIds.length === 0) {
+        return;
+      }
+
+      try {
+        for (const id of uniqueIds) {
+          await guidesApi.deleteGuide(id);
+        }
+        const idSet = new Set(uniqueIds);
+        setGuides((prev) => prev.filter((g) => !idSet.has(String(g.id))));
+        if (currentGuide?.id && idSet.has(String(currentGuide.id))) {
+          closeGuidePanel();
+        }
+        clearGuideSelectionCore();
+      } catch (err) {
+        console.error('Failed to bulk delete guide places:', err);
+        setValidationErrors([{ field: 'general', message: t('guides.deletePlaceFailed') }]);
+      }
+    },
+    [clearGuideSelectionCore, closeGuidePanel, currentGuide?.id, setValidationErrors, t],
+  );
+
+  const toggleGuideSelected = useCallback(
+    (id: string) => {
+      toggleGuideSelectedCore(id);
+    },
+    [toggleGuideSelectedCore],
+  );
+
+  const selectAllGuides = useCallback(
+    (ids: string[]) => {
+      selectAllGuidesCore(ids);
+    },
+    [selectAllGuidesCore],
+  );
+
+  const mergeIntoGuideSelection = useCallback(
+    (ids: string[]) => {
+      mergeIntoGuideSelectionCore(ids);
+    },
+    [mergeIntoGuideSelectionCore],
+  );
+
+  const clearGuideSelection = useCallback(() => {
+    clearGuideSelectionCore();
+  }, [clearGuideSelectionCore]);
+
   const value = useMemo<GuidesContextType>(
     () => ({
       isGuidePanelOpen,
@@ -240,6 +301,14 @@ export function GuidesProvider({
       closeGuidePanel,
       saveGuide,
       deleteGuide,
+      deleteGuides,
+      selectedGuideIds,
+      toggleGuideSelected,
+      mergeIntoGuideSelection,
+      selectAllGuides,
+      clearGuideSelection,
+      selectedCount,
+      isSelected,
       clearValidationErrors,
     }),
     [
@@ -255,6 +324,14 @@ export function GuidesProvider({
       closeGuidePanel,
       saveGuide,
       deleteGuide,
+      deleteGuides,
+      selectedGuideIds,
+      toggleGuideSelected,
+      mergeIntoGuideSelection,
+      selectAllGuides,
+      clearGuideSelection,
+      selectedCount,
+      isSelected,
       clearValidationErrors,
     ],
   );

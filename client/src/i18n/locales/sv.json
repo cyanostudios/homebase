@@ -580,6 +580,8 @@
     "deletePlaceDescription": "Ta bort \"{{name}}\"? Detta kan inte ångras.",
     "deletePlaceFailed": "Kunde inte ta bort plats.",
     "openPlace": "Öppna {{name}}",
+    "selectPlace": "Välj plats",
+    "unselectPlace": "Avmarkera plats",
     "colId": "ID",
     "colName": "Namn",
     "colLocation": "Plats",

@@ -17,6 +17,14 @@ export interface GuidesContextType {
   closeGuidePanel: () => void;
   saveGuide: (data: GuidePayload) => Promise<boolean>;
   deleteGuide: (id: string) => Promise<void>;
+  deleteGuides: (ids: string[]) => Promise<void>;
+  selectedGuideIds: string[];
+  toggleGuideSelected: (id: string) => void;
+  mergeIntoGuideSelection: (ids: string[]) => void;
+  selectAllGuides: (ids: string[]) => void;
+  clearGuideSelection: () => void;
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
   clearValidationErrors: () => void;
 }
 
@@ -44,6 +52,14 @@ export function GuideNullProvider({ children }: { children: React.ReactNode }) {
     closeGuidePanel: () => {},
     saveGuide: async () => false,
     deleteGuide: async () => {},
+    deleteGuides: async () => {},
+    selectedGuideIds: [],
+    toggleGuideSelected: () => {},
+    mergeIntoGuideSelection: () => {},
+    selectAllGuides: () => {},
+    clearGuideSelection: () => {},
+    selectedCount: 0,
+    isSelected: () => false,
     clearValidationErrors: () => {},
   };
   return <GuidesContext.Provider value={empty}>{children}</GuidesContext.Provider>;
