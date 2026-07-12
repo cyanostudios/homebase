@@ -118,7 +118,10 @@ Engångstabell (om du vill köra manuellt): `npm run migrate:password-reset` med
 
 ### Valfritt
 
-- `PUBLIC_CUPS_URL`, `PUBLIC_CUPS_USER_ID` / `PUBLIC_CUPS_USER_EMAIL` — endast Node `/api/public/cups` och CORS
+- `PUBLIC_CUPS_URL`, `PUBLIC_CUPS_USER_ID` / `PUBLIC_CUPS_USER_EMAIL` — Node `/api/public/cups` och CORS
+- `PUBLIC_GUIDES_USER_ID` / `PUBLIC_GUIDES_USER_EMAIL` — Node `/api/public/guides` (read-only guides API)
+
+Utan `PUBLIC_GUIDES_USER_ID` (eller email) svarar `/api/public/guides` med `500` — plugin laddas men pool initieras inte.
 
 ## 3. Migreringar (engång)
 

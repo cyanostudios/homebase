@@ -4,6 +4,39 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Guide CMS Epic 7 (`public-guides`-plugin)
+
+**Status:** Slutförd (Backend, QA, Security, Documentation, TPM). Deployad till `main` / Railway.
+
+**Sammanfattning:** Publik read-only Guides API utan autentisering — fyra GET-endpoints under `/api/public/guides` med strikt publiceringsfilter (A3) och audio-proxy.
+
+### Backend
+
+- **Plugin:** [`plugins/public-guides/`](../plugins/public-guides/) — speglar `public-cups` (tenant-pool, `PUBLIC_GUIDES_USER_ID`).
+- **API:** `GET /api/public/guides`, `GET /:placeId`, `GET /:placeId/stops`, `GET /:placeId/stops/:stopId/variants/:variantId/audio`.
+- **Filter:** `lifecycle_status = active`, `publication_status = published`, `staleness_status = fresh`, audio `status = ready`.
+- **Rate limit:** `publicEndpointLimiter` (60/15 min per IP).
+- **Shutdown:** `shutdownPublicGuidesPool` i [`server/index.ts`](../server/index.ts).
+- **Tester:** 11 st i `plugins/public-guides/__tests__/`.
+
+### Konfiguration
+
+- `PUBLIC_GUIDES_USER_ID` / `PUBLIC_GUIDES_USER_EMAIL` i `.env.local` och Railway.
+- Prod: `PUBLIC_GUIDES_USER_ID=1` (`cyanostudios@gmail.com`).
+
+### Begränsningar
+
+- Ingen frontend-konsument.
+- `?language=` filtrerar varianter men inte stopp-listan (tomma `variants[]` möjligt).
+- R2-lagrad audio stödjer ej stream via proxy (S29) — verifiera `local:` i prod.
+- Ärver S15-risk för `storageRef` på publicerade varianter (P1 före prod).
+
+**Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 7.
+
+**Roadmap:** Epic 1–7 slutförda — se `docs/ai/CHANGELOG.md` § Guide CMS – Roadmap.
+
+---
+
 ## 2026-07 – Guide CMS Epic 6 (`guides`-plugin)
 
 **Status:** Slutförd (Backend + Frontend, QA, Security, Documentation). Väntar TPM-avslut och commit.

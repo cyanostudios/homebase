@@ -396,6 +396,16 @@ async function gracefulShutdown(signal: string) {
     }
 
     try {
+      const publicGuidesPlugin = require('../plugins/public-guides/index.js');
+      if (typeof publicGuidesPlugin.shutdownPublicGuidesPool === 'function') {
+        await publicGuidesPlugin.shutdownPublicGuidesPool();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('Shutdown: public-guides pool', msg);
+    }
+
+    try {
       const bookingPlugin = require('../plugins/booking/index.js');
       if (typeof bookingPlugin.shutdownBookingPool === 'function') {
         await bookingPlugin.shutdownBookingPool();
