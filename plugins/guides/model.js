@@ -19,6 +19,7 @@ const {
   parseAudioStatus,
   parseProviderKey,
 } = require('./validation');
+const { sanitizeStorageRef } = require('./audio/storageRef');
 
 const PLACES_TABLE = 'guide_places';
 const MASTER_GUIDES_TABLE = 'guide_master_guides';
@@ -58,12 +59,6 @@ function sanitizePresentationText(value) {
   if (value === null || value === undefined) return null;
   const trimmed = String(value).trim();
   return trimmed ? trimmed.slice(0, 50000) : null;
-}
-
-function sanitizeStorageRef(value) {
-  if (value === null || value === undefined) return null;
-  const trimmed = String(value).trim();
-  return trimmed ? trimmed.slice(0, 500) : null;
 }
 
 function sanitizeMimeType(value) {
@@ -909,6 +904,100 @@ class GuidesModel {
     };
   }
 
+  async getAudioIfExists(req, placeId, stopId, variantId) {
+    try {
+      return await this.getAudio(req, placeId, stopId, variantId);
+    } catch (error) {
+      if (error instanceof AppError && error.statusCode === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async setAudioGenerationState(req, placeId, stopId, variantId, state) {
+    try {
+      await this.getVariantById(req, placeId, stopId, variantId);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          UPDATE ${AUDIO_TABLE} ga
+          SET
+            status = $1,
+            storage_ref = $2,
+            duration_ms = $3,
+            mime_type = $4,
+            error_message = $5,
+            updated_at = CURRENT_TIMESTAMP
+          FROM ${VARIANTS_TABLE} gvp
+          INNER JOIN ${STOPS_TABLE} gs ON gs.id = gvp.stop_id
+          INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gs.master_guide_id
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE ga.variant_presentation_id = gvp.id
+            AND ga.variant_presentation_id = $6
+            AND gvp.stop_id = $7
+            AND mg.place_id = $8
+          RETURNING ga.*
+        `,
+        [
+          state.status,
+          state.storageRef ?? null,
+          state.durationMs ?? null,
+          state.mimeType ?? null,
+          state.errorMessage ?? null,
+          variantId,
+          stopId,
+          placeId,
+        ],
+      );
+
+      if (!rows.length) {
+        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      return this.transformAudioRow(rows[0], placeId, stopId, variantId);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update guide audio generation state', error, {
+        placeId,
+        stopId,
+        variantId,
+      });
+      throw new AppError('Failed to update audio', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async deleteAudioRecord(req, placeId, stopId, variantId) {
+    try {
+      await this.getVariantById(req, placeId, stopId, variantId);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          DELETE FROM ${AUDIO_TABLE} ga
+          USING ${VARIANTS_TABLE} gvp, ${STOPS_TABLE} gs, ${MASTER_GUIDES_TABLE} mg, ${PLACES_TABLE} p
+          WHERE ga.variant_presentation_id = gvp.id
+            AND gvp.stop_id = gs.id
+            AND gs.master_guide_id = mg.id
+            AND mg.place_id = p.id
+            AND ga.variant_presentation_id = $1
+            AND gvp.stop_id = $2
+            AND mg.place_id = $3
+          RETURNING ga.id
+        `,
+        [variantId, stopId, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      Logger.info('Guide audio deleted', { placeId, stopId, variantId });
+      return { id: String(rows[0].id) };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to delete guide audio', error, { placeId, stopId, variantId });
+      throw new AppError('Failed to delete audio', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async getAudio(req, placeId, stopId, variantId) {
     try {
       await this.getVariantById(req, placeId, stopId, variantId);
@@ -985,6 +1074,13 @@ class GuidesModel {
   async updateAudio(req, placeId, stopId, variantId, data) {
     try {
       const existing = await this.getAudio(req, placeId, stopId, variantId);
+      if (data.status !== undefined && parseAudioStatus(data.status) === 'ready') {
+        throw new AppError(
+          'Use audio generate to reach ready status',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
       const status = data.status !== undefined ? parseAudioStatus(data.status) : existing.status;
       const providerKey =
         data.providerKey !== undefined ? parseProviderKey(data.providerKey) : existing.providerKey;
@@ -1048,34 +1144,7 @@ class GuidesModel {
   }
 
   async deleteAudio(req, placeId, stopId, variantId) {
-    try {
-      await this.getVariantById(req, placeId, stopId, variantId);
-      const db = Database.get(req);
-      const rows = await db.query(
-        `
-          DELETE FROM ${AUDIO_TABLE} ga
-          USING ${VARIANTS_TABLE} gvp, ${STOPS_TABLE} gs, ${MASTER_GUIDES_TABLE} mg, ${PLACES_TABLE} p
-          WHERE ga.variant_presentation_id = gvp.id
-            AND gvp.stop_id = gs.id
-            AND gs.master_guide_id = mg.id
-            AND mg.place_id = p.id
-            AND ga.variant_presentation_id = $1
-            AND gvp.stop_id = $2
-            AND mg.place_id = $3
-          RETURNING ga.id
-        `,
-        [variantId, stopId, placeId],
-      );
-      if (!rows.length) {
-        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
-      }
-      Logger.info('Guide audio deleted', { placeId, stopId, variantId });
-      return { id: String(rows[0].id) };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      Logger.error('Failed to delete guide audio', error, { placeId, stopId, variantId });
-      throw new AppError('Failed to delete audio', 500, AppError.CODES.DATABASE_ERROR);
-    }
+    return this.deleteAudioRecord(req, placeId, stopId, variantId);
   }
 }
 

@@ -303,4 +303,30 @@ describe('guides tenant filter compatibility', () => {
     expect(filtered).toContain('FROM guide_variant_presentations gvp');
     expect(filtered).toContain('AND user_id = $3');
   });
+
+  test('guide audio generation state UPDATE joins guide_places for user_id scope', () => {
+    const sql = `
+          UPDATE guide_audio ga
+          SET
+            status = $1,
+            storage_ref = $2,
+            duration_ms = $3,
+            mime_type = $4,
+            error_message = $5,
+            updated_at = CURRENT_TIMESTAMP
+          FROM guide_variant_presentations gvp
+          INNER JOIN guide_stops gs ON gs.id = gvp.stop_id
+          INNER JOIN guide_master_guides mg ON mg.id = gs.master_guide_id
+          INNER JOIN guide_places p ON p.id = mg.place_id
+          WHERE ga.variant_presentation_id = gvp.id
+            AND ga.variant_presentation_id = $6
+            AND gvp.stop_id = $7
+            AND mg.place_id = $8
+          RETURNING ga.*
+        `;
+    const filtered = adapter._addTenantFilter(sql, userId);
+    expect(filtered).toContain('FROM guide_variant_presentations gvp');
+    expect(filtered).toContain('AND user_id = $9');
+    expect(filtered).toContain('RETURNING ga.*');
+  });
 });

@@ -3,8 +3,13 @@ const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class GuidesController {
-  constructor(model) {
+  /**
+   * @param {import('./model')} model
+   * @param {import('./audio/AudioOrchestrationService')|null} [audioOrchestration]
+   */
+  constructor(model, audioOrchestration = null) {
     this.model = model;
+    this.audioOrchestration = audioOrchestration;
   }
 
   async getAll(req, res) {
@@ -319,7 +324,16 @@ class GuidesController {
 
   async deleteAudio(req, res) {
     try {
-      await this.model.deleteAudio(req, req.params.id, req.params.stopId, req.params.variantId);
+      if (this.audioOrchestration) {
+        await this.audioOrchestration.deleteWithBlob(
+          req,
+          req.params.id,
+          req.params.stopId,
+          req.params.variantId,
+        );
+      } else {
+        await this.model.deleteAudio(req, req.params.id, req.params.stopId, req.params.variantId);
+      }
       res.json({ deleted: true });
     } catch (error) {
       Logger.error('Delete guide audio failed', error, {
@@ -330,6 +344,95 @@ class GuidesController {
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to delete audio' });
+    }
+  }
+
+  async generateAudio(req, res) {
+    try {
+      if (!this.audioOrchestration) {
+        return res.status(500).json({ error: 'Audio orchestration not configured' });
+      }
+      const audio = await this.audioOrchestration.generate(
+        req,
+        req.params.id,
+        req.params.stopId,
+        req.params.variantId,
+      );
+      res.json(audio);
+    } catch (error) {
+      Logger.error('Generate guide audio failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        variantId: req.params.variantId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to generate audio' });
+    }
+  }
+
+  async cancelAudio(req, res) {
+    try {
+      if (!this.audioOrchestration) {
+        return res.status(500).json({ error: 'Audio orchestration not configured' });
+      }
+      const audio = await this.audioOrchestration.cancel(
+        req,
+        req.params.id,
+        req.params.stopId,
+        req.params.variantId,
+      );
+      res.json(audio);
+    } catch (error) {
+      Logger.error('Cancel guide audio failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        variantId: req.params.variantId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to cancel audio' });
+    }
+  }
+
+  async previewAudio(req, res) {
+    try {
+      if (!this.audioOrchestration) {
+        return res.status(500).json({ error: 'Audio orchestration not configured' });
+      }
+      const { stream, mimeType } = await this.audioOrchestration.preview(
+        req,
+        req.params.id,
+        req.params.stopId,
+        req.params.variantId,
+      );
+
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+
+      stream.on('error', (err) => {
+        Logger.error('Guide audio preview stream error', err, {
+          placeId: req.params.id,
+          stopId: req.params.stopId,
+          variantId: req.params.variantId,
+        });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Preview failed' });
+        } else {
+          res.destroy();
+        }
+      });
+      stream.pipe(res);
+    } catch (error) {
+      Logger.error('Preview guide audio failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        variantId: req.params.variantId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to preview audio' });
     }
   }
 }

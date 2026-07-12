@@ -183,12 +183,12 @@ describe('GuidesModel guide audio', () => {
         {
           id: 12,
           variant_presentation_id: 7,
-          status: 'ready',
+          status: 'failed',
           provider_key: 'noop',
-          storage_ref: 'audio/stop-7.mp3',
+          storage_ref: null,
           duration_ms: 30000,
           mime_type: 'audio/mpeg',
-          error_message: null,
+          error_message: 'Previous run failed',
           created_at: '2026-01-01T00:00:00.000Z',
           updated_at: '2026-01-02T00:00:00.000Z',
         },
@@ -196,15 +196,42 @@ describe('GuidesModel guide audio', () => {
     });
 
     const result = await model.updateAudio({}, '1', '5', '7', {
-      status: 'ready',
-      storageRef: 'audio/stop-7.mp3',
+      status: 'failed',
+      errorMessage: 'Previous run failed',
       durationMs: 30000,
       mimeType: 'audio/mpeg',
     });
 
-    expect(result.status).toBe('ready');
-    expect(result.storageRef).toBe('audio/stop-7.mp3');
+    expect(result.status).toBe('failed');
+    expect(result.errorMessage).toBe('Previous run failed');
     expect(result.durationMs).toBe(30000);
+  });
+
+  test('updateAudio rejects manual ready status', async () => {
+    jest.spyOn(model, 'getAudio').mockResolvedValue({
+      id: '12',
+      variantId: '7',
+      stopId: '5',
+      placeId: '1',
+      status: 'pending',
+      providerKey: 'noop',
+      storageRef: null,
+      durationMs: null,
+      mimeType: null,
+      errorMessage: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    await expect(
+      model.updateAudio({}, '1', '5', '7', {
+        status: 'ready',
+        storageRef: 'local:file.wav',
+        mimeType: 'audio/wav',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+    });
   });
 
   test('updateAudio rejects invalid durationMs', async () => {

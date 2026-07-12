@@ -169,6 +169,38 @@ function createGuidesRoutes(controller, context) {
     (req, res) => controller.getAudio(req, res),
   );
 
+  router.get(
+    '/:id/stops/:stopId/variants/:variantId/audio/preview',
+    gate,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    commonRules.id('variantId'),
+    validateRequest,
+    (req, res) => controller.previewAudio(req, res),
+  );
+
+  router.post(
+    '/:id/stops/:stopId/variants/:variantId/audio/generate',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    commonRules.id('variantId'),
+    validateRequest,
+    (req, res) => controller.generateAudio(req, res),
+  );
+
+  router.post(
+    '/:id/stops/:stopId/variants/:variantId/audio/cancel',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    commonRules.id('variantId'),
+    validateRequest,
+    (req, res) => controller.cancelAudio(req, res),
+  );
+
   router.post(
     '/:id/stops/:stopId/variants/:variantId/audio',
     gate,

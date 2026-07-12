@@ -1,5 +1,6 @@
 // plugins/guides/audio/adapters/NoopAudioProvider.js
 const AudioProvider = require('../AudioProvider');
+const { createMinimalWavBuffer } = require('../minimalWav');
 
 class NoopAudioProvider extends AudioProvider {
   constructor() {
@@ -8,7 +9,13 @@ class NoopAudioProvider extends AudioProvider {
   }
 
   async generate(_req, _input) {
-    return { status: 'pending' };
+    const buffer = createMinimalWavBuffer(1000);
+    return {
+      status: 'ready',
+      audioBuffer: buffer,
+      durationMs: 1000,
+      mimeType: 'audio/wav',
+    };
   }
 
   async getStatus(_req, input) {

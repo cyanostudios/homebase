@@ -2,6 +2,7 @@ import { createApiClient, type ApiRequestError } from '@/core/api/createApiClien
 
 import type {
   Guide,
+  GuideAudio,
   GuidePayload,
   GuideStop,
   GuideStopPayload,
@@ -127,6 +128,45 @@ class GuidesApi {
     return apiRequest<{ deleted: boolean }>(`/${placeId}/stops/${stopId}/variants/${variantId}`, {
       method: 'DELETE',
     });
+  }
+
+  getAudio(placeId: string, stopId: string, variantId: string) {
+    return apiRequest<GuideAudio>(`/${placeId}/stops/${stopId}/variants/${variantId}/audio`);
+  }
+
+  async getAudioOrNull(placeId: string, stopId: string, variantId: string) {
+    try {
+      return await this.getAudio(placeId, stopId, variantId);
+    } catch (err) {
+      if ((err as ApiError).status === 404) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  generateAudio(placeId: string, stopId: string, variantId: string) {
+    return apiRequest<GuideAudio>(
+      `/${placeId}/stops/${stopId}/variants/${variantId}/audio/generate`,
+      { method: 'POST', body: JSON.stringify({}) },
+    );
+  }
+
+  cancelAudio(placeId: string, stopId: string, variantId: string) {
+    return apiRequest<GuideAudio>(
+      `/${placeId}/stops/${stopId}/variants/${variantId}/audio/cancel`,
+      { method: 'POST', body: JSON.stringify({}) },
+    );
+  }
+
+  deleteAudio(placeId: string, stopId: string, variantId: string) {
+    return apiRequest<{ id: string }>(`/${placeId}/stops/${stopId}/variants/${variantId}/audio`, {
+      method: 'DELETE',
+    });
+  }
+
+  getAudioPreviewUrl(placeId: string, stopId: string, variantId: string) {
+    return `/api/guides/${placeId}/stops/${stopId}/variants/${variantId}/audio/preview`;
   }
 }
 

@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { cn } from '@/lib/utils';
 
 import { guidesApi } from '../api/guidesApi';
+import { GuideAudioSection } from './GuideAudioSection';
 import {
   isPublicationStatus,
   isStalenessStatus,
@@ -428,6 +429,13 @@ export const GuideVariantsSection: React.FC<GuideVariantsSectionProps> = ({
                         {t('guides.presentationTextEmpty')}
                       </p>
                     )}
+                    <GuideAudioSection
+                      placeId={placeId}
+                      stopId={stopId}
+                      variantId={variant.id}
+                      presentationText={variant.presentationText}
+                      parentBusy={disabled}
+                    />
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <Button

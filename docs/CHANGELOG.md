@@ -4,6 +4,41 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Guide CMS Epic 6 (`guides`-plugin)
+
+**Status:** Slutförd (Backend + Frontend, QA, Security, Documentation). Väntar TPM-avslut och commit.
+
+**Sammanfattning:** Komplett audio-flöde för redaktörer — generate/cancel/preview via `AudioOrchestrationService`, noop E2E i dev, och `GuideAudioSection` i variantvyn.
+
+### Backend
+
+- **Orkestrering:** [`AudioOrchestrationService.js`](../plugins/guides/audio/AudioOrchestrationService.js) — generate/cancel/preview/deleteWithBlob.
+- **Storage:** [`storageRef.js`](../plugins/guides/audio/storageRef.js), [`uploadAudioBuffer.js`](../plugins/guides/audio/uploadAudioBuffer.js).
+- **API:** `POST …/variants/:variantId/audio/generate`, `POST …/cancel`, `GET …/preview` (utöver Epic 5 CRUD).
+- **noop:** Minimal WAV + synkront `ready` i dev.
+- **Regler:** `PUT …/audio` blockerar manuell `ready`; `generate` kräver `presentationText`.
+- **Tester:** 91 st i `plugins/guides/__tests__/`; hela sviten 141 tester.
+
+### Frontend
+
+- **Komponent:** [`GuideAudioSection.tsx`](../client/src/plugins/guides/components/GuideAudioSection.tsx) inbäddad i [`GuideVariantsSection.tsx`](../client/src/plugins/guides/components/GuideVariantsSection.tsx).
+- **API-klient:** `generateAudio`, `cancelAudio`, `deleteAudio`, `getAudioOrNull`, `getAudioPreviewUrl` i [`guidesApi.ts`](../client/src/plugins/guides/api/guidesApi.ts).
+- **Typer:** `GuideAudio`, `AudioStatus` i [`types/guides.ts`](../client/src/plugins/guides/types/guides.ts).
+- **i18n:** `guides.audio.*` i `en.json` / `sv.json`.
+- **UX:** Alla states, poll 3 s, preview via proxy, confirm vid regenerering/radering.
+
+### Begränsningar
+
+- Extern TTS-provider, public API, prod-hardening S15/S16 (valfritt före prod).
+- Preview för `stale` kan 404 (backend kräver `ready`) — se S22 i spec.
+- Audio-status synkas inte automatiskt vid narrative-ändring utan reload.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 6.
+
+**Nästa:** TPM epic-avslut; commit/deploy på begäran.
+
+---
+
 ## 2026-07 – Guide CMS Epic 5 (`guides`-plugin, backend)
 
 **Status:** Slutförd (Backend, QA, Security, Documentation, TPM).
@@ -26,11 +61,11 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ### Ej inkluderat
 
-- Extern TTS, faktisk generering, public API, frontend UI.
+- Extern TTS, public API. _(Faktisk generering och frontend UI tillagt i Epic 6.)_
 
 **Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 5.
 
-**Nästa:** Epic 6 planerad — se `docs/ai/CHANGELOG.md` § Guide CMS – Epic 6.
+**Nästa:** Epic 6 slutförd — se `docs/ai/CHANGELOG.md` § Guide CMS – Epic 6.
 
 ---
 
@@ -51,7 +86,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - **Variant-sektion:** [`GuideVariantsSection.tsx`](../client/src/plugins/guides/components/GuideVariantsSection.tsx) inbäddad i [`GuideStopsSection.tsx`](../client/src/plugins/guides/components/GuideStopsSection.tsx) — lista, create/edit, delete med bekräftelse.
 - **API-klient:** `getVariants`, `createVariant`, `updateVariant`, `deleteVariant` i [`guidesApi.ts`](../client/src/plugins/guides/api/guidesApi.ts).
 - **Typer:** `GuideVariantPresentation`, payloads, enum-helpers i [`types/guides.ts`](../client/src/plugins/guides/types/guides.ts).
-- **i18n:** `guides.variants`, `guides.variantTypes.*`, `guides.publication.*`, `guides.staleness.*` m.m.
+- **i18n:** `guides.variants`, `guides.variantTypes.*`, `guides.publication.*`, `guides.staleness.*`, `guides.audio.*` (Epic 6) m.m.
 
 ### Drift
 

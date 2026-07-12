@@ -94,6 +94,29 @@ export function isStalenessStatus(value: string): value is StalenessStatus {
   return STALENESS_STATUSES.includes(value as StalenessStatus);
 }
 
+export type AudioStatus = 'pending' | 'processing' | 'ready' | 'failed' | 'stale';
+
+export interface GuideAudio {
+  id: string;
+  variantId: string;
+  stopId: string;
+  placeId: string;
+  status: AudioStatus;
+  providerKey: string;
+  storageRef: string | null;
+  durationMs: number | null;
+  mimeType: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const AUDIO_STATUSES: AudioStatus[] = ['pending', 'processing', 'ready', 'failed', 'stale'];
+
+export function isAudioStatus(value: string): value is AudioStatus {
+  return AUDIO_STATUSES.includes(value as AudioStatus);
+}
+
 export const GUIDE_LIFECYCLE_STATUSES: GuideLifecycleStatus[] = ['draft', 'active', 'archived'];
 
 export const MASTER_GUIDE_EDITORIAL_STATUSES: MasterGuideEditorialStatus[] = [

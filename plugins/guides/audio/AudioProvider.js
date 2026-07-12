@@ -4,7 +4,7 @@
 /**
  * @typedef {Object} AudioGenerationResult
  * @property {string} status - pending | processing | ready | failed | stale
- * @property {string} [storageRef]
+ * @property {Buffer} [audioBuffer]
  * @property {number} [durationMs]
  * @property {string} [mimeType]
  * @property {string} [errorMessage]
@@ -19,7 +19,7 @@ class AudioProvider {
   /**
    * Request audio generation for a variant presentation. v1 noop returns pending without work.
    * @param {import('express').Request} req
-   * @param {{ variantPresentationId: string|number, presentationText?: string|null, language?: string }} input
+   * @param {{ variantPresentationId: string|number, presentationText?: string|null, language?: string, variantType?: string }} input
    * @returns {Promise<AudioGenerationResult>}
    */
   async generate(req, input) {

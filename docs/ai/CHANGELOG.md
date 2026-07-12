@@ -58,12 +58,12 @@ Kör: `npm run migrate:guides` (inkluderar 090, 092, 093, 094, **095** per tenan
 
 ### Provider-lager (`plugins/guides/audio/`)
 
-| Fil                             | Roll                                                    |
-| ------------------------------- | ------------------------------------------------------- |
-| `AudioProvider.js`              | Bas-kontrakt: `generate`, `getStatus`, `cancel`         |
-| `adapters/NoopAudioProvider.js` | Stub — returnerar `pending` utan externa anrop          |
-| `AudioProviderRegistry.js`      | `register`, `get`, `has`, `listNames`, `resolveDefault` |
-| `registerDefaultProviders.js`   | Registrerar `noop` vid första anrop                     |
+| Fil                             | Roll                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| `AudioProvider.js`              | Bas-kontrakt: `generate`, `getStatus`, `cancel`                                |
+| `adapters/NoopAudioProvider.js` | Stub i Epic 5; **utökad i Epic 6** — returnerar `audioBuffer` via orkestrering |
+| `AudioProviderRegistry.js`      | `register`, `get`, `has`, `listNames`, `resolveDefault`                        |
+| `registerDefaultProviders.js`   | Registrerar `noop` vid första anrop                                            |
 
 ### Validering (backend: `plugins/guides/validation.js`)
 
@@ -95,24 +95,39 @@ Kör: `npm run check` och `npm test -- plugins/guides/__tests__` (hela sviten: 1
 | S13 | Klientstyrd `errorMessage`                      | Accepterad — max 5 000 tecken; rendera som plain text i UI |
 | S14 | `providerKey` begränsad till registry           | Mitigerad — endast `noop` registrerad i v1                 |
 
-### Kända begränsningar
+### Kända begränsningar (vid Epic 5-avslut)
 
-- Ingen faktisk ljudgenerering eller provider-anrop i v1.
+- Ingen faktisk ljudgenerering eller provider-anrop i CRUD-flödet.
 - Audio och variant-staleness uppdateras i separata queries (ej atomisk transaktion).
 - `storageRef`-validering krävs innan provider-integration (se S11-rekommendation).
 - Frontend för audio-hantering saknas.
 
-### Nästa steg
+**Uppdatering (Epic 6):** noop-orkestrering, generate/preview och `GuideAudioSection` tillagda — se Epic 6 § 3b och § 4c.
 
-- Epic 6 — se planeringssektion nedan (arkitekturgranskning före implementation).
+### Nästa steg (vid Epic 5-avslut)
+
+- Epic 6 — se sektion nedan (slutförd 2026-07-12).
 
 ---
 
-## Guide CMS – Epic 6 (planerad, ej implementerad)
+## Guide CMS – Epic 6 (slutförd 2026-07-12)
 
-**Status:** Scope definierad av TPM — väntar på Lösningsarkitektens slutgranskning innan Backend aktiveras.
+**Status:** Slutförd — Backend, Frontend, QA, Security, Documentation godkända. Väntar TPM-avslut och commit.
 
-**Typ:** Arkitektur- och flödesdefinition. Ingen implementation, ingen extern leverantör, inga konkreta adapter-implementationer.
+Grindordning: Lösningsarkitekt → UI/UX-designer → Backend → QA → Security → Dokumentation → Frontend → QA → Security → Dokumentation → _(TPM)_.
+
+### Arkitekturbeslut (ADR, 2026-07-11)
+
+| #   | Fråga                       | Beslut                                                                                                                                                                          | Motivering                                                                                             |
+| --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| A1  | Separat generate-endpoint?  | **Ja:** `POST …/audio/generate` (+ valfritt `POST …/audio/cancel`)                                                                                                              | Skiljer metadata-CRUD (Epic 5) från arbetsflödesaction; tydligare state machine och CSRF per action    |
+| A2  | Synkront vs async v1?       | **Poll-mönster utan jobbkö:** generate sätter `processing`; noop kan slutföra synkront i samma request; riktiga providers returnerar `processing` → klient pollar `GET …/audio` | Enklast i v1; inget kösystem; kontraktet stödjer async redan                                           |
+| A3  | noop simulerar hela flödet? | **Ja:** noop returnerar minimal ljudbuffer + metadata; orkestrering laddar upp via `StorageProvider`                                                                            | E2E i dev utan extern leverantör; verifierar storage-koppling                                          |
+| A4  | Förhandsgranskning?         | **Proxy-endpoint:** `GET …/audio/preview` (auth + tenant-scope) streamar via `StorageProvider.download`                                                                         | Samma mönster som `files/:id/download`; exponerar inte rå `storageRef`                                 |
+| A5  | DELETE cleanup?             | **Compensating delete:** DB-radering först, sedan best-effort `StorageProvider.delete`; logga vid storage-fel                                                                   | Samma pragmatiska mönster som `filesService.deleteStoredBlob`; atomisk cross-store ej möjlig utan saga |
+| A6  | `storageRef`-format?        | **Namespaced sträng:** `{storageProviderKey}:{externalFileId}` (max 500 tecken, validerad i domän)                                                                              | Ingen ny DB-kolumn i v1; mappar till befintlig `StorageProviderRegistry`                               |
+| A7  | `ready`-krav?               | **Server enforce:** `storageRef` + `mimeType` obligatoriska vid generate; `PUT` blockerar manuell `ready`                                                                       | `POST` CRUD kan fortfarande sätta `ready` (S16)                                                        |
+| A8  | Auto-create audio?          | **`generate` upsertar:** skapar `guide_audio` om saknas (default `pending`/`noop`); **409** om status redan `processing`                                                        | Ett knapptryck i UI; behåller Epic 5 CRUD för manuell metadata                                         |
 
 ### Mål
 
@@ -130,116 +145,274 @@ Utöka/refaktorera befintligt stub-kontrakt i `plugins/guides/audio/AudioProvide
 | `getStatus` | Hämta asynkront genereringsstatus                                          |
 | `cancel`    | Avbryt pågående generering                                                 |
 
-**Kontraktsregler (att specificera):**
+**Kontraktsregler (låsta):**
 
-- Input: domänobjekt (variantId, presentationText, language) — inte leverantörsspecifika parametrar.
-- Output: normaliserat resultat (`status`, ev. `durationMs`, `mimeType`, `errorMessage`) — ingen rå leverantörsrespons.
-- Provider väljs via `providerKey` i `guide_audio`; registry mönster från Epic 5 behålls.
-- `noop` förblir utvecklings-/teststub; produktionsprovider är **interface + kontrakt**, inte implementation i Epic 6.
+- Input: `{ variantPresentationId, presentationText, language, variantType? }` — domänfält only.
+- Output: `{ status, audioBuffer?|stream?, durationMs?, mimeType?, errorMessage? }` — **inte** `storageRef` (sätts av orkestrering efter upload).
+- Provider väljs via `providerKey` i `guide_audio`; registry från Epic 5.
+- `noop` simulerar generate → buffer → upload i dev (A3).
 
 #### 2. Storage Provider-gränssnitt (domän ↔ plattform)
 
-Koppla audio-domänen till befintlig plattformsabstraktion `server/core/storage/StorageProvider.js`:
+Koppla audio-domänen till befintlig plattformsabstraktion `server/core/storage/StorageProvider.js` via ny **`AudioOrchestrationService`** i `plugins/guides/audio/`:
 
 | StorageProvider (plattform) | Audio-domän (guides)                            |
 | --------------------------- | ----------------------------------------------- |
 | `upload`                    | Lagra genererad ljudfil efter provider-leverans |
-| `download`                  | Hämta för förhandsgranskning (redaktör)         |
-| `delete`                    | Rensa vid audio-delete eller regenerering       |
+| `download`                  | Hämta för `GET …/audio/preview`                 |
+| `delete`                    | Rensa vid regenerering eller DELETE             |
 
-**Kontraktsregler (att specificera):**
+**Kontraktsregler (låsta):**
 
-- `storageRef` i `guide_audio` är **domänreferens** (nyckel/schema), inte fysisk sökväg.
-- Format/schema för `storageRef` valideras i domänlagret innan storage-anrop.
-- Tenant-scope: lagringsnycklar inkluderar tenant-kontext (samma princip som övriga plugins).
-- Separation: AudioProvider genererar bytes/metadata; StorageProvider persisterar; domänservice orkestrerar.
+- `storageRef` = `{storageProviderKey}:{externalFileId}` (A6); valideras i domän före storage-anrop.
+- Uppladdning via `StorageProviderRegistry.resolveForUpload(req)` — samma princip som `plugins/files/`.
+- Tenant-scope: `req`-kontext + tenant-filter på alla audio-queries (oförändrat från Epic 5).
+- **Domän orkestrerar; providers persisterar/genererar inte själva.**
 
 #### 3. Produktionsflöde för audio (backend-orkestrering)
 
-Sekvens att definiera (state machine, ej implementera):
+State machine (låst):
 
+```mermaid
+stateDiagram-v2
+  [*] --> none
+  none --> pending: POST generate (upsert)
+  pending --> processing: orchestration start
+  processing --> ready: provider OK + upload OK
+  processing --> failed: provider/upload error
+  ready --> stale: canonicalNarrative ändras
+  stale --> processing: POST generate (re-run)
+  failed --> processing: POST generate (retry)
+  processing --> pending: POST cancel
+  ready --> processing: POST generate (confirm overwrite)
+  ready --> [*]: DELETE audio (+ storage cleanup)
+  failed --> [*]: DELETE audio
+  stale --> [*]: DELETE audio
 ```
-[variant har presentationText]
-    → redaktör initierar generering (eller auto-trigger — beslut i arkitektur)
-    → guide_audio.status: pending → processing
-    → AudioProvider.generate()
-    → vid success: StorageProvider.upload() → storageRef satt → status: ready
-    → vid failure: status: failed, errorMessage satt
-    → vid narrative-ändring: status: stale (befintlig Epic 5-regel)
-    → regenerering: invalidera/gå via processing igen
-```
 
-**Beslutspunkter för arkitekt:**
+**API-yta (utökning av Epic 5):**
 
-- Synkront vs asynkront genereringsflöde i v1.
-- Om POST audio ska trigga generering eller separat `…/audio/generate`-endpoint.
-- Regler för `ready`: krävs `storageRef` + `durationMs`?
-- Transaktionsgränser (metadata + storage upload).
-- Idempotens vid dubbel generering.
+| Metod | Path                                   | Beskrivning                                                   |
+| ----- | -------------------------------------- | ------------------------------------------------------------- |
+| POST  | `…/variants/:variantId/audio/generate` | Upsert audio, validera `presentationText`, kör orkestrering   |
+| POST  | `…/variants/:variantId/audio/cancel`   | Avbryt `processing` → `pending`                               |
+| GET   | `…/variants/:variantId/audio/preview`  | Streama ljud (endast `ready`)                                 |
+| \*    | Epic 5 CRUD                            | Oförändrat; `PUT` får inte sätta `ready` utan blob-validering |
+
+**Orkestreringssekvens (`generate`):**
+
+1. Tenant-scopad variant + audio lookup.
+2. Kräv icke-tom `presentationText`.
+3. Om `processing` → 409.
+4. Om regenerering och befintlig `storageRef` → best-effort storage delete.
+5. Sätt `status: processing`.
+6. `AudioProvider.generate()` → buffer/stream + metadata.
+7. `StorageProvider.upload()` → sätt `storageRef`, `mimeType`, `durationMs`.
+8. Sätt `status: ready` eller `failed` + `errorMessage`.
+
+**Ej i v1:** jobbkö, webhooks, batch-generering, auto-trigger vid variant save.
+
+#### 3b. Backend-implementering (klar 2026-07-12)
+
+**Nya filer** (`plugins/guides/audio/`):
+
+| Fil                             | Roll                                                   |
+| ------------------------------- | ------------------------------------------------------ |
+| `AudioOrchestrationService.js`  | generate, cancel, preview, deleteWithBlob              |
+| `storageRef.js`                 | `{providerKey}:{externalFileId}` parse/format/validate |
+| `uploadAudioBuffer.js`          | Persistens via `StorageProviderRegistry`               |
+| `minimalWav.js`                 | Minimal WAV för noop dev                               |
+| `adapters/NoopAudioProvider.js` | Returnerar `audioBuffer` + metadata (synkront `ready`) |
+
+**Utökade filer:** `model.js` (`getAudioIfExists`, `setAudioGenerationState`, `deleteAudioRecord`; `PUT` blockerar `ready`), `controller.js`, `routes.js`, `index.js`, `AudioProvider.js`.
+
+**API (autentiserat, plugin-gate `guides`, CSRF på POST):**
+
+| Metod | Path                                                                    | Beskrivning                                                                           |
+| ----- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| POST  | `/api/guides/:placeId/stops/:stopId/variants/:variantId/audio/generate` | Upsert audio, kräver `presentationText`; noop → `ready` i samma request               |
+| POST  | `…/audio/cancel`                                                        | Avbryt `processing` → `pending`; 409 annars                                           |
+| GET   | `…/audio/preview`                                                       | Streamar ljud (`Content-Disposition: inline`); 404 om ej `ready`; 409 om `processing` |
+| \*    | Epic 5 CRUD                                                             | Oförändrat; `PUT` nekar `status: ready`                                               |
+
+**Semantik:**
+
+- `generate` upsertar `guide_audio` om saknas; **409** om redan `processing`.
+- Regenerering raderar befintlig blob (best-effort) före ny upload.
+- `DELETE …/audio` raderar DB-post + best-effort storage cleanup.
+- `storageRef` sätts endast av orkestrering vid lyckad upload (format `local:guide-audio-{variantId}-{ts}.wav` i dev).
+
+**Tester:** 91 st i `plugins/guides/__tests__/` (+13 backend Epic 6). Hela sviten: **141 tester** (inkl. `guideAudioFormat.test.js`).
+
+Kör: `npm run check` och `npm test`
+
+**Säkerhet (godkänd 2026-07-12, backend + frontend):**
+
+| ID  | Risk                                                                        | Beslut                                                                                                        |
+| --- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| S15 | Klient-skriven `storageRef` på POST/PUT kan peka på delad lokal upload-mapp | Accepterad v1 — frontend använder inte CRUD-vägen; blockera klient-`storageRef` eller tenant-prefix före prod |
+| S16 | `POST …/audio` tillåter `status: ready` utan generate                       | Accepterad v1 — UI anropar endast `generate`                                                                  |
+| S17 | `presentationText` till provider (framtida extern integration)              | Dokumenterad — data minimering vid provider-epic                                                              |
+| S18 | Orphan blobs vid misslyckad storage delete                                  | Accepterad — files-mönster                                                                                    |
+| S19 | `errorMessage` lagras/visas i UI                                            | Mitigerad — React textnoder, max 5 000 tecken server-side                                                     |
+| S20 | Preview-proxy IDOR                                                          | Mitigerad — tenant-join före stream; `storageRef` från DB                                                     |
+| S21 | Path traversal via `storageRef`                                             | Mitigerad — `parseStorageRef` + `path.basename` i local adapter                                               |
+| S22 | Preview nekar `stale` (404) medan UI kan visa spelare                       | Känd avvikelse — funktionell, inte säkerhetslucka; P2-fix valfritt                                            |
+
+**Prod-hardening (P1, ej blockerande v1):** blockera klient-`storageRef` och `ready` på POST.
 
 #### 4. Frontend-flöde för audio (redaktör)
 
 UX-flöde att definiera (UI/UX-designer involveras vid implementation, men flödet specificeras i Epic 6):
 
-| Steg | Redaktörshandling                   | Förväntat systembeteende                                   |
-| ---- | ----------------------------------- | ---------------------------------------------------------- |
-| 1    | Öppnar variant med presentationText | Audio-sektion visas (saknas → "ingen audio")               |
-| 2    | Skapar/initierar audio              | POST eller generate-action → status `pending`/`processing` |
-| 3    | Väntar / uppdaterar                 | Status-badge (pending, processing, ready, failed, stale)   |
-| 4    | Lyssnar (ready)                     | Förhandsgranskning via download-URL eller stream-endpoint  |
-| 5    | Regenererar (stale/failed)          | Ny generering; bekräftelse vid overwrite                   |
-| 6    | Tar bort                            | DELETE audio + ev. storage cleanup                         |
+| Steg | Redaktörshandling                   | Förväntat systembeteende                                             |
+| ---- | ----------------------------------- | -------------------------------------------------------------------- |
+| 1    | Öppnar variant med presentationText | Audio-sektion: status eller "Ingen audio — generera"                 |
+| 2    | Klickar "Generera"                  | `POST …/audio/generate` → `processing` (ev. direkt `ready` för noop) |
+| 3    | Väntar                              | Poll `GET …/audio` var 2–3 s medan `processing`                      |
+| 4    | Lyssnar (ready)                     | `<audio src="…/audio/preview">` via proxy-endpoint                   |
+| 5    | Regenererar (stale/failed/ready)    | `ConfirmDialog` → `POST generate`                                    |
+| 6    | Tar bort                            | `ConfirmDialog` → `DELETE …/audio`                                   |
 
-**UI-principer:**
+**UI-principer (låsta av arkitekt, detaljer av UI/UX):**
 
 - `errorMessage`, `storageRef` som plain text (säkerhet S13).
 - Ingen provider-specifik konfiguration i UI v1.
 - Staleness synlig efter narrative-ändring (koppling till befintlig variant-staleness).
 
+#### 4b. UI/UX-specifikation (godkänd 2026-07-12)
+
+**Placering:** Ny komponent `GuideAudioSection` inbäddad **inuti varje variant-rad** i `GuideVariantsSection` — under `presentationText`, avgränsad med `border-t border-border/40 mt-2 pt-2`.
+
+**Wireframe (text):**
+
+```
+┌─ Variant [quick] [sv] [draft] [stale?]     [edit][delete] ─┐
+│  Presentation text preview…                                  │
+│  ─────────────────────────────────────────────────────────── │
+│  AUDIO                                                       │
+│  [pending]  Ingen ljudfil — generera från presentationstext. │
+│             [ Generera ljud ]                                │
+│  — eller (ready) —                                           │
+│  [ready]  ▶ ━━━━━━━━━━━━━━━ 0:45                            │
+│           [ Generera om ]  [ Ta bort ]                       │
+│  — eller (processing) —                                      │
+│  [processing]  Genererar…  [ Avbryt ]                        │
+│  — eller (failed) —                                          │
+│  [failed]  Generering misslyckades.                          │
+│            {errorMessage plain text, max 2 rader}            │
+│            [ Försök igen ]  [ Ta bort ]                    │
+│  — eller (stale) —                                           │
+│  [stale]  Ljudet matchar inte längre källtexten.             │
+│           ▶ preview (om storage finns) eller inaktiv         │
+│           [ Generera om ]  [ Ta bort ]                       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**States och UI-beteende:**
+
+| `status`     | Badge-färg                      | Primär action         | Sekundär | Preview                |
+| ------------ | ------------------------------- | --------------------- | -------- | ---------------------- |
+| _(saknas)_   | —                               | Generera ljud         | —        | Nej                    |
+| `pending`    | muted/outline                   | Generera ljud         | Ta bort  | Nej                    |
+| `processing` | blå/outline + spinner           | Avbryt                | —        | Nej                    |
+| `ready`      | grön/secondary                  | Generera om (confirm) | Ta bort  | Ja, `<audio controls>` |
+| `failed`     | destructive/outline             | Försök igen           | Ta bort  | Nej                    |
+| `stale`      | amber (samma som variant stale) | Generera om (confirm) | Ta bort  | Ja om blob finns       |
+
+**Knappregler:**
+
+- **Generera ljud** disabled om: `!presentationText?.trim()`, `processing`, eller `parentBusy`.
+- **Generera om / Försök igen** → `ConfirmDialog` med copy som skiljer stale vs failed vs ready-overwrite.
+- **Avbryt** endast vid `processing`; anropar `POST …/cancel`.
+- **Ta bort** → befintlig `ConfirmDialog`-mönster.
+
+**Polling:** Medan `processing`, poll `GET …/audio` var **3 s**; stoppa vid unmount eller terminal status. Visa diskret `text-xs text-muted-foreground` "Uppdaterar…" — ingen fullsidig loader.
+
+**Preview:** `<audio controls className="w-full h-8">` med `src` = preview-URL (samma origin, cookies skickas). `aria-label` från i18n. Visa `durationMs` formaterat som `m:ss` bredvid spelaren om tillgängligt.
+
+**Fel:** 409 → "Generering pågår redan"; 400 utan text → "Presentationstext krävs för ljudgenerering"; övrigt → generiskt felmeddelande.
+
+**i18n-nycklar (förslag):** `guides.audio.title`, `guides.audio.generate`, `guides.audio.regenerate`, `guides.audio.retry`, `guides.audio.cancel`, `guides.audio.deleteTitle`, `guides.audio.deleteDescription`, `guides.audio.regenerateTitle`, `guides.audio.regenerateDescriptionStale`, `guides.audio.regenerateDescriptionReady`, `guides.audio.status.*` (pending, processing, ready, failed, stale), `guides.audio.emptyHint`, `guides.audio.processingHint`, `guides.audio.staleHint`, `guides.audio.noPresentationText`, `guides.audio.loadFailed`.
+
+**Tillgänglighet:** Status som text i badge (inte bara färg); knappar med `aria-label`; preview med native controls (WCAG 4.1.2); fokusordning: badge → preview → primär knapp → sekundär.
+
+**Responsivitet:** Audio-rad `flex-col` på smal skärm, `flex-row items-center` från `sm:`; knappar wrap med `gap-2`.
+
+#### 4c. Frontend-implementering (klar 2026-07-12)
+
+**Nya/utökade filer** (`client/src/plugins/guides/`):
+
+| Fil                                   | Roll                                                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `components/GuideAudioSection.tsx`    | Status-UI, poll, generate/cancel/delete, preview, confirm-dialogs                                 |
+| `api/guidesApi.ts`                    | `getAudio`, `getAudioOrNull`, `generateAudio`, `cancelAudio`, `deleteAudio`, `getAudioPreviewUrl` |
+| `types/guides.ts`                     | `GuideAudio`, `AudioStatus`, `isAudioStatus`                                                      |
+| `utils/guideAudioFormat.ts`           | `formatDurationMs` (m:ss)                                                                         |
+| `components/GuideVariantsSection.tsx` | Inbäddar `GuideAudioSection` per variant-rad                                                      |
+
+**Beteende (verifierat mot § 4b):**
+
+- Alla audio-states: saknas, `pending`, `processing`, `ready`, `failed`, `stale`
+- Poll var 3 s vid `processing`; diskret "Uppdaterar…"
+- Preview via `<audio src="/api/guides/…/audio/preview">` (same-origin, session cookies)
+- `ConfirmDialog` för regenerering (stale/ready/failed) och borttagning
+- `errorMessage` som plain text (`line-clamp-2`); `storageRef` exponeras inte i UI
+- i18n: `guides.audio.*` i `en.json` och `sv.json`
+
+**Kända begränsningar (frontend):**
+
+- Audio-status laddas om vid mount/poll — synkas inte automatiskt vid narrative-ändring på stopp (samma mönster som variant stale-badge).
+- Preview för `stale` kan ge 404 från backend (S22) trots att UI visar spelare när `storageRef` finns.
+- N× `GET …/audio` vid mount (en per variant-rad).
+
 #### 5. Lagerseparation (domän / provider / implementation)
 
-| Lager                       | Plats (planerat)                                   | Ansvar                                            | Får inte                              |
-| --------------------------- | -------------------------------------------------- | ------------------------------------------------- | ------------------------------------- |
-| **Domän**                   | `plugins/guides/model.js`, `validation.js`, routes | CRUD, state transitions, staleness, orchestration | Känna till leverantörs-API            |
-| **Provider-kontrakt**       | `plugins/guides/audio/AudioProvider.js`, registry  | Interface, normaliserat I/O                       | DB-access, HTTP till externa tjänster |
-| **Provider-implementation** | `plugins/guides/audio/adapters/*` (framtida)       | Extern generering                                 | Domänregler, tenant-filter            |
-| **Storage-kontrakt**        | `server/core/storage/StorageProvider.js`           | Persistens-abstraktion                            | Guide-specifik affärslogik            |
-| **Storage-implementation**  | `server/core/storage/adapters/*`                   | Fysisk lagring                                    | Audio-generering                      |
-| **Frontend**                | `client/src/plugins/guides/`                       | Redaktörsflöde, statusvisning                     | Direkt provider-anrop                 |
+| Lager                       | Plats (planerat)                                    | Ansvar                                                 | Får inte                      |
+| --------------------------- | --------------------------------------------------- | ------------------------------------------------------ | ----------------------------- |
+| **Domän**                   | `plugins/guides/model.js`, `validation.js`, routes  | CRUD, state transitions, staleness, delegerar workflow | Känna till leverantörs-API    |
+| **Orkestrering**            | `plugins/guides/audio/AudioOrchestrationService.js` | generate/cancel/preview/delete-blob                    | Direkt DB-queries (via model) |
+| **Provider-kontrakt**       | `plugins/guides/audio/AudioProvider.js`, registry   | Interface, normaliserat I/O                            | DB-access, storage-upload     |
+| **Provider-implementation** | `plugins/guides/audio/adapters/*` (framtida)        | Extern generering                                      | Domänregler, tenant-filter    |
+| **Storage-kontrakt**        | `server/core/storage/StorageProvider.js`            | Persistens-abstraktion                                 | Guide-specifik affärslogik    |
+| **Storage-implementation**  | `server/core/storage/adapters/*`                    | Fysisk lagring                                         | Audio-generering              |
+| **Frontend**                | `client/src/plugins/guides/` (§ 4c)                 | Redaktörsflöde, statusvisning                          | Direkt provider-anrop         |
 
 ### Scope — ingår ej
 
-- Konkreta externa leverantörer eller adapter-implementationer.
+- Konkreta externa leverantörer eller adapter-implementationer (utöver noop).
 - API-nycklar, hemligheter, konfiguration per leverantör.
 - Public/mobil read-API för slutanvändare.
-- Batch-generering, kösystem, webhooks (om ej beslutat i arkitektur).
-- Implementation av backend, frontend eller migrationer.
+- Batch-generering, kösystem, webhooks.
+- Prod-hardening S15/S16 (se säkerhetstabell).
 
-### Rekommenderad grindordning (efter arkitekturgodkännande)
+### Rekommenderad grindordning
 
-1. **Lösningsarkitekt** — slutgranskning av kontrakt, state machine, API-yta, lagergränser.
-2. **UI/UX-designer** — wireframes/flöde för frontend-delen.
-3. **Backend Developer** — orkestrering, generate-endpoint, storage-koppling, utökade tester.
-4. **Frontend Developer** — audio-sektion i variant-vy.
-5. **QA → Security → Documentation → TPM**
+1. ~~**Lösningsarkitekt**~~ — klar 2026-07-11
+2. ~~**UI/UX-designer**~~ — klar 2026-07-12 (§ 4b)
+3. ~~**Backend Developer**~~ — klar 2026-07-12
+4. ~~**QA → Security → Documentation**~~ — backend klar 2026-07-12
+5. ~~**Frontend Developer**~~ — klar 2026-07-12 (§ 4c)
+6. ~~**QA → Security → Documentation**~~ — frontend klar 2026-07-12
+7. **TPM** — epic-avslut, commit/deploy vid begäran
 
-### Definition of Done (Epic 6, när implementation startar)
+### Definition of Done
 
-- Arkitektur godkänd av Lösningsarkitekt.
-- Audio Provider-kontrakt dokumenterat och versionerat.
-- Storage-koppling dokumenterad (`storageRef`-schema, tenant-scope).
-- Produktionsflöde som state diagram + API-lista.
-- Frontend-flöde godkänt av UI/UX.
-- Minst en fungerande stub-provider + storage-integration i dev (utan extern leverantör).
-- Tester, säkerhetsgranskning, dokumentation — per Team Workflow.
+- ~~Arkitektur godkänd (ADR A1–A8).~~
+- ~~Backend: orkestrering, noop, preview, 91 guides-tester.~~
+- ~~Frontend: `GuideAudioSection` enligt § 4b/§ 4c.~~
+- ~~QA, Security, Documentation grindar godkända.~~
+- Commit och deploy — vid användarens begäran (parity local/prod).
 
 ### Öppna frågor till Lösningsarkitekt
 
-1. Separat `POST …/audio/generate` vs utökad `POST …/audio`?
-2. Synkront flöde i v1 eller jobb/poll-mönster?
-3. Ska `noop`-provider simulera hela flödet (inkl. fake upload) i dev?
-4. Hur exponeras förhandsgranskning — signed URL, proxy-endpoint, eller direkt storage-ref?
-5. Atomisk cleanup vid DELETE (DB + storage) — transaktion eller compensating delete?
+~~Alla besvarade i ADR-tabellen (A1–A8) ovan.~~
+
+### Nästa steg
+
+- TPM: epic-avslut.
+- Valfritt före prod: P1-hardening (S15/S16).
+- Commit på `homebase-v3.7` när användaren begär det.
 
 ---
 
