@@ -47,6 +47,7 @@ describe('GuidesModel guide variants', () => {
       presentationText: 'Short intro',
       publicationStatus: 'draft',
       stalenessStatus: 'fresh',
+      approvalStatus: 'draft',
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     });
@@ -259,6 +260,7 @@ describe('GuidesModel guide variants', () => {
       presentationText: null,
       publicationStatus: 'draft',
       stalenessStatus: 'fresh',
+      approvalStatus: 'approved',
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     });
@@ -273,6 +275,7 @@ describe('GuidesModel guide variants', () => {
           presentation_text: 'Updated text',
           publication_status: 'published',
           staleness_status: 'fresh',
+          approval_status: 'approved',
           created_at: '2026-01-01T00:00:00.000Z',
           updated_at: '2026-01-02T00:00:00.000Z',
         },
@@ -284,8 +287,36 @@ describe('GuidesModel guide variants', () => {
       publicationStatus: 'published',
     });
 
+    const query = Database.get().query;
+    expect(query.mock.calls[0][1]).toEqual([
+      'Updated text',
+      'published',
+      'approved',
+      '7',
+      '5',
+      '1',
+    ]);
+    expect(query.mock.calls[0][0]).toContain('AND gvp.id = $4');
+    expect(query.mock.calls[0][0]).toContain('AND gvp.stop_id = $5');
+    expect(query.mock.calls[0][0]).toContain('AND mg.place_id = $6');
+
     expect(result.presentationText).toBe('Updated text');
     expect(result.publicationStatus).toBe('published');
+  });
+
+  test('createVariant rejects published without approved content', async () => {
+    jest.spyOn(model, 'getStopById').mockResolvedValue({ id: '5' });
+
+    await expect(
+      model.createVariant({}, '1', '5', {
+        variantType: 'normal',
+        language: 'sv',
+        publicationStatus: 'published',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'published requires approved content and fresh staleness',
+    });
   });
 
   test('deleteVariant returns not found when scoped delete misses', async () => {

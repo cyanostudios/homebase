@@ -45,6 +45,8 @@ describe('GuidesModel', () => {
       shortIntro: 'Intro',
       geographicReference: 'Stockholm',
       lifecycleStatus: 'draft',
+      ingestSourceId: null,
+      ingestRunId: null,
       masterGuideId: '10',
       sourceLanguage: 'sv',
       masterGuideEditorialStatus: 'draft',

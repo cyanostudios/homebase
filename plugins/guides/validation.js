@@ -16,11 +16,13 @@ const GUIDE_STOP_EDITORIAL_STATUSES = MASTER_GUIDE_EDITORIAL_STATUSES;
 const VARIANT_TYPES = ['quick', 'normal', 'deep'];
 const PUBLICATION_STATUSES = ['draft', 'ready', 'published'];
 const STALENESS_STATUSES = ['fresh', 'stale'];
+const APPROVAL_STATUSES = ['draft', 'pending_review', 'approved'];
 const DEFAULT_SOURCE_LANGUAGE = 'sv';
 const DEFAULT_LIFECYCLE_STATUS = 'draft';
 const DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS = 'draft';
 const DEFAULT_PUBLICATION_STATUS = 'draft';
 const DEFAULT_STALENESS_STATUS = 'fresh';
+const DEFAULT_APPROVAL_STATUS = 'draft';
 const SOURCE_LANGUAGE_REGEX = /^[a-z]{2}(-[a-z]{2})?$/;
 
 function parseSourceLanguage(value) {
@@ -130,6 +132,17 @@ function parseStalenessStatus(value) {
   return normalized;
 }
 
+function parseApprovalStatus(value) {
+  if (value === null || value === undefined || value === '') {
+    return DEFAULT_APPROVAL_STATUS;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (!APPROVAL_STATUSES.includes(normalized)) {
+    throw new AppError('Invalid approval status', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  return normalized;
+}
+
 function parseLanguage(value) {
   return parseSourceLanguage(value);
 }
@@ -233,12 +246,14 @@ module.exports = {
   VARIANT_TYPES,
   PUBLICATION_STATUSES,
   STALENESS_STATUSES,
+  APPROVAL_STATUSES,
   AUDIO_STATUSES,
   DEFAULT_SOURCE_LANGUAGE,
   DEFAULT_LIFECYCLE_STATUS,
   DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
   DEFAULT_PUBLICATION_STATUS,
   DEFAULT_STALENESS_STATUS,
+  DEFAULT_APPROVAL_STATUS,
   DEFAULT_AUDIO_STATUS,
   DEFAULT_PROVIDER_KEY,
   parseSourceLanguage,
@@ -248,6 +263,7 @@ module.exports = {
   parseVariantType,
   parsePublicationStatus,
   parseStalenessStatus,
+  parseApprovalStatus,
   parseLanguage,
   parseAudioStatus,
   parseProviderKey,

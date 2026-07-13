@@ -207,6 +207,34 @@ describe('GuidesModel guide audio', () => {
     expect(result.durationMs).toBe(30000);
   });
 
+  test('createAudio rejects client storageRef', async () => {
+    jest.spyOn(model, 'getVariantById').mockResolvedValue({
+      id: '7',
+      stopId: '5',
+      placeId: '1',
+    });
+
+    await expect(
+      model.createAudio({}, '1', '5', '7', { storageRef: 'local:file.wav' }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'storageRef cannot be set via API',
+    });
+  });
+
+  test('createAudio rejects manual ready status', async () => {
+    jest.spyOn(model, 'getVariantById').mockResolvedValue({
+      id: '7',
+      stopId: '5',
+      placeId: '1',
+    });
+
+    await expect(model.createAudio({}, '1', '5', '7', { status: 'ready' })).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Use audio generate to reach ready status',
+    });
+  });
+
   test('updateAudio rejects manual ready status', async () => {
     jest.spyOn(model, 'getAudio').mockResolvedValue({
       id: '12',
@@ -226,11 +254,35 @@ describe('GuidesModel guide audio', () => {
     await expect(
       model.updateAudio({}, '1', '5', '7', {
         status: 'ready',
-        storageRef: 'local:file.wav',
         mimeType: 'audio/wav',
       }),
     ).rejects.toMatchObject({
       statusCode: 400,
+      message: 'Use audio generate to reach ready status',
+    });
+  });
+
+  test('updateAudio rejects client storageRef', async () => {
+    jest.spyOn(model, 'getAudio').mockResolvedValue({
+      id: '12',
+      variantId: '7',
+      stopId: '5',
+      placeId: '1',
+      status: 'pending',
+      providerKey: 'noop',
+      storageRef: null,
+      durationMs: null,
+      mimeType: null,
+      errorMessage: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    await expect(
+      model.updateAudio({}, '1', '5', '7', { storageRef: 'local:file.wav' }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'storageRef cannot be set via API',
     });
   });
 

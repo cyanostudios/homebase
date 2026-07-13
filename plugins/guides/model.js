@@ -6,6 +6,7 @@ const {
   DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
   DEFAULT_PUBLICATION_STATUS,
   DEFAULT_STALENESS_STATUS,
+  DEFAULT_APPROVAL_STATUS,
   DEFAULT_AUDIO_STATUS,
   DEFAULT_PROVIDER_KEY,
   VARIANT_TYPES,
@@ -19,7 +20,6 @@ const {
   parseAudioStatus,
   parseProviderKey,
 } = require('./validation');
-const { sanitizeStorageRef } = require('./audio/storageRef');
 
 const PLACES_TABLE = 'guide_places';
 const MASTER_GUIDES_TABLE = 'guide_master_guides';
@@ -90,6 +90,17 @@ function narrativesEqual(a, b) {
   return String(a ?? '') === String(b ?? '');
 }
 
+function assertNoClientAudioStorageRef(data) {
+  if (data.storageRef !== undefined) {
+    throw new AppError('storageRef cannot be set via API', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+}
+
+function manualContentApprovalStatus(text) {
+  const trimmed = String(text ?? '').trim();
+  return trimmed ? 'approved' : DEFAULT_APPROVAL_STATUS;
+}
+
 class GuidesModel {
   transformRow(placeRow, masterGuideRow) {
     if (!placeRow) return null;
@@ -99,6 +110,8 @@ class GuidesModel {
       shortIntro: placeRow.short_intro ?? null,
       geographicReference: placeRow.geographic_reference ?? null,
       lifecycleStatus: placeRow.lifecycle_status ?? 'draft',
+      ingestSourceId: placeRow.ingest_source_id != null ? String(placeRow.ingest_source_id) : null,
+      ingestRunId: placeRow.ingest_run_id != null ? String(placeRow.ingest_run_id) : null,
       masterGuideId: masterGuideRow ? String(masterGuideRow.id) : null,
       sourceLanguage: masterGuideRow?.source_language ?? DEFAULT_SOURCE_LANGUAGE,
       masterGuideEditorialStatus:
@@ -237,6 +250,9 @@ class GuidesModel {
       const shortIntro = sanitizeOptionalText(data.shortIntro, 5000);
       const geographicReference = sanitizeOptionalText(data.geographicReference, 255);
       const lifecycleStatus = parseLifecycleStatus(data.lifecycleStatus);
+      if (lifecycleStatus === 'active' && existing.lifecycleStatus !== 'active') {
+        await this._assertPlaceHasPublishableVariant(db, placeId);
+      }
 
       const rows = await db.query(
         `
@@ -336,6 +352,7 @@ class GuidesModel {
       sequenceOrder: row.sequence_order,
       canonicalNarrative: row.canonical_narrative ?? null,
       editorialStatus: row.editorial_status ?? DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
+      approvalStatus: row.approval_status ?? DEFAULT_APPROVAL_STATUS,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -474,6 +491,7 @@ class GuidesModel {
       const title = sanitizeTitle(data.title);
       const canonicalNarrative = sanitizeCanonicalNarrative(data.canonicalNarrative);
       const editorialStatus = parseGuideStopEditorialStatus(data.editorialStatus);
+      const approvalStatus = manualContentApprovalStatus(canonicalNarrative);
 
       const created = await db.transaction(async (tx) => {
         const orderRows = await tx.query(
@@ -493,12 +511,20 @@ class GuidesModel {
               title,
               sequence_order,
               canonical_narrative,
-              editorial_status
+              editorial_status,
+              approval_status
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
           `,
-          [masterGuide.id, title, sequenceOrder, canonicalNarrative, editorialStatus],
+          [
+            masterGuide.id,
+            title,
+            sequenceOrder,
+            canonicalNarrative,
+            editorialStatus,
+            approvalStatus,
+          ],
         );
         const stop = rows[0];
         await this._insertDefaultVariants(tx, stop.id, masterGuide.sourceLanguage);
@@ -542,6 +568,7 @@ class GuidesModel {
             title = $1,
             canonical_narrative = $2,
             editorial_status = $3,
+            approval_status = 'approved',
             updated_at = CURRENT_TIMESTAMP
           FROM ${MASTER_GUIDES_TABLE} mg
           INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
@@ -705,6 +732,7 @@ class GuidesModel {
       presentationText: row.presentation_text ?? null,
       publicationStatus: row.publication_status ?? DEFAULT_PUBLICATION_STATUS,
       stalenessStatus: row.staleness_status ?? DEFAULT_STALENESS_STATUS,
+      approvalStatus: row.approval_status ?? DEFAULT_APPROVAL_STATUS,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -766,6 +794,15 @@ class GuidesModel {
       const language = parseLanguage(data.language);
       const presentationText = sanitizePresentationText(data.presentationText);
       const publicationStatus = parsePublicationStatus(data.publicationStatus);
+      const approvalStatus = manualContentApprovalStatus(presentationText);
+
+      if (publicationStatus === 'published' && approvalStatus !== 'approved') {
+        throw new AppError(
+          'published requires approved content and fresh staleness',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
 
       const db = Database.get(req);
       try {
@@ -777,9 +814,10 @@ class GuidesModel {
               language,
               presentation_text,
               publication_status,
-              staleness_status
+              staleness_status,
+              approval_status
             )
-            VALUES ($1, $2, $3, $4, $5, $6)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
           `,
           [
@@ -789,6 +827,7 @@ class GuidesModel {
             presentationText,
             publicationStatus,
             DEFAULT_STALENESS_STATUS,
+            approvalStatus,
           ],
         );
 
@@ -823,6 +862,25 @@ class GuidesModel {
           ? parsePublicationStatus(data.publicationStatus)
           : existing.publicationStatus;
 
+      if (publicationStatus === 'published') {
+        const approvalStatus = existing.approvalStatus ?? DEFAULT_APPROVAL_STATUS;
+        if (approvalStatus !== 'approved' || existing.stalenessStatus !== 'fresh') {
+          throw new AppError(
+            'published requires approved content and fresh staleness',
+            400,
+            AppError.CODES.VALIDATION_ERROR,
+          );
+        }
+      }
+
+      const presentationChanged =
+        data.presentationText !== undefined &&
+        !narrativesEqual(presentationText, existing.presentationText);
+      const approvalStatus =
+        presentationChanged || data.presentationText !== undefined
+          ? 'approved'
+          : (existing.approvalStatus ?? DEFAULT_APPROVAL_STATUS);
+
       const db = Database.get(req);
       const rows = await db.query(
         `
@@ -830,17 +888,18 @@ class GuidesModel {
           SET
             presentation_text = $1,
             publication_status = $2,
+            approval_status = $3,
             updated_at = CURRENT_TIMESTAMP
           FROM ${STOPS_TABLE} gs
           INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gs.master_guide_id
           INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
           WHERE gvp.stop_id = gs.id
-            AND gvp.id = $3
-            AND gvp.stop_id = $4
-            AND mg.place_id = $5
+            AND gvp.id = $4
+            AND gvp.stop_id = $5
+            AND mg.place_id = $6
           RETURNING gvp.*
         `,
-        [presentationText, publicationStatus, variantId, stopId, placeId],
+        [presentationText, publicationStatus, approvalStatus, variantId, stopId, placeId],
       );
 
       if (!rows.length) {
@@ -1030,9 +1089,17 @@ class GuidesModel {
   async createAudio(req, placeId, stopId, variantId, data) {
     try {
       await this.getVariantById(req, placeId, stopId, variantId);
+      assertNoClientAudioStorageRef(data);
+      if (data.status !== undefined && parseAudioStatus(data.status) === 'ready') {
+        throw new AppError(
+          'Use audio generate to reach ready status',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
       const status = parseAudioStatus(data.status);
       const providerKey = parseProviderKey(data.providerKey);
-      const storageRef = sanitizeStorageRef(data.storageRef);
+      const storageRef = null;
       const durationMs = data.durationMs !== undefined ? sanitizeDurationMs(data.durationMs) : null;
       const mimeType = sanitizeMimeType(data.mimeType);
       const errorMessage = sanitizeErrorMessage(data.errorMessage);
@@ -1074,6 +1141,7 @@ class GuidesModel {
   async updateAudio(req, placeId, stopId, variantId, data) {
     try {
       const existing = await this.getAudio(req, placeId, stopId, variantId);
+      assertNoClientAudioStorageRef(data);
       if (data.status !== undefined && parseAudioStatus(data.status) === 'ready') {
         throw new AppError(
           'Use audio generate to reach ready status',
@@ -1084,8 +1152,7 @@ class GuidesModel {
       const status = data.status !== undefined ? parseAudioStatus(data.status) : existing.status;
       const providerKey =
         data.providerKey !== undefined ? parseProviderKey(data.providerKey) : existing.providerKey;
-      const storageRef =
-        data.storageRef !== undefined ? sanitizeStorageRef(data.storageRef) : existing.storageRef;
+      const storageRef = existing.storageRef;
       const durationMs =
         data.durationMs !== undefined ? sanitizeDurationMs(data.durationMs) : existing.durationMs;
       const mimeType =
@@ -1145,6 +1212,193 @@ class GuidesModel {
 
   async deleteAudio(req, placeId, stopId, variantId) {
     return this.deleteAudioRecord(req, placeId, stopId, variantId);
+  }
+
+  async _assertPlaceHasPublishableVariant(db, placeId) {
+    const rows = await db.query(
+      `
+        SELECT 1
+        FROM ${VARIANTS_TABLE} gvp
+        INNER JOIN ${STOPS_TABLE} gs ON gs.id = gvp.stop_id
+        INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gs.master_guide_id
+        INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+        WHERE mg.place_id = $1
+          AND gvp.publication_status = 'published'
+          AND gvp.approval_status = 'approved'
+          AND gvp.staleness_status = 'fresh'
+        LIMIT 1
+      `,
+      [placeId],
+    );
+    if (!rows.length) {
+      throw new AppError(
+        'active lifecycle requires at least one published, approved, and fresh variant',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
+  }
+
+  async approveStopNarrative(req, placeId, stopId) {
+    try {
+      await this.getStopById(req, placeId, stopId);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          UPDATE ${STOPS_TABLE} gs
+          SET approval_status = 'approved', updated_at = CURRENT_TIMESTAMP
+          FROM ${MASTER_GUIDES_TABLE} mg
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE gs.master_guide_id = mg.id
+            AND gs.id = $1
+            AND mg.place_id = $2
+          RETURNING gs.*
+        `,
+        [stopId, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Stop not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const masterGuide = await this._getMasterGuideForPlace(req, placeId);
+      Logger.info('Guide stop narrative approved', { placeId, stopId });
+      return this.transformStopRow(rows[0], placeId, masterGuide.id);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to approve guide stop narrative', error, { placeId, stopId });
+      throw new AppError('Failed to approve stop narrative', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async approveVariantContent(req, placeId, stopId, variantId) {
+    try {
+      await this.getVariantById(req, placeId, stopId, variantId);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          UPDATE ${VARIANTS_TABLE} gvp
+          SET approval_status = 'approved', updated_at = CURRENT_TIMESTAMP
+          FROM ${STOPS_TABLE} gs
+          INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gs.master_guide_id
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE gvp.stop_id = gs.id
+            AND gvp.id = $1
+            AND gvp.stop_id = $2
+            AND mg.place_id = $3
+          RETURNING gvp.*
+        `,
+        [variantId, stopId, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Variant not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      Logger.info('Guide variant content approved', { placeId, stopId, variantId });
+      return this.transformVariantRow(rows[0], placeId, stopId);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to approve guide variant content', error, {
+        placeId,
+        stopId,
+        variantId,
+      });
+      throw new AppError('Failed to approve variant content', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async setIngestSource(req, placeId, ingestSourceId) {
+    try {
+      await this.getById(req, placeId);
+      const db = Database.get(req);
+      const normalizedSourceId =
+        ingestSourceId === null || ingestSourceId === undefined || ingestSourceId === ''
+          ? null
+          : String(ingestSourceId).trim();
+      if (normalizedSourceId !== null && !/^\d+$/.test(normalizedSourceId)) {
+        throw new AppError('Invalid ingest source id', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+
+      const rows = await db.query(
+        `
+          UPDATE ${PLACES_TABLE}
+          SET
+            ingest_source_id = $1,
+            ingest_run_id = CASE WHEN $1 IS NULL THEN NULL ELSE ingest_run_id END,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+          RETURNING *
+        `,
+        [normalizedSourceId, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Place not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const masterRows = await db.query(
+        `SELECT * FROM ${MASTER_GUIDES_TABLE} WHERE place_id = $1`,
+        [placeId],
+      );
+      Logger.info('Guide place ingest source updated', {
+        placeId,
+        ingestSourceId: normalizedSourceId,
+      });
+      return this.transformRow(rows[0], masterRows[0]);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to set guide ingest source', error, { placeId });
+      throw new AppError('Failed to set ingest source', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updateIngestRunId(req, placeId, ingestRunId) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          UPDATE ${PLACES_TABLE}
+          SET ingest_run_id = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+          RETURNING *
+        `,
+        [ingestRunId, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Place not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const masterRows = await db.query(
+        `SELECT * FROM ${MASTER_GUIDES_TABLE} WHERE place_id = $1`,
+        [placeId],
+      );
+      return this.transformRow(rows[0], masterRows[0]);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update guide ingest run id', error, { placeId });
+      throw new AppError('Failed to update ingest run', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async applyProductionPresentationText(req, placeId, stopId, variantId, presentationText) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+        UPDATE ${VARIANTS_TABLE} gvp
+        SET
+          presentation_text = $1,
+          approval_status = 'pending_review',
+          updated_at = CURRENT_TIMESTAMP
+        FROM ${STOPS_TABLE} gs
+        INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gs.master_guide_id
+        INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+        WHERE gvp.stop_id = gs.id
+          AND gvp.id = $2
+          AND gvp.stop_id = $3
+          AND mg.place_id = $4
+        RETURNING gvp.*
+      `,
+      [presentationText, variantId, stopId, placeId],
+    );
+    if (!rows.length) {
+      throw new AppError('Variant not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    return this.transformVariantRow(rows[0], placeId, stopId);
   }
 }
 

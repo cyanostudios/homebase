@@ -15,6 +15,7 @@ const {
   audioStatusBodyRule,
   providerKeyBodyRule,
 } = require('./validation');
+const { JOB_TYPES, ITEM_STEPS } = require('./production/ProductionJobModel');
 
 function createGuidesRoutes(controller, context) {
   const requirePlugin =
@@ -22,6 +23,83 @@ function createGuidesRoutes(controller, context) {
   const gate = requirePlugin(config.name);
 
   router.get('/', gate, (req, res) => controller.getAll(req, res));
+
+  router.put(
+    '/:id/ingest-source',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    body('ingestSourceId')
+      .optional({ values: 'null' })
+      .isString()
+      .withMessage('ingestSourceId must be a string id or null'),
+    validateRequest,
+    (req, res) => controller.setIngestSource(req, res),
+  );
+
+  router.get('/:id/source-content', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.getSourceContent(req, res),
+  );
+
+  router.post(
+    '/:id/source-content/refresh',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.refreshSourceContent(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    body('type')
+      .exists({ checkFalsy: true })
+      .isIn(JOB_TYPES)
+      .withMessage(`type must be one of: ${JOB_TYPES.join(', ')}`),
+    body('stopId').optional({ values: 'null' }).isString(),
+    body('variantId').optional({ values: 'null' }).isString(),
+    body('steps').optional().isArray(),
+    body('steps.*').optional().isIn(ITEM_STEPS),
+    body('force').optional().isBoolean(),
+    validateRequest,
+    (req, res) => controller.createProductionJob(req, res),
+  );
+
+  router.get('/:id/production-jobs', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.listProductionJobs(req, res),
+  );
+
+  router.get(
+    '/:id/production-jobs/:jobId',
+    gate,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    validateRequest,
+    (req, res) => controller.getProductionJob(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs/:jobId/approve',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    validateRequest,
+    (req, res) => controller.approveProductionJob(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs/:jobId/cancel',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    validateRequest,
+    (req, res) => controller.cancelProductionJob(req, res),
+  );
 
   router.get('/:id/stops', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getStops(req, res),
@@ -82,6 +160,16 @@ function createGuidesRoutes(controller, context) {
     guideStopEditorialStatusBodyRule(),
     validateRequest,
     (req, res) => controller.updateStop(req, res),
+  );
+
+  router.post(
+    '/:id/stops/:stopId/approve-narrative',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    validateRequest,
+    (req, res) => controller.approveStopNarrative(req, res),
   );
 
   router.delete(
@@ -148,6 +236,17 @@ function createGuidesRoutes(controller, context) {
     (req, res) => controller.updateVariant(req, res),
   );
 
+  router.post(
+    '/:id/stops/:stopId/variants/:variantId/approve-content',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('stopId'),
+    commonRules.id('variantId'),
+    validateRequest,
+    (req, res) => controller.approveVariantContent(req, res),
+  );
+
   router.delete(
     '/:id/stops/:stopId/variants/:variantId',
     gate,
@@ -210,11 +309,6 @@ function createGuidesRoutes(controller, context) {
     commonRules.id('variantId'),
     audioStatusBodyRule(),
     providerKeyBodyRule(),
-    body('storageRef')
-      .optional({ values: 'null' })
-      .isString()
-      .isLength({ max: 500 })
-      .withMessage('storageRef must not exceed 500 characters'),
     body('durationMs')
       .optional({ values: 'null' })
       .isInt({ min: 0 })
@@ -242,11 +336,6 @@ function createGuidesRoutes(controller, context) {
     commonRules.id('variantId'),
     audioStatusBodyRule(),
     providerKeyBodyRule(),
-    body('storageRef')
-      .optional({ values: 'null' })
-      .isString()
-      .isLength({ max: 500 })
-      .withMessage('storageRef must not exceed 500 characters'),
     body('durationMs')
       .optional({ values: 'null' })
       .isInt({ min: 0 })

@@ -168,19 +168,20 @@ describe('guides tenant filter compatibility', () => {
           SET
             presentation_text = $1,
             publication_status = $2,
+            approval_status = $3,
             updated_at = CURRENT_TIMESTAMP
           FROM guide_stops gs
           INNER JOIN guide_master_guides mg ON mg.id = gs.master_guide_id
           INNER JOIN guide_places p ON p.id = mg.place_id
           WHERE gvp.stop_id = gs.id
-            AND gvp.id = $3
-            AND gvp.stop_id = $4
-            AND mg.place_id = $5
+            AND gvp.id = $4
+            AND gvp.stop_id = $5
+            AND mg.place_id = $6
           RETURNING gvp.*
         `;
     const filtered = adapter._addTenantFilter(sql, userId);
     expect(filtered).toContain('FROM guide_stops gs');
-    expect(filtered).toContain('AND user_id = $6');
+    expect(filtered).toContain('AND user_id = $7');
     expect(filtered).toContain('RETURNING gvp.*');
   });
 

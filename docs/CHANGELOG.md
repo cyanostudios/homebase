@@ -4,6 +4,38 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Content Production Pipeline P1, P2, P5, P7 (`guides`-plugin, backend)
+
+**Status:** Backend klar (QA, Security, Documentation). Ej deployad till `main` vid dokumentationstillfället. Frontend UI saknas.
+
+**Sammanfattning:** Första backend-leverans av Content Production Pipeline — prod-hardening (P1), HITL/approval (P2), ingest-koppling (P5) och ProductionJob-orkestrering (P7) med noop Text/Translation.
+
+### Backend
+
+- **P1:** Blockera klient-`storageRef`/`ready` på audio CRUD; `R2StorageAdapter.download()`.
+- **P2:** `approval_status`; approve-routes; publish-gates på variant och place `active`.
+- **P5:** `GuideIngestBridgeService`; ingest-source, source-content, refresh.
+- **P7:** ProductionJob-tabeller, batch API, fingerprint, noop providers.
+- **Migrationer:** `096-guide-approval-status.sql`, `097-guide-ingest-source.sql`, `098-guide-production-jobs.sql` (tenant DB).
+- **Tester:** 110+ i guides-sviten + R2-adaptertest.
+
+### Operativt
+
+- Kör migration 096–098 per tenant före deploy (skriptet `npm run migrate:guides` inkluderar dem inte ännu).
+- `PUBLIC_GUIDES_USER_ID` på Railway + `.env.local` (oförändrat från Epic 7).
+
+### Begränsningar
+
+- Ingen frontend för approval, ingest eller production-jobb.
+- Public API filtrerar inte `approval_status` (accepterad risk R1).
+- Batch audio-steg `skipped` — manuell generate i UI (Epic 6).
+
+**Spec:** `docs/ai/CHANGELOG.md` § Content Production Pipeline – P1, P2, P5, P7.
+
+**Roadmap:** P1/P2/P5/P7 backend klara — se `docs/ai/CHANGELOG.md` § Guide CMS – Roadmap.
+
+---
+
 ## 2026-07 – Guide CMS Epic 7 (`public-guides`-plugin)
 
 **Status:** Slutförd (Backend, QA, Security, Documentation, TPM). Deployad till `main` / Railway.
@@ -28,8 +60,8 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 - Ingen frontend-konsument.
 - `?language=` filtrerar varianter men inte stopp-listan (tomma `variants[]` möjligt).
-- R2-lagrad audio stödjer ej stream via proxy (S29) — verifiera `local:` i prod.
-- Ärver S15-risk för `storageRef` på publicerade varianter (P1 före prod).
+- R2-lagrad audio stödjer stream via proxy efter P1 (S29 åtgärdad).
+- Klient-`storageRef` blockeras i auth API (P1); legacy DB-data bör verifieras operativt.
 
 **Spec:** `docs/ai/CHANGELOG.md` § Guide CMS – Epic 7.
 

@@ -3,7 +3,12 @@
 // Required env vars: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL
 const fs = require('fs');
 const path = require('path');
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} = require('@aws-sdk/client-s3');
 const StorageProvider = require('../StorageProvider');
 
 class R2StorageAdapter extends StorageProvider {
@@ -93,8 +98,25 @@ class R2StorageAdapter extends StorageProvider {
    * @param {import('express').Request} _req
    * @param {{ externalFileId: string }} input
    */
-  async download(_req, _input) {
-    throw new Error('R2 files are served via public URL, download stream not supported');
+  async download(_req, input) {
+    this._init();
+    const key = String(input.externalFileId || '').trim();
+    if (!key) {
+      throw new Error('externalFileId is required for R2 download');
+    }
+
+    const response = await this._client.send(
+      new GetObjectCommand({
+        Bucket: this._bucket,
+        Key: key,
+      }),
+    );
+
+    if (!response.Body) {
+      throw new Error('Empty response body from R2');
+    }
+
+    return response.Body;
   }
 
   /**

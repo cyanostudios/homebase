@@ -45,6 +45,7 @@ describe('GuidesModel guide stops', () => {
       sequenceOrder: 1,
       canonicalNarrative: 'Welcome',
       editorialStatus: 'draft',
+      approvalStatus: 'draft',
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     });
@@ -77,7 +78,7 @@ describe('GuidesModel guide stops', () => {
 
     const result = await model.createStop({}, '1', { title: 'Hall' });
 
-    expect(tx.query.mock.calls[1][1]).toEqual([10, 'Hall', 2, null, 'draft']);
+    expect(tx.query.mock.calls[1][1]).toEqual([10, 'Hall', 2, null, 'draft', 'draft']);
     expect(tx.query).toHaveBeenCalledTimes(5);
     expect(result.title).toBe('Hall');
     expect(result.sequenceOrder).toBe(2);

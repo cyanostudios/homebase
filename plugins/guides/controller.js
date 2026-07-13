@@ -6,10 +6,19 @@ class GuidesController {
   /**
    * @param {import('./model')} model
    * @param {import('./audio/AudioOrchestrationService')|null} [audioOrchestration]
+   * @param {import('./ingest/GuideIngestBridgeService')|null} [ingestBridge]
+   * @param {import('./production/ProductionOrchestrationService')|null} [productionOrchestration]
    */
-  constructor(model, audioOrchestration = null) {
+  constructor(
+    model,
+    audioOrchestration = null,
+    ingestBridge = null,
+    productionOrchestration = null,
+  ) {
     this.model = model;
     this.audioOrchestration = audioOrchestration;
+    this.ingestBridge = ingestBridge;
+    this.productionOrchestration = productionOrchestration;
   }
 
   async getAll(req, res) {
@@ -433,6 +442,197 @@ class GuidesController {
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to preview audio' });
+    }
+  }
+
+  async approveStopNarrative(req, res) {
+    try {
+      const stop = await this.model.approveStopNarrative(req, req.params.id, req.params.stopId);
+      res.json(stop);
+    } catch (error) {
+      Logger.error('Approve guide stop narrative failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to approve stop narrative' });
+    }
+  }
+
+  async approveVariantContent(req, res) {
+    try {
+      const variant = await this.model.approveVariantContent(
+        req,
+        req.params.id,
+        req.params.stopId,
+        req.params.variantId,
+      );
+      res.json(variant);
+    } catch (error) {
+      Logger.error('Approve guide variant content failed', error, {
+        placeId: req.params.id,
+        stopId: req.params.stopId,
+        variantId: req.params.variantId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to approve variant content' });
+    }
+  }
+
+  async setIngestSource(req, res) {
+    try {
+      if (!this.ingestBridge) {
+        return res.status(500).json({ error: 'Ingest bridge not configured' });
+      }
+      const place = await this.ingestBridge.setIngestSource(
+        req,
+        req.params.id,
+        req.body.ingestSourceId ?? null,
+      );
+      res.json(place);
+    } catch (error) {
+      Logger.error('Set guide ingest source failed', error, {
+        placeId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to set ingest source' });
+    }
+  }
+
+  async getSourceContent(req, res) {
+    try {
+      if (!this.ingestBridge) {
+        return res.status(500).json({ error: 'Ingest bridge not configured' });
+      }
+      const content = await this.ingestBridge.getSourceContent(req, req.params.id);
+      res.json(content);
+    } catch (error) {
+      Logger.error('Get guide source content failed', error, {
+        placeId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch source content' });
+    }
+  }
+
+  async refreshSourceContent(req, res) {
+    try {
+      if (!this.ingestBridge) {
+        return res.status(500).json({ error: 'Ingest bridge not configured' });
+      }
+      const content = await this.ingestBridge.refreshSourceContent(req, req.params.id);
+      res.json(content);
+    } catch (error) {
+      Logger.error('Refresh guide source content failed', error, {
+        placeId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to refresh source content' });
+    }
+  }
+
+  async createProductionJob(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.startJob(req, req.params.id, req.body);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Create production job failed', error, {
+        placeId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to create production job' });
+    }
+  }
+
+  async listProductionJobs(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const jobs = await this.productionOrchestration.listJobs(req, req.params.id);
+      res.json(jobs);
+    } catch (error) {
+      Logger.error('List production jobs failed', error, {
+        placeId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to list production jobs' });
+    }
+  }
+
+  async getProductionJob(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.getJob(
+        req,
+        req.params.id,
+        req.params.jobId,
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Get production job failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch production job' });
+    }
+  }
+
+  async approveProductionJob(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.approveJob(
+        req,
+        req.params.id,
+        req.params.jobId,
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Approve production job failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to approve production job' });
+    }
+  }
+
+  async cancelProductionJob(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.cancelJob(
+        req,
+        req.params.id,
+        req.params.jobId,
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Cancel production job failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to cancel production job' });
     }
   }
 }

@@ -83,21 +83,21 @@ Plugin auto-loadas via `plugin-loader.js` (samma mönster som `public-cups`).
 
 `plugins/public-guides/__tests__/model.test.js` — DTO, A3-SQL, språkfilter, audio-gate, id-validering.
 
-Kör: `npm test -- plugins/public-guides/__tests__` (11 tester). Hela guides-sviten: 104 tester (public + auth).
+Kör: `npm test -- plugins/public-guides/__tests__` (11 tester). Guides auth-svit: 110+ tester (inkl. pipeline P1–P7).
 
 ### Säkerhet (godkänd 2026-07-12)
 
-| ID  | Risk                                                           | Beslut                                                                                          |
-| --- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| S23 | Oautentiserad läsning av publicerat innehåll                   | Accepterad — by design (ADR A2/A3); publication gate = access control                           |
-| S24 | Public audio-proxy förstärker S15 om skadlig `storageRef` i DB | Accepterad v1 — ärvd från S15; P1: blockera klient-`storageRef` före prod-publicering           |
-| S25 | ID-gissning inom publicerad katalog                            | Accepterad — publicerat innehåll ska vara upptäckbart                                           |
-| S26 | DoS mot publika endpoints                                      | Mitigerad — `publicEndpointLimiter` (60 req/15 min/IP, alltid aktiv; `PUBLIC_RATE_LIMIT_MAX`)   |
-| S27 | Path traversal via `storageRef` vid stream                     | Mitigerad — samma kedja som Epic 6 S21 (`parseStorageRef` + `path.basename`)                    |
-| S28 | `presentationText` kan innehålla markup                        | Dokumenterad — API-konsument ska behandla som plain text                                        |
-| S29 | R2-lagring (`r2:`) stödjer ej `download()` stream              | Operativ begränsning — verifiera `local:` audio i prod eller implementera R2-stream före launch |
+| ID  | Risk                                                           | Beslut                                                                                                        |
+| --- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| S23 | Oautentiserad läsning av publicerat innehåll                   | Accepterad — by design (ADR A2/A3); publication gate = access control                                         |
+| S24 | Public audio-proxy förstärker S15 om skadlig `storageRef` i DB | Accepterad v1 — ärvd från S15; P1: blockera klient-`storageRef` före prod-publicering                         |
+| S25 | ID-gissning inom publicerad katalog                            | Accepterad — publicerat innehåll ska vara upptäckbart                                                         |
+| S26 | DoS mot publika endpoints                                      | Mitigerad — `publicEndpointLimiter` (60 req/15 min/IP, alltid aktiv; `PUBLIC_RATE_LIMIT_MAX`)                 |
+| S27 | Path traversal via `storageRef` vid stream                     | Mitigerad — samma kedja som Epic 6 S21 (`parseStorageRef` + `path.basename`)                                  |
+| S28 | `presentationText` kan innehålla markup                        | Dokumenterad — API-konsument ska behandla som plain text                                                      |
+| S29 | R2-lagring (`r2:`) stödjer ej `download()` stream              | **Åtgärdad i P1** — `R2StorageAdapter.download()` via `GetObjectCommand`; se § Content Production Pipeline P1 |
 
-**Prod-hardening (P1, ej blockerande v1):** S15-åtgärd + verifiera audio storage-provider (S29).
+**Prod-hardening (P1):** Klient-`storageRef` och manuell `ready` blockeras; R2-stream implementerad (S29 åtgärdad).
 
 ### Kända begränsningar (vid Epic 7-avslut)
 
@@ -110,22 +110,155 @@ Ej tillämpligt i Epic 7 (backend only).
 
 ---
 
-## Guide CMS – Roadmap (uppdaterad 2026-07-12)
+## Content Production Pipeline – P1, P2, P5, P7 (backend slutförd 2026-07-13)
 
-| Epic | Namn                               | Status       | Leverans                                       |
-| ---- | ---------------------------------- | ------------ | ---------------------------------------------- |
-| 1    | Place + MasterGuide                | **Slutförd** | CRUD, tenant-isolering                         |
-| 2    | GuideStop                          | **Slutförd** | Stopp, narrative, editorial                    |
-| 3    | VariantPresentation                | **Slutförd** | Varianter, publication/staleness               |
-| 4    | Frontend (Epic 1–3)                | **Slutförd** | Guides UI, ListView, forms                     |
-| 5    | Audio metadata (backend)           | **Slutförd** | `guide_audio` CRUD                             |
-| 6    | Audio orchestration + UI           | **Slutförd** | Generate/preview, `GuideAudioSection`          |
-| 7    | Public Read API                    | **Slutförd** | `plugins/public-guides/`, `/api/public/guides` |
-| 8    | TTS-provider                       | Planerad     | Ej påbörjad — nästa fas planeras               |
-| 9    | Publication workflow & gates       | Planerad     | Ej påbörjad                                    |
-| 10   | Prod-hardening (S15/S16, R2 audio) | Planerad     | Ej påbörjad                                    |
+**Status:** Backend implementerad — QA och Security godkända. Frontend UI för P2/P5/P7 ej påbörjad. Ej deployad till `main` vid dokumentationstillfället.
 
-**Plattformstatus:** Guide CMS v1-plattformen (Epic 1–7) är **färdig** för redaktionellt arbete och public read API. Teamet pausar inför nästa fas för att planera prioritering (Epic 8–10, frontend-konsument, prod-hardening).
+Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokumentation → TPM-avslut.
+
+**ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE.md`](adr/CONTENT_PRODUCTION_PIPELINE.md)  
+**UX-spec (frontend nästa):** [`docs/ai/design/GUIDES_CONTENT_PRODUCTION_UX.md`](design/GUIDES_CONTENT_PRODUCTION_UX.md)
+
+### Omfattning per epic
+
+| Epic   | Leverans                                                                                                                    |
+| ------ | --------------------------------------------------------------------------------------------------------------------------- |
+| **P1** | Blockera klient-`storageRef` och `status: ready` på audio CRUD; `R2StorageAdapter.download()`                               |
+| **P2** | `approval_status` på stops/variants; approve-endpoints; publish-gates på POST/PUT variant och place `active`                |
+| **P5** | `ingest_source_id` / `ingest_run_id` på place; `GuideIngestBridgeService`; 3 API-routes                                     |
+| **P7** | Tabeller `guide_production_jobs` / `_items` / `_events`; `ProductionOrchestrationService`; noop Text/Translation; batch API |
+
+**Ej inkluderat:** P4/P6/P3 (riktiga providers), P8 (PWA), P9 (observability), frontend för approval/ingest/production.
+
+### Databas (tenant DB)
+
+| Migration                       | Innehåll                                                                                             |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `096-guide-approval-status.sql` | `approval_status` på `guide_stops`, `guide_variant_presentations`; backfill `published` → `approved` |
+| `097-guide-ingest-source.sql`   | `ingest_source_id`, `ingest_run_id` FK på `guide_places`                                             |
+| `098-guide-production-jobs.sql` | ProductionJob, job items, append-only events                                                         |
+
+**`approval_status`:** `draft` \| `pending_review` \| `approved`
+
+**Operativt:** Migrationerna finns i `server/migrations/`. `npm run migrate:guides` inkluderar **ännu inte** 096–098 — applicera manuellt per tenant (samma mönster som övriga guides-migrationer) tills skriptet uppdateras.
+
+### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
+
+#### P2 — Approval
+
+| Metod | Path                                                                     | Beskrivning                               |
+| ----- | ------------------------------------------------------------------------ | ----------------------------------------- |
+| POST  | `/api/guides/:placeId/stops/:stopId/approve-narrative`                   | Sätter stop `approvalStatus: approved`    |
+| POST  | `/api/guides/:placeId/stops/:stopId/variants/:variantId/approve-content` | Sätter variant `approvalStatus: approved` |
+
+**Publish-gates (server):**
+
+- `publicationStatus: published` på variant (POST/PUT) kräver `approvalStatus: approved` och `stalenessStatus: fresh`.
+- `lifecycleStatus: active` på place kräver minst en variant som är `published` + `approved` + `fresh`.
+- Manuell save av narrative/presentation sätter `approved` direkt (P2-A3).
+- Production job approve skriver AI-utkast med `approvalStatus: pending_review` tills redaktör godkänner.
+
+#### P5 — Ingest bridge
+
+| Metod | Path                                          | Body / svar                                                                      |
+| ----- | --------------------------------------------- | -------------------------------------------------------------------------------- |
+| PUT   | `/api/guides/:placeId/ingest-source`          | `{ ingestSourceId: string \| null }` → place med `ingestSourceId`, `ingestRunId` |
+| GET   | `/api/guides/:placeId/source-content`         | `{ source, run, rawExcerpt }` eller `null`                                       |
+| POST  | `/api/guides/:placeId/source-content/refresh` | Kör ingest på kopplad källa; uppdaterar `ingestRunId`                            |
+
+#### P7 — ProductionJob
+
+| Metod | Path                                                  | Body / svar                                                                                       |
+| ----- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| POST  | `/api/guides/:placeId/production-jobs`                | `{ type: full_guide \| stop \| variant, stopId?, variantId?, steps?, force? }` → `{ job, items }` |
+| GET   | `/api/guides/:placeId/production-jobs`                | Jobblista                                                                                         |
+| GET   | `/api/guides/:placeId/production-jobs/:jobId`         | `{ job, items }`                                                                                  |
+| POST  | `/api/guides/:placeId/production-jobs/:jobId/approve` | Applicerar godkända items till domän                                                              |
+| POST  | `/api/guides/:placeId/production-jobs/:jobId/cancel`  | Avbryter jobb                                                                                     |
+
+**Jobbstatus:** `pending` → `processing` → `awaiting_review` → `completed` \| `failed` \| `cancelled`
+
+**Steg (items):** `text_derivation` \| `translation` \| `audio` — batch v1 kör text (noop); audio-steg `skipped` i batch (manuell generate via Epic 6 kvarstår).
+
+#### P1 — Audio (befintliga routes, hårdare validering)
+
+- `POST`/`PUT …/audio` nekar `storageRef` från klient och `status: ready` (endast generate-vägen).
+- R2 preview/public proxy använder `GetObjectCommand`-stream.
+
+### Nya / utökade DTO-fält
+
+| Entitet | Fält                                       |
+| ------- | ------------------------------------------ |
+| Place   | `ingestSourceId`, `ingestRunId` (nullable) |
+| Stop    | `approvalStatus`                           |
+| Variant | `approvalStatus`                           |
+
+### Implementation (huvudfiler)
+
+| Fil                                                           | Roll                                                 |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| `plugins/guides/model.js`                                     | Approval, ingest FK, publish-gates, production apply |
+| `plugins/guides/ingest/GuideIngestBridgeService.js`           | P5 tunt lager mot `ingestService`                    |
+| `plugins/guides/production/ProductionJobModel.js`             | Job-domän                                            |
+| `plugins/guides/production/ProductionOrchestrationService.js` | Batch, fingerprint, noop providers                   |
+| `plugins/guides/providers/text/`, `…/translation/`            | Noop-stubbar + registry                              |
+| `server/core/storage/adapters/R2StorageAdapter.js`            | `download()`                                         |
+| `plugins/guides/routes.js`, `controller.js`, `index.js`       | Nya endpoints                                        |
+
+### Tester
+
+`npm test -- --testPathPattern="plugins/guides|R2StorageAdapter"` — **110 tester** (inkl. approval, fingerprint, noop providers, production orchestration, R2 download).
+
+### Säkerhet (godkänd 2026-07-13)
+
+| ID  | Risk                                                                               | Beslut                                                                                    |
+| --- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| R1  | Public API filtrerar ej `approval_status`                                          | Accepterad v1 — ADR oförändrad public gate; publish-gates i auth API + migration-backfill |
+| R2  | Legacy/skadlig `storageRef` i DB → R2-nyckel i bucket                              | Mitigerad för ny data (P1-A1); operativ dataverifiering rekommenderas                     |
+| R3  | Child-tabeller (`job_items`, `events`) saknar `user_id` — tenant-filter kan ge 500 | Fail-closed; JOIN-hardening rekommenderas vid prod-smoke                                  |
+| R5  | Synkron `full_guide` belastar request                                              | Accepterad v1 per ADR                                                                     |
+| R6  | `PUT` variant med `presentationText` auto-godkänner                                | Accepterad v1 per P2-A3 (manuell save); frontend ska inte auto-spara oreviewat AI-utkast  |
+
+### Kända begränsningar
+
+- Ingen frontend för approval, ingest-panel eller production-jobb.
+- `npm run migrate:guides` kör inte 096–098 automatiskt.
+- Public read API (Epic 7) inkluderar inte `approval_status` i SQL — förlitar sig på auth publish-gates.
+- Batch audio-steg ej implementerat (manuell `AudioOrchestrationService` i UI).
+
+### Frontend
+
+**Nästa:** P2/P5/P7 enligt [`GUIDES_CONTENT_PRODUCTION_UX.md`](design/GUIDES_CONTENT_PRODUCTION_UX.md).
+
+---
+
+## Guide CMS – Roadmap (uppdaterad 2026-07-13)
+
+**Fas:** Content Production Pipeline (plan låst 2026-07-12). **ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE.md`](adr/CONTENT_PRODUCTION_PIPELINE.md)
+
+### Epic 1–7 (plattform — slutförd)
+
+| Epic | Namn                    | Status       |
+| ---- | ----------------------- | ------------ |
+| 1–7  | Place → Public Read API | **Slutförd** |
+
+### Pipeline P1–P9 (ordning låst)
+
+| Epic   | Namn                        | Status                       | ADR       |
+| ------ | --------------------------- | ---------------------------- | --------- |
+| **P1** | Prod readiness              | **Backend klar**             | P1-A1–A6  |
+| **P2** | Publication workflow + HITL | **Backend klar** (UI saknas) | P2-A1–A6  |
+| **P5** | Ingest → Guides bridge      | **Backend klar** (UI saknas) | P5-A1–A5  |
+| **P7** | ProductionJob orchestration | **Backend klar** (UI saknas) | P7-A1–A10 |
+| **P4** | Text derivation             | Planerad                     | PR-A1–A6  |
+| **P6** | Translation pipeline        | Planerad                     | PR-A1–A6  |
+| **P3** | TTS provider                | Planerad                     | PR-A4     |
+| **P8** | Public consumer (PWA)       | Planerad                     | —         |
+| **P9** | Observability & cost        | Planerad                     | —         |
+
+**Implementeringsordning:** `P1 → P2 → P5 → P7 → P4 → P6 → P3 → P8 → P9`
+
+**Plattformstatus:** Epic 1–7 + pipeline P1/P2/P5/P7 (backend) klara. Nästa: Frontend (P2/P5/P7 UI) och/eller deploy + migration 096–098.
 
 ---
 
@@ -386,7 +519,7 @@ Kör: `npm run check` och `npm test`
 | S21 | Path traversal via `storageRef`                                             | Mitigerad — `parseStorageRef` + `path.basename` i local adapter                                               |
 | S22 | Preview nekar `stale` (404) medan UI kan visa spelare                       | Känd avvikelse — funktionell, inte säkerhetslucka; P2-fix valfritt                                            |
 
-**Prod-hardening (P1, ej blockerande v1):** blockera klient-`storageRef` och `ready` på POST.
+**Prod-hardening (P1):** Åtgärdad 2026-07-13 — se § Content Production Pipeline – P1.
 
 #### 4. Frontend-flöde för audio (redaktör)
 
@@ -511,7 +644,7 @@ UX-flöde att definiera (UI/UX-designer involveras vid implementation, men flöd
 - API-nycklar, hemligheter, konfiguration per leverantör.
 - Public/mobil read-API för slutanvändare.
 - Batch-generering, kösystem, webhooks.
-- Prod-hardening S15/S16 (se säkerhetstabell).
+- Prod-hardening S15/S16 — åtgärdad i P1 (2026-07-13).
 
 ### Rekommenderad grindordning
 
@@ -538,7 +671,7 @@ UX-flöde att definiera (UI/UX-designer involveras vid implementation, men flöd
 ### Nästa steg
 
 - TPM: epic-avslut.
-- Valfritt före prod: P1-hardening (S15/S16).
+- ~~Valfritt före prod: P1-hardening (S15/S16).~~ Åtgärdad i P1 (2026-07-13).
 - Commit på `homebase-v3.7` när användaren begär det.
 
 ---
