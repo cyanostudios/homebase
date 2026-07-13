@@ -112,7 +112,7 @@ Ej tillämpligt i Epic 7 (backend only).
 
 ## Content Production Pipeline – P1, P2, P5, P7 (backend slutförd 2026-07-13)
 
-**Status:** Backend implementerad — QA och Security godkända. Frontend UI för P2/P5/P7 ej påbörjad. Ej deployad till `main` vid dokumentationstillfället.
+**Status:** Backend implementerad — QA och Security godkända. Frontend UI för P2/P5/P7 ej påbörjad. **Deployad till `main` / Railway 2026-07-13** (`guides-v1.0`).
 
 Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokumentation → TPM-avslut.
 

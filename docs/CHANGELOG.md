@@ -6,7 +6,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-07 – Content Production Pipeline P1, P2, P5, P7 (`guides`-plugin, backend)
 
-**Status:** Backend klar (QA, Security, Documentation). Ej deployad till `main` vid dokumentationstillfället. Frontend UI saknas.
+**Status:** Backend klar (QA, Security, Documentation). **Deployad till `main` / Railway 2026-07-13** (`guides-v1.0`). Frontend UI saknas.
 
 **Sammanfattning:** Första backend-leverans av Content Production Pipeline — prod-hardening (P1), HITL/approval (P2), ingest-koppling (P5) och ProductionJob-orkestrering (P7) med noop Text/Translation.
 
