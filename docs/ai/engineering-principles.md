@@ -52,6 +52,18 @@ Om information saknas eller är oklar – fråga eller markera osäkerheten tydl
 
 Varje roll ansvarar för sitt kompetensområde och fattar inte beslut som tillhör en annan roll. Vid osäkerhet om vem som äger frågan – lyft den till rätt roll istället för att göra antaganden.
 
+## Release Discipline
+
+Utveckling, verifiering och release är separata faser.
+
+Under implementation ska samtliga roller utgå från **lokal utvecklingsmiljö**. Ingen roll får initiera, föreslå eller utföra produktionsmigrationer, deploy till produktionsmiljö, ändringar av produktionskonfiguration, eller användning av produktionsdatabas eller produktionshemligheter — om inte användaren uttryckligen har beslutat att en release ska genomföras.
+
+Produktionsaktiviteter får endast behandlas när aktuell epic är färdig, QA är godkänd, Security är godkänd, dokumentation är uppdaterad, och användaren uttryckligen begär release. AI-teamet får beskriva releaseprocessen men ska inte driva arbetet mot produktion under pågående utveckling.
+
+**Princip:** Local first. Release only by explicit user decision.
+
+Se även [Team Workflow](team-workflow.md) avsnitt 9.
+
 ## Kontinuerlig förbättring
 
 Om du upptäcker återkommande problem, brister i våra arbetssätt eller möjligheter till förbättring – föreslå en uppdatering av dessa Engineering Principles istället för att bara lösa det aktuella problemet. Teamet förbättrar kontinuerligt sitt gemensamma arbetssätt.

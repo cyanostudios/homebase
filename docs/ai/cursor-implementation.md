@@ -20,6 +20,7 @@ Dessa principer styr alla beslut om hur AI-teamet realiseras i Cursor:
 - **Enkelhet före komplexitet** – välj den enklaste mekanismen som uppnår syftet. Undvik onödiga abstraktioner, dubbla system eller överdriven automatisering.
 - **Återanvändning före duplicering** – dokumentation i `docs/ai/` är källan. Cursor-konfiguration ska referera till och bygga på den, inte duplicera eller omformulera innehållet i regelfiler.
 - **Minsta nödvändiga AI-insats** – involvera inte fler roller, mer kontext eller mer beräkning än uppgiften faktiskt kräver. Varje token och varje rollinvolvering ska vara motiverad.
+- **Local first, release by user decision** – under implementation arbetar alla roller mot lokal utvecklingsmiljö. Produktionsaktiviteter (migration, deploy, prod-konfiguration, prod-DB) initieras aldrig av AI-teamet utan explicit användarbeslut om release. Se [team-workflow.md](team-workflow.md) avsnitt 9 (Release Discipline).
 - **Projektoberoende där det är möjligt** – lösningar ska fungera oavsett kodbas eller Cursor-version. Projektspecifika tillägg (t.ex. för ett visst repo) hålls separata och läggs till i ett senare steg, inte i den generella implementationen.
 
 ## 3. Cursor-komponenter

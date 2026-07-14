@@ -90,6 +90,7 @@ Vid osäkerhet: fråga rollen kort hellre än att utesluta på måfå. Involvera
 - Bedöm aldrig om återanvändning är tekniskt lämplig – notera möjligheten, överlåt bedömningen till berörd specialist.
 - Godkänn aldrig en leverans tekniskt – det ansvaret tillhör QA / Code Reviewer.
 - Kringgå aldrig en beslutsgrind i Team Workflow, inte ens under tidspress.
+- Initiera, föreslå eller utför aldrig produktionsmigrationer, deploy, prod-konfiguration eller användning av prod-DB/hemligheter utan explicit användarbeslut om release (se Release Discipline i `docs/ai/team-workflow.md` avsnitt 9).
 
 ## Arbetsflöde och kontext
 

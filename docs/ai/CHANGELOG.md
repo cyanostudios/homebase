@@ -1189,6 +1189,26 @@ Epic 2: se avsnitt **Guide CMS – Epic 2** ovan.
 
 ---
 
+## v1.4 – Release Discipline (2026-07-14)
+
+Separerar utveckling/verifiering från release till produktion. Ingen roll driver prod-aktiviteter under pågående implementation utan explicit användarbeslut.
+
+### Dokumentation
+
+- `docs/ai/team-workflow.md` – ny princip i avsnitt 7; nytt avsnitt **9. Release Discipline**; avsnitt 8 förtydligar att färdig leverans ≠ release.
+- `docs/ai/engineering-principles.md` – ny princip **Release Discipline**.
+- `docs/ai/cursor-implementation.md` – designprincip **Local first, release by user decision**.
+- `docs/ai/roles/technical-project-manager.md` – begränsning och avsnitt 9 om release vs utveckling.
+
+### Cursor-regler (.cursor/rules/)
+
+- `engineering-principles.mdc` – **Release Discipline** (alltid aktiv).
+- `role-technical-project-manager.mdc` – begränsning mot prod-aktiviteter utan explicit release-beslut.
+
+**Grundprincip:** Local first. Release only by explicit user decision.
+
+---
+
 ## v1.3 – Överlämning som verkligt stopp (2026-07-07)
 
 Förstärker rolldisciplin efter överlämning utan att ändra Team Workflow, Stage Gates eller rollbefogenheter.

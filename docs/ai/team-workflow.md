@@ -231,6 +231,7 @@ Dessa principer styr hur teamet samarbetar. De kompletterar [Engineering Princip
 - **Riskbaserad prioritering** – lägg mest tid och uppmärksamhet där risken är störst (buggar, säkerhet, regression, prestanda).
 - **Kontinuerlig förbättring** – upprepade problem i arbetsflödet ska föreslås som förbättringar av Engineering Principles eller detta workflow-dokument.
 - **Efter överlämning** – en överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. Nästa steg ska utföras av den roll som överlämningen pekar på.
+- **Release Discipline** – utveckling, verifiering och release är separata faser. Under implementation: local first; ingen roll driver produktionsaktiviteter utan explicit användarbeslut om release (se avsnitt 9).
 
 ## 8. Kriterier för en färdig leverans
 
@@ -250,3 +251,48 @@ En uppgift är **verkligen klar** och får markeras som avslutad när alla punkt
 - [ ] Teknisk Projektledare har sammanställt och rapporterat till användaren.
 
 Om någon punkt inte är uppfylld är uppgiften **inte klar** – oavsett hur nära slutet processen verkar vara.
+
+**Obs:** En färdig leverans enligt checklistan ovan innebär **inte** att release till produktion ska genomföras. Release är en separat fas som kräver explicit användarbeslut (se avsnitt 9).
+
+## 9. Release Discipline
+
+Utveckling, verifiering och release är **separata faser**. Team Workflow (grind 1–6) och implementation sker i lokal utvecklingsmiljö. Release till produktion är ett eget beslut som användaren fattar – inte något AI-teamet driver fram under pågående utveckling.
+
+### Under implementation (standard)
+
+Samtliga roller ska utgå från **lokal utvecklingsmiljö** (`DATABASE_URL` lokalt, lokal dev-server, lokala migrationer).
+
+Ingen roll får **initiera, föreslå eller utföra**:
+
+- produktionsmigrationer
+- deploy till produktionsmiljö
+- ändringar av produktionskonfiguration
+- användning av produktionsdatabas eller produktionshemligheter (`PROD_MAIN_DATABASE_URL`, Railway Variables, m.m.)
+
+…om inte användaren uttryckligen har beslutat att en release ska genomföras.
+
+### När produktionsaktiviteter är tillåtna
+
+Produktionsaktiviteter får endast behandlas när **alla** villkor nedan är uppfyllda:
+
+1. Aktuell epic är färdig (alla relevanta grindar passerade).
+2. QA är godkänd (Grind 4).
+3. Security är godkänd (Grind 5, eller N/A).
+4. Dokumentation är uppdaterad (Grind 6).
+5. Användaren **uttryckligen begär release** (t.ex. "deploya", "kör prod-migration", "merge till main").
+
+### Vad teamet får göra utan release-beslut
+
+- Beskriva releaseprocessen (steg, förutsättningar, risker).
+- Förbereda commit/PR lokalt eller på feature-branch.
+- Köra migrationer och tester **lokalt**.
+- Påminna om att prod-migration/deploy återstår — utan att initiera det.
+
+### Vad teamet inte får göra utan release-beslut
+
+- Köra migrationer mot produktion.
+- Pusha/merga till `main` med avsikt att deploya (om inte användaren uttryckligen begärt det).
+- Ändra Railway/produktionskonfiguration.
+- Använda produktions-DB eller prod-hemligheter som arbetsmiljö under implementation.
+
+**Grundprincip:** Local first. Release only by explicit user decision.
