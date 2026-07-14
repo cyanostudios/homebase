@@ -7,10 +7,13 @@ const { ensureAudioProvidersRegistered } = require('./audio/registerDefaultProvi
 const AudioOrchestrationService = require('./audio/AudioOrchestrationService');
 const GuideIngestBridgeService = require('./ingest/GuideIngestBridgeService');
 const ProductionOrchestrationService = require('./production/ProductionOrchestrationService');
+const { WorkerService } = require('./production/WorkerService');
 const { ensureTextProvidersRegistered } = require('./providers/text/registerDefaultProviders');
 const {
   ensureTranslationProvidersRegistered,
 } = require('./providers/translation/registerDefaultProviders');
+
+let guidesWorker = null;
 
 function initializeGuidesPlugin(context) {
   ensureAudioProvidersRegistered();
@@ -28,6 +31,9 @@ function initializeGuidesPlugin(context) {
   );
   const router = createGuidesRoutes(controller, context);
 
+  guidesWorker = new WorkerService(productionOrchestration);
+  guidesWorker.start();
+
   return {
     config,
     router,
@@ -36,7 +42,16 @@ function initializeGuidesPlugin(context) {
     audioOrchestration,
     ingestBridge,
     productionOrchestration,
+    productionWorker: guidesWorker,
   };
 }
 
+function shutdownGuidesProductionWorker() {
+  if (guidesWorker) {
+    guidesWorker.stop();
+    guidesWorker = null;
+  }
+}
+
 module.exports = initializeGuidesPlugin;
+module.exports.shutdownGuidesProductionWorker = shutdownGuidesProductionWorker;

@@ -415,6 +415,16 @@ async function gracefulShutdown(signal: string) {
       console.warn('Shutdown: booking pool', msg);
     }
 
+    try {
+      const guidesPlugin = require('../plugins/guides/index.js');
+      if (typeof guidesPlugin.shutdownGuidesProductionWorker === 'function') {
+        guidesPlugin.shutdownGuidesProductionWorker();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('Shutdown: guides production worker', msg);
+    }
+
     await pool.end();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

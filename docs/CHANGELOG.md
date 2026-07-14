@@ -4,6 +4,43 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Content Production Pipeline P-ASYNC (`guides`-plugin, backend, Fas 2)
+
+**Status:** Backend klar (QA, Security, Documentation). **Ej deployad** — väntar commit/merge till `main` / Railway. Kräver migration **099** per tenant (utöver 096–098).
+
+**Sammanfattning:** Async worker-grund för ProductionJob — `POST …/production-jobs` returnerar omedelbart med `status: pending`; bakgrundsworker planerar och exekverar items via DB-kö (`FOR UPDATE SKIP LOCKED`).
+
+### Backend
+
+- **Worker:** `WorkerService` (poll per tenant), `SupervisorService` (stuck-item reset), `workerContext.js`.
+- **Orkestrering:** `startJob` enqueuar; `runWorkerTick` claimar jobb/items asynkront.
+- **Schema:** migration `099-guide-production-v2-async.sql` — fasfält, `user_id` på items, worker-heartbeat-tabell.
+- **Avbrott:** `cancelJob` stoppar aktiva items; all-failed jobs → `failed` (ej `awaiting_review`).
+- **Boot/shutdown:** worker startar vid plugin-init; `shutdownGuidesProductionWorker` vid app-shutdown.
+- **Tester:** 118 i guides-sviten (bl.a. claim SQL, supervisor, async orchestration).
+
+### Brytande API-förändring
+
+- **Före (v1):** `POST …/production-jobs` körde synkront och returnerade jobb med items och ofta `awaiting_review` i samma svar.
+- **Efter (P-ASYNC):** samma endpoint returnerar `{ job: { status: "pending", … }, items: [] }`; klient ska polla `GET …/production-jobs/:jobId` tills `awaiting_review`, `completed`, `failed` eller `cancelled`.
+
+### Operativt
+
+- Kör `npm run migrate:guides` (inkluderar 096–099) per tenant före deploy.
+- Env: `GUIDES_PRODUCTION_WORKER_ENABLED` (default på utom i `NODE_ENV=test`), `GUIDES_PRODUCTION_WORKER_POLL_MS`, `GUIDES_PRODUCTION_WORKER_BATCH_SIZE`, `GUIDES_PRODUCTION_ITEM_TIMEOUT_MIN`, `GUIDES_PRODUCTION_MAX_RETRIES`.
+
+### Begränsningar
+
+- Endast fas 0 (`text_derivation`) i praktiken — multi-fas-kedja (`P-CHAIN`) och reject/regenerate (`P-REGEN`) ej implementerade.
+- Ingen frontend för async poll/review.
+- Race vid cancel under `planning` (QA F1) — låg integritetsrisk.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Content Production Pipeline – P-ASYNC.
+
+**Roadmap:** P-ASYNC backend klar — nästa `P-CHAIN`. Se `docs/ai/CHANGELOG.md` § Guide CMS – Roadmap (Fas 2).
+
+---
+
 ## 2026-07 – Content Production Pipeline P1, P2, P5, P7 (`guides`-plugin, backend)
 
 **Status:** Backend klar (QA, Security, Documentation). **Deployad till `main` / Railway 2026-07-13** (`guides-v1.0`). Frontend UI saknas.
@@ -21,7 +58,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ### Operativt
 
-- Kör migration 096–098 per tenant före deploy (skriptet `npm run migrate:guides` inkluderar dem inte ännu).
+- Kör migration 096–099 per tenant före deploy (`npm run migrate:guides`).
 - `PUBLIC_GUIDES_USER_ID` på Railway + `.env.local` (oförändrat från Epic 7).
 
 ### Begränsningar

@@ -19,6 +19,7 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/096-guide-approval-status.sql'),
   path.join(__dirname, '../server/migrations/097-guide-ingest-source.sql'),
   path.join(__dirname, '../server/migrations/098-guide-production-jobs.sql'),
+  path.join(__dirname, '../server/migrations/099-guide-production-v2-async.sql'),
 ];
 const MAIN_MIGRATION = path.join(
   __dirname,

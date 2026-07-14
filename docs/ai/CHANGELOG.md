@@ -2,6 +2,121 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Content Production Pipeline – P-ASYNC (backend slutförd 2026-07-13, Fas 2)
+
+**Status:** Backend implementerad — QA och Security godkända. **Ej deployad** (väntar commit/merge). Frontend UI saknas. Multi-fas-kedja och reject/regenerate kommer i senare epics.
+
+Grindordning: Lösningsarkitekt (ADR v2) → Backend → QA → Security → Dokumentation → TPM-avslut.
+
+**ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md)  
+**UX-spec (frontend senare):** [`docs/ai/design/GUIDES_CONTENT_PRODUCTION_UX_V2.md`](design/GUIDES_CONTENT_PRODUCTION_UX_V2.md)
+
+### Omfattning
+
+| Leverans             | Beskrivning                                                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Async enqueue**    | `startJob` skapar jobb med `status: pending`, `queued_at`; returnerar tom `items[]`                             |
+| **Worker**           | `WorkerService` itererar tenants, kör `runWorkerTick` per tenant-pool                                           |
+| **Claim**            | `claimPendingJob` / `claimPendingItems` med `FOR UPDATE SKIP LOCKED` och `user_id`-scope                        |
+| **Supervisor**       | `resetStuckItems` — items i `processing` längre än timeout → `pending` med `retry_count++`; över max → `failed` |
+| **Cancel**           | `cancelActiveItemsForJob` stoppar `pending`/`processing`-items; worker hoppar över cancelled jobs               |
+| **Terminal status**  | Alla items failed → job `failed`; minst ett reviewable → `awaiting_review`                                      |
+| **Tenant-isolation** | `user_id` på `guide_production_job_items`; backfill från job                                                    |
+
+**Ej inkluderat i P-ASYNC:** `P-CHAIN` (multi-fas, `approve-phase`), `P-REGEN` (reject/regenerate per item), riktiga providers, frontend.
+
+### Förutsättning
+
+Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenants. `npm run migrate:guides` kör 090, 092–099 per tenant.
+
+### Databas (tenant DB)
+
+| Migration                           | Innehåll                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `099-guide-production-v2-async.sql` | `phases`, `current_phase_index`, `checkpoint_mode`, `priority`, `queued_at`, `worker_claimed_at`, `review_phase`, `job_options` på jobs; `user_id`, `phase_index`, `retry_count`, `retry_after`, `external_id`, `provider_version`, `review_status`, `reviewed_at`, `worker_claimed_at` på items; index för worker-kö; tabell `guide_production_workers` |
+
+**Default `phases`:** `["text_derivation"]` (samma praktiska scope som v1 tills P-CHAIN aktiverar fler faser).
+
+### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
+
+#### Brytande beteende — `POST …/production-jobs`
+
+| Aspekt              | v1 (synkron)                                   | P-ASYNC                                                    |
+| ------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
+| Svarstid            | Blockerar tills planering + noop-körning klart | Omedelbart                                                 |
+| `job.status` i svar | Ofta `awaiting_review` eller `completed`       | `pending`                                                  |
+| `items` i svar      | Populerad lista                                | `[]` — skapas av worker                                    |
+| Klientkrav          | Ingen poll                                     | Poll `GET …/:jobId` tills terminal eller `awaiting_review` |
+
+#### Oförändrade endpoints (semantik delvis uppdaterad)
+
+| Metod | Path                                                  | Notering                                                      |
+| ----- | ----------------------------------------------------- | ------------------------------------------------------------- |
+| POST  | `/api/guides/:placeId/production-jobs`                | Enqueue only                                                  |
+| GET   | `/api/guides/:placeId/production-jobs`                | Lista jobb                                                    |
+| GET   | `/api/guides/:placeId/production-jobs/:jobId`         | Poll-status + items                                           |
+| POST  | `/api/guides/:placeId/production-jobs/:jobId/approve` | Oförändrad v1-semantik (ersätts av `approve-phase` i P-CHAIN) |
+| POST  | `/api/guides/:placeId/production-jobs/:jobId/cancel`  | Stoppar även aktiva items                                     |
+
+**Jobbstatus (utökad):** `pending` → `planning` → `processing` → `awaiting_review` \| `completed` \| `failed` \| `cancelled`
+
+**Item `review_status` (sätts av worker):** `pending_review` när provider klar — per-item approve/reject API kommer i P-REGEN.
+
+### Konfiguration (miljövariabler)
+
+| Variabel                              | Default                       | Beskrivning                               |
+| ------------------------------------- | ----------------------------- | ----------------------------------------- |
+| `GUIDES_PRODUCTION_WORKER_ENABLED`    | `true` (utom `NODE_ENV=test`) | Starta/stoppa in-process worker           |
+| `GUIDES_PRODUCTION_WORKER_POLL_MS`    | `5000`                        | Poll-intervall per tenant                 |
+| `GUIDES_PRODUCTION_WORKER_BATCH_SIZE` | `5`                           | Max items per tick                        |
+| `GUIDES_PRODUCTION_ITEM_TIMEOUT_MIN`  | `10`                          | Supervisor timeout för stuck `processing` |
+| `GUIDES_PRODUCTION_MAX_RETRIES`       | `5`                           | Max retry innan item → `failed`           |
+
+### Implementation (huvudfiler)
+
+| Fil                                                           | Roll                                                           |
+| ------------------------------------------------------------- | -------------------------------------------------------------- |
+| `plugins/guides/production/WorkerService.js`                  | Tenant-loop, poll, heartbeat                                   |
+| `plugins/guides/production/SupervisorService.js`              | Stuck-item release                                             |
+| `plugins/guides/production/workerContext.js`                  | `createWorkerReq` för tenant-scopad worker-session             |
+| `plugins/guides/production/ProductionOrchestrationService.js` | `startJob` enqueue, `runWorkerTick`, `_evaluateProcessingJobs` |
+| `plugins/guides/production/ProductionJobModel.js`             | Claim, cancel items, summarize, worker heartbeat               |
+| `plugins/guides/index.js`                                     | Worker boot + `shutdownGuidesProductionWorker`                 |
+| `server/index.ts`                                             | Graceful shutdown                                              |
+| `scripts/run-guides-migration.js`                             | Inkluderar migration 099                                       |
+
+### Tester
+
+`npm test -- --testPathPattern="plugins/guides"` — **118 tester**.
+
+Nya/utökade: `production-job-claim.test.js`, `production-orchestration.test.js` (async), `supervisor.test.js`, `worker-context.test.js`.
+
+### Säkerhet (godkänd 2026-07-13)
+
+| ID  | Risk                                                           | Beslut                                                     |
+| --- | -------------------------------------------------------------- | ---------------------------------------------------------- |
+| S1  | Worker processar alla tenants in-process utan per-request auth | Accepterad — etablerat cron-mönster; ingen extern endpoint |
+| S2  | Job/item-läsning filtrerar ej `user_id` på HTTP-path           | Accepterad — tenant-pool-isolation; hardening i P-REGEN    |
+| S3  | `guide_production_job_events` saknar `user_id`                 | Accepterad — events ej exponerade i API                    |
+| S4  | `job_options` JSONB utan storleksgräns                         | Accepterad — autentiserad redaktör; begränsas vid behov    |
+| S5  | `getJobByIdInternal` utan `user_id` i worker                   | Accepterad — item-mutationer kräver `user_id`              |
+| S6  | Cancel under `planning` kan race                               | Accepterad — integritet, ej dataläckage (QA F1)            |
+
+**Förbättring i P-ASYNC:** `user_id` på items + filter i claim/mutation (ADR R3 delvis åtgärdad).
+
+### Kända begränsningar
+
+- Endast en produktionsfas (`text_derivation`) körs; `translation`/`audio` i batch fortfarande ej kedjade (P-CHAIN / P-AUDIO-BATCH).
+- `approveJob` är fortfarande job-nivå v1 — inte fasvis `approve-phase`.
+- Ingen frontend för async poll, review-kö eller reject/regenerate.
+- Prod-migrationer 096–099 måste köras före deploy (blockerande förutsättning ADR R8).
+
+### Frontend
+
+**Nästa:** `P-FRONTEND` efter `P-CHAIN` + `P-REGEN` enligt UX-spec v2.
+
+---
+
 ## Guide CMS – Epic 7 (slutförd 2026-07-12)
 
 **Status:** Slutförd — Backend, QA, Security, Documentation, TPM godkända. Deployad till `main` / Railway.
@@ -140,7 +255,7 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 **`approval_status`:** `draft` \| `pending_review` \| `approved`
 
-**Operativt:** Migrationerna finns i `server/migrations/`. `npm run migrate:guides` inkluderar **ännu inte** 096–098 — applicera manuellt per tenant (samma mönster som övriga guides-migrationer) tills skriptet uppdateras.
+**Operativt:** Migrationerna finns i `server/migrations/`. `npm run migrate:guides` inkluderar **096–098** (och **099** efter P-ASYNC) per tenant.
 
 ### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
 
@@ -168,15 +283,17 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 #### P7 — ProductionJob
 
-| Metod | Path                                                  | Body / svar                                                                                       |
-| ----- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| POST  | `/api/guides/:placeId/production-jobs`                | `{ type: full_guide \| stop \| variant, stopId?, variantId?, steps?, force? }` → `{ job, items }` |
-| GET   | `/api/guides/:placeId/production-jobs`                | Jobblista                                                                                         |
-| GET   | `/api/guides/:placeId/production-jobs/:jobId`         | `{ job, items }`                                                                                  |
-| POST  | `/api/guides/:placeId/production-jobs/:jobId/approve` | Applicerar godkända items till domän                                                              |
-| POST  | `/api/guides/:placeId/production-jobs/:jobId/cancel`  | Avbryter jobb                                                                                     |
+| Metod | Path                                                  | Body / svar                                                                                                                                                  |
+| ----- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| POST  | `/api/guides/:placeId/production-jobs`                | `{ type: full_guide \| stop \| variant, stopId?, variantId?, steps?, force? }` → `{ job, items }` — **synkron i v1; async enqueue i P-ASYNC** (se § P-ASYNC) |
+| GET   | `/api/guides/:placeId/production-jobs`                | Jobblista                                                                                                                                                    |
+| GET   | `/api/guides/:placeId/production-jobs/:jobId`         | `{ job, items }`                                                                                                                                             |
+| POST  | `/api/guides/:placeId/production-jobs/:jobId/approve` | Applicerar godkända items till domän                                                                                                                         |
+| POST  | `/api/guides/:placeId/production-jobs/:jobId/cancel`  | Avbryter jobb                                                                                                                                                |
 
-**Jobbstatus:** `pending` → `processing` → `awaiting_review` → `completed` \| `failed` \| `cancelled`
+**Jobbstatus (v1 synkron, före P-ASYNC):** `pending` → `processing` → `awaiting_review` → `completed` \| `failed` \| `cancelled`
+
+**Jobbstatus (P-ASYNC):** se § Content Production Pipeline – P-ASYNC.
 
 **Steg (items):** `text_derivation` \| `translation` \| `audio` — batch v1 kör text (noop); audio-steg `skipped` i batch (manuell generate via Epic 6 kvarstår).
 
@@ -222,7 +339,7 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 ### Kända begränsningar
 
 - Ingen frontend för approval, ingest-panel eller production-jobb.
-- `npm run migrate:guides` kör inte 096–098 automatiskt.
+- `npm run migrate:guides` kör 096–099 (tidigare: 096–098 saknades i skriptet).
 - Public read API (Epic 7) inkluderar inte `approval_status` i SQL — förlitar sig på auth publish-gates.
 - Batch audio-steg ej implementerat (manuell `AudioOrchestrationService` i UI).
 
@@ -234,31 +351,54 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 ## Guide CMS – Roadmap (uppdaterad 2026-07-13)
 
-**Fas:** Content Production Pipeline (plan låst 2026-07-12). **ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE.md`](adr/CONTENT_PRODUCTION_PIPELINE.md)
+### Fas 1 — Plattform + pipeline v1 (slutförd)
 
-### Epic 1–7 (plattform — slutförd)
+**ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE.md`](adr/CONTENT_PRODUCTION_PIPELINE.md)  
+**Deploy:** `guides-v1.0` på `main` / Railway (2026-07-13).
 
-| Epic | Namn                    | Status       |
-| ---- | ----------------------- | ------------ |
-| 1–7  | Place → Public Read API | **Slutförd** |
+| Epic | Namn                                  | Status                                     |
+| ---- | ------------------------------------- | ------------------------------------------ |
+| 1–7  | Place → Public Read API               | **Slutförd**                               |
+| P1   | Prod readiness                        | **Backend klar**                           |
+| P2   | Publication workflow + HITL           | **Backend klar** (UI saknas)               |
+| P5   | Ingest → Guides bridge                | **Backend klar** (UI saknas)               |
+| P7   | ProductionJob orchestration (synkron) | **Backend klar** (ersatt av async i Fas 2) |
 
-### Pipeline P1–P9 (ordning låst)
+### Fas 2 — Async pipeline (pågår)
 
-| Epic   | Namn                        | Status                       | ADR       |
-| ------ | --------------------------- | ---------------------------- | --------- |
-| **P1** | Prod readiness              | **Backend klar**             | P1-A1–A6  |
-| **P2** | Publication workflow + HITL | **Backend klar** (UI saknas) | P2-A1–A6  |
-| **P5** | Ingest → Guides bridge      | **Backend klar** (UI saknas) | P5-A1–A5  |
-| **P7** | ProductionJob orchestration | **Backend klar** (UI saknas) | P7-A1–A10 |
-| **P4** | Text derivation             | Planerad                     | PR-A1–A6  |
-| **P6** | Translation pipeline        | Planerad                     | PR-A1–A6  |
-| **P3** | TTS provider                | Planerad                     | PR-A4     |
-| **P8** | Public consumer (PWA)       | Planerad                     | —         |
-| **P9** | Observability & cost        | Planerad                     | —         |
+**ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md)
 
-**Implementeringsordning:** `P1 → P2 → P5 → P7 → P4 → P6 → P3 → P8 → P9`
+| Epic              | Namn                           | Status                                               | Beroende           |
+| ----------------- | ------------------------------ | ---------------------------------------------------- | ------------------ |
+| **Mig**           | Prod-migrationer 096–099       | **Lokal klar**; prod väntar `PROD_MAIN_DATABASE_URL` | —                  |
+| **P-ASYNC**       | Async worker foundation        | **Backend klar** (ej deployad)                       | Mig                |
+| **P-CHAIN**       | Fasövergångar, `approve-phase` | Planerad                                             | P-ASYNC            |
+| **P-REGEN**       | Reject/regenerate/retry        | Planerad                                             | P-CHAIN            |
+| **P-FRONTEND**    | UI ovanpå v2 API               | Planerad                                             | P-REGEN            |
+| **P-TEXT**        | Text provider adapter          | Planerad                                             | P-FRONTEND         |
+| **P-TRANS**       | Translation provider           | Planerad                                             | P-TEXT             |
+| **P-AUDIO-BATCH** | Audio i batch                  | Planerad                                             | P-TRANS            |
+| **P-OBS**         | Observability & arkivering     | Planerad                                             | P-AUDIO-BATCH      |
+| **P-BULK**        | Bulk produce, cron stale       | Planerad                                             | P-OBS              |
+| **P-PWA**         | Konsumentapp                   | **Separat spår**                                     | Public API (finns) |
 
-**Plattformstatus:** Epic 1–7 + pipeline P1/P2/P5/P7 (backend) klara. Nästa: Frontend (P2/P5/P7 UI) och/eller deploy + migration 096–098.
+**Implementeringsordning (låst):** `Mig → P-ASYNC → P-CHAIN → P-REGEN → P-FRONTEND → P-TEXT → P-TRANS → P-AUDIO-BATCH → P-OBS → P-BULK`
+
+**Nästa:** Commit/deploy P-ASYNC + prod-migration 099; sedan P-CHAIN.
+
+### Historisk v1-plan (ersatt av Fas 2 ovan)
+
+**Fas:** Content Production Pipeline (plan låst 2026-07-12).
+
+| Epic | Namn                  | Status                                    |
+| ---- | --------------------- | ----------------------------------------- |
+| P4   | Text derivation       | Planerad → **P-TEXT** i Fas 2             |
+| P6   | Translation pipeline  | Planerad → **P-TRANS** i Fas 2            |
+| P3   | TTS provider          | Planerad → **P-AUDIO-BATCH** i Fas 2      |
+| P8   | Public consumer (PWA) | Planerad → **P-PWA** separat spår         |
+| P9   | Observability & cost  | Planerad → **P-OBS** / **P-BULK** i Fas 2 |
+
+**Implementeringsordning v1:** `P1 → P2 → P5 → P7 → P4 → P6 → P3 → P8 → P9`
 
 ---
 

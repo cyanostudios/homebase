@@ -5,10 +5,12 @@ const { AppError } = require('../../../server/core/errors/AppError');
 const JOBS_TABLE = 'guide_production_jobs';
 const ITEMS_TABLE = 'guide_production_job_items';
 const EVENTS_TABLE = 'guide_production_job_events';
+const WORKERS_TABLE = 'guide_production_workers';
 
 const JOB_TYPES = ['full_guide', 'stop', 'variant'];
 const JOB_STATUSES = [
   'pending',
+  'planning',
   'processing',
   'awaiting_review',
   'completed',
@@ -16,7 +18,21 @@ const JOB_STATUSES = [
   'cancelled',
 ];
 const ITEM_STEPS = ['text_derivation', 'translation', 'audio'];
-const ITEM_STATUSES = ['pending', 'processing', 'completed', 'failed', 'skipped'];
+const ITEM_STATUSES = [
+  'pending',
+  'queued',
+  'processing',
+  'awaiting_callback',
+  'completed',
+  'failed',
+  'skipped',
+  'cancelled',
+];
+const REVIEW_STATUSES = ['pending_review', 'approved', 'rejected', 'superseded'];
+const DEFAULT_PHASES = ['text_derivation'];
+const DEFAULT_CHECKPOINT_MODE = 'after_text';
+
+const IN_FLIGHT_ITEM_STATUSES = ['pending', 'queued', 'processing', 'awaiting_callback'];
 
 class ProductionJobModel {
   transformJobRow(row) {
@@ -29,6 +45,14 @@ class ProductionJobModel {
       status: row.status,
       scopeStopId: row.scope_stop_id != null ? String(row.scope_stop_id) : null,
       scopeVariantId: row.scope_variant_id != null ? String(row.scope_variant_id) : null,
+      phases: row.phases ?? DEFAULT_PHASES,
+      currentPhaseIndex: row.current_phase_index ?? 0,
+      checkpointMode: row.checkpoint_mode ?? DEFAULT_CHECKPOINT_MODE,
+      priority: row.priority ?? 50,
+      queuedAt: row.queued_at ?? null,
+      workerClaimedAt: row.worker_claimed_at ?? null,
+      reviewPhase: row.review_phase ?? null,
+      jobOptions: row.job_options ?? null,
       errorMessage: row.error_message ?? null,
       startedAt: row.started_at ?? null,
       completedAt: row.completed_at ?? null,
@@ -42,25 +66,39 @@ class ProductionJobModel {
     return {
       id: String(row.id),
       jobId: String(row.job_id),
+      userId: row.user_id != null ? String(row.user_id) : null,
       stopId: String(row.stop_id),
       variantId: row.variant_id != null ? String(row.variant_id) : null,
       step: row.step,
+      phaseIndex: row.phase_index ?? 0,
       status: row.status,
       fingerprint: row.fingerprint,
       providerKey: row.provider_key,
+      providerVersion: row.provider_version ?? '1',
       providerResult: row.provider_result ?? null,
+      reviewStatus: row.review_status ?? null,
+      reviewedAt: row.reviewed_at ?? null,
+      retryCount: row.retry_count ?? 0,
+      retryAfter: row.retry_after ?? null,
+      externalId: row.external_id ?? null,
+      workerClaimedAt: row.worker_claimed_at ?? null,
       errorMessage: row.error_message ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
   }
 
-  async createJob(req, placeId, data) {
+  _requireUserId(req) {
     const db = Database.get(req);
     const userId = db.getUserId();
     if (!userId) {
       throw new AppError('User context required', 401, AppError.CODES.UNAUTHORIZED);
     }
+    return { db, userId };
+  }
+
+  async createJob(req, placeId, data) {
+    const { db, userId } = this._requireUserId(req);
 
     const type = String(data.type ?? '')
       .trim()
@@ -68,6 +106,9 @@ class ProductionJobModel {
     if (!JOB_TYPES.includes(type)) {
       throw new AppError('Invalid production job type', 400, AppError.CODES.VALIDATION_ERROR);
     }
+
+    const phases = Array.isArray(data.phases) && data.phases.length ? data.phases : DEFAULT_PHASES;
+    const checkpointMode = data.checkpointMode ?? DEFAULT_CHECKPOINT_MODE;
 
     const rows = await db.query(
       `
@@ -77,12 +118,28 @@ class ProductionJobModel {
           type,
           status,
           scope_stop_id,
-          scope_variant_id
+          scope_variant_id,
+          phases,
+          checkpoint_mode,
+          priority,
+          queued_at,
+          job_options
         )
-        VALUES ($1, $2, $3, 'pending', $4, $5)
+        VALUES ($1, $2, $3, 'pending', $4, $5, $6::jsonb, $7, $8, COALESCE($9, NOW()), $10::jsonb)
         RETURNING *
       `,
-      [userId, placeId, type, data.scopeStopId ?? null, data.scopeVariantId ?? null],
+      [
+        userId,
+        placeId,
+        type,
+        data.scopeStopId ?? null,
+        data.scopeVariantId ?? null,
+        JSON.stringify(phases),
+        checkpointMode,
+        data.priority ?? 50,
+        data.queuedAt ?? null,
+        data.jobOptions ? JSON.stringify(data.jobOptions) : null,
+      ],
     );
 
     const job = this.transformJobRow(rows[0]);
@@ -106,6 +163,22 @@ class ProductionJobModel {
     return this.transformJobRow(rows[0]);
   }
 
+  async getJobByIdInternal(req, jobId) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+        SELECT *
+        FROM ${JOBS_TABLE}
+        WHERE id = $1
+      `,
+      [jobId],
+    );
+    if (!rows.length) {
+      throw new AppError('Production job not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    return this.transformJobRow(rows[0]);
+  }
+
   async listJobs(req, placeId) {
     const db = Database.get(req);
     const rows = await db.query(
@@ -118,6 +191,21 @@ class ProductionJobModel {
       [placeId],
     );
     return rows.map((row) => this.transformJobRow(row));
+  }
+
+  async hasActiveJob(req, placeId) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+        SELECT 1
+        FROM ${JOBS_TABLE}
+        WHERE place_id = $1
+          AND status IN ('pending', 'planning', 'processing', 'awaiting_review')
+        LIMIT 1
+      `,
+      [placeId],
+    );
+    return rows.length > 0;
   }
 
   async listJobItems(req, jobId) {
@@ -134,6 +222,20 @@ class ProductionJobModel {
     return rows.map((row) => this.transformItemRow(row));
   }
 
+  async listJobsByStatus(req, status) {
+    const { db, userId } = this._requireUserId(req);
+    const rows = await db.query(
+      `
+        SELECT *
+        FROM ${JOBS_TABLE}
+        WHERE user_id = $1 AND status = $2
+        ORDER BY updated_at ASC, id ASC
+      `,
+      [userId, status],
+    );
+    return rows.map((row) => this.transformJobRow(row));
+  }
+
   async updateJobStatus(req, placeId, jobId, status, extra = {}) {
     if (!JOB_STATUSES.includes(status)) {
       throw new AppError('Invalid production job status', 400, AppError.CODES.VALIDATION_ERROR);
@@ -146,19 +248,133 @@ class ProductionJobModel {
         SET
           status = $1,
           error_message = COALESCE($2, error_message),
+          review_phase = COALESCE($3, review_phase),
           started_at = CASE WHEN $1 = 'processing' AND started_at IS NULL THEN NOW() ELSE started_at END,
           completed_at = CASE WHEN $1 IN ('completed', 'failed', 'cancelled') THEN NOW() ELSE completed_at END,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3 AND place_id = $4
+        WHERE id = $4 AND place_id = $5
         RETURNING *
       `,
-      [status, extra.errorMessage ?? null, jobId, placeId],
+      [status, extra.errorMessage ?? null, extra.reviewPhase ?? null, jobId, placeId],
     );
     if (!rows.length) {
       throw new AppError('Production job not found', 404, AppError.CODES.NOT_FOUND);
     }
     await this.appendEvent(req, jobId, `job_${status}`, extra.payload ?? null);
     return this.transformJobRow(rows[0]);
+  }
+
+  async claimPendingJob(req) {
+    const { db, userId } = this._requireUserId(req);
+    const rows = await db.query(
+      `
+        UPDATE ${JOBS_TABLE}
+        SET
+          status = 'planning',
+          worker_claimed_at = NOW(),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = (
+          SELECT id
+          FROM ${JOBS_TABLE}
+          WHERE user_id = $1
+            AND status = 'pending'
+          ORDER BY priority DESC, queued_at ASC NULLS LAST, id ASC
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *
+      `,
+      [userId],
+    );
+    return rows.length ? this.transformJobRow(rows[0]) : null;
+  }
+
+  async claimPendingItems(req, batchSize) {
+    const { db, userId } = this._requireUserId(req);
+    const limit = Math.max(1, Number(batchSize) || 5);
+    const rows = await db.query(
+      `
+        UPDATE ${ITEMS_TABLE}
+        SET
+          status = 'processing',
+          worker_claimed_at = NOW(),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id IN (
+          SELECT i.id
+          FROM ${ITEMS_TABLE} i
+          INNER JOIN ${JOBS_TABLE} j ON j.id = i.job_id
+          WHERE i.user_id = $1
+            AND i.status = 'pending'
+            AND (i.retry_after IS NULL OR i.retry_after <= NOW())
+            AND j.status = 'processing'
+          ORDER BY i.created_at ASC, i.id ASC
+          LIMIT $2
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *
+      `,
+      [userId, limit],
+    );
+    return rows.map((row) => this.transformItemRow(row));
+  }
+
+  async countInFlightItems(req, jobId) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+        SELECT COUNT(*)::int AS count
+        FROM ${ITEMS_TABLE}
+        WHERE job_id = $1
+          AND status = ANY($2::text[])
+      `,
+      [jobId, IN_FLIGHT_ITEM_STATUSES],
+    );
+    return rows[0]?.count ?? 0;
+  }
+
+  async summarizeJobItems(req, jobId) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+          COUNT(*) FILTER (WHERE status = 'skipped')::int AS skipped,
+          COUNT(*) FILTER (
+            WHERE status = 'completed'
+              AND (review_status IS NULL OR review_status = 'pending_review')
+          )::int AS reviewable
+        FROM ${ITEMS_TABLE}
+        WHERE job_id = $1
+      `,
+      [jobId],
+    );
+    const row = rows[0] ?? {};
+    return {
+      total: row.total ?? 0,
+      failed: row.failed ?? 0,
+      skipped: row.skipped ?? 0,
+      reviewable: row.reviewable ?? 0,
+    };
+  }
+
+  async cancelActiveItemsForJob(req, jobId) {
+    const { db, userId } = this._requireUserId(req);
+    const rows = await db.query(
+      `
+        UPDATE ${ITEMS_TABLE}
+        SET
+          status = 'cancelled',
+          worker_claimed_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE job_id = $1
+          AND user_id = $2
+          AND status IN ('pending', 'queued', 'processing', 'awaiting_callback')
+        RETURNING id
+      `,
+      [jobId, userId],
+    );
+    return rows.length;
   }
 
   async hasCompletedFingerprint(req, placeId, fingerprint) {
@@ -179,13 +395,14 @@ class ProductionJobModel {
   }
 
   async createJobItem(req, jobId, data) {
+    const { db, userId } = this._requireUserId(req);
     const step = String(data.step ?? '')
       .trim()
       .toLowerCase();
     if (!ITEM_STEPS.includes(step)) {
       throw new AppError('Invalid production job step', 400, AppError.CODES.VALIDATION_ERROR);
     }
-    const status = data.status ?? 'completed';
+    const status = data.status ?? 'pending';
     if (!ITEM_STATUSES.includes(status)) {
       throw new AppError(
         'Invalid production job item status',
@@ -193,39 +410,159 @@ class ProductionJobModel {
         AppError.CODES.VALIDATION_ERROR,
       );
     }
+    if (data.reviewStatus && !REVIEW_STATUSES.includes(data.reviewStatus)) {
+      throw new AppError('Invalid review status', 400, AppError.CODES.VALIDATION_ERROR);
+    }
 
-    const db = Database.get(req);
     const rows = await db.query(
       `
         INSERT INTO ${ITEMS_TABLE} (
           job_id,
+          user_id,
           stop_id,
           variant_id,
           step,
+          phase_index,
           status,
           fingerprint,
           provider_key,
+          provider_version,
           provider_result,
+          review_status,
           error_message
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
       `,
       [
         jobId,
+        userId,
         data.stopId,
         data.variantId ?? null,
         step,
+        data.phaseIndex ?? 0,
         status,
         data.fingerprint,
         data.providerKey,
+        data.providerVersion ?? '1',
         data.providerResult ? JSON.stringify(data.providerResult) : null,
+        data.reviewStatus ?? null,
         data.errorMessage ?? null,
       ],
     );
     const item = this.transformItemRow(rows[0]);
     await this.appendEvent(req, jobId, 'item_created', { itemId: item.id, step, status }, item.id);
     return item;
+  }
+
+  async updateJobItem(req, itemId, data) {
+    const { db, userId } = this._requireUserId(req);
+    if (data.status && !ITEM_STATUSES.includes(data.status)) {
+      throw new AppError(
+        'Invalid production job item status',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
+    if (data.reviewStatus && !REVIEW_STATUSES.includes(data.reviewStatus)) {
+      throw new AppError('Invalid review status', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+
+    const rows = await db.query(
+      `
+        UPDATE ${ITEMS_TABLE}
+        SET
+          status = COALESCE($1, status),
+          provider_result = COALESCE($2::jsonb, provider_result),
+          review_status = COALESCE($3, review_status),
+          error_message = COALESCE($4, error_message),
+          external_id = COALESCE($5, external_id),
+          retry_count = COALESCE($6, retry_count),
+          retry_after = COALESCE($7, retry_after),
+          worker_claimed_at = CASE WHEN $1 IN ('completed', 'failed', 'skipped', 'cancelled', 'pending') THEN NULL ELSE worker_claimed_at END,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $8 AND user_id = $9
+        RETURNING *
+      `,
+      [
+        data.status ?? null,
+        data.providerResult ? JSON.stringify(data.providerResult) : null,
+        data.reviewStatus ?? null,
+        data.errorMessage ?? null,
+        data.externalId ?? null,
+        data.retryCount ?? null,
+        data.retryAfter ?? null,
+        itemId,
+        userId,
+      ],
+    );
+    if (!rows.length) {
+      throw new AppError('Production job item not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    return this.transformItemRow(rows[0]);
+  }
+
+  async resetStuckItems(req, { timeoutMinutes, maxRetries }) {
+    const { db, userId } = this._requireUserId(req);
+    const timeout = Math.max(1, Number(timeoutMinutes) || 10);
+    const retries = Math.max(1, Number(maxRetries) || 5);
+
+    const retryRows = await db.query(
+      `
+        UPDATE ${ITEMS_TABLE}
+        SET
+          status = 'pending',
+          retry_count = retry_count + 1,
+          worker_claimed_at = NULL,
+          error_message = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $1
+          AND status = 'processing'
+          AND worker_claimed_at IS NOT NULL
+          AND worker_claimed_at < NOW() - ($2::text || ' minutes')::interval
+          AND retry_count < $3
+        RETURNING id, job_id
+      `,
+      [userId, String(timeout), retries],
+    );
+
+    const failRows = await db.query(
+      `
+        UPDATE ${ITEMS_TABLE}
+        SET
+          status = 'failed',
+          error_message = 'Max retries exceeded',
+          worker_claimed_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $1
+          AND status = 'processing'
+          AND worker_claimed_at IS NOT NULL
+          AND worker_claimed_at < NOW() - ($2::text || ' minutes')::interval
+          AND retry_count >= $3
+        RETURNING id, job_id
+      `,
+      [userId, String(timeout), retries],
+    );
+
+    return {
+      retried: retryRows.length,
+      failed: failRows.length,
+    };
+  }
+
+  async upsertWorkerHeartbeat(req, workerId, itemsProcessing) {
+    const db = Database.get(req);
+    await db.query(
+      `
+        INSERT INTO ${WORKERS_TABLE} (worker_id, last_heartbeat_at, items_processing)
+        VALUES ($1, NOW(), $2)
+        ON CONFLICT (worker_id)
+        DO UPDATE SET
+          last_heartbeat_at = NOW(),
+          items_processing = EXCLUDED.items_processing
+      `,
+      [workerId, itemsProcessing],
+    );
   }
 
   async appendEvent(req, jobId, eventType, payload, itemId = null) {
@@ -246,4 +583,8 @@ module.exports = {
   JOB_STATUSES,
   ITEM_STEPS,
   ITEM_STATUSES,
+  REVIEW_STATUSES,
+  DEFAULT_PHASES,
+  DEFAULT_CHECKPOINT_MODE,
+  IN_FLIGHT_ITEM_STATUSES,
 };
