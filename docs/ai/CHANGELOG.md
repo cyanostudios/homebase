@@ -2,14 +2,436 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Content Production Pipeline – P-TEXT (backend slutförd 2026-07-14, Fas 2)
+
+**Status:** Backend implementerad — QA, Security och Dokumentation godkända. **Ej deployad** (väntar commit/merge). Bygger på P-FRONTEND + P-REGEN-backend (lokal).
+
+Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokumentation → TPM-avslut.
+
+**ADR:** [`docs/ai/adr/P-TEXT_TEXT_PROVIDER.md`](adr/P-TEXT_TEXT_PROVIDER.md)
+
+### Omfattning (levererat)
+
+| Leverans                | Beskrivning                                                         |
+| ----------------------- | ------------------------------------------------------------------- |
+| **OpenAITextProvider**  | Första riktiga adapter (`openai`), utbytbar via registry            |
+| **TextPromptLoader**    | Versionerade prompt-resurser i `prompts/` (P2)                      |
+| **ProviderRateLimiter** | In-process token bucket + retry vid 429                             |
+| **Env wiring**          | `GUIDES_TEXT_PROVIDER`, `OPENAI_API_KEY`, modell-config             |
+| **providerResult**      | Full JSONB med `raw`, `usage`, `promptVersion` (P4)                 |
+| **Retry i worker**      | `_processItem` hanterar `status: retry` → `pending` + `retry_after` |
+
+**Principer:** P1 utbytbar adapter, P2 filbaserade prompts, P3 fingerprint-version, P4 rå output bevaras, P5 HITL oförändrat.
+
+**Ej inkluderat:** Translation (P-TRANS), audio batch, per-tenant prompts, frontend-ändringar.
+
+### Backend-filer (huvudsakliga)
+
+| Fil                                                            | Roll                                                            |
+| -------------------------------------------------------------- | --------------------------------------------------------------- |
+| `plugins/guides/providers/text/adapters/OpenAITextProvider.js` | OpenAI Chat Completions-adapter                                 |
+| `plugins/guides/providers/text/TextPromptLoader.js`            | Laddar versionerade prompts                                     |
+| `plugins/guides/providers/text/prompts/`                       | `manifest.json` + `text_derivation/{quick,normal,deep}/v1.*.md` |
+| `plugins/guides/providers/shared/ProviderRateLimiter.js`       | Token bucket per provider key                                   |
+| `plugins/guides/providers/text/registerDefaultProviders.js`    | Registrerar `openai` när `OPENAI_API_KEY` finns                 |
+| `plugins/guides/production/ProductionOrchestrationService.js`  | `GUIDES_TEXT_PROVIDER` env, retry-branch, full `providerResult` |
+
+### Env (lokal / prod)
+
+| Variabel                        | Default       | Beskrivning         |
+| ------------------------------- | ------------- | ------------------- |
+| `GUIDES_TEXT_PROVIDER`          | `noop`        | `noop` \| `openai`  |
+| `OPENAI_API_KEY`                | —             | Krävs för `openai`  |
+| `GUIDES_TEXT_OPENAI_MODEL`      | `gpt-4o-mini` | Modell              |
+| `GUIDES_TEXT_OPENAI_TIMEOUT_MS` | `60000`       | Request-timeout     |
+| `GUIDES_TEXT_RATE_LIMIT_RPM`    | `60`          | Proaktiv rate limit |
+
+### Tester
+
+`npm test -- --testPathPattern='plugins/guides/__tests__'` — **150 tester** gröna (guides-sviten, inkl. 16 P-TEXT-relaterade i `text-prompt-loader`, `provider-rate-limiter`, `openai-text-provider`, utökad `production-orchestration` och `fingerprint`).
+
+`npm run check` — TypeScript grönt.
+
+**Ej i CI:** manuell smoke med riktig `OPENAI_API_KEY` (kostnad + hemlighet). E2E noop-regression (`guides-production-e2e.js`) ej omkörd i P-TEXT-sprinten — rekommenderas före release.
+
+### Säkerhet (godkänd 2026-07-14)
+
+| ID       | Risk                                      | Beslut                                                                                        |
+| -------- | ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| S-TEXT-1 | API-nyckel i loggar/fel/DB                | Mitigerad — env only; ej i `Logger`, `providerResult` eller generiska fel                     |
+| S-TEXT-2 | Prompt injection via `canonicalNarrative` | Accepterad — redaktörskriven input; system-prompt isolerar; HITL före writeback (ADR R3)      |
+| S-TEXT-3 | Kostnads-/resursmissbruk (OpenAI)         | Delvis mitigerad — `ProviderRateLimiter` (60 RPM) + token-budgetar; full kostnadstak i P-BULK |
+| S-TEXT-4 | Externa felmeddelanden till UI            | Accepterad — låg risk; autentiserad redaktör; sanering rekommenderad (P2)                     |
+| S-TEXT-5 | XSS via AI-text/`errorMessage`            | Mitigerad — React text-noder (ärvd S1)                                                        |
+| S-TEXT-6 | SSRF via provider-URL                     | Mitigerad — hårdkodad `OPENAI_CHAT_URL`                                                       |
+| S-TEXT-7 | Tenant isolation                          | Mitigerad — `user_id`-filter i `ProductionJobModel` (ärvd S7)                                 |
+| S-TEXT-8 | Global API-nyckel per deployment          | Accepterad — ADR-beslut; per-tenant i P-OBS                                                   |
+| S-TEXT-9 | Multi-worker rate-limit bypass            | Accepterad — in-process limiter; delad limiter i P-BULK (ADR R6)                              |
+
+Ärvda risker S6 (narrative-gate före start), S11 (`regenerate` utan endpoint-rate limit) — oförändrade; text-API-anrop begränsas av `ProviderRateLimiter`.
+
+### Kända begränsningar
+
+- Default `GUIDES_TEXT_PROVIDER=noop` — noop-beteende utan env-ändring.
+- Translation/audio fortfarande noop/skipped.
+- Ingen frontend-ändring (review-UI läser `presentationText` som tidigare).
+- Manuell smoke med riktig OpenAI-nyckel ej i CI.
+- `GUIDES_TEXT_PROVIDER=openai` utan `OPENAI_API_KEY` → planering misslyckas (`Text provider not registered`).
+
+### Nästa epic
+
+**P-TRANS** — translation provider adapter.
+
+---
+
+## Content Production Pipeline – P-FRONTEND (frontend MVP slutförd 2026-07-14, Fas 2)
+
+**Status:** Frontend MVP implementerad — QA och Security godkända. **Ej commit/deployad** (väntar explicit användarbegäran). Backend P-ASYNC + P-CHAIN + P-REGEN krävs (lokal, ej deployad).
+
+Grindordning: UI/UX (trimmat MVP) → Frontend → QA → Security → Dokumentation → TPM-avslut.
+
+**ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md)  
+**UX-spec:** [`docs/ai/design/GUIDES_CONTENT_PRODUCTION_UX_V2.md`](design/GUIDES_CONTENT_PRODUCTION_UX_V2.md) (MVP-delta: utan estimate, text-review only)
+
+### Omfattning (MVP)
+
+| Leverans             | Beskrivning                                                                    |
+| -------------------- | ------------------------------------------------------------------------------ |
+| **Produktionspanel** | Sidebar: start hel guide, aktiv status, avbryt, länk till review-kö            |
+| **Fas-banner**       | Status, progress, fasindikator Text→Översättning, retry/cancel                 |
+| **Start-dialog**     | Enkel start med valfri `force`; scoped start (stopp/variant)                   |
+| **Review-kö**        | Textfas (`reviewPhase=text_derivation`): jämförelse, godkänn/avvisa/regenerera |
+| **Fasövergång**      | _Fortsätt till översättning_ → `POST approve-phase`                            |
+| **Poll**             | 3s vid `pending`/`planning`/`processing`/`awaiting_review`                     |
+| **Jobbhistorik**     | Lista tidigare jobb i sidebar                                                  |
+| **API-klient**       | Alla P-REGEN production-endpoints utom `bulk-approve` (ej i MVP-UI)            |
+
+**Ej inkluderat:** pre-flight estimate (P-OBS), bulk-godkänn UI, translation/audio-review UI, P2/P5-paneler, PWA.
+
+### Frontend-filer (huvudsakliga)
+
+| Fil                                                                 | Roll                                        |
+| ------------------------------------------------------------------- | ------------------------------------------- |
+| `client/src/plugins/guides/hooks/useProductionJob.ts`               | State, poll, mutations, `hasActiveJob`-sync |
+| `client/src/plugins/guides/api/guidesApi.ts`                        | Production API-metoder                      |
+| `client/src/plugins/guides/types/guides.ts`                         | Production-typer                            |
+| `client/src/plugins/guides/utils/productionJobHelpers.ts`           | Fas/review/poll-hjälpare                    |
+| `client/src/plugins/guides/components/ProductionPhaseBanner.tsx`    | Fas-banner                                  |
+| `client/src/plugins/guides/components/ProductionPhaseIndicator.tsx` | Fasindikator                                |
+| `client/src/plugins/guides/components/GuideProductionPanel.tsx`     | Sidebar-panel                               |
+| `client/src/plugins/guides/components/ProductionJobHistory.tsx`     | Jobbhistorik                                |
+| `client/src/plugins/guides/components/StartProductionDialog.tsx`    | Start-dialog                                |
+| `client/src/plugins/guides/components/GuideReviewQueue.tsx`         | Review-kö                                   |
+| `client/src/plugins/guides/components/GuideReviewItem.tsx`          | Review-rad                                  |
+| `client/src/plugins/guides/components/GuideView.tsx`                | Integration                                 |
+
+### Poll och state (klientkontrakt)
+
+- Efter `POST production-jobs`: förvänta `status: pending`, `items: []` — poll tills terminal eller `awaiting_review`.
+- Vid `awaiting_review` + `reviewPhase=text_derivation`: visa review-kö.
+- Default `checkpoint_mode=after_text`: översättning körs utan review-UI; banner visar `processing` → `completed`.
+- `hasActiveJob` härleds från synkad jobblista (`upsertJobInList` + list-refresh vid terminal status).
+
+### Tester
+
+`npm test -- --testPathPattern=productionJobHelpers` — **7 tester** (fas/review/sync-logik).
+
+`npm run check` — TypeScript grönt.
+
+**E2E (2026-07-14):** `node scripts/guides-production-e2e.js` — **16 PASS** (checklista A–G). Worker pumpas via `scripts/run-production-worker-tick.js` när `GUIDES_PRODUCTION_WORKER_ENABLED=false`. Kräver `npm run dev:all`, `migrate:guides`, Puppeteer Chrome (`npm run puppeteer:install-chrome`).
+
+### Säkerhet (godkänd 2026-07-14, inkl. E2E-fixar)
+
+| ID      | Risk                                                   | Beslut                                            |
+| ------- | ------------------------------------------------------ | ------------------------------------------------- |
+| S1      | XSS via AI-text/errorMessage                           | Mitigerad — React text-noder                      |
+| S2      | CSRF på mutations                                      | Mitigerad — `apiFetch` + backend `csrfProtection` |
+| S3      | Oautentiserad åtkomst                                  | Mitigerad — plugin-gate + session                 |
+| S4      | IDOR via path-ID:n                                     | Backend tenant-scope (ärvd)                       |
+| S5      | Poll API-förstärkning                                  | Acceptabel — global rate limit                    |
+| S-FIX-1 | `run-production-worker-tick.js` processar alla tenants | Accepterad — local dev only                       |
+| S-FIX-3 | `_resumeStalledPlanningJobs` utan lås                  | Accepterad — single worker-process                |
+
+Ärvda backend-risker S6 (narrative-gate före start — ej enforced), S7 (`user_id` på job-läsning) — oförändrade. Text-API rate limit levererad i **P-TEXT** (`ProviderRateLimiter`); gäller inte job-start/regenerate-endpoint.
+
+### Kända begränsningar
+
+- E2E-script finns men ej `npm run`-alias / CI ännu (~5 min körning).
+- `bulk-approve` finns i API men ej i UI.
+- Narrative-gate före start saknas i backend.
+
+### Nästa epic
+
+**P-TRANS** — translation provider adapter.
+
+---
+
+## Content Production Pipeline – P-TEXT (ADR — historisk planeringssektion)
+
+**Status:** Ersatt av implementeringssektionen ovan. ADR godkänd 2026-07-14; backend levererad och grindad samma dag.
+
+**ADR:** [`docs/ai/adr/P-TEXT_TEXT_PROVIDER.md`](adr/P-TEXT_TEXT_PROVIDER.md) — se även ADR-statusrad (backend implementerad).
+
+---
+
+## Content Production Pipeline – P-REGEN (backend slutförd 2026-07-14, Fas 2)
+
+**Status:** Backend implementerad — QA och Security godkända. **Ej deployad** (väntar commit/merge). Per-item HITL i backend; review-kö-UI i **P-FRONTEND**.
+
+Grindordning: Lösningsarkitekt (ADR v2 A3/A4) → Backend → QA → Security → Dokumentation → TPM-avslut.
+
+**ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md) (A3, A4)  
+**UX-spec:** [`docs/ai/design/GUIDES_CONTENT_PRODUCTION_UX_V2.md`](design/GUIDES_CONTENT_PRODUCTION_UX_V2.md)
+
+### Omfattning
+
+| Leverans                 | Beskrivning                                                                                         |
+| ------------------------ | --------------------------------------------------------------------------------------------------- |
+| **Per-item approve**     | `_approveSingleItem` → `applyProductionPresentationText` → `review_status=approved`                 |
+| **Per-item reject**      | `review_status=rejected`; domän oförändrad                                                          |
+| **Per-item regenerate**  | Gammalt → `superseded`; nytt item `pending` med `regenerateNonce` i fingerprint; job → `processing` |
+| **Bulk-approve**         | `POST …/items/bulk-approve` — alla `pending_review` i `currentPhaseIndex`                           |
+| **`approve-phase` gate** | Kräver terminal `review_status`; ingen implicit bulk-approve                                        |
+| **`retryJob`**           | `failed` → `pending`; `resetFailedItemsInPhase`                                                     |
+| **Fingerprint A4**       | `ingestRunId` (text), translation-fält; dedup per `user_id`                                         |
+| **`languages` filter**   | `jobOptions.languages` filtrerar varianter i planering                                              |
+
+**Ej inkluderat:** frontend (P-FRONTEND), rate limiting (P-TEXT), `estimate` (P-OBS), riktiga providers.
+
+### Förutsättning
+
+P-CHAIN levererad (migration **099**). Ingen ny migration.
+
+### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
+
+#### Per-item review (nya)
+
+```
+POST /api/guides/:placeId/production-jobs/:jobId/items/:itemId/approve
+POST /api/guides/:placeId/production-jobs/:jobId/items/:itemId/reject
+  Body: { reason?: string }   // max 5000 tecken
+POST /api/guides/:placeId/production-jobs/:jobId/items/:itemId/regenerate
+POST /api/guides/:placeId/production-jobs/:jobId/items/bulk-approve
+POST /api/guides/:placeId/production-jobs/:jobId/retry
+```
+
+**Validering (gemensam):**
+
+- `job.status === 'awaiting_review'` (item-actions) eller `failed` (`retry`)
+- Item i `currentPhaseIndex`
+- Item `status === 'completed'`
+- `approve`/`reject`: `review_status === 'pending_review'` (eller null)
+- `regenerate`: `review_status ∈ { pending_review, rejected }`
+
+#### `approve-phase` (refaktorerad semantik)
+
+Gate-only — kräver att alla completed items i fasen har `review_status ∈ { approved, rejected, superseded }`. Blockeras vid `failed` eller in-flight items.
+
+Flöde med HITL (default `after_text`):
+
+1. Worker fas 0 → `awaiting_review`
+2. Redaktör: per-item `approve` / `reject` / `regenerate` (eller `bulk-approve`)
+3. `POST approve-phase` → advance till fas 1 (endast `approved` targets planeras)
+4. Worker fas 1 → auto-advance (`after_text`) → `completed`
+
+#### Skapa jobb (utökad)
+
+```
+POST /api/guides/:placeId/production-jobs
+Body: { …, languages?: string[] }
+```
+
+### Item `review_status` (HITL)
+
+| Status           | Betydelse                                |
+| ---------------- | ---------------------------------------- |
+| `pending_review` | Väntar redaktörsbeslut (sätts av worker) |
+| `approved`       | Godkänd; text applicerad på domän        |
+| `rejected`       | Avvisad; domän oförändrad                |
+| `superseded`     | Ersatt av regenerate-item                |
+
+### Fingerprint (utökad)
+
+**text_derivation:** `canonicalNarrative`, `ingestRunId`, `variantType`, `language`, `providerKey`, `providerVersion`
+
+**translation:** `sourcePresentationText`, `sourceLanguage`, `targetLanguage`, `variantType`, `providerKey`, `providerVersion`
+
+**regenerate:** `regenerateNonce` (itemId) i fingerprint — undviker dedup-kollision.
+
+**Dedup:** `hasCompletedFingerprint` söker per `user_id` + `fingerprint` + `status=completed` (ignorerar `review_status`).
+
+### Implementation (huvudfiler)
+
+| Fil                                                           | Roll                                                                                                     |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `plugins/guides/production/ProductionOrchestrationService.js` | `approveItem`, `rejectItem`, `regenerateItem`, `bulkApproveItemsInPhase`, `retryJob`; gate-refaktorering |
+| `plugins/guides/production/ProductionJobModel.js`             | `getJobItemById`, `resetFailedItemsInPhase`, tenant-scoped dedup                                         |
+| `plugins/guides/production/fingerprint.js`                    | Utökad canonical input                                                                                   |
+| `plugins/guides/routes.js` / `controller.js`                  | Nya endpoints                                                                                            |
+
+### Tester
+
+`npm test -- --testPathPattern="plugins/guides"` — **134 tester**.
+
+P-REGEN: `production-orchestration.test.js` (+11), `fingerprint.test.js` (+3).
+
+### Säkerhet (godkänd 2026-07-14)
+
+| ID  | Risk                                                  | Beslut                                       |
+| --- | ----------------------------------------------------- | -------------------------------------------- |
+| S11 | `regenerate` utan rate limit                          | Accepterad — autentiserad redaktör; P-TEXT   |
+| S12 | `bulk-approve` utan tak                               | Accepterad — samma trust-modell som approve  |
+| S13 | Dedup ignorerar `review_status`                       | Accepterad — `force`/`regenerate` som escape |
+| S14 | `getJobById`/`listJobItems` utan `user_id` på läsning | Accepterad — ärvd S2, tenant-pool            |
+| S15 | `reject.reason` i events                              | Accepterad — events ej API-exponerade (S3)   |
+
+**Åtgärdad:** S8 (bulk `approve-phase` utan per-item reject) — löst av per-item API.
+
+Ärvda risker S1, S4, S7 från P-ASYNC/P-CHAIN kvarstår.
+
+### Kända begränsningar
+
+- Review-kö-UI levererades i **P-FRONTEND** (se egen sektion).
+- Saknar full HITL-kedja-E2E utan mocks (QA F1).
+- `_autoAdvancePhase` bulk-godkänner fortfarande vid `after_text` fas 1+ (avsiktligt).
+
+### Frontend
+
+**Levererat:** **P-FRONTEND** (text-review MVP). Se egen sektion.
+
+---
+
+## Content Production Pipeline – P-CHAIN (backend slutförd 2026-07-14, Fas 2)
+
+**Status:** Backend implementerad — QA och Security godkända. **Ej deployad** (väntar commit/merge). Fas-kedja i backend; per-item HITL i **P-REGEN**; frontend i **P-FRONTEND**.
+
+Grindordning: Lösningsarkitekt (ADR v2 A2) → Backend → QA → Security → Dokumentation → TPM-avslut.
+
+**ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md) (A2)  
+**UX-spec:** [`docs/ai/design/GUIDES_CONTENT_PRODUCTION_UX_V2.md`](design/GUIDES_CONTENT_PRODUCTION_UX_V2.md)
+
+### Omfattning
+
+| Leverans               | Beskrivning                                                                |
+| ---------------------- | -------------------------------------------------------------------------- |
+| **Fasvis planering**   | `_planJob` planerar endast `phases[currentPhaseIndex]` per worker-tick     |
+| **Fasövergång**        | `approvePhase` — fasövergångsgate (semantik skärpt i P-REGEN)              |
+| **Checkpoint**         | `checkpoint_mode`: `after_text` (default), `after_each`, `auto`            |
+| **Target-filter**      | Fas N+1 planeras endast för varianter med `review_status=approved` i fas N |
+| **Fas-scopad eval**    | `summarizeJobItems` / `countInFlightItems` filtrerar på `phase_index`      |
+| **Cancel F1**          | `updateJobStatus(…, 'processing', { blockedFrom: ['cancelled'] })`         |
+| **Deprecated approve** | `POST …/approve` → `approvePhase({ continue: true })`                      |
+
+**Ej inkluderat vid P-CHAIN-leverans:** per-item HITL (P-REGEN), audio batch (P-AUDIO-BATCH), frontend, riktiga providers.
+
+### Förutsättning
+
+P-ASYNC levererad (migration **099**). Ingen ny migration i P-CHAIN.
+
+### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
+
+#### Skapa jobb (utökad)
+
+```
+POST /api/guides/:placeId/production-jobs
+Body: {
+  type: "full_guide" | "stop" | "variant",
+  phases?: ("text_derivation" | "translation" | "audio")[],  // alias: steps
+  checkpointMode?: "after_text" | "after_each" | "auto",
+  stopId?, variantId?, force?
+}
+```
+
+**Application defaults (P-CHAIN):** `phases: ["text_derivation", "translation"]`, `checkpointMode: "after_text"`.
+
+**DB-kolumn default (migration 099):** `phases` default `["text_derivation"]` — application layer sätter nya defaults vid `createJob`.
+
+#### Ny endpoint — godkänn fas
+
+```
+POST /api/guides/:placeId/production-jobs/:jobId/approve-phase
+Body: { continue?: boolean }   // default true
+```
+
+**Validering:** `job.status === 'awaiting_review'`; blockeras om items i aktuell fas har `status=failed`.
+
+**Beteende (vid P-CHAIN-leverans; ändrat i P-REGEN):**
+
+1. ~~Bulk-godkänn~~ → Gate: kräver terminal `review_status` på alla completed items (se § P-REGEN).
+2. Om sista fas eller `continue: false` → `job.status = completed`.
+3. Annars → `currentPhaseIndex++`, `status = pending`, `queued_at = NOW()`.
+
+#### Deprecated
+
+| Metod | Path                               | Ersättning                             |
+| ----- | ---------------------------------- | -------------------------------------- |
+| POST  | `…/production-jobs/:jobId/approve` | `…/approve-phase` (loggar deprecation) |
+
+### Checkpoint-beteende
+
+| `checkpointMode`       | Fas 0 (text)      | Fas 1+ (translation)            |
+| ---------------------- | ----------------- | ------------------------------- |
+| `after_text` (default) | `awaiting_review` | Auto-advance (ingen HITL-stopp) |
+| `after_each`           | `awaiting_review` | `awaiting_review`               |
+| `auto`                 | Auto-advance      | Auto-advance                    |
+
+### Fasflöde (default `after_text`, 2 faser — med P-REGEN HITL)
+
+1. `POST production-jobs` → `pending`
+2. Worker fas 0 → `awaiting_review` (`reviewPhase: text_derivation`)
+3. Per-item `approve`/`reject`/`regenerate` (eller `bulk-approve`)
+4. `POST approve-phase` → `pending` (fas 1)
+5. Worker fas 1 → auto-advance → `completed`
+
+Klient ska polla `GET …/:jobId` mellan steg.
+
+### Implementation (huvudfiler)
+
+| Fil                                                           | Roll                                                                 |
+| ------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `plugins/guides/production/ProductionOrchestrationService.js` | `approvePhase`, fas-scopad planering/evaluering, `_autoAdvancePhase` |
+| `plugins/guides/production/ProductionJobModel.js`             | `requeueJobForNextPhase`, fas-scopade queries, `CHECKPOINT_MODES`    |
+| `plugins/guides/routes.js`                                    | `approve-phase` route, validering `phases`/`checkpointMode`          |
+| `plugins/guides/controller.js`                                | `approveProductionJobPhase`                                          |
+
+### Tester
+
+`npm test -- --testPathPattern="plugins/guides"` — **123 tester**.
+
+P-CHAIN: `production-orchestration.test.js` (fasövergångar, checkpoint, approve-phase, F1).
+
+### Säkerhet (godkänd 2026-07-14)
+
+| ID  | Risk                                           | Beslut                                       |
+| --- | ---------------------------------------------- | -------------------------------------------- |
+| S7  | `checkpointMode: auto` kringgår HITL           | Accepterad — dev/test; autentiserad redaktör |
+| S8  | Bulk `approve-phase` utan per-item reject      | **Åtgärdad i P-REGEN** — per-item API + gate |
+| S9  | `continue` med 0 godkända targets              | Accepterad — integritet, ej dataläckage      |
+| S10 | `requeueJobForNextPhase` utan `user_id`-filter | Accepterad — tenant-pool-isolation           |
+
+Ärvda risker S2, S4 från P-ASYNC kvarstår.
+
+### Kända begränsningar
+
+- Per-item HITL tillkom i **P-REGEN** (se egen sektion).
+- Audio i `phases` → `skipped` (P-AUDIO-BATCH).
+- `after_text` ger ingen HITL på translation-fas (avsiktligt enligt arkitekt).
+- Saknar full kedje-E2E-test utan mocks (QA F1).
+
+### Frontend
+
+**Levererat:** **P-FRONTEND** (fas-banner, poll, text-review). Se egen sektion.
+
+---
+
 ## Content Production Pipeline – P-ASYNC (backend slutförd 2026-07-13, Fas 2)
 
-**Status:** Backend implementerad — QA och Security godkända. **Ej deployad** (väntar commit/merge). Frontend UI saknas. Multi-fas-kedja och reject/regenerate kommer i senare epics.
+**Status:** Backend implementerad — QA och Security godkända. **Ej deployad** (väntar commit/merge). Async grund; fas-kedja i **P-CHAIN**; HITL i **P-REGEN**; frontend poll/review i **P-FRONTEND**.
 
 Grindordning: Lösningsarkitekt (ADR v2) → Backend → QA → Security → Dokumentation → TPM-avslut.
 
 **ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md)  
-**UX-spec (frontend senare):** [`docs/ai/design/GUIDES_CONTENT_PRODUCTION_UX_V2.md`](design/GUIDES_CONTENT_PRODUCTION_UX_V2.md)
+**UX-spec:** [`docs/ai/design/GUIDES_CONTENT_PRODUCTION_UX_V2.md`](design/GUIDES_CONTENT_PRODUCTION_UX_V2.md)
 
 ### Omfattning
 
@@ -23,7 +445,7 @@ Grindordning: Lösningsarkitekt (ADR v2) → Backend → QA → Security → Dok
 | **Terminal status**  | Alla items failed → job `failed`; minst ett reviewable → `awaiting_review`                                      |
 | **Tenant-isolation** | `user_id` på `guide_production_job_items`; backfill från job                                                    |
 
-**Ej inkluderat i P-ASYNC:** `P-CHAIN` (multi-fas, `approve-phase`), `P-REGEN` (reject/regenerate per item), riktiga providers, frontend.
+**Ej inkluderat i P-ASYNC:** Multi-fas-kedja (**P-CHAIN**); per-item HITL (**P-REGEN**); riktiga providers, frontend kvarstår.
 
 ### Förutsättning
 
@@ -35,7 +457,7 @@ Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenant
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `099-guide-production-v2-async.sql` | `phases`, `current_phase_index`, `checkpoint_mode`, `priority`, `queued_at`, `worker_claimed_at`, `review_phase`, `job_options` på jobs; `user_id`, `phase_index`, `retry_count`, `retry_after`, `external_id`, `provider_version`, `review_status`, `reviewed_at`, `worker_claimed_at` på items; index för worker-kö; tabell `guide_production_workers` |
 
-**Default `phases`:** `["text_derivation"]` (samma praktiska scope som v1 tills P-CHAIN aktiverar fler faser).
+**Default `phases` (DB migration 099):** `["text_derivation"]`. **Application default efter P-CHAIN:** `["text_derivation", "translation"]` — se § P-CHAIN.
 
 ### API (autentiserat, plugin-gate `guides`, CSRF på mutationer)
 
@@ -50,17 +472,17 @@ Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenant
 
 #### Oförändrade endpoints (semantik delvis uppdaterad)
 
-| Metod | Path                                                  | Notering                                                      |
-| ----- | ----------------------------------------------------- | ------------------------------------------------------------- |
-| POST  | `/api/guides/:placeId/production-jobs`                | Enqueue only                                                  |
-| GET   | `/api/guides/:placeId/production-jobs`                | Lista jobb                                                    |
-| GET   | `/api/guides/:placeId/production-jobs/:jobId`         | Poll-status + items                                           |
-| POST  | `/api/guides/:placeId/production-jobs/:jobId/approve` | Oförändrad v1-semantik (ersätts av `approve-phase` i P-CHAIN) |
-| POST  | `/api/guides/:placeId/production-jobs/:jobId/cancel`  | Stoppar även aktiva items                                     |
+| Metod | Path                                                  | Notering                                                       |
+| ----- | ----------------------------------------------------- | -------------------------------------------------------------- |
+| POST  | `/api/guides/:placeId/production-jobs`                | Enqueue only                                                   |
+| GET   | `/api/guides/:placeId/production-jobs`                | Lista jobb                                                     |
+| GET   | `/api/guides/:placeId/production-jobs/:jobId`         | Poll-status + items                                            |
+| POST  | `/api/guides/:placeId/production-jobs/:jobId/approve` | **Deprecated** — delegerar till `approve-phase` (se § P-CHAIN) |
+| POST  | `/api/guides/:placeId/production-jobs/:jobId/cancel`  | Stoppar även aktiva items                                      |
 
 **Jobbstatus (utökad):** `pending` → `planning` → `processing` → `awaiting_review` \| `completed` \| `failed` \| `cancelled`
 
-**Item `review_status` (sätts av worker):** `pending_review` när provider klar — per-item approve/reject API kommer i P-REGEN.
+**Item `review_status` (sätts av worker):** `pending_review` när provider klar — per-item API i **P-REGEN**.
 
 ### Konfiguration (miljövariabler)
 
@@ -84,6 +506,17 @@ Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenant
 | `plugins/guides/index.js`                                     | Worker boot + `shutdownGuidesProductionWorker`                 |
 | `server/index.ts`                                             | Graceful shutdown                                              |
 | `scripts/run-guides-migration.js`                             | Inkluderar migration 099                                       |
+| `scripts/run-production-worker-tick.js`                       | Ett worker-tick (local dev / E2E-pump)                         |
+| `scripts/guides-production-e2e.js`                            | Automatiserad P-FRONTEND E2E-checklista                        |
+| `server/core/services/database/adapters/PostgreSQLAdapter.js` | `_getParamCount` — högsta `$N` (worker SQL-validering)         |
+
+### Worker-stabilitet (åtgärdat 2026-07-14, verifierat via E2E)
+
+| Problem                                                            | Åtgärd                                         |
+| ------------------------------------------------------------------ | ---------------------------------------------- |
+| Param count mismatch vid återanvänd `$1` i `updateJobStatus`       | `_getParamCount` → `Math.max(…$N)`             |
+| PG `inconsistent types deduced for parameter $1` med tenant-filter | `$1::text` i `updateJobStatus` SET/CASE        |
+| Jobb fast i `planning` efter misslyckad övergång                   | `_resumeStalledPlanningJobs` i `runWorkerTick` |
 
 ### Tester
 
@@ -93,27 +526,27 @@ Nya/utökade: `production-job-claim.test.js`, `production-orchestration.test.js`
 
 ### Säkerhet (godkänd 2026-07-13)
 
-| ID  | Risk                                                           | Beslut                                                     |
-| --- | -------------------------------------------------------------- | ---------------------------------------------------------- |
-| S1  | Worker processar alla tenants in-process utan per-request auth | Accepterad — etablerat cron-mönster; ingen extern endpoint |
-| S2  | Job/item-läsning filtrerar ej `user_id` på HTTP-path           | Accepterad — tenant-pool-isolation; hardening i P-REGEN    |
-| S3  | `guide_production_job_events` saknar `user_id`                 | Accepterad — events ej exponerade i API                    |
-| S4  | `job_options` JSONB utan storleksgräns                         | Accepterad — autentiserad redaktör; begränsas vid behov    |
-| S5  | `getJobByIdInternal` utan `user_id` i worker                   | Accepterad — item-mutationer kräver `user_id`              |
-| S6  | Cancel under `planning` kan race                               | Accepterad — integritet, ej dataläckage (QA F1)            |
+| ID      | Risk                                                           | Beslut                                                                     |
+| ------- | -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| S1      | Worker processar alla tenants in-process utan per-request auth | Accepterad — etablerat cron-mönster; ingen extern endpoint                 |
+| S2      | Job/item-läsning filtrerar ej `user_id` på HTTP-path           | Accepterad — tenant-pool-isolation; `getJobItemById` har user_id (P-REGEN) |
+| S3      | `guide_production_job_events` saknar `user_id`                 | Accepterad — events ej exponerade i API                                    |
+| S4      | `job_options` JSONB utan storleksgräns                         | Accepterad — autentiserad redaktör; begränsas vid behov                    |
+| S5      | `getJobByIdInternal` utan `user_id` i worker                   | Accepterad — item-mutationer kräver `user_id`                              |
+| S6      | Cancel under `planning` kan race                               | Accepterad — integritet, ej dataläckage (QA F1)                            |
+| S-FIX-3 | `_resumeStalledPlanningJobs` utan lås vid multi-worker         | Accepterad — single worker-process idag                                    |
 
 **Förbättring i P-ASYNC:** `user_id` på items + filter i claim/mutation (ADR R3 delvis åtgärdad).
 
 ### Kända begränsningar
 
-- Endast en produktionsfas (`text_derivation`) körs; `translation`/`audio` i batch fortfarande ej kedjade (P-CHAIN / P-AUDIO-BATCH).
-- `approveJob` är fortfarande job-nivå v1 — inte fasvis `approve-phase`.
-- Ingen frontend för async poll, review-kö eller reject/regenerate.
+- Multi-fas och `approve-phase` tillkom i **P-CHAIN** (se egen sektion).
+- Async poll och review-kö-UI levererades i **P-FRONTEND** (se egen sektion).
 - Prod-migrationer 096–099 måste köras före deploy (blockerande förutsättning ADR R8).
 
 ### Frontend
 
-**Nästa:** `P-FRONTEND` efter `P-CHAIN` + `P-REGEN` enligt UX-spec v2.
+**Levererat:** **P-FRONTEND**. Se egen sektion.
 
 ---
 
@@ -368,23 +801,23 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 **ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md)
 
-| Epic              | Namn                           | Status                                               | Beroende           |
-| ----------------- | ------------------------------ | ---------------------------------------------------- | ------------------ |
-| **Mig**           | Prod-migrationer 096–099       | **Lokal klar**; prod väntar `PROD_MAIN_DATABASE_URL` | —                  |
-| **P-ASYNC**       | Async worker foundation        | **Backend klar** (ej deployad)                       | Mig                |
-| **P-CHAIN**       | Fasövergångar, `approve-phase` | Planerad                                             | P-ASYNC            |
-| **P-REGEN**       | Reject/regenerate/retry        | Planerad                                             | P-CHAIN            |
-| **P-FRONTEND**    | UI ovanpå v2 API               | Planerad                                             | P-REGEN            |
-| **P-TEXT**        | Text provider adapter          | Planerad                                             | P-FRONTEND         |
-| **P-TRANS**       | Translation provider           | Planerad                                             | P-TEXT             |
-| **P-AUDIO-BATCH** | Audio i batch                  | Planerad                                             | P-TRANS            |
-| **P-OBS**         | Observability & arkivering     | Planerad                                             | P-AUDIO-BATCH      |
-| **P-BULK**        | Bulk produce, cron stale       | Planerad                                             | P-OBS              |
-| **P-PWA**         | Konsumentapp                   | **Separat spår**                                     | Public API (finns) |
+| Epic              | Namn                           | Status                                                      | Beroende           |
+| ----------------- | ------------------------------ | ----------------------------------------------------------- | ------------------ |
+| **Mig**           | Prod-migrationer 096–099       | **Lokal klar**; prod väntar `PROD_MAIN_DATABASE_URL`        | —                  |
+| **P-ASYNC**       | Async worker foundation        | **Backend klar** (ej deployad)                              | Mig                |
+| **P-CHAIN**       | Fasövergångar, `approve-phase` | **Backend klar** (ej deployad)                              | P-ASYNC            |
+| **P-REGEN**       | Reject/regenerate/retry        | **Backend klar** (ej deployad)                              | P-CHAIN            |
+| **P-FRONTEND**    | UI ovanpå v2 API               | **Frontend MVP klar** (ej commit/deploy)                    | P-REGEN            |
+| **P-TEXT**        | Text provider adapter          | **Backend klar** (QA, Security, Docs godkända; ej deployad) | P-FRONTEND         |
+| **P-TRANS**       | Translation provider           | Planerad                                                    | P-TEXT             |
+| **P-AUDIO-BATCH** | Audio i batch                  | Planerad                                                    | P-TRANS            |
+| **P-OBS**         | Observability & arkivering     | Planerad                                                    | P-AUDIO-BATCH      |
+| **P-BULK**        | Bulk produce, cron stale       | Planerad                                                    | P-OBS              |
+| **P-PWA**         | Konsumentapp                   | **Separat spår**                                            | Public API (finns) |
 
 **Implementeringsordning (låst):** `Mig → P-ASYNC → P-CHAIN → P-REGEN → P-FRONTEND → P-TEXT → P-TRANS → P-AUDIO-BATCH → P-OBS → P-BULK`
 
-**Nästa:** Commit/deploy P-ASYNC + prod-migration 099; sedan P-CHAIN.
+**Nästa:** Commit/deploy P-ASYNC + P-CHAIN + P-REGEN + P-FRONTEND + P-TEXT vid explicit begäran; sedan **P-TRANS**.
 
 ### Historisk v1-plan (ersatt av Fas 2 ovan)
 
@@ -392,7 +825,7 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 | Epic | Namn                  | Status                                    |
 | ---- | --------------------- | ----------------------------------------- |
-| P4   | Text derivation       | Planerad → **P-TEXT** i Fas 2             |
+| P4   | Text derivation       | **Levererad** — P-TEXT (2026-07-14)       |
 | P6   | Translation pipeline  | Planerad → **P-TRANS** i Fas 2            |
 | P3   | TTS provider          | Planerad → **P-AUDIO-BATCH** i Fas 2      |
 | P8   | Public consumer (PWA) | Planerad → **P-PWA** separat spår         |

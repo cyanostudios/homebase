@@ -4,6 +4,229 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Content Production Pipeline P-TEXT (`guides`-plugin, backend, Fas 2)
+
+**Status:** Backend klar (QA, Security, Documentation). **Ej deployad** — väntar commit/merge till `main` / Railway. Bygger på P-FRONTEND + P-REGEN (lokal).
+
+**Sammanfattning:** Första riktiga AI-integrationen i produktionskedjan — utbytbar `OpenAITextProvider` som omvandlar `canonical_narrative` till `presentation_text` per variant (`quick` / `normal` / `deep`).
+
+### Backend
+
+- **OpenAITextProvider** — OpenAI Chat Completions; registreras när `OPENAI_API_KEY` finns.
+- **TextPromptLoader** — versionerade prompts i `plugins/guides/providers/text/prompts/` (manifest v1).
+- **ProviderRateLimiter** — in-process token bucket; proaktiv limit + retry vid HTTP 429.
+- **Env wiring** — `GUIDES_TEXT_PROVIDER` (default `noop`) styr text-steget i orchestration.
+- **providerResult** — full JSONB-blob (`raw`, `usage`, `promptVersion`, `latencyMs`) sparas per item (P4).
+- **Retry** — `_processItem` sätter `status: retry` → `pending` + `retry_after` vid rate limit.
+- **Fingerprint** — `providerVersion` inkluderar modell + prompt-set (`openai@{model}@prompts-v1`).
+- **Tester:** guides-sviten **150 tester** (+16 P-TEXT-relaterade).
+
+### Env
+
+| Variabel                        | Default       | Beskrivning         |
+| ------------------------------- | ------------- | ------------------- |
+| `GUIDES_TEXT_PROVIDER`          | `noop`        | `noop` \| `openai`  |
+| `OPENAI_API_KEY`                | —             | Krävs för `openai`  |
+| `GUIDES_TEXT_OPENAI_MODEL`      | `gpt-4o-mini` | Modell              |
+| `GUIDES_TEXT_OPENAI_TIMEOUT_MS` | `60000`       | Request-timeout     |
+| `GUIDES_TEXT_RATE_LIMIT_RPM`    | `60`          | Proaktiv rate limit |
+
+### Operativt
+
+- Kräver P-ASYNC + P-CHAIN + P-REGEN + P-FRONTEND (migration 099). Ingen ny migration.
+- Default `GUIDES_TEXT_PROVIDER=noop` — befintligt beteende oförändrat utan explicit env.
+- Sätt `GUIDES_TEXT_PROVIDER=openai` + `OPENAI_API_KEY` för riktig textgenerering.
+- `OPENAI_API_KEY` endast i env (Railway secrets / `.env.local`); rotera vid misstanke.
+
+### Säkerhet (godkänd 2026-07-14)
+
+- API-nyckel: env only; ej i loggar, DB eller `provider_result`.
+- Prompt injection: accepterad risk — redaktörskriven `canonicalNarrative`, HITL före domän-writeback.
+- Rate limit: `ProviderRateLimiter` (60 RPM) + retry vid HTTP 429; in-process (single worker v1).
+- SSRF: mitigerad — hårdkodad OpenAI-URL.
+
+### Begränsningar
+
+- Translation/audio fortfarande noop/skipped.
+- Ingen frontend-ändring (review-UI läser `presentationText` som tidigare).
+- Manuell smoke med riktig OpenAI-nyckel ej i CI.
+- E2E noop-regression ej omkörd i P-TEXT-sprinten — rekommenderas före release.
+- `regenerate`-endpoint utan dedikerad rate limit (ärvd); text-API-anrop begränsas av limiter.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Content Production Pipeline – P-TEXT; ADR: `docs/ai/adr/P-TEXT_TEXT_PROVIDER.md`.
+
+**Roadmap:** P-TEXT backend klar (grindad) — nästa **P-TRANS**.
+
+---
+
+## 2026-07 – Content Production Pipeline P-FRONTEND (`guides`-plugin, frontend, Fas 2)
+
+**Status:** Frontend MVP klar (QA, Security, Documentation). **Ej commit/deployad** — väntar explicit användarbegäran. Bygger på P-REGEN-backend (lokal, ej deployad).
+
+**Sammanfattning:** Redaktörs-UI för fasindelad produktion i `GuideView` — starta jobb, poll:a status, granska textutkast (HITL), fortsätt till översättning, retry/cancel och jobbhistorik.
+
+### Frontend (`client/src/plugins/guides/`)
+
+- **`useProductionJob`** — state + 3s poll mot `GET …/production-jobs/:jobId`; synkar `jobs`-lista vid terminal status (B1-fix).
+- **`guidesApi`** — production-jobb: list, get, start, approve/reject/regenerate item, approve-phase, cancel, retry.
+- **Komponenter:** `ProductionPhaseBanner`, `ProductionPhaseIndicator`, `GuideProductionPanel`, `ProductionJobHistory`, `StartProductionDialog`, `GuideReviewQueue`, `GuideReviewItem`.
+- **Integrering:** `GuideView` (banner + review-kö + sidebar); scoped start från stopp/variant i `GuideStopsSection` / `GuideVariantsSection`.
+- **i18n:** `guides.production.*` (sv/en).
+- **Tester:** `productionJobHelpers.test.ts` — 7 unit-tester; `jest.config.js` utökad med `client/src/plugins/guides`.
+
+### MVP-scope (levererat)
+
+| Funktion                                               | UI                     |
+| ------------------------------------------------------ | ---------------------- |
+| Produktionsstatus + fasindikator (Text → Översättning) | Banner + sidebar-panel |
+| Starta produktion (hel guide / stopp / variant)        | Dialog + Play-knappar  |
+| Poll 3s vid aktivt jobb                                | `useProductionJob`     |
+| Granska textutkast per item                            | Review-kö              |
+| Godkänn / avvisa / regenerera                          | Per item               |
+| Fortsätt till översättning                             | `approve-phase`        |
+| Fel + retry / cancel                                   | Banner + panel         |
+| Jobbhistorik                                           | Sidebar-lista          |
+
+### Utelämnat (medvetet, MVP)
+
+- Pre-flight estimate / kostnad (`ProductionPreflightDialog`)
+- Bulk _Godkänn alla_
+- Gransknings-UI för översättning och ljud (`after_text` — översättning körs utan extra review)
+- P2/P5-paneler, PWA, provider-admin
+
+### Operativt
+
+- Kräver P-ASYNC + P-CHAIN + P-REGEN backend lokalt (migration 099, worker för E2E).
+- `GUIDES_PRODUCTION_WORKER_ENABLED=true` för in-process worker i API; annars pumpa via `scripts/run-production-worker-tick.js` (se E2E nedan).
+- Logga ut/in efter plugin-access-ändringar (oförändrat).
+
+### E2E (automatiserat, 2026-07-14)
+
+| Script                                  | Syfte                                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `scripts/guides-production-e2e.js`      | Puppeteer + API — checklista A–G (start, review, approve-phase, B1, scoped start/cancel, historik, 409) |
+| `scripts/run-production-worker-tick.js` | Ett worker-tick per tenant (lokal dev när API-worker är avstängd)                                       |
+
+**Körning:**
+
+```bash
+npm run dev:all
+npm run migrate:guides
+npm run puppeteer:install-chrome   # vid behov
+node scripts/guides-production-e2e.js
+```
+
+Env: `GUIDES_E2E_BASE_URL` (default `http://localhost:3001`), `GUIDES_E2E_EMAIL` / `GUIDES_E2E_PASSWORD`, `PUPPETEER_CACHE_DIR` (default `.cache/puppeteer`). E2E aktiverar **force** vid start för att undvika fingerprint-dedup vid upprepade körningar.
+
+**Verifierat:** 16 PASS / 0 FAIL (lokal, admin@homebase.se).
+
+### Backend-fixar (worker-stabilitet, samma leverans)
+
+Blockerade E2E tills åtgärdade (P-ASYNC/P-CHAIN-berörda):
+
+| Fix              | Fil                                                           | Effekt                                                            |
+| ---------------- | ------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Param-räkning    | `server/core/services/database/adapters/PostgreSQLAdapter.js` | `_getParamCount` använder högsta `$N` (inte antal förekomster)    |
+| Status-UPDATE    | `plugins/guides/production/ProductionJobModel.js`             | `$1::text` i `updateJobStatus` — PG-typ vid tenant-filter         |
+| Stalled planning | `plugins/guides/production/ProductionOrchestrationService.js` | `_resumeStalledPlanningJobs` återupptar `planning` → `processing` |
+
+### Begränsningar
+
+- E2E ~5 min (worker-pump); kräver lokal stack — ej CI-dokumenterat ännu.
+- `run-production-worker-tick.js` är **local dev only** (processar alla tenants i main DB).
+- `production.isLoading` visas inte i UI.
+- Narrative-gate före start ej enforced i backend (ärvd risk S6).
+- Multi-worker race vid stalled-planning recovery (S-FIX-3, accepterad tills flera worker-instanser).
+
+**Spec:** `docs/ai/CHANGELOG.md` § Content Production Pipeline – P-FRONTEND; UX: `docs/ai/design/GUIDES_CONTENT_PRODUCTION_UX_V2.md` §8.
+
+**Roadmap:** P-FRONTEND klar — P-TEXT backend klar (se egen sektion); nästa **P-TRANS**. Se `docs/ai/CHANGELOG.md` § Guide CMS – Roadmap (Fas 2).
+
+---
+
+## 2026-07 – Content Production Pipeline P-REGEN (`guides`-plugin, backend, Fas 2)
+
+**Status:** Backend klar (QA, Security, Documentation). **Ej deployad** — väntar commit/merge till `main` / Railway. Bygger på P-CHAIN. Review-kö-UI i **P-FRONTEND**.
+
+**Sammanfattning:** Per-item HITL — godkänn, avvisa och regenerera production items; `approve-phase` som fasövergångsgate; utökad fingerprint och `retryJob`.
+
+### Backend
+
+- **Per-item HITL:** `approve`, `reject`, `regenerate` på job items i aktuell review-fas.
+- **`approve-phase` (refaktorerad):** gate-only — kräver terminal `review_status` på alla completed items; ingen implicit bulk-approve.
+- **`bulk-approve`:** convenience-endpoint för "Godkänn alla" i aktuell fas.
+- **`retryJob`:** återuppta `failed` jobs från aktuell fas.
+- **Fingerprint:** `ingestRunId` (text), translation-fält; dedup scoped till `user_id`.
+- **`languages`:** valfritt filter vid `startJob` (`jobOptions.languages`).
+- **Tester:** 134 i guides-sviten (+11 P-REGEN-tester).
+
+### Nya API-endpoints
+
+| Metod | Path                                             | Beskrivning                         |
+| ----- | ------------------------------------------------ | ----------------------------------- |
+| POST  | `…/production-jobs/:jobId/items/:itemId/approve` | Godkänn item → applicera på domän   |
+| POST  | `…/items/:itemId/reject`                         | Avvisa item (`{ reason? }`)         |
+| POST  | `…/items/:itemId/regenerate`                     | Supersede + nytt pending item       |
+| POST  | `…/items/bulk-approve`                           | Bulk-godkänn `pending_review` i fas |
+| POST  | `…/retry`                                        | Requeue failed job                  |
+
+### Brytande semantik (mot P-CHAIN)
+
+- **`approve-phase`** kräver per-item-beslut (`approved` \| `rejected` \| `superseded`) innan fasövergång — bulk-approve via `bulk-approve` eller per-item `approve` först.
+
+### Operativt
+
+- Kräver P-ASYNC + P-CHAIN (migration 099). Ingen ny migration.
+
+### Begränsningar
+
+- Review-kö-UI levererades i **P-FRONTEND** (se egen sektion).
+- Dedup ignorerar `review_status` — `rejected`/`superseded` blockerar omkörning utan `force`/`regenerate`.
+- `regenerate` utan endpoint-rate limit (ärvd); text-API-anrop begränsas av P-TEXT `ProviderRateLimiter`.
+
+**Spec:** `docs/ai/CHANGELOG.md` § Content Production Pipeline – P-REGEN.
+
+**Roadmap:** P-REGEN backend klar — frontend i **P-FRONTEND** (se egen sektion).
+
+---
+
+## 2026-07 – Content Production Pipeline P-CHAIN (`guides`-plugin, backend, Fas 2)
+
+**Status:** Backend klar (QA, Security, Documentation). **Ej deployad** — väntar commit/merge till `main` / Railway. Bygger på P-ASYNC (migration 099). Frontend poll/review i **P-FRONTEND**.
+
+**Sammanfattning:** Fasindelad production pipeline — text → translation via `phases` + `current_phase_index`, HITL-stopp med `approve-phase`, och `checkpoint_mode` (default `after_text`).
+
+### Backend
+
+- **Fasvis planering:** worker planerar endast aktuell fas (`phases[currentPhaseIndex]`); fas N+1 endast för varianter med `review_status=approved` i fas N.
+- **`approve-phase`:** fasövergångsgate (semantik skärpt i **P-REGEN** — se egen sektion).
+- **Checkpoint:** `after_text` (default) stoppar vid fas 0; `after_each` stoppar efter varje fas; `auto` auto-advancerar utan `awaiting_review`.
+- **Deprecated:** `POST …/approve` delegerar till `approvePhase({ continue: true })` med varning i logg.
+- **F1-fix:** cancel under planning skriver inte över `cancelled` → `processing`.
+- **Tester:** 123 i guides-sviten (+5 P-CHAIN-tester).
+
+### Brytande API-förändring
+
+- **Default `phases`:** `["text_derivation", "translation"]` när klient utelämnar `phases`/`steps` (tidigare endast `text_derivation` i P-ASYNC).
+- **Ny endpoint:** `POST …/production-jobs/:jobId/approve-phase` — ersätter semantiken för job-nivå `approve`.
+
+### Operativt
+
+- Kräver P-ASYNC (migration 099) och lokal worker om manuell E2E-test (`GUIDES_PRODUCTION_WORKER_ENABLED=true`).
+- Ingen ny migration.
+
+### Begränsningar
+
+- Per-item HITL tillkom i **P-REGEN** (se egen sektion).
+- Audio-fas planeras som `skipped` om angiven — batch audio tillhör P-AUDIO-BATCH.
+- Med `after_text` auto-advancerar fas 1+ utan `awaiting_review` (translation får ingen HITL-stopp som default).
+
+**Spec:** `docs/ai/CHANGELOG.md` § Content Production Pipeline – P-CHAIN.
+
+**Roadmap:** Se `docs/ai/CHANGELOG.md` § Guide CMS – Roadmap (Fas 2).
+
+---
+
 ## 2026-07 – Content Production Pipeline P-ASYNC (`guides`-plugin, backend, Fas 2)
 
 **Status:** Backend klar (QA, Security, Documentation). **Ej deployad** — väntar commit/merge till `main` / Railway. Kräver migration **099** per tenant (utöver 096–098).
@@ -31,13 +254,13 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ### Begränsningar
 
-- Endast fas 0 (`text_derivation`) i praktiken — multi-fas-kedja (`P-CHAIN`) och reject/regenerate (`P-REGEN`) ej implementerade.
-- Ingen frontend för async poll/review.
-- Race vid cancel under `planning` (QA F1) — låg integritetsrisk.
+- Multi-fas-kedja och `approve-phase` tillkom i **P-CHAIN** (se egen sektion).
+- Async poll och review-kö-UI levererades i **P-FRONTEND**.
+- Race vid cancel under `planning` delvis åtgärdad i P-CHAIN (F1).
 
 **Spec:** `docs/ai/CHANGELOG.md` § Content Production Pipeline – P-ASYNC.
 
-**Roadmap:** P-ASYNC backend klar — nästa `P-CHAIN`. Se `docs/ai/CHANGELOG.md` § Guide CMS – Roadmap (Fas 2).
+**Roadmap:** Se `docs/ai/CHANGELOG.md` § Guide CMS – Roadmap (Fas 2).
 
 ---
 

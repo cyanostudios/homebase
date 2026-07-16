@@ -642,6 +642,8 @@ flowchart TD
 | **P-BULK**        | bulk-produce, cron stale, tenant-fairness, cost caps             | Ja              | —                 |
 | **P-PWA**         | Konsumentapp mot public API                                      | API redan finns | Separat repo      |
 
+> **Implementeringsstatus (2026-07-14):** P-ASYNC, P-CHAIN, P-REGEN, P-FRONTEND och P-TEXT backend levererade och grindade lokalt (ej deployade). Aktuell roadmap: [`docs/ai/CHANGELOG.md`](../CHANGELOG.md) § Guide CMS – Roadmap (Fas 2). P-TEXT ADR: [`P-TEXT_TEXT_PROVIDER.md`](P-TEXT_TEXT_PROVIDER.md).
+
 ### Definition of Done per epic
 
 | Epic          | DoD                                                                                                         |

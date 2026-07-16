@@ -701,6 +701,98 @@
     },
     "validation": {
       "invalidField": "Ogiltigt värde"
+    },
+    "production": {
+      "panelTitle": "Produktion",
+      "startFullGuide": "Producera hel guide",
+      "panelIdle": "Inget aktivt produktionsjobb.",
+      "panelActive": "Produktion pågår",
+      "panelPhase": "Fas: {{phase}}",
+      "panelAwaitingYou": "{{count}} utkast väntar beslut",
+      "jobLabel": "Jobb #{{id}}",
+      "progress": "{{done}}/{{total}} klara",
+      "polling": "Uppdaterar…",
+      "loadFailed": "Kunde inte ladda produktionsjobb.",
+      "actionFailed": "Produktionsåtgärden misslyckades.",
+      "activeJobConflict": "Ett produktionsjobb är redan aktivt för denna plats.",
+      "cancel": "Avbryt",
+      "cancelJob": "Avbryt jobb",
+      "cancelJobTitle": "Avbryt produktionsjobb",
+      "cancelJobDescription": "Avbryt det aktiva jobbet? Pågående steg stoppas.",
+      "retry": "Försök igen",
+      "showReviewQueue": "Visa review-kö ({{count}})",
+      "startStop": "Producera stopp",
+      "startStopAria": "Producera stopp {{title}}",
+      "startVariant": "Producera variant",
+      "startVariantAria": "Producera variant {{type}} {{language}}",
+      "continueToTranslation": "Fortsätt till översättning →",
+      "continueToAudio": "Fortsätt till ljud →",
+      "continueFinish": "Slutför produktion",
+      "continueNextPhase": "Fortsätt till nästa fas →",
+      "historyTitle": "Produktionshistorik",
+      "historySelected": "Visas",
+      "phaseIndicatorAria": "Produktionsfaser: {{phases}}. Aktiv: {{current}}",
+      "phases": {
+        "text_derivation": "Text",
+        "translation": "Översättning",
+        "audio": "Ljud"
+      },
+      "status": {
+        "pending": "Köad",
+        "planning": "Planerar",
+        "processing": "Bearbetar",
+        "awaiting_review": "Granskning",
+        "completed": "Klar",
+        "failed": "Misslyckades",
+        "cancelled": "Avbruten"
+      },
+      "jobTypes": {
+        "full_guide": "Hel guide",
+        "stop": "Stopp",
+        "variant": "Variant"
+      },
+      "banner": {
+        "pending": "Produktion köad…",
+        "planning": "Planerar produktion…",
+        "failed": "Produktionen misslyckades",
+        "completed": "Produktionen är klar",
+        "awaitingReview": "Granska textutkast ({{count}} kvar)",
+        "processing": {
+          "generic": "Producerar…",
+          "text_derivation": "Producerar text…",
+          "translation": "Översätter…",
+          "audio": "Genererar ljud…"
+        }
+      },
+      "start": {
+        "fullGuideTitle": "Starta produktion",
+        "fullGuideDescription": "Starta ett produktionsjobb för hela guiden. Textfasen pausar för granskning innan översättning körs.",
+        "stopTitle": "Producera stopp",
+        "stopDescription": "Starta produktion för stoppet \"{{name}}\".",
+        "variantTitle": "Producera variant",
+        "variantDescription": "Starta produktion för varianten {{name}}.",
+        "phasesHint": "Faser: Text → Översättning. Granskning sker efter textfasen.",
+        "forceLabel": "Tvinga omkörning (ignorera cache)",
+        "confirm": "Starta produktion"
+      },
+      "review": {
+        "queueTitle": "Granska textutkast ({{count}})",
+        "current": "Nuvarande",
+        "proposed": "Föreslaget",
+        "emptyCurrent": "(tom)",
+        "emptyProposed": "(inget förslag)",
+        "approve": "Godkänn",
+        "reject": "Avvisa",
+        "regenerate": "Regenerera",
+        "approved": "Godkänd",
+        "rejected": "Avvisad",
+        "regenerating": "Genererar om…",
+        "failed": "Misslyckades",
+        "approveAria": "Godkänn textutkast för {{label}}",
+        "rejectAria": "Avvisa textutkast för {{label}}",
+        "regenerateAria": "Regenerera textutkast för {{label}}",
+        "continueDisabledTooltip": "{{count}} utkast väntar beslut"
+      }
     }
   },
   "files": {

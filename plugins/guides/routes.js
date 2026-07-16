@@ -15,7 +15,7 @@ const {
   audioStatusBodyRule,
   providerKeyBodyRule,
 } = require('./validation');
-const { JOB_TYPES, ITEM_STEPS } = require('./production/ProductionJobModel');
+const { JOB_TYPES, ITEM_STEPS, CHECKPOINT_MODES } = require('./production/ProductionJobModel');
 
 function createGuidesRoutes(controller, context) {
   const requirePlugin =
@@ -61,9 +61,14 @@ function createGuidesRoutes(controller, context) {
       .withMessage(`type must be one of: ${JOB_TYPES.join(', ')}`),
     body('stopId').optional({ values: 'null' }).isString(),
     body('variantId').optional({ values: 'null' }).isString(),
+    body('phases').optional().isArray(),
+    body('phases.*').optional().isIn(ITEM_STEPS),
     body('steps').optional().isArray(),
     body('steps.*').optional().isIn(ITEM_STEPS),
+    body('checkpointMode').optional().isIn(CHECKPOINT_MODES),
     body('force').optional().isBoolean(),
+    body('languages').optional().isArray(),
+    body('languages.*').optional().isString(),
     validateRequest,
     (req, res) => controller.createProductionJob(req, res),
   );
@@ -79,6 +84,71 @@ function createGuidesRoutes(controller, context) {
     commonRules.id('jobId'),
     validateRequest,
     (req, res) => controller.getProductionJob(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs/:jobId/approve-phase',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    body('continue').optional().isBoolean(),
+    validateRequest,
+    (req, res) => controller.approveProductionJobPhase(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs/:jobId/items/bulk-approve',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    validateRequest,
+    (req, res) => controller.bulkApproveProductionJobItems(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs/:jobId/items/:itemId/approve',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    commonRules.id('itemId'),
+    validateRequest,
+    (req, res) => controller.approveProductionJobItem(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs/:jobId/items/:itemId/reject',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    commonRules.id('itemId'),
+    body('reason').optional().isString().isLength({ max: 5000 }),
+    validateRequest,
+    (req, res) => controller.rejectProductionJobItem(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs/:jobId/items/:itemId/regenerate',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    commonRules.id('itemId'),
+    validateRequest,
+    (req, res) => controller.regenerateProductionJobItem(req, res),
+  );
+
+  router.post(
+    '/:id/production-jobs/:jobId/retry',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.id('jobId'),
+    validateRequest,
+    (req, res) => controller.retryProductionJob(req, res),
   );
 
   router.post(

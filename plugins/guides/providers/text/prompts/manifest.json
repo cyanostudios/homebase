@@ -1,0 +1,22 @@
+{
+  "promptSetVersion": "v1",
+  "variants": {
+    "quick": {
+      "system": "text_derivation/quick/v1.system.md",
+      "user": "text_derivation/quick/v1.user.md"
+    },
+    "normal": {
+      "system": "text_derivation/normal/v1.system.md",
+      "user": "text_derivation/normal/v1.user.md"
+    },
+    "deep": {
+      "system": "text_derivation/deep/v1.system.md",
+      "user": "text_derivation/deep/v1.user.md"
+    }
+  },
+  "tokenBudgets": {
+    "quick": { "maxCompletionTokens": 150 },
+    "normal": { "maxCompletionTokens": 400 },
+    "deep": { "maxCompletionTokens": 800 }
+  }
+}

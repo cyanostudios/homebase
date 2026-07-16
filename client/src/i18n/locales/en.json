@@ -701,6 +701,98 @@
     },
     "validation": {
       "invalidField": "Invalid value"
+    },
+    "production": {
+      "panelTitle": "Production",
+      "startFullGuide": "Produce full guide",
+      "panelIdle": "No active production job.",
+      "panelActive": "Production in progress",
+      "panelPhase": "Phase: {{phase}}",
+      "panelAwaitingYou": "{{count}} drafts awaiting review",
+      "jobLabel": "Job #{{id}}",
+      "progress": "{{done}}/{{total}} done",
+      "polling": "Updating…",
+      "loadFailed": "Failed to load production jobs.",
+      "actionFailed": "Production action failed.",
+      "activeJobConflict": "A production job is already active for this place.",
+      "cancel": "Cancel",
+      "cancelJob": "Cancel job",
+      "cancelJobTitle": "Cancel production job",
+      "cancelJobDescription": "Cancel the active job? In-progress steps will stop.",
+      "retry": "Try again",
+      "showReviewQueue": "Show review queue ({{count}})",
+      "startStop": "Produce stop",
+      "startStopAria": "Produce stop {{title}}",
+      "startVariant": "Produce variant",
+      "startVariantAria": "Produce variant {{type}} {{language}}",
+      "continueToTranslation": "Continue to translation →",
+      "continueToAudio": "Continue to audio →",
+      "continueFinish": "Finish production",
+      "continueNextPhase": "Continue to next phase →",
+      "historyTitle": "Production history",
+      "historySelected": "Selected",
+      "phaseIndicatorAria": "Production phases: {{phases}}. Active: {{current}}",
+      "phases": {
+        "text_derivation": "Text",
+        "translation": "Translation",
+        "audio": "Audio"
+      },
+      "status": {
+        "pending": "Queued",
+        "planning": "Planning",
+        "processing": "Processing",
+        "awaiting_review": "Review",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "jobTypes": {
+        "full_guide": "Full guide",
+        "stop": "Stop",
+        "variant": "Variant"
+      },
+      "banner": {
+        "pending": "Production queued…",
+        "planning": "Planning production…",
+        "failed": "Production failed",
+        "completed": "Production completed",
+        "awaitingReview": "Review text drafts ({{count}} remaining)",
+        "processing": {
+          "generic": "Producing…",
+          "text_derivation": "Producing text…",
+          "translation": "Translating…",
+          "audio": "Generating audio…"
+        }
+      },
+      "start": {
+        "fullGuideTitle": "Start production",
+        "fullGuideDescription": "Start a production job for the full guide. The text phase pauses for review before translation runs.",
+        "stopTitle": "Produce stop",
+        "stopDescription": "Start production for stop \"{{name}}\".",
+        "variantTitle": "Produce variant",
+        "variantDescription": "Start production for variant {{name}}.",
+        "phasesHint": "Phases: Text → Translation. Review happens after the text phase.",
+        "forceLabel": "Force rerun (ignore cache)",
+        "confirm": "Start production"
+      },
+      "review": {
+        "queueTitle": "Review text drafts ({{count}})",
+        "current": "Current",
+        "proposed": "Proposed",
+        "emptyCurrent": "(empty)",
+        "emptyProposed": "(no proposal)",
+        "approve": "Approve",
+        "reject": "Reject",
+        "regenerate": "Regenerate",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "regenerating": "Regenerating…",
+        "failed": "Failed",
+        "approveAria": "Approve text draft for {{label}}",
+        "rejectAria": "Reject text draft for {{label}}",
+        "regenerateAria": "Regenerate text draft for {{label}}",
+        "continueDisabledTooltip": "{{count}} drafts still awaiting review"
+      }
     }
   },
   "files": {

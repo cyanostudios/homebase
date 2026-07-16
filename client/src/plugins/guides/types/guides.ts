@@ -144,3 +144,166 @@ export function isMasterGuideEditorialStatus(value: string): value is MasterGuid
 export function isGuideStopEditorialStatus(value: string): value is GuideStopEditorialStatus {
   return GUIDE_STOP_EDITORIAL_STATUSES.includes(value as GuideStopEditorialStatus);
 }
+
+export type ProductionJobType = 'full_guide' | 'stop' | 'variant';
+export type ProductionJobStatus =
+  | 'pending'
+  | 'planning'
+  | 'processing'
+  | 'awaiting_review'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+export type ProductionItemStep = 'text_derivation' | 'translation' | 'audio';
+export type ProductionItemStatus =
+  | 'pending'
+  | 'queued'
+  | 'processing'
+  | 'awaiting_callback'
+  | 'completed'
+  | 'failed'
+  | 'skipped'
+  | 'cancelled';
+export type ProductionReviewStatus = 'pending_review' | 'approved' | 'rejected' | 'superseded';
+export type ProductionCheckpointMode = 'after_text' | 'after_each' | 'auto';
+
+export interface ProductionJobOptions {
+  type?: ProductionJobType;
+  stopId?: string | null;
+  variantId?: string | null;
+  phases?: ProductionItemStep[];
+  languages?: string[];
+  force?: boolean;
+}
+
+export interface ProductionJob {
+  id: string;
+  userId: string;
+  placeId: string;
+  type: ProductionJobType;
+  status: ProductionJobStatus;
+  scopeStopId: string | null;
+  scopeVariantId: string | null;
+  phases: ProductionItemStep[];
+  currentPhaseIndex: number;
+  checkpointMode: ProductionCheckpointMode;
+  priority: number;
+  queuedAt: string | null;
+  workerClaimedAt: string | null;
+  reviewPhase: ProductionItemStep | null;
+  jobOptions: ProductionJobOptions | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductionJobItemProviderResult {
+  presentationText?: string;
+  translatedText?: string;
+  raw?: {
+    text: string;
+    model?: string;
+    promptVersion?: string;
+    promptSetVersion?: string;
+    variantType?: string;
+    language?: string;
+    finishReason?: string | null;
+  };
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+  requestedAt?: string;
+  latencyMs?: number;
+}
+
+export interface ProductionJobItem {
+  id: string;
+  jobId: string;
+  userId: string | null;
+  stopId: string;
+  variantId: string | null;
+  step: ProductionItemStep;
+  phaseIndex: number;
+  status: ProductionItemStatus;
+  fingerprint: string | null;
+  providerKey: string;
+  providerVersion: string;
+  providerResult: ProductionJobItemProviderResult | null;
+  reviewStatus: ProductionReviewStatus | null;
+  reviewedAt: string | null;
+  retryCount: number;
+  retryAfter: string | null;
+  externalId: string | null;
+  workerClaimedAt: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductionJobDetail {
+  job: ProductionJob;
+  items: ProductionJobItem[];
+}
+
+export interface StartProductionJobPayload {
+  type: ProductionJobType;
+  stopId?: string;
+  variantId?: string;
+  force?: boolean;
+  phases?: ProductionItemStep[];
+  checkpointMode?: ProductionCheckpointMode;
+  languages?: string[];
+}
+
+export type ProductionStartScope =
+  | { type: 'full_guide' }
+  | { type: 'stop'; stopId: string; stopTitle?: string }
+  | { type: 'variant'; stopId: string; variantId: string; variantLabel?: string };
+
+export const PRODUCTION_JOB_STATUSES: ProductionJobStatus[] = [
+  'pending',
+  'planning',
+  'processing',
+  'awaiting_review',
+  'completed',
+  'failed',
+  'cancelled',
+];
+
+export const PRODUCTION_ACTIVE_JOB_STATUSES: ProductionJobStatus[] = [
+  'pending',
+  'planning',
+  'processing',
+  'awaiting_review',
+];
+
+export const PRODUCTION_POLL_JOB_STATUSES: ProductionJobStatus[] = [
+  'pending',
+  'planning',
+  'processing',
+  'awaiting_review',
+];
+
+export const PRODUCTION_ITEM_STEPS: ProductionItemStep[] = [
+  'text_derivation',
+  'translation',
+  'audio',
+];
+
+export const PRODUCTION_MVP_PHASES: ProductionItemStep[] = ['text_derivation', 'translation'];
+
+export function isProductionJobStatus(value: string): value is ProductionJobStatus {
+  return PRODUCTION_JOB_STATUSES.includes(value as ProductionJobStatus);
+}
+
+export function isProductionItemStep(value: string): value is ProductionItemStep {
+  return PRODUCTION_ITEM_STEPS.includes(value as ProductionItemStep);
+}
+
+export function isProductionReviewStatus(value: string): value is ProductionReviewStatus {
+  return ['pending_review', 'approved', 'rejected', 'superseded'].includes(value);
+}

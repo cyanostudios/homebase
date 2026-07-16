@@ -592,6 +592,29 @@ class GuidesController {
     }
   }
 
+  async approveProductionJobPhase(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.approvePhase(
+        req,
+        req.params.id,
+        req.params.jobId,
+        req.body ?? {},
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Approve production job phase failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to approve production job phase' });
+    }
+  }
+
   async approveProductionJob(req, res) {
     try {
       if (!this.productionOrchestration) {
@@ -611,6 +634,123 @@ class GuidesController {
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to approve production job' });
+    }
+  }
+
+  async approveProductionJobItem(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.approveItem(
+        req,
+        req.params.id,
+        req.params.jobId,
+        req.params.itemId,
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Approve production job item failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        itemId: req.params.itemId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to approve production job item' });
+    }
+  }
+
+  async rejectProductionJobItem(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.rejectItem(
+        req,
+        req.params.id,
+        req.params.jobId,
+        req.params.itemId,
+        req.body ?? {},
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Reject production job item failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        itemId: req.params.itemId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to reject production job item' });
+    }
+  }
+
+  async regenerateProductionJobItem(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.regenerateItem(
+        req,
+        req.params.id,
+        req.params.jobId,
+        req.params.itemId,
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Regenerate production job item failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        itemId: req.params.itemId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to regenerate production job item' });
+    }
+  }
+
+  async bulkApproveProductionJobItems(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.bulkApproveItemsInPhase(
+        req,
+        req.params.id,
+        req.params.jobId,
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Bulk approve production job items failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to bulk approve production job items' });
+    }
+  }
+
+  async retryProductionJob(req, res) {
+    try {
+      if (!this.productionOrchestration) {
+        return res.status(500).json({ error: 'Production orchestration not configured' });
+      }
+      const result = await this.productionOrchestration.retryJob(
+        req,
+        req.params.id,
+        req.params.jobId,
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Retry production job failed', error, {
+        placeId: req.params.id,
+        jobId: req.params.jobId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to retry production job' });
     }
   }
 

@@ -1,4 +1,4 @@
-import { Check, Edit, Plus, Trash2, X } from 'lucide-react';
+import { Check, Edit, Play, Plus, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -36,6 +36,9 @@ interface GuideVariantsSectionProps {
   stopId: string;
   sourceLanguage: string;
   parentBusy?: boolean;
+  hasActiveProductionJob?: boolean;
+  productionBusy?: boolean;
+  onStartVariantProduction?: (variant: GuideVariantPresentation) => void;
 }
 
 const defaultCreateForm = (sourceLanguage: string): GuideVariantCreatePayload => ({
@@ -50,6 +53,9 @@ export const GuideVariantsSection: React.FC<GuideVariantsSectionProps> = ({
   stopId,
   sourceLanguage,
   parentBusy = false,
+  hasActiveProductionJob = false,
+  productionBusy = false,
+  onStartVariantProduction,
 }) => {
   const { t } = useTranslation();
   const [variants, setVariants] = useState<GuideVariantPresentation[]>([]);
@@ -445,6 +451,22 @@ export const GuideVariantsSection: React.FC<GuideVariantsSectionProps> = ({
                     />
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
+                    {onStartVariantProduction && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={Play}
+                        className="h-7 w-7 p-0"
+                        disabled={disabled || hasActiveProductionJob || productionBusy}
+                        onClick={() => onStartVariantProduction(variant)}
+                        aria-label={t('guides.production.startVariantAria', {
+                          type: t(`guides.variantTypes.${variantType}`),
+                          language: variant.language,
+                        })}
+                        title={t('guides.production.startVariant')}
+                      />
+                    )}
                     <Button
                       type="button"
                       variant="ghost"

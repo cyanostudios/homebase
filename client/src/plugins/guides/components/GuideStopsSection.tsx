@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, Edit, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Edit, Play, Plus, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +19,7 @@ import {
   type GuideStop,
   type GuideStopPayload,
   type GuideValidationError,
+  type GuideVariantPresentation,
 } from '../types/guides';
 
 type FormMode = { type: 'create' } | { type: 'edit'; stop: GuideStop } | null;
@@ -26,6 +27,10 @@ type FormMode = { type: 'create' } | { type: 'edit'; stop: GuideStop } | null;
 interface GuideStopsSectionProps {
   placeId: string;
   sourceLanguage: string;
+  hasActiveProductionJob?: boolean;
+  productionBusy?: boolean;
+  onStartStopProduction?: (stop: GuideStop) => void;
+  onStartVariantProduction?: (stopId: string, variant: GuideVariantPresentation) => void;
 }
 
 const emptyForm: GuideStopPayload = {
@@ -37,6 +42,10 @@ const emptyForm: GuideStopPayload = {
 export const GuideStopsSection: React.FC<GuideStopsSectionProps> = ({
   placeId,
   sourceLanguage,
+  hasActiveProductionJob = false,
+  productionBusy = false,
+  onStartStopProduction,
+  onStartVariantProduction,
 }) => {
   const { t } = useTranslation();
   const [stops, setStops] = useState<GuideStop[]>([]);
@@ -332,6 +341,21 @@ export const GuideStopsSection: React.FC<GuideStopsSectionProps> = ({
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-1 self-start">
+                    {onStartStopProduction && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={Play}
+                        className="h-8 w-8 p-0"
+                        disabled={
+                          isBusy || formMode !== null || hasActiveProductionJob || productionBusy
+                        }
+                        onClick={() => onStartStopProduction(stop)}
+                        aria-label={t('guides.production.startStopAria', { title: stop.title })}
+                        title={t('guides.production.startStop')}
+                      />
+                    )}
                     <Button
                       type="button"
                       variant="ghost"
@@ -379,6 +403,13 @@ export const GuideStopsSection: React.FC<GuideStopsSectionProps> = ({
                   stopId={stop.id}
                   sourceLanguage={sourceLanguage}
                   parentBusy={isBusy || formMode !== null}
+                  hasActiveProductionJob={hasActiveProductionJob}
+                  productionBusy={productionBusy}
+                  onStartVariantProduction={
+                    onStartVariantProduction
+                      ? (variant) => onStartVariantProduction(stop.id, variant)
+                      : undefined
+                  }
                 />
               </li>
             );

@@ -3,7 +3,12 @@
 
 module.exports = {
   testEnvironment: 'node',
-  roots: ['<rootDir>/server', '<rootDir>/plugins', '<rootDir>/client/src/core'],
+  roots: [
+    '<rootDir>/server',
+    '<rootDir>/plugins',
+    '<rootDir>/client/src/core',
+    '<rootDir>/client/src/plugins/guides',
+  ],
   testMatch: [
     '**/__tests__/**/*.test.js',
     '**/__tests__/**/*.test.ts',

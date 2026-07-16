@@ -333,11 +333,39 @@ Avstämd med ADR v2:
 
 ## 8. Implementeringsordning (Frontend, P-FRONTEND)
 
-1. Typer + API-klient för v2 job/items (`review_status`, `review_phase`, fas-endpoints).
-2. `ProductionPhaseBanner` + `ProductionPhaseIndicator`.
-3. `GuideReviewQueue` + `GuideReviewItem` (text-fas först).
-4. `ProductionPreflightDialog`.
-5. `GuideProductionPanel` (sidebar).
-6. P2 `ApprovalStatusBadge` + publish gates (om ej redan gjort).
-7. `GuideSourceSection` (P5).
-8. Audio-fas review (efter P-AUDIO-BATCH backend).
+**Status (2026-07-14):** MVP levererad enligt trimmat scope nedan. Full UX v2 (estimate, bulk, audio-review) återstår.
+
+### Levererat (MVP)
+
+1. ✅ Typer + API-klient för v2 job/items (`guidesApi`, `types/guides.ts`).
+2. ✅ `ProductionPhaseBanner` + `ProductionPhaseIndicator`.
+3. ✅ `GuideReviewQueue` + `GuideReviewItem` (text-fas; `reviewPhase=text_derivation` only).
+4. ✅ `StartProductionDialog` (enkel start + `force`; **ej** `ProductionPreflightDialog`/estimate).
+5. ✅ `GuideProductionPanel` + `ProductionJobHistory` (sidebar).
+6. ✅ `useProductionJob` — 3s poll; state-sync vid terminal status.
+7. ✅ Scoped start från stopp/variant.
+8. ✅ i18n `guides.production.*` (sv/en).
+
+### E2E-verifiering (2026-07-14)
+
+Automatiserad checklista: `node scripts/guides-production-e2e.js` (16 PASS lokalt).
+
+| Sektion | Verifierat                                                                       |
+| ------- | -------------------------------------------------------------------------------- |
+| A       | Start hel guide, aktivt jobb-guard                                               |
+| B       | `awaiting_review`, banner, approve/reject/regenerate                             |
+| C       | `approve-phase` → translation → `completed`; B1 (`hasActiveJob` efter completed) |
+| D       | Scoped stop-start + cancel                                                       |
+| F       | Jobbhistorik (≥2 jobb)                                                           |
+| G       | 409 vid dubbelstart                                                              |
+
+**Förutsättningar:** `npm run dev:all`, `npm run migrate:guides`, Puppeteer Chrome. Vid `GUIDES_PRODUCTION_WORKER_ENABLED=false` pumpas worker via `node scripts/run-production-worker-tick.js`. E2E använder **force** i start-dialogen.
+
+### Återstår (efter MVP)
+
+1. `ProductionPreflightDialog` / estimate (P-OBS).
+2. Bulk _Godkänn alla_ i UI.
+3. P2 `ApprovalStatusBadge` + publish gates.
+4. `GuideSourceSection` (P5).
+5. Audio-fas review (efter P-AUDIO-BATCH backend).
+6. Translation-review UI (om `checkpoint_mode` ändras från default `after_text`).

@@ -29,7 +29,8 @@ const ITEM_STATUSES = [
   'cancelled',
 ];
 const REVIEW_STATUSES = ['pending_review', 'approved', 'rejected', 'superseded'];
-const DEFAULT_PHASES = ['text_derivation'];
+const CHECKPOINT_MODES = ['after_text', 'after_each', 'auto'];
+const DEFAULT_PHASES = ['text_derivation', 'translation'];
 const DEFAULT_CHECKPOINT_MODE = 'after_text';
 
 const IN_FLIGHT_ITEM_STATUSES = ['pending', 'queued', 'processing', 'awaiting_callback'];
@@ -109,6 +110,9 @@ class ProductionJobModel {
 
     const phases = Array.isArray(data.phases) && data.phases.length ? data.phases : DEFAULT_PHASES;
     const checkpointMode = data.checkpointMode ?? DEFAULT_CHECKPOINT_MODE;
+    if (!CHECKPOINT_MODES.includes(checkpointMode)) {
+      throw new AppError('Invalid checkpoint mode', 400, AppError.CODES.VALIDATION_ERROR);
+    }
 
     const rows = await db.query(
       `
@@ -242,25 +246,66 @@ class ProductionJobModel {
     }
 
     const db = Database.get(req);
+    const blockedFrom = extra.blockedFrom ?? [];
+    const blockedClause =
+      blockedFrom.length > 0
+        ? ` AND status NOT IN (${blockedFrom.map((_, i) => `$${6 + i}`).join(', ')})`
+        : '';
+    const params = [
+      status,
+      extra.errorMessage ?? null,
+      extra.reviewPhase ?? null,
+      jobId,
+      placeId,
+      ...blockedFrom,
+    ];
+
+    const clearError = Boolean(extra.clearErrorMessage);
     const rows = await db.query(
       `
         UPDATE ${JOBS_TABLE}
         SET
-          status = $1,
-          error_message = COALESCE($2, error_message),
+          status = $1::text,
+          error_message = CASE WHEN $${6 + blockedFrom.length}::boolean IS TRUE THEN NULL ELSE COALESCE($2, error_message) END,
           review_phase = COALESCE($3, review_phase),
-          started_at = CASE WHEN $1 = 'processing' AND started_at IS NULL THEN NOW() ELSE started_at END,
-          completed_at = CASE WHEN $1 IN ('completed', 'failed', 'cancelled') THEN NOW() ELSE completed_at END,
+          started_at = CASE WHEN $1::text = 'processing' AND started_at IS NULL THEN NOW() ELSE started_at END,
+          completed_at = CASE WHEN $1::text IN ('completed', 'failed', 'cancelled') THEN NOW() ELSE completed_at END,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $4 AND place_id = $5
+        WHERE id = $4 AND place_id = $5${blockedClause}
         RETURNING *
       `,
-      [status, extra.errorMessage ?? null, extra.reviewPhase ?? null, jobId, placeId],
+      [...params, clearError],
+    );
+    if (!rows.length) {
+      if (blockedFrom.length > 0) {
+        return null;
+      }
+      throw new AppError('Production job not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    await this.appendEvent(req, jobId, `job_${status}`, extra.payload ?? null);
+    return this.transformJobRow(rows[0]);
+  }
+
+  async requeueJobForNextPhase(req, placeId, jobId) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+        UPDATE ${JOBS_TABLE}
+        SET
+          current_phase_index = current_phase_index + 1,
+          status = 'pending',
+          queued_at = NOW(),
+          review_phase = NULL,
+          worker_claimed_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND place_id = $2 AND status IN ('awaiting_review', 'processing')
+        RETURNING *
+      `,
+      [jobId, placeId],
     );
     if (!rows.length) {
       throw new AppError('Production job not found', 404, AppError.CODES.NOT_FOUND);
     }
-    await this.appendEvent(req, jobId, `job_${status}`, extra.payload ?? null);
     return this.transformJobRow(rows[0]);
   }
 
@@ -318,22 +363,29 @@ class ProductionJobModel {
     return rows.map((row) => this.transformItemRow(row));
   }
 
-  async countInFlightItems(req, jobId) {
+  async countInFlightItems(req, jobId, phaseIndex = null) {
     const db = Database.get(req);
+    const phaseClause = phaseIndex != null ? ' AND phase_index = $3' : '';
+    const params =
+      phaseIndex != null
+        ? [jobId, IN_FLIGHT_ITEM_STATUSES, phaseIndex]
+        : [jobId, IN_FLIGHT_ITEM_STATUSES];
     const rows = await db.query(
       `
         SELECT COUNT(*)::int AS count
         FROM ${ITEMS_TABLE}
         WHERE job_id = $1
-          AND status = ANY($2::text[])
+          AND status = ANY($2::text[])${phaseClause}
       `,
-      [jobId, IN_FLIGHT_ITEM_STATUSES],
+      params,
     );
     return rows[0]?.count ?? 0;
   }
 
-  async summarizeJobItems(req, jobId) {
+  async summarizeJobItems(req, jobId, phaseIndex = null) {
     const db = Database.get(req);
+    const phaseClause = phaseIndex != null ? ' AND phase_index = $2' : '';
+    const params = phaseIndex != null ? [jobId, phaseIndex] : [jobId];
     const rows = await db.query(
       `
         SELECT
@@ -345,9 +397,9 @@ class ProductionJobModel {
               AND (review_status IS NULL OR review_status = 'pending_review')
           )::int AS reviewable
         FROM ${ITEMS_TABLE}
-        WHERE job_id = $1
+        WHERE job_id = $1${phaseClause}
       `,
-      [jobId],
+      params,
     );
     const row = rows[0] ?? {};
     return {
@@ -356,6 +408,25 @@ class ProductionJobModel {
       skipped: row.skipped ?? 0,
       reviewable: row.reviewable ?? 0,
     };
+  }
+
+  async listApprovedVariantTargetsForPhase(req, jobId, phaseIndex) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+        SELECT DISTINCT stop_id, variant_id
+        FROM ${ITEMS_TABLE}
+        WHERE job_id = $1
+          AND phase_index = $2
+          AND review_status = 'approved'
+          AND variant_id IS NOT NULL
+      `,
+      [jobId, phaseIndex],
+    );
+    return rows.map((row) => ({
+      stopId: String(row.stop_id),
+      variantId: String(row.variant_id),
+    }));
   }
 
   async cancelActiveItemsForJob(req, jobId) {
@@ -377,21 +448,59 @@ class ProductionJobModel {
     return rows.length;
   }
 
-  async hasCompletedFingerprint(req, placeId, fingerprint) {
-    const db = Database.get(req);
+  async getJobItemById(req, jobId, itemId) {
+    const { db, userId } = this._requireUserId(req);
+    const rows = await db.query(
+      `
+        SELECT *
+        FROM ${ITEMS_TABLE}
+        WHERE id = $1
+          AND job_id = $2
+          AND user_id = $3
+      `,
+      [itemId, jobId, userId],
+    );
+    if (!rows.length) {
+      throw new AppError('Production job item not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    return this.transformItemRow(rows[0]);
+  }
+
+  async hasCompletedFingerprint(req, fingerprint) {
+    const { db, userId } = this._requireUserId(req);
     const rows = await db.query(
       `
         SELECT 1
-        FROM ${ITEMS_TABLE} i
-        INNER JOIN ${JOBS_TABLE} j ON j.id = i.job_id
-        WHERE j.place_id = $1
-          AND i.fingerprint = $2
-          AND i.status = 'completed'
+        FROM ${ITEMS_TABLE}
+        WHERE user_id = $1
+          AND fingerprint = $2
+          AND status = 'completed'
         LIMIT 1
       `,
-      [placeId, fingerprint],
+      [userId, fingerprint],
     );
     return rows.length > 0;
+  }
+
+  async resetFailedItemsInPhase(req, jobId, phaseIndex) {
+    const { db, userId } = this._requireUserId(req);
+    const rows = await db.query(
+      `
+        UPDATE ${ITEMS_TABLE}
+        SET
+          status = 'pending',
+          error_message = NULL,
+          worker_claimed_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE job_id = $1
+          AND user_id = $2
+          AND phase_index = $3
+          AND status = 'failed'
+        RETURNING id
+      `,
+      [jobId, userId, phaseIndex],
+    );
+    return rows.length;
   }
 
   async createJobItem(req, jobId, data) {
@@ -475,6 +584,7 @@ class ProductionJobModel {
           status = COALESCE($1, status),
           provider_result = COALESCE($2::jsonb, provider_result),
           review_status = COALESCE($3, review_status),
+          reviewed_at = CASE WHEN $3 IS NOT NULL THEN NOW() ELSE reviewed_at END,
           error_message = COALESCE($4, error_message),
           external_id = COALESCE($5, external_id),
           retry_count = COALESCE($6, retry_count),
@@ -586,5 +696,6 @@ module.exports = {
   REVIEW_STATUSES,
   DEFAULT_PHASES,
   DEFAULT_CHECKPOINT_MODE,
+  CHECKPOINT_MODES,
   IN_FLIGHT_ITEM_STATUSES,
 };

@@ -141,8 +141,9 @@ class PostgreSQLAdapter extends DatabaseService {
    * Count parameter placeholders in SQL
    */
   _getParamCount(sql) {
-    const matches = sql.match(/\$\d+/g);
-    return matches ? matches.length : 0;
+    const matches = sql.match(/\$(\d+)/g);
+    if (!matches) return 0;
+    return Math.max(...matches.map((m) => Number.parseInt(m.slice(1), 10)));
   }
 
   /**

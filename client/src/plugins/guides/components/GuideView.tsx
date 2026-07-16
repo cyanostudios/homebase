@@ -1,5 +1,5 @@
 import { Edit, Info, Languages, ListOrdered, MapPin, Trash2 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -12,12 +12,20 @@ import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { useGuides } from '../hooks/useGuides';
+import { useProductionJob } from '../hooks/useProductionJob';
+import { GuideProductionPanel } from './GuideProductionPanel';
+import { GuideReviewQueue, type GuideReviewQueueHandle } from './GuideReviewQueue';
 import { GuideStopsSection } from './GuideStopsSection';
+import { ProductionJobHistory } from './ProductionJobHistory';
+import { ProductionPhaseBanner } from './ProductionPhaseBanner';
+import { StartProductionDialog } from './StartProductionDialog';
 import {
   isMasterGuideEditorialStatus,
   type Guide,
   type GuideLifecycleStatus,
+  type ProductionStartScope,
 } from '../types/guides';
+import { isProductionJobActive } from '../utils/productionJobHelpers';
 
 interface GuideViewProps {
   guide?: Guide;
@@ -28,7 +36,11 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
   const { t } = useTranslation();
   const { openGuideForEdit, deleteGuide } = useGuides();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [startScope, setStartScope] = useState<ProductionStartScope>({ type: 'full_guide' });
+  const reviewQueueRef = useRef<GuideReviewQueueHandle>(null);
   const actualGuide = guide || item;
+  const production = useProductionJob(actualGuide?.id ?? '');
   if (!actualGuide) return null;
 
   const editorialStatus = isMasterGuideEditorialStatus(actualGuide.masterGuideEditorialStatus)
@@ -42,11 +54,43 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
     void deleteGuide(actualGuide.id);
   };
 
+  const openStartDialog = (scope: ProductionStartScope) => {
+    setStartScope(scope);
+    setStartDialogOpen(true);
+  };
+
+  const handleStartConfirm = async (options: { force: boolean }) => {
+    const ok = await production.startJob(startScope, options);
+    if (ok) setStartDialogOpen(false);
+  };
+
+  const showBanner =
+    production.job &&
+    (isProductionJobActive(production.job.status) ||
+      production.job.status === 'completed' ||
+      production.job.status === 'failed');
+
   return (
     <div className="plugin-guides min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6">
       <DetailLayout
         sidebar={
           <div className="space-y-4">
+            <GuideProductionPanel
+              job={production.job}
+              items={production.items}
+              hasActiveJob={production.hasActiveJob}
+              isBusy={production.isBusy}
+              onStartFullGuide={() => openStartDialog({ type: 'full_guide' })}
+              onShowReview={() => reviewQueueRef.current?.scrollIntoView()}
+              onCancel={() => void production.cancelJob()}
+            />
+
+            <ProductionJobHistory
+              jobs={production.jobs}
+              selectedJobId={production.selectedJobId}
+              onSelectJob={production.selectJob}
+            />
+
             <Card
               padding="none"
               className="overflow-hidden border border-border/70 bg-card shadow-sm"
@@ -118,6 +162,38 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
         }
       >
         <div className="space-y-4">
+          {production.error && (
+            <p className="text-sm text-destructive" role="alert">
+              {production.error}
+            </p>
+          )}
+
+          {showBanner && production.job && (
+            <ProductionPhaseBanner
+              job={production.job}
+              items={production.items}
+              isPolling={production.isPolling}
+              isBusy={production.isBusy}
+              onCancel={() => void production.cancelJob()}
+              onRetry={() => void production.retryJob()}
+              onShowReview={() => reviewQueueRef.current?.scrollIntoView()}
+            />
+          )}
+
+          {production.job && (
+            <GuideReviewQueue
+              ref={reviewQueueRef}
+              placeId={actualGuide.id}
+              job={production.job}
+              items={production.items}
+              isBusy={production.isBusy}
+              onApproveItem={(id) => void production.approveItem(id)}
+              onRejectItem={(id) => void production.rejectItem(id)}
+              onRegenerateItem={(id) => void production.regenerateItem(id)}
+              onApprovePhase={() => void production.approvePhase()}
+            />
+          )}
+
           <Card
             padding="none"
             className="overflow-hidden border border-border/70 bg-card shadow-sm"
@@ -205,11 +281,37 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               <GuideStopsSection
                 placeId={actualGuide.id}
                 sourceLanguage={actualGuide.sourceLanguage}
+                hasActiveProductionJob={production.hasActiveJob}
+                productionBusy={production.isBusy}
+                onStartStopProduction={(stop) =>
+                  openStartDialog({
+                    type: 'stop',
+                    stopId: stop.id,
+                    stopTitle: stop.title,
+                  })
+                }
+                onStartVariantProduction={(stopId, variant) =>
+                  openStartDialog({
+                    type: 'variant',
+                    stopId,
+                    variantId: variant.id,
+                    variantLabel: `${variant.variantType}/${variant.language}`,
+                  })
+                }
               />
             </DetailSection>
           </Card>
         </div>
       </DetailLayout>
+
+      <StartProductionDialog
+        isOpen={startDialogOpen}
+        scope={startScope}
+        isBusy={production.isBusy}
+        hasActiveJob={production.hasActiveJob}
+        onConfirm={(options) => void handleStartConfirm(options)}
+        onCancel={() => setStartDialogOpen(false)}
+      />
 
       <ConfirmDialog
         isOpen={deleteOpen}

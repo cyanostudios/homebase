@@ -11,6 +11,9 @@ import type {
   GuideVariantPresentation,
   GuideVariantUpdatePayload,
   GuideValidationError,
+  ProductionJob,
+  ProductionJobDetail,
+  StartProductionJobPayload,
 } from '../types/guides';
 
 const request = createApiClient('/guides');
@@ -168,6 +171,63 @@ class GuidesApi {
 
   getAudioPreviewUrl(placeId: string, stopId: string, variantId: string) {
     return `/api/guides/${placeId}/stops/${stopId}/variants/${variantId}/audio/preview`;
+  }
+
+  listProductionJobs(placeId: string) {
+    return apiRequest<ProductionJob[]>(`/${placeId}/production-jobs`);
+  }
+
+  getProductionJob(placeId: string, jobId: string) {
+    return apiRequest<ProductionJobDetail>(`/${placeId}/production-jobs/${jobId}`);
+  }
+
+  startProductionJob(placeId: string, payload: StartProductionJobPayload) {
+    return apiRequest<ProductionJobDetail>(`/${placeId}/production-jobs`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  approveProductionJobItem(placeId: string, jobId: string, itemId: string) {
+    return apiRequest<ProductionJobDetail>(
+      `/${placeId}/production-jobs/${jobId}/items/${itemId}/approve`,
+      { method: 'POST', body: JSON.stringify({}) },
+    );
+  }
+
+  rejectProductionJobItem(placeId: string, jobId: string, itemId: string, reason?: string) {
+    return apiRequest<ProductionJobDetail>(
+      `/${placeId}/production-jobs/${jobId}/items/${itemId}/reject`,
+      { method: 'POST', body: JSON.stringify(reason ? { reason } : {}) },
+    );
+  }
+
+  regenerateProductionJobItem(placeId: string, jobId: string, itemId: string) {
+    return apiRequest<ProductionJobDetail>(
+      `/${placeId}/production-jobs/${jobId}/items/${itemId}/regenerate`,
+      { method: 'POST', body: JSON.stringify({}) },
+    );
+  }
+
+  approveProductionJobPhase(placeId: string, jobId: string, options: { continue?: boolean } = {}) {
+    return apiRequest<ProductionJobDetail>(`/${placeId}/production-jobs/${jobId}/approve-phase`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+  }
+
+  cancelProductionJob(placeId: string, jobId: string) {
+    return apiRequest<ProductionJobDetail>(`/${placeId}/production-jobs/${jobId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  retryProductionJob(placeId: string, jobId: string) {
+    return apiRequest<ProductionJobDetail>(`/${placeId}/production-jobs/${jobId}/retry`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
   }
 }
 
