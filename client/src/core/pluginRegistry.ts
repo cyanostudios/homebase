@@ -221,6 +221,11 @@ const TeamsDashboardWidget = React.lazy(() =>
 const ScheduleList = React.lazy(() =>
   import('@/plugins/schedule/components/ScheduleList').then((m) => ({ default: m.ScheduleList })),
 );
+const ScheduleDashboardWidget = React.lazy(() =>
+  import('@/plugins/schedule/components/ScheduleDashboardWidget').then((m) => ({
+    default: m.ScheduleDashboardWidget,
+  })),
+);
 
 // Cups
 const CupsList = React.lazy(() =>
@@ -292,6 +297,11 @@ const IngestSourceView = React.lazy(() =>
     default: m.IngestSourceView,
   })),
 );
+const IngestDashboardWidget = React.lazy(() =>
+  import('@/plugins/ingest/components/IngestDashboardWidget').then((m) => ({
+    default: m.IngestDashboardWidget,
+  })),
+);
 
 // Guides
 const GuideList = React.lazy(() =>
@@ -302,6 +312,11 @@ const GuideForm = React.lazy(() =>
 );
 const GuideView = React.lazy(() =>
   import('@/plugins/guides/components/GuideView').then((m) => ({ default: m.GuideView })),
+);
+const GuidesDashboardWidget = React.lazy(() =>
+  import('@/plugins/guides/components/GuidesDashboardWidget').then((m) => ({
+    default: m.GuidesDashboardWidget,
+  })),
 );
 
 // Invoices
@@ -402,6 +417,11 @@ const AIProvidersSettingsForm = React.lazy(() =>
 const AIProviderView = React.lazy(() =>
   import('@/plugins/ai-providers/components/AIProviderView').then((m) => ({
     default: m.AIProviderView,
+  })),
+);
+const AIProvidersDashboardWidget = React.lazy(() =>
+  import('@/plugins/ai-providers/components/AIProvidersDashboardWidget').then((m) => ({
+    default: m.AIProvidersDashboardWidget,
   })),
 );
 
@@ -636,6 +656,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: CalendarDays,
       order: 1,
     },
+    dashboardWidget: ScheduleDashboardWidget,
     contentFlush: true,
     noPrimaryAction: true,
     contentViewKey: 'scheduleContentView',
@@ -758,6 +779,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Download,
       order: 3,
     },
+    dashboardWidget: IngestDashboardWidget,
     displayPrefix: 'ING',
     contentFlush: true,
     slugField: 'name',
@@ -786,6 +808,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: MapPin,
       order: 0,
     },
+    dashboardWidget: GuidesDashboardWidget,
     displayPrefix: 'GDS',
     contentFlush: true,
     slugField: 'displayName',
@@ -858,6 +881,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Sparkles,
       order: 4,
     },
+    dashboardWidget: AIProvidersDashboardWidget,
     contentFlush: true,
     slugField: 'providerKey',
     noPrimaryAction: true,
