@@ -1,26 +1,31 @@
-import { Trophy } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import React from 'react';
 
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
 
 import { useCups } from '../hooks/useCups';
 
 export function CupsDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
   const { cups } = useCups();
+
   return (
-    <Card
-      padding="md"
-      className="cursor-pointer border border-border/70 bg-card shadow-sm hover:shadow-md transition-shadow"
-      onClick={onOpenPlugin}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">Cups</p>
-          <p className="text-2xl font-semibold">{cups.length}</p>
-        </div>
-        <Trophy className="h-5 w-5 text-amber-500" />
-      </div>
-    </Card>
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Antal cuper i systemet: <strong>{cups.length}</strong>
+      </p>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-auto px-0 text-primary hover:bg-transparent hover:text-primary/90"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenPlugin();
+        }}
+      >
+        Öppna Cups
+        <ChevronRight className="ml-1 h-4 w-4" />
+      </Button>
+    </div>
   );
 }

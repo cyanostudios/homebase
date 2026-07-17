@@ -1,6 +1,5 @@
 import { ChevronRight } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
@@ -9,7 +8,6 @@ import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import { useSchedulePlans } from '../hooks/useSchedulePlans';
 
 export function ScheduleDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
-  const { t } = useTranslation();
   const { plans } = useSchedulePlans();
   const { teams } = useTeams();
 
@@ -25,12 +23,11 @@ export function ScheduleDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) 
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        {t('schedule.dashboardCalendars', { count: plans.length + 1 })}
+        Antal kalendrar: <strong>{plans.length + 1}</strong>
         <br />
         <span className="text-muted-foreground">
-          {t('schedule.dashboardTeamsWithTraining', { count: teamsWithTraining })}
-          {customEventCount > 0 &&
-            ` · ${t('schedule.dashboardCustomEvents', { count: customEventCount })}`}
+          {teamsWithTraining} lag med träningstider
+          {customEventCount > 0 && `, ${customEventCount} egna pass`}
         </span>
       </p>
       <Button
@@ -42,7 +39,7 @@ export function ScheduleDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) 
           onOpenPlugin();
         }}
       >
-        {t('common.open')} {t('nav.schedule')}
+        Öppna Schedule
         <ChevronRight className="ml-1 h-4 w-4" />
       </Button>
     </div>

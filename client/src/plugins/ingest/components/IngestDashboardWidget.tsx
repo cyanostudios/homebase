@@ -1,6 +1,5 @@
 import { ChevronRight } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
@@ -8,7 +7,6 @@ import type { DashboardWidgetProps } from '@/core/pluginRegistry';
 import { useIngest } from '../hooks/useIngest';
 
 export function IngestDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
-  const { t } = useTranslation();
   const { ingestSources } = useIngest();
 
   const activeCount = useMemo(
@@ -19,11 +17,9 @@ export function IngestDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        {t('ingest.dashboardTotal', { count: ingestSources.length })}
+        Antal källor i systemet: <strong>{ingestSources.length}</strong>
         <br />
-        <span className="text-muted-foreground">
-          {t('ingest.dashboardActive', { count: activeCount })}
-        </span>
+        <span className="text-muted-foreground">{activeCount} aktiva</span>
       </p>
       <Button
         variant="ghost"
@@ -34,7 +30,7 @@ export function IngestDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
           onOpenPlugin();
         }}
       >
-        {t('common.open')} {t('nav.ingest')}
+        Öppna Ingest
         <ChevronRight className="ml-1 h-4 w-4" />
       </Button>
     </div>

@@ -1,6 +1,5 @@
 import { ChevronRight } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
@@ -8,7 +7,6 @@ import type { DashboardWidgetProps } from '@/core/pluginRegistry';
 import { useGuides } from '../hooks/useGuides';
 
 export function GuidesDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
-  const { t } = useTranslation();
   const { guides } = useGuides();
 
   const activeCount = useMemo(
@@ -19,11 +17,9 @@ export function GuidesDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        {t('guides.dashboardTotal', { count: guides.length })}
+        Antal platser i systemet: <strong>{guides.length}</strong>
         <br />
-        <span className="text-muted-foreground">
-          {t('guides.dashboardActive', { count: activeCount })}
-        </span>
+        <span className="text-muted-foreground">{activeCount} aktiva</span>
       </p>
       <Button
         variant="ghost"
@@ -34,7 +30,7 @@ export function GuidesDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
           onOpenPlugin();
         }}
       >
-        {t('common.open')} {t('nav.guides')}
+        Öppna Guides
         <ChevronRight className="ml-1 h-4 w-4" />
       </Button>
     </div>

@@ -1,6 +1,5 @@
 import { ChevronRight } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
@@ -8,7 +7,6 @@ import type { DashboardWidgetProps } from '@/core/pluginRegistry';
 import { useAIProviders } from '../hooks/useAIProviders';
 
 export function AIProvidersDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
-  const { t } = useTranslation();
   const { providers } = useAIProviders();
 
   const enabledCount = useMemo(
@@ -19,11 +17,9 @@ export function AIProvidersDashboardWidget({ onOpenPlugin }: DashboardWidgetProp
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        {t('aiProviders.dashboardTotal', { count: providers.length })}
+        Antal leverantörer: <strong>{providers.length}</strong>
         <br />
-        <span className="text-muted-foreground">
-          {t('aiProviders.dashboardEnabled', { count: enabledCount })}
-        </span>
+        <span className="text-muted-foreground">{enabledCount} aktiverade</span>
       </p>
       <Button
         variant="ghost"
@@ -34,7 +30,7 @@ export function AIProvidersDashboardWidget({ onOpenPlugin }: DashboardWidgetProp
           onOpenPlugin();
         }}
       >
-        {t('common.open')} {t('nav.ai-providers')}
+        Öppna AI Providers
         <ChevronRight className="ml-1 h-4 w-4" />
       </Button>
     </div>

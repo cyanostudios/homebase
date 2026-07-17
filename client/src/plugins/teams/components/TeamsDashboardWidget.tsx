@@ -1,35 +1,37 @@
-import { Users } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
 
 import { useTeams } from '../hooks/useTeams';
 
 export function TeamsDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
-  const { t } = useTranslation();
   const { teams } = useTeams();
   const activeCount = useMemo(
     () => teams.filter((team) => team.status === 'active').length,
     [teams],
   );
+
   return (
-    <Card
-      padding="md"
-      className="cursor-pointer border border-border/70 bg-card shadow-sm hover:shadow-md transition-shadow"
-      onClick={onOpenPlugin}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">{t('nav.teams')}</p>
-          <p className="text-2xl font-semibold">{teams.length}</p>
-          <p className="text-[11px] text-muted-foreground">
-            {t('teams.dashboardActive', { count: activeCount })}
-          </p>
-        </div>
-        <Users className="h-5 w-5 text-emerald-600" />
-      </div>
-    </Card>
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Antal lag i systemet: <strong>{teams.length}</strong>
+        <br />
+        <span className="text-muted-foreground">{activeCount} aktiva</span>
+      </p>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-auto px-0 text-primary hover:bg-transparent hover:text-primary/90"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenPlugin();
+        }}
+      >
+        Öppna Teams
+        <ChevronRight className="ml-1 h-4 w-4" />
+      </Button>
+    </div>
   );
 }
