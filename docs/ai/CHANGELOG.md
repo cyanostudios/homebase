@@ -2,6 +2,302 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## P-AI-SETTINGS — Provider routing (2026-07-17)
+
+Epic P-AI-SETTINGS — central AI-routing för domänplugins + multi-provider-katalog.
+
+**ADR:** [`docs/ai/adr/P-AI-SETTINGS_PROVIDER_CONFIGURATION.md`](adr/P-AI-SETTINGS_PROVIDER_CONFIGURATION.md)
+
+### Leverans
+
+- `PROVIDER_CATALOG` utökad (9 providers) + `models[]` per typ; FE modell-select från katalog
+- `server/migrations/101-ai-provider-routing.sql` — `ai_provider_routing` (global `*` + per-plugin scope); i `migrate:guides`
+- `plugins/ai-providers/AIProviderRouter.js` — `resolve(req, { pluginKey, capability? })`
+- `plugins/ai-providers/routablePlugins.js` — v1: `guides`
+- Routing HTTP: `GET/PUT /routing`, `PUT/DELETE /routing/plugins/:pluginKey`
+- Guides: `TextProviderConfigResolver` anropar router (provider-agnostisk)
+- Frontend: Routing-vy; dropdown = `enabled && hasApiKey`; reload settings vid öppning
+- Tester: router precedence, routing CRUD, Guides resolver (verifierade gröna i berörda suites)
+
+### Bakåtkompatibilitet
+
+Ingen migration av befintliga credentials. Saknas routing-rader → legacy `getPreferredEnabledProviderKey` + env-fallback.
+
+### Säkerhet (Grind 5, 2026-07-17)
+
+Security Expert: **godkänt**. A1 ärvd (ingen ny secret-lagring i routing). Rekommendationer R-ROUT-1 (orphan routing), R-ROUT-2 (fri `model`-text), R2/R3 oförändrade.
+
+### Kända begränsningar (routing / katalog)
+
+- Routing-assignment kräver **sparad** API-nyckel (env-only syns inte i routing-UI och avvisas av PUT).
+- Text-adapter + connection test: endast `openai` (+ `noop`) i Guides v1.
+- Endast `guides` i routable-plugins allowlist.
+
+---
+
+## Pivot 1 – Subagent Delegation (implementation) (2026-07-17)
+
+Epic `wf-2026-07-17-pivot1-impl-01` — implementation av Task-baserad specialistaktivering.
+
+**ADR:** [`docs/ai/adr/FRAMEWORK_PIVOT1_SUBAGENT_IMPL.md`](adr/FRAMEWORK_PIVOT1_SUBAGENT_IMPL.md)
+
+### Slutsats
+
+| Beslut                             | Motivering                                                                                                                                         |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Implementerat** (design godkänd) | DelegationPort i Runner; 7 subagent-filer; TPM orchestration protocol dokumenterat. DecisionPort, Handover `1.0`, Orchestration Model oförändrade. |
+
+### Leverans
+
+- `tools/workflow-runner/emissionPort.js` — `delegateHint`, `delegateSubagent` på Start/Continue/Rework
+- `tools/workflow-runner/constants.js` — `DelegatorAcceptance` (acceptanstest SA→QA→Docs)
+- `.cursor/agents/*.md` — 7 specialist-subagents (SSOT: `docs/ai/roles/*`)
+- `npm run test:workflow-runner` — 25 tester gröna
+- `docs/ai/cursor-implementation.md` — § TPM subagent orchestration
+- `.cursor/rules/role-technical-project-manager.mdc` — § Subagent orchestration mode
+- `docs/ai/workflow-runner.md` — additiv DelegationPort-notering (§9)
+- Security Grind 5 godkänd (accepterad risk A1 dokumenterad)
+
+### Utanför
+
+- Live E2E Success Criterion (QA, efter TPM-protokoll i `.mdc`)
+- Produktionsdeploy
+- `DelegatorAcceptance` i orchestration-model SSOT
+- Automatisk `@role`-växling (fortfarande PIVOT, ej verifierad)
+
+---
+
+## Pivot 1 – Subagent Role Mapping (2026-07-17)
+
+Epic `wf-2026-07-17-pivot1-subagents-01` — spike: Framework-roller → Cursor Subagents.
+
+**ADR:** [`docs/ai/adr/FRAMEWORK_PIVOT1_SUBAGENT_MAPPING.md`](adr/FRAMEWORK_PIVOT1_SUBAGENT_MAPPING.md)
+
+### Slutsats
+
+| Beslut                       | Motivering                                                                                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Go** (implementation epic) | Subagent-mappning möjlig utan omdesign av låsta SSOTs. TPM = parent orchestrator; 7 specialist-subagents i `.cursor/agents/`. Handover `1.0` + Runner oförändrade. |
+
+### Leverans
+
+- Komplett roll-till-subagent-mappning (8 roller; TPM som parent)
+- Påverkan: oförändrat vs aktiveringslager
+- Runner → Task-delegering design
+- Handover-flöde mellan subagents
+- Subagent-begränsningar
+- QA-godkännande i ADR §10
+- `cursor-implementation.md` — Pivot 1-sektion
+
+### Utanför
+
+- `.cursor/agents/*.md`, `emissionPort.js`, hooks
+- Ändringar i Handover Contract, Orchestration Model, Engine, Runner DecisionPort
+- Live Task-verifiering (hör till implementation epic)
+
+---
+
+## Automation Feasibility Assessment (2026-07-17)
+
+Epic `wf-2026-07-17-feasibility-01` — utredning av full autonomi med automatisk `@role`-aktivering på Cursor.
+
+**ADR:** [`docs/ai/adr/FRAMEWORK_AUTOMATION_FEASIBILITY.md`](adr/FRAMEWORK_AUTOMATION_FEASIBILITY.md)
+
+### Slutsats
+
+| Beslut                         | Motivering                                                                                                                                                                                                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PIVOT** (inte Go, inte Stop) | Ingen verifierad officiell mekanism för programmatisk aktivering av `.cursor/rules/role-*.mdc` utan manuell `@role`. Framework v2 engine/Runner förblir giltig; aktiveringslagret måste bytas (subagents, SDK, eller förbättrad manuell UX). |
+
+### Leverans
+
+- Technical Feasibility Report (6 frågor) — ADR §1
+- Risk Assessment — ADR §2
+- Architecture Impact Analysis — ADR §3
+- Rekommendation Go/Pivot/Stop — ADR §4
+- QA-godkännande — ADR §6
+- `docs/ai/cursor-implementation.md` — hänvisning till ADR
+
+### Utanför
+
+- Implementation av hooks/subagent/SDK-orkestrering
+- Ändring av Handover Contract, Orchestration Model, Workflow Engine, Workflow Runner SSOT
+- Automatisk `@role`-aktiveringsepic (blockerad tills ny arkitektur spike:ats och godkänts)
+
+---
+
+## v2.4.1 – Workflow Runner (implementation) (2026-07-16)
+
+Runtime för Workflow Runner enligt låst SSOT v2.4. **Inga** ändringar av Stage Gates, Handover `1.0` eller Orchestration Model. Rollaktivering förblir manuell.
+
+**ADR:** [`docs/ai/adr/FRAMEWORK_WORKFLOW_RUNNER_IMPL.md`](adr/FRAMEWORK_WORKFLOW_RUNNER_IMPL.md)
+
+### Leverans
+
+- `tools/workflow-runner/` — Node.js bibliotek + CLI (`start`, `handover`, `resume`, `show`, `cancel`)
+- Persistens: `.workflow-runner/instances/<InstanceId>.json` (gitignorerad)
+- Tester: `npm run test:workflow-runner` (22 tester)
+- `docs/ai/cursor-implementation.md` — Runner-wiring dokumenterad
+
+### Utanför
+
+- Automatisk Cursor agent-/regelaktivering
+- Cursor hooks/skills som DecisionPort
+- Produktionsdeploy
+
+---
+
+## v2.4 – Workflow Runner (spec) (2026-07-16)
+
+Definierar **Workflow Runner** som automationslager ovanpå låst Workflow Engine: persistens av Workflow Instance, parse av Handover v1.0, deterministisk Orchestration Model §5, emit av Start/Continue/Rework/Pause/Resume/Complete. **Ingen** runtime-implementation och **ingen** automatisk rollaktivering i denna version. Stage Gates, rollansvar och Handover-schema `1.0` oförändrade.
+
+**ADR:** [`docs/ai/adr/FRAMEWORK_WORKFLOW_RUNNER.md`](adr/FRAMEWORK_WORKFLOW_RUNNER.md)
+
+### Dokumentation
+
+- `docs/ai/workflow-runner.md` – **ny** SSOT: lagerplacering, FR/NFR, instance/ports, runtime-algoritm, emission, out-of-scope.
+- `docs/ai/workflow-engine.md` – Runner i lager tabell; §12 pekar på Runner-SSOT.
+- `docs/ai/orchestration-model.md` / `handover-contract.md` / `cursor-implementation.md` – additiva hänvisningar.
+- `docs/ai/roles/technical-project-manager.md` + `role-technical-project-manager.mdc` – hänvisning till Runner (manuell aktivering kvar).
+
+### Låsta beslut (Grind 1)
+
+- **D1:** Spec-only i denna epic; implementation = separat uppdrag efter godkännande.
+- **D2:** Runner = endast engine-lager; rollaktivering (`@role` / Cursor) förblir manuell.
+
+### Utanför denna version
+
+- Cursor hooks/skills/subagents eller annan Runner-runtime.
+- Automatisk agent-/regelaktivering.
+- Val av persistensprodukt eller extern orkestrator.
+- Ändring av Stage Gate-tabell, Handover `1.0` eller övriga rollers Output Contracts.
+
+---
+
+## AI Provider Settings – Provider Management UI (2026-07-17)
+
+**Status:** Provider Management UI implementerad (lista, visa, lägg till, redigera, ta bort). UI-justeringar efter QA (detaljvy, panelheader, fullbreddsformulär) verifierade. QA + Security godkända i samma epic. **Ej commit/deployad.**
+
+**ADR:** [`docs/ai/adr/P-AI-SETTINGS_PROVIDER_CONFIGURATION.md`](adr/P-AI-SETTINGS_PROVIDER_CONFIGURATION.md) (uppdaterad)
+
+### Leverans
+
+| Leverans                          | Beskrivning                                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Provider-lista**                | `AIProvidersList` — ingest-mönster: stat-kort, sök, grid/list, tabell                                                          |
+| **Detaljvy**                      | `AIProviderView` — `DetailLayout`, snabbåtgärder (redigera, ta bort, testa)                                                    |
+| **Formulär**                      | `AIProvidersSettingsForm` — skapa/redigera; contacts-lik layout med informationssidofält i edit                                |
+| **Panel CRUD**                    | `panelMode` create / edit / view; header Edit/Close/Update via shell                                                           |
+| **GET /catalog**                  | Tillgängliga provider-typer                                                                                                    |
+| **DELETE /settings/:providerKey** | Hard delete tenant-scoped konfiguration                                                                                        |
+| **GET /settings**                 | Returnerar endast konfigurerade providers (DB-rader)                                                                           |
+| **Core-integration**              | `slugField: providerKey`, `IRREGULAR_CAP` → `AIProvider`, `findCurrentItemForOpenPlugin`, `DetailLayout` enkolumn utan sidebar |
+
+**Tester:** `plugins/ai-providers` (19) + `providerFormHelpers` (4) = **23** gröna (verifierat 2026-07-17).
+
+---
+
+## AI Provider Settings – P-AI-SETTINGS (backend + frontend 2026-07-16)
+
+**Status:** Backend + frontend implementerade. Plattformsgeneralisering (katalog, connection-test-registry, tunn Guides-resolver, datadriven FE) QA + Security godkända 2026-07-16. Dokumentation synkad. **Ej commit/deployad** (väntar explicit begäran). Accepterad säkerhetsrisk A1 väntar formellt TPM-godkännande.
+
+Grindordning (generalisering): TPM → Arkitekt → Backend → Frontend → QA → Security → Dokumentation → TPM-avslut.
+
+**ADR:** [`docs/ai/adr/P-AI-SETTINGS_PROVIDER_CONFIGURATION.md`](adr/P-AI-SETTINGS_PROVIDER_CONFIGURATION.md)
+
+### Omfattning (levererat)
+
+| Leverans                        | Beskrivning                                                              |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| **Plugin `ai-providers` (API)** | Settings API under `/api/ai-providers`                                   |
+| **Migration 100**               | `ai_provider_settings` (tenant-DB); i `migrate:guides`                   |
+| **PROVIDER_CATALOG**            | Datadrivna defaults + env-metadata (v1: `openai`)                        |
+| **Config-ägande**               | `resolveRuntimeConfig` / `getPreferredEnabledProviderKey` i AI Providers |
+| **TextProviderConfigResolver**  | Tunn konsument (ingen OpenAI-gren); DB → env → `noop`                    |
+| **ConnectionTestRegistry**      | Controllern testar via kontrakt; ingen adapter-import i `ai-providers`   |
+| **Orchestration wiring**        | Async provider-key/options via resolver                                  |
+| **Partiell PUT**                | Utelämnade fält behåller befintliga värden                               |
+| **Frontend-plugin**             | Tools → AI Providers; `providers.map` + i18n per `providerKey`           |
+
+**Ej inkluderat:** Fler providers, app-level encryption, Railway-deploy, åtgärd av R2/R3.
+
+### API
+
+| Metod | Path                                           | Kommentar                           |
+| ----- | ---------------------------------------------- | ----------------------------------- |
+| GET   | `/api/ai-providers/settings`                   | Lista providers (maskerad `apiKey`) |
+| PUT   | `/api/ai-providers/settings/:providerKey`      | Spara (partiell merge; CSRF)        |
+| POST  | `/api/ai-providers/settings/:providerKey/test` | Anslutningstest via registry (CSRF) |
+
+Auth: session + `requirePlugin('ai-providers')`. HTTP-former oförändrade av generaliseringen.
+
+### Backend-filer (huvudsakliga)
+
+| Fil                                                            | Roll                                            |
+| -------------------------------------------------------------- | ----------------------------------------------- |
+| `server/migrations/100-ai-provider-settings.sql`               | Tabell + index                                  |
+| `scripts/run-guides-migration.js`                              | Inkluderar migration 100                        |
+| `plugins/ai-providers/providerCatalog.js`                      | Katalog                                         |
+| `plugins/ai-providers/ConnectionTestRegistry.js`               | Test-registry                                   |
+| `plugins/ai-providers/`                                        | model, controller, routes, plugin.config, index |
+| `plugins/guides/providers/text/TextProviderConfigResolver.js`  | Tunn resolve-konsument                          |
+| `plugins/guides/providers/text/registerDefaultProviders.js`    | Dubbelregistrering text + connection test       |
+| `plugins/guides/production/ProductionOrchestrationService.js`  | Använder resolver                               |
+| `plugins/guides/providers/text/adapters/OpenAITextProvider.js` | Options + `testConnection`                      |
+
+### Frontend-filer (huvudsakliga)
+
+| Fil                                          | Roll                                                                                                                   |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `client/src/plugins/ai-providers/`           | types, api, context, hook, View, SettingsForm, form helpers                                                            |
+| `client/src/core/pluginRegistry.ts`          | Nav Tools; List/Form/View = `AIProvidersList` / `AIProvidersSettingsForm` / `AIProviderView`; `slugField: providerKey` |
+| `client/src/core/routing/routeMap.ts`        | `/ai-providers`                                                                                                        |
+| `client/src/i18n/locales/en.json`, `sv.json` | Nav + `aiProviders` / `providers.<key>.*`                                                                              |
+
+### Env (fallback — oförändrade namn)
+
+| Variabel                                                       | Roll efter P-AI-SETTINGS                         |
+| -------------------------------------------------------------- | ------------------------------------------------ |
+| `GUIDES_TEXT_PROVIDER`                                         | Fallback provider-key om ingen enabled DB-config |
+| `OPENAI_API_KEY`                                               | Fallback-nyckel (katalogmetadata)                |
+| `GUIDES_TEXT_OPENAI_MODEL`                                     | Fallback-modell (katalogmetadata)                |
+| `GUIDES_TEXT_OPENAI_TIMEOUT_MS` / `GUIDES_TEXT_RATE_LIMIT_RPM` | Oförändrade (adapter)                            |
+
+Enabled DB-config **vinner** över env. Föredragen konfiguration: **Tools → AI Providers**.
+
+### Tester
+
+Relevanta suiter (QA 2026-07-16, generalisering): `plugins/ai-providers`, `text-provider-config-resolver`, `openai-text-provider`, `production-orchestration`, `client/.../providerFormHelpers` — **51 tester** gröna i den körningen. TypeScript (`tsc --noEmit`) grönt.
+
+### Säkerhet (godkänd 2026-07-16; omgranskning efter generalisering)
+
+| ID  | Risk                               | Beslut                                                      |
+| --- | ---------------------------------- | ----------------------------------------------------------- |
+| A1  | Klartext API-nyckel i tenant-DB    | Accepterad (parity mail/pulses) — **TPM-godkännande krävs** |
+| R2  | Provider-feltext i test-svar (500) | Rekommendation (icke-blockerande)                           |
+| R3  | Ingen dedikerad rate limit på test | Rekommendation (icke-blockerande)                           |
+
+### Kända begränsningar
+
+- Endast provider `openai` i katalog/UI v1.
+- Plugin `ai-providers` måste aktiveras per tenant; logga ut/in efteråt.
+- Migration 100 måste finnas i tenant-DB innan save/load fungerar.
+- Env-fallback kvar för bakåtkompatibilitet (P-TEXT).
+- Connection test kräver att Guides registrerat factory i `ConnectionTestRegistry`.
+
+### Operativt (lokal, 2026-07-16)
+
+- Migration 100 applicerad på lokala `tenant_*`-scheman och Neon-tenanter för admin/user@.
+- Plugin aktiverat för `admin@homebase.se` och `user@homebase.se`.
+
+### Nästa steg
+
+1. TPM: formellt godkänn A1 + epic-status.
+2. Valfritt: FE QA/Security.
+3. Commit/deploy endast vid explicit användarbeslut; därefter **P-TRANS**.
+
+---
+
 ## Content Production Pipeline – P-TEXT (backend slutförd 2026-07-14, Fas 2)
 
 **Status:** Backend implementerad — QA, Security och Dokumentation godkända. **Ej deployad** (väntar commit/merge). Bygger på P-FRONTEND + P-REGEN-backend (lokal).
@@ -27,14 +323,14 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 ### Backend-filer (huvudsakliga)
 
-| Fil                                                            | Roll                                                            |
-| -------------------------------------------------------------- | --------------------------------------------------------------- |
-| `plugins/guides/providers/text/adapters/OpenAITextProvider.js` | OpenAI Chat Completions-adapter                                 |
-| `plugins/guides/providers/text/TextPromptLoader.js`            | Laddar versionerade prompts                                     |
-| `plugins/guides/providers/text/prompts/`                       | `manifest.json` + `text_derivation/{quick,normal,deep}/v1.*.md` |
-| `plugins/guides/providers/shared/ProviderRateLimiter.js`       | Token bucket per provider key                                   |
-| `plugins/guides/providers/text/registerDefaultProviders.js`    | Registrerar `openai` när `OPENAI_API_KEY` finns                 |
-| `plugins/guides/production/ProductionOrchestrationService.js`  | `GUIDES_TEXT_PROVIDER` env, retry-branch, full `providerResult` |
+| Fil                                                            | Roll                                                                       |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `plugins/guides/providers/text/adapters/OpenAITextProvider.js` | OpenAI Chat Completions-adapter                                            |
+| `plugins/guides/providers/text/TextPromptLoader.js`            | Laddar versionerade prompts                                                |
+| `plugins/guides/providers/text/prompts/`                       | `manifest.json` + `text_derivation/{quick,normal,deep}/v1.*.md`            |
+| `plugins/guides/providers/shared/ProviderRateLimiter.js`       | Token bucket per provider key                                              |
+| `plugins/guides/providers/text/registerDefaultProviders.js`    | Registrerar `openai` factory (efter P-AI-SETTINGS: alltid, ej env-gated)   |
+| `plugins/guides/production/ProductionOrchestrationService.js`  | Provider via resolver (P-AI-SETTINGS); retry-branch; full `providerResult` |
 
 ### Env (lokal / prod)
 
@@ -58,29 +354,29 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 | ID       | Risk                                      | Beslut                                                                                        |
 | -------- | ----------------------------------------- | --------------------------------------------------------------------------------------------- |
-| S-TEXT-1 | API-nyckel i loggar/fel/DB                | Mitigerad — env only; ej i `Logger`, `providerResult` eller generiska fel                     |
+| S-TEXT-1 | API-nyckel i loggar/fel/DB                | Historisk (P-TEXT): env only. **Uppdaterad av P-AI-SETTINGS:** nyckel kan lagras i DB (se A1) |
 | S-TEXT-2 | Prompt injection via `canonicalNarrative` | Accepterad — redaktörskriven input; system-prompt isolerar; HITL före writeback (ADR R3)      |
 | S-TEXT-3 | Kostnads-/resursmissbruk (OpenAI)         | Delvis mitigerad — `ProviderRateLimiter` (60 RPM) + token-budgetar; full kostnadstak i P-BULK |
 | S-TEXT-4 | Externa felmeddelanden till UI            | Accepterad — låg risk; autentiserad redaktör; sanering rekommenderad (P2)                     |
 | S-TEXT-5 | XSS via AI-text/`errorMessage`            | Mitigerad — React text-noder (ärvd S1)                                                        |
 | S-TEXT-6 | SSRF via provider-URL                     | Mitigerad — hårdkodad `OPENAI_CHAT_URL`                                                       |
 | S-TEXT-7 | Tenant isolation                          | Mitigerad — `user_id`-filter i `ProductionJobModel` (ärvd S7)                                 |
-| S-TEXT-8 | Global API-nyckel per deployment          | Accepterad — ADR-beslut; per-tenant i P-OBS                                                   |
+| S-TEXT-8 | Global API-nyckel per deployment          | Delvis ersatt — P-AI-SETTINGS ger per-`user_id` DB-config; env kvar som fallback              |
 | S-TEXT-9 | Multi-worker rate-limit bypass            | Accepterad — in-process limiter; delad limiter i P-BULK (ADR R6)                              |
 
 Ärvda risker S6 (narrative-gate före start), S11 (`regenerate` utan endpoint-rate limit) — oförändrade; text-API-anrop begränsas av `ProviderRateLimiter`.
 
 ### Kända begränsningar
 
-- Default `GUIDES_TEXT_PROVIDER=noop` — noop-beteende utan env-ändring.
+- Default utan enabled DB-config och utan env: `noop`.
 - Translation/audio fortfarande noop/skipped.
-- Ingen frontend-ändring (review-UI läser `presentationText` som tidigare).
+- Ingen frontend-ändring i P-TEXT (review-UI läser `presentationText` som tidigare).
 - Manuell smoke med riktig OpenAI-nyckel ej i CI.
-- `GUIDES_TEXT_PROVIDER=openai` utan `OPENAI_API_KEY` → planering misslyckas (`Text provider not registered`).
+- Runtime-konfiguration: se **P-AI-SETTINGS** (DB först, env fallback). `openai` är alltid registrerad som factory; saknad nyckel ger misslyckad generation, inte "not registered".
 
 ### Nästa epic
 
-**P-TRANS** — translation provider adapter.
+**P-AI-SETTINGS** (backend + frontend 2026-07-16) → därefter **P-TRANS**.
 
 ---
 
@@ -782,7 +1078,7 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 ---
 
-## Guide CMS – Roadmap (uppdaterad 2026-07-13)
+## Guide CMS – Roadmap (uppdaterad 2026-07-16)
 
 ### Fas 1 — Plattform + pipeline v1 (slutförd)
 
@@ -801,23 +1097,24 @@ Grindordning: Lösningsarkitekt (ADR) → Backend → QA → Security → Dokume
 
 **ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md)
 
-| Epic              | Namn                           | Status                                                      | Beroende           |
-| ----------------- | ------------------------------ | ----------------------------------------------------------- | ------------------ |
-| **Mig**           | Prod-migrationer 096–099       | **Lokal klar**; prod väntar `PROD_MAIN_DATABASE_URL`        | —                  |
-| **P-ASYNC**       | Async worker foundation        | **Backend klar** (ej deployad)                              | Mig                |
-| **P-CHAIN**       | Fasövergångar, `approve-phase` | **Backend klar** (ej deployad)                              | P-ASYNC            |
-| **P-REGEN**       | Reject/regenerate/retry        | **Backend klar** (ej deployad)                              | P-CHAIN            |
-| **P-FRONTEND**    | UI ovanpå v2 API               | **Frontend MVP klar** (ej commit/deploy)                    | P-REGEN            |
-| **P-TEXT**        | Text provider adapter          | **Backend klar** (QA, Security, Docs godkända; ej deployad) | P-FRONTEND         |
-| **P-TRANS**       | Translation provider           | Planerad                                                    | P-TEXT             |
-| **P-AUDIO-BATCH** | Audio i batch                  | Planerad                                                    | P-TRANS            |
-| **P-OBS**         | Observability & arkivering     | Planerad                                                    | P-AUDIO-BATCH      |
-| **P-BULK**        | Bulk produce, cron stale       | Planerad                                                    | P-OBS              |
-| **P-PWA**         | Konsumentapp                   | **Separat spår**                                            | Public API (finns) |
+| Epic              | Namn                             | Status                                                                              | Beroende           |
+| ----------------- | -------------------------------- | ----------------------------------------------------------------------------------- | ------------------ |
+| **Mig**           | Prod-migrationer 096–099         | **Lokal klar**; prod väntar `PROD_MAIN_DATABASE_URL`                                | —                  |
+| **P-ASYNC**       | Async worker foundation          | **Backend klar** (ej deployad)                                                      | Mig                |
+| **P-CHAIN**       | Fasövergångar, `approve-phase`   | **Backend klar** (ej deployad)                                                      | P-ASYNC            |
+| **P-REGEN**       | Reject/regenerate/retry          | **Backend klar** (ej deployad)                                                      | P-CHAIN            |
+| **P-FRONTEND**    | UI ovanpå v2 API                 | **Frontend MVP klar** (ej commit/deploy)                                            | P-REGEN            |
+| **P-TEXT**        | Text provider adapter            | **Backend klar** (QA, Security, Docs godkända; ej deployad)                         | P-FRONTEND         |
+| **P-AI-SETTINGS** | AI provider Settings (DB+API+UI) | **Plattformsklar** (BE+FE; generalisering QA/Security/Docs 2026-07-16; ej deployad) | P-TEXT             |
+| **P-TRANS**       | Translation provider             | Planerad                                                                            | P-TEXT             |
+| **P-AUDIO-BATCH** | Audio i batch                    | Planerad                                                                            | P-TRANS            |
+| **P-OBS**         | Observability & arkivering       | Planerad                                                                            | P-AUDIO-BATCH      |
+| **P-BULK**        | Bulk produce, cron stale         | Planerad                                                                            | P-OBS              |
+| **P-PWA**         | Konsumentapp                     | **Separat spår**                                                                    | Public API (finns) |
 
-**Implementeringsordning (låst):** `Mig → P-ASYNC → P-CHAIN → P-REGEN → P-FRONTEND → P-TEXT → P-TRANS → P-AUDIO-BATCH → P-OBS → P-BULK`
+**Implementeringsordning:** `Mig → P-ASYNC → P-CHAIN → P-REGEN → P-FRONTEND → P-TEXT → P-AI-SETTINGS → P-TRANS → P-AUDIO-BATCH → P-OBS → P-BULK`
 
-**Nästa:** Commit/deploy P-ASYNC + P-CHAIN + P-REGEN + P-FRONTEND + P-TEXT vid explicit begäran; sedan **P-TRANS**.
+**Nästa:** TPM-godkänn A1; commit/deploy vid explicit begäran; sedan **P-TRANS**.
 
 ### Historisk v1-plan (ersatt av Fas 2 ovan)
 
@@ -1619,6 +1916,83 @@ Epic 2: se avsnitt **Guide CMS – Epic 2** ovan.
 
 - Initial leverans: `guides`-plugin med Place CRUD och atomisk MasterGuide.
 - Se avsnitt **Guide CMS – Epic 1 (klar 2026-07-10)** ovan för fullständig spec efter säkerhetsgodkännande.
+
+---
+
+## v2.3 – Workflow Engine (spec) (2026-07-16)
+
+Definierar TPM som operativ Workflow Engine: livscykel Start→Complete, kommandon, Workflow State-mappning, omarbete, standardiserade TPM-prompter. Ingen automatisk agentaktivering; Stage Gates och rollansvar oförändrade.
+
+### Dokumentation
+
+- `docs/ai/workflow-engine.md` – **ny** SSOT: lagerindelning, instance state machine, kommandon, aliases, rework, promptmallar.
+- `docs/ai/orchestration-model.md` – pekare till engine som runtime.
+- `docs/ai/handover-contract.md` / `cursor-implementation.md` / `team-workflow.md` – additiva hänvisningar.
+- `docs/ai/roles/technical-project-manager.md` + `role-technical-project-manager.mdc` – TPM kör Workflow Engine.
+
+### Utanför denna version
+
+- Ingen automatisk Cursor-/agentaktivering eller extern integration.
+- Ingen ändring av Stage Gate-tabellen eller övriga rollers ansvar.
+- Ingen ändring av Handover-schema `1.0` (beslutslogik förblir i Orchestration Model).
+
+---
+
+## v2.2 – Central Orchestration (model) (2026-07-16)
+
+Definierar TPM som central orkestrerare med beslutsmatris utifrån Handover Contract v1.0, Team Workflow och Workflow Types. Ingen automatisk agentaktivering; Stage Gates oförändrade.
+
+### Dokumentation
+
+- `docs/ai/orchestration-model.md` – **ny** SSOT: principer, inputs, beslutsmatris, continue/pause/user-regler, stödda Workflow Types, rework-mål.
+- `docs/ai/handover-contract.md` – routing pekar på orchestration model.
+- `docs/ai/cursor-implementation.md` – hänvisning till v2.2-modellen.
+- `docs/ai/team-workflow.md` – additiv förtydligande under Efter överlämning (TPM orkestrerar; grindtabell oförändrad).
+- `docs/ai/roles/technical-project-manager.md` + `role-technical-project-manager.mdc` – ansvar Central orkestrering.
+
+### Utanför denna version
+
+- Ingen automatisk Cursor-/agentaktivering.
+- Ingen ändring av Stage Gate-tabellen eller grindägare.
+- Ingen ändring av övriga rollers Output Contracts eller Handover-schema `1.0`.
+
+---
+
+## v2.1 – Handover Contract (adoption) (2026-07-16)
+
+Inför det godkända Handover Contract v1.0 i samtliga roller. Output Contracts oförändrade; kuvertet placeras efter Output Contract. Ingen ändring av Team Workflow, Stage Gates, rollansvar eller automatisk orkestrering.
+
+### Dokumentation
+
+- `docs/ai/roles/*.md` – identisk sektion **Handover Contract** i alla åtta roller.
+- `.cursor/rules/role-*.mdc` – samma krav i alla åtta Cursor-regler.
+- `docs/ai/handover-contract.md` – status uppdaterad till adopted (schema förblir `1.0`).
+- `docs/ai/cursor-implementation.md` – notering om v2.1-införande.
+
+### Utanför denna version
+
+- Ingen ändring av grindordning i `team-workflow.md`.
+- Ingen auto-aktivering av nästa roll.
+- Ingen ändring av rollspecifika Output Contract-fält.
+
+---
+
+## v2.0 – Handover Contract (definition) (2026-07-16)
+
+Definierar ett gemensamt, maskinläsbart Handover Contract för alla roller. Definition only — ingen ändring av Team Workflow, Stage Gates, rollbefogenheter, Cursor-regler eller automatisk orkestrering.
+
+### Dokumentation
+
+- `docs/ai/handover-contract.md` – **ny** SSOT: fält (utan Next Role), Status vs Workflow State, Handover Version `1.0`, routing-princip, serialisering, kompatibilitetsregler.
+- `docs/ai/cursor-implementation.md` – additiv sektion **Handover Contract** under Output Contract.
+
+### Utanför denna version
+
+- Ingen uppdatering av `docs/ai/roles/*` eller `.cursor/rules/role-*.mdc` (införande senare).
+- Ingen ändring av grindordning i `team-workflow.md`.
+- Ingen auto-aktivering av nästa roll.
+
+**Routing:** TPM / framtida orkestrerare läser bl.a. `Current Role`, `Status`, `Workflow State`, `Blocking Decisions`, `Requires User Input` och avgör nästa steg utifrån Team Workflow.
 
 ---
 

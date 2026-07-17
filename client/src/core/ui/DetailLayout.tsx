@@ -22,6 +22,7 @@ export function DetailLayout({
   className,
   mainClassName,
 }: DetailLayoutProps) {
+  const hasSidebar = Boolean(sidebar);
   const hasRight = Boolean(rightSidebar);
   return (
     <div
@@ -29,7 +30,9 @@ export function DetailLayout({
         'grid gap-4',
         hasRight
           ? 'grid-cols-1 lg:grid-cols-[1fr_280px_280px]'
-          : 'grid-cols-1 lg:grid-cols-[1fr_320px]',
+          : hasSidebar
+            ? 'grid-cols-1 lg:grid-cols-[1fr_320px]'
+            : 'grid-cols-1',
         className,
       )}
     >

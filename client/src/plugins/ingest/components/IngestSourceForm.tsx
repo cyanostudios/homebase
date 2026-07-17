@@ -16,28 +16,28 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { cn } from '@/lib/utils';
 
 import { useIngest } from '../hooks/useIngest';
 import type { IngestFetchMethod, IngestSource, IngestSourceType } from '../types/ingest';
 
-const CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
-const PANEL_MAX_WIDTH = 'max-w-[720px]';
+const FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 const ALLOWED_SOURCE_TYPES: IngestSourceType[] = ['html', 'pdf', 'json', 'xml', 'other'];
-function normalizeSourceType(t: string | undefined): IngestSourceType {
-  if (t && ALLOWED_SOURCE_TYPES.includes(t as IngestSourceType)) {
-    return t as IngestSourceType;
+function normalizeSourceType(value: string | undefined): IngestSourceType {
+  if (value && ALLOWED_SOURCE_TYPES.includes(value as IngestSourceType)) {
+    return value as IngestSourceType;
   }
   return 'other';
 }
 
-function normalizeFetchMethod(m: string | undefined): IngestFetchMethod {
-  return m === 'browser_fetch' ? 'browser_fetch' : 'generic_http';
+function normalizeFetchMethod(value: string | undefined): IngestFetchMethod {
+  return value === 'browser_fetch' ? 'browser_fetch' : 'generic_http';
 }
 
 interface IngestSourceFormProps {
@@ -53,7 +53,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
     ref,
   ) {
     const { t } = useTranslation();
-    const { validationErrors, clearValidationErrors, panelMode } = useIngest();
+    const { validationErrors, clearValidationErrors } = useIngest();
     const {
       isDirty,
       showWarning,
@@ -170,28 +170,66 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
 
     const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);
 
-    const title = panelMode === 'create' ? t('ingest.newSource') : t('ingest.editSource');
-    const subtitle = currentIngest?.id
-      ? formatDisplayNumber('ingest', currentIngest.id)
-      : t('ingest.subtitleNew');
+    const formSidebar = currentIngest ? (
+      <div className="space-y-4">
+        <Card padding="none" className={FORM_CARD_CLASS}>
+          <DetailSection
+            title={t('ingest.information')}
+            icon={Info}
+            iconPlugin="ingest"
+            className="p-4"
+          >
+            <div className="space-y-4 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">ID</span>
+                <span className="font-mono font-medium">
+                  {formatDisplayNumber('ingest', currentIngest.id)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('common.created')}</span>
+                <span className="font-medium">
+                  {currentIngest.createdAt
+                    ? new Date(currentIngest.createdAt).toLocaleDateString()
+                    : '—'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('common.updated')}</span>
+                <span className="font-medium">
+                  {currentIngest.updatedAt
+                    ? new Date(currentIngest.updatedAt).toLocaleDateString()
+                    : '—'}
+                </span>
+              </div>
+            </div>
+          </DetailSection>
+        </Card>
+      </div>
+    ) : undefined;
 
     return (
       <>
-        <div className={PANEL_MAX_WIDTH}>
-          <div className="mb-4 space-y-1">
-            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-            {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
-          </div>
-          <DetailLayout>
-            <div className="space-y-4">
+        <div
+          className={cn(
+            'plugin-ingest min-h-full rounded-xl bg-background px-4 py-5 sm:px-5 sm:py-6',
+            'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
+          )}
+        >
+          <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+            <div className="space-y-6">
               {validationErrors
                 .filter((e) => e.field === 'general')
                 .map((e) => (
-                  <p key={e.message} className="text-sm text-destructive">
-                    {e.message}
-                  </p>
+                  <Card
+                    key={e.message}
+                    className="border-destructive/50 bg-destructive/5 p-4 shadow-none"
+                  >
+                    <p className="text-sm text-destructive">{e.message}</p>
+                  </Card>
                 ))}
-              <Card padding="none" className={CARD_CLASS}>
+
+              <Card padding="none" className={FORM_CARD_CLASS}>
                 <DetailSection
                   title={t('ingest.sectionDetails')}
                   icon={Info}
@@ -209,7 +247,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         className="mt-1"
                       />
                       {getFieldError('name') && (
-                        <p className="text-xs text-destructive mt-1">
+                        <p className="mt-1 text-xs text-destructive">
                           {getFieldError('name')?.message}
                         </p>
                       )}
@@ -224,7 +262,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         className="mt-1 font-mono text-sm"
                       />
                       {getFieldError('sourceUrl') && (
-                        <p className="text-xs text-destructive mt-1">
+                        <p className="mt-1 text-xs text-destructive">
                           {getFieldError('sourceUrl')?.message}
                         </p>
                       )}
@@ -266,11 +304,11 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                         </SelectContent>
                       </Select>
                       {getFieldError('fetchMethod') && (
-                        <p className="text-xs text-destructive mt-1">
+                        <p className="mt-1 text-xs text-destructive">
                           {getFieldError('fetchMethod')?.message}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {t('ingest.fetchMethodHint')}
                       </p>
                     </div>

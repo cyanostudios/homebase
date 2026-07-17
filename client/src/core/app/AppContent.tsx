@@ -59,6 +59,22 @@ function findCurrentItem(pluginContexts: any[]): any {
   return null;
 }
 
+// Prefer the open panel's plugin item (header actions, titles, view props).
+function findCurrentItemForOpenPlugin(
+  currentPlugin: { name: string } | null | undefined,
+  currentPluginContext: any,
+  pluginContexts: any[],
+): any {
+  if (currentPlugin && currentPluginContext) {
+    const currentItemProperty = `current${getSingularCap(currentPlugin.name)}`;
+    const item = currentPluginContext[currentItemProperty];
+    if (item) {
+      return item;
+    }
+  }
+  return findCurrentItem(pluginContexts);
+}
+
 // Helper: find current mode
 function findCurrentMode(pluginContexts: any[]): 'create' | 'edit' | 'view' | 'settings' {
   for (const { plugin, context } of pluginContexts) {
@@ -197,7 +213,11 @@ export function AppContent() {
   const currentPluginContext = currentPlugin
     ? pluginContexts.find(({ plugin }) => plugin.name === currentPlugin.name)?.context
     : null;
-  const currentItem = findCurrentItem(pluginContexts);
+  const currentItem = findCurrentItemForOpenPlugin(
+    currentPlugin,
+    currentPluginContext,
+    pluginContexts,
+  );
   const currentMode = findCurrentMode(pluginContexts);
 
   // Is any panel open?
@@ -283,7 +303,11 @@ export function AppContent() {
       // URL has a slug – resolve it then open panel if not already showing that item
       const items = (context[plugin.name] as unknown as any[]) ?? [];
       const item = resolveSlug(itemSlug, items, nameField);
-      if (item && (!isOpen || String(currentItem?.id) !== String(item.id))) {
+      const itemKey = (row: { id?: string | number; providerKey?: string }) =>
+        row.providerKey != null ? String(row.providerKey) : String(row.id);
+      const currentKey = currentItem ? itemKey(currentItem) : '';
+      const resolvedKey = item ? itemKey(item) : '';
+      if (item && (!isOpen || currentKey !== resolvedKey)) {
         const openFn = context[`open${capName}ForView`] as ((item: any) => void) | undefined;
         if (typeof openFn === 'function') {
           openFn(item);

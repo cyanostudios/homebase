@@ -4,6 +4,8 @@
 // (`current{SingularCap}`, `open{SingularCap}ForView`, …). See docs/PLUGIN_RUNTIME_CONVENTIONS.md.
 
 const IRREGULAR: Record<string, string> = { matches: 'match', slots: 'slot' };
+/** Overrides for acronyms / multi-cap singulars (e.g. AI → AIProvider, not AiProvider). */
+const IRREGULAR_CAP: Record<string, string> = { 'ai-providers': 'AIProvider' };
 export const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 
 export function getSingular(pluginName: string): string {
@@ -12,6 +14,9 @@ export function getSingular(pluginName: string): string {
 }
 
 export function getSingularCap(pluginName: string): string {
+  if (IRREGULAR_CAP[pluginName]) {
+    return IRREGULAR_CAP[pluginName];
+  }
   const s = getSingular(pluginName);
   return s.charAt(0).toUpperCase() + s.slice(1);
 }

@@ -26,6 +26,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "workflow-runner": "node tools/workflow-runner/cli.js",
+    "test:workflow-runner": "jest --testPathPattern=tools/workflow-runner",
     "prepare": "node scripts/prepare-husky.js",
     "sync:down:stash": "git stash push -u -m \"sync-down\" && git pull --rebase && npm ci && git stash list",
     "sync:down:force": "git reset --hard HEAD && git clean -fd && git pull --rebase && npm ci",

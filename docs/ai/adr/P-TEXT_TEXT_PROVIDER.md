@@ -1,7 +1,7 @@
 # ADR — P-TEXT: Text Provider (första AI-integrationen)
 
-**Status:** Godkänd arkitektur (2026-07-14); backend implementerad och grindad (QA, Security, Dokumentation godkända 2026-07-14). Ej deployad.  
-**Epic:** P-TEXT (Fas 2, steg 5 i implementationsordning)  
+**Status:** Godkänd arkitektur (2026-07-14); backend implementerad och grindad (QA, Security, Dokumentation godkända 2026-07-14). Ej deployad. Runtime-konfiguration ägs av [`P-AI-SETTINGS_PROVIDER_CONFIGURATION.md`](P-AI-SETTINGS_PROVIDER_CONFIGURATION.md) (DB först, env fallback via `PROVIDER_CATALOG`). Env-only-sektioner nedan är **historisk design**; adapter/prompt/fingerprint-beslut gäller fortfarande.  
+**Epic:** P-TEXT (Fas 2)  
 **Överordnad:** [`CONTENT_PRODUCTION_PIPELINE_V2.md`](CONTENT_PRODUCTION_PIPELINE_V2.md)  
 **Grund:** TPM funktionsgenomgång + låsta designprinciper P1–P5 (2026-07-14)  
 **Förutsättning:** P-ASYNC, P-CHAIN, P-REGEN, P-FRONTEND levererade och verifierade lokalt

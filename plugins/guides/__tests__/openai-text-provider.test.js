@@ -114,4 +114,20 @@ describe('OpenAITextProvider', () => {
     expect(result.status).toBe('retry');
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
+
+  test('testConnection validates configured model', async () => {
+    const fetchFn = mockFetch({ body: { id: 'gpt-4o-mini' } });
+    const provider = new OpenAITextProvider({ apiKey: 'sk-test', model: 'gpt-4o-mini', fetchFn });
+
+    const result = await provider.testConnection();
+
+    expect(result).toEqual({ ok: true, model: 'gpt-4o-mini' });
+    expect(fetchFn).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/models/gpt-4o-mini',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({ Authorization: 'Bearer sk-test' }),
+      }),
+    );
+  });
 });

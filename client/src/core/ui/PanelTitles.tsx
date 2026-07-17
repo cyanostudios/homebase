@@ -76,6 +76,13 @@ export const createPanelTitles = (
       return pluginContext.getPanelTitle(currentMode, currentItem);
     }
 
+    if (pluginContext?.getPanelTitle && currentPlugin.name === 'ai-providers') {
+      return pluginContext.getPanelTitle(
+        currentMode,
+        currentItem ?? pluginContext.currentAIProvider ?? null,
+      );
+    }
+
     // Central title from current item: order title → companyName/name → plugin display numbers → id.
     if (currentMode === 'view' && currentItem) {
       const cfg = IMPORT_PLUGIN_CONFIG[currentPlugin.name];

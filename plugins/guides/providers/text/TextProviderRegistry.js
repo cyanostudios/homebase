@@ -3,7 +3,7 @@ const { AppError } = require('../../../../server/core/errors/AppError');
 
 class TextProviderRegistry {
   constructor() {
-    /** @type {Map<string, import('./TextProvider')>} */
+    /** @type {Map<string, import('./TextProvider')|((options?: any) => import('./TextProvider'))>} */
     this._providers = new Map();
   }
 
@@ -22,6 +22,14 @@ class TextProviderRegistry {
       throw new AppError('Text provider not registered', 400, AppError.CODES.VALIDATION_ERROR);
     }
     return provider;
+  }
+
+  create(key, options) {
+    const entry = this.get(key);
+    if (typeof entry === 'function') {
+      return entry(options);
+    }
+    return entry;
   }
 }
 

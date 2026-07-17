@@ -20,6 +20,8 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/097-guide-ingest-source.sql'),
   path.join(__dirname, '../server/migrations/098-guide-production-jobs.sql'),
   path.join(__dirname, '../server/migrations/099-guide-production-v2-async.sql'),
+  path.join(__dirname, '../server/migrations/100-ai-provider-settings.sql'),
+  path.join(__dirname, '../server/migrations/101-ai-provider-routing.sql'),
 ];
 const MAIN_MIGRATION = path.join(
   __dirname,

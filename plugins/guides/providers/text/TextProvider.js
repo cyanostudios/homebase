@@ -21,6 +21,7 @@
  * @property {string} key
  * @property {string} version
  * @property {(req: import('express').Request, input: TextGenerateInput) => Promise<TextProviderResult>} generate
+ * @property {() => Promise<{ ok?: boolean, model: string }>} [testConnection] — optional; used by ai-providers connection test
  */
 
 module.exports = {};

@@ -27,6 +27,7 @@ export const navPageToPath: Record<NavPage, string> = {
   guides: '/guides',
   mail: '/mail',
   pulses: '/pulses',
+  'ai-providers': '/ai-providers',
   settings: '/settings',
 };
 

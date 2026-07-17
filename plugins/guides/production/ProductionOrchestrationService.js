@@ -8,12 +8,11 @@ const {
   DEFAULT_PHASES,
   CHECKPOINT_MODES,
 } = require('./ProductionJobModel');
-const TextProviderRegistry = require('../providers/text/TextProviderRegistry');
 const TranslationProviderRegistry = require('../providers/translation/TranslationProviderRegistry');
-const { ensureTextProvidersRegistered } = require('../providers/text/registerDefaultProviders');
 const {
   ensureTranslationProvidersRegistered,
 } = require('../providers/translation/registerDefaultProviders');
+const TextProviderConfigResolver = require('../providers/text/TextProviderConfigResolver');
 
 const DEFAULT_TEXT_PROVIDER = 'noop';
 const DEFAULT_TRANSLATION_PROVIDER = 'noop';
@@ -28,6 +27,7 @@ class ProductionOrchestrationService {
   constructor(guidesModel) {
     this.guidesModel = guidesModel;
     this.jobModel = new ProductionJobModel();
+    this.textProviderConfigResolver = new TextProviderConfigResolver();
   }
 
   /**
@@ -173,9 +173,9 @@ class ProductionOrchestrationService {
       item.variantId,
     );
     const place = await this.guidesModel.getById(req, placeId);
-    const providerKey = item.providerKey || this._providerKeyForStep(item.step);
+    const providerKey = item.providerKey || (await this._providerKeyForStep(req, item.step));
     const providerVersion =
-      item.providerVersion || this._providerVersionForStep(item.step, providerKey);
+      item.providerVersion || (await this._providerVersionForStep(req, item.step, providerKey));
     const fingerprint = this._computeFingerprintForTarget({
       step: item.step,
       stop,
@@ -633,8 +633,8 @@ class ProductionOrchestrationService {
 
   async _planStepItem(req, job, target, step, force, place) {
     const { stop, variant } = target;
-    const providerKey = this._providerKeyForStep(step);
-    const providerVersion = this._providerVersionForStep(step, providerKey);
+    const providerKey = await this._providerKeyForStep(req, step);
+    const providerVersion = await this._providerVersionForStep(req, step, providerKey);
 
     const fingerprint = this._computeFingerprintForTarget({
       step,
@@ -688,8 +688,10 @@ class ProductionOrchestrationService {
     );
 
     if (item.step === 'text_derivation') {
-      ensureTextProvidersRegistered();
-      const provider = TextProviderRegistry.get(item.providerKey || DEFAULT_TEXT_PROVIDER);
+      const provider = await this.textProviderConfigResolver.createProvider(
+        req,
+        item.providerKey || DEFAULT_TEXT_PROVIDER,
+      );
       const result = await provider.generate(req, {
         canonicalNarrative: stop.canonicalNarrative,
         variantType: variant.variantType,
@@ -783,18 +785,17 @@ class ProductionOrchestrationService {
     return normalized;
   }
 
-  _providerKeyForStep(step) {
+  async _providerKeyForStep(req, step) {
     if (step === 'text_derivation') {
-      return process.env.GUIDES_TEXT_PROVIDER || DEFAULT_TEXT_PROVIDER;
+      return this.textProviderConfigResolver.getPreferredProviderKey(req);
     }
     if (step === 'translation') return DEFAULT_TRANSLATION_PROVIDER;
     return 'noop';
   }
 
-  _providerVersionForStep(step, providerKey) {
+  async _providerVersionForStep(req, step, providerKey) {
     if (step === 'text_derivation') {
-      ensureTextProvidersRegistered();
-      return TextProviderRegistry.get(providerKey).version ?? '1';
+      return this.textProviderConfigResolver.getProviderVersion(req, providerKey);
     }
     if (step === 'translation') {
       ensureTranslationProvidersRegistered();

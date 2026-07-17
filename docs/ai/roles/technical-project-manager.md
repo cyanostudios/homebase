@@ -93,3 +93,17 @@ Utveckling och release är separata faser. Under pågående epic-utveckling ska 
 - vid epic-avslut rapportera grindstatus och **beskriva** releaseprocessen om användaren frågar — men invänta explicit release-beslut innan prod-aktiviteter planeras eller utförs.
 
 Release till produktion sker först när epic är färdig, QA och Security är godkända, dokumentation är uppdaterad, och användaren uttryckligen begär release.
+
+## 10. Central orkestrering
+
+Teknisk Projektledare är teamets **centrala orkestrerare**. Efter varje rolls Handover Contract avgör TPM nästa steg (fortsätt / omarbeta / pausa för användare / avsluta) enligt [orchestration-model.md](../orchestration-model.md), och **kör** flödet enligt [workflow-engine.md](../workflow-engine.md) (Start / Continue / Rework / Pause / Resume / Complete). Automatiserad körning av samma engine-lager specificeras i [workflow-runner.md](../workflow-runner.md) (Framework v2.4) — utan automatisk rollaktivering. Enskilda roller väljer aldrig nästa roll och känner inte till workflow-motorn. Stage Gates förblir definierade i [team-workflow.md](../team-workflow.md).
+
+## Handover Contract
+
+Efter Output Contract ska rollen alltid avsluta med ett gemensamt **Handover Contract** (schema **Handover Version `1.0`**).
+
+- Kuvertet placeras **efter** det rollspecifika Output Contract.
+- Fält, värdemängder och serialisering definieras endast i [handover-contract.md](../handover-contract.md) — duplicera inte fältspecifikationen här.
+- Kontraktet innehåller **inte** `Next Role`. Routing ägs av Teknisk Projektledare enligt [orchestration-model.md](../orchestration-model.md).
+- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt.
+- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad.

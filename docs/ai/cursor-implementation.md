@@ -57,9 +57,11 @@ Följande Cursor-funktioner används för att realisera AI-teamet. Beskrivningen
 
 **Typiska roller:** QA / Code Reviewer, Säkerhetsexpert, Teknisk Projektledare (vid behov av analys).
 
-### Subagents / autonoma uppgifter (framtida möjlighet)
+### Subagents (Pivot 1 — specialistaktivering)
 
-**Syfte:** En möjlig framtida mekanism för att låta en roll arbeta autonomt inom sitt mandat – t.ex. en utredning eller granskning som körs parallellt med annat arbete. Utvärderas mot designprinciperna i avsnitt 2 innan den tas i bruk.
+**Syfte:** Ersätter manuell `@role` för specialistroller när TPM kör **Subagent orchestration mode** (se avsnitt _TPM subagent orchestration_). Varje specialist mappas till `.cursor/agents/<slug>.md` härledd från `docs/ai/roles/*`. TPM är **inte** en subagent — parent-agenten orkestrerar Runner + Task.
+
+**Källa:** [`adr/FRAMEWORK_PIVOT1_SUBAGENT_MAPPING.md`](adr/FRAMEWORK_PIVOT1_SUBAGENT_MAPPING.md), [`adr/FRAMEWORK_PIVOT1_SUBAGENT_IMPL.md`](adr/FRAMEWORK_PIVOT1_SUBAGENT_IMPL.md)
 
 ### Framtida Cursor-funktioner
 
@@ -186,6 +188,141 @@ Varje AI-roll ska avsluta sitt arbete med en konsekvent och strukturerad leveran
 - **Efter överlämning:** när en roll har lämnat över betraktas dess uppdrag som avslutat. Om användaren fortsätter konversationen utan att aktivera den angivna nästa rollen ska den aktuella rollen inte fortsätta arbetet, utan endast informera om att uppgiften är överlämnad och att rätt roll behöver aktiveras. Rollen får inte börja utföra nästa rolls arbete.
 
 Output Contract definieras av respektive roll i dess Cursor-regel och ska inte dupliceras i andra dokument. Framtida roller ska använda samma koncept, anpassat efter sin roll.
+
+### Handover Contract
+
+Från Framework v2.0 (definition) och v2.1 (införande) avslutas varje rolls arbete med ett gemensamt, maskinläsbart **Handover Contract** — ett additivt kuvert _efter_ det rollspecifika Output Contract.
+
+- Single source of truth: [handover-contract.md](handover-contract.md) (schema **Handover Version `1.0`**).
+- Kontraktet innehåller **inte** `Next Role`. Nästa steg avgörs av Teknisk Projektledare enligt [orchestration-model.md](orchestration-model.md) (utifrån Team Workflow / Stage Gates).
+- `Status` = rollens resultat; `Workflow State` = arbetsflödets tillstånd. Båda är obligatoriska och ersätter inte varandra.
+- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt. Team Workflow och Stage Gates är oförändrade.
+- Infört i samtliga `docs/ai/roles/*` och `.cursor/rules/role-*.mdc` (Framework v2.1).
+- Central orkestreringsmodell: [orchestration-model.md](orchestration-model.md) (Framework v2.2).
+- Workflow Engine (TPM-körning): [workflow-engine.md](workflow-engine.md) (Framework v2.3).
+- Workflow Runner (automatiserad engine-körning): [workflow-runner.md](workflow-runner.md) (Framework v2.4 SSOT) — **runtime** under `tools/workflow-runner/` (Node.js CLI + bibliotek). Se avsnittet _Workflow Runner (runtime)_ nedan. Rollaktivering: **manuell fallback** (`Activate:`-hint) eller **TPM Task-delegering** (`Delegate:`-hint, Pivot 1).
+
+### Workflow Runner (runtime)
+
+**Syfte:** Köra Workflow Engine-loopen deterministiskt (parse Handover v1.0 → Orchestration Model §5 → emit Engine §10) utan att TPM manuellt tolkar varje handover.
+
+**Källa (spec):** [workflow-runner.md](workflow-runner.md)  
+**Implementation ADR:** [adr/FRAMEWORK_WORKFLOW_RUNNER_IMPL.md](adr/FRAMEWORK_WORKFLOW_RUNNER_IMPL.md)  
+**Kod:** `tools/workflow-runner/` (README: `tools/workflow-runner/README.md`)
+
+**Cursor-realisering:**
+
+| Del                       | Realisering                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------- |
+| Decision / emission       | `npm run workflow-runner -- …` eller `require('tools/workflow-runner')`                 |
+| Persistens                | `.workflow-runner/instances/<InstanceId>.json` (gitignorerad)                           |
+| Handover-artifacts        | `.workflow-runner/handovers/`, `.workflow-runner/artifacts/` (gitignorerade)            |
+| Rollaktivering (fallback) | `Activate: @.cursor/rules/role-<slug>.mdc (manual)` — användaren `@role`                |
+| Rollaktivering (Pivot 1)  | `Delegate: <slug>` + TPM `Task(subagent_type=<slug>)` — se _TPM subagent orchestration_ |
+
+Runner är **inte** en Cursor-hook eller skill. Den anropar inga Cursor-API:er; TPM parent tolkar emission och delegerar via Task.
+
+**DelegationPort** (additivt i `emissionPort.js`): fält `delegateSubagent` och `delegateHint` parallellt med `activateHint` på Start/Continue/Rework. DecisionPort oförändrad.
+
+### Automation feasibility (2026-07-17)
+
+Utredning: [`adr/FRAMEWORK_AUTOMATION_FEASIBILITY.md`](adr/FRAMEWORK_AUTOMATION_FEASIBILITY.md).
+
+| Topic                                 | Outcome                                                                                                             |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Automatisk `@role` / `.mdc`-växling   | **Ej verifierad** på Cursor — ingen Go för nuvarande slutmål                                                        |
+| Framework Engine + Runner             | **Giltig** — fortsatt användning för routing och emission                                                           |
+| Rekommenderad riktning                | **PIVOT** — subagent-mappning (`.cursor/agents/`), SDK-orkestrator utanför IDE, eller förbättrad manuell aktivering |
+| Rollregler `.cursor/rules/role-*.mdc` | Förblir manuella (`alwaysApply: false`) tills annat beslutas i separat spike-epic                                   |
+
+Officiellt stödda delautomationer (hooks `followup_message`, Task/subagents, Cursor SDK) dokumenteras i ADR; de ersätter inte `@role`-aktivering utan arkitekturändring.
+
+### Pivot 1 – Subagent role mapping (2026-07-17)
+
+Spike: [`adr/FRAMEWORK_PIVOT1_SUBAGENT_MAPPING.md`](adr/FRAMEWORK_PIVOT1_SUBAGENT_MAPPING.md).
+
+| Topic            | Outcome                                                           |
+| ---------------- | ----------------------------------------------------------------- |
+| Rekommendation   | **Go** för bounded implementation epic                            |
+| TPM              | Parent orchestrator i composer — inte subagent                    |
+| Specialistroller | `.cursor/agents/<slug>.md` härledda från `docs/ai/roles/*`        |
+| Låsta SSOTs      | Oförändrade — endast aktiveringslager (`@role` → Task/delegation) |
+| Runner           | DecisionPort oförändrad; valfri `Delegate:`-hint i implementation |
+| Handover         | Subagent returnerar `handover`-fence → parent → `runner handover` |
+
+### Pivot 1 – Subagent delegation (implementation, 2026-07-17)
+
+Implementation: [`adr/FRAMEWORK_PIVOT1_SUBAGENT_IMPL.md`](adr/FRAMEWORK_PIVOT1_SUBAGENT_IMPL.md). Epic `wf-2026-07-17-pivot1-impl-01`.
+
+| Leverans                            | Plats                                                                |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| DelegationPort                      | `tools/workflow-runner/emissionPort.js`                              |
+| Test-workflow `DelegatorAcceptance` | `tools/workflow-runner/constants.js` (ej i orchestration-model SSOT) |
+| Specialist-subagents (7)            | `.cursor/agents/<slug>.md`                                           |
+| Tester                              | `npm run test:workflow-runner`                                       |
+
+### TPM subagent orchestration
+
+Normativt protokoll för automatisk specialistkedja utan manuell `@role` mellan steg. Detaljer i `.cursor/rules/role-technical-project-manager.mdc` (_Subagent orchestration mode_).
+
+**Förutsättningar:**
+
+- Agent-läge (Task-verktyget tillgängligt)
+- Användaren startade TPM (`@role-technical-project-manager`) och godkände Grind 1 Output Contract
+- `InstanceId` känd
+
+**Orkestreringsloop:**
+
+| Steg | TPM-åtgärd                                                                                                                                              |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `npm run workflow-runner -- start --id <id> --type <type> [--gate-na …] [--dod "…"]`                                                                    |
+| 2    | Läs emission: `command`, `Role`, `delegateSubagent`, `Brief`                                                                                            |
+| 3    | Om `command` ∈ {Start, Continue, Rework}: **omedelbart** `Task(subagent_type=delegateSubagent, prompt=buildTaskPrompt(…))` — **ingen** användar-`@role` |
+| 4    | Från subagent-svar: extrahera `handover`-fence **ordagrant**                                                                                            |
+| 5    | Skriv till `.workflow-runner/handovers/<InstanceId>-<n>.md`                                                                                             |
+| 6    | `npm run workflow-runner -- handover --id <id> --file <path>`                                                                                           |
+| 7    | Om nästa emission är Start/Continue/Rework → steg 2 (**samma tur** om möjligt)                                                                          |
+| 8    | Om Pause → presentera fråga; vid användarsvar: `resume --decision "…"` → steg 2                                                                         |
+| 9    | Om Complete → rapportera till användaren                                                                                                                |
+
+**`buildTaskPrompt`-struktur:**
+
+````text
+[Framework Assignment]
+InstanceId: <id>
+Engine command: <Start|Continue|Rework>
+Role: <canonical role name>
+Brief: <from emission>
+
+[Prior Output Contract]
+<compressed output from previous specialist only>
+
+[Prior Handover]
+```handover
+<verbatim handover body — do not rewrite fields>
+````
+
+````
+
+Spara senaste Output Contract i `.workflow-runner/artifacts/<id>/step-<n>-output.md` eller TPM-session för nästa prompt.
+
+**Kritisk regel (Success Criterion):** Efter steg 6, om nästa emission är Start/Continue/Rework, ska TPM anropa Task **utan** att be användaren välja nästa roll.
+
+**Säkerhet (accepterad risk A1, Security Grind 5):**
+
+- Användaren ska vara aktiv observatör under auto-kedjor.
+- Skrivande subagents (`readonly: false` — Backend, Frontend, Documentation) ökar blast radius jämfört med manuell `@role`; auto-kedja dem endast inom låst Grind 1-scope.
+- Inbädda handover som avgränsat fenced block i Task-prompt (mot prompt-injection via handover-fält, risk S2).
+
+**Acceptanstest (QA):**
+
+```bash
+npm run workflow-runner -- start --id wf-accept-delegator-01 \
+  --type DelegatorAcceptance \
+  --dod "SA→QA→Docs without manual @role"
+````
+
+Förväntad sekvens: TPM → Solution Architect → QA → Documentation → Complete. Användaren `@role` inte någon specialist mellan steg 1–3.
 
 ## 7. Framtida utveckling
 

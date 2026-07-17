@@ -718,14 +718,14 @@ describe('ProductionOrchestrationService', () => {
     expect(service._shouldCheckpoint({ checkpointMode: 'auto', currentPhaseIndex: 0 })).toBe(false);
   });
 
-  test('_providerKeyForStep reads GUIDES_TEXT_PROVIDER env', () => {
+  test('_providerKeyForStep resolves preferred text provider', async () => {
     const service = new ProductionOrchestrationService({});
-    const prev = process.env.GUIDES_TEXT_PROVIDER;
-    process.env.GUIDES_TEXT_PROVIDER = 'openai';
-    expect(service._providerKeyForStep('text_derivation')).toBe('openai');
-    delete process.env.GUIDES_TEXT_PROVIDER;
-    expect(service._providerKeyForStep('text_derivation')).toBe('noop');
-    if (prev !== undefined) process.env.GUIDES_TEXT_PROVIDER = prev;
+    jest
+      .spyOn(service.textProviderConfigResolver, 'getPreferredProviderKey')
+      .mockResolvedValue('openai');
+
+    await expect(service._providerKeyForStep({}, 'text_derivation')).resolves.toBe('openai');
+    await expect(service._providerKeyForStep({}, 'translation')).resolves.toBe('noop');
   });
 
   test('_processItem schedules retry for text_derivation rate limit', async () => {
@@ -749,17 +749,16 @@ describe('ProductionOrchestrationService', () => {
     });
     const updateSpy = jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
 
-    const TextProviderRegistry = require('../providers/text/TextProviderRegistry');
     const mockProvider = {
-      key: 'openai',
-      version: 'openai@gpt-4o-mini@prompts-v1',
       generate: jest.fn().mockResolvedValue({
         status: 'retry',
         retryAfterMs: 5000,
         errorMessage: 'Rate limited',
       }),
     };
-    jest.spyOn(TextProviderRegistry, 'get').mockReturnValue(mockProvider);
+    jest
+      .spyOn(service.textProviderConfigResolver, 'createProvider')
+      .mockResolvedValue(mockProvider);
 
     await service._processItem(
       {},
@@ -809,8 +808,7 @@ describe('ProductionOrchestrationService', () => {
       raw: { text: 'AI text', model: 'gpt-4o-mini' },
       usage: { totalTokens: 100 },
     };
-    const TextProviderRegistry = require('../providers/text/TextProviderRegistry');
-    jest.spyOn(TextProviderRegistry, 'get').mockReturnValue({
+    jest.spyOn(service.textProviderConfigResolver, 'createProvider').mockResolvedValue({
       generate: jest.fn().mockResolvedValue({
         status: 'ready',
         presentationText: 'AI text',

@@ -86,3 +86,13 @@ En arkitekturleverans håller god kvalitet när:
 - Tekniska risker och beroenden är synliggjorda innan implementation påbörjas, inte upptäckta i efterhand.
 - Avvägningar mellan enkelhet, prestanda, säkerhet och underhållbarhet är medvetna och motiverade, inte slumpmässiga.
 - Konsekvenser för affärsbehov är kommunicerade till Teknisk Projektledare, inte tystade eller antagna.
+
+## Handover Contract
+
+Efter Output Contract ska rollen alltid avsluta med ett gemensamt **Handover Contract** (schema **Handover Version `1.0`**).
+
+- Kuvertet placeras **efter** det rollspecifika Output Contract.
+- Fält, värdemängder och serialisering definieras endast i [handover-contract.md](../handover-contract.md) — duplicera inte fältspecifikationen här.
+- Kontraktet innehåller **inte** `Next Role`. Routing ägs av Teknisk Projektledare (eller framtida orkestrerare) utifrån Team Workflow.
+- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt.
+- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad.

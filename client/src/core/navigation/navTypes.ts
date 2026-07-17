@@ -21,6 +21,7 @@ export type NavPage =
   | 'guides'
   | 'mail'
   | 'pulses'
+  | 'ai-providers'
   | 'settings';
 
 export type SubmenuNavItem = {

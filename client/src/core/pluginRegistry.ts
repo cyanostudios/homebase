@@ -12,6 +12,7 @@ import {
   Download,
   CalendarDays,
   MapPin,
+  Sparkles,
 } from 'lucide-react';
 import React from 'react';
 
@@ -143,6 +144,9 @@ import { useNotes } from '@/plugins/notes/hooks/useNotes';
 // Pulses
 import { PulseNullProvider } from '@/plugins/pulses/context/PulseContext';
 import { usePulses } from '@/plugins/pulses/hooks/usePulses';
+// AI Providers
+import { AIProvidersNullProvider } from '@/plugins/ai-providers/context/AIProvidersContext';
+import { useAIProviders } from '@/plugins/ai-providers/hooks/useAIProviders';
 // Settings (always enabled – loaded eagerly, no NullProvider)
 import { SettingsProvider } from '@/plugins/settings/context/SettingsContext';
 import { useSettings } from '@/plugins/settings/hooks/useSettings';
@@ -381,6 +385,23 @@ const PulseSettingsForm = React.lazy(() =>
 const PulsesDashboardWidget = React.lazy(() =>
   import('@/plugins/pulses/components/PulsesDashboardWidget').then((m) => ({
     default: m.PulsesDashboardWidget,
+  })),
+);
+
+// AI Providers
+const AIProvidersList = React.lazy(() =>
+  import('@/plugins/ai-providers/components/AIProvidersList').then((m) => ({
+    default: m.AIProvidersList,
+  })),
+);
+const AIProvidersSettingsForm = React.lazy(() =>
+  import('@/plugins/ai-providers/components/AIProvidersSettingsForm').then((m) => ({
+    default: m.AIProvidersSettingsForm,
+  })),
+);
+const AIProviderView = React.lazy(() =>
+  import('@/plugins/ai-providers/components/AIProviderView').then((m) => ({
+    default: m.AIProviderView,
   })),
 );
 
@@ -815,6 +836,31 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentFlush: true,
     slugField: 'id',
     contentViewKey: 'pulsesContentView',
+  },
+  {
+    name: 'ai-providers',
+    Provider: AIProvidersNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/ai-providers/context/AIProvidersProvider').then(
+        (m) => m.AIProvidersProvider,
+      ),
+    NullProvider: AIProvidersNullProvider,
+    hook: useAIProviders,
+    panelKey: 'isAIProvidersPanelOpen',
+    components: {
+      List: AIProvidersList,
+      Form: AIProvidersSettingsForm,
+      View: AIProviderView,
+    },
+    navigation: {
+      category: 'Tools',
+      label: 'AI Providers',
+      icon: Sparkles,
+      order: 4,
+    },
+    contentFlush: true,
+    slugField: 'providerKey',
+    noPrimaryAction: true,
   },
   {
     name: 'settings',

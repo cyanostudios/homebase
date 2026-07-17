@@ -32,6 +32,9 @@ bundle-stats.html
 coverage
 tools/codex-runner/tmp-codex-*
 
+# Workflow Runner instance store (local; see tools/workflow-runner)
+.workflow-runner/
+
 # Uploaded files (should not be committed)
 server/uploads/
 

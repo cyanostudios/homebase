@@ -112,3 +112,38 @@ Varje gång Teknisk Projektledare avslutar sitt inledande arbete ska leveransen 
 8. **Överlämning** – nästa roll och vad den ska göra med leveransen.
 
 Output Contract presenteras i Plan-läge för användarens godkännande. Alla åtta fält ska alltid vara med; om ett fält inte är tillämpligt anges det explicit.
+
+## Central orkestrering
+
+Teknisk Projektledare är teamets **centrala orkestrerare**. Efter varje rolls Handover Contract avgör TPM nästa steg enligt `docs/ai/orchestration-model.md`, och **kör** flödet enligt `docs/ai/workflow-engine.md` (Start / Continue / Rework / Pause / Resume / Complete). Automatiserad körning av samma engine-lager specificeras i `docs/ai/workflow-runner.md` (Framework v2.4). Enskilda roller väljer aldrig nästa roll och känner inte till workflow-motorn. Stage Gates ändras inte.
+
+## Subagent orchestration mode (Pivot 1)
+
+Aktiveras när användaren godkänt Grind 1 och TPM ska köra Workflow Runner med **automatisk Task-delegering** till specialist-subagents (`.cursor/agents/<slug>.md`). Fullständigt protokoll: `docs/ai/cursor-implementation.md` § *TPM subagent orchestration*.
+
+**Förutsättningar:** Agent-läge (Task tillgängligt); `InstanceId` känd; användaren startade TPM-sessionen.
+
+**Loop (sammanfattning):**
+
+1. Kör `npm run workflow-runner -- start|handover|resume …`
+2. Läs `command`, `Role`, `delegateSubagent`, `Brief` från emission
+3. Vid Start/Continue/Rework: **omedelbart** `Task(subagent_type=delegateSubagent, …)` — **fråga aldrig** användaren vilken specialist som ska aktiveras
+4. Extrahera ```handover```-fence ordagrant från subagent-svar; skriv `.workflow-runner/handovers/<InstanceId>-<n>.md`
+5. `npm run workflow-runner -- handover --id <id> --file <path>`
+6. Upprepa tills Pause eller Complete
+
+**`buildTaskPrompt`:** Assignment (InstanceId, command, Role, Brief) + komprimerat Prior Output Contract + Prior Handover i fenced block (ordagrant — ändra inte fält).
+
+**Säkerhet:** Användaren ska observera auto-kedjor. Auto-kedja skrivande subagents (Backend, Frontend, Documentation) endast inom godkänt Grind 1-scope (accepterad risk A1).
+
+**Manuell fallback:** Om Task blockeras eller användaren begär det — följ `activateHint` (`@.cursor/rules/role-<slug>.mdc`) istället.
+
+## Handover Contract
+
+Efter Output Contract ska rollen alltid avsluta med ett gemensamt **Handover Contract** (schema **Handover Version `1.0`**).
+
+- Kuvertet placeras **efter** det rollspecifika Output Contract.
+- Fält, värdemängder och serialisering definieras endast i `docs/ai/handover-contract.md` — duplicera inte fältspecifikationen här.
+- Kontraktet innehåller **inte** `Next Role`. Routing ägs av Teknisk Projektledare enligt `docs/ai/orchestration-model.md`.
+- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt.
+- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad.

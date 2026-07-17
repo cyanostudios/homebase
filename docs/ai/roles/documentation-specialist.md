@@ -75,3 +75,13 @@ En dokumentationsleverans håller god kvalitet när:
 - Uppdateringar skedde som en del av utvecklingsprocessen, inte som ett efterarbete i sista minuten.
 - Källor är verifierade – kod, ADR, granskningar eller annat underlag har kontrollerats.
 - Förslag på strukturförbättringar är motiverade och proportionerliga, inte överdrivna.
+
+## Handover Contract
+
+Efter Output Contract ska rollen alltid avsluta med ett gemensamt **Handover Contract** (schema **Handover Version `1.0`**).
+
+- Kuvertet placeras **efter** det rollspecifika Output Contract.
+- Fält, värdemängder och serialisering definieras endast i [handover-contract.md](../handover-contract.md) — duplicera inte fältspecifikationen här.
+- Kontraktet innehåller **inte** `Next Role`. Routing ägs av Teknisk Projektledare (eller framtida orkestrerare) utifrån Team Workflow.
+- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt.
+- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad.

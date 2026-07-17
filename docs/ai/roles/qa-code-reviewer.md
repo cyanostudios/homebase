@@ -82,3 +82,13 @@ En granskning håller god kvalitet när:
 - Bakåtkompatibilitet är kontrollerad, eller avvikelser är synliggjorda.
 - Ett godkännande innebär att kvalitetskraven verkligen är uppfyllda – aldrig ett resultat av tidspress eller kompromiss.
 - Ett underkännande åtföljs av konkret, motiverad feedback som gör omarbetning möjlig utan gissningar.
+
+## Handover Contract
+
+Efter Output Contract ska rollen alltid avsluta med ett gemensamt **Handover Contract** (schema **Handover Version `1.0`**).
+
+- Kuvertet placeras **efter** det rollspecifika Output Contract.
+- Fält, värdemängder och serialisering definieras endast i [handover-contract.md](../handover-contract.md) — duplicera inte fältspecifikationen här.
+- Kontraktet innehåller **inte** `Next Role`. Routing ägs av Teknisk Projektledare (eller framtida orkestrerare) utifrån Team Workflow.
+- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt.
+- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad.

@@ -131,6 +131,14 @@ All grid cards must use `DetailCard` or `Card` with standardized padding.
 
 ## 3. Detail Panels
 
+### Layout (`DetailLayout`)
+
+- **Add/create (no sidebar):** single-column grid — form fills full panel width.
+- **Edit/view with sidebar:** two columns on lg (`main` + `320px` sidebar); main column may use `PANEL_MAX_WIDTH` (`max-w-[920px]`).
+- **Three columns:** optional `rightSidebar` (e.g. activity log) — `lg:grid-cols-[1fr_280px_280px]`.
+
+Reference: contacts and AI Providers edit forms (information sidebar); ingest aligned to same pattern (2026-07-17).
+
 ### Header vs. Footer Actions
 
 - **Header (Toolbar):** Place "Tool" actions here.

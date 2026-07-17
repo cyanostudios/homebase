@@ -6,6 +6,7 @@ const DEFAULT_MODEL = 'gpt-4o-mini';
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_RPM = 60;
 const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models';
 
 function parseRetryAfterMs(response) {
   const header = response.headers.get('retry-after');
@@ -33,6 +34,42 @@ class OpenAITextProvider {
 
     const promptSetVersion = this._promptLoader.getPromptSetVersion();
     this.version = `openai@${this._model}@prompts-${promptSetVersion}`;
+  }
+
+  async testConnection() {
+    if (!this._apiKey) {
+      throw new Error('OPENAI_API_KEY is not configured');
+    }
+
+    let response;
+    try {
+      response = await this._fetch(`${OPENAI_MODELS_URL}/${encodeURIComponent(this._model)}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this._apiKey}`,
+        },
+        signal: AbortSignal.timeout(this._timeoutMs),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'OpenAI request failed';
+      if (message.includes('TimeoutError') || message.includes('aborted')) {
+        throw new Error('OpenAI request timed out');
+      }
+      throw new Error(message);
+    }
+
+    if (!response.ok) {
+      let detail = '';
+      try {
+        const body = await response.json();
+        detail = body?.error?.message ?? '';
+      } catch {
+        // ignore parse errors
+      }
+      throw new Error(detail || `OpenAI request failed (${response.status})`);
+    }
+
+    return { ok: true, model: this._model };
   }
 
   /**

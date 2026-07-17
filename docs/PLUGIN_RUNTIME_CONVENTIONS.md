@@ -10,6 +10,7 @@ This document is the **single reference** for those names. Related: `PLUGIN_ARCH
 
 - Most plugin names drop a trailing `s`: `contacts` → `contact`, `tasks` → `task`, `teams` → `team`, `requests` → `request`.
 - Irregular: `matches` → `match`, `slots` → `slot`.
+- Acronym caps: `ai-providers` → `AIProvider` (via `IRREGULAR_CAP`; not `AiProvider`).
 - `schedule` → `schedule` (no trailing `s` to drop).
 - Hyphenated names become camelCase before rules apply.
 
@@ -67,6 +68,36 @@ The hook returned by `plugin.hook()` should expose (as applicable):
 - **`View`** — read-only detail in the panel.
 
 If `View` or `Form` is missing when core tries to render that mode, a **dev warning** is logged (`panelRendering.tsx`).
+
+---
+
+## Slug field (`slugField` in registry)
+
+Default deep-link slug uses numeric `id`. Plugins whose primary key is not `id` set `slugField` in `pluginRegistry.ts`:
+
+| Plugin         | `slugField`   | Example URL            |
+| -------------- | ------------- | ---------------------- |
+| `ai-providers` | `providerKey` | `/ai-providers/openai` |
+
+`AppContent.tsx` resolves items by this field when matching URL slugs.
+
+---
+
+## Detail panel item resolution
+
+`AppContent.tsx` uses `findCurrentItemForOpenPlugin` to prefer the **open panel's** `current{SingularCap}` from that plugin's context (not a generic scan). Required for correct panel header actions (Edit, Close, Update) and titles when `SingularCap` is irregular (e.g. `AIProvider`).
+
+---
+
+## DetailLayout grid
+
+`DetailLayout` (`client/src/core/ui/DetailLayout.tsx`):
+
+- **No sidebar:** single column — main content uses full panel width (add/create forms).
+- **With sidebar:** `lg:grid-cols-[1fr_320px]` — main + information/quick actions.
+- **With `rightSidebar`:** three columns on lg.
+
+Use `mainClassName={PANEL_MAX_WIDTH}` (`max-w-[920px]`) on the main column when following the contacts/ingest form pattern.
 
 ---
 

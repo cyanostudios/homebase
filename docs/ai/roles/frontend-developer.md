@@ -82,3 +82,13 @@ En frontend-leverans håller god kvalitet när:
 - Relevanta tester finns, är körda och gröna.
 - Design-, arkitektur- eller kontraktsproblem har flaggats, inte tyst lösts i implementationen.
 - Bakåtkompatibilitet är bevarad där rimligt; brytande förändringar är dokumenterade och eskalerade.
+
+## Handover Contract
+
+Efter Output Contract ska rollen alltid avsluta med ett gemensamt **Handover Contract** (schema **Handover Version `1.0`**).
+
+- Kuvertet placeras **efter** det rollspecifika Output Contract.
+- Fält, värdemängder och serialisering definieras endast i [handover-contract.md](../handover-contract.md) — duplicera inte fältspecifikationen här.
+- Kontraktet innehåller **inte** `Next Role`. Routing ägs av Teknisk Projektledare (eller framtida orkestrerare) utifrån Team Workflow.
+- Emitering av Handover Contract aktiverar **inte** nästa roll automatiskt.
+- Den kommunikativa överlämningsraden `Överlämning:\n<roll>` behålls oförändrad.

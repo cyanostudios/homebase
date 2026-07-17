@@ -214,7 +214,7 @@ Detta sker genom att beslutet **rapporteras**, inte genom att Projektledaren beh
 
 ### Efter överlämning
 
-En överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. Nästa steg ska utföras av den roll som överlämningen pekar på. Om användaren fortsätter konversationen utan att aktivera den angivna nästa rollen ska den aktuella rollen inte fortsätta arbetet, utan endast informera om att uppgiften är överlämnad och att rätt roll behöver aktiveras.
+En överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. **Nästa steg bestäms av Teknisk Projektledare** enligt [orchestration-model.md](orchestration-model.md) och körs via [workflow-engine.md](workflow-engine.md) (Handover Contract + Stage Gates + Workflow Type) — inte av den avgående rollen. Automatiserad körning av samma engine-lager beskrivs i [workflow-runner.md](workflow-runner.md) (utan automatisk rollaktivering). Den kommunikativa raden `Överlämning:\n<roll>` är icke-auktoritativ. Om användaren fortsätter konversationen utan att aktivera den roll TPM angett ska den aktuella rollen inte fortsätta arbetet, utan endast informera om att uppgiften är överlämnad och att rätt roll behöver aktiveras.
 
 Se även principen **Efter överlämning** i avsnitt 7.
 
@@ -230,7 +230,7 @@ Dessa principer styr hur teamet samarbetar. De kompletterar [Engineering Princip
 - **Roller samarbetar, men respekterar ansvarsområden** – samarbeta fritt inom ett steg, men fatta inte beslut som tillhör en annan roll.
 - **Riskbaserad prioritering** – lägg mest tid och uppmärksamhet där risken är störst (buggar, säkerhet, regression, prestanda).
 - **Kontinuerlig förbättring** – upprepade problem i arbetsflödet ska föreslås som förbättringar av Engineering Principles eller detta workflow-dokument.
-- **Efter överlämning** – en överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. Nästa steg ska utföras av den roll som överlämningen pekar på.
+- **Efter överlämning** – en överlämning avslutar den aktuella rollens uppdrag. Efter en överlämning får rollen inte fortsätta utföra arbete inom samma uppgift. Nästa steg bestäms av Teknisk Projektledare enligt [orchestration-model.md](orchestration-model.md) och [workflow-engine.md](workflow-engine.md). Se även [workflow-runner.md](workflow-runner.md) för automatiserad engine-körning (manuell aktivering).
 - **Release Discipline** – utveckling, verifiering och release är separata faser. Under implementation: local first; ingen roll driver produktionsaktiviteter utan explicit användarbeslut om release (se avsnitt 9).
 
 ## 8. Kriterier för en färdig leverans

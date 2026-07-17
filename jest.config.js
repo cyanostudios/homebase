@@ -6,8 +6,10 @@ module.exports = {
   roots: [
     '<rootDir>/server',
     '<rootDir>/plugins',
+    '<rootDir>/tools/workflow-runner',
     '<rootDir>/client/src/core',
     '<rootDir>/client/src/plugins/guides',
+    '<rootDir>/client/src/plugins/ai-providers',
   ],
   testMatch: [
     '**/__tests__/**/*.test.js',

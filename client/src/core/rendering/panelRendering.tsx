@@ -37,12 +37,16 @@ export const createPanelRenderers = (
         }
         return null;
       }
+      const singularCapName = getSingularCap(currentPlugin.name);
+      const currentItemProp = `current${singularCapName}`;
+      const pluginCurrentItem = currentPluginContext?.[currentItemProp] ?? currentItem ?? null;
+
       // DYNAMIC: Generate props based on plugin name automatically using helper
       const singularName = getSingular(currentPlugin.name);
-      const props = { [singularName]: currentItem };
+      const props = { [singularName]: pluginCurrentItem };
 
       // Also pass generic 'item' prop for plugins that might use it
-      const finalProps = { ...props, item: currentItem };
+      const finalProps = { ...props, item: pluginCurrentItem };
 
       const viewExtraProps = currentPlugin.getViewExtraProps?.(currentPluginContext) ?? {};
 

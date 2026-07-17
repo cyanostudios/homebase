@@ -40,6 +40,7 @@ type PluginNameUnion =
   | 'ingest'
   | 'mail'
   | 'pulses'
+  | 'ai-providers'
   | 'settings'
   | 'booking';
 

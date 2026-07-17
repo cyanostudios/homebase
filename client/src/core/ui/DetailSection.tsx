@@ -16,7 +16,8 @@ export type DetailSectionIconPlugin =
   | 'matches'
   | 'ingest'
   | 'guides'
-  | 'requests';
+  | 'requests'
+  | 'ai-providers';
 
 interface DetailSectionProps {
   title: string | React.ReactNode;
