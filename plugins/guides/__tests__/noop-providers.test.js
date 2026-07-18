@@ -9,12 +9,11 @@ describe('noop production providers', () => {
       {},
       {
         canonicalNarrative: 'Story',
-        variantType: 'quick',
         language: 'sv',
       },
     );
     expect(result.status).toBe('ready');
-    expect(result.presentationText).toBe('[quick/sv] Story');
+    expect(result.presentationText).toBe('[sv] Story');
   });
 
   test('NoopTranslationProvider prefixes target language', async () => {

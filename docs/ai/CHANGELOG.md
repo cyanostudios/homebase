@@ -2,6 +2,12 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## P-GUIDES_PLACE_PRESENTATION — One guide per place (2026-07-19)
+
+Place-only Guides: `guide_presentations` (no stops/variants/audio); `full_guide` items use `presentation_id`; single `text_derivation` prompt. ADR: [`docs/ai/adr/P-GUIDES_PLACE_PRESENTATION.md`](adr/P-GUIDES_PLACE_PRESENTATION.md). Docs synced: content sources, P-TEXT, pipeline v2, UX v1/v2.
+
+---
+
 ## P-AI-SETTINGS — Provider routing (2026-07-17)
 
 Epic P-AI-SETTINGS — central AI-routing för domänplugins + multi-provider-katalog.

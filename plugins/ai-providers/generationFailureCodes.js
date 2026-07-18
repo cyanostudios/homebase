@@ -3,6 +3,7 @@
 
 const GENERATION_FAILURE_CODES = Object.freeze([
   'provider_not_configured',
+  'provider_not_generation_capable',
   'provider_auth_failed',
   'provider_quota_exhausted',
   'provider_rate_limited',

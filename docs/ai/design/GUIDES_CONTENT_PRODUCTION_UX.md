@@ -1,9 +1,11 @@
 # UX-spec — Guide CMS Content Production Pipeline (P2, P5, P7)
 
-**Status:** Godkänd design (2026-07-13)  
+**Status:** Godkänd design (2026-07-13) — **delvis historisk**  
 **ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE.md`](../adr/CONTENT_PRODUCTION_PIPELINE.md)  
 **Epics:** P2 (HITL), P5 (Ingest bridge), P7 (ProductionJob)  
 **Plats:** [`client/src/plugins/guides/`](../../../client/src/plugins/guides/)
+
+> **Aktuellt produktflöde (2026-07-19):** Place-only model — [`P-GUIDES_PLACE_PRESENTATION.md`](../adr/P-GUIDES_PLACE_PRESENTATION.md). Research → one guide text per language presentation → review (optional translate). CreateStops / narrative-before-produce / length variants / audio i denna spec är **historiska**. Research-first kvarstår på place-nivå (`P-GUIDES_CONTENT_SOURCES`). Se även UX v2 callout. Flödesdiagrammet nedan ska **inte** tolkas som gällande produktflöde.
 
 ---
 

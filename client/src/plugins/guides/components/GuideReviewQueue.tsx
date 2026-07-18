@@ -15,12 +15,7 @@ import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
 
 import { guidesApi } from '../api/guidesApi';
-import type {
-  GuideStop,
-  GuideVariantPresentation,
-  ProductionJob,
-  ProductionJobItem,
-} from '../types/guides';
+import type { GuidePresentation, ProductionJob, ProductionJobItem } from '../types/guides';
 import {
   canAdvancePhase,
   countPendingReviewItems,
@@ -61,10 +56,7 @@ export const GuideReviewQueue = forwardRef<GuideReviewQueueHandle, GuideReviewQu
   ) {
     const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
-    const [stops, setStops] = useState<GuideStop[]>([]);
-    const [variantsByStop, setVariantsByStop] = useState<
-      Record<string, GuideVariantPresentation[]>
-    >({});
+    const [presentations, setPresentations] = useState<GuidePresentation[]>([]);
     const [isLoadingMeta, setIsLoadingMeta] = useState(false);
 
     useImperativeHandle(ref, () => ({
@@ -88,19 +80,10 @@ export const GuideReviewQueue = forwardRef<GuideReviewQueueHandle, GuideReviewQu
     const loadMetadata = useCallback(async () => {
       setIsLoadingMeta(true);
       try {
-        const stopList = await guidesApi.getStops(placeId);
-        setStops(stopList);
-        const stopIds = [...new Set(phaseItems.map((item) => item.stopId))];
-        const variantEntries = await Promise.all(
-          stopIds.map(async (stopId) => {
-            const variants = await guidesApi.getVariants(placeId, stopId);
-            return [stopId, variants] as const;
-          }),
-        );
-        setVariantsByStop(Object.fromEntries(variantEntries));
+        const list = await guidesApi.getPresentations(placeId);
+        setPresentations(list);
       } catch {
-        setStops([]);
-        setVariantsByStop({});
+        setPresentations([]);
       } finally {
         setIsLoadingMeta(false);
       }
@@ -129,17 +112,12 @@ export const GuideReviewQueue = forwardRef<GuideReviewQueueHandle, GuideReviewQu
             ) : (
               <ul className="space-y-3">
                 {phaseItems.map((item) => {
-                  const stop = stops.find((s) => s.id === item.stopId);
-                  const variants = variantsByStop[item.stopId] ?? [];
-                  const variant = item.variantId
-                    ? variants.find((v) => v.id === item.variantId)
-                    : undefined;
+                  const presentation = presentations.find((p) => p.id === item.presentationId);
                   return (
                     <GuideReviewItem
                       key={item.id}
                       item={item}
-                      stop={stop}
-                      variant={variant}
+                      presentation={presentation}
                       isBusy={isBusy}
                       onApprove={onApproveItem}
                       onReject={onRejectItem}

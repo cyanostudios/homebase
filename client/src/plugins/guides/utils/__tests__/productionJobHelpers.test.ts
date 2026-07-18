@@ -20,8 +20,6 @@ function makeJob(overrides: Partial<ProductionJob> = {}): ProductionJob {
     placeId: '10',
     type: 'full_guide',
     status: 'awaiting_review',
-    scopeStopId: null,
-    scopeVariantId: null,
     phases: ['text_derivation', 'translation'],
     currentPhaseIndex: 0,
     checkpointMode: 'after_text',
@@ -44,8 +42,7 @@ function makeItem(overrides: Partial<ProductionJobItem> = {}): ProductionJobItem
     id: 'item-1',
     jobId: '1',
     userId: '1',
-    stopId: 'stop-1',
-    variantId: 'var-1',
+    presentationId: 'pres-1',
     step: 'text_derivation',
     phaseIndex: 0,
     status: 'completed',
@@ -125,7 +122,7 @@ describe('productionJobHelpers', () => {
     expect(list[0].id).toBe('9');
   });
 
-  it('getTextPipelineStage maps research → deep → summarize → review', () => {
+  it('getTextPipelineStage maps research → generate → review', () => {
     expect(getTextPipelineStage(makeJob({ status: 'planning' }), [])).toBe('research');
     expect(
       getTextPipelineStage(
@@ -135,33 +132,18 @@ describe('productionJobHelpers', () => {
         }),
         [makeItem({ status: 'processing' })],
       ),
-    ).toBe('deep');
+    ).toBe('generate');
     expect(
       getTextPipelineStage(
         makeJob({
           status: 'processing',
           jobOptions: { sourcePack: { sources: [{ sourceKey: 'wikipedia', status: 'ok' }] } },
         }),
-        [
-          makeItem({ id: '1', status: 'completed' }),
-          makeItem({
-            id: '2',
-            status: 'pending',
-            errorMessage: 'Waiting for deep variant',
-          }),
-        ],
+        [],
       ),
-    ).toBe('deep');
-    expect(
-      getTextPipelineStage(
-        makeJob({
-          status: 'processing',
-          jobOptions: { sourcePack: { sources: [{ sourceKey: 'wikipedia', status: 'ok' }] } },
-        }),
-        [makeItem({ id: '1', status: 'completed' }), makeItem({ id: '2', status: 'processing' })],
-      ),
-    ).toBe('summarize');
+    ).toBe('generate');
     expect(getTextPipelineStage(makeJob({ status: 'awaiting_review' }), [])).toBe('review');
+    expect(getTextPipelineStage(makeJob({ status: 'processing' }), [])).toBe('research');
   });
 
   it('resolveSourceSummary falls back to job sourcePack', () => {

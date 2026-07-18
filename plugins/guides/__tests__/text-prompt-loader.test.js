@@ -7,47 +7,33 @@ describe('TextPromptLoader', () => {
   });
 
   test('loads manifest and interpolates variables', () => {
-    const prompts = TextPromptLoader.getPrompts('normal', {
+    const prompts = TextPromptLoader.getPrompts({
       canonicalNarrative: 'A historic square with a fountain.',
       language: 'sv',
-      variantType: 'normal',
     });
 
-    expect(prompts.promptSetVersion).toBe('v1.2');
+    expect(prompts.promptSetVersion).toBe('v1.3');
     expect(prompts.promptVersion).toBe('v1');
     expect(prompts.maxCompletionTokens).toBe(400);
     expect(prompts.system).toContain('tour guide');
     expect(prompts.user).toContain('A historic square with a fountain.');
     expect(prompts.user).toContain('Language: sv');
-    expect(prompts.user).toContain('Variant type: normal');
-  });
-
-  test('token budgets differ per variant type', () => {
-    const quick = TextPromptLoader.getPrompts('quick', {
-      canonicalNarrative: 'X',
-      language: 'en',
-      variantType: 'quick',
-    });
-    const deep = TextPromptLoader.getPrompts('deep', {
-      canonicalNarrative: 'X',
-      language: 'en',
-      variantType: 'deep',
-    });
-    expect(quick.maxCompletionTokens).toBe(150);
-    expect(deep.maxCompletionTokens).toBe(800);
+    expect(prompts.user).not.toContain('Variant type');
   });
 
   test('getPromptSetVersion returns manifest version', () => {
-    expect(TextPromptLoader.getPromptSetVersion()).toBe('v1.2');
+    expect(TextPromptLoader.getPromptSetVersion()).toBe('v1.3');
   });
 
-  test('throws for unknown variant type', () => {
-    expect(() =>
-      TextPromptLoader.getPrompts('unknown', {
-        canonicalNarrative: 'X',
-        language: 'sv',
-        variantType: 'unknown',
-      }),
-    ).toThrow('No prompt config');
+  test('includes place context block when provided', () => {
+    const prompts = TextPromptLoader.getPrompts({
+      canonicalNarrative: 'Notes',
+      language: 'en',
+      placeContext: { displayName: 'Museum Square', locality: 'Stockholm' },
+      sourcePackText: 'Facts here',
+    });
+    expect(prompts.user).toContain('Museum Square');
+    expect(prompts.user).toContain('Stockholm');
+    expect(prompts.user).toContain('Facts here');
   });
 });

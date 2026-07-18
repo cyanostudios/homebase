@@ -26,7 +26,7 @@ export const ProductionPhaseIndicator: React.FC<ProductionPhaseIndicatorProps> =
   className,
 }) => {
   const { t } = useTranslation();
-  const phases = (job.phases ?? []).filter((step) => step !== 'audio');
+  const phases = job.phases ?? [];
   const current = getCurrentPhaseStep(job);
 
   const labels = phases.map((step) => t(`guides.production.phases.${step}`)).join(', ');

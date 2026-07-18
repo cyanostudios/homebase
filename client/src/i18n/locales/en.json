@@ -634,6 +634,10 @@
           "title": "No AI provider is configured",
           "message": "Configure an AI provider that supports text generation (currently OpenAI) before producing a guide."
         },
+        "provider_not_generation_capable": {
+          "title": "This AI provider cannot generate guide text",
+          "message": "A provider is configured, but Guides has no text adapter for it yet. Route Guides (or the global default) to OpenAI, then try again."
+        },
         "provider_auth_failed": {
           "title": "Authentication with the AI provider failed",
           "message": "Check the provider credentials in settings and try again."
@@ -670,47 +674,10 @@
     "sourceLanguageHint": "Canonical language for this guide (e.g. sv, en-us).",
     "masterGuide": "Master guide",
     "masterGuideEditorialStatus": "Editorial status",
-    "guideStops": "Guide stops",
-    "stopsNoYet": "No stops yet. Add a stop to build the guide narrative.",
-    "stopsCount": "{{count}} stop",
-    "stopsCount_other": "{{count}} stops",
-    "addStop": "Add stop",
-    "editStop": "Edit stop",
-    "stopTitle": "Stop title",
-    "stopTitlePlaceholder": "e.g. Main entrance",
-    "stopTitleRequired": "Stop title is required",
-    "stopEditorialStatus": "Editorial status",
-    "canonicalNarrative": "Canonical narrative",
-    "canonicalNarrativePlaceholder": "Write the master narrative for this stop…",
-    "canonicalNarrativeHint": "Source language: {{language}}. This is the canonical text for this stop.",
-    "canonicalNarrativeEmpty": "No narrative yet.",
-    "moveStopUp": "Move stop up",
-    "moveStopDown": "Move stop down",
-    "deleteStopTitle": "Delete stop",
-    "deleteStopDescription": "Delete \"{{title}}\"? This cannot be undone.",
-    "stopsLoadFailed": "Failed to load stops.",
-    "stopsSaveFailed": "Failed to save stop.",
-    "stopsDeleteFailed": "Failed to delete stop.",
-    "stopsReorderFailed": "Failed to reorder stops.",
-    "variants": "Presentations",
-    "variantsNoYet": "No presentation variants yet.",
-    "variantsCount": "{{count}} variant",
-    "variantsCount_other": "{{count}} variants",
-    "addVariant": "Add variant",
-    "editVariant": "Edit variant",
-    "variantType": "Variant type",
-    "variantLanguage": "Language",
-    "variantLanguagePlaceholder": "e.g. sv, en-us",
-    "variantLanguageRequired": "Language is required",
     "presentationText": "Presentation text",
-    "presentationTextPlaceholder": "Write the presentation for this variant…",
+    "presentationTextPlaceholder": "Write the guide presentation for this language…",
     "presentationTextEmpty": "No presentation text yet.",
     "publicationStatus": "Publication status",
-    "variantTypes": {
-      "quick": "Quick",
-      "normal": "Normal",
-      "deep": "Deep"
-    },
     "publication": {
       "draft": "Draft",
       "ready": "Ready",
@@ -719,42 +686,6 @@
     "staleness": {
       "fresh": "Up to date",
       "stale": "Stale"
-    },
-    "deleteVariantTitle": "Delete variant",
-    "deleteVariantDescription": "Delete {{type}} ({{language}})? This cannot be undone.",
-    "variantsLoadFailed": "Failed to load variants.",
-    "variantsSaveFailed": "Failed to save variant.",
-    "variantsDeleteFailed": "Failed to delete variant.",
-    "variantConflict": "A variant with this type and language already exists.",
-    "audio": {
-      "title": "Audio",
-      "generate": "Generate audio",
-      "regenerate": "Regenerate",
-      "retry": "Try again",
-      "cancel": "Cancel",
-      "deleteTitle": "Delete audio",
-      "deleteDescription": "Remove the audio file for this variant? This cannot be undone.",
-      "regenerateTitle": "Regenerate audio",
-      "regenerateDescriptionStale": "The source text has changed. Regenerating will replace the existing audio.",
-      "regenerateDescriptionReady": "Regenerating will replace the existing audio file.",
-      "regenerateDescriptionFailed": "Try generating audio again? The previous attempt failed.",
-      "emptyHint": "No audio file — generate from presentation text.",
-      "processingHint": "Generating audio…",
-      "staleHint": "Audio no longer matches the source text.",
-      "noPresentationText": "Presentation text is required for audio generation.",
-      "loadFailed": "Failed to load audio.",
-      "actionFailed": "Audio action failed.",
-      "deleteFailed": "Failed to delete audio.",
-      "alreadyProcessing": "Generation is already in progress.",
-      "polling": "Updating…",
-      "previewLabel": "Audio preview",
-      "status": {
-        "pending": "Pending",
-        "processing": "Processing",
-        "ready": "Ready",
-        "failed": "Failed",
-        "stale": "Stale"
-      }
     },
     "masterGuideId": "Master guide",
     "lifecycle": {
@@ -789,12 +720,7 @@
       "cancelJobDescription": "Cancel the active job? In-progress steps will stop.",
       "retry": "Try again",
       "showReviewQueue": "Show review queue ({{count}})",
-      "startStop": "Produce stop",
-      "startStopAria": "Produce stop {{title}}",
-      "startVariant": "Produce variant",
-      "startVariantAria": "Produce variant {{type}} {{language}}",
       "continueToTranslation": "Continue to translation →",
-      "continueToAudio": "Continue to audio →",
       "continueFinish": "Finish production",
       "continueNextPhase": "Continue to next phase →",
       "historyTitle": "Production history",
@@ -802,8 +728,7 @@
       "phaseIndicatorAria": "Production phases: {{phases}}. Active: {{current}}",
       "phases": {
         "text_derivation": "Text",
-        "translation": "Translation",
-        "audio": "Audio"
+        "translation": "Translation"
       },
       "status": {
         "pending": "Queued",
@@ -815,26 +740,22 @@
         "cancelled": "Cancelled"
       },
       "jobTypes": {
-        "full_guide": "Full guide",
-        "stop": "Stop",
-        "variant": "Variant"
+        "full_guide": "Full guide"
       },
       "banner": {
         "pending": "Queued — starting shortly…",
-        "planning": "Fetching sources (Wikipedia, UNESCO, …)…",
+        "planning": "Fetching sources (Wikipedia, Wikidata, …)…",
         "failed": "Production failed",
         "completed": "Production completed",
         "awaitingReview": "Review text drafts ({{count}} remaining)",
         "processing": {
           "generic": "Producing…",
           "text_derivation": "Producing text…",
-          "translation": "Translating…",
-          "audio": "Generating audio…"
+          "translation": "Translating…"
         },
         "pipeline": {
-          "research": "Fetching sources (Wikipedia, UNESCO, …)…",
-          "deep": "Writing deep text…",
-          "summarize": "Summarizing normal and quick…"
+          "research": "Fetching sources (Wikipedia, Wikidata, …)…",
+          "generate": "Writing presentation text…"
         },
         "stalled": "Production has not started",
         "stalledHint": "The job is still in the queue. This usually means the background worker is off — not missing AI tokens. Restart the server with the worker enabled, or cancel and try again.",
@@ -842,15 +763,10 @@
       },
       "start": {
         "fullGuideTitle": "Create guide from place",
-        "fullGuideDescription": "Start production from this place: research sources, write deep text, then summarize normal/quick. Review happens after the text phase.",
-        "stopTitle": "Produce stop",
-        "stopDescription": "Start production for stop \"{{name}}\".",
-        "variantTitle": "Produce variant",
-        "variantDescription": "Start production for variant {{name}}.",
-        "phasesHint": "Flow: Fetch sources → Deep text → Normal/quick summaries → Review.",
+        "fullGuideDescription": "Start production for this place: research sources, generate presentation text, then review. Translation runs when other languages are requested.",
+        "phasesHint": "Flow: Fetch sources → Generate text → Review.",
         "forceLabel": "Force rerun (ignore cache)",
-        "confirm": "Create guide from place",
-        "confirmScoped": "Start production"
+        "confirm": "Create guide from place"
       },
       "review": {
         "queueTitle": "Review text drafts ({{count}})",
@@ -868,16 +784,38 @@
         "approveAria": "Approve text draft for {{label}}",
         "rejectAria": "Reject text draft for {{label}}",
         "regenerateAria": "Regenerate text draft for {{label}}",
-        "continueDisabledTooltip": "{{count}} drafts still awaiting review"
+        "continueDisabledTooltip": "{{count}} drafts still awaiting review",
+        "unknownLanguage": "Unknown language"
       },
-      "panelIdleHint": "Fetches sources (Wikipedia, UNESCO, …), writes deep text, then summarizes normal/quick.",
+      "panelIdleHint": "Fetches sources, generates presentation text, then opens review.",
       "pipelineAria": "Text pipeline: {{stages}}. Active: {{current}}",
       "pipeline": {
         "research": "Sources",
-        "deep": "Deep",
-        "summarize": "Normal/quick",
+        "generate": "Generate",
         "review": "Review"
       }
+    },
+    "contentSources": {
+      "title": "Research sources",
+      "description": "Choose which sources to query when creating a guide. Changes apply to the next production job.",
+      "showLink": "Research sources",
+      "hideLink": "Hide research sources",
+      "loadFailed": "Could not load research sources.",
+      "saveFailed": "Could not update research source."
+    },
+    "presentations": "Presentations",
+    "presentationsEmpty": "No presentation yet. Produce the guide from this place to generate text.",
+    "presentationsLoadFailed": "Failed to load presentations.",
+    "presentationsSaveFailed": "Failed to save presentation.",
+    "sourcePresentation": "Source language",
+    "sourcePresentationEmpty": "No source-language text yet. Produce the guide or write it here.",
+    "otherLanguages": "Other languages",
+    "editPresentation": "Edit presentation ({{language}})",
+    "approvalStatus": "Approval status",
+    "approval": {
+      "draft": "Draft",
+      "pending_review": "Pending review",
+      "approved": "Approved"
     }
   },
   "files": {

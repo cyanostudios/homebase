@@ -6,7 +6,6 @@ describe('computeProductionFingerprint', () => {
     const input = {
       canonicalNarrative: 'Hello world',
       presentationText: null,
-      variantType: 'normal',
       language: 'sv',
       step: 'text_derivation',
       providerKey: 'noop',
@@ -22,7 +21,6 @@ describe('computeProductionFingerprint', () => {
     const base = {
       canonicalNarrative: 'Hello',
       presentationText: null,
-      variantType: 'normal',
       language: 'sv',
       step: 'text_derivation',
       providerKey: 'noop',
@@ -43,7 +41,6 @@ describe('computeProductionFingerprint', () => {
   test('includes ingestRunId for text derivation', () => {
     const base = {
       canonicalNarrative: 'Hello',
-      variantType: 'normal',
       language: 'sv',
       step: 'text_derivation',
       providerKey: 'noop',
@@ -60,7 +57,6 @@ describe('computeProductionFingerprint', () => {
       sourcePresentationText: 'Hello',
       sourceLanguage: 'sv',
       targetLanguage: 'en',
-      variantType: 'normal',
       providerKey: 'noop',
       providerVersion: '1',
     };
@@ -71,7 +67,6 @@ describe('computeProductionFingerprint', () => {
   test('regenerateNonce produces unique fingerprint', () => {
     const base = {
       canonicalNarrative: 'Hello',
-      variantType: 'normal',
       language: 'sv',
       step: 'text_derivation',
       providerKey: 'noop',
@@ -85,7 +80,6 @@ describe('computeProductionFingerprint', () => {
   test('changes when prompt set version in providerVersion changes', () => {
     const base = {
       canonicalNarrative: 'Hello',
-      variantType: 'normal',
       language: 'sv',
       step: 'text_derivation',
       providerKey: 'openai',
@@ -96,5 +90,17 @@ describe('computeProductionFingerprint', () => {
       providerVersion: 'openai@gpt-4o-mini@prompts-v2',
     });
     expect(v2).not.toBe(computeProductionFingerprint(base));
+  });
+
+  test('ignores variantType differences for text derivation', () => {
+    const base = {
+      canonicalNarrative: 'Hello',
+      language: 'sv',
+      step: 'text_derivation',
+      providerKey: 'noop',
+      providerVersion: '1',
+    };
+    const withVariant = computeProductionFingerprint({ ...base, variantType: 'deep' });
+    expect(withVariant).toBe(computeProductionFingerprint(base));
   });
 });

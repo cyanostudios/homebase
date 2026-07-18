@@ -3,14 +3,11 @@ import i18n from '@/i18n';
 
 import type {
   Guide,
-  GuideAudio,
   GuidePayload,
-  GuideStop,
-  GuideStopPayload,
-  GuideVariantCreatePayload,
-  GuideVariantPresentation,
-  GuideVariantUpdatePayload,
+  GuidePresentation,
+  GuidePresentationUpdatePayload,
   GuideValidationError,
+  ContentSourceSetting,
   ProductionJob,
   ProductionJobDetail,
   StartProductionJobPayload,
@@ -61,116 +58,24 @@ class GuidesApi {
     return apiRequest<{ deleted: boolean }>(`/${id}`, { method: 'DELETE' });
   }
 
-  getStops(placeId: string) {
-    return apiRequest<GuideStop[]>(`/${placeId}/stops`);
+  getPresentations(placeId: string) {
+    return apiRequest<GuidePresentation[]>(`/${placeId}/presentations`);
   }
 
-  getStop(placeId: string, stopId: string) {
-    return apiRequest<GuideStop>(`/${placeId}/stops/${stopId}`);
-  }
-
-  createStop(placeId: string, payload: GuideStopPayload) {
-    return apiRequest<GuideStop>(`/${placeId}/stops`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  }
-
-  updateStop(placeId: string, stopId: string, payload: Partial<GuideStopPayload>) {
-    return apiRequest<GuideStop>(`/${placeId}/stops/${stopId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
-  }
-
-  deleteStop(placeId: string, stopId: string) {
-    return apiRequest<{ deleted: boolean }>(`/${placeId}/stops/${stopId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  reorderStops(placeId: string, stopIds: string[]) {
-    return apiRequest<GuideStop[]>(`/${placeId}/stops/reorder`, {
-      method: 'PUT',
-      body: JSON.stringify({ stopIds }),
-    });
-  }
-
-  getVariants(placeId: string, stopId: string) {
-    return apiRequest<GuideVariantPresentation[]>(`/${placeId}/stops/${stopId}/variants`);
-  }
-
-  getVariant(placeId: string, stopId: string, variantId: string) {
-    return apiRequest<GuideVariantPresentation>(
-      `/${placeId}/stops/${stopId}/variants/${variantId}`,
+  getPresentation(placeId: string, language: string) {
+    return apiRequest<GuidePresentation>(
+      `/${placeId}/presentations/${encodeURIComponent(language)}`,
     );
   }
 
-  createVariant(placeId: string, stopId: string, payload: GuideVariantCreatePayload) {
-    return apiRequest<GuideVariantPresentation>(`/${placeId}/stops/${stopId}/variants`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  }
-
-  updateVariant(
-    placeId: string,
-    stopId: string,
-    variantId: string,
-    payload: GuideVariantUpdatePayload,
-  ) {
-    return apiRequest<GuideVariantPresentation>(
-      `/${placeId}/stops/${stopId}/variants/${variantId}`,
+  updatePresentation(placeId: string, language: string, payload: GuidePresentationUpdatePayload) {
+    return apiRequest<GuidePresentation>(
+      `/${placeId}/presentations/${encodeURIComponent(language)}`,
       {
         method: 'PUT',
         body: JSON.stringify(payload),
       },
     );
-  }
-
-  deleteVariant(placeId: string, stopId: string, variantId: string) {
-    return apiRequest<{ deleted: boolean }>(`/${placeId}/stops/${stopId}/variants/${variantId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  getAudio(placeId: string, stopId: string, variantId: string) {
-    return apiRequest<GuideAudio>(`/${placeId}/stops/${stopId}/variants/${variantId}/audio`);
-  }
-
-  async getAudioOrNull(placeId: string, stopId: string, variantId: string) {
-    try {
-      return await this.getAudio(placeId, stopId, variantId);
-    } catch (err) {
-      if ((err as ApiError).status === 404) {
-        return null;
-      }
-      throw err;
-    }
-  }
-
-  generateAudio(placeId: string, stopId: string, variantId: string) {
-    return apiRequest<GuideAudio>(
-      `/${placeId}/stops/${stopId}/variants/${variantId}/audio/generate`,
-      { method: 'POST', body: JSON.stringify({}) },
-    );
-  }
-
-  cancelAudio(placeId: string, stopId: string, variantId: string) {
-    return apiRequest<GuideAudio>(
-      `/${placeId}/stops/${stopId}/variants/${variantId}/audio/cancel`,
-      { method: 'POST', body: JSON.stringify({}) },
-    );
-  }
-
-  deleteAudio(placeId: string, stopId: string, variantId: string) {
-    return apiRequest<{ id: string }>(`/${placeId}/stops/${stopId}/variants/${variantId}/audio`, {
-      method: 'DELETE',
-    });
-  }
-
-  getAudioPreviewUrl(placeId: string, stopId: string, variantId: string) {
-    return `/api/guides/${placeId}/stops/${stopId}/variants/${variantId}/audio/preview`;
   }
 
   listProductionJobs(placeId: string) {
@@ -227,6 +132,17 @@ class GuidesApi {
     return apiRequest<ProductionJobDetail>(`/${placeId}/production-jobs/${jobId}/retry`, {
       method: 'POST',
       body: JSON.stringify({}),
+    });
+  }
+
+  getContentSources() {
+    return apiRequest<{ sources: ContentSourceSetting[] }>('/content-sources');
+  }
+
+  updateContentSource(sourceKey: string, payload: { enabled: boolean }) {
+    return apiRequest<ContentSourceSetting>(`/content-sources/${encodeURIComponent(sourceKey)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
     });
   }
 }

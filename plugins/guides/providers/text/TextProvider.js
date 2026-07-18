@@ -13,9 +13,9 @@
 /**
  * @typedef {Object} TextGenerateInput
  * @property {string|null|undefined} canonicalNarrative
- * @property {'quick'|'normal'|'deep'} variantType
  * @property {string} language — ISO 639-1, e.g. 'sv'
  * @property {string} [sourceLanguage]
+ * @property {string} [sourcePackText]
  * @property {PlaceContext|null} [placeContext] — structured place snapshot for prompt interpolation (P-PLACE)
  */
 

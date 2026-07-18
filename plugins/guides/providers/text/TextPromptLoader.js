@@ -4,7 +4,7 @@ const path = require('path');
 
 const PROMPTS_DIR = path.join(__dirname, 'prompts');
 
-/** @type {{ promptSetVersion: string, variants: Record<string, { system: string, user: string }>, tokenBudgets: Record<string, { maxCompletionTokens: number }> } | null} */
+/** @type {{ promptSetVersion: string, entry: { system: string, user: string }, tokenBudgets: { maxCompletionTokens: number } } | null} */
 let cachedManifest = null;
 
 function loadManifest() {
@@ -28,32 +28,27 @@ function interpolate(template, variables) {
 }
 
 /**
- * @param {'quick'|'normal'|'deep'} variantType
  * @param {{
  *   canonicalNarrative?: string,
  *   language: string,
- *   variantType: string,
  *   placeContext?: object|null,
  *   sourcePackText?: string,
- *   sourceDeepText?: string,
  * }} variables
  */
-function getPrompts(variantType, variables) {
+function getPrompts(variables) {
   const manifest = loadManifest();
-  const entry = manifest.variants[variantType];
+  const entry = manifest.entry;
   if (!entry) {
-    throw new Error(`No prompt config for variant type: ${variantType}`);
+    throw new Error('No prompt config for text derivation');
   }
   const place = variables.placeContext ?? null;
   const placeBlock = formatPlaceContextBlock(place);
   const vars = {
     canonicalNarrative: variables.canonicalNarrative ?? '',
     language: variables.language,
-    variantType: variables.variantType,
     sourcePackText: variables.sourcePackText
       ? String(variables.sourcePackText)
       : '(no research excerpts)',
-    sourceDeepText: variables.sourceDeepText ? String(variables.sourceDeepText) : '(not provided)',
     placeDisplayName: place?.displayName ? String(place.displayName) : '',
     placeFormattedAddress: place?.formattedAddress ? String(place.formattedAddress) : '',
     placeCountryCode: place?.countryCode ? String(place.countryCode) : '',
@@ -71,7 +66,7 @@ function getPrompts(variantType, variables) {
   return {
     system: interpolate(readPromptFile(entry.system), vars),
     user: interpolate(readPromptFile(entry.user), vars),
-    maxCompletionTokens: manifest.tokenBudgets[variantType]?.maxCompletionTokens ?? 400,
+    maxCompletionTokens: manifest.tokenBudgets?.maxCompletionTokens ?? 400,
     promptSetVersion: manifest.promptSetVersion,
     promptVersion: 'v1',
   };

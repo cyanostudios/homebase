@@ -21,7 +21,7 @@ describe('OpenAITextProvider', () => {
   test('version includes model and prompt set', () => {
     const provider = new OpenAITextProvider({ apiKey: 'sk-test', model: 'gpt-4o-mini' });
     expect(provider.key).toBe('openai');
-    expect(provider.version).toBe('openai@gpt-4o-mini@prompts-v1.2');
+    expect(provider.version).toBe('openai@gpt-4o-mini@prompts-v1.3');
   });
 
   test('returns ready with full providerResult on success', async () => {
@@ -37,10 +37,7 @@ describe('OpenAITextProvider', () => {
       rpm: 100,
     });
 
-    const result = await provider.generate(
-      {},
-      { canonicalNarrative: 'A square.', variantType: 'normal', language: 'sv' },
-    );
+    const result = await provider.generate({}, { canonicalNarrative: 'A square.', language: 'sv' });
 
     expect(result.status).toBe('ready');
     expect(result.presentationText).toBe('Welcome to the square.');
@@ -67,10 +64,7 @@ describe('OpenAITextProvider', () => {
     });
     const provider = new OpenAITextProvider({ apiKey: 'sk-test', fetchFn, rpm: 100 });
 
-    const result = await provider.generate(
-      {},
-      { canonicalNarrative: 'Story', variantType: 'quick', language: 'en' },
-    );
+    const result = await provider.generate({}, { canonicalNarrative: 'Story', language: 'en' });
 
     expect(result.status).toBe('retry');
     expect(result.retryAfterMs).toBe(15000);
@@ -78,10 +72,7 @@ describe('OpenAITextProvider', () => {
 
   test('returns failed when narrative is empty', async () => {
     const provider = new OpenAITextProvider({ apiKey: 'sk-test', fetchFn: jest.fn() });
-    const result = await provider.generate(
-      {},
-      { canonicalNarrative: '  ', variantType: 'normal', language: 'sv' },
-    );
+    const result = await provider.generate({}, { canonicalNarrative: '  ', language: 'sv' });
     expect(result.status).toBe('failed');
     expect(result.errorMessage).toMatch(/source pack|canonicalNarrative/i);
   });
@@ -98,7 +89,6 @@ describe('OpenAITextProvider', () => {
       {},
       {
         canonicalNarrative: '',
-        variantType: 'deep',
         language: 'en',
         sourcePackText: '[Source 1: wikipedia] Place\nURL: https://example.com\nFacts here.',
       },
@@ -109,10 +99,7 @@ describe('OpenAITextProvider', () => {
 
   test('returns failed when API key is missing', async () => {
     const provider = new OpenAITextProvider({ apiKey: '', fetchFn: jest.fn() });
-    const result = await provider.generate(
-      {},
-      { canonicalNarrative: 'Story', variantType: 'normal', language: 'sv' },
-    );
+    const result = await provider.generate({}, { canonicalNarrative: 'Story', language: 'sv' });
     expect(result.status).toBe('failed');
     expect(result.errorMessage).toContain('OPENAI_API_KEY');
   });
@@ -125,12 +112,9 @@ describe('OpenAITextProvider', () => {
     });
     const provider = new OpenAITextProvider({ apiKey: 'sk-test', fetchFn, rpm: 1 });
 
-    await provider.generate({}, { canonicalNarrative: 'A', variantType: 'quick', language: 'sv' });
+    await provider.generate({}, { canonicalNarrative: 'A', language: 'sv' });
 
-    const result = await provider.generate(
-      {},
-      { canonicalNarrative: 'B', variantType: 'quick', language: 'sv' },
-    );
+    const result = await provider.generate({}, { canonicalNarrative: 'B', language: 'sv' });
 
     expect(result.status).toBe('retry');
     expect(fetchFn).toHaveBeenCalledTimes(1);

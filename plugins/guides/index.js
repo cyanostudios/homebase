@@ -3,31 +3,33 @@ const GuidesModel = require('./model');
 const GuidesController = require('./controller');
 const createGuidesRoutes = require('./routes');
 const config = require('./plugin.config');
-const { ensureAudioProvidersRegistered } = require('./audio/registerDefaultProviders');
-const AudioOrchestrationService = require('./audio/AudioOrchestrationService');
 const GuideIngestBridgeService = require('./ingest/GuideIngestBridgeService');
 const ProductionOrchestrationService = require('./production/ProductionOrchestrationService');
+const ContentSourceSettingsModel = require('./sources/ContentSourceSettingsModel');
 const { WorkerService } = require('./production/WorkerService');
 const { ensureTextProvidersRegistered } = require('./providers/text/registerDefaultProviders');
 const {
   ensureTranslationProvidersRegistered,
 } = require('./providers/translation/registerDefaultProviders');
+const { ensureContentSourcesRegistered } = require('./sources/registerDefaultSources');
 
 let guidesWorker = null;
 
 function initializeGuidesPlugin(context) {
-  ensureAudioProvidersRegistered();
   ensureTextProvidersRegistered();
   ensureTranslationProvidersRegistered();
+  ensureContentSourcesRegistered();
   const model = new GuidesModel();
-  const audioOrchestration = new AudioOrchestrationService(model);
   const ingestBridge = new GuideIngestBridgeService(model);
-  const productionOrchestration = new ProductionOrchestrationService(model);
+  const contentSourceSettingsModel = new ContentSourceSettingsModel();
+  const productionOrchestration = new ProductionOrchestrationService(model, {
+    contentSourceSettingsModel,
+  });
   const controller = new GuidesController(
     model,
-    audioOrchestration,
     ingestBridge,
     productionOrchestration,
+    contentSourceSettingsModel,
   );
   const router = createGuidesRoutes(controller, context);
 
@@ -39,7 +41,6 @@ function initializeGuidesPlugin(context) {
     router,
     model,
     controller,
-    audioOrchestration,
     ingestBridge,
     productionOrchestration,
     productionWorker: guidesWorker,

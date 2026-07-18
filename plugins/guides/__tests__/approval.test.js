@@ -17,12 +17,11 @@ describe('GuidesModel approval workflow', () => {
     model = new GuidesModel();
   });
 
-  test('updateVariant rejects published without approved+fresh', async () => {
-    jest.spyOn(model, 'getVariantById').mockResolvedValue({
+  test('updatePresentation rejects published without approved+fresh', async () => {
+    jest.spyOn(model, 'getPresentationByLanguage').mockResolvedValue({
       id: '7',
-      stopId: '5',
+      masterGuideId: '10',
       placeId: '1',
-      variantType: 'normal',
       language: 'sv',
       presentationText: 'Text',
       publicationStatus: 'draft',
@@ -33,19 +32,18 @@ describe('GuidesModel approval workflow', () => {
     });
 
     await expect(
-      model.updateVariant({}, '1', '5', '7', { publicationStatus: 'published' }),
+      model.updatePresentation({}, '1', 'sv', { publicationStatus: 'published' }),
     ).rejects.toMatchObject({
       statusCode: 400,
       message: 'published requires approved content and fresh staleness',
     });
   });
 
-  test('updateVariant allows published when approved and fresh', async () => {
-    jest.spyOn(model, 'getVariantById').mockResolvedValue({
+  test('updatePresentation allows published when approved and fresh', async () => {
+    jest.spyOn(model, 'getPresentationByLanguage').mockResolvedValue({
       id: '7',
-      stopId: '5',
+      masterGuideId: '10',
       placeId: '1',
-      variantType: 'normal',
       language: 'sv',
       presentationText: 'Text',
       publicationStatus: 'ready',
@@ -59,8 +57,7 @@ describe('GuidesModel approval workflow', () => {
       query: jest.fn().mockResolvedValueOnce([
         {
           id: 7,
-          stop_id: 5,
-          variant_type: 'normal',
+          master_guide_id: 10,
           language: 'sv',
           presentation_text: 'Text',
           publication_status: 'published',
@@ -72,34 +69,13 @@ describe('GuidesModel approval workflow', () => {
       ]),
     });
 
-    const result = await model.updateVariant({}, '1', '5', '7', { publicationStatus: 'published' });
+    const result = await model.updatePresentation({}, '1', 'sv', {
+      publicationStatus: 'published',
+    });
     expect(result.publicationStatus).toBe('published');
   });
 
-  test('approveVariantContent sets approved', async () => {
-    jest.spyOn(model, 'getVariantById').mockResolvedValue({ id: '7' });
-    Database.get.mockReturnValue({
-      query: jest.fn().mockResolvedValueOnce([
-        {
-          id: 7,
-          stop_id: 5,
-          variant_type: 'normal',
-          language: 'sv',
-          presentation_text: 'Text',
-          publication_status: 'draft',
-          staleness_status: 'fresh',
-          approval_status: 'approved',
-          created_at: '2026-01-01T00:00:00.000Z',
-          updated_at: '2026-01-02T00:00:00.000Z',
-        },
-      ]),
-    });
-
-    const result = await model.approveVariantContent({}, '1', '5', '7');
-    expect(result.approvalStatus).toBe('approved');
-  });
-
-  test('update place active requires publishable variant', async () => {
+  test('update place active requires publishable presentation', async () => {
     jest.spyOn(model, 'getById').mockResolvedValue({
       id: '1',
       lifecycleStatus: 'draft',

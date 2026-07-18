@@ -1,5 +1,5 @@
-import { Edit, Info, Languages, ListOrdered, MapPin, Receipt, Trash2 } from 'lucide-react';
-import React, { useRef, useState } from 'react';
+import { Edit, Info, Languages, MapPin, Receipt, Trash2 } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -13,9 +13,9 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { useGuides } from '../hooks/useGuides';
 import { useProductionJob } from '../hooks/useProductionJob';
+import { GuidePresentationSection } from './GuidePresentationSection';
 import { GuideProductionPanel } from './GuideProductionPanel';
 import { GuideReviewQueue, type GuideReviewQueueHandle } from './GuideReviewQueue';
-import { GuideStopsSection } from './GuideStopsSection';
 import { ProductionJobHistory } from './ProductionJobHistory';
 import { ProductionPhaseBanner } from './ProductionPhaseBanner';
 import { StartProductionDialog } from './StartProductionDialog';
@@ -42,6 +42,17 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
   const reviewQueueRef = useRef<GuideReviewQueueHandle>(null);
   const actualGuide = guide || item;
   const production = useProductionJob(actualGuide?.id ?? '');
+
+  const presentationsRefreshKey = useMemo(
+    () =>
+      production.items
+        .filter((jobItem) => jobItem.reviewStatus === 'approved')
+        .map((jobItem) => `${jobItem.presentationId}:${jobItem.reviewedAt ?? jobItem.updatedAt}`)
+        .sort()
+        .join('|'),
+    [production.items],
+  );
+
   if (!actualGuide) return null;
 
   const editorialStatus = isMasterGuideEditorialStatus(actualGuide.masterGuideEditorialStatus)
@@ -379,31 +390,16 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
             className="overflow-hidden border border-border/70 bg-card shadow-sm"
           >
             <DetailSection
-              title={t('guides.guideStops')}
-              icon={ListOrdered}
+              title={t('guides.presentations')}
+              icon={Languages}
               iconPlugin="guides"
               className="p-6"
             >
-              <GuideStopsSection
+              <GuidePresentationSection
                 placeId={actualGuide.id}
                 sourceLanguage={actualGuide.sourceLanguage}
-                hasActiveProductionJob={production.hasActiveJob}
-                productionBusy={production.isBusy}
-                onStartStopProduction={(stop) =>
-                  openStartDialog({
-                    type: 'stop',
-                    stopId: stop.id,
-                    stopTitle: stop.title,
-                  })
-                }
-                onStartVariantProduction={(stopId, variant) =>
-                  openStartDialog({
-                    type: 'variant',
-                    stopId,
-                    variantId: variant.id,
-                    variantLabel: `${variant.variantType}/${variant.language}`,
-                  })
-                }
+                disabled={production.hasActiveJob || production.isBusy}
+                refreshKey={presentationsRefreshKey}
               />
             </DetailSection>
           </Card>

@@ -34,25 +34,16 @@ interface StartProductionDialogProps {
   onClearFailure?: () => void;
 }
 
-function scopeTitleKey(scope: ProductionStartScope): string {
-  if (scope.type === 'full_guide') return 'guides.production.start.fullGuideTitle';
-  if (scope.type === 'stop') return 'guides.production.start.stopTitle';
-  return 'guides.production.start.variantTitle';
-}
-
-function scopeDescriptionKey(scope: ProductionStartScope): string {
-  if (scope.type === 'full_guide') return 'guides.production.start.fullGuideDescription';
-  if (scope.type === 'stop') return 'guides.production.start.stopDescription';
-  return 'guides.production.start.variantDescription';
-}
-
 function isSettingsFailure(code: string | null | undefined): boolean {
-  return code === 'provider_not_configured' || code === 'provider_auth_failed';
+  return (
+    code === 'provider_not_configured' ||
+    code === 'provider_not_generation_capable' ||
+    code === 'provider_auth_failed'
+  );
 }
 
 export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
   isOpen,
-  scope,
   isBusy = false,
   hasActiveJob = false,
   failureCode = null,
@@ -69,13 +60,6 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
       setForce(false);
     }
   }, [isOpen]);
-
-  const scopeLabel =
-    scope.type === 'stop'
-      ? (scope.stopTitle ?? scope.stopId)
-      : scope.type === 'variant'
-        ? (scope.variantLabel ?? scope.variantId)
-        : null;
 
   const hasFailure = Boolean(failureCode);
   const retryable = isRetryableGenerationFailure(failureCode);
@@ -114,9 +98,9 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
             </>
           ) : (
             <>
-              <AlertDialogTitle>{t(scopeTitleKey(scope))}</AlertDialogTitle>
+              <AlertDialogTitle>{t('guides.production.start.fullGuideTitle')}</AlertDialogTitle>
               <AlertDialogDescription className="space-y-2 pt-1">
-                <p>{t(scopeDescriptionKey(scope), { name: scopeLabel ?? '' })}</p>
+                <p>{t('guides.production.start.fullGuideDescription')}</p>
                 <p className="text-xs text-muted-foreground">
                   {t('guides.production.start.phasesHint')}
                 </p>
@@ -198,11 +182,7 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
                       {t('common.checking')}
                     </>
                   ) : (
-                    t(
-                      scope.type === 'full_guide'
-                        ? 'guides.production.start.confirm'
-                        : 'guides.production.start.confirmScoped',
-                    )
+                    t('guides.production.start.confirm')
                   )}
                 </Button>
               </AlertDialogAction>

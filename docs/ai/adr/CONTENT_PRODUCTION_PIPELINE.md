@@ -2,7 +2,8 @@
 
 **Status:** Godkänd arkitektur (2026-07-13). **P1, P2, P5, P7 backend implementerad** (2026-07-13) — se `docs/ai/CHANGELOG.md` § Content Production Pipeline.  
 **Grund:** Låst TPM-plan [Content Production Pipeline](../../.cursor/plans/content_production_pipeline_d6a9ae16.plan.md)  
-**Implementeringsordning:** `P1 → P2 → P5 → P7 → P4 → P6 → P3 → P8 → P9`
+**Implementeringsordning:** `P1 → P2 → P5 → P7 → P4 → P6 → P3 → P8 → P9`  
+**Senare superseding:** För async fasindelad produce + research-first, se [`CONTENT_PRODUCTION_PIPELINE_V2.md`](CONTENT_PRODUCTION_PIPELINE_V2.md) och [`P-GUIDES_CONTENT_SOURCES.md`](P-GUIDES_CONTENT_SOURCES.md). Krav att narrative måste vara `approved` innan jobbstart gäller **inte** längre.
 
 ---
 

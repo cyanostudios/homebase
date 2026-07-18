@@ -3,7 +3,7 @@ const { AppError } = require('../../../../server/core/errors/AppError');
 
 class TranslationProviderRegistry {
   constructor() {
-    /** @type {Map<string, import('./TranslationProvider')>} */
+    /** @type {Map<string, object|((options?: object) => object)>} */
     this._providers = new Map();
   }
 
@@ -26,6 +26,18 @@ class TranslationProviderRegistry {
       );
     }
     return provider;
+  }
+
+  create(key, options) {
+    const entry = this.get(key);
+    if (typeof entry === 'function') {
+      return entry(options);
+    }
+    return entry;
+  }
+
+  listKeys() {
+    return Array.from(this._providers.keys());
   }
 }
 

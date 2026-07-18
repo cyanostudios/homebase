@@ -2,7 +2,7 @@
  * Catalog of guide content sources (research). Extensible: add adapters without
  * changing Guides orchestration — only register + catalog entry.
  *
- * v1: wikipedia, unesco
+ * v1: wikipedia, wikidata (default on); unesco (disabled by default — live WHC JSON often 403)
  */
 function freeze(entry) {
   return Object.freeze({ ...entry });
@@ -15,10 +15,16 @@ const CONTENT_SOURCE_CATALOG = Object.freeze({
     enabledByDefault: true,
     attribution: 'Text excerpts © respective Wikipedia contributors (CC BY-SA)',
   }),
+  wikidata: freeze({
+    key: 'wikidata',
+    label: 'Wikidata',
+    enabledByDefault: true,
+    attribution: 'Wikidata contributors (CC0)',
+  }),
   unesco: freeze({
     key: 'unesco',
     label: 'UNESCO World Heritage',
-    enabledByDefault: true,
+    enabledByDefault: false,
     attribution: 'UNESCO World Heritage Centre',
   }),
 });

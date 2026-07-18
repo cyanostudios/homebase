@@ -3,26 +3,47 @@ const express = require('express');
 const router = express.Router();
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
-const { body, commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const {
+  body,
+  param,
+  commonRules,
+  validateRequest,
+} = require('../../server/core/middleware/validation');
 const {
   PLACE_LIFECYCLE_STATUSES,
-  guideStopEditorialStatusBodyRule,
   masterGuideEditorialStatusBodyRule,
   sourceLanguageBodyRule,
-  variantTypeBodyRule,
-  languageBodyRule,
   publicationStatusBodyRule,
-  audioStatusBodyRule,
-  providerKeyBodyRule,
+  parseLanguage,
 } = require('./validation');
 const { JOB_TYPES, ITEM_STEPS, CHECKPOINT_MODES } = require('./production/ProductionJobModel');
 
+function languageParamRule() {
+  return param('language')
+    .exists({ checkFalsy: true })
+    .custom((value) => {
+      parseLanguage(value);
+      return true;
+    })
+    .withMessage('language must be a valid language code');
+}
 function createGuidesRoutes(controller, context) {
   const requirePlugin =
     context?.middleware?.requirePlugin || ((_name) => (req, res, next) => next());
   const gate = requirePlugin(config.name);
 
   router.get('/', gate, (req, res) => controller.getAll(req, res));
+
+  router.get('/content-sources', gate, (req, res) => controller.listContentSources(req, res));
+
+  router.put(
+    '/content-sources/:sourceKey',
+    gate,
+    csrfProtection,
+    body('enabled').isBoolean().withMessage('enabled must be a boolean'),
+    validateRequest,
+    (req, res) => controller.updateContentSource(req, res),
+  );
 
   router.put(
     '/:id/ingest-source',
@@ -59,8 +80,6 @@ function createGuidesRoutes(controller, context) {
       .exists({ checkFalsy: true })
       .isIn(JOB_TYPES)
       .withMessage(`type must be one of: ${JOB_TYPES.join(', ')}`),
-    body('stopId').optional({ values: 'null' }).isString(),
-    body('variantId').optional({ values: 'null' }).isString(),
     body('phases').optional().isArray(),
     body('phases.*').optional().isIn(ITEM_STEPS),
     body('steps').optional().isArray(),
@@ -171,104 +190,25 @@ function createGuidesRoutes(controller, context) {
     (req, res) => controller.cancelProductionJob(req, res),
   );
 
-  router.get('/:id/stops', gate, commonRules.id('id'), validateRequest, (req, res) =>
-    controller.getStops(req, res),
-  );
-
-  router.put(
-    '/:id/stops/reorder',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    body('stopIds').isArray({ min: 1 }).withMessage('stopIds must be a non-empty array'),
-    body('stopIds.*').isString().withMessage('stopIds must contain string ids'),
-    validateRequest,
-    (req, res) => controller.reorderStops(req, res),
-  );
-
-  router.post(
-    '/:id/stops',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.plainString('title', 1, 255),
-    body('canonicalNarrative')
-      .optional({ values: 'falsy' })
-      .isString()
-      .isLength({ max: 50000 })
-      .withMessage('canonicalNarrative must not exceed 50000 characters'),
-    guideStopEditorialStatusBodyRule(),
-    validateRequest,
-    (req, res) => controller.createStop(req, res),
+  router.get('/:id/presentations', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.listPresentations(req, res),
   );
 
   router.get(
-    '/:id/stops/:stopId',
+    '/:id/presentations/:language',
     gate,
     commonRules.id('id'),
-    commonRules.id('stopId'),
+    languageParamRule(),
     validateRequest,
-    (req, res) => controller.getStopById(req, res),
+    (req, res) => controller.getPresentation(req, res),
   );
 
   router.put(
-    '/:id/stops/:stopId',
+    '/:id/presentations/:language',
     gate,
     csrfProtection,
     commonRules.id('id'),
-    commonRules.id('stopId'),
-    body('title')
-      .optional({ values: 'falsy' })
-      .isString()
-      .isLength({ min: 1, max: 255 })
-      .withMessage('title must be between 1 and 255 characters'),
-    body('canonicalNarrative')
-      .optional({ values: 'null' })
-      .isString()
-      .isLength({ max: 50000 })
-      .withMessage('canonicalNarrative must not exceed 50000 characters'),
-    guideStopEditorialStatusBodyRule(),
-    validateRequest,
-    (req, res) => controller.updateStop(req, res),
-  );
-
-  router.post(
-    '/:id/stops/:stopId/approve-narrative',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    validateRequest,
-    (req, res) => controller.approveStopNarrative(req, res),
-  );
-
-  router.delete(
-    '/:id/stops/:stopId',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    validateRequest,
-    (req, res) => controller.deleteStop(req, res),
-  );
-
-  router.get(
-    '/:id/stops/:stopId/variants',
-    gate,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    validateRequest,
-    (req, res) => controller.getVariants(req, res),
-  );
-
-  router.post(
-    '/:id/stops/:stopId/variants',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    variantTypeBodyRule({ required: true }),
-    languageBodyRule({ required: true }),
+    languageParamRule(),
     body('presentationText')
       .optional({ values: 'null' })
       .isString()
@@ -276,163 +216,7 @@ function createGuidesRoutes(controller, context) {
       .withMessage('presentationText must not exceed 50000 characters'),
     publicationStatusBodyRule(),
     validateRequest,
-    (req, res) => controller.createVariant(req, res),
-  );
-
-  router.get(
-    '/:id/stops/:stopId/variants/:variantId',
-    gate,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    validateRequest,
-    (req, res) => controller.getVariantById(req, res),
-  );
-
-  router.put(
-    '/:id/stops/:stopId/variants/:variantId',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    body('presentationText')
-      .optional({ values: 'null' })
-      .isString()
-      .isLength({ max: 50000 })
-      .withMessage('presentationText must not exceed 50000 characters'),
-    publicationStatusBodyRule(),
-    validateRequest,
-    (req, res) => controller.updateVariant(req, res),
-  );
-
-  router.post(
-    '/:id/stops/:stopId/variants/:variantId/approve-content',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    validateRequest,
-    (req, res) => controller.approveVariantContent(req, res),
-  );
-
-  router.delete(
-    '/:id/stops/:stopId/variants/:variantId',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    validateRequest,
-    (req, res) => controller.deleteVariant(req, res),
-  );
-
-  router.get(
-    '/:id/stops/:stopId/variants/:variantId/audio',
-    gate,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    validateRequest,
-    (req, res) => controller.getAudio(req, res),
-  );
-
-  router.get(
-    '/:id/stops/:stopId/variants/:variantId/audio/preview',
-    gate,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    validateRequest,
-    (req, res) => controller.previewAudio(req, res),
-  );
-
-  router.post(
-    '/:id/stops/:stopId/variants/:variantId/audio/generate',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    validateRequest,
-    (req, res) => controller.generateAudio(req, res),
-  );
-
-  router.post(
-    '/:id/stops/:stopId/variants/:variantId/audio/cancel',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    validateRequest,
-    (req, res) => controller.cancelAudio(req, res),
-  );
-
-  router.post(
-    '/:id/stops/:stopId/variants/:variantId/audio',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    audioStatusBodyRule(),
-    providerKeyBodyRule(),
-    body('durationMs')
-      .optional({ values: 'null' })
-      .isInt({ min: 0 })
-      .withMessage('durationMs must be a non-negative integer'),
-    body('mimeType')
-      .optional({ values: 'null' })
-      .isString()
-      .isLength({ max: 100 })
-      .withMessage('mimeType must not exceed 100 characters'),
-    body('errorMessage')
-      .optional({ values: 'null' })
-      .isString()
-      .isLength({ max: 5000 })
-      .withMessage('errorMessage must not exceed 5000 characters'),
-    validateRequest,
-    (req, res) => controller.createAudio(req, res),
-  );
-
-  router.put(
-    '/:id/stops/:stopId/variants/:variantId/audio',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    audioStatusBodyRule(),
-    providerKeyBodyRule(),
-    body('durationMs')
-      .optional({ values: 'null' })
-      .isInt({ min: 0 })
-      .withMessage('durationMs must be a non-negative integer'),
-    body('mimeType')
-      .optional({ values: 'null' })
-      .isString()
-      .isLength({ max: 100 })
-      .withMessage('mimeType must not exceed 100 characters'),
-    body('errorMessage')
-      .optional({ values: 'null' })
-      .isString()
-      .isLength({ max: 5000 })
-      .withMessage('errorMessage must not exceed 5000 characters'),
-    validateRequest,
-    (req, res) => controller.updateAudio(req, res),
-  );
-
-  router.delete(
-    '/:id/stops/:stopId/variants/:variantId/audio',
-    gate,
-    csrfProtection,
-    commonRules.id('id'),
-    commonRules.id('stopId'),
-    commonRules.id('variantId'),
-    validateRequest,
-    (req, res) => controller.deleteAudio(req, res),
+    (req, res) => controller.updatePresentation(req, res),
   );
 
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>

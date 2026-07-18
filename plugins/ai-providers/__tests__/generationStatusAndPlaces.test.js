@@ -105,7 +105,9 @@ describe('AIProviderRouter.checkReadiness', () => {
     );
     expect(result).toEqual({
       ready: false,
-      failure: { code: 'provider_not_configured' },
+      providerKey: 'anthropic',
+      model: 'claude-sonnet-4-5',
+      failure: { code: 'provider_not_generation_capable' },
     });
   });
 });

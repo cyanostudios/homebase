@@ -78,23 +78,19 @@ class OpenAITextProvider {
    * @param {import('express').Request} _req
    * @param {{
    *   canonicalNarrative?: string|null,
-   *   variantType: string,
    *   language: string,
    *   placeContext?: object|null,
    *   sourcePackText?: string|null,
-   *   sourceDeepText?: string|null,
    * }} input
    */
   async generate(_req, input) {
     const narrative = String(input.canonicalNarrative ?? '').trim();
     const sourcePackText = String(input.sourcePackText ?? '').trim();
-    const sourceDeepText = String(input.sourceDeepText ?? '').trim();
-    if (!narrative && !sourcePackText && !sourceDeepText) {
+    if (!narrative && !sourcePackText) {
       return {
         status: 'failed',
         failureCode: 'content_input_invalid',
-        errorMessage:
-          'source pack, deep presentation, or canonicalNarrative is required for text derivation',
+        errorMessage: 'source pack or canonicalNarrative is required for text derivation',
       };
     }
 
@@ -118,13 +114,11 @@ class OpenAITextProvider {
 
     let prompts;
     try {
-      prompts = this._promptLoader.getPrompts(input.variantType, {
+      prompts = this._promptLoader.getPrompts({
         canonicalNarrative: narrative,
         language: input.language,
-        variantType: input.variantType,
         placeContext: input.placeContext ?? null,
         sourcePackText,
-        sourceDeepText,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Prompt loading failed';
@@ -254,7 +248,6 @@ class OpenAITextProvider {
           model: this._model,
           promptVersion: prompts.promptVersion,
           promptSetVersion: prompts.promptSetVersion,
-          variantType: input.variantType,
           language: input.language,
           finishReason: data?.choices?.[0]?.finish_reason ?? null,
         },

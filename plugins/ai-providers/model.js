@@ -170,15 +170,36 @@ class AIProviderSettingsModel {
   }
 
   listCatalog() {
+    const generatableKeys = this._listGeneratableTextProviderKeys();
     return Object.values(PROVIDER_CATALOG).map((entry) => ({
       providerKey: entry.key,
       defaultModel: entry.defaultModel,
-      textGenerationCapable: entry.textGenerationCapable === true,
+      textGenerationCapable: generatableKeys.has(entry.key),
       models: (entry.models || []).map((model) => ({
         id: model.id,
         label: model.label || model.id,
       })),
     }));
+  }
+
+  /**
+   * Intersection source for textGenerationCapable: Guides text adapter registry.
+   * Lazy require avoids hard circular load with guides adapters.
+   * @returns {Set<string>}
+   */
+  _listGeneratableTextProviderKeys() {
+    try {
+      const {
+        listGeneratableTextProviderKeys,
+      } = require('../guides/providers/text/registerDefaultProviders');
+      return new Set(listGeneratableTextProviderKeys());
+    } catch {
+      return new Set(
+        Object.values(PROVIDER_CATALOG)
+          .filter((entry) => entry.textGenerationCapable === true)
+          .map((entry) => entry.key),
+      );
+    }
   }
 
   async deleteSettings(req, providerKey) {
@@ -339,7 +360,7 @@ class AIProviderSettingsModel {
     };
   }
 
-  async _assertRoutingProviderAvailable(req, providerKey) {
+  async _assertRoutingProviderAvailable(req, providerKey, { requireTextGeneration = false } = {}) {
     const normalized = normalizeProviderKey(providerKey);
     const resolved = await this.getResolvedProviderConfig(req, normalized);
     if (!resolved) {
@@ -348,6 +369,16 @@ class AIProviderSettingsModel {
         400,
         AppError.CODES.VALIDATION_ERROR,
       );
+    }
+    if (requireTextGeneration) {
+      const generatableKeys = this._listGeneratableTextProviderKeys();
+      if (!generatableKeys.has(normalized)) {
+        throw new AppError(
+          'Selected provider cannot generate Guides text',
+          400,
+          'provider_not_generation_capable',
+        );
+      }
     }
     return normalized;
   }
@@ -422,7 +453,11 @@ class AIProviderSettingsModel {
       const db = Database.get(req);
       const userId = this._requireUserId(req);
       const normalizedScope = normalizeRoutingScope(scope);
-      const normalizedProvider = await this._assertRoutingProviderAvailable(req, data.providerKey);
+      const requireTextGeneration =
+        normalizedScope === GLOBAL_ROUTING_SCOPE || normalizedScope === 'guides';
+      const normalizedProvider = await this._assertRoutingProviderAvailable(req, data.providerKey, {
+        requireTextGeneration,
+      });
       const model = normalizeRoutingModel(data.model, normalizedProvider);
 
       const savedRows = await db.query(

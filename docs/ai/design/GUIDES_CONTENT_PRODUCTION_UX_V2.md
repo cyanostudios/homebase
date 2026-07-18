@@ -1,10 +1,12 @@
 # UX-spec — Guide CMS Content Production Pipeline v2 (Fas 2)
 
-**Status:** Godkänd design (2026-07-13)  
+**Status:** Godkänd design (2026-07-13) — uppdaterad kontext 2026-07-19  
 **ADR:** [`docs/ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md`](../adr/CONTENT_PRODUCTION_PIPELINE_V2.md)  
 **Ersätter delar av:** [`GUIDES_CONTENT_PRODUCTION_UX.md`](GUIDES_CONTENT_PRODUCTION_UX.md) (v1) — v1 förblir referens för P2/P5/P7 v1-koncept  
 **Epics:** P-FRONTEND (efter P-ASYNC, P-CHAIN, P-REGEN backend)  
 **Plats:** [`client/src/plugins/guides/`](../../../client/src/plugins/guides/)
+
+> **Aktuellt produktflöde (2026-07-19):** Place-only — research → generate **one** guide text per language presentation → review (optional translate). Job type `full_guide` only; items use `presentation_id`. No stop creation, length variants (`quick`/`normal`/`deep`), or audio as current product. See [`P-GUIDES_PLACE_PRESENTATION.md`](../adr/P-GUIDES_PLACE_PRESENTATION.md) + [`P-GUIDES_CONTENT_SOURCES.md`](../adr/P-GUIDES_CONTENT_SOURCES.md). Sections below that describe stops, length variants, or audio UI are **historical**.
 
 ---
 
@@ -12,62 +14,48 @@
 
 ### Primär persona: Redaktör
 
-Redaktören ska kunna ta en guide från tom Place till publicerad produkt genom en **fasindelad produktionskedja** med tydliga granskningsstopp — särskilt efter text, innan dyrare översättning och ljud körs.
+Redaktören ska kunna ta en guide från tom Place till publicerbar produkt: **research → one guide text → review** (optional translation by language). Async job + HITL kvarstår; stop/variant/audio-kedjan är borttagen från produkten.
 
 ```mermaid
 flowchart TD
-  A[Öppna guide] --> B[Koppla ingest + läs excerpt]
-  B --> C[Skapa stopp + godkänn narrative]
-  C --> D[Pre-flight: uppskatta produktion]
-  D --> E[Starta produktion]
-  E --> F{Async jobb}
-  F -->|planning/processing| G[Banner: producerar text]
-  G --> H[Granska text-utkast]
-  H --> I{Per item}
-  I -->|Godkänn| J[Applicera på variant]
-  I -->|Avvisa| K[Domän oförändrad]
-  I -->|Regenerera| L[Nytt item i kö]
-  J --> M[Godkänn fas → fortsätt]
-  K --> M
-  L --> G
-  M --> N[Granska översättning]
-  N --> O[Granska ljud]
-  O --> P[Godkänn innehåll + publicera]
+  A[Öppna guide] --> B[Research: content sources / source pack]
+  B --> C[Starta produktion full_guide]
+  C --> D{Async jobb}
+  D -->|planning/processing| E[Banner: producerar text]
+  E --> F[Granska text-utkast]
+  F --> G{Per item}
+  G -->|Godkänn| H[Applicera på presentation]
+  G -->|Avvisa| I[Domän oförändrad]
+  G -->|Regenerera| J[Nytt item i kö]
+  H --> K[Valfritt: översätt till andra språk]
+  I --> K
+  J --> E
+  K --> L[Godkänn innehåll + publicera]
 ```
 
-### Flöde A — Ingest + manuella stopp (oförändrat från v1)
+### Flöde A / B — Ingest + stopp / narrative-HITL (**historiskt**)
 
-Se v1 spec §1 Flöde A. Ingen ändring.
+Stoppskapande, length variants och krav på godkänd narrativ före Produce gäller **inte** längre. Se v1-spec och äldre stycken nedan endast som historik. Aktuell modell: [`P-GUIDES_PLACE_PRESENTATION.md`](../adr/P-GUIDES_PLACE_PRESENTATION.md).
 
-### Flöde B — Narrative-HITL (förutsättning, oförändrat)
+### Flöde C — Place-level produktion (aktuellt)
 
-1. Redaktör skriver `canonical_narrative` per stop.
-2. **Godkänn narrative** krävs innan **Producera** aktiveras.
-3. Manuell text → `approved` direkt vid save.
+1. Redaktör kör research (content sources) och klickar **Producera** (`full_guide`).
+2. Jobb planerar **en** `text_derivation` per språkpresentation (`presentation_id`).
+3. Banner visar fas/status (`planning` / `processing` / `awaiting_review`).
+4. Redaktör granskar items med **Godkänn / Avvisa / Regenerera**.
+5. Valfritt: translation-fas till andra språkpresentationer efter text-HITL.
+6. Jobb `completed` → godkänn innehåll + publicera.
 
-### Flöde C — Fasindelad batch-produktion (v2)
-
-1. Redaktör klickar **Producera hel guide**.
-2. **Pre-flight-dialog** visar uppskattning (items, skips, valfri kostnad).
-3. Vid bekräftelse: `POST production-jobs` → jobb `pending` → worker tar över.
-4. Banner visar fas och status:
-   - `planning` — "Planerar produktion…"
-   - `processing` — "Producerar [text | översättning | ljud]…"
-   - `awaiting_review` — "Granska [text | översättning | ljud]"
-5. Redaktör granskar items i review-kö med **Godkänn / Avvisa / Regenerera** per rad.
-6. När alla items i fasen har beslut (`approved` | `rejected` | `superseded`): **Fortsätt till nästa fas**.
-7. Efter sista fas: jobb `completed`; redaktör godkänner variant-innehåll (`approve-content`) och publicerar.
-
-**Default checkpoint:** Stopp efter text (`after_text`). Översättning och ljud startar inte förrän textfasen är godkänd via **Fortsätt**.
+**Default checkpoint:** `after_text`. Audio-fas är **inte** aktuellt produktflöde.
 
 ### Flöde D — Per-item review (nytt i v2)
 
-| Handling              | Användarens avsikt    | API                           | UI-feedback                                |
-| --------------------- | --------------------- | ----------------------------- | ------------------------------------------ |
-| **Godkänn**           | Acceptera AI-utkast   | `POST …/items/:id/approve`    | Rad → grön check; variant `pending_review` |
-| **Avvisa**            | Behåll befintlig text | `POST …/items/:id/reject`     | Rad → grå "Avvisad"; domän oförändrad      |
-| **Regenerera**        | Nytt försök           | `POST …/items/:id/regenerate` | Gammal rad → "Ersatt"; ny rad med spinner  |
-| **Redigera manuellt** | Skippa AI             | Öppna variant-editor          | Stäng review-rad (ingen API)               |
+| Handling              | Användarens avsikt    | API                           | UI-feedback                                     |
+| --------------------- | --------------------- | ----------------------------- | ----------------------------------------------- |
+| **Godkänn**           | Acceptera AI-utkast   | `POST …/items/:id/approve`    | Rad → grön check; presentation `pending_review` |
+| **Avvisa**            | Behåll befintlig text | `POST …/items/:id/reject`     | Rad → grå "Avvisad"; domän oförändrad           |
+| **Regenerera**        | Nytt försök           | `POST …/items/:id/regenerate` | Gammal rad → "Ersatt"; ny rad med spinner       |
+| **Redigera manuellt** | Skippa AI             | Öppna presentation-editor     | Stäng review-rad (ingen API)                    |
 
 **Godkänn alla** (bulk): godkänner alla `pending_review` i aktuell fas. Kräver `ConfirmDialog` om >5 items.
 
@@ -81,19 +69,20 @@ Se v1 spec §1 Flöde A. Ingen ändring.
 | `cancelled`             | Visa info; **Starta ny produktion**                             |
 | Item `failed` (retries) | Visa i kö med feltext; **Regenerera** eller vänta på auto-retry |
 
-Poll var **3s** vid `pending`, `planning`, `processing`, `awaiting_review` (samma mönster som `GuideAudioSection`).
+Poll var **3s** vid `pending`, `planning`, `processing`, `awaiting_review` (samma mönster som tidigare `GuideAudioSection`).
 
-### Flöde F — Partiell regenerering (utökat)
+### Flöde F — Partiell regenerering
 
-- Per stop / variant: oförändrat från v1.
-- **Force-regenerera ljud:** checkbox i pre-flight eller ConfirmDialog vid publicerat innehåll.
-- **Språkfilter:** valfritt i pre-flight — "Endast översätt till: [en] [de]".
+- **Aktuellt:** Force på `full_guide`; språkfilter för translation när aktiverad.
+- **Historiskt:** Per stop/variant-start och force-regenerera ljud.
 
 ---
 
 ## 2. Gränssnittsunderlag
 
-### 2.1 Pre-flight-dialog (ny)
+> **Obs:** §2.1–2.3 wireframes (stopp · variant · ljud) är **historiska**. Aktuell UI: place presentation + text review (+ optional translation).
+
+### 2.1 Pre-flight-dialog (ny) — historisk wireframe
 
 **Trigger:** Klick på **Producera hel guide** / **Regenerera stopp**.
 
@@ -209,13 +198,12 @@ Text ● ─── Översättning ○ ─── Ljud ○
 
 Synkar med fas-banner; **Visa review-kö** scrollar/fokuserar review-kortet.
 
-### 2.5 Övriga komponenter (oförändrade från v1)
+### 2.5 Övriga komponenter
 
-- `GuideSourceSection` (P5) — oförändrat
-- `GuideStopsSection` + `ApprovalStatusBadge` (P2) — oförändrat
-- `GuideVariantsSection` (P2) — oförändrat
-- Place **Publicera guide** (P2) — oförändrat
-- `GuideAudioSection` — behålls för manuell single-variant generate (Epic 6)
+- Content sources / research UI — aktuellt
+- `GuidePresentationSection` — plats-presentation (ersätter stop/variant-sektioner)
+- Place **Publicera guide** — oförändrat i princip
+- **Historiskt:** `GuideStopsSection`, `GuideVariantsSection`, `GuideAudioSection` (borttagna från aktuellt produkt-UI)
 
 ### 2.6 Nya/uppdaterade komponenter
 
@@ -343,7 +331,7 @@ Avstämd med ADR v2:
 4. ✅ `StartProductionDialog` (enkel start + `force`; **ej** `ProductionPreflightDialog`/estimate).
 5. ✅ `GuideProductionPanel` + `ProductionJobHistory` (sidebar).
 6. ✅ `useProductionJob` — 3s poll; state-sync vid terminal status.
-7. ✅ Scoped start från stopp/variant.
+7. ✅ Scoped start (**historiskt** stopp/variant; **aktuellt** place presentation).
 8. ✅ i18n `guides.production.*` (sv/en).
 
 ### E2E-verifiering (2026-07-14)
@@ -355,7 +343,7 @@ Automatiserad checklista: `node scripts/guides-production-e2e.js` (16 PASS lokal
 | A       | Start hel guide, aktivt jobb-guard                                               |
 | B       | `awaiting_review`, banner, approve/reject/regenerate                             |
 | C       | `approve-phase` → translation → `completed`; B1 (`hasActiveJob` efter completed) |
-| D       | Scoped stop-start + cancel                                                       |
+| D       | Scoped start + cancel (**historiskt** stop-scope)                                |
 | F       | Jobbhistorik (≥2 jobb)                                                           |
 | G       | 409 vid dubbelstart                                                              |
 

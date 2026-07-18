@@ -15,9 +15,43 @@ function mockReadyProvider(service) {
 }
 
 describe('ProductionOrchestrationService', () => {
+  test('startJob ensures source-language presentation exists', async () => {
+    const guidesModel = {
+      getById: jest
+        .fn()
+        .mockResolvedValue({ id: '1', displayName: 'Museum Square', sourceLanguage: 'sv' }),
+      ensureSourceLanguagePresentation: jest.fn().mockResolvedValue({
+        id: '20',
+        language: 'sv',
+        presentationText: null,
+      }),
+      getPresentations: jest
+        .fn()
+        .mockResolvedValue([{ id: '20', language: 'sv', presentationText: null }]),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    mockReadyProvider(service);
+    jest.spyOn(service.jobModel, 'hasActiveJob').mockResolvedValue(false);
+    jest.spyOn(service.jobModel, 'createJob').mockResolvedValue({ id: '1', status: 'pending' });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
+
+    await service.startJob({}, '1', { type: 'full_guide' });
+
+    expect(guidesModel.ensureSourceLanguagePresentation).toHaveBeenCalledWith({}, '1');
+    expect(service.jobModel.createJob).toHaveBeenCalledWith(
+      {},
+      '1',
+      expect.objectContaining({ type: 'full_guide' }),
+    );
+  });
+
   test('startJob enqueues async job as pending with default phases', async () => {
     const guidesModel = {
       getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
+      ensureSourceLanguagePresentation: jest.fn().mockResolvedValue({ id: '20', language: 'sv' }),
+      getPresentations: jest
+        .fn()
+        .mockResolvedValue([{ id: '20', language: 'sv', presentationText: null }]),
     };
 
     const service = new ProductionOrchestrationService(guidesModel);
@@ -27,8 +61,6 @@ describe('ProductionOrchestrationService', () => {
       placeId: '1',
       type: 'full_guide',
       status: 'pending',
-      scopeStopId: null,
-      scopeVariantId: null,
       phases: ['text_derivation'],
       checkpointMode: 'after_text',
       jobOptions: {
@@ -50,15 +82,70 @@ describe('ProductionOrchestrationService', () => {
       {},
       '1',
       expect.objectContaining({
+        type: 'full_guide',
         phases: ['text_derivation'],
         checkpointMode: 'after_text',
+        jobOptions: expect.objectContaining({
+          type: 'full_guide',
+          languages: null,
+          force: false,
+        }),
+      }),
+    );
+  });
+
+  test('startJob coerces non-full_guide type to full_guide', async () => {
+    const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
+      ensureSourceLanguagePresentation: jest.fn().mockResolvedValue({ id: '20', language: 'sv' }),
+      getPresentations: jest.fn().mockResolvedValue([{ id: '20', language: 'sv' }]),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    mockReadyProvider(service);
+    jest.spyOn(service.jobModel, 'hasActiveJob').mockResolvedValue(false);
+    jest.spyOn(service.jobModel, 'createJob').mockResolvedValue({ id: '1', status: 'pending' });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
+
+    await service.startJob({}, '1', { type: 'stop' });
+
+    expect(service.jobModel.createJob).toHaveBeenCalledWith(
+      {},
+      '1',
+      expect.objectContaining({ type: 'full_guide' }),
+    );
+  });
+
+  test('startJob adds translation phase when other-language presentations exist', async () => {
+    const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
+      ensureSourceLanguagePresentation: jest.fn().mockResolvedValue({ id: '20', language: 'sv' }),
+      getPresentations: jest.fn().mockResolvedValue([
+        { id: '20', language: 'sv', presentationText: null },
+        { id: '21', language: 'en', presentationText: null },
+      ]),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    mockReadyProvider(service);
+    jest.spyOn(service.jobModel, 'hasActiveJob').mockResolvedValue(false);
+    jest.spyOn(service.jobModel, 'createJob').mockResolvedValue({ id: '1', status: 'pending' });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
+
+    await service.startJob({}, '1', { type: 'full_guide' });
+
+    expect(service.jobModel.createJob).toHaveBeenCalledWith(
+      {},
+      '1',
+      expect.objectContaining({
+        phases: ['text_derivation', 'translation'],
       }),
     );
   });
 
   test('startJob accepts explicit phases and checkpointMode', async () => {
     const guidesModel = {
-      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
+      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv', displayName: 'Place' }),
+      ensureSourceLanguagePresentation: jest.fn().mockResolvedValue({ id: '20', language: 'sv' }),
+      getPresentations: jest.fn().mockResolvedValue([{ id: '20', language: 'sv' }]),
     };
     const service = new ProductionOrchestrationService(guidesModel);
     mockReadyProvider(service);
@@ -114,25 +201,15 @@ describe('ProductionOrchestrationService', () => {
   test('runWorkerTick plans only current phase step and completes to awaiting_review', async () => {
     const guidesModel = {
       getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
-      getStops: jest
-        .fn()
-        .mockResolvedValue([{ id: '10', canonicalNarrative: 'Narrative A', title: 'Stop 1' }]),
-      getVariants: jest.fn().mockResolvedValue([
+      getPresentations: jest.fn().mockResolvedValue([
         {
           id: '20',
-          stopId: '10',
-          variantType: 'normal',
           language: 'sv',
           presentationText: null,
         },
       ]),
-      getStopById: jest.fn().mockResolvedValue({
-        id: '10',
-        canonicalNarrative: 'Narrative A',
-      }),
-      getVariantById: jest.fn().mockResolvedValue({
+      getPresentationById: jest.fn().mockResolvedValue({
         id: '20',
-        variantType: 'normal',
         language: 'sv',
         presentationText: null,
       }),
@@ -145,8 +222,11 @@ describe('ProductionOrchestrationService', () => {
           placeDisplayName: null,
           sources: [{ sourceKey: 'wikipedia', status: 'empty', excerpts: [] }],
           excerpts: [],
-          combinedText: '',
+          combinedText: 'Pack text',
         }),
+      },
+      contentSourceSettingsModel: {
+        getEnabledSourceKeys: jest.fn().mockResolvedValue(['wikipedia', 'wikidata']),
       },
     });
     const job = {
@@ -162,8 +242,7 @@ describe('ProductionOrchestrationService', () => {
     const pendingItem = {
       id: '1',
       jobId: '99',
-      stopId: '10',
-      variantId: '20',
+      presentationId: '20',
       step: 'text_derivation',
       phaseIndex: 0,
       status: 'processing',
@@ -228,7 +307,11 @@ describe('ProductionOrchestrationService', () => {
     expect(service.jobModel.createJobItem).toHaveBeenCalledWith(
       {},
       '99',
-      expect.objectContaining({ step: 'text_derivation', phaseIndex: 0 }),
+      expect.objectContaining({
+        step: 'text_derivation',
+        phaseIndex: 0,
+        presentationId: '20',
+      }),
     );
     expect(service.jobModel.updateJobStatus).toHaveBeenCalledWith(
       {},
@@ -283,8 +366,7 @@ describe('ProductionOrchestrationService', () => {
         phaseIndex: 0,
         status: 'completed',
         step: 'text_derivation',
-        stopId: '10',
-        variantId: '20',
+        presentationId: '20',
         reviewStatus: 'approved',
         providerResult: { presentationText: 'Derived text' },
       },
@@ -293,8 +375,7 @@ describe('ProductionOrchestrationService', () => {
         phaseIndex: 0,
         status: 'completed',
         step: 'text_derivation',
-        stopId: '11',
-        variantId: '21',
+        presentationId: '21',
         reviewStatus: 'rejected',
         providerResult: { presentationText: 'Rejected text' },
       },
@@ -358,8 +439,7 @@ describe('ProductionOrchestrationService', () => {
       phaseIndex: 0,
       status: 'completed',
       step: 'text_derivation',
-      stopId: '10',
-      variantId: '20',
+      presentationId: '20',
       reviewStatus: 'pending_review',
       providerResult: { presentationText: 'Derived text' },
     };
@@ -379,7 +459,6 @@ describe('ProductionOrchestrationService', () => {
     expect(guidesModel.applyProductionPresentationText).toHaveBeenCalledWith(
       {},
       '1',
-      '10',
       '20',
       'Derived text',
     );
@@ -423,14 +502,15 @@ describe('ProductionOrchestrationService', () => {
 
   test('regenerateItem supersedes old item and creates pending replacement', async () => {
     const guidesModel = {
-      getStopById: jest.fn().mockResolvedValue({ id: '10', canonicalNarrative: 'Narrative' }),
-      getVariantById: jest.fn().mockResolvedValue({
+      getPresentationById: jest.fn().mockResolvedValue({
         id: '20',
-        variantType: 'normal',
         language: 'sv',
         presentationText: null,
       }),
       getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv', ingestRunId: '7' }),
+      getPresentations: jest
+        .fn()
+        .mockResolvedValue([{ id: '20', language: 'sv', presentationText: null }]),
     };
     const service = new ProductionOrchestrationService(guidesModel);
     const job = {
@@ -444,8 +524,7 @@ describe('ProductionOrchestrationService', () => {
       phaseIndex: 0,
       status: 'completed',
       step: 'text_derivation',
-      stopId: '10',
-      variantId: '20',
+      presentationId: '20',
       reviewStatus: 'pending_review',
       providerKey: 'noop',
       providerVersion: '1',
@@ -465,6 +544,7 @@ describe('ProductionOrchestrationService', () => {
       status: 'pending',
       phaseIndex: 0,
       step: 'text_derivation',
+      presentationId: '20',
     });
     jest
       .spyOn(service.jobModel, 'updateJobStatus')
@@ -480,7 +560,12 @@ describe('ProductionOrchestrationService', () => {
     expect(service.jobModel.createJobItem).toHaveBeenCalledWith(
       {},
       '99',
-      expect.objectContaining({ status: 'pending', phaseIndex: 0, step: 'text_derivation' }),
+      expect.objectContaining({
+        status: 'pending',
+        phaseIndex: 0,
+        step: 'text_derivation',
+        presentationId: '20',
+      }),
     );
     expect(result.job.status).toBe('processing');
     expect(result.item.status).toBe('pending');
@@ -503,8 +588,7 @@ describe('ProductionOrchestrationService', () => {
         phaseIndex: 0,
         status: 'completed',
         step: 'text_derivation',
-        stopId: '10',
-        variantId: '20',
+        presentationId: '20',
         reviewStatus: 'pending_review',
         providerResult: { presentationText: 'A' },
       },
@@ -513,8 +597,7 @@ describe('ProductionOrchestrationService', () => {
         phaseIndex: 0,
         status: 'completed',
         step: 'text_derivation',
-        stopId: '11',
-        variantId: '21',
+        presentationId: '21',
         reviewStatus: 'approved',
         providerResult: { presentationText: 'B' },
       },
@@ -528,6 +611,7 @@ describe('ProductionOrchestrationService', () => {
     await service.bulkApproveItemsInPhase({}, '1', '99');
 
     expect(guidesModel.applyProductionPresentationText).toHaveBeenCalledTimes(1);
+    expect(guidesModel.applyProductionPresentationText).toHaveBeenCalledWith({}, '1', '20', 'A');
   });
 
   test('retryJob requeues failed job from current phase', async () => {
@@ -575,8 +659,7 @@ describe('ProductionOrchestrationService', () => {
         phaseIndex: 1,
         status: 'completed',
         step: 'translation',
-        stopId: '10',
-        variantId: '20',
+        presentationId: '20',
         reviewStatus: 'approved',
         providerResult: { translatedText: 'Translated' },
       },
@@ -625,15 +708,13 @@ describe('ProductionOrchestrationService', () => {
 
   test('_processItem skips provider when job is cancelled', async () => {
     const guidesModel = {
-      getStopById: jest.fn(),
-      getVariantById: jest.fn(),
+      getPresentationById: jest.fn(),
     };
     const service = new ProductionOrchestrationService(guidesModel);
     const item = {
       id: '1',
       jobId: '99',
-      stopId: '10',
-      variantId: '20',
+      presentationId: '20',
       step: 'text_derivation',
       providerKey: 'noop',
     };
@@ -647,7 +728,7 @@ describe('ProductionOrchestrationService', () => {
 
     await service._processItem({}, item);
 
-    expect(guidesModel.getStopById).not.toHaveBeenCalled();
+    expect(guidesModel.getPresentationById).not.toHaveBeenCalled();
     expect(service.jobModel.updateJobItem).toHaveBeenCalledWith({}, '1', { status: 'cancelled' });
   });
 
@@ -711,8 +792,7 @@ describe('ProductionOrchestrationService', () => {
         phaseIndex: 0,
         status: 'completed',
         step: 'text_derivation',
-        stopId: '10',
-        variantId: '20',
+        presentationId: '20',
         reviewStatus: 'pending_review',
         providerResult: { presentationText: 'Text' },
       },
@@ -730,7 +810,9 @@ describe('ProductionOrchestrationService', () => {
 
   test('startJob stores languages in jobOptions', async () => {
     const guidesModel = {
-      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
+      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv', displayName: 'Place' }),
+      ensureSourceLanguagePresentation: jest.fn().mockResolvedValue({ id: '20', language: 'sv' }),
+      getPresentations: jest.fn().mockResolvedValue([{ id: '20', language: 'sv' }]),
     };
     const service = new ProductionOrchestrationService(guidesModel);
     mockReadyProvider(service);
@@ -749,15 +831,15 @@ describe('ProductionOrchestrationService', () => {
     );
   });
 
-  test('_filterTargetsByLanguages keeps only matching variants', () => {
+  test('_filterTargetsByLanguages keeps only matching presentations', () => {
     const service = new ProductionOrchestrationService({});
     const targets = [
-      { stop: { id: '1' }, variant: { language: 'sv' } },
-      { stop: { id: '2' }, variant: { language: 'en' } },
+      { presentation: { id: '1', language: 'sv' } },
+      { presentation: { id: '2', language: 'en' } },
     ];
     const filtered = service._filterTargetsByLanguages(targets, ['en']);
     expect(filtered).toHaveLength(1);
-    expect(filtered[0].variant.language).toBe('en');
+    expect(filtered[0].presentation.language).toBe('en');
   });
 
   test('_shouldCheckpoint respects after_text and after_each', () => {
@@ -774,27 +856,67 @@ describe('ProductionOrchestrationService', () => {
     expect(service._shouldCheckpoint({ checkpointMode: 'auto', currentPhaseIndex: 0 })).toBe(false);
   });
 
-  test('_providerKeyForStep resolves preferred text provider', async () => {
+  test('_providerKeyForStep resolves preferred text and translation providers', async () => {
     const service = new ProductionOrchestrationService({});
     jest
       .spyOn(service.textProviderConfigResolver, 'getPreferredProviderKey')
       .mockResolvedValue('openai');
+    jest
+      .spyOn(service.translationProviderConfigResolver, 'getPreferredProviderKey')
+      .mockResolvedValue('openai');
 
     await expect(service._providerKeyForStep({}, 'text_derivation')).resolves.toBe('openai');
-    await expect(service._providerKeyForStep({}, 'translation')).resolves.toBe('noop');
+    await expect(service._providerKeyForStep({}, 'translation')).resolves.toBe('openai');
+  });
+
+  test('_processItem skips translation when languages match', async () => {
+    const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
+      getPresentationById: jest.fn().mockResolvedValue({
+        id: '20',
+        language: 'sv',
+        presentationText: 'Hej',
+      }),
+      getPresentations: jest
+        .fn()
+        .mockResolvedValue([{ id: '20', language: 'sv', presentationText: 'Hej' }]),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    jest.spyOn(service.jobModel, 'getJobByIdInternal').mockResolvedValue({
+      id: '99',
+      placeId: '1',
+      status: 'processing',
+    });
+    const updateSpy = jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
+
+    await service._processItem(
+      {},
+      {
+        id: '1',
+        jobId: '99',
+        presentationId: '20',
+        step: 'translation',
+        providerKey: 'openai',
+      },
+    );
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      {},
+      '1',
+      expect.objectContaining({
+        status: 'skipped',
+        errorMessage: expect.stringContaining('matches source language'),
+      }),
+    );
   });
 
   test('_processItem schedules retry for text_derivation rate limit', async () => {
     const guidesModel = {
       getById: jest.fn().mockResolvedValue({ id: '1', place: null }),
-      getStopById: jest.fn().mockResolvedValue({
-        id: '10',
-        canonicalNarrative: 'Narrative',
-      }),
-      getVariantById: jest.fn().mockResolvedValue({
+      getPresentationById: jest.fn().mockResolvedValue({
         id: '20',
-        variantType: 'normal',
         language: 'sv',
+        presentationText: 'Narrative',
       }),
     };
     const service = new ProductionOrchestrationService(guidesModel);
@@ -803,7 +925,6 @@ describe('ProductionOrchestrationService', () => {
       placeId: '1',
       status: 'processing',
     });
-    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
     const updateSpy = jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
 
     const mockProvider = {
@@ -823,8 +944,7 @@ describe('ProductionOrchestrationService', () => {
       {
         id: '1',
         jobId: '99',
-        stopId: '10',
-        variantId: '20',
+        presentationId: '20',
         step: 'text_derivation',
         providerKey: 'openai',
       },
@@ -845,14 +965,10 @@ describe('ProductionOrchestrationService', () => {
   test('_processItem stores full providerResult blob from adapter', async () => {
     const guidesModel = {
       getById: jest.fn().mockResolvedValue({ id: '1', place: null }),
-      getStopById: jest.fn().mockResolvedValue({
-        id: '10',
-        canonicalNarrative: 'Narrative',
-      }),
-      getVariantById: jest.fn().mockResolvedValue({
+      getPresentationById: jest.fn().mockResolvedValue({
         id: '20',
-        variantType: 'normal',
         language: 'sv',
+        presentationText: 'Narrative',
       }),
     };
     const service = new ProductionOrchestrationService(guidesModel);
@@ -861,7 +977,6 @@ describe('ProductionOrchestrationService', () => {
       placeId: '1',
       status: 'processing',
     });
-    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
     const updateSpy = jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
 
     const fullBlob = {
@@ -882,8 +997,7 @@ describe('ProductionOrchestrationService', () => {
       {
         id: '2',
         jobId: '99',
-        stopId: '10',
-        variantId: '20',
+        presentationId: '20',
         step: 'text_derivation',
         providerKey: 'openai',
       },
@@ -900,98 +1014,19 @@ describe('ProductionOrchestrationService', () => {
     );
   });
 
-  test('_processItem waits for deep sibling before summarizing normal', async () => {
-    const guidesModel = {
-      getById: jest.fn().mockResolvedValue({ id: '1', place: null }),
-      getStopById: jest.fn().mockResolvedValue({
-        id: '10',
-        canonicalNarrative: 'Narrative',
-      }),
-      getVariantById: jest
-        .fn()
-        .mockResolvedValueOnce({
-          id: '20',
-          variantType: 'normal',
-          language: 'sv',
-        })
-        .mockResolvedValueOnce({
-          id: '21',
-          variantType: 'deep',
-          language: 'sv',
-        }),
-    };
-    const service = new ProductionOrchestrationService(guidesModel);
-    jest.spyOn(service.jobModel, 'getJobByIdInternal').mockResolvedValue({
-      id: '99',
-      placeId: '1',
-      status: 'processing',
-      jobOptions: {
-        sourcePack: { combinedText: 'Pack text', sources: [], excerpts: [] },
-      },
-    });
-    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([
-      {
-        id: '2',
-        stopId: '10',
-        variantId: '21',
-        step: 'text_derivation',
-        phaseIndex: 0,
-        status: 'processing',
-      },
-    ]);
-    const updateSpy = jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
-    const createProvider = jest
-      .spyOn(service.textProviderConfigResolver, 'createProvider')
-      .mockResolvedValue({ generate: jest.fn() });
-
-    await service._processItem(
-      {},
-      {
-        id: '1',
-        jobId: '99',
-        stopId: '10',
-        variantId: '20',
-        step: 'text_derivation',
-        phaseIndex: 0,
-        providerKey: 'openai',
-      },
-    );
-
-    expect(createProvider).not.toHaveBeenCalled();
-    expect(updateSpy).toHaveBeenCalledWith(
-      {},
-      '1',
-      expect.objectContaining({
-        status: 'pending',
-        errorMessage: 'Waiting for deep variant',
-      }),
-    );
-  });
-
-  test('_processItem passes deep text when summarizing normal', async () => {
+  test('_processItem generates from source pack without deep wait', async () => {
     const generate = jest.fn().mockResolvedValue({
       status: 'ready',
-      presentationText: 'Summary',
-      providerResult: { presentationText: 'Summary' },
+      presentationText: 'Guide text',
+      providerResult: { presentationText: 'Guide text' },
     });
     const guidesModel = {
       getById: jest.fn().mockResolvedValue({ id: '1', place: null }),
-      getStopById: jest.fn().mockResolvedValue({
-        id: '10',
-        canonicalNarrative: '',
+      getPresentationById: jest.fn().mockResolvedValue({
+        id: '20',
+        language: 'sv',
+        presentationText: '',
       }),
-      getVariantById: jest
-        .fn()
-        .mockResolvedValueOnce({
-          id: '20',
-          variantType: 'normal',
-          language: 'sv',
-        })
-        .mockResolvedValueOnce({
-          id: '21',
-          variantType: 'deep',
-          language: 'sv',
-        }),
     };
     const service = new ProductionOrchestrationService(guidesModel);
     jest.spyOn(service.jobModel, 'getJobByIdInternal').mockResolvedValue({
@@ -1002,17 +1037,6 @@ describe('ProductionOrchestrationService', () => {
         sourcePack: { combinedText: 'Pack text', sources: [], excerpts: [] },
       },
     });
-    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([
-      {
-        id: '2',
-        stopId: '10',
-        variantId: '21',
-        step: 'text_derivation',
-        phaseIndex: 0,
-        status: 'completed',
-        providerResult: { presentationText: 'Long deep text' },
-      },
-    ]);
     jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
     jest
       .spyOn(service.textProviderConfigResolver, 'createProvider')
@@ -1023,8 +1047,7 @@ describe('ProductionOrchestrationService', () => {
       {
         id: '1',
         jobId: '99',
-        stopId: '10',
-        variantId: '20',
+        presentationId: '20',
         step: 'text_derivation',
         phaseIndex: 0,
         providerKey: 'openai',
@@ -1034,8 +1057,61 @@ describe('ProductionOrchestrationService', () => {
     expect(generate).toHaveBeenCalledWith(
       {},
       expect.objectContaining({
-        sourceDeepText: 'Long deep text',
+        canonicalNarrative: '',
+        language: 'sv',
         sourcePackText: 'Pack text',
+      }),
+    );
+    expect(generate.mock.calls[0][1]).not.toHaveProperty('sourceDeepText');
+    expect(generate.mock.calls[0][1]).not.toHaveProperty('variantType');
+  });
+
+  test('_processItem translates from source-language presentation text', async () => {
+    const translate = jest.fn().mockResolvedValue({
+      status: 'ready',
+      translatedText: 'Hello',
+      providerResult: { translatedText: 'Hello' },
+    });
+    const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
+      getPresentationById: jest.fn().mockResolvedValue({
+        id: '21',
+        language: 'en',
+        presentationText: null,
+      }),
+      getPresentations: jest.fn().mockResolvedValue([
+        { id: '20', language: 'sv', presentationText: 'Hej' },
+        { id: '21', language: 'en', presentationText: null },
+      ]),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    jest.spyOn(service.jobModel, 'getJobByIdInternal').mockResolvedValue({
+      id: '99',
+      placeId: '1',
+      status: 'processing',
+    });
+    jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
+    jest
+      .spyOn(service.translationProviderConfigResolver, 'createProvider')
+      .mockResolvedValue({ translate });
+
+    await service._processItem(
+      {},
+      {
+        id: '1',
+        jobId: '99',
+        presentationId: '21',
+        step: 'translation',
+        providerKey: 'openai',
+      },
+    );
+
+    expect(translate).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        presentationText: 'Hej',
+        sourceLanguage: 'sv',
+        targetLanguage: 'en',
       }),
     );
   });

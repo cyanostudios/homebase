@@ -271,18 +271,21 @@ export const AIProvidersSettingsForm = React.forwardRef<
                       })}
                     </p>
                   ) : null}
-                  {activeProviderKey &&
-                  catalog.find((e) => e.providerKey === activeProviderKey)
-                    ?.textGenerationCapable === false ? (
-                    <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                      {t('aiProviders.notGeneratableHint', {
-                        defaultValue:
-                          'This provider can be saved for routing, but Guides text generation only works with providers that have a registered adapter (currently OpenAI).',
-                      })}
-                    </p>
-                  ) : null}
                 </div>
               </DetailSection>
+            </Card>
+          ) : null}
+
+          {activeProviderKey &&
+          catalog.find((e) => e.providerKey === activeProviderKey)?.textGenerationCapable ===
+            false ? (
+            <Card className="border-amber-500/40 bg-amber-500/5 p-4 shadow-none">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                {t('aiProviders.notGeneratableHint', {
+                  defaultValue:
+                    'This provider can be saved for credentials, but Guides text generation only works with providers that have a registered adapter (currently OpenAI).',
+                })}
+              </p>
             </Card>
           ) : null}
 

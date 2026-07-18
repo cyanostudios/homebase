@@ -18,10 +18,12 @@ const WikipediaContentSource = require('../sources/adapters/WikipediaContentSour
 const { normalizeUnescoList, matchesPlace } = require('../sources/adapters/UnescoContentSource');
 
 describe('content source catalog', () => {
-  test('lists wikipedia and unesco by default', () => {
-    expect(DEFAULT_CONTENT_SOURCES).toEqual(['wikipedia', 'unesco']);
+  test('lists wikipedia and wikidata by default; unesco disabled by default', () => {
+    expect(DEFAULT_CONTENT_SOURCES).toEqual(['wikipedia', 'wikidata']);
     const list = listContentSourceCatalog();
-    expect(list.map((e) => e.key).sort()).toEqual(['unesco', 'wikipedia']);
+    expect(list.map((e) => e.key).sort()).toEqual(['unesco', 'wikidata', 'wikipedia']);
+    expect(list.find((e) => e.key === 'unesco')?.enabledByDefault).toBe(false);
+    expect(list.find((e) => e.key === 'wikidata')?.enabledByDefault).toBe(true);
   });
 });
 
@@ -33,8 +35,10 @@ describe('ContentSourceRegistry', () => {
   test('registers default adapters', () => {
     ensureContentSourcesRegistered();
     expect(ContentSourceRegistry.has('wikipedia')).toBe(true);
+    expect(ContentSourceRegistry.has('wikidata')).toBe(true);
     expect(ContentSourceRegistry.has('unesco')).toBe(true);
     expect(ContentSourceRegistry.create('wikipedia').key).toBe('wikipedia');
+    expect(ContentSourceRegistry.create('wikidata').key).toBe('wikidata');
   });
 });
 
@@ -73,6 +77,56 @@ describe('WikipediaContentSource', () => {
     expect(result.excerpts).toHaveLength(1);
     expect(result.excerpts[0].title).toBe('Test Place');
     expect(result.excerpts[0].sourceKey).toBe('wikipedia');
+  });
+});
+
+describe('WikidataContentSource', () => {
+  const WikidataContentSource = require('../sources/adapters/WikidataContentSource');
+
+  test('returns excerpts from SPARQL around search', async () => {
+    const fetchFn = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: {
+          bindings: [
+            {
+              item: { value: 'http://www.wikidata.org/entity/Q123' },
+              itemLabel: { value: 'Heritage Site' },
+              itemDescription: { value: 'A world heritage place' },
+              heritage: { value: 'http://www.wikidata.org/entity/Q9259' },
+            },
+          ],
+        },
+      }),
+    });
+
+    const source = new WikidataContentSource({ fetchFn });
+    const result = await source.fetch({
+      displayName: 'Heritage Site',
+      coordinates: { lat: 59.3, lng: 18.0 },
+      language: 'en',
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result.excerpts).toHaveLength(1);
+    expect(result.excerpts[0].title).toBe('Heritage Site');
+    expect(result.excerpts[0].url).toBe('https://www.wikidata.org/wiki/Q123');
+    expect(result.excerpts[0].externalId).toBe('Q123');
+  });
+
+  test('returns empty when no matches', async () => {
+    const fetchFn = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: { bindings: [] } }),
+    });
+    const source = new WikidataContentSource({ fetchFn });
+    const result = await source.fetch({
+      displayName: '',
+      coordinates: { lat: 0, lng: 0 },
+      language: 'en',
+    });
+    expect(result.status).toBe('empty');
+    expect(result.excerpts).toHaveLength(0);
   });
 });
 

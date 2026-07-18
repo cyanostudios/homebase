@@ -132,10 +132,7 @@ function initializePublicGuidesPlugin(_context) {
   });
 
   router.get('/', (req, res) => controller.listGuides(req, res));
-  router.get('/:placeId/stops/:stopId/variants/:variantId/audio', (req, res) =>
-    controller.streamAudio(req, res),
-  );
-  router.get('/:placeId/stops', (req, res) => controller.getStops(req, res));
+  router.get('/:placeId/presentations', (req, res) => controller.getPresentations(req, res));
   router.get('/:placeId', (req, res) => controller.getGuide(req, res));
 
   return {

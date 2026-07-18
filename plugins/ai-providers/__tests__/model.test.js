@@ -329,6 +329,36 @@ describe('AIProviderSettingsModel', () => {
     );
   });
 
+  test('saveRouting rejects non-generatable provider for guides and global', async () => {
+    Context.getTenantUserId.mockReturnValue(7);
+    Database.get.mockReturnValue({
+      query: jest.fn().mockResolvedValue([
+        {
+          id: 1,
+          user_id: 7,
+          provider_key: 'anthropic',
+          enabled: true,
+          api_key: 'sk-ant',
+          default_model: 'claude-sonnet-4-5',
+        },
+      ]),
+    });
+
+    await expect(
+      model.saveRouting({}, 'guides', { providerKey: 'anthropic', model: 'claude-sonnet-4-5' }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'provider_not_generation_capable',
+    });
+
+    await expect(
+      model.saveRouting({}, '*', { providerKey: 'anthropic', model: 'claude-sonnet-4-5' }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'provider_not_generation_capable',
+    });
+  });
+
   test('saveRouting requires configured enabled provider', async () => {
     jest.spyOn(model, 'getResolvedProviderConfig').mockResolvedValue(null);
 

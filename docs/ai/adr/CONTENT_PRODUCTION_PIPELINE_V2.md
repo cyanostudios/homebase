@@ -5,6 +5,8 @@
 **Grund:** TPM Output Contract Fas 2 med låsta beslut (2026-07-13)  
 **Förutsättning före implementation:** Prod-migrationer 096–098 klara på alla tenants
 
+> **Superseded for domain targeting (2026-07-19):** Place-level presentations ([`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md)) replace stop × length-variant planning. Job type is **`full_guide` only**. Job items use **`presentation_id`** (not stop/variant). Sections below that describe `guide_stops`, `variant_type` quick/normal/deep, auto-stop, or deep-sibling waits are **historical** for product scope; async worker / HITL / phase machinery remains.
+
 ---
 
 ## Sammanfattning
@@ -12,10 +14,10 @@
 Guide CMS v1.0 (`guides-v1.0`) levererade redaktionell domän, noop-baserad `ProductionJob` v1 (synkron, text-only) och HITL-gates. **Fas 2** gör produktionskedjan till en **async, fasindelad pipeline** som bär hundratusentals guider:
 
 1. **Ingest** — koppla källa, läs excerpt (P5, oförändrat).
-2. **Canonical Narrative** — redaktör skriver och godkänner narrative per stop (manuell HITL, förutsättning för produktion).
-3. **Text Derivation** — AI genererar `presentation_text` per variant (fas 0).
-4. **Translation** — AI översätter godkänd text till målspråk (fas 1, endast efter text-HITL).
-5. **Audio** — TTS genererar ljud per godkänd variant (fas 2, endast efter översättnings-HITL).
+2. **Research / optional narrative** — place-level source pack; tom narrativ OK när pack har excerpts; se [`P-GUIDES_CONTENT_SOURCES.md`](P-GUIDES_CONTENT_SOURCES.md). Narrativ-`approval_status` är editorial/publish-gate, **inte** Produce-startgate.
+3. **Text Derivation** — AI genererar `presentation_text` för **en presentation per språk** (fas 0; `presentation_id`). Length variants borttagna — se [`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md).
+4. **Translation** — AI översätter godkänd text till andra språkpresentationer (fas 1, efter text-HITL när aktiverad).
+5. **Audio** — **historiskt / out of scope** i platsmodellen (TTS ej produktmål).
 6. **Publicering** — redaktör sätter `published` + `active` (befintliga gates).
 
 **Låsta TPM-beslut:**
@@ -65,14 +67,17 @@ erDiagram
     guide_production_job_items ||--|{ guide_production_job_events : logs
 ```
 
-### Befintliga domänentiteter (oförändrade i grund)
+### Domänentiteter (aktuellt vs historiskt)
 
-| Entitet                       | Nyckelfält                                                                       | Produktionsroll                                                     |
-| ----------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `guide_places`                | `lifecycle_status`, `ingest_source_id`, `ingest_run_id`                          | Scope för jobb; ingest-invalidering av fingerprint                  |
-| `guide_stops`                 | `canonical_narrative`, `approval_status`                                         | Input till text_derivation; måste vara `approved` innan job startar |
-| `guide_variant_presentations` | `presentation_text`, `approval_status`, `publication_status`, `staleness_status` | Output-mål efter HITL; publiceringsgate                             |
-| `guide_audio`                 | `status`, `storage_ref`                                                          | Output-mål efter audio-fas                                          |
+**Aktuellt (2026-07-19):** `guide_places` → `guide_master_guides` → `guide_presentations` (`master_guide_id` + `language`, unique). Job items reference `presentation_id`. Se [`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md).
+
+| Entitet                                                       | Nyckelfält                                                                       | Produktionsroll                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `guide_places`                                                | `lifecycle_status`, `ingest_source_id`, `ingest_run_id`                          | Scope för jobb; ingest-invalidering av fingerprint      |
+| `guide_presentations`                                         | `presentation_text`, `approval_status`, `publication_status`, `staleness_status` | Output-mål efter HITL; publiceringsgate (ett per språk) |
+| `guide_stops` / `guide_variant_presentations` / `guide_audio` | —                                                                                | **Historiskt** — borttaget i platsmodellen              |
+
+ER-diagrammet ovan (stops → variants → audio) är **historisk** v2-design.
 
 ### ProductionJob (utökad)
 
@@ -167,15 +172,18 @@ started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
 ## Livscykel — hela kedjan
 
+> Diagrammet nedan inkluderar CreateStops / audio — **historisk** v2-design. Aktuellt: research (source pack) → `text_derivation` på presentation → HITL → optional translation → publish ([`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md)).
+
 ```mermaid
 flowchart TD
     subgraph manual [Manuella steg utanför ProductionJob]
         Ingest[Koppla ingest + refresh excerpt]
-        CreateStops[Skapa stops manuellt]
-        ApproveNarrative[Godkänn canonical narrative per stop]
+        CreateStops[Skapa stops manuellt eller auto från place]
+        OptionalNarrative[Valfri canonical narrative]
     end
 
     subgraph job [ProductionJob — async faser]
+        Research[Source pack från content sources]
         Phase0[Fas 0: text_derivation]
         HITL0{checkpoint after_text}
         Phase1[Fas 1: translation]
@@ -189,8 +197,9 @@ flowchart TD
         Publish[Sätt published + active]
     end
 
-    Ingest --> CreateStops --> ApproveNarrative
-    ApproveNarrative --> Phase0
+    Ingest --> CreateStops --> OptionalNarrative
+    OptionalNarrative --> Research
+    Research --> Phase0
     Phase0 --> HITL0
     HITL0 -->|approve phase| Phase1
     Phase1 --> HITL1
@@ -203,9 +212,12 @@ flowchart TD
 
 | Validering                                                                             | Fel om                |
 | -------------------------------------------------------------------------------------- | --------------------- |
-| Alla stops i scope har `approval_status = approved` på narrative                       | Narrative ej godkänd  |
+| AI-provider ready (konfigurerad + genererbar adapter, t.ex. OpenAI)                    | Provider ej redo      |
 | Inga aktiva jobb för samma place i `pending`/`planning`/`processing`/`awaiting_review` | Konflikt              |
 | `steps`/`phases` är giltiga                                                            | Ogiltig konfiguration |
+| Job type `full_guide` only; items planeras mot `presentation_id`                       | Ogiltig job type      |
+
+> **Superseded:** Kravet “alla stops måste ha `approval_status = approved` innan job startar” gäller **inte**. Auto-stop och deep-sibling-wait är borttagna. Research-first på **place**-nivå (tom narrativ + source pack) är gällande — se [`P-GUIDES_CONTENT_SOURCES.md`](P-GUIDES_CONTENT_SOURCES.md) och [`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md). Vid _item_-processing krävs narrativ **eller** source pack.
 
 ### Fasövergångar
 
@@ -316,7 +328,9 @@ Redaktör anropar därefter befintlig `POST …/approve-content` för att sätta
 
 ### Kanonisk input per steg
 
-**text_derivation:**
+**text_derivation (aktuellt):** fingerprint inkluderar presentation/language + source-pack fingerprint (ej `variantType`). Se `plugins/guides/production/fingerprint.js`.
+
+> **Historiskt text_derivation-input:**
 
 ```json
 {
@@ -373,7 +387,7 @@ Redaktör anropar därefter befintlig `POST …/approve-content` för att sätta
 
 Vid jobbstart skapas **alla** items för aktuell fas upfront:
 
-1. Lös scope → `{ stop, variant }[]`
+1. Lös scope → presentations (`presentation_id`) för `full_guide` (**historiskt:** `{ stop, variant }[]`)
 2. Per target: beräkna fingerprint
 3. `hasCompletedFingerprint` → `skipped` direkt, annars `pending`
 4. Batch-insert i transaktion
@@ -448,7 +462,9 @@ Framtida tenant-specifik override: `guide_tenant_provider_config` (P-OBS/P-BULK)
 
 ### Rate limiting
 
-Delad `ProviderRateLimiter` (token-bucket per provider + tenant). Worker respekterar `retry_after` och HTTP `Retry-After`.
+In-process `ProviderRateLimiter` (token-bucket **per provider-nyckel**, t.ex. `openai` / `openai-translation` — **inte** per tenant). Worker respekterar `retry_after` och HTTP `Retry-After`.
+
+> **Känd begränsning (S-RATE-1, Security 2026-07-19):** På delad Node-process kan en autentiserad tenant tömma den globala RPM-bucketen och thröttla andra tenants’ text/översättning. Mitigering: tenant-scopad limiter-nyckel (t.ex. `` `${userId}:openai` ``) — ej levererad; kräver TPM-godkännande som accepterad risk eller uppföljning. Se [`P-TEXT_TEXT_PROVIDER.md`](P-TEXT_TEXT_PROVIDER.md) R6/R7.
 
 ---
 
@@ -737,6 +753,7 @@ flowchart TD
 
 ## Referenser
 
+- [`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md) — plats-presentation (supersedes stop/variant targeting)
 - [`CONTENT_PRODUCTION_PIPELINE.md`](CONTENT_PRODUCTION_PIPELINE.md) — v1 ADR
 - [`GUIDES_CONTENT_PRODUCTION_UX.md`](../design/GUIDES_CONTENT_PRODUCTION_UX.md) — UX-spec (behöver v2-komplettering)
 - [`plugins/guides/production/`](../../../plugins/guides/production/) — befintlig implementation

@@ -1,6 +1,5 @@
 export type GuideLifecycleStatus = 'draft' | 'active' | 'archived';
 export type MasterGuideEditorialStatus = 'draft' | 'in-progress' | 'complete';
-export type GuideStopEditorialStatus = MasterGuideEditorialStatus;
 
 export interface GuideValidationError {
   field: string;
@@ -49,6 +48,7 @@ export interface PlaceResolved {
 
 export type GenerationFailureCode =
   | 'provider_not_configured'
+  | 'provider_not_generation_capable'
   | 'provider_auth_failed'
   | 'provider_quota_exhausted'
   | 'provider_rate_limited'
@@ -96,62 +96,45 @@ export interface GenerationSourceSummary {
   excerptCount: number;
 }
 
-export interface GuideStop {
+export interface ContentSourceSetting {
+  key: string;
+  label: string;
+  attribution: string | null;
+  enabledByDefault: boolean;
+  enabled: boolean;
+}
+
+export type PublicationStatus = 'draft' | 'ready' | 'published';
+export type StalenessStatus = 'fresh' | 'stale';
+export type PresentationApprovalStatus = 'draft' | 'pending_review' | 'approved';
+
+export interface GuidePresentation {
   id: string;
   masterGuideId: string;
   placeId: string;
-  title: string;
-  sequenceOrder: number;
-  canonicalNarrative: string | null;
-  editorialStatus: GuideStopEditorialStatus;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface GuideStopPayload {
-  title: string;
-  canonicalNarrative?: string | null;
-  editorialStatus?: GuideStopEditorialStatus;
-}
-
-export type VariantType = 'quick' | 'normal' | 'deep';
-export type PublicationStatus = 'draft' | 'ready' | 'published';
-export type StalenessStatus = 'fresh' | 'stale';
-
-export interface GuideVariantPresentation {
-  id: string;
-  stopId: string;
-  placeId: string;
-  variantType: VariantType;
   language: string;
   presentationText: string | null;
   publicationStatus: PublicationStatus;
   stalenessStatus: StalenessStatus;
+  approvalStatus: PresentationApprovalStatus;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface GuideVariantCreatePayload {
-  variantType: VariantType;
-  language: string;
+export interface GuidePresentationUpdatePayload {
   presentationText?: string | null;
   publicationStatus?: PublicationStatus;
 }
-
-export interface GuideVariantUpdatePayload {
-  presentationText?: string | null;
-  publicationStatus?: PublicationStatus;
-}
-
-export const VARIANT_TYPES: VariantType[] = ['quick', 'normal', 'deep'];
 
 export const PUBLICATION_STATUSES: PublicationStatus[] = ['draft', 'ready', 'published'];
 
 export const STALENESS_STATUSES: StalenessStatus[] = ['fresh', 'stale'];
 
-export function isVariantType(value: string): value is VariantType {
-  return VARIANT_TYPES.includes(value as VariantType);
-}
+export const PRESENTATION_APPROVAL_STATUSES: PresentationApprovalStatus[] = [
+  'draft',
+  'pending_review',
+  'approved',
+];
 
 export function isPublicationStatus(value: string): value is PublicationStatus {
   return PUBLICATION_STATUSES.includes(value as PublicationStatus);
@@ -161,27 +144,8 @@ export function isStalenessStatus(value: string): value is StalenessStatus {
   return STALENESS_STATUSES.includes(value as StalenessStatus);
 }
 
-export type AudioStatus = 'pending' | 'processing' | 'ready' | 'failed' | 'stale';
-
-export interface GuideAudio {
-  id: string;
-  variantId: string;
-  stopId: string;
-  placeId: string;
-  status: AudioStatus;
-  providerKey: string;
-  storageRef: string | null;
-  durationMs: number | null;
-  mimeType: string | null;
-  errorMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export const AUDIO_STATUSES: AudioStatus[] = ['pending', 'processing', 'ready', 'failed', 'stale'];
-
-export function isAudioStatus(value: string): value is AudioStatus {
-  return AUDIO_STATUSES.includes(value as AudioStatus);
+export function isPresentationApprovalStatus(value: string): value is PresentationApprovalStatus {
+  return PRESENTATION_APPROVAL_STATUSES.includes(value as PresentationApprovalStatus);
 }
 
 export const GUIDE_LIFECYCLE_STATUSES: GuideLifecycleStatus[] = ['draft', 'active', 'archived'];
@@ -201,18 +165,11 @@ export const MASTER_GUIDE_EDITORIAL_STATUSES: MasterGuideEditorialStatus[] = [
   'complete',
 ];
 
-export const GUIDE_STOP_EDITORIAL_STATUSES: GuideStopEditorialStatus[] =
-  MASTER_GUIDE_EDITORIAL_STATUSES;
-
 export function isMasterGuideEditorialStatus(value: string): value is MasterGuideEditorialStatus {
   return MASTER_GUIDE_EDITORIAL_STATUSES.includes(value as MasterGuideEditorialStatus);
 }
 
-export function isGuideStopEditorialStatus(value: string): value is GuideStopEditorialStatus {
-  return GUIDE_STOP_EDITORIAL_STATUSES.includes(value as GuideStopEditorialStatus);
-}
-
-export type ProductionJobType = 'full_guide' | 'stop' | 'variant';
+export type ProductionJobType = 'full_guide';
 export type ProductionJobStatus =
   | 'pending'
   | 'planning'
@@ -221,7 +178,7 @@ export type ProductionJobStatus =
   | 'completed'
   | 'failed'
   | 'cancelled';
-export type ProductionItemStep = 'text_derivation' | 'translation' | 'audio';
+export type ProductionItemStep = 'text_derivation' | 'translation';
 export type ProductionItemStatus =
   | 'pending'
   | 'queued'
@@ -236,8 +193,6 @@ export type ProductionCheckpointMode = 'after_text' | 'after_each' | 'auto';
 
 export interface ProductionJobOptions {
   type?: ProductionJobType;
-  stopId?: string | null;
-  variantId?: string | null;
   phases?: ProductionItemStep[];
   languages?: string[];
   force?: boolean;
@@ -263,8 +218,6 @@ export interface ProductionJob {
   placeId: string;
   type: ProductionJobType;
   status: ProductionJobStatus;
-  scopeStopId: string | null;
-  scopeVariantId: string | null;
   phases: ProductionItemStep[];
   currentPhaseIndex: number;
   checkpointMode: ProductionCheckpointMode;
@@ -288,7 +241,6 @@ export interface ProductionJobItemProviderResult {
     model?: string;
     promptVersion?: string;
     promptSetVersion?: string;
-    variantType?: string;
     language?: string;
     finishReason?: string | null;
   };
@@ -318,8 +270,7 @@ export interface ProductionJobItem {
   id: string;
   jobId: string;
   userId: string | null;
-  stopId: string;
-  variantId: string | null;
+  presentationId: string;
   step: ProductionItemStep;
   phaseIndex: number;
   status: ProductionItemStatus;
@@ -347,18 +298,13 @@ export interface ProductionJobDetail {
 
 export interface StartProductionJobPayload {
   type: ProductionJobType;
-  stopId?: string;
-  variantId?: string;
   force?: boolean;
   phases?: ProductionItemStep[];
   checkpointMode?: ProductionCheckpointMode;
   languages?: string[];
 }
 
-export type ProductionStartScope =
-  | { type: 'full_guide' }
-  | { type: 'stop'; stopId: string; stopTitle?: string }
-  | { type: 'variant'; stopId: string; variantId: string; variantLabel?: string };
+export type ProductionStartScope = { type: 'full_guide' };
 
 export const PRODUCTION_JOB_STATUSES: ProductionJobStatus[] = [
   'pending',
@@ -384,11 +330,7 @@ export const PRODUCTION_POLL_JOB_STATUSES: ProductionJobStatus[] = [
   'awaiting_review',
 ];
 
-export const PRODUCTION_ITEM_STEPS: ProductionItemStep[] = [
-  'text_derivation',
-  'translation',
-  'audio',
-];
+export const PRODUCTION_ITEM_STEPS: ProductionItemStep[] = ['text_derivation', 'translation'];
 
 export const PRODUCTION_MVP_PHASES: ProductionItemStep[] = ['text_derivation', 'translation'];
 

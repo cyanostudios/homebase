@@ -1,26 +1,22 @@
-const { Logger } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const { parseLanguage } = require('../guides/validation');
-const {
-  ensureStorageProvidersRegistered,
-} = require('../../server/core/storage/registerDefaultAdapters');
-const StorageProviderRegistry = require('../../server/core/storage/StorageProviderRegistry');
-const { parseStorageRef } = require('../guides/audio/storageRef');
 
-/** SQL fragment: variant + audio rows that satisfy Epic 7 public gate (A3). */
-const PUBLIC_VARIANT_JOIN = `
-  INNER JOIN guide_stops gs ON gs.id = gvp.stop_id
-  INNER JOIN guide_master_guides mg ON mg.id = gs.master_guide_id
+/**
+ * SQL fragment: place + master guide + presentation rows that satisfy the
+ * public gate (active place; published, approved, fresh presentation).
+ * Aligns with guides model `_assertPlaceHasPublishablePresentation`.
+ */
+const PUBLIC_PRESENTATION_JOIN = `
+  INNER JOIN guide_master_guides mg ON mg.id = gp.master_guide_id
   INNER JOIN guide_places p ON p.id = mg.place_id
-  INNER JOIN guide_audio ga ON ga.variant_presentation_id = gvp.id
 `;
 
-const PUBLIC_VARIANT_WHERE = `
+const PUBLIC_PRESENTATION_WHERE = `
   p.user_id = $1
   AND p.lifecycle_status = 'active'
-  AND gvp.publication_status = 'published'
-  AND gvp.staleness_status = 'fresh'
-  AND ga.status = 'ready'
+  AND gp.publication_status = 'published'
+  AND gp.approval_status = 'approved'
+  AND gp.staleness_status = 'fresh'
 `;
 
 function parseOptionalLanguageQuery(value) {
@@ -49,22 +45,11 @@ class PublicGuidesModel {
     };
   }
 
-  transformVariant(row) {
+  transformPresentation(row) {
     return {
       id: String(row.id),
-      variantType: row.variant_type ?? 'normal',
       language: row.language ?? 'sv',
       presentationText: row.presentation_text ?? null,
-      hasAudio: true,
-    };
-  }
-
-  transformStop(row, variants) {
-    return {
-      id: String(row.id),
-      title: row.title ?? '',
-      sequenceOrder: Number(row.sequence_order),
-      variants,
     };
   }
 
@@ -78,7 +63,7 @@ class PublicGuidesModel {
     let languageClause = '';
     if (language) {
       params.push(language);
-      languageClause = ` AND gvp.language = $${params.length}`;
+      languageClause = ` AND gp.language = $${params.length}`;
     }
 
     const result = await pool.query(
@@ -91,14 +76,12 @@ class PublicGuidesModel {
           mg.source_language
         FROM guide_places p
         INNER JOIN guide_master_guides mg ON mg.place_id = p.id
-        INNER JOIN guide_stops gs ON gs.master_guide_id = mg.id
-        INNER JOIN guide_variant_presentations gvp ON gvp.stop_id = gs.id
-        INNER JOIN guide_audio ga ON ga.variant_presentation_id = gvp.id
+        INNER JOIN guide_presentations gp ON gp.master_guide_id = mg.id
         WHERE p.user_id = $1
           AND p.lifecycle_status = 'active'
-          AND gvp.publication_status = 'published'
-          AND gvp.staleness_status = 'fresh'
-          AND ga.status = 'ready'
+          AND gp.publication_status = 'published'
+          AND gp.approval_status = 'approved'
+          AND gp.staleness_status = 'fresh'
           ${languageClause}
         ORDER BY p.display_name ASC
       `,
@@ -124,15 +107,13 @@ class PublicGuidesModel {
           mg.source_language
         FROM guide_places p
         INNER JOIN guide_master_guides mg ON mg.place_id = p.id
-        INNER JOIN guide_stops gs ON gs.master_guide_id = mg.id
-        INNER JOIN guide_variant_presentations gvp ON gvp.stop_id = gs.id
-        INNER JOIN guide_audio ga ON ga.variant_presentation_id = gvp.id
+        INNER JOIN guide_presentations gp ON gp.master_guide_id = mg.id
         WHERE p.id = $2
           AND p.user_id = $1
           AND p.lifecycle_status = 'active'
-          AND gvp.publication_status = 'published'
-          AND gvp.staleness_status = 'fresh'
-          AND ga.status = 'ready'
+          AND gp.publication_status = 'published'
+          AND gp.approval_status = 'approved'
+          AND gp.staleness_status = 'fresh'
         LIMIT 1
       `,
       [ownerUserId, placeId],
@@ -145,129 +126,43 @@ class PublicGuidesModel {
   }
 
   /**
+   * Public presentations for a place, or null if the place is not public.
+   *
    * @param {import('pg').Pool} pool
    * @param {number} ownerUserId
    * @param {number} placeId
    * @param {string|null} language
    */
-  async listStopsWithVariants(pool, ownerUserId, placeId, language) {
-    const stopParams = [ownerUserId, placeId];
-    const stopsResult = await pool.query(
-      `
-        SELECT DISTINCT gs.id, gs.title, gs.sequence_order
-        FROM guide_stops gs
-        INNER JOIN guide_master_guides mg ON mg.id = gs.master_guide_id
-        INNER JOIN guide_places p ON p.id = mg.place_id
-        INNER JOIN guide_variant_presentations gvp ON gvp.stop_id = gs.id
-        INNER JOIN guide_audio ga ON ga.variant_presentation_id = gvp.id
-        WHERE mg.place_id = $2
-          AND p.user_id = $1
-          AND p.lifecycle_status = 'active'
-          AND gvp.publication_status = 'published'
-          AND gvp.staleness_status = 'fresh'
-          AND ga.status = 'ready'
-        ORDER BY gs.sequence_order ASC
-      `,
-      stopParams,
-    );
-
-    if (!stopsResult.rows.length) {
+  async listPresentations(pool, ownerUserId, placeId, language) {
+    const placePublic = await this.getPlaceById(pool, ownerUserId, placeId);
+    if (!placePublic) {
       return null;
     }
 
-    const variantParams = [ownerUserId, placeId];
+    const params = [ownerUserId, placeId];
     let languageClause = '';
     if (language) {
-      variantParams.push(language);
-      languageClause = ` AND gvp.language = $${variantParams.length}`;
+      params.push(language);
+      languageClause = ` AND gp.language = $${params.length}`;
     }
 
-    const variantsResult = await pool.query(
-      `
-        SELECT
-          gvp.id,
-          gvp.stop_id,
-          gvp.variant_type,
-          gvp.language,
-          gvp.presentation_text,
-          gs.sequence_order
-        FROM guide_variant_presentations gvp
-        ${PUBLIC_VARIANT_JOIN}
-        WHERE mg.place_id = $2
-          AND ${PUBLIC_VARIANT_WHERE}
-          ${languageClause}
-        ORDER BY gs.sequence_order ASC, gvp.variant_type ASC, gvp.language ASC, gvp.id ASC
-      `,
-      variantParams,
-    );
-
-    const variantsByStop = new Map();
-    for (const row of variantsResult.rows) {
-      const stopId = String(row.stop_id);
-      if (!variantsByStop.has(stopId)) {
-        variantsByStop.set(stopId, []);
-      }
-      variantsByStop.get(stopId).push(this.transformVariant(row));
-    }
-
-    return stopsResult.rows.map((stopRow) =>
-      this.transformStop(stopRow, variantsByStop.get(String(stopRow.id)) ?? []),
-    );
-  }
-
-  /**
-   * @param {import('pg').Pool} pool
-   * @param {number} ownerUserId
-   * @param {number} placeId
-   * @param {number} stopId
-   * @param {number} variantId
-   */
-  async getReadyAudioForPublicVariant(pool, ownerUserId, placeId, stopId, variantId) {
     const result = await pool.query(
       `
-        SELECT ga.storage_ref, ga.mime_type
-        FROM guide_audio ga
-        INNER JOIN guide_variant_presentations gvp ON gvp.id = ga.variant_presentation_id
-        ${PUBLIC_VARIANT_JOIN}
-        WHERE ${PUBLIC_VARIANT_WHERE}
-          AND mg.place_id = $2
-          AND gs.id = $3
-          AND gvp.id = $4
-        LIMIT 1
+        SELECT
+          gp.id,
+          gp.language,
+          gp.presentation_text
+        FROM guide_presentations gp
+        ${PUBLIC_PRESENTATION_JOIN}
+        WHERE mg.place_id = $2
+          AND ${PUBLIC_PRESENTATION_WHERE}
+          ${languageClause}
+        ORDER BY gp.language ASC, gp.id ASC
       `,
-      [ownerUserId, placeId, stopId, variantId],
+      params,
     );
 
-    if (!result.rows.length) {
-      return null;
-    }
-
-    const row = result.rows[0];
-    if (!row.storage_ref) {
-      return null;
-    }
-
-    return {
-      storageRef: row.storage_ref,
-      mimeType: row.mime_type || 'application/octet-stream',
-    };
-  }
-
-  /**
-   * @param {import('express').Request} req
-   * @param {{ storageRef: string, mimeType: string }} audio
-   */
-  async openAudioStream(req, audio) {
-    const { providerKey, externalFileId } = parseStorageRef(audio.storageRef);
-    ensureStorageProvidersRegistered();
-    if (!StorageProviderRegistry.has(providerKey)) {
-      throw new AppError('Storage provider not available', 500, AppError.CODES.DATABASE_ERROR);
-    }
-    const provider = StorageProviderRegistry.get(providerKey);
-    return {
-      stream: await provider.download(req, { externalFileId }),
-      mimeType: audio.mimeType,
-    };
+    return result.rows.map((row) => this.transformPresentation(row));
   }
 
   parseOptionalLanguageQuery(value) {
@@ -281,8 +176,8 @@ class PublicGuidesModel {
 
 module.exports = PublicGuidesModel;
 module.exports.__testOnly = {
-  PUBLIC_VARIANT_JOIN,
-  PUBLIC_VARIANT_WHERE,
+  PUBLIC_PRESENTATION_JOIN,
+  PUBLIC_PRESENTATION_WHERE,
   parseOptionalLanguageQuery,
   parsePositiveInt,
 };

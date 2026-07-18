@@ -44,6 +44,7 @@ describe('GuidesModel', () => {
       displayName: 'Museum',
       shortIntro: 'Intro',
       geographicReference: 'Stockholm',
+      place: null,
       lifecycleStatus: 'draft',
       ingestSourceId: null,
       ingestRunId: null,
@@ -78,7 +79,8 @@ describe('GuidesModel', () => {
             source_language: 'sv',
             editorial_status: 'draft',
           },
-        ]),
+        ])
+        .mockResolvedValueOnce([]),
     };
 
     Database.get.mockReturnValue({
@@ -89,8 +91,9 @@ describe('GuidesModel', () => {
     const result = await model.create({}, { displayName: 'Museum', sourceLanguage: 'sv' });
 
     expect(Database.get).toHaveBeenCalled();
-    expect(tx.query).toHaveBeenCalledTimes(2);
-    expect(tx.query.mock.calls[0][1]).toEqual([7, 'Museum', null, null, 'draft']);
+    expect(tx.query).toHaveBeenCalledTimes(3);
+    expect(tx.query.mock.calls[1][1]).toEqual([1, 'sv', 'draft']);
+    expect(tx.query.mock.calls[2][0]).toContain('INSERT INTO guide_presentations');
     expect(result.masterGuideId).toBe('10');
     expect(result.displayName).toBe('Museum');
     expect(result.sourceLanguage).toBe('sv');

@@ -14,6 +14,7 @@ import {
   isProductionJobActive,
   summarizePhaseProgress,
 } from '../utils/productionJobHelpers';
+import { ContentSourcesSettings } from './ContentSourcesSettings';
 
 interface GuideProductionPanelProps {
   job: ProductionJob | null;
@@ -36,6 +37,7 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [showSources, setShowSources] = React.useState(false);
 
   const active = job && isProductionJobActive(job.status);
   const progress = job ? summarizePhaseProgress(job, items) : null;
@@ -67,20 +69,31 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
               <p className="text-muted-foreground">{t('guides.production.panelIdleHint')}</p>
             )}
 
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-full justify-start px-3 text-xs"
+              onClick={() => setShowSources((v) => !v)}
+            >
+              {showSources
+                ? t('guides.contentSources.hideLink')
+                : t('guides.contentSources.showLink')}
+            </Button>
+
             {active && job && (
               <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
                 <div className="font-medium text-foreground">
                   {t('guides.production.panelActive')}
                 </div>
                 <div className="space-y-1 text-muted-foreground">
-                  {pipelineStage &&
-                    ['research', 'deep', 'summarize', 'review'].includes(pipelineStage) && (
-                      <div>
-                        {t('guides.production.panelPhase', {
-                          phase: t(`guides.production.pipeline.${pipelineStage}`),
-                        })}
-                      </div>
-                    )}
+                  {pipelineStage && ['research', 'generate', 'review'].includes(pipelineStage) && (
+                    <div>
+                      {t('guides.production.panelPhase', {
+                        phase: t(`guides.production.pipeline.${pipelineStage}`),
+                      })}
+                    </div>
+                  )}
                   <div>{t('guides.production.jobLabel', { id: job.id })}</div>
                   {progress && progress.total > 0 && (
                     <div>
@@ -125,6 +138,12 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
           </div>
         </DetailSection>
       </Card>
+
+      {showSources && (
+        <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+          <ContentSourcesSettings />
+        </Card>
+      )}
 
       <ConfirmDialog
         isOpen={cancelOpen}

@@ -273,97 +273,56 @@ async function run() {
       }
     }
 
-    // --- GuideStops: create ---
-    const addStopClicked =
-      (await clickByText(page, 'Add stop')) || (await clickByText(page, 'Lägg till stopp'));
-    if (!addStopClicked) {
-      fail('stop-create', 'Add stop button not found');
-    } else {
-      await wait(500);
-      await page.waitForSelector('#guide-stop-title', { timeout: 8000 });
-      await page.type('#guide-stop-title', 'E2E Stop A', { delay: 20 });
-      await page.type('#guide-stop-narrative', 'Canonical narrative for E2E.', { delay: 10 });
-      (await clickByText(page, 'Save')) || (await clickByText(page, 'Spara'));
-      await wait(2000);
-      const stopText = await bodyText(page);
-      if (stopText.includes('E2E Stop A')) {
-        pass('stop-create', 'Stop created');
-      } else {
-        fail('stop-create', 'Stop not visible after save');
-      }
-    }
-
-    // Second stop for reorder
-    const addStop2 =
-      (await clickByText(page, 'Add stop')) || (await clickByText(page, 'Lägg till stopp'));
-    if (addStop2) {
-      await wait(500);
-      const titleInput = await page.$('#guide-stop-title');
-      if (titleInput) {
-        await page.type('#guide-stop-title', 'E2E Stop B', { delay: 20 });
-        (await clickByText(page, 'Save')) || (await clickByText(page, 'Spara'));
-        await wait(2000);
-      }
-    }
-
-    // Reorder: move B up
-    const moved = await page.evaluate(() => {
-      const buttons = [...document.querySelectorAll('button[aria-label]')];
-      const moveUp = buttons.find((b) => {
-        const label = b.getAttribute('aria-label') || '';
-        return label.includes('up') || label.includes('upp');
+    // --- Presentation: edit source-language text ---
+    const editPresentationClicked = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll('button')];
+      const btn = buttons.find((b) => {
+        const label = b.getAttribute('aria-label') || b.textContent || '';
+        return /edit presentation|redigera presentation/i.test(label);
       });
-      if (moveUp) {
-        moveUp.click();
+      if (btn) {
+        btn.click();
         return true;
       }
       return false;
     });
-    await wait(1500);
-    if (moved) {
-      pass('stop-reorder', 'Reorder button clicked');
+    await wait(500);
+    const textarea =
+      (await page.$('textarea[id^="presentation-text-"]')) ||
+      (await page.$('textarea[id*="presentation"]'));
+    if (!textarea) {
+      fail('presentation-edit', 'Presentation textarea not found');
     } else {
-      skip('stop-reorder', 'Move up button not found (may need 2+ stops)');
-    }
-
-    // --- Variant ---
-    const addVariantClicked =
-      (await clickByText(page, 'Add variant')) || (await clickByText(page, 'Lägg till variant'));
-    if (!addVariantClicked) {
-      fail('variant-create', 'Add variant button not found');
-    } else {
-      await wait(500);
-      const variantTextarea = await page.$('textarea[id*="variant-text-create"]');
-      if (variantTextarea) {
-        await variantTextarea.type('Presentation text for E2E audio.', { delay: 10 });
-      }
+      await textarea.click({ clickCount: 3 });
+      await page.keyboard.press('Backspace');
+      await textarea.type('E2E presentation text for place guide.', { delay: 10 });
       (await clickByText(page, 'Save')) || (await clickByText(page, 'Spara'));
       await wait(2000);
-      const vText = await bodyText(page);
-      if (
-        vText.includes('Presentation text for E2E') ||
-        vText.includes('Normal') ||
-        vText.includes('normal')
-      ) {
-        pass('variant-create', 'Variant created');
+      const pText = await bodyText(page);
+      if (pText.includes('E2E presentation text')) {
+        pass(
+          'presentation-edit',
+          editPresentationClicked ? 'Presentation text saved via edit' : 'Presentation text saved',
+        );
       } else {
-        fail('variant-create', 'Variant not visible after save');
+        fail('presentation-edit', 'Presentation text not visible after save');
       }
     }
 
-    // --- Audio generate ---
-    const genClicked =
-      (await clickByText(page, 'Generate audio')) || (await clickByText(page, 'Generera ljud'));
-    if (!genClicked) {
-      fail('audio-generate', 'Generate audio button not found');
+    // Production start control should be place-scoped (no stop/variant UI)
+    const produceVisible = await page.evaluate(() => {
+      const text = document.body?.innerText || '';
+      return (
+        text.includes('Create guide') ||
+        text.includes('Skapa guide') ||
+        text.includes('Produce') ||
+        text.includes('Producera')
+      );
+    });
+    if (produceVisible) {
+      pass('produce-control', 'Place-level produce control visible');
     } else {
-      await wait(4000);
-      const audioText = await bodyText(page);
-      if (audioText.match(/Ready|Klar|Processing|Genererar|Pending|Väntar/i)) {
-        pass('audio-generate', 'Audio status updated after generate');
-      } else {
-        fail('audio-generate', 'No audio status after generate');
-      }
+      skip('produce-control', 'Produce control text not found (may be i18n/layout)');
     }
 
     // --- Swedish locale ---

@@ -46,18 +46,10 @@ function scopeToPayload(
   scope: ProductionStartScope,
   options?: { force?: boolean },
 ): StartProductionJobPayload {
-  const payload: StartProductionJobPayload = {
+  return {
     type: scope.type,
     force: options?.force,
   };
-  if (scope.type === 'stop') {
-    payload.stopId = scope.stopId;
-  }
-  if (scope.type === 'variant') {
-    payload.stopId = scope.stopId;
-    payload.variantId = scope.variantId;
-  }
-  return payload;
 }
 
 export function useProductionJob(placeId: string): UseProductionJobResult {

@@ -1,6 +1,8 @@
 # ADR — P-TEXT: Text Provider (första AI-integrationen)
 
-**Status:** Godkänd arkitektur (2026-07-14); backend implementerad och grindad (QA, Security, Dokumentation godkända 2026-07-14). Ej deployad. Runtime-konfiguration ägs av [`P-AI-SETTINGS_PROVIDER_CONFIGURATION.md`](P-AI-SETTINGS_PROVIDER_CONFIGURATION.md) (DB först, env fallback via `PROVIDER_CATALOG`). Env-only-sektioner nedan är **historisk design**; adapter/prompt/fingerprint-beslut gäller fortfarande.  
+> **Superseded / updated (2026-07-19):** Place-only model ([`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md)). Current text path uses a **single** `text_derivation` prompt set (`prompts/text_derivation/v1.*.md` + `manifest.json` `entry`); **no** `quick`/`normal`/`deep` folders. `variantType` is removed from the generation contract (ignored if passed). Input is **place presentation** + **source pack** (optional narrative), not stop × length-variant. Sections below that describe length variants, per-variant prompts, or stop-scoped derivation are **historical**.
+
+**Status:** Godkänd arkitektur (2026-07-14); backend implementerad och grindad (QA, Security, Dokumentation godkända 2026-07-14). Ej deployad. Runtime-konfiguration ägs av [`P-AI-SETTINGS_PROVIDER_CONFIGURATION.md`](P-AI-SETTINGS_PROVIDER_CONFIGURATION.md) (DB först, env fallback via `PROVIDER_CATALOG`). Env-only-sektioner nedan är **historisk design**; adapter/prompt/fingerprint-beslut gäller fortfarande (med plats-presentation-uppdateringen ovan).  
 **Epic:** P-TEXT (Fas 2)  
 **Överordnad:** [`CONTENT_PRODUCTION_PIPELINE_V2.md`](CONTENT_PRODUCTION_PIPELINE_V2.md)  
 **Grund:** TPM funktionsgenomgång + låsta designprinciper P1–P5 (2026-07-14)  
@@ -10,9 +12,11 @@
 
 ## Sammanfattning
 
-P-TEXT introducerar den **första riktiga externa AI-integrationen** i produktionskedjan: en utbytbar `TextProvider`-adapter som omvandlar `canonical_narrative` till `presentation_text` per variant (`quick` / `normal` / `deep`).
+P-TEXT introducerar den **första riktiga externa AI-integrationen** i produktionskedjan: en utbytbar `TextProvider`-adapter som omvandlar research/narrativ till `presentation_text`.
 
-**Värde:** Redaktören skriver ett narrativ per stopp; pipelinen genererar tre presentationsvar på källspråket — det första meningsfulla steget från noop-plattform till riktig guideproduktion.
+**Aktuellt (2026-07-19):** En `text_derivation` per språkpresentation på platsnivå (source pack + valfri narrativ → guide text). Se [`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md).
+
+**Historiskt (P-TEXT MVP):** Omvandlade `canonical_narrative` till `presentation_text` per variant (`quick` / `normal` / `deep`) per stopp — tre presentationsvar på källspråket.
 
 **Första konkreta adapter:** OpenAI Chat Completions (`openai`). Registry-mönstret gör att fler adapters (Anthropic, Azure OpenAI) kan läggas till utan domänändring.
 
@@ -71,15 +75,17 @@ flowchart TB
   PI -->|providerResult JSONB| DB[(guide_production_job_items)]
 ```
 
-**Dataflöde:**
+**Dataflöde (aktuellt):**
 
-1. Worker kör `_processItem` för `text_derivation`.
+1. Worker kör `_processItem` för `text_derivation` (item med `presentation_id`).
 2. Orchestration hämtar provider via `TextProviderRegistry.get(providerKey)`.
-3. Adapter laddar prompt för `variantType`, bygger meddelanden, anropar OpenAI.
+3. Adapter laddar den **enda** text_derivation-prompten, bygger meddelanden från place context + source pack (+ valfri narrativ), anropar OpenAI.
 4. Adapter returnerar normaliserat svar + full `providerResult`-blob.
 5. Orchestration sparar blob i `provider_result` (JSONB), sätter `review_status: pending_review`.
 6. Redaktör granskar i `GuideReviewQueue` (befintlig P-FRONTEND UI).
-7. Vid approve: `presentationText` skrivs till domän; `provider_result` på item **ändras inte**.
+7. Vid approve: `presentationText` skrivs till `guide_presentations`; `provider_result` på item **ändras inte**.
+
+> **Historiskt:** Steg 3 laddade prompt per `variantType` (`quick`/`normal`/`deep`).
 
 ---
 
@@ -87,13 +93,17 @@ flowchart TB
 
 Ny fil: `plugins/guides/providers/text/TextProvider.js` (JSDoc-interface, ingen runtime-klass).
 
+**Aktuellt:** `canonicalNarrative`, `language`, `sourceLanguage?`, `sourcePackText?`, `placeContext?`. `variantType` är valfri och **ignoreras**.
+
 ```javascript
 /**
  * @typedef {Object} TextGenerateInput
  * @property {string|null|undefined} canonicalNarrative
- * @property {'quick'|'normal'|'deep'} variantType
  * @property {string} language — ISO 639-1, t.ex. 'sv'
  * @property {string} [sourceLanguage] — från master guide
+ * @property {string} [sourcePackText]
+ * @property {string} [variantType] — ignored; historical callers only
+ * @property {Object} [placeContext]
  */
 
 /**
@@ -120,57 +130,43 @@ Ny fil: `plugins/guides/providers/text/TextProvider.js` (JSDoc-interface, ingen 
 
 ## Prompt-resurser (P2)
 
-### Placering
+### Placering (aktuellt)
 
 ```
 plugins/guides/providers/text/prompts/
   manifest.json
   text_derivation/
-    quick/v1.system.md
-    quick/v1.user.md
-    normal/v1.system.md
-    normal/v1.user.md
-    deep/v1.system.md
-    deep/v1.user.md
+    v1.system.md
+    v1.user.md
 ```
 
-### `manifest.json`
+### `manifest.json` (aktuellt)
 
 ```json
 {
-  "promptSetVersion": "v1",
-  "variants": {
-    "quick": {
-      "system": "text_derivation/quick/v1.system.md",
-      "user": "text_derivation/quick/v1.user.md"
-    },
-    "normal": {
-      "system": "text_derivation/normal/v1.system.md",
-      "user": "text_derivation/normal/v1.user.md"
-    },
-    "deep": {
-      "system": "text_derivation/deep/v1.system.md",
-      "user": "text_derivation/deep/v1.user.md"
-    }
+  "promptSetVersion": "v1.3",
+  "entry": {
+    "system": "text_derivation/v1.system.md",
+    "user": "text_derivation/v1.user.md"
   },
   "tokenBudgets": {
-    "quick": { "maxCompletionTokens": 150 },
-    "normal": { "maxCompletionTokens": 400 },
-    "deep": { "maxCompletionTokens": 800 }
+    "maxCompletionTokens": 400
   }
 }
 ```
+
+> **Historiskt:** Separata mappar `quick/` / `normal/` / `deep/` med per-variant `manifest.variants` och token budgets (150 / 400 / 800).
 
 ### `TextPromptLoader`
 
 Ny modul: `plugins/guides/providers/text/TextPromptLoader.js`
 
-| Ansvar                      | Detalj                                                                      |
-| --------------------------- | --------------------------------------------------------------------------- |
-| Ladda manifest              | Vid första anrop; cache i minnet                                            |
-| Ladda prompt-filer          | `fs.readFileSync` relativt `prompts/`                                       |
-| Interpolera variabler       | `{{canonicalNarrative}}`, `{{language}}`, `{{variantType}}` i user-template |
-| Exponera `promptSetVersion` | Läses av adapter för `provider.version`                                     |
+| Ansvar                      | Detalj                                                                              |
+| --------------------------- | ----------------------------------------------------------------------------------- |
+| Ladda manifest              | Vid första anrop; cache i minnet                                                    |
+| Ladda prompt-filer          | `fs.readFileSync` relativt `prompts/`                                               |
+| Interpolera variabler       | Place context + source pack (+ narrativ/language); `{{variantType}}` **historiskt** |
+| Exponera `promptSetVersion` | Läses av adapter för `provider.version`                                             |
 
 **Versionsbump:** Ny prompt → ny fil `v2.*.md` + uppdatera manifest `promptSetVersion: v2`. Ingen ändring i affärslogik eller adapter-kod (endast config).
 
@@ -213,8 +209,7 @@ Ingen migration krävs — `provider_result JSONB` är redan flexibel.
     "text": "Exakt modell-output före eventuell trimning",
     "model": "gpt-4o-mini",
     "promptVersion": "v1",
-    "promptSetVersion": "v1",
-    "variantType": "normal",
+    "promptSetVersion": "v1.3",
     "language": "sv",
     "finishReason": "stop"
   },
@@ -230,12 +225,12 @@ Ingen migration krävs — `provider_result JSONB` är redan flexibel.
 
 ### Regler
 
-| Regel                               | Implementation                                                                               |
-| ----------------------------------- | -------------------------------------------------------------------------------------------- |
-| Rå output bevaras                   | `raw.text` = modellens `choices[0].message.content`                                          |
-| Approve ändrar inte item            | `approveItem` skriver till domän, **inte** `provider_result`                                 |
-| Redaktör redigerar variant manuellt | Domän uppdateras; item `provider_result` oförändrad                                          |
-| Review-UI                           | Läser `presentationText` (befintlig `getProposedItemText`) — ingen frontend-ändring i P-TEXT |
+| Regel                                    | Implementation                                                                               |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Rå output bevaras                        | `raw.text` = modellens `choices[0].message.content`                                          |
+| Approve ändrar inte item                 | `approveItem` skriver till domän, **inte** `provider_result`                                 |
+| Redaktör redigerar presentation manuellt | Domän (`guide_presentations`) uppdateras; item `provider_result` oförändrad                  |
+| Review-UI                                | Läser `presentationText` (befintlig `getProposedItemText`) — ingen frontend-ändring i P-TEXT |
 
 ---
 
@@ -257,7 +252,7 @@ Ingen migration krävs — `provider_result JSONB` är redan flexibel.
 ### Vad adaptern **inte** gör
 
 - Validera business rules (narrative gate, approval) — tillhör domän/orchestration.
-- Skriva till `guide_variant_presentations`.
+- Skriva till presentationsdomän (`guide_presentations`; historiskt `guide_variant_presentations`).
 - Välja checkpoint eller publicera.
 
 ### Registrering
@@ -307,12 +302,12 @@ En rad-logik — inga leverantörsspecifika grenar i orchestration.
 
 **Synkron retry i worker-tick** — inte `awaiting_callback` (reserverat för audio batch).
 
-| Lager         | Mekanism                                                                                  |
-| ------------- | ----------------------------------------------------------------------------------------- |
-| Proaktiv      | `ProviderRateLimiter` — in-memory token bucket per `providerKey`, checked före HTTP-anrop |
-| Reaktiv       | OpenAI 429 → adapter returnerar `{ status: 'retry', retryAfterMs }`                       |
-| Orchestration | `_processItem` hanterar `retry`: sätter item `pending` + `retry_after`, **inte** `failed` |
-| Supervisor    | Befintlig stuck-item-logik oförändrad                                                     |
+| Lager         | Mekanism                                                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Proaktiv      | `ProviderRateLimiter` — in-memory token bucket per `providerKey` (process-global, **inte** per tenant), checked före HTTP-anrop |
+| Reaktiv       | OpenAI 429 → adapter returnerar `{ status: 'retry', retryAfterMs }`                                                             |
+| Orchestration | `_processItem` hanterar `retry`: sätter item `pending` + `retry_after`, **inte** `failed`                                       |
+| Supervisor    | Befintlig stuck-item-logik oförändrad                                                                                           |
 
 ### Ny modul
 
@@ -360,15 +355,17 @@ Ingen frontend-ändring krävs för P-TEXT MVP.
 
 ---
 
-## Token-budgetar per varianttyp
+## Token-budgetar
+
+**Aktuellt:** En budget i `manifest.json` (`maxCompletionTokens`: 400). Prompten instruerar längd och ton.
+
+> **Historiskt — per varianttyp:**
 
 | Variant  | `maxCompletionTokens` | Mål (ord)                           |
 | -------- | --------------------- | ----------------------------------- |
 | `quick`  | 150                   | ~80–120 ord, turist-snapshot        |
 | `normal` | 400                   | ~200–300 ord, standard presentation |
 | `deep`   | 800                   | ~400–600 ord, fördjupad kontext     |
-
-Budgetar konfigureras i `manifest.json`, inte i kod. Prompt-texterna instruerar modellen om längd och ton.
 
 ---
 
@@ -426,14 +423,15 @@ Budgetar konfigureras i `manifest.json`, inte i kod. Prompt-texterna instruerar 
 
 ## Risker och beroenden
 
-| ID  | Risk                                          | Allvarlighet | Åtgärd                                                               |
-| --- | --------------------------------------------- | ------------ | -------------------------------------------------------------------- |
-| R1  | OpenAI-kostnad vid bulk-produktion            | Medel        | Rate limiter + token budgets; cost caps i P-BULK                     |
-| R2  | API-nyckel exponeras i loggar                 | Hög          | Aldrig logga key; Security-granskning                                |
-| R3  | Prompt injection via `canonicalNarrative`     | Medel        | Narrative är redaktörskriven; system-prompt isolerar; ingen tool use |
-| R4  | `_processItem` markerar 429 som `failed` idag | Hög          | Retry-gren (denna ADR)                                               |
-| R5  | Låg textkvalitet vid första prompt-set        | Medel        | Iterera `v2` prompts utan kodändring (P2)                            |
-| R6  | Single-process rate limiter vid multi-worker  | Låg          | Accepterad i v1; delad limiter i P-BULK                              |
+| ID  | Risk                                                             | Allvarlighet | Åtgärd                                                                                                                                   |
+| --- | ---------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | OpenAI-kostnad vid bulk-produktion                               | Medel        | Rate limiter + token budgets; cost caps i P-BULK                                                                                         |
+| R2  | API-nyckel exponeras i loggar                                    | Hög          | Aldrig logga key; Security-granskning                                                                                                    |
+| R3  | Prompt injection via `canonicalNarrative`                        | Medel        | Narrative är redaktörskriven; system-prompt isolerar; ingen tool use                                                                     |
+| R4  | `_processItem` markerar 429 som `failed` idag                    | Hög          | Retry-gren (denna ADR)                                                                                                                   |
+| R5  | Låg textkvalitet vid första prompt-set                           | Medel        | Iterera `v2` prompts utan kodändring (P2)                                                                                                |
+| R6  | Single-process rate limiter vid multi-worker                     | Låg          | Accepterad i v1; delad/distribuerad limiter i P-BULK                                                                                     |
+| R7  | **S-RATE-1:** process-global bucket → cross-tenant AI-throttling | Medel        | **Accepterad tills vidare** (Security 2026-07-19 på `ea6fce9`-ytan); tenant-scopad nyckel rekommenderas; kräver formellt TPM-godkännande |
 
 | Beroende                | Status                     |
 | ----------------------- | -------------------------- |
@@ -474,7 +472,7 @@ Budgetar konfigureras i `manifest.json`, inte i kod. Prompt-texterna instruerar 
 ## Implementeringsordning (Backend)
 
 1. `TextProvider.js` — JSDoc-kontrakt
-2. `prompts/manifest.json` + v1 prompt-filer (quick/normal/deep)
+2. `prompts/manifest.json` + v1 prompt-filer (**historiskt** quick/normal/deep; **aktuellt** single `text_derivation/v1.*`)
 3. `TextPromptLoader.js` + tester
 4. `ProviderRateLimiter.js` + tester
 5. `OpenAITextProvider.js` + mock-tester
@@ -489,6 +487,7 @@ Budgetar konfigureras i `manifest.json`, inte i kod. Prompt-texterna instruerar 
 
 ## Referenser
 
+- [`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md) — plats-presentation (ersätter length variants)
 - [`CONTENT_PRODUCTION_PIPELINE_V2.md`](CONTENT_PRODUCTION_PIPELINE_V2.md) — övergripande pipeline
 - [`GUIDES_CONTENT_PRODUCTION_UX_V2.md`](../design/GUIDES_CONTENT_PRODUCTION_UX_V2.md) §8 — E2E-verifiering
 - [`docs/ai/CHANGELOG.md`](../CHANGELOG.md) — epic-status

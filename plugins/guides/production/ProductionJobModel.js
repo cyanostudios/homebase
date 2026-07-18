@@ -7,7 +7,7 @@ const ITEMS_TABLE = 'guide_production_job_items';
 const EVENTS_TABLE = 'guide_production_job_events';
 const WORKERS_TABLE = 'guide_production_workers';
 
-const JOB_TYPES = ['full_guide', 'stop', 'variant'];
+const JOB_TYPES = ['full_guide'];
 const JOB_STATUSES = [
   'pending',
   'planning',
@@ -17,7 +17,7 @@ const JOB_STATUSES = [
   'failed',
   'cancelled',
 ];
-const ITEM_STEPS = ['text_derivation', 'translation', 'audio'];
+const ITEM_STEPS = ['text_derivation', 'translation'];
 const ITEM_STATUSES = [
   'pending',
   'queued',
@@ -45,8 +45,6 @@ class ProductionJobModel {
       placeId: String(row.place_id),
       type: row.type,
       status: row.status,
-      scopeStopId: row.scope_stop_id != null ? String(row.scope_stop_id) : null,
-      scopeVariantId: row.scope_variant_id != null ? String(row.scope_variant_id) : null,
       phases: row.phases ?? DEFAULT_PHASES,
       currentPhaseIndex: row.current_phase_index ?? 0,
       checkpointMode: row.checkpoint_mode ?? DEFAULT_CHECKPOINT_MODE,
@@ -69,8 +67,7 @@ class ProductionJobModel {
       id: String(row.id),
       jobId: String(row.job_id),
       userId: row.user_id != null ? String(row.user_id) : null,
-      stopId: String(row.stop_id),
-      variantId: row.variant_id != null ? String(row.variant_id) : null,
+      presentationId: String(row.presentation_id),
       step: row.step,
       phaseIndex: row.phase_index ?? 0,
       status: row.status,
@@ -123,23 +120,19 @@ class ProductionJobModel {
           place_id,
           type,
           status,
-          scope_stop_id,
-          scope_variant_id,
           phases,
           checkpoint_mode,
           priority,
           queued_at,
           job_options
         )
-        VALUES ($1, $2, $3, 'pending', $4, $5, $6::jsonb, $7, $8, COALESCE($9, NOW()), $10::jsonb)
+        VALUES ($1, $2, $3, 'pending', $4::jsonb, $5, $6, COALESCE($7, NOW()), $8::jsonb)
         RETURNING *
       `,
       [
         userId,
         placeId,
         type,
-        data.scopeStopId ?? null,
-        data.scopeVariantId ?? null,
         JSON.stringify(phases),
         checkpointMode,
         data.priority ?? 50,
@@ -437,22 +430,21 @@ class ProductionJobModel {
     };
   }
 
-  async listApprovedVariantTargetsForPhase(req, jobId, phaseIndex) {
+  async listApprovedPresentationTargetsForPhase(req, jobId, phaseIndex) {
     const db = Database.get(req);
     const rows = await db.query(
       `
-        SELECT DISTINCT stop_id, variant_id
+        SELECT DISTINCT presentation_id
         FROM ${ITEMS_TABLE}
         WHERE job_id = $1
           AND phase_index = $2
           AND review_status = 'approved'
-          AND variant_id IS NOT NULL
+          AND presentation_id IS NOT NULL
       `,
       [jobId, phaseIndex],
     );
     return rows.map((row) => ({
-      stopId: String(row.stop_id),
-      variantId: String(row.variant_id),
+      presentationId: String(row.presentation_id),
     }));
   }
 
@@ -549,14 +541,20 @@ class ProductionJobModel {
     if (data.reviewStatus && !REVIEW_STATUSES.includes(data.reviewStatus)) {
       throw new AppError('Invalid review status', 400, AppError.CODES.VALIDATION_ERROR);
     }
+    if (data.presentationId == null || data.presentationId === '') {
+      throw new AppError(
+        'presentationId is required for production job items',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
 
     const rows = await db.query(
       `
         INSERT INTO ${ITEMS_TABLE} (
           job_id,
           user_id,
-          stop_id,
-          variant_id,
+          presentation_id,
           step,
           phase_index,
           status,
@@ -567,14 +565,13 @@ class ProductionJobModel {
           review_status,
           error_message
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
       `,
       [
         jobId,
         userId,
-        data.stopId,
-        data.variantId ?? null,
+        data.presentationId,
         step,
         data.phaseIndex ?? 0,
         status,

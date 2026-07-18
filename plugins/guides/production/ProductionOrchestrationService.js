@@ -8,14 +8,12 @@ const {
   DEFAULT_PHASES,
   CHECKPOINT_MODES,
 } = require('./ProductionJobModel');
-const TranslationProviderRegistry = require('../providers/translation/TranslationProviderRegistry');
-const {
-  ensureTranslationProvidersRegistered,
-} = require('../providers/translation/registerDefaultProviders');
-const TextProviderConfigResolver = require('../providers/text/TextProviderConfigResolver');
+const TranslationProviderConfigResolver = require('../providers/translation/TranslationProviderConfigResolver');
 const { listGeneratableTextProviderKeys } = require('../providers/text/registerDefaultProviders');
+const TextProviderConfigResolver = require('../providers/text/TextProviderConfigResolver');
 const { AIProviderRouter } = require('../../ai-providers/AIProviderRouter');
 const SourcePackService = require('../sources/SourcePackService');
+const ContentSourceSettingsModel = require('../sources/ContentSourceSettingsModel');
 
 const DEFAULT_TEXT_PROVIDER = 'noop';
 const DEFAULT_TRANSLATION_PROVIDER = 'noop';
@@ -23,8 +21,6 @@ const GUIDES_PLUGIN_KEY = 'guides';
 const WORKER_BATCH_SIZE = Number(process.env.GUIDES_PRODUCTION_WORKER_BATCH_SIZE) || 5;
 const IN_FLIGHT_ITEM_STATUSES = ['pending', 'queued', 'processing', 'awaiting_callback'];
 const REGENERATABLE_REVIEW_STATUSES = ['pending_review', 'rejected'];
-const VARIANT_PLAN_ORDER = { deep: 0, normal: 1, quick: 2 };
-const DEEP_WAIT_RETRY_MS = 3_000;
 const ALLOW_NOOP_TEXT =
   String(process.env.GUIDES_ALLOW_NOOP_TEXT || '')
     .trim()
@@ -41,18 +37,21 @@ class ProductionOrchestrationService {
     this.guidesModel = guidesModel;
     this.jobModel = new ProductionJobModel();
     this.textProviderConfigResolver = new TextProviderConfigResolver();
+    this.translationProviderConfigResolver = new TranslationProviderConfigResolver();
     this.aiProviderRouter = new AIProviderRouter();
     this.sourcePackService = options.sourcePackService ?? new SourcePackService();
+    this.contentSourceSettingsModel =
+      options.contentSourceSettingsModel ?? new ContentSourceSettingsModel();
   }
 
   /**
    * Enqueue a production job; worker processes asynchronously.
    * @param {import('express').Request} req
    * @param {string} placeId
-   * @param {{ type: string, stopId?: string, variantId?: string, phases?: string[], steps?: string[], checkpointMode?: string, force?: boolean, languages?: string[] }} options
+   * @param {{ type?: string, phases?: string[], steps?: string[], checkpointMode?: string, force?: boolean, languages?: string[] }} options
    */
   async startJob(req, placeId, options) {
-    await this.guidesModel.getById(req, placeId);
+    const place = await this.guidesModel.getById(req, placeId);
 
     const readiness = await this.aiProviderRouter.checkReadiness(req, {
       pluginKey: GUIDES_PLUGIN_KEY,
@@ -80,18 +79,17 @@ class ProductionOrchestrationService {
       );
     }
 
-    const phases = this._normalizePhases(options.phases ?? options.steps);
+    const type = 'full_guide';
+    await this.guidesModel.ensureSourceLanguagePresentation(req, placeId);
+
+    const phases = await this._resolveStartPhases(req, place, options);
     const checkpointMode = this._normalizeCheckpointMode(options.checkpointMode);
     const job = await this.jobModel.createJob(req, placeId, {
-      type: options.type,
-      scopeStopId: options.stopId ?? null,
-      scopeVariantId: options.variantId ?? null,
+      type,
       phases,
       checkpointMode,
       jobOptions: {
-        type: options.type,
-        stopId: options.stopId ?? null,
-        variantId: options.variantId ?? null,
+        type,
         phases,
         languages: this._normalizeLanguages(options.languages),
         force: Boolean(options.force),
@@ -198,33 +196,34 @@ class ProductionOrchestrationService {
 
     await this.jobModel.updateJobItem(req, item.id, { reviewStatus: 'superseded' });
 
-    const stop = await this.guidesModel.getStopById(req, placeId, item.stopId);
-    const variant = await this.guidesModel.getVariantById(
+    const presentation = await this.guidesModel.getPresentationById(
       req,
       placeId,
-      item.stopId,
-      item.variantId,
+      item.presentationId,
     );
     const place = await this.guidesModel.getById(req, placeId);
     const providerKey = item.providerKey || (await this._providerKeyForStep(req, item.step));
     const providerVersion =
       item.providerVersion || (await this._providerVersionForStep(req, item.step, providerKey));
+    const sourcePresentationText =
+      item.step === 'translation'
+        ? await this._resolveSourcePresentationText(req, placeId, place.sourceLanguage)
+        : null;
     const fingerprint = this._computeFingerprintForTarget({
       step: item.step,
-      stop,
-      variant,
+      presentation,
       place,
       providerKey,
       providerVersion,
       regenerateNonce: item.id,
+      sourcePresentationText,
       sourcePackFingerprint: job.jobOptions?.sourcePack?.combinedText
         ? String(job.jobOptions.sourcePack.combinedText).slice(0, 500)
         : null,
     });
 
     const newItem = await this.jobModel.createJobItem(req, jobId, {
-      stopId: item.stopId,
-      variantId: item.variantId,
+      presentationId: item.presentationId,
       step: item.step,
       phaseIndex: item.phaseIndex,
       status: 'pending',
@@ -639,12 +638,11 @@ class ProductionOrchestrationService {
         item.step === 'translation'
           ? item.providerResult.translatedText
           : item.providerResult.presentationText;
-      if (text && item.variantId) {
+      if (text && item.presentationId) {
         await this.guidesModel.applyProductionPresentationText(
           req,
           placeId,
-          item.stopId,
-          item.variantId,
+          item.presentationId,
           text,
         );
       }
@@ -735,21 +733,20 @@ class ProductionOrchestrationService {
 
   _computeFingerprintForTarget({
     step,
-    stop,
-    variant,
+    presentation,
     place,
     providerKey,
     providerVersion,
     regenerateNonce,
     sourcePackFingerprint,
+    sourcePresentationText,
   }) {
     if (step === 'translation') {
       return computeProductionFingerprint({
         step,
-        sourcePresentationText: variant.presentationText,
+        sourcePresentationText: sourcePresentationText ?? null,
         sourceLanguage: place.sourceLanguage,
-        targetLanguage: variant.language,
-        variantType: variant.variantType,
+        targetLanguage: presentation.language,
         providerKey,
         providerVersion,
         regenerateNonce,
@@ -758,10 +755,9 @@ class ProductionOrchestrationService {
 
     return computeProductionFingerprint({
       step,
-      canonicalNarrative: stop.canonicalNarrative,
+      canonicalNarrative: presentation.presentationText ?? '',
       ingestRunId: place.ingestRunId ?? null,
-      variantType: variant.variantType,
-      language: variant.language,
+      language: presentation.language,
       providerKey,
       providerVersion,
       regenerateNonce,
@@ -781,7 +777,10 @@ class ProductionOrchestrationService {
     const place = await this.guidesModel.getById(req, job.placeId);
 
     if (step === 'text_derivation' && !options.sourcePack) {
-      const pack = await this.sourcePackService.buildPack(this._buildPlaceQuery(place));
+      const sourceKeys = await this.contentSourceSettingsModel.getEnabledSourceKeys(req);
+      const pack = await this.sourcePackService.buildPack(this._buildPlaceQuery(place), {
+        sourceKeys,
+      });
       await this.jobModel.mergeJobOptions(req, job.id, { sourcePack: pack });
       job.jobOptions = { ...options, sourcePack: pack };
       await this.jobModel.appendEvent(req, job.id, 'source_research_completed', {
@@ -795,13 +794,8 @@ class ProductionOrchestrationService {
     }
 
     const targets = await this._resolveTargetsForPhase(req, job.placeId, job, options);
-    const orderedTargets = [...targets].sort((a, b) => {
-      const ao = VARIANT_PLAN_ORDER[a.variant?.variantType] ?? 9;
-      const bo = VARIANT_PLAN_ORDER[b.variant?.variantType] ?? 9;
-      return ao - bo;
-    });
 
-    for (const target of orderedTargets) {
+    for (const target of targets) {
       await this._planStepItem(req, job, target, step, force, place);
     }
 
@@ -812,38 +806,60 @@ class ProductionOrchestrationService {
   }
 
   async _planStepItem(req, job, target, step, force, place) {
-    const { stop, variant } = target;
+    const { presentation } = target;
     const providerKey = await this._providerKeyForStep(req, step);
     if (
-      step === 'text_derivation' &&
+      (step === 'text_derivation' || step === 'translation') &&
       !ALLOW_NOOP_TEXT &&
       String(providerKey).toLowerCase() === 'noop'
     ) {
       throw new AppError(
-        'No generatable text provider is configured',
+        step === 'translation'
+          ? 'No generatable translation provider is configured'
+          : 'No generatable text provider is configured',
         422,
         'provider_not_configured',
       );
     }
+
+    if (
+      step === 'translation' &&
+      this._isSameLanguage(place.sourceLanguage, presentation.language)
+    ) {
+      await this.jobModel.createJobItem(req, job.id, {
+        presentationId: presentation.id,
+        step,
+        phaseIndex: job.currentPhaseIndex,
+        status: 'skipped',
+        providerKey,
+        providerVersion: await this._providerVersionForStep(req, step, providerKey),
+        errorMessage: 'Skipped translation — target language matches source language',
+      });
+      return;
+    }
+
     const providerVersion = await this._providerVersionForStep(req, step, providerKey);
     const sourcePackFingerprint = job.jobOptions?.sourcePack?.combinedText
       ? String(job.jobOptions.sourcePack.combinedText).slice(0, 500)
       : null;
+    const sourcePresentationText =
+      step === 'translation'
+        ? await this._resolveSourcePresentationText(req, job.placeId, place.sourceLanguage)
+        : null;
 
     const fingerprint = this._computeFingerprintForTarget({
       step,
-      stop,
-      variant,
+      presentation,
       place,
       providerKey,
       providerVersion,
       sourcePackFingerprint,
+      sourcePresentationText,
     });
 
     if (!force && (await this.jobModel.hasCompletedFingerprint(req, fingerprint))) {
       await this.jobModel.createJobItem(req, job.id, {
-        stopId: stop.id,
-        variantId: variant.id,
+        presentationId: presentation.id,
         step,
         phaseIndex: job.currentPhaseIndex,
         status: 'skipped',
@@ -856,8 +872,7 @@ class ProductionOrchestrationService {
     }
 
     await this.jobModel.createJobItem(req, job.id, {
-      stopId: stop.id,
-      variantId: variant.id,
+      presentationId: presentation.id,
       step,
       phaseIndex: job.currentPhaseIndex,
       status: 'pending',
@@ -874,12 +889,10 @@ class ProductionOrchestrationService {
       return;
     }
 
-    const stop = await this.guidesModel.getStopById(req, job.placeId, item.stopId);
-    const variant = await this.guidesModel.getVariantById(
+    const presentation = await this.guidesModel.getPresentationById(
       req,
       job.placeId,
-      item.stopId,
-      item.variantId,
+      item.presentationId,
     );
 
     if (item.step === 'text_derivation') {
@@ -898,34 +911,13 @@ class ProductionOrchestrationService {
       const placeGuide = await this.guidesModel.getById(req, job.placeId);
       const sourcePack = job.jobOptions?.sourcePack ?? null;
       const sourcePackText = sourcePack?.combinedText ? String(sourcePack.combinedText).trim() : '';
+      const narrative = String(presentation.presentationText ?? '').trim();
 
-      let sourceDeepText = null;
-      if (variant.variantType !== 'deep') {
-        const deepWait = await this._resolveDeepDependency(req, job, item);
-        if (deepWait.action === 'wait') {
-          await this.jobModel.updateJobItem(req, item.id, {
-            status: 'pending',
-            retryAfter: new Date(Date.now() + DEEP_WAIT_RETRY_MS).toISOString(),
-            errorMessage: 'Waiting for deep variant',
-          });
-          return;
-        }
-        if (deepWait.action === 'fail') {
-          await this.jobModel.updateJobItem(req, item.id, {
-            status: 'failed',
-            errorMessage: deepWait.errorMessage || 'Deep variant failed',
-            failureCode: 'content_input_invalid',
-          });
-          return;
-        }
-        sourceDeepText = deepWait.sourceDeepText || null;
-      }
-
-      const narrative = String(stop.canonicalNarrative ?? '').trim();
-      if (!narrative && !sourcePackText && !sourceDeepText) {
+      if (!narrative && !sourcePackText) {
         await this.jobModel.updateJobItem(req, item.id, {
           status: 'failed',
-          errorMessage: 'No research excerpts and no canonical narrative — cannot generate text',
+          errorMessage:
+            'No research excerpts and no existing presentation text — cannot generate text',
           failureCode: 'content_input_invalid',
         });
         return;
@@ -936,12 +928,10 @@ class ProductionOrchestrationService {
         item.providerKey || DEFAULT_TEXT_PROVIDER,
       );
       const result = await provider.generate(req, {
-        canonicalNarrative: narrative || null,
-        variantType: variant.variantType,
-        language: variant.language,
+        canonicalNarrative: narrative || '',
+        language: presentation.language,
         placeContext: this._buildPlaceContext(placeGuide),
         sourcePackText: sourcePackText || null,
-        sourceDeepText: sourceDeepText || null,
       });
       if (result.status === 'retry') {
         await this.jobModel.updateJobItem(req, item.id, {
@@ -972,85 +962,86 @@ class ProductionOrchestrationService {
     }
 
     if (item.step === 'translation') {
-      ensureTranslationProvidersRegistered();
-      const provider = TranslationProviderRegistry.get(
+      if (
+        !ALLOW_NOOP_TEXT &&
+        String(item.providerKey || DEFAULT_TRANSLATION_PROVIDER).toLowerCase() === 'noop'
+      ) {
+        await this.jobModel.updateJobItem(req, item.id, {
+          status: 'failed',
+          errorMessage: 'Noop translation provider is not allowed for production',
+          failureCode: 'provider_not_configured',
+        });
+        return;
+      }
+
+      const placeGuide = await this.guidesModel.getById(req, job.placeId);
+      const sourceLanguage = placeGuide.sourceLanguage;
+      if (this._isSameLanguage(sourceLanguage, presentation.language)) {
+        await this.jobModel.updateJobItem(req, item.id, {
+          status: 'skipped',
+          errorMessage: 'Skipped translation — target language matches source language',
+        });
+        return;
+      }
+
+      const sourcePresentationText = await this._resolveSourcePresentationText(
+        req,
+        job.placeId,
+        sourceLanguage,
+      );
+      const provider = await this.translationProviderConfigResolver.createProvider(
+        req,
         item.providerKey || DEFAULT_TRANSLATION_PROVIDER,
       );
-      const sourceLanguage = (await this.guidesModel.getById(req, job.placeId)).sourceLanguage;
       const result = await provider.translate(req, {
-        presentationText: variant.presentationText ?? '',
+        presentationText: sourcePresentationText ?? '',
         sourceLanguage,
-        targetLanguage: variant.language,
+        targetLanguage: presentation.language,
       });
+      if (result.status === 'retry') {
+        await this.jobModel.updateJobItem(req, item.id, {
+          status: 'pending',
+          retryAfter: new Date(Date.now() + (result.retryAfterMs ?? 30000)).toISOString(),
+          errorMessage: result.errorMessage ?? 'Rate limited — retry scheduled',
+          failureCode: result.failureCode ?? 'provider_rate_limited',
+        });
+        return;
+      }
       if (result.status !== 'ready') {
         await this.jobModel.updateJobItem(req, item.id, {
           status: 'failed',
           errorMessage: result.errorMessage ?? 'Translation failed',
+          failureCode: result.failureCode ?? 'provider_unknown_error',
         });
         return;
       }
+      const providerResult = result.providerResult ?? {
+        translatedText: result.translatedText,
+      };
       await this.jobModel.updateJobItem(req, item.id, {
         status: 'completed',
-        providerResult: { translatedText: result.translatedText },
+        providerResult,
         reviewStatus: 'pending_review',
       });
       return;
     }
 
     await this.jobModel.updateJobItem(req, item.id, {
-      status: 'skipped',
-      errorMessage: 'Audio step not implemented in batch v1',
+      status: 'failed',
+      errorMessage: `Unsupported production step: ${item.step}`,
+      failureCode: 'unsupported_step',
     });
   }
 
   /**
-   * Wait for / use completed deep sibling when summarizing normal/quick.
-   * @returns {Promise<{ action: 'proceed'|'wait'|'fail', sourceDeepText?: string|null, errorMessage?: string }>}
+   * @param {import('express').Request} req
+   * @param {string} placeId
+   * @param {string|null|undefined} sourceLanguage
    */
-  async _resolveDeepDependency(req, job, item) {
-    const siblings = await this.jobModel.listJobItems(req, job.id);
-    let deepItem = null;
-    for (const sibling of siblings) {
-      if (sibling.id === item.id) continue;
-      if (sibling.stopId !== item.stopId) continue;
-      if (sibling.step !== 'text_derivation') continue;
-      if (sibling.phaseIndex !== item.phaseIndex) continue;
-      const siblingVariant = await this.guidesModel.getVariantById(
-        req,
-        job.placeId,
-        sibling.stopId,
-        sibling.variantId,
-      );
-      if (siblingVariant?.variantType === 'deep') {
-        deepItem = sibling;
-        break;
-      }
-    }
-
-    if (!deepItem) {
-      return { action: 'proceed', sourceDeepText: null };
-    }
-
-    if (deepItem.status === 'failed' || deepItem.status === 'cancelled') {
-      return {
-        action: 'fail',
-        errorMessage: deepItem.errorMessage || 'Deep variant failed',
-      };
-    }
-
-    if (deepItem.status === 'completed') {
-      const text = deepItem.providerResult?.presentationText;
-      if (!text) {
-        return { action: 'fail', errorMessage: 'Deep variant produced no text' };
-      }
-      return { action: 'proceed', sourceDeepText: String(text) };
-    }
-
-    if (deepItem.status === 'skipped') {
-      return { action: 'proceed', sourceDeepText: null };
-    }
-
-    return { action: 'wait' };
+  async _resolveSourcePresentationText(req, placeId, sourceLanguage) {
+    const presentations = await this.guidesModel.getPresentations(req, placeId);
+    const source = presentations.find((p) => this._isSameLanguage(p.language, sourceLanguage));
+    return source?.presentationText != null ? String(source.presentationText) : null;
   }
 
   _shouldCheckpoint(job) {
@@ -1074,6 +1065,51 @@ class ProductionOrchestrationService {
     return normalized.length ? normalized : [...DEFAULT_PHASES];
   }
 
+  /**
+   * Default phases: text only. Include translation when any in-scope presentation
+   * uses a language different from the place source language.
+   * Explicit `phases` / `steps` always wins.
+   */
+  async _resolveStartPhases(req, place, options) {
+    if (options.phases != null || options.steps != null) {
+      return this._normalizePhases(options.phases ?? options.steps);
+    }
+
+    const needsTranslation = await this._placeHasOtherLanguagePresentations(req, place, options);
+    if (needsTranslation) {
+      return ['text_derivation', 'translation'];
+    }
+    return [...DEFAULT_PHASES];
+  }
+
+  async _placeHasOtherLanguagePresentations(req, place, options) {
+    const sourceLanguage = place?.sourceLanguage;
+    const languagesFilter = this._normalizeLanguages(options.languages);
+    const probeJob = { type: 'full_guide' };
+
+    let targets;
+    try {
+      targets = await this._resolveTargets(req, place.id, probeJob, options);
+    } catch {
+      return false;
+    }
+
+    const filtered = this._filterTargetsByLanguages(targets, languagesFilter);
+    return filtered.some((t) => !this._isSameLanguage(sourceLanguage, t.presentation?.language));
+  }
+
+  _isSameLanguage(a, b) {
+    const left = String(a ?? '')
+      .trim()
+      .toLowerCase()
+      .slice(0, 2);
+    const right = String(b ?? '')
+      .trim()
+      .toLowerCase()
+      .slice(0, 2);
+    return Boolean(left) && left === right;
+  }
+
   _normalizeCheckpointMode(mode) {
     if (mode == null || mode === '') return 'after_text';
     const normalized = String(mode).trim().toLowerCase();
@@ -1087,7 +1123,9 @@ class ProductionOrchestrationService {
     if (step === 'text_derivation') {
       return this.textProviderConfigResolver.getPreferredProviderKey(req);
     }
-    if (step === 'translation') return DEFAULT_TRANSLATION_PROVIDER;
+    if (step === 'translation') {
+      return this.translationProviderConfigResolver.getPreferredProviderKey(req);
+    }
     return 'noop';
   }
 
@@ -1096,8 +1134,7 @@ class ProductionOrchestrationService {
       return this.textProviderConfigResolver.getProviderVersion(req, providerKey);
     }
     if (step === 'translation') {
-      ensureTranslationProvidersRegistered();
-      return TranslationProviderRegistry.get(providerKey).version ?? '1';
+      return this.translationProviderConfigResolver.getProviderVersion(req, providerKey);
     }
     return '1';
   }
@@ -1113,7 +1150,7 @@ class ProductionOrchestrationService {
   _filterTargetsByLanguages(targets, languages) {
     if (!languages?.length) return targets;
     return targets.filter((target) =>
-      languages.includes(String(target.variant.language).toLowerCase()),
+      languages.includes(String(target.presentation.language).toLowerCase()),
     );
   }
 
@@ -1124,56 +1161,23 @@ class ProductionOrchestrationService {
     }
 
     const priorPhaseIndex = job.currentPhaseIndex - 1;
-    const approvedTargets = await this.jobModel.listApprovedVariantTargetsForPhase(
+    const approvedTargets = await this.jobModel.listApprovedPresentationTargetsForPhase(
       req,
       job.id,
       priorPhaseIndex,
     );
 
     const targets = [];
-    for (const { stopId, variantId } of approvedTargets) {
-      const stop = await this.guidesModel.getStopById(req, placeId, stopId);
-      const variant = await this.guidesModel.getVariantById(req, placeId, stopId, variantId);
-      targets.push({ stop, variant });
+    for (const { presentationId } of approvedTargets) {
+      const presentation = await this.guidesModel.getPresentationById(req, placeId, presentationId);
+      targets.push({ presentation });
     }
     return this._filterTargetsByLanguages(targets, options.languages);
   }
 
-  async _resolveTargets(req, placeId, job, options) {
-    if (job.type === 'variant' || options.variantId) {
-      const variantId = options.variantId ?? job.scopeVariantId;
-      const stopId = options.stopId ?? job.scopeStopId;
-      if (!variantId || !stopId) {
-        throw new AppError(
-          'variant jobs require stopId and variantId',
-          400,
-          AppError.CODES.VALIDATION_ERROR,
-        );
-      }
-      const variant = await this.guidesModel.getVariantById(req, placeId, stopId, variantId);
-      const stop = await this.guidesModel.getStopById(req, placeId, stopId);
-      return [{ stop, variant }];
-    }
-
-    if (job.type === 'stop' || options.stopId) {
-      const stopId = options.stopId ?? job.scopeStopId;
-      if (!stopId) {
-        throw new AppError('stop jobs require stopId', 400, AppError.CODES.VALIDATION_ERROR);
-      }
-      const stop = await this.guidesModel.getStopById(req, placeId, stopId);
-      const variants = await this.guidesModel.getVariants(req, placeId, stopId);
-      return variants.map((variant) => ({ stop, variant }));
-    }
-
-    const stops = await this.guidesModel.getStops(req, placeId);
-    const targets = [];
-    for (const stop of stops) {
-      const variants = await this.guidesModel.getVariants(req, placeId, stop.id);
-      for (const variant of variants) {
-        targets.push({ stop, variant });
-      }
-    }
-    return targets;
+  async _resolveTargets(req, placeId, _job, _options) {
+    const presentations = await this.guidesModel.getPresentations(req, placeId);
+    return presentations.map((presentation) => ({ presentation }));
   }
 }
 

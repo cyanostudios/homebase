@@ -77,7 +77,6 @@ export function getNextPhaseLabelKey(job: ProductionJob): string | null {
   if (job.currentPhaseIndex >= phases.length - 1) return 'guides.production.continueFinish';
   const next = phases[job.currentPhaseIndex + 1];
   if (next === 'translation') return 'guides.production.continueToTranslation';
-  if (next === 'audio') return 'guides.production.continueToAudio';
   return 'guides.production.continueNextPhase';
 }
 
@@ -108,29 +107,21 @@ export function hasActiveProductionJob<T extends { status: ProductionJobStatus }
 }
 
 /** Visible editor pipeline for research-first text production. */
-export type TextPipelineStage = 'research' | 'deep' | 'summarize' | 'review' | 'done' | 'failed';
+export type TextPipelineStage = 'research' | 'generate' | 'review' | 'done' | 'failed';
 
-const TEXT_PIPELINE_STAGES: TextPipelineStage[] = ['research', 'deep', 'summarize', 'review'];
+const TEXT_PIPELINE_STAGES: TextPipelineStage[] = ['research', 'generate', 'review'];
 
 export function getTextPipelineStages(): TextPipelineStage[] {
   return [...TEXT_PIPELINE_STAGES];
 }
 
-function isWaitingForDeep(item: ProductionJobItem): boolean {
-  return (
-    item.status === 'pending' &&
-    typeof item.errorMessage === 'string' &&
-    /waiting for deep/i.test(item.errorMessage)
-  );
-}
-
 /**
- * Infer research → deep → summarize → review from job status + items.
- * Uses source pack presence and “waiting for deep” retries — no variantType on items required.
+ * Infer research → generate → review from job status + items.
+ * Uses source pack presence to distinguish research from text generation.
  */
 export function getTextPipelineStage(
   job: ProductionJob,
-  items: ProductionJobItem[],
+  _items: ProductionJobItem[],
 ): TextPipelineStage {
   if (job.status === 'failed') return 'failed';
   if (job.status === 'completed') return 'done';
@@ -140,20 +131,7 @@ export function getTextPipelineStage(
   if (job.status === 'processing') {
     const pack = job.jobOptions?.sourcePack;
     if (!pack) return 'research';
-
-    const phaseItems = getPhaseItems(job, items).filter((item) => item.step === 'text_derivation');
-    if (phaseItems.length === 0) return 'deep';
-
-    if (phaseItems.some(isWaitingForDeep)) return 'deep';
-
-    const inFlight = phaseItems.filter((item) =>
-      ['pending', 'queued', 'processing', 'awaiting_callback'].includes(item.status),
-    );
-    const completed = phaseItems.filter((item) => item.status === 'completed').length;
-
-    if (inFlight.length === 0) return 'summarize';
-    if (completed === 0) return 'deep';
-    return 'summarize';
+    return 'generate';
   }
 
   return 'research';
@@ -209,6 +187,7 @@ const FAILURE_CODE_PRIORITY = [
   'provider_auth_failed',
   'provider_rate_limited',
   'provider_unavailable',
+  'provider_not_generation_capable',
   'provider_not_configured',
   'provider_invalid_request',
   'content_input_invalid',

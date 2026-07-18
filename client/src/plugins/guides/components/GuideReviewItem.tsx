@@ -6,14 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-import type { GuideStop, GuideVariantPresentation, ProductionJobItem } from '../types/guides';
+import type { GuidePresentation, ProductionJobItem } from '../types/guides';
 import { isProductionReviewStatus } from '../types/guides';
 import { getProposedItemText } from '../utils/productionJobHelpers';
 
 interface GuideReviewItemProps {
   item: ProductionJobItem;
-  stop?: GuideStop;
-  variant?: GuideVariantPresentation;
+  presentation?: GuidePresentation;
   isBusy?: boolean;
   onApprove: (itemId: string) => void;
   onReject: (itemId: string) => void;
@@ -21,32 +20,28 @@ interface GuideReviewItemProps {
 }
 
 function itemLabel(
-  stop: GuideStop | undefined,
-  variant: GuideVariantPresentation | undefined,
-  t: (key: string, opts?: Record<string, string>) => string,
+  presentation: GuidePresentation | undefined,
+  t: (key: string) => string,
 ): string {
-  const stopTitle = stop?.title ?? '—';
-  if (!variant) return stopTitle;
-  const variantType = t(`guides.variantTypes.${variant.variantType}`);
-  return `${stopTitle} · ${variantType} · ${variant.language}`;
+  if (!presentation) return t('guides.production.review.unknownLanguage');
+  return presentation.language.toUpperCase();
 }
 
 export const GuideReviewItem: React.FC<GuideReviewItemProps> = ({
   item,
-  stop,
-  variant,
+  presentation,
   isBusy = false,
   onApprove,
   onReject,
   onRegenerate,
 }) => {
   const { t } = useTranslation();
-  const label = itemLabel(stop, variant, t);
+  const label = itemLabel(presentation, t);
   const reviewStatus = isProductionReviewStatus(item.reviewStatus ?? '')
     ? item.reviewStatus
     : 'pending_review';
   const proposed = getProposedItemText(item);
-  const current = variant?.presentationText ?? null;
+  const current = presentation?.presentationText ?? null;
   const isProcessing = ['pending', 'queued', 'processing', 'awaiting_callback'].includes(
     item.status,
   );
@@ -68,10 +63,10 @@ export const GuideReviewItem: React.FC<GuideReviewItemProps> = ({
         reviewStatus === 'rejected' && 'bg-muted/20',
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-2">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium">{label}</span>
+            <span className="text-sm font-medium uppercase">{label}</span>
             {reviewStatus === 'approved' && (
               <Badge
                 variant="secondary"
@@ -99,85 +94,85 @@ export const GuideReviewItem: React.FC<GuideReviewItemProps> = ({
             )}
           </div>
 
-          {!compact && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-md border border-border/60 bg-muted/20 p-3">
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t('guides.production.review.current')}
-                </div>
-                <p className="whitespace-pre-wrap text-sm">
-                  {current?.trim() ? current : t('guides.production.review.emptyCurrent')}
-                </p>
-              </div>
-              <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t('guides.production.review.proposed')}
-                </div>
-                <p className="whitespace-pre-wrap text-sm">
-                  {proposed?.trim() ? proposed : t('guides.production.review.emptyProposed')}
-                </p>
-              </div>
+          {!compact && reviewStatus === 'pending_review' && item.status === 'completed' && (
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                icon={ThumbsUp}
+                className="h-8 px-3 text-xs"
+                disabled={isBusy}
+                aria-label={t('guides.production.review.approveAria', { label })}
+                onClick={() => onApprove(item.id)}
+              >
+                {t('guides.production.review.approve')}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={ThumbsDown}
+                className="h-8 px-3 text-xs"
+                disabled={isBusy}
+                aria-label={t('guides.production.review.rejectAria', { label })}
+                onClick={() => onReject(item.id)}
+              >
+                {t('guides.production.review.reject')}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={RefreshCw}
+                className="h-8 px-3 text-xs"
+                disabled={isBusy}
+                aria-label={t('guides.production.review.regenerateAria', { label })}
+                onClick={() => onRegenerate(item.id)}
+              >
+                {t('guides.production.review.regenerate')}
+              </Button>
             </div>
           )}
 
-          {isFailed && item.errorMessage && (
-            <p className="text-xs text-destructive">{item.errorMessage}</p>
-          )}
-        </div>
-
-        {!compact && reviewStatus === 'pending_review' && item.status === 'completed' && (
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              icon={ThumbsUp}
-              className="h-8 px-3 text-xs"
-              disabled={isBusy}
-              aria-label={t('guides.production.review.approveAria', { label })}
-              onClick={() => onApprove(item.id)}
-            >
-              {t('guides.production.review.approve')}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              icon={ThumbsDown}
-              className="h-8 px-3 text-xs"
-              disabled={isBusy}
-              aria-label={t('guides.production.review.rejectAria', { label })}
-              onClick={() => onReject(item.id)}
-            >
-              {t('guides.production.review.reject')}
-            </Button>
+          {(isProcessing || isFailed) && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               icon={RefreshCw}
               className="h-8 px-3 text-xs"
-              disabled={isBusy}
-              aria-label={t('guides.production.review.regenerateAria', { label })}
+              disabled={isBusy || isProcessing}
               onClick={() => onRegenerate(item.id)}
             >
               {t('guides.production.review.regenerate')}
             </Button>
+          )}
+        </div>
+
+        {!compact && (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('guides.production.review.current')}
+              </div>
+              <p className="whitespace-pre-wrap text-sm">
+                {current?.trim() ? current : t('guides.production.review.emptyCurrent')}
+              </p>
+            </div>
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('guides.production.review.proposed')}
+              </div>
+              <p className="whitespace-pre-wrap text-sm">
+                {proposed?.trim() ? proposed : t('guides.production.review.emptyProposed')}
+              </p>
+            </div>
           </div>
         )}
 
-        {(isProcessing || isFailed) && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={RefreshCw}
-            className="h-8 px-3 text-xs"
-            disabled={isBusy || isProcessing}
-            onClick={() => onRegenerate(item.id)}
-          >
-            {t('guides.production.review.regenerate')}
-          </Button>
+        {isFailed && item.errorMessage && (
+          <p className="text-xs text-destructive">{item.errorMessage}</p>
         )}
       </div>
     </li>

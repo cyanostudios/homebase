@@ -56,7 +56,7 @@ class PublicGuidesController {
     }
   }
 
-  async getStops(req, res) {
+  async getPresentations(req, res) {
     try {
       const ctx = this.getPoolContext(req);
       if (!ctx) {
@@ -65,75 +65,24 @@ class PublicGuidesController {
 
       const placeId = this.model.parsePositiveInt(req.params.placeId, 'placeId');
       const language = this.model.parseOptionalLanguageQuery(req.query.language);
-      const stops = await this.model.listStopsWithVariants(
+      const presentations = await this.model.listPresentations(
         ctx.pool,
         ctx.ownerUserId,
         placeId,
         language,
       );
-      if (!stops) {
+      if (!presentations) {
         return res.status(404).json({ error: 'Guide not found' });
       }
-      return res.json({ stops });
+      return res.json({ presentations });
     } catch (error) {
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      Logger.error('Get public guide stops failed', error, { placeId: req.params.placeId });
-      return res.status(500).json({ error: 'Failed to fetch stops' });
-    }
-  }
-
-  async streamAudio(req, res) {
-    try {
-      const ctx = this.getPoolContext(req);
-      if (!ctx) {
-        return res.status(500).json({ error: 'Public guides service not configured' });
-      }
-
-      const placeId = this.model.parsePositiveInt(req.params.placeId, 'placeId');
-      const stopId = this.model.parsePositiveInt(req.params.stopId, 'stopId');
-      const variantId = this.model.parsePositiveInt(req.params.variantId, 'variantId');
-
-      const audio = await this.model.getReadyAudioForPublicVariant(
-        ctx.pool,
-        ctx.ownerUserId,
-        placeId,
-        stopId,
-        variantId,
-      );
-      if (!audio) {
-        return res.status(404).json({ error: 'Audio not found' });
-      }
-
-      const { stream, mimeType } = await this.model.openAudioStream(req, audio);
-      res.setHeader('Content-Type', mimeType);
-      res.setHeader('Content-Disposition', 'inline');
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-
-      stream.on('error', (err) => {
-        Logger.error('Public guide audio stream error', err, {
-          placeId,
-          stopId,
-          variantId,
-        });
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Audio stream failed' });
-        } else {
-          res.destroy();
-        }
-      });
-      stream.pipe(res);
-    } catch (error) {
-      if (error instanceof AppError) {
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-      Logger.error('Stream public guide audio failed', error, {
+      Logger.error('Get public guide presentations failed', error, {
         placeId: req.params.placeId,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
       });
-      return res.status(500).json({ error: 'Failed to stream audio' });
+      return res.status(500).json({ error: 'Failed to fetch presentations' });
     }
   }
 }

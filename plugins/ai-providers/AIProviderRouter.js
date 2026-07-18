@@ -43,7 +43,9 @@ class AIProviderRouter {
       if (!allowed.has(key)) {
         return {
           ready: false,
-          failure: { code: 'provider_not_configured' },
+          providerKey: resolved.providerKey,
+          model: resolved.model || undefined,
+          failure: { code: 'provider_not_generation_capable' },
         };
       }
     }

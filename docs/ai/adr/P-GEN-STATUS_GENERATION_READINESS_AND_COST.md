@@ -49,6 +49,7 @@ Vid Generate ska AI Providers äga validering och exekvering. Guides får aldrig
 ```ts
 type GenerationFailureCode =
   | 'provider_not_configured'
+  | 'provider_not_generation_capable' // provider configured but no Guides text adapter
   | 'provider_auth_failed'
   | 'provider_quota_exhausted' // abstraherar kredit/saldo — aldrig siffror till Guides
   | 'provider_rate_limited' // retrybart
@@ -59,6 +60,14 @@ type GenerationFailureCode =
 ```
 
 Guides mappar `code → i18n`. Retrybart = `provider_rate_limited | provider_unavailable`.
+
+### Kostnad (OpenAI-only idag)
+
+`CostCalculator` läser `PROVIDER_CATALOG[provider].models[].pricing`. **Endast OpenAI-katalogmodeller har pricing-block**; övriga providers/modeller ger `null` (ingen kostnadssiffra i UI). Det är avsiktligt tills fler textadaptrar + pricing-tabeller läggs till.
+
+### Kvot / saldo före start
+
+**Behåll GS1:** `checkReadiness` är credit-free — ingen OpenAI balance-API, inga kreditsiffror. Kvot syns först via runtime-fel (`provider_quota_exhausted`) efter leverantörens HTTP-svar. Förbättrad fel-UX i Guides räcker; ingen förkoll planeras.
 
 ---
 
@@ -91,7 +100,7 @@ Info-panel `usageSummary` (härledd): Provider, Model, tokens, estimated cost, l
 ## UX-constraints (för Designer)
 
 - Tydligt, handlingsbart meddelande per kod; skilj retrybart vs terminalt.
-- `provider_not_configured` / `provider_auth_failed` → länk till AI Providers-inställningar.
+- `provider_not_configured` / `provider_not_generation_capable` / `provider_auth_failed` → länk till AI Providers-inställningar.
 - Inga token-/kredit-/saldosiffror i fel-UI.
 - Kostnad alltid märkt som uppskattad.
 - Preflight-pending (spinner) behövs; mål &lt;~1–2 s.
@@ -108,4 +117,4 @@ Info-panel `usageSummary` (härledd): Provider, Model, tokens, estimated cost, l
 
 ## Status
 
-Design only. Implementation kräver separat epik (Backend + Frontend + QA + Security + Documentation).
+**Implementerad** (readiness, failure taxonomy inkl. `provider_not_generation_capable`, usage/cost metadata, OpenAI-only pricing). Local first; credit-free preflight (GS1) oförändrad. Ej separat prod-deploy som del av denna dokumentationspass.

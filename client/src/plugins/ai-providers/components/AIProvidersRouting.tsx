@@ -79,6 +79,22 @@ export const AIProvidersRouting: React.FC = () => {
     [providers],
   );
 
+  /** Global + Guides may only route to providers with a real text-generation adapter. */
+  const textGeneratableRoutableProviders = useMemo(
+    () =>
+      routableProviders.filter((provider) => {
+        const entry = catalog.find((item) => item.providerKey === provider.providerKey);
+        return entry?.textGenerationCapable === true;
+      }),
+    [routableProviders, catalog],
+  );
+
+  const providersForPluginScope = useCallback(
+    (pluginKey: string) =>
+      pluginKey === 'guides' ? textGeneratableRoutableProviders : routableProviders,
+    [textGeneratableRoutableProviders, routableProviders],
+  );
+
   const [globalProviderKey, setGlobalProviderKey] = useState('');
   const [globalModel, setGlobalModel] = useState('');
   const [pluginDrafts, setPluginDrafts] = useState<
@@ -260,18 +276,18 @@ export const AIProvidersRouting: React.FC = () => {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {routableProviders.map((provider) => (
+                    {textGeneratableRoutableProviders.map((provider) => (
                       <SelectItem key={provider.providerKey} value={provider.providerKey}>
                         {providerLabel(t, provider.providerKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {routableProviders.length === 0 ? (
+                {textGeneratableRoutableProviders.length === 0 ? (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {t('aiProviders.routing.noEnabledProviders', {
+                    {t('aiProviders.routing.noGeneratableProviders', {
                       defaultValue:
-                        'Enable a provider and save an API key first — then it appears here.',
+                        'Enable OpenAI (or another text-capable provider) with an API key — then it appears here.',
                     })}
                   </p>
                 ) : null}
@@ -389,7 +405,7 @@ export const AIProvidersRouting: React.FC = () => {
                                 defaultValue: 'Use global default',
                               })}
                             </SelectItem>
-                            {routableProviders.map((provider) => (
+                            {providersForPluginScope(plugin.pluginKey).map((provider) => (
                               <SelectItem key={provider.providerKey} value={provider.providerKey}>
                                 {providerLabel(t, provider.providerKey)}
                               </SelectItem>

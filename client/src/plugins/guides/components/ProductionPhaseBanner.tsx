@@ -83,7 +83,7 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
       return 'guides.production.banner.awaitingReview';
     }
     if (stalled) return 'guides.production.banner.stalled';
-    if (isTextPhase && ['research', 'deep', 'summarize'].includes(pipelineStage)) {
+    if (isTextPhase && ['research', 'generate'].includes(pipelineStage)) {
       return `guides.production.banner.pipeline.${pipelineStage}`;
     }
     if (job.status === 'pending') return 'guides.production.banner.pending';

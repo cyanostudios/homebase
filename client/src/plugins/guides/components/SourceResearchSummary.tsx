@@ -25,15 +25,20 @@ export const SourceResearchSummary: React.FC<SourceResearchSummaryProps> = ({
       {!compact && <span className="text-muted-foreground">{t('guides.usage.sources')}</span>}
       <ul className={cn('space-y-1', compact && 'text-xs')}>
         {sources.sources.map((source) => (
-          <li key={source.sourceKey} className="flex items-center justify-between gap-2">
-            <span className="capitalize">{source.sourceKey}</span>
-            <span className="text-muted-foreground">
-              {source.status === 'ok'
-                ? t('guides.usage.sourceOk', { count: source.excerptCount })
-                : source.status === 'empty'
-                  ? t('guides.usage.sourceEmpty')
-                  : t('guides.usage.sourceFailed')}
-            </span>
+          <li key={source.sourceKey} className="space-y-0.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="capitalize">{source.sourceKey}</span>
+              <span className="text-muted-foreground">
+                {source.status === 'ok'
+                  ? t('guides.usage.sourceOk', { count: source.excerptCount })
+                  : source.status === 'empty'
+                    ? t('guides.usage.sourceEmpty')
+                    : t('guides.usage.sourceFailed')}
+              </span>
+            </div>
+            {source.status === 'failed' && source.errorMessage && (
+              <p className="text-[11px] leading-snug text-destructive/90">{source.errorMessage}</p>
+            )}
           </li>
         ))}
       </ul>

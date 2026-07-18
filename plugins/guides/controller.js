@@ -5,20 +5,19 @@ const { AppError } = require('../../server/core/errors/AppError');
 class GuidesController {
   /**
    * @param {import('./model')} model
-   * @param {import('./audio/AudioOrchestrationService')|null} [audioOrchestration]
    * @param {import('./ingest/GuideIngestBridgeService')|null} [ingestBridge]
    * @param {import('./production/ProductionOrchestrationService')|null} [productionOrchestration]
    */
   constructor(
     model,
-    audioOrchestration = null,
     ingestBridge = null,
     productionOrchestration = null,
+    contentSourceSettingsModel = null,
   ) {
     this.model = model;
-    this.audioOrchestration = audioOrchestration;
     this.ingestBridge = ingestBridge;
     this.productionOrchestration = productionOrchestration;
+    this.contentSourceSettingsModel = contentSourceSettingsModel;
   }
 
   async getAll(req, res) {
@@ -85,399 +84,56 @@ class GuidesController {
     }
   }
 
-  async getStops(req, res) {
+  async listPresentations(req, res) {
     try {
-      const stops = await this.model.getStops(req, req.params.id);
-      res.json(stops);
+      const presentations = await this.model.getPresentations(req, req.params.id);
+      res.json(presentations);
     } catch (error) {
-      Logger.error('Get guide stops failed', error, {
+      Logger.error('Get guide presentations failed', error, {
         placeId: req.params.id,
         userId: Context.getUserId(req),
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to fetch stops' });
+      res.status(500).json({ error: 'Failed to fetch presentations' });
     }
   }
 
-  async getStopById(req, res) {
+  async getPresentation(req, res) {
     try {
-      const stop = await this.model.getStopById(req, req.params.id, req.params.stopId);
-      res.json(stop);
-    } catch (error) {
-      Logger.error('Get guide stop failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to fetch stop' });
-    }
-  }
-
-  async createStop(req, res) {
-    try {
-      const stop = await this.model.createStop(req, req.params.id, req.body);
-      res.json(stop);
-    } catch (error) {
-      Logger.error('Create guide stop failed', error, {
-        placeId: req.params.id,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to create stop' });
-    }
-  }
-
-  async updateStop(req, res) {
-    try {
-      const stop = await this.model.updateStop(req, req.params.id, req.params.stopId, req.body);
-      res.json(stop);
-    } catch (error) {
-      Logger.error('Update guide stop failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to update stop' });
-    }
-  }
-
-  async deleteStop(req, res) {
-    try {
-      await this.model.deleteStop(req, req.params.id, req.params.stopId);
-      res.json({ deleted: true });
-    } catch (error) {
-      Logger.error('Delete guide stop failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to delete stop' });
-    }
-  }
-
-  async reorderStops(req, res) {
-    try {
-      const stops = await this.model.reorderStops(req, req.params.id, req.body.stopIds);
-      res.json(stops);
-    } catch (error) {
-      Logger.error('Reorder guide stops failed', error, {
-        placeId: req.params.id,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to reorder stops' });
-    }
-  }
-
-  async getVariants(req, res) {
-    try {
-      const variants = await this.model.getVariants(req, req.params.id, req.params.stopId);
-      res.json(variants);
-    } catch (error) {
-      Logger.error('Get guide variants failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to fetch variants' });
-    }
-  }
-
-  async getVariantById(req, res) {
-    try {
-      const variant = await this.model.getVariantById(
+      const presentation = await this.model.getPresentationByLanguage(
         req,
         req.params.id,
-        req.params.stopId,
-        req.params.variantId,
+        req.params.language,
       );
-      res.json(variant);
+      res.json(presentation);
     } catch (error) {
-      Logger.error('Get guide variant failed', error, {
+      Logger.error('Get guide presentation failed', error, {
         placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
+        language: req.params.language,
         userId: Context.getUserId(req),
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to fetch variant' });
+      res.status(500).json({ error: 'Failed to fetch presentation' });
     }
   }
 
-  async createVariant(req, res) {
+  async updatePresentation(req, res) {
     try {
-      const variant = await this.model.createVariant(
+      const presentation = await this.model.updatePresentation(
         req,
         req.params.id,
-        req.params.stopId,
+        req.params.language,
         req.body,
       );
-      res.json(variant);
+      res.json(presentation);
     } catch (error) {
-      Logger.error('Create guide variant failed', error, {
+      Logger.error('Update guide presentation failed', error, {
         placeId: req.params.id,
-        stopId: req.params.stopId,
+        language: req.params.language,
         userId: Context.getUserId(req),
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to create variant' });
-    }
-  }
-
-  async updateVariant(req, res) {
-    try {
-      const variant = await this.model.updateVariant(
-        req,
-        req.params.id,
-        req.params.stopId,
-        req.params.variantId,
-        req.body,
-      );
-      res.json(variant);
-    } catch (error) {
-      Logger.error('Update guide variant failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to update variant' });
-    }
-  }
-
-  async deleteVariant(req, res) {
-    try {
-      await this.model.deleteVariant(req, req.params.id, req.params.stopId, req.params.variantId);
-      res.json({ deleted: true });
-    } catch (error) {
-      Logger.error('Delete guide variant failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to delete variant' });
-    }
-  }
-
-  async getAudio(req, res) {
-    try {
-      const audio = await this.model.getAudio(
-        req,
-        req.params.id,
-        req.params.stopId,
-        req.params.variantId,
-      );
-      res.json(audio);
-    } catch (error) {
-      Logger.error('Get guide audio failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to fetch audio' });
-    }
-  }
-
-  async createAudio(req, res) {
-    try {
-      const audio = await this.model.createAudio(
-        req,
-        req.params.id,
-        req.params.stopId,
-        req.params.variantId,
-        req.body,
-      );
-      res.json(audio);
-    } catch (error) {
-      Logger.error('Create guide audio failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to create audio' });
-    }
-  }
-
-  async updateAudio(req, res) {
-    try {
-      const audio = await this.model.updateAudio(
-        req,
-        req.params.id,
-        req.params.stopId,
-        req.params.variantId,
-        req.body,
-      );
-      res.json(audio);
-    } catch (error) {
-      Logger.error('Update guide audio failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to update audio' });
-    }
-  }
-
-  async deleteAudio(req, res) {
-    try {
-      if (this.audioOrchestration) {
-        await this.audioOrchestration.deleteWithBlob(
-          req,
-          req.params.id,
-          req.params.stopId,
-          req.params.variantId,
-        );
-      } else {
-        await this.model.deleteAudio(req, req.params.id, req.params.stopId, req.params.variantId);
-      }
-      res.json({ deleted: true });
-    } catch (error) {
-      Logger.error('Delete guide audio failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to delete audio' });
-    }
-  }
-
-  async generateAudio(req, res) {
-    try {
-      if (!this.audioOrchestration) {
-        return res.status(500).json({ error: 'Audio orchestration not configured' });
-      }
-      const audio = await this.audioOrchestration.generate(
-        req,
-        req.params.id,
-        req.params.stopId,
-        req.params.variantId,
-      );
-      res.json(audio);
-    } catch (error) {
-      Logger.error('Generate guide audio failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to generate audio' });
-    }
-  }
-
-  async cancelAudio(req, res) {
-    try {
-      if (!this.audioOrchestration) {
-        return res.status(500).json({ error: 'Audio orchestration not configured' });
-      }
-      const audio = await this.audioOrchestration.cancel(
-        req,
-        req.params.id,
-        req.params.stopId,
-        req.params.variantId,
-      );
-      res.json(audio);
-    } catch (error) {
-      Logger.error('Cancel guide audio failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to cancel audio' });
-    }
-  }
-
-  async previewAudio(req, res) {
-    try {
-      if (!this.audioOrchestration) {
-        return res.status(500).json({ error: 'Audio orchestration not configured' });
-      }
-      const { stream, mimeType } = await this.audioOrchestration.preview(
-        req,
-        req.params.id,
-        req.params.stopId,
-        req.params.variantId,
-      );
-
-      res.setHeader('Content-Type', mimeType);
-      res.setHeader('Content-Disposition', 'inline');
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-
-      stream.on('error', (err) => {
-        Logger.error('Guide audio preview stream error', err, {
-          placeId: req.params.id,
-          stopId: req.params.stopId,
-          variantId: req.params.variantId,
-        });
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Preview failed' });
-        } else {
-          res.destroy();
-        }
-      });
-      stream.pipe(res);
-    } catch (error) {
-      Logger.error('Preview guide audio failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to preview audio' });
-    }
-  }
-
-  async approveStopNarrative(req, res) {
-    try {
-      const stop = await this.model.approveStopNarrative(req, req.params.id, req.params.stopId);
-      res.json(stop);
-    } catch (error) {
-      Logger.error('Approve guide stop narrative failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to approve stop narrative' });
-    }
-  }
-
-  async approveVariantContent(req, res) {
-    try {
-      const variant = await this.model.approveVariantContent(
-        req,
-        req.params.id,
-        req.params.stopId,
-        req.params.variantId,
-      );
-      res.json(variant);
-    } catch (error) {
-      Logger.error('Approve guide variant content failed', error, {
-        placeId: req.params.id,
-        stopId: req.params.stopId,
-        variantId: req.params.variantId,
-        userId: Context.getUserId(req),
-      });
-      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to approve variant content' });
+      res.status(500).json({ error: 'Failed to update presentation' });
     }
   }
 
@@ -773,6 +429,41 @@ class GuidesController {
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to cancel production job' });
+    }
+  }
+
+  async listContentSources(req, res) {
+    try {
+      if (!this.contentSourceSettingsModel) {
+        return res.status(500).json({ error: 'Content source settings not configured' });
+      }
+      const sources = await this.contentSourceSettingsModel.listEffective(req);
+      res.json({ sources });
+    } catch (error) {
+      Logger.error('List content sources failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to list content sources' });
+    }
+  }
+
+  async updateContentSource(req, res) {
+    try {
+      if (!this.contentSourceSettingsModel) {
+        return res.status(500).json({ error: 'Content source settings not configured' });
+      }
+      const source = await this.contentSourceSettingsModel.setEnabled(
+        req,
+        req.params.sourceKey,
+        req.body.enabled,
+      );
+      res.json(source);
+    } catch (error) {
+      Logger.error('Update content source failed', error, {
+        sourceKey: req.params.sourceKey,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to update content source' });
     }
   }
 }

@@ -3,7 +3,7 @@
 **Status:** Backend + frontend implementerade. Provider Management UI (lista/visa/lägg till/redigera/ta bort) implementerad 2026-07-17. Multi-provider-katalog + modellistor i katalog. **Provider routing** (global default + per-plugin override, `AIProviderRouter`) implementerad 2026-07-17; migration `101` lokal körd; **Security Grind 5 godkänd 2026-07-17**. Plattformsgeneralisering QA + Security godkända 2026-07-16. Provider Management QA + Security godkända 2026-07-17. **Ej commit/deployad.**  
 **Epic:** P-AI-SETTINGS  
 **Relaterad:** [`P-TEXT_TEXT_PROVIDER.md`](P-TEXT_TEXT_PROVIDER.md) (text-adapter; denna ADR äger runtime-konfiguration)  
-**Datum:** 2026-07-16 (uppdaterad 2026-07-17: multi-katalog, routing, modellistor, Security routing)
+**Datum:** 2026-07-16 (uppdaterad 2026-07-17: multi-katalog, routing, modellistor, Security routing; **2026-07-19:** Guides/global routing kräver genererbar text-adapter; `textGenerationCapable` från registry)
 
 ---
 
@@ -163,11 +163,12 @@ _Tidigare:_ en post per katalog-provider även utan DB-rad. Efter Provider Manag
 
 **Svar:** `{ providers: CatalogEntry[] }` — tillgängliga provider-typer från `PROVIDER_CATALOG`.
 
-| Fält           | Typ               | Kommentar                    |
-| -------------- | ----------------- | ---------------------------- |
-| `providerKey`  | string            | t.ex. `openai`               |
-| `defaultModel` | string            | Katalogdefault               |
-| `models`       | `{ id, label }[]` | Modellista per provider (UI) |
+| Fält                    | Typ               | Kommentar                                                                                                                          |
+| ----------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `providerKey`           | string            | t.ex. `openai`                                                                                                                     |
+| `defaultModel`          | string            | Katalogdefault                                                                                                                     |
+| `textGenerationCapable` | boolean           | **Effektiv** flagga: intersection av katalog med Guides text-adapter-registry (`listCatalog` / `_listGeneratableTextProviderKeys`) |
+| `models`                | `{ id, label }[]` | Modellista per provider (UI)                                                                                                       |
 
 ### `GET /api/ai-providers/routing`
 
@@ -182,11 +183,12 @@ _Tidigare:_ en post per katalog-provider även utan DB-rad. Efter Provider Manag
 ### `PUT /api/ai-providers/routing`
 
 Sparar global default. Body: `{ providerKey, model? }`.  
-**Krav (backend):** provider måste ha enabled DB-rad **och** lagrad `api_key` (`getResolvedProviderConfig`). Env-only räcker **inte** för att tilldela routing.
+**Krav (backend):** provider måste ha enabled DB-rad **och** lagrad `api_key` (`getResolvedProviderConfig`). Env-only räcker **inte** för att tilldela routing.  
+**Textgenerering (2026-07-19):** för scope `*` (global) och `guides` måste providern även finnas i Guides generatable text-registry (`listGeneratableTextProviderKeys`, idag `openai`). Annars **400** med kod `provider_not_generation_capable`.
 
 ### `PUT /api/ai-providers/routing/plugins/:pluginKey`
 
-Sparar plugin-override. Body: `{ providerKey, model? }`. Samma krav på enabled + lagrad API-nyckel.
+Sparar plugin-override. Body: `{ providerKey, model? }`. Samma krav på enabled + lagrad API-nyckel. För `pluginKey === 'guides'`: samma generatable-krav som global. Övriga routable plugins (om/när fler tillkommer) kräver inte text-adapter.
 
 ### `DELETE /api/ai-providers/routing/plugins/:pluginKey`
 
@@ -272,7 +274,8 @@ Eget frontend-plugin. Nav: **Tools → AI Providers** (`/ai-providers`).
 - **Redigera:** från detaljvy eller header Edit → form (`edit`); informationssidofält i edit (contacts-mönster).
 - **Ta bort:** bekräftelsedialog i detaljvy → `DELETE`.
 - **Routing:** list-toolbar → Routing-vy; global default + plugin-tabell (Guides v1).
-- **Routing-dropdown:** visar endast providers med `enabled === true` **och** `hasApiKey === true`. Providers utan sparad nyckel syns i provider-listan men **inte** i routing-valet. Routing-vyn laddar om settings vid öppning så nyligen aktiverade providers syns.
+- **Routing-dropdown:** visar endast providers med `enabled === true` **och** `hasApiKey === true`. För **global default** och **Guides**-override filtreras listan ytterligare till `textGenerationCapable === true`. Providers utan sparad nyckel syns i provider-listan men **inte** i routing-valet. Routing-vyn laddar om settings vid öppning så nyligen aktiverade providers syns.
+- **Provider form:** hint “no text generation yet” visas när vald provider saknar Guides text-adapter (create **och** edit).
 - Formulär: modellväljare från katalogens `models[]` per `providerKey` (sparad modell utanför listan visas ändå).
 - Bakåtkompatibilitet: befintliga OpenAI-rader och legacy resolve fungerar när routing saknas.
 
@@ -297,14 +300,14 @@ P-TEXT ADR:s sektioner om env-only runtime gäller som **historisk design**; run
 
 **Routing-increment (2026-07-17)** — Security Expert: **godkänt**. Inga oacceptabla fynd. Samma kontroller som settings (CSRF, plugin-gate, tenant `user_id`, parametriserad SQL, katalog-/allowlist). `ai_provider_routing` lagrar **inga** hemligheter.
 
-| ID       | Risk                                                                                                                                                                                                       | Beslut                                                                                                        |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| A1       | Klartext API-nyckel i tenant-DB (`ai_provider_settings`)                                                                                                                                                   | **Accepterad risk** — parity mail/pulses; routing utökar inte secret-lagring; kräver formellt TPM-godkännande |
-| R-ROUT-1 | Orphan routing-rad om provider tas bort/disabled; resolve kan falla till env                                                                                                                               | Rekommendation — framtida cleanup/validering (icke-blockerande)                                               |
-| R-ROUT-2 | `model` fri text (max 255), ej katalogwhitelist                                                                                                                                                            | Rekommendation — parity med settings `defaultModel` (icke-blockerande)                                        |
-| R2       | Externa felmeddelanden i test-svar (`error.message` vid 500)                                                                                                                                               | Rekommendation — generiskt klientfel (ärvd; ej ny i routing)                                                  |
-| R3       | Ingen dedikerad rate limit på muterande settings/routing-endpoints                                                                                                                                         | Rekommendation — parity mail test (ärvd)                                                                      |
-| —        | CSRF, plugin-gate, tenant-scope, parametriserad SQL, maskering, whitelistad `providerKey`, allowlistad `pluginKey`, process-lokal registry (ingen HTTP-registrering), fasta adapter-URL:er (ingen SSRF v1) | Mitigerat                                                                                                     |
+| ID       | Risk                                                                                                                                                                                                       | Beslut                                                                                                                                                                                                 |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A1       | Klartext API-nyckel i tenant-DB (`ai_provider_settings`)                                                                                                                                                   | **Accepterad risk** — parity mail/pulses; routing utökar inte secret-lagring; kräver formellt TPM-godkännande. **Bekräftad oförändrad** vid Security-granskning 2026-07-19 (`ea6fce9` + honesty-diff). |
+| R-ROUT-1 | Orphan routing-rad om provider tas bort/disabled; resolve kan falla till env                                                                                                                               | Rekommendation — framtida cleanup/validering (icke-blockerande)                                                                                                                                        |
+| R-ROUT-2 | `model` fri text (max 255), ej katalogwhitelist                                                                                                                                                            | Rekommendation — parity med settings `defaultModel` (icke-blockerande)                                                                                                                                 |
+| R2       | Externa felmeddelanden i test-svar (`error.message` vid 500)                                                                                                                                               | Rekommendation — generiskt klientfel (ärvd; ej ny i routing)                                                                                                                                           |
+| R3       | Ingen dedikerad rate limit på muterande settings/routing-endpoints                                                                                                                                         | Rekommendation — parity mail test (ärvd)                                                                                                                                                               |
+| —        | CSRF, plugin-gate, tenant-scope, parametriserad SQL, maskering, whitelistad `providerKey`, allowlistad `pluginKey`, process-lokal registry (ingen HTTP-registrering), fasta adapter-URL:er (ingen SSRF v1) | Mitigerat                                                                                                                                                                                              |
 
 **Framtida providers:** nya adapters får inte ta användarstyrd base-URL (SSRF).
 
@@ -312,7 +315,7 @@ P-TEXT ADR:s sektioner om env-only runtime gäller som **historisk design**; run
 
 ## Utanför scope (ej levererat)
 
-- Text-adapters / connection tests för icke-`openai` katalogproviders (settings + routing kan lagra dem; Guides text-runtime + test saknar factory)
+- Text-adapters / connection tests för icke-`openai` katalogproviders (settings kan fortfarande lagra credentials; **Guides/global routing** blockerar icke-genererbara assignments)
 - Capability-baserad / cost / failover / load-balancing routing (`capability` accepteras men ignoreras i v1)
 - Platform-wide eller tenant-delad default (routing är per `user_id`)
 - Fler routable plugins än `guides` i allowlist
@@ -323,6 +326,7 @@ P-TEXT ADR:s sektioner om env-only runtime gäller som **historisk design**; run
 - Generiskt klientfel för R2 (rekommendation, ej åtgärdat)
 - Cleanup av orphan routing-rader (R-ROUT-1)
 - Katalogwhitelist för routing-`model` (R-ROUT-2)
+- OpenAI balance/kvot-förkoll före Produce (avsiktligt deferred; se P-GEN-STATUS GS1)
 
 ---
 
