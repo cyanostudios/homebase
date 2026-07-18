@@ -1,6 +1,8 @@
 // plugins/guides/providers/text/adapters/OpenAITextProvider.js
 const TextPromptLoader = require('../TextPromptLoader');
 const ProviderRateLimiter = require('../../shared/ProviderRateLimiter');
+const { mapHttpStatusToFailureCode } = require('../../../../ai-providers/generationFailureCodes');
+const { calculateCost } = require('../../../../ai-providers/CostCalculator');
 
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -74,25 +76,41 @@ class OpenAITextProvider {
 
   /**
    * @param {import('express').Request} _req
-   * @param {{ canonicalNarrative: string|null|undefined, variantType: string, language: string }} input
+   * @param {{
+   *   canonicalNarrative?: string|null,
+   *   variantType: string,
+   *   language: string,
+   *   placeContext?: object|null,
+   *   sourcePackText?: string|null,
+   *   sourceDeepText?: string|null,
+   * }} input
    */
   async generate(_req, input) {
     const narrative = String(input.canonicalNarrative ?? '').trim();
-    if (!narrative) {
+    const sourcePackText = String(input.sourcePackText ?? '').trim();
+    const sourceDeepText = String(input.sourceDeepText ?? '').trim();
+    if (!narrative && !sourcePackText && !sourceDeepText) {
       return {
         status: 'failed',
-        errorMessage: 'canonicalNarrative is required for text derivation',
+        failureCode: 'content_input_invalid',
+        errorMessage:
+          'source pack, deep presentation, or canonicalNarrative is required for text derivation',
       };
     }
 
     if (!this._apiKey) {
-      return { status: 'failed', errorMessage: 'OPENAI_API_KEY is not configured' };
+      return {
+        status: 'failed',
+        failureCode: 'provider_auth_failed',
+        errorMessage: 'OPENAI_API_KEY is not configured',
+      };
     }
 
     const rateCheck = ProviderRateLimiter.tryAcquire(this.key, this._rpm);
     if (!rateCheck.allowed) {
       return {
         status: 'retry',
+        failureCode: 'provider_rate_limited',
         retryAfterMs: rateCheck.retryAfterMs,
         errorMessage: 'Text provider rate limit exceeded',
       };
@@ -104,10 +122,13 @@ class OpenAITextProvider {
         canonicalNarrative: narrative,
         language: input.language,
         variantType: input.variantType,
+        placeContext: input.placeContext ?? null,
+        sourcePackText,
+        sourceDeepText,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Prompt loading failed';
-      return { status: 'failed', errorMessage: message };
+      return { status: 'failed', failureCode: 'provider_invalid_request', errorMessage: message };
     }
 
     const requestedAt = new Date().toISOString();
@@ -135,18 +156,36 @@ class OpenAITextProvider {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'OpenAI request failed';
       if (message.includes('TimeoutError') || message.includes('aborted')) {
-        return { status: 'failed', errorMessage: 'OpenAI request timed out' };
+        return {
+          status: 'failed',
+          failureCode: 'provider_unavailable',
+          errorMessage: 'OpenAI request timed out',
+        };
       }
-      return { status: 'failed', errorMessage: message };
+      return {
+        status: 'failed',
+        failureCode: 'provider_unavailable',
+        errorMessage: message,
+      };
     }
 
     const latencyMs = Date.now() - startMs;
 
     if (response.status === 429) {
+      let detail = '';
+      try {
+        const body = await response.json();
+        detail = body?.error?.message ?? '';
+      } catch {
+        // ignore
+      }
+      const failureCode = mapHttpStatusToFailureCode(429, detail);
       return {
-        status: 'retry',
-        retryAfterMs: parseRetryAfterMs(response),
-        errorMessage: 'OpenAI rate limit (429)',
+        status: failureCode === 'provider_quota_exhausted' ? 'failed' : 'retry',
+        failureCode,
+        retryAfterMs:
+          failureCode === 'provider_rate_limited' ? parseRetryAfterMs(response) : undefined,
+        errorMessage: detail || 'OpenAI rate limit (429)',
       };
     }
 
@@ -160,6 +199,7 @@ class OpenAITextProvider {
       }
       return {
         status: 'failed',
+        failureCode: mapHttpStatusToFailureCode(response.status, detail),
         errorMessage: detail || `OpenAI request failed (${response.status})`,
       };
     }
@@ -168,22 +208,41 @@ class OpenAITextProvider {
     try {
       data = await response.json();
     } catch {
-      return { status: 'failed', errorMessage: 'Invalid JSON response from OpenAI' };
+      return {
+        status: 'failed',
+        failureCode: 'provider_unknown_error',
+        errorMessage: 'Invalid JSON response from OpenAI',
+      };
     }
 
     const rawText = data?.choices?.[0]?.message?.content ?? '';
     const presentationText = String(rawText).trim();
     if (!presentationText) {
-      return { status: 'failed', errorMessage: 'OpenAI returned empty presentation text' };
+      return {
+        status: 'failed',
+        failureCode: 'provider_unknown_error',
+        errorMessage: 'OpenAI returned empty presentation text',
+      };
     }
 
-    const usage = data.usage
-      ? {
-          promptTokens: data.usage.prompt_tokens ?? 0,
-          completionTokens: data.usage.completion_tokens ?? 0,
-          totalTokens: data.usage.total_tokens ?? 0,
-        }
-      : undefined;
+    const inputTokens = data.usage?.prompt_tokens ?? 0;
+    const outputTokens = data.usage?.completion_tokens ?? 0;
+    const totalTokens = data.usage?.total_tokens ?? inputTokens + outputTokens;
+
+    const usage = {
+      provider: this.key,
+      model: this._model,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      latencyMs,
+    };
+
+    const cost = calculateCost({
+      providerKey: this.key,
+      model: this._model,
+      usage,
+    });
 
     return {
       status: 'ready',
@@ -200,6 +259,7 @@ class OpenAITextProvider {
           finishReason: data?.choices?.[0]?.finish_reason ?? null,
         },
         usage,
+        cost: cost ?? undefined,
         requestedAt,
         latencyMs,
       },

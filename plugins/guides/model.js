@@ -90,6 +90,131 @@ function narrativesEqual(a, b) {
   return String(a ?? '') === String(b ?? '');
 }
 
+function parseBoundedNumber(value, min, max, label) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    throw new AppError(`${label} is out of range`, 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  return parsed;
+}
+
+function sanitizePlaceTypes(value) {
+  if (value === null || value === undefined) return null;
+  if (!Array.isArray(value)) {
+    throw new AppError('place.placeTypes must be an array', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  const cleaned = value
+    .map((item) =>
+      String(item ?? '')
+        .trim()
+        .toLowerCase(),
+    )
+    .filter(Boolean)
+    .slice(0, 20);
+  return cleaned.length ? cleaned : null;
+}
+
+function sanitizeBbox(value) {
+  if (value === null || value === undefined) return null;
+  if (!Array.isArray(value) || value.length !== 4) {
+    throw new AppError(
+      'place.bbox must be an array of 4 numbers',
+      400,
+      AppError.CODES.VALIDATION_ERROR,
+    );
+  }
+  const nums = value.map((n) => Number(n));
+  if (nums.some((n) => !Number.isFinite(n))) {
+    throw new AppError('place.bbox must contain numbers', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  return nums;
+}
+
+function sanitizeResolvedAt(value) {
+  if (value === null || value === undefined || value === '') return new Date().toISOString();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new AppError(
+      'place.resolvedAt must be a valid date',
+      400,
+      AppError.CODES.VALIDATION_ERROR,
+    );
+  }
+  return date.toISOString();
+}
+
+/**
+ * Normalize an API PlaceResolved snapshot (camelCase) into DB-ready fields.
+ * Returns null when place is null/undefined (place cleared / not set).
+ * @param {object|null|undefined} place
+ */
+function sanitizePlaceSnapshot(place) {
+  if (place === null || place === undefined) return null;
+  if (typeof place !== 'object' || Array.isArray(place)) {
+    throw new AppError('place must be an object', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+
+  const provider = sanitizeOptionalText(place.provider, 50);
+  if (!provider) {
+    throw new AppError('place.provider is required', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  const displayName = sanitizeOptionalText(place.displayName, 255);
+  if (!displayName) {
+    throw new AppError('place.displayName is required', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+
+  let latitude = null;
+  let longitude = null;
+  if (place.coordinates !== null && place.coordinates !== undefined) {
+    if (typeof place.coordinates !== 'object' || Array.isArray(place.coordinates)) {
+      throw new AppError(
+        'place.coordinates must be an object',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
+    latitude = parseBoundedNumber(place.coordinates.lat, -90, 90, 'place.coordinates.lat');
+    longitude = parseBoundedNumber(place.coordinates.lng, -180, 180, 'place.coordinates.lng');
+  }
+
+  return {
+    provider: provider.toLowerCase(),
+    providerRef: sanitizeOptionalText(place.providerRef, 255),
+    displayName,
+    formattedAddress: sanitizeOptionalText(place.formattedAddress, 500),
+    latitude,
+    longitude,
+    countryCode: place.countryCode
+      ? String(place.countryCode).trim().toUpperCase().slice(0, 2)
+      : null,
+    adminArea: sanitizeOptionalText(place.adminArea, 255),
+    locality: sanitizeOptionalText(place.locality, 255),
+    placeTypes: sanitizePlaceTypes(place.placeTypes),
+    bbox: sanitizeBbox(place.bbox),
+    resolvedAt: sanitizeResolvedAt(place.resolvedAt),
+  };
+}
+
+function buildPlaceFromRow(row) {
+  if (!row || !row.place_provider) return null;
+  const lat = row.latitude != null ? Number(row.latitude) : null;
+  const lng = row.longitude != null ? Number(row.longitude) : null;
+  return {
+    provider: row.place_provider,
+    providerRef: row.place_provider_ref ?? null,
+    displayName: row.resolved_name ?? '',
+    formattedAddress: row.formatted_address ?? null,
+    coordinates: lat != null && lng != null ? { lat, lng } : null,
+    countryCode: row.country_code ?? null,
+    adminArea: row.admin_area ?? null,
+    locality: row.locality ?? null,
+    placeTypes: Array.isArray(row.place_types) ? row.place_types : [],
+    bbox: Array.isArray(row.bbox) ? row.bbox : null,
+    resolvedAt: row.place_resolved_at ?? null,
+  };
+}
+
 function assertNoClientAudioStorageRef(data) {
   if (data.storageRef !== undefined) {
     throw new AppError('storageRef cannot be set via API', 400, AppError.CODES.VALIDATION_ERROR);
@@ -109,6 +234,7 @@ class GuidesModel {
       displayName: placeRow.display_name ?? '',
       shortIntro: placeRow.short_intro ?? null,
       geographicReference: placeRow.geographic_reference ?? null,
+      place: buildPlaceFromRow(placeRow),
       lifecycleStatus: placeRow.lifecycle_status ?? 'draft',
       ingestSourceId: placeRow.ingest_source_id != null ? String(placeRow.ingest_source_id) : null,
       ingestRunId: placeRow.ingest_run_id != null ? String(placeRow.ingest_run_id) : null,
@@ -192,7 +318,14 @@ class GuidesModel {
 
       const displayName = sanitizeDisplayName(data.displayName);
       const shortIntro = sanitizeOptionalText(data.shortIntro, 5000);
-      const geographicReference = sanitizeOptionalText(data.geographicReference, 255);
+      const placeSnapshot = sanitizePlaceSnapshot(data.place);
+      let geographicReference = sanitizeOptionalText(data.geographicReference, 255);
+      if (!geographicReference && placeSnapshot) {
+        geographicReference =
+          (placeSnapshot.formattedAddress || placeSnapshot.displayName || '')
+            .toString()
+            .slice(0, 255) || null;
+      }
       const lifecycleStatus = parseLifecycleStatus(data.lifecycleStatus);
       const sourceLanguage = parseSourceLanguage(data.sourceLanguage);
 
@@ -204,12 +337,45 @@ class GuidesModel {
               display_name,
               short_intro,
               geographic_reference,
-              lifecycle_status
+              lifecycle_status,
+              place_provider,
+              place_provider_ref,
+              resolved_name,
+              formatted_address,
+              latitude,
+              longitude,
+              country_code,
+              admin_area,
+              locality,
+              place_types,
+              bbox,
+              place_resolved_at
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES (
+              $1, $2, $3, $4, $5,
+              $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17
+            )
             RETURNING *
           `,
-          [userId, displayName, shortIntro, geographicReference, lifecycleStatus],
+          [
+            userId,
+            displayName,
+            shortIntro,
+            geographicReference,
+            lifecycleStatus,
+            placeSnapshot?.provider ?? null,
+            placeSnapshot?.providerRef ?? null,
+            placeSnapshot?.displayName ?? null,
+            placeSnapshot?.formattedAddress ?? null,
+            placeSnapshot?.latitude ?? null,
+            placeSnapshot?.longitude ?? null,
+            placeSnapshot?.countryCode ?? null,
+            placeSnapshot?.adminArea ?? null,
+            placeSnapshot?.locality ?? null,
+            placeSnapshot?.placeTypes ? JSON.stringify(placeSnapshot.placeTypes) : null,
+            placeSnapshot?.bbox ? JSON.stringify(placeSnapshot.bbox) : null,
+            placeSnapshot?.resolvedAt ?? null,
+          ],
         );
         const place = placeRows[0];
 
@@ -248,10 +414,27 @@ class GuidesModel {
 
       const displayName = sanitizeDisplayName(data.displayName);
       const shortIntro = sanitizeOptionalText(data.shortIntro, 5000);
-      const geographicReference = sanitizeOptionalText(data.geographicReference, 255);
       const lifecycleStatus = parseLifecycleStatus(data.lifecycleStatus);
       if (lifecycleStatus === 'active' && existing.lifecycleStatus !== 'active') {
         await this._assertPlaceHasPublishableVariant(db, placeId);
+      }
+
+      // Place snapshot: undefined = keep existing; null = clear; object = replace.
+      // Normalize both paths to DB-field shape (existing.place uses API shape).
+      const placeSnapshot =
+        data.place !== undefined
+          ? sanitizePlaceSnapshot(data.place)
+          : sanitizePlaceSnapshot(existing.place);
+      const placeChanged = data.place !== undefined;
+
+      let geographicReference = sanitizeOptionalText(data.geographicReference, 255);
+      if (data.geographicReference === undefined) {
+        geographicReference =
+          placeChanged && placeSnapshot
+            ? (placeSnapshot.formattedAddress || placeSnapshot.displayName || '')
+                .toString()
+                .slice(0, 255) || null
+            : (existing.geographicReference ?? null);
       }
 
       const rows = await db.query(
@@ -262,11 +445,41 @@ class GuidesModel {
             short_intro = $2,
             geographic_reference = $3,
             lifecycle_status = $4,
+            place_provider = $6,
+            place_provider_ref = $7,
+            resolved_name = $8,
+            formatted_address = $9,
+            latitude = $10,
+            longitude = $11,
+            country_code = $12,
+            admin_area = $13,
+            locality = $14,
+            place_types = $15::jsonb,
+            bbox = $16::jsonb,
+            place_resolved_at = $17,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = $5
           RETURNING *
         `,
-        [displayName, shortIntro, geographicReference, lifecycleStatus, placeId],
+        [
+          displayName,
+          shortIntro,
+          geographicReference,
+          lifecycleStatus,
+          placeId,
+          placeSnapshot?.provider ?? null,
+          placeSnapshot?.providerRef ?? null,
+          placeSnapshot?.displayName ?? null,
+          placeSnapshot?.formattedAddress ?? null,
+          placeSnapshot?.latitude ?? null,
+          placeSnapshot?.longitude ?? null,
+          placeSnapshot?.countryCode ?? null,
+          placeSnapshot?.adminArea ?? null,
+          placeSnapshot?.locality ?? null,
+          placeSnapshot?.placeTypes ? JSON.stringify(placeSnapshot.placeTypes) : null,
+          placeSnapshot?.bbox ? JSON.stringify(placeSnapshot.bbox) : null,
+          placeSnapshot?.resolvedAt ?? null,
+        ],
       );
 
       const hasMasterGuideUpdates =

@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import type { ProductionJob, ProductionJobItem } from '../types/guides';
 import {
   countPendingReviewItems,
-  getCurrentPhaseStep,
+  getTextPipelineStage,
   isProductionJobActive,
   summarizePhaseProgress,
 } from '../utils/productionJobHelpers';
@@ -38,9 +38,9 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
   const [cancelOpen, setCancelOpen] = React.useState(false);
 
   const active = job && isProductionJobActive(job.status);
-  const phaseStep = job ? getCurrentPhaseStep(job) : null;
   const progress = job ? summarizePhaseProgress(job, items) : null;
   const pendingReview = job ? countPendingReviewItems(job, items) : 0;
+  const pipelineStage = job ? getTextPipelineStage(job, items) : null;
 
   return (
     <>
@@ -63,6 +63,9 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
             >
               {t('guides.production.startFullGuide')}
             </Button>
+            {!active && !hasActiveJob && (
+              <p className="text-muted-foreground">{t('guides.production.panelIdleHint')}</p>
+            )}
 
             {active && job && (
               <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
@@ -70,11 +73,14 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
                   {t('guides.production.panelActive')}
                 </div>
                 <div className="space-y-1 text-muted-foreground">
-                  <div>
-                    {t('guides.production.panelPhase', {
-                      phase: phaseStep ? t(`guides.production.phases.${phaseStep}`) : '—',
-                    })}
-                  </div>
+                  {pipelineStage &&
+                    ['research', 'deep', 'summarize', 'review'].includes(pipelineStage) && (
+                      <div>
+                        {t('guides.production.panelPhase', {
+                          phase: t(`guides.production.pipeline.${pipelineStage}`),
+                        })}
+                      </div>
+                    )}
                   <div>{t('guides.production.jobLabel', { id: job.id })}</div>
                   {progress && progress.total > 0 && (
                     <div>
@@ -115,10 +121,6 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
                   </Button>
                 )}
               </div>
-            )}
-
-            {!active && !hasActiveJob && (
-              <p className="text-muted-foreground">{t('guides.production.panelIdle')}</p>
             )}
           </div>
         </DetailSection>

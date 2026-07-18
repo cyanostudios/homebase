@@ -175,6 +175,7 @@ export function GuidesProvider({
         geographicReference: raw.geographicReference?.trim()
           ? raw.geographicReference.trim()
           : null,
+        place: raw.place ?? null,
         lifecycleStatus: raw.lifecycleStatus ?? 'draft',
         sourceLanguage: raw.sourceLanguage?.trim() ? raw.sourceLanguage.trim().toLowerCase() : 'sv',
       };
@@ -191,6 +192,7 @@ export function GuidesProvider({
             displayName: payload.displayName,
             shortIntro: payload.shortIntro,
             geographicReference: payload.geographicReference,
+            place: payload.place,
             lifecycleStatus: payload.lifecycleStatus,
             sourceLanguage: payload.sourceLanguage,
             masterGuideEditorialStatus: raw.masterGuideEditorialStatus,

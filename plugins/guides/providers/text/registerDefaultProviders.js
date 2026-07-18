@@ -15,4 +15,10 @@ function ensureTextProvidersRegistered() {
   registered = true;
 }
 
-module.exports = { ensureTextProvidersRegistered };
+/** Provider keys that can actually generate guide text (excludes noop stubs). */
+function listGeneratableTextProviderKeys() {
+  ensureTextProvidersRegistered();
+  return TextProviderRegistry.listKeys().filter((key) => key !== 'noop');
+}
+
+module.exports = { ensureTextProvidersRegistered, listGeneratableTextProviderKeys };

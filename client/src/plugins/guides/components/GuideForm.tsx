@@ -22,7 +22,9 @@ import {
   GUIDE_LIFECYCLE_STATUSES,
   MASTER_GUIDE_EDITORIAL_STATUSES,
   type GuidePayload,
+  type PlaceResolved,
 } from '../types/guides';
+import { PlaceSearchField } from './PlaceSearchField';
 
 const FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
@@ -32,6 +34,7 @@ interface GuideFormProps {
     displayName: string;
     shortIntro: string | null;
     geographicReference: string | null;
+    place?: PlaceResolved | null;
     lifecycleStatus: GuidePayload['lifecycleStatus'];
     sourceLanguage: string;
     masterGuideEditorialStatus: GuidePayload['masterGuideEditorialStatus'];
@@ -64,6 +67,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
     displayName: '',
     shortIntro: null,
     geographicReference: null,
+    place: null,
     lifecycleStatus: 'draft',
     sourceLanguage: 'sv',
     masterGuideEditorialStatus: 'draft',
@@ -83,6 +87,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
       displayName: '',
       shortIntro: null,
       geographicReference: null,
+      place: null,
       lifecycleStatus: 'draft',
       sourceLanguage: 'sv',
       masterGuideEditorialStatus: 'draft',
@@ -96,6 +101,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
         displayName: currentItem.displayName,
         shortIntro: currentItem.shortIntro,
         geographicReference: currentItem.geographicReference,
+        place: currentItem.place ?? null,
         lifecycleStatus: currentItem.lifecycleStatus ?? 'draft',
         sourceLanguage: currentItem.sourceLanguage,
         masterGuideEditorialStatus: currentItem.masterGuideEditorialStatus ?? 'draft',
@@ -247,15 +253,25 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                   </div>
 
                   <div>
-                    <Label htmlFor="guide-geographic-reference">
-                      {t('guides.geographicReference')}
-                    </Label>
-                    <Input
-                      id="guide-geographic-reference"
-                      value={formData.geographicReference ?? ''}
-                      onChange={(e) => updateField('geographicReference', e.target.value || null)}
-                      placeholder={t('guides.geographicReferencePlaceholder')}
-                    />
+                    <Label htmlFor="guide-place">{t('guides.place.label')}</Label>
+                    <div id="guide-place" className="mt-1">
+                      <PlaceSearchField
+                        value={formData.place ?? null}
+                        geographicReferenceFallback={
+                          formData.place ? null : formData.geographicReference
+                        }
+                        disabled={isCurrentlySubmitting}
+                        onChange={(place, geographicReference) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            place,
+                            geographicReference,
+                          }));
+                          markDirty();
+                          clearValidationErrors();
+                        }}
+                      />
+                    </div>
                   </div>
 
                   <div>

@@ -30,7 +30,8 @@ const ITEM_STATUSES = [
 ];
 const REVIEW_STATUSES = ['pending_review', 'approved', 'rejected', 'superseded'];
 const CHECKPOINT_MODES = ['after_text', 'after_each', 'auto'];
-const DEFAULT_PHASES = ['text_derivation', 'translation'];
+/** Text-first pipeline; translation is opt-in until a real provider exists. */
+const DEFAULT_PHASES = ['text_derivation'];
 const DEFAULT_CHECKPOINT_MODE = 'after_text';
 
 const IN_FLIGHT_ITEM_STATUSES = ['pending', 'queued', 'processing', 'awaiting_callback'];
@@ -84,6 +85,7 @@ class ProductionJobModel {
       externalId: row.external_id ?? null,
       workerClaimedAt: row.worker_claimed_at ?? null,
       errorMessage: row.error_message ?? null,
+      failureCode: row.failure_code ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -283,6 +285,31 @@ class ProductionJobModel {
       throw new AppError('Production job not found', 404, AppError.CODES.NOT_FOUND);
     }
     await this.appendEvent(req, jobId, `job_${status}`, extra.payload ?? null);
+    return this.transformJobRow(rows[0]);
+  }
+
+  /**
+   * Merge keys into job_options JSONB (shallow merge).
+   * @param {import('express').Request} req
+   * @param {string} jobId
+   * @param {object} patch
+   */
+  async mergeJobOptions(req, jobId, patch) {
+    const { db, userId } = this._requireUserId(req);
+    const rows = await db.query(
+      `
+        UPDATE ${JOBS_TABLE}
+        SET
+          job_options = COALESCE(job_options, '{}'::jsonb) || $1::jsonb,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2 AND user_id = $3
+        RETURNING *
+      `,
+      [JSON.stringify(patch ?? {}), jobId, userId],
+    );
+    if (!rows.length) {
+      throw new AppError('Production job not found', 404, AppError.CODES.NOT_FOUND);
+    }
     return this.transformJobRow(rows[0]);
   }
 
@@ -589,9 +616,10 @@ class ProductionJobModel {
           external_id = COALESCE($5, external_id),
           retry_count = COALESCE($6, retry_count),
           retry_after = COALESCE($7, retry_after),
+          failure_code = COALESCE($8, failure_code),
           worker_claimed_at = CASE WHEN $1 IN ('completed', 'failed', 'skipped', 'cancelled', 'pending') THEN NULL ELSE worker_claimed_at END,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $8 AND user_id = $9
+        WHERE id = $9 AND user_id = $10
         RETURNING *
       `,
       [
@@ -602,6 +630,7 @@ class ProductionJobModel {
         data.externalId ?? null,
         data.retryCount ?? null,
         data.retryAfter ?? null,
+        data.failureCode ?? null,
         itemId,
         userId,
       ],

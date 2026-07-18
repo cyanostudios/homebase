@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { guidesApi } from '../api/guidesApi';
 import type {
+  GenerationUsageSummary,
   ProductionJob,
   ProductionJobItem,
   ProductionStartScope,
@@ -21,15 +22,18 @@ export interface UseProductionJobResult {
   jobs: ProductionJob[];
   job: ProductionJob | null;
   items: ProductionJobItem[];
+  usageSummary: GenerationUsageSummary | null;
   isLoading: boolean;
   isPolling: boolean;
   isBusy: boolean;
   error: string | null;
+  failureCode: string | null;
   selectedJobId: string | null;
   hasActiveJob: boolean;
   refreshJobs: () => Promise<void>;
   selectJob: (jobId: string | null) => void;
   startJob: (scope: ProductionStartScope, options?: { force?: boolean }) => Promise<boolean>;
+  clearFailure: () => void;
   approveItem: (itemId: string) => Promise<void>;
   rejectItem: (itemId: string) => Promise<void>;
   regenerateItem: (itemId: string) => Promise<void>;
@@ -61,22 +65,34 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
   const [jobs, setJobs] = useState<ProductionJob[]>([]);
   const [job, setJob] = useState<ProductionJob | null>(null);
   const [items, setItems] = useState<ProductionJobItem[]>([]);
+  const [usageSummary, setUsageSummary] = useState<GenerationUsageSummary | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failureCode, setFailureCode] = useState<string | null>(null);
   const selectedJobIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     selectedJobIdRef.current = selectedJobId;
   }, [selectedJobId]);
 
-  const applyDetail = useCallback((detail: { job: ProductionJob; items: ProductionJobItem[] }) => {
-    setJob(detail.job);
-    setItems(detail.items);
-    setJobs((prev) => upsertJobInList(prev, detail.job));
-  }, []);
+  const applyDetail = useCallback(
+    (detail: {
+      job: ProductionJob;
+      items: ProductionJobItem[];
+      usageSummary?: GenerationUsageSummary | null;
+    }) => {
+      setJob(detail.job);
+      setItems(detail.items);
+      if (detail.usageSummary !== undefined) {
+        setUsageSummary(detail.usageSummary);
+      }
+      setJobs((prev) => upsertJobInList(prev, detail.job));
+    },
+    [],
+  );
 
   const refreshJobs = useCallback(async () => {
     if (!placeId) return;
@@ -89,6 +105,7 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       if (!targetId) {
         setJob(null);
         setItems([]);
+        setUsageSummary(null);
         return;
       }
       const detail = await guidesApi.getProductionJob(placeId, targetId);
@@ -101,6 +118,7 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       setJobs([]);
       setJob(null);
       setItems([]);
+      setUsageSummary(null);
     }
   }, [applyDetail, placeId, t]);
 
@@ -153,6 +171,7 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       if (!jobId) {
         setJob(null);
         setItems([]);
+        setUsageSummary(null);
         return;
       }
       setIsLoading(true);
@@ -164,9 +183,16 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
   );
 
   const runMutation = useCallback(
-    async (action: () => Promise<{ job: ProductionJob; items: ProductionJobItem[] }>) => {
+    async (
+      action: () => Promise<{
+        job: ProductionJob;
+        items: ProductionJobItem[];
+        usageSummary?: GenerationUsageSummary | null;
+      }>,
+    ) => {
       setIsBusy(true);
       setError(null);
+      setFailureCode(null);
       try {
         const result = await action();
         applyDetail(result);
@@ -175,8 +201,12 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
         setSelectedJobId(result.job.id);
       } catch (err) {
         const status = (err as { status?: number }).status;
+        const code = (err as { code?: string }).code;
         if (status === 409) {
           setError(t('guides.production.activeJobConflict'));
+        } else if (status === 422 && code) {
+          setFailureCode(code);
+          setError(null);
         } else {
           setError(t('guides.production.actionFailed'));
         }
@@ -201,6 +231,10 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
     },
     [placeId, runMutation],
   );
+
+  const clearFailure = useCallback(() => {
+    setFailureCode(null);
+  }, []);
 
   const approveItem = useCallback(
     async (itemId: string) => {
@@ -249,15 +283,18 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
     jobs,
     job,
     items,
+    usageSummary,
     isLoading,
     isPolling,
     isBusy,
     error,
+    failureCode,
     selectedJobId,
     hasActiveJob: active !== null,
     refreshJobs,
     selectJob,
     startJob,
+    clearFailure,
     approveItem,
     rejectItem,
     regenerateItem,

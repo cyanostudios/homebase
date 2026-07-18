@@ -1,4 +1,4 @@
-import { Edit, Info, Languages, ListOrdered, MapPin, Trash2 } from 'lucide-react';
+import { Edit, Info, Languages, ListOrdered, MapPin, Receipt, Trash2 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -25,7 +25,8 @@ import {
   type GuideLifecycleStatus,
   type ProductionStartScope,
 } from '../types/guides';
-import { isProductionJobActive } from '../utils/productionJobHelpers';
+import { isProductionJobActive, resolveSourceSummary } from '../utils/productionJobHelpers';
+import { SourceResearchSummary } from './SourceResearchSummary';
 
 interface GuideViewProps {
   guide?: Guide;
@@ -61,8 +62,23 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
 
   const handleStartConfirm = async (options: { force: boolean }) => {
     const ok = await production.startJob(startScope, options);
-    if (ok) setStartDialogOpen(false);
+    if (ok) {
+      production.clearFailure();
+      setStartDialogOpen(false);
+    }
   };
+
+  const handleStartRetry = async () => {
+    const ok = await production.startJob(startScope, { force: false });
+    if (ok) {
+      production.clearFailure();
+      setStartDialogOpen(false);
+    }
+  };
+
+  const usage = production.usageSummary;
+  const sourceSummary = resolveSourceSummary(usage?.sources, production.job);
+  const showUsageCard = Boolean(usage) || Boolean(sourceSummary);
 
   const showBanner =
     production.job &&
@@ -158,6 +174,84 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
                 </div>
               </DetailSection>
             </Card>
+
+            {showUsageCard && (
+              <Card
+                padding="none"
+                className="overflow-hidden border border-border/70 bg-card shadow-sm"
+              >
+                <DetailSection title={t('guides.usage.title')} icon={Receipt} className="p-4">
+                  <div className="space-y-3 text-xs">
+                    {usage && (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">
+                            {t('guides.usage.provider')}
+                          </span>
+                          <span>{usage.provider ?? '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">{t('guides.usage.model')}</span>
+                          <span className="font-mono">{usage.model ?? '—'}</span>
+                        </div>
+                        <div className="border-t border-border/50 pt-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">
+                              {t('guides.usage.inputTokens')}
+                            </span>
+                            <span>{usage.inputTokens.toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">
+                              {t('guides.usage.outputTokens')}
+                            </span>
+                            <span>{usage.outputTokens.toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">
+                              {t('guides.usage.totalTokens')}
+                            </span>
+                            <span>{usage.totalTokens.toLocaleString()}</span>
+                          </div>
+                        </div>
+                        <div className="border-t border-border/50 pt-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">
+                              {t('guides.usage.estCost')}
+                            </span>
+                            <span>
+                              {usage.estimatedCost
+                                ? `~${usage.estimatedCost.totalCost.toFixed(4)} ${usage.estimatedCost.currency}`
+                                : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">
+                              {t('guides.usage.latency')}
+                            </span>
+                            <span>
+                              {usage.latencyMs > 0
+                                ? `${(usage.latencyMs / 1000).toFixed(1)} s`
+                                : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {sourceSummary && (
+                      <div className={usage ? 'border-t border-border/50 pt-3' : undefined}>
+                        <SourceResearchSummary sources={sourceSummary} />
+                      </div>
+                    )}
+                    {usage && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {t('guides.usage.estimatedNote')}
+                      </p>
+                    )}
+                  </div>
+                </DetailSection>
+              </Card>
+            )}
           </div>
         }
       >
@@ -225,9 +319,21 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
 
                 <div className="border-t border-border/50 pt-4">
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t('guides.geographicReference')}
+                    {t('guides.place.label')}
                   </div>
-                  <div className="text-sm">{actualGuide.geographicReference ?? '—'}</div>
+                  <div className="text-sm">
+                    {actualGuide.place?.displayName ||
+                      actualGuide.place?.formattedAddress ||
+                      actualGuide.geographicReference ||
+                      '—'}
+                  </div>
+                  {actualGuide.place?.formattedAddress &&
+                    actualGuide.place.displayName &&
+                    actualGuide.place.formattedAddress !== actualGuide.place.displayName && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {actualGuide.place.formattedAddress}
+                      </div>
+                    )}
                 </div>
               </div>
             </DetailSection>
@@ -309,8 +415,14 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
         scope={startScope}
         isBusy={production.isBusy}
         hasActiveJob={production.hasActiveJob}
+        failureCode={production.failureCode}
         onConfirm={(options) => void handleStartConfirm(options)}
-        onCancel={() => setStartDialogOpen(false)}
+        onRetry={() => void handleStartRetry()}
+        onClearFailure={production.clearFailure}
+        onCancel={() => {
+          production.clearFailure();
+          setStartDialogOpen(false);
+        }}
       />
 
       <ConfirmDialog

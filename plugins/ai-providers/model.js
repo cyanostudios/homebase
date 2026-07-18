@@ -173,6 +173,7 @@ class AIProviderSettingsModel {
     return Object.values(PROVIDER_CATALOG).map((entry) => ({
       providerKey: entry.key,
       defaultModel: entry.defaultModel,
+      textGenerationCapable: entry.textGenerationCapable === true,
       models: (entry.models || []).map((model) => ({
         id: model.id,
         label: model.label || model.id,

@@ -2,8 +2,12 @@ import type { ProductionJob, ProductionJobItem } from '../../types/guides';
 import {
   canAdvancePhase,
   countPendingReviewItems,
+  getProductionJobFailureSummary,
   getProposedItemText,
+  getTextPipelineStage,
   hasActiveProductionJob,
+  isProductionJobStalled,
+  resolveSourceSummary,
   shouldPollProductionJob,
   shouldShowReviewQueue,
   upsertJobInList,
@@ -119,5 +123,103 @@ describe('productionJobHelpers', () => {
     const list = upsertJobInList([], makeJob({ id: '9', status: 'pending' }));
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe('9');
+  });
+
+  it('getTextPipelineStage maps research → deep → summarize → review', () => {
+    expect(getTextPipelineStage(makeJob({ status: 'planning' }), [])).toBe('research');
+    expect(
+      getTextPipelineStage(
+        makeJob({
+          status: 'processing',
+          jobOptions: { sourcePack: { sources: [{ sourceKey: 'wikipedia', status: 'ok' }] } },
+        }),
+        [makeItem({ status: 'processing' })],
+      ),
+    ).toBe('deep');
+    expect(
+      getTextPipelineStage(
+        makeJob({
+          status: 'processing',
+          jobOptions: { sourcePack: { sources: [{ sourceKey: 'wikipedia', status: 'ok' }] } },
+        }),
+        [
+          makeItem({ id: '1', status: 'completed' }),
+          makeItem({
+            id: '2',
+            status: 'pending',
+            errorMessage: 'Waiting for deep variant',
+          }),
+        ],
+      ),
+    ).toBe('deep');
+    expect(
+      getTextPipelineStage(
+        makeJob({
+          status: 'processing',
+          jobOptions: { sourcePack: { sources: [{ sourceKey: 'wikipedia', status: 'ok' }] } },
+        }),
+        [makeItem({ id: '1', status: 'completed' }), makeItem({ id: '2', status: 'processing' })],
+      ),
+    ).toBe('summarize');
+    expect(getTextPipelineStage(makeJob({ status: 'awaiting_review' }), [])).toBe('review');
+  });
+
+  it('resolveSourceSummary falls back to job sourcePack', () => {
+    const summary = resolveSourceSummary(
+      null,
+      makeJob({
+        jobOptions: {
+          sourcePack: {
+            sources: [
+              {
+                sourceKey: 'unesco',
+                status: 'empty',
+                excerpts: [],
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(summary?.sources[0]).toEqual(
+      expect.objectContaining({ sourceKey: 'unesco', status: 'empty', excerptCount: 0 }),
+    );
+  });
+
+  it('isProductionJobStalled after 20s with no claim and no items', () => {
+    const queuedAt = '2026-01-01T00:00:00.000Z';
+    const job = makeJob({
+      status: 'pending',
+      queuedAt,
+      createdAt: queuedAt,
+      workerClaimedAt: null,
+    });
+    expect(isProductionJobStalled(job, [], Date.parse(queuedAt) + 5_000)).toBe(false);
+    expect(isProductionJobStalled(job, [], Date.parse(queuedAt) + 21_000)).toBe(true);
+    expect(
+      isProductionJobStalled(
+        makeJob({ status: 'pending', queuedAt, workerClaimedAt: queuedAt }),
+        [],
+        Date.parse(queuedAt) + 60_000,
+      ),
+    ).toBe(false);
+  });
+
+  it('getProductionJobFailureSummary prefers quota over generic codes', () => {
+    const summary = getProductionJobFailureSummary(makeJob({ status: 'failed' }), [
+      makeItem({
+        status: 'failed',
+        failureCode: 'content_input_invalid',
+        errorMessage: 'Waiting cascade',
+      }),
+      makeItem({
+        id: 'item-2',
+        status: 'failed',
+        failureCode: 'provider_quota_exhausted',
+        errorMessage: 'You exceeded your current quota',
+      }),
+    ]);
+    expect(summary.failureCode).toBe('provider_quota_exhausted');
+    expect(summary.detail).toContain('quota');
   });
 });

@@ -7,6 +7,7 @@
     "edit": "Edit",
     "search": "Search",
     "loading": "Loading...",
+    "checking": "Checking…",
     "saving": "Saving...",
     "deleting": "Deleting…",
     "yes": "Yes",
@@ -597,6 +598,72 @@
     "shortIntro": "Short intro",
     "geographicReference": "Geographic reference",
     "geographicReferencePlaceholder": "e.g. Stockholm, Sweden",
+    "place": {
+      "label": "Place",
+      "placeholder": "Search city, place or address…",
+      "minChars": "Type at least 2 characters to search",
+      "searching": "Searching…",
+      "noResults": "No places found for \"{{q}}\"",
+      "useManual": "Use \"{{q}}\" as free text",
+      "manualBadge": "Manual",
+      "change": "Change",
+      "clear": "Clear",
+      "searchUnavailable": "Search is unavailable right now — enter the place manually.",
+      "resolvedHint": "Selected place is saved as a snapshot."
+    },
+    "usage": {
+      "title": "Generation info",
+      "provider": "Provider",
+      "model": "Model",
+      "inputTokens": "Tokens in",
+      "outputTokens": "Tokens out",
+      "totalTokens": "Tokens total",
+      "estCost": "Estimated cost",
+      "latency": "Latency",
+      "sources": "Research sources",
+      "sourceOk": "{{count}} excerpt(s)",
+      "sourceEmpty": "No match",
+      "sourceFailed": "Failed",
+      "estimatedNote": "Estimated cost, not an actual charge."
+    },
+    "generation": {
+      "retry": "Try again",
+      "openSettings": "Open AI settings",
+      "failure": {
+        "provider_not_configured": {
+          "title": "No AI provider is configured",
+          "message": "Configure an AI provider that supports text generation (currently OpenAI) before producing a guide."
+        },
+        "provider_auth_failed": {
+          "title": "Authentication with the AI provider failed",
+          "message": "Check the provider credentials in settings and try again."
+        },
+        "provider_quota_exhausted": {
+          "title": "AI provider quota is exhausted",
+          "message": "Your AI provider account has no remaining quota or credits. Guides cannot see your balance — check the provider dashboard, then try again."
+        },
+        "provider_rate_limited": {
+          "title": "Too many requests right now",
+          "message": "The AI provider is temporarily rate limited. Wait a moment and try again."
+        },
+        "provider_unavailable": {
+          "title": "AI provider is temporarily unavailable",
+          "message": "The service is not responding right now. Try again shortly."
+        },
+        "provider_invalid_request": {
+          "title": "Generation could not start",
+          "message": "The request could not be processed. Review the guide content and try again."
+        },
+        "content_input_invalid": {
+          "title": "Content could not be used for generation",
+          "message": "Check the guide details (e.g. place and intro) and try again."
+        },
+        "provider_unknown_error": {
+          "title": "Something went wrong",
+          "message": "An unexpected error occurred. Try again later."
+        }
+      }
+    },
     "lifecycleStatus": "Lifecycle status",
     "sourceLanguage": "Source language",
     "sourceLanguagePlaceholder": "sv",
@@ -705,14 +772,14 @@
     },
     "production": {
       "panelTitle": "Production",
-      "startFullGuide": "Produce full guide",
+      "startFullGuide": "Create guide from place",
       "panelIdle": "No active production job.",
       "panelActive": "Production in progress",
       "panelPhase": "Phase: {{phase}}",
       "panelAwaitingYou": "{{count}} drafts awaiting review",
       "jobLabel": "Job #{{id}}",
       "progress": "{{done}}/{{total}} done",
-      "polling": "Updating…",
+      "polling": "Checking status…",
       "loadFailed": "Failed to load production jobs.",
       "actionFailed": "Production action failed.",
       "activeJobConflict": "A production job is already active for this place.",
@@ -753,8 +820,8 @@
         "variant": "Variant"
       },
       "banner": {
-        "pending": "Production queued…",
-        "planning": "Planning production…",
+        "pending": "Queued — starting shortly…",
+        "planning": "Fetching sources (Wikipedia, UNESCO, …)…",
         "failed": "Production failed",
         "completed": "Production completed",
         "awaitingReview": "Review text drafts ({{count}} remaining)",
@@ -763,18 +830,27 @@
           "text_derivation": "Producing text…",
           "translation": "Translating…",
           "audio": "Generating audio…"
-        }
+        },
+        "pipeline": {
+          "research": "Fetching sources (Wikipedia, UNESCO, …)…",
+          "deep": "Writing deep text…",
+          "summarize": "Summarizing normal and quick…"
+        },
+        "stalled": "Production has not started",
+        "stalledHint": "The job is still in the queue. This usually means the background worker is off — not missing AI tokens. Restart the server with the worker enabled, or cancel and try again.",
+        "failedGeneric": "Something went wrong during production. See details below or try again."
       },
       "start": {
-        "fullGuideTitle": "Start production",
-        "fullGuideDescription": "Start a production job for the full guide. The text phase pauses for review before translation runs.",
+        "fullGuideTitle": "Create guide from place",
+        "fullGuideDescription": "Start production from this place: research sources, write deep text, then summarize normal/quick. Review happens after the text phase.",
         "stopTitle": "Produce stop",
         "stopDescription": "Start production for stop \"{{name}}\".",
         "variantTitle": "Produce variant",
         "variantDescription": "Start production for variant {{name}}.",
-        "phasesHint": "Phases: Text → Translation. Review happens after the text phase.",
+        "phasesHint": "Flow: Fetch sources → Deep text → Normal/quick summaries → Review.",
         "forceLabel": "Force rerun (ignore cache)",
-        "confirm": "Start production"
+        "confirm": "Create guide from place",
+        "confirmScoped": "Start production"
       },
       "review": {
         "queueTitle": "Review text drafts ({{count}})",
@@ -793,6 +869,14 @@
         "rejectAria": "Reject text draft for {{label}}",
         "regenerateAria": "Regenerate text draft for {{label}}",
         "continueDisabledTooltip": "{{count}} drafts still awaiting review"
+      },
+      "panelIdleHint": "Fetches sources (Wikipedia, UNESCO, …), writes deep text, then summarizes normal/quick.",
+      "pipelineAria": "Text pipeline: {{stages}}. Active: {{current}}",
+      "pipeline": {
+        "research": "Sources",
+        "deep": "Deep",
+        "summarize": "Normal/quick",
+        "review": "Review"
       }
     }
   },

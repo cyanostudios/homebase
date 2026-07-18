@@ -255,6 +255,11 @@ export const AIProvidersSettingsForm = React.forwardRef<
                           {t(`aiProviders.providers.${entry.providerKey}.title`, {
                             defaultValue: entry.providerKey,
                           })}
+                          {!entry.textGenerationCapable
+                            ? ` (${t('aiProviders.notGeneratable', {
+                                defaultValue: 'no text generation yet',
+                              })})`
+                            : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -263,6 +268,16 @@ export const AIProvidersSettingsForm = React.forwardRef<
                     <p className="mt-2 text-xs text-muted-foreground">
                       {t('aiProviders.allProvidersConfigured', {
                         defaultValue: 'All available provider types are already configured.',
+                      })}
+                    </p>
+                  ) : null}
+                  {activeProviderKey &&
+                  catalog.find((e) => e.providerKey === activeProviderKey)
+                    ?.textGenerationCapable === false ? (
+                    <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                      {t('aiProviders.notGeneratableHint', {
+                        defaultValue:
+                          'This provider can be saved for routing, but Guides text generation only works with providers that have a registered adapter (currently OpenAI).',
                       })}
                     </p>
                   ) : null}

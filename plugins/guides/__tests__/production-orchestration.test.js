@@ -6,6 +6,14 @@ jest.mock('@homebase/core', () => ({
 
 const ProductionOrchestrationService = require('../production/ProductionOrchestrationService');
 
+function mockReadyProvider(service) {
+  jest.spyOn(service.aiProviderRouter, 'checkReadiness').mockResolvedValue({
+    ready: true,
+    providerKey: 'openai',
+    model: 'gpt-4o-mini',
+  });
+}
+
 describe('ProductionOrchestrationService', () => {
   test('startJob enqueues async job as pending with default phases', async () => {
     const guidesModel = {
@@ -13,6 +21,7 @@ describe('ProductionOrchestrationService', () => {
     };
 
     const service = new ProductionOrchestrationService(guidesModel);
+    mockReadyProvider(service);
     const job = {
       id: '99',
       placeId: '1',
@@ -20,11 +29,11 @@ describe('ProductionOrchestrationService', () => {
       status: 'pending',
       scopeStopId: null,
       scopeVariantId: null,
-      phases: ['text_derivation', 'translation'],
+      phases: ['text_derivation'],
       checkpointMode: 'after_text',
       jobOptions: {
         type: 'full_guide',
-        phases: ['text_derivation', 'translation'],
+        phases: ['text_derivation'],
         force: false,
       },
     };
@@ -41,7 +50,7 @@ describe('ProductionOrchestrationService', () => {
       {},
       '1',
       expect.objectContaining({
-        phases: ['text_derivation', 'translation'],
+        phases: ['text_derivation'],
         checkpointMode: 'after_text',
       }),
     );
@@ -52,6 +61,7 @@ describe('ProductionOrchestrationService', () => {
       getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
     };
     const service = new ProductionOrchestrationService(guidesModel);
+    mockReadyProvider(service);
     jest.spyOn(service.jobModel, 'hasActiveJob').mockResolvedValue(false);
     jest.spyOn(service.jobModel, 'createJob').mockResolvedValue({ id: '1', status: 'pending' });
     jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
@@ -77,10 +87,27 @@ describe('ProductionOrchestrationService', () => {
       getById: jest.fn().mockResolvedValue({ id: '1' }),
     };
     const service = new ProductionOrchestrationService(guidesModel);
+    mockReadyProvider(service);
     jest.spyOn(service.jobModel, 'hasActiveJob').mockResolvedValue(true);
 
     await expect(service.startJob({}, '1', { type: 'full_guide' })).rejects.toMatchObject({
       statusCode: 409,
+    });
+  });
+
+  test('startJob rejects with 422 when provider not ready', async () => {
+    const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1' }),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    jest.spyOn(service.aiProviderRouter, 'checkReadiness').mockResolvedValue({
+      ready: false,
+      failure: { code: 'provider_not_configured' },
+    });
+
+    await expect(service.startJob({}, '1', { type: 'full_guide' })).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'provider_not_configured',
     });
   });
 
@@ -111,7 +138,17 @@ describe('ProductionOrchestrationService', () => {
       }),
     };
 
-    const service = new ProductionOrchestrationService(guidesModel);
+    const service = new ProductionOrchestrationService(guidesModel, {
+      sourcePackService: {
+        buildPack: jest.fn().mockResolvedValue({
+          fetchedAt: '2026-07-18T00:00:00.000Z',
+          placeDisplayName: null,
+          sources: [{ sourceKey: 'wikipedia', status: 'empty', excerpts: [] }],
+          excerpts: [],
+          combinedText: '',
+        }),
+      },
+    });
     const job = {
       id: '99',
       placeId: '1',
@@ -130,7 +167,7 @@ describe('ProductionOrchestrationService', () => {
       step: 'text_derivation',
       phaseIndex: 0,
       status: 'processing',
-      providerKey: 'noop',
+      providerKey: 'openai',
     };
 
     jest.spyOn(service.jobModel, 'claimPendingJob').mockResolvedValue(job);
@@ -138,6 +175,24 @@ describe('ProductionOrchestrationService', () => {
     jest.spyOn(service.jobModel, 'hasCompletedFingerprint').mockResolvedValue(false);
     jest.spyOn(service.jobModel, 'createJobItem').mockResolvedValue(pendingItem);
     jest.spyOn(service.jobModel, 'appendEvent').mockResolvedValue(undefined);
+    jest.spyOn(service.jobModel, 'mergeJobOptions').mockImplementation(async (_req, _id, patch) => {
+      job.jobOptions = { ...job.jobOptions, ...patch };
+      return job;
+    });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
+    jest
+      .spyOn(service.textProviderConfigResolver, 'getPreferredProviderKey')
+      .mockResolvedValue('openai');
+    jest
+      .spyOn(service.textProviderConfigResolver, 'getProviderVersion')
+      .mockResolvedValue('openai@test');
+    jest.spyOn(service.textProviderConfigResolver, 'createProvider').mockResolvedValue({
+      generate: jest.fn().mockResolvedValue({
+        status: 'ready',
+        presentationText: 'AI text',
+        providerResult: { presentationText: 'AI text' },
+      }),
+    });
     jest
       .spyOn(service.jobModel, 'updateJobStatus')
       .mockResolvedValueOnce({ ...job, status: 'processing' })
@@ -150,7 +205,7 @@ describe('ProductionOrchestrationService', () => {
       ...pendingItem,
       status: 'completed',
       reviewStatus: 'pending_review',
-      providerResult: { presentationText: '[normal/sv] Narrative A' },
+      providerResult: { presentationText: 'AI text' },
     });
     jest.spyOn(service.jobModel, 'listJobsByStatus').mockImplementation((_req, status) => {
       if (status === 'planning') return Promise.resolve([]);
@@ -678,6 +733,7 @@ describe('ProductionOrchestrationService', () => {
       getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv' }),
     };
     const service = new ProductionOrchestrationService(guidesModel);
+    mockReadyProvider(service);
     jest.spyOn(service.jobModel, 'hasActiveJob').mockResolvedValue(false);
     jest.spyOn(service.jobModel, 'createJob').mockResolvedValue({ id: '1', status: 'pending' });
     jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
@@ -730,7 +786,7 @@ describe('ProductionOrchestrationService', () => {
 
   test('_processItem schedules retry for text_derivation rate limit', async () => {
     const guidesModel = {
-      getById: jest.fn(),
+      getById: jest.fn().mockResolvedValue({ id: '1', place: null }),
       getStopById: jest.fn().mockResolvedValue({
         id: '10',
         canonicalNarrative: 'Narrative',
@@ -747,6 +803,7 @@ describe('ProductionOrchestrationService', () => {
       placeId: '1',
       status: 'processing',
     });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
     const updateSpy = jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
 
     const mockProvider = {
@@ -754,6 +811,7 @@ describe('ProductionOrchestrationService', () => {
         status: 'retry',
         retryAfterMs: 5000,
         errorMessage: 'Rate limited',
+        failureCode: 'provider_rate_limited',
       }),
     };
     jest
@@ -779,12 +837,14 @@ describe('ProductionOrchestrationService', () => {
         status: 'pending',
         errorMessage: 'Rate limited',
         retryAfter: expect.any(String),
+        failureCode: 'provider_rate_limited',
       }),
     );
   });
 
   test('_processItem stores full providerResult blob from adapter', async () => {
     const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1', place: null }),
       getStopById: jest.fn().mockResolvedValue({
         id: '10',
         canonicalNarrative: 'Narrative',
@@ -801,6 +861,7 @@ describe('ProductionOrchestrationService', () => {
       placeId: '1',
       status: 'processing',
     });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
     const updateSpy = jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
 
     const fullBlob = {
@@ -835,6 +896,146 @@ describe('ProductionOrchestrationService', () => {
         status: 'completed',
         providerResult: fullBlob,
         reviewStatus: 'pending_review',
+      }),
+    );
+  });
+
+  test('_processItem waits for deep sibling before summarizing normal', async () => {
+    const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1', place: null }),
+      getStopById: jest.fn().mockResolvedValue({
+        id: '10',
+        canonicalNarrative: 'Narrative',
+      }),
+      getVariantById: jest
+        .fn()
+        .mockResolvedValueOnce({
+          id: '20',
+          variantType: 'normal',
+          language: 'sv',
+        })
+        .mockResolvedValueOnce({
+          id: '21',
+          variantType: 'deep',
+          language: 'sv',
+        }),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    jest.spyOn(service.jobModel, 'getJobByIdInternal').mockResolvedValue({
+      id: '99',
+      placeId: '1',
+      status: 'processing',
+      jobOptions: {
+        sourcePack: { combinedText: 'Pack text', sources: [], excerpts: [] },
+      },
+    });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([
+      {
+        id: '2',
+        stopId: '10',
+        variantId: '21',
+        step: 'text_derivation',
+        phaseIndex: 0,
+        status: 'processing',
+      },
+    ]);
+    const updateSpy = jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
+    const createProvider = jest
+      .spyOn(service.textProviderConfigResolver, 'createProvider')
+      .mockResolvedValue({ generate: jest.fn() });
+
+    await service._processItem(
+      {},
+      {
+        id: '1',
+        jobId: '99',
+        stopId: '10',
+        variantId: '20',
+        step: 'text_derivation',
+        phaseIndex: 0,
+        providerKey: 'openai',
+      },
+    );
+
+    expect(createProvider).not.toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledWith(
+      {},
+      '1',
+      expect.objectContaining({
+        status: 'pending',
+        errorMessage: 'Waiting for deep variant',
+      }),
+    );
+  });
+
+  test('_processItem passes deep text when summarizing normal', async () => {
+    const generate = jest.fn().mockResolvedValue({
+      status: 'ready',
+      presentationText: 'Summary',
+      providerResult: { presentationText: 'Summary' },
+    });
+    const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1', place: null }),
+      getStopById: jest.fn().mockResolvedValue({
+        id: '10',
+        canonicalNarrative: '',
+      }),
+      getVariantById: jest
+        .fn()
+        .mockResolvedValueOnce({
+          id: '20',
+          variantType: 'normal',
+          language: 'sv',
+        })
+        .mockResolvedValueOnce({
+          id: '21',
+          variantType: 'deep',
+          language: 'sv',
+        }),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    jest.spyOn(service.jobModel, 'getJobByIdInternal').mockResolvedValue({
+      id: '99',
+      placeId: '1',
+      status: 'processing',
+      jobOptions: {
+        sourcePack: { combinedText: 'Pack text', sources: [], excerpts: [] },
+      },
+    });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([
+      {
+        id: '2',
+        stopId: '10',
+        variantId: '21',
+        step: 'text_derivation',
+        phaseIndex: 0,
+        status: 'completed',
+        providerResult: { presentationText: 'Long deep text' },
+      },
+    ]);
+    jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
+    jest
+      .spyOn(service.textProviderConfigResolver, 'createProvider')
+      .mockResolvedValue({ generate });
+
+    await service._processItem(
+      {},
+      {
+        id: '1',
+        jobId: '99',
+        stopId: '10',
+        variantId: '20',
+        step: 'text_derivation',
+        phaseIndex: 0,
+        providerKey: 'openai',
+      },
+    );
+
+    expect(generate).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        sourceDeepText: 'Long deep text',
+        sourcePackText: 'Pack text',
       }),
     );
   });

@@ -1,5 +1,5 @@
 {
-  "promptSetVersion": "v1",
+  "promptSetVersion": "v1.2",
   "variants": {
     "quick": {
       "system": "text_derivation/quick/v1.system.md",

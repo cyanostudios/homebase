@@ -454,6 +454,7 @@ function createGuidesRoutes(controller, context) {
       .isString()
       .isLength({ max: 255 })
       .withMessage('geographicReference must not exceed 255 characters'),
+    body('place').optional({ values: 'null' }).isObject().withMessage('place must be an object'),
     commonRules.optionalEnum('lifecycleStatus', PLACE_LIFECYCLE_STATUSES),
     sourceLanguageBodyRule(),
     validateRequest,
@@ -476,6 +477,7 @@ function createGuidesRoutes(controller, context) {
       .isString()
       .isLength({ max: 255 })
       .withMessage('geographicReference must not exceed 255 characters'),
+    body('place').optional({ values: 'null' }).isObject().withMessage('place must be an object'),
     commonRules.optionalEnum('lifecycleStatus', PLACE_LIFECYCLE_STATUSES),
     sourceLanguageBodyRule(),
     masterGuideEditorialStatusBodyRule(),

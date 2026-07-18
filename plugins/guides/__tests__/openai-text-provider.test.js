@@ -21,7 +21,7 @@ describe('OpenAITextProvider', () => {
   test('version includes model and prompt set', () => {
     const provider = new OpenAITextProvider({ apiKey: 'sk-test', model: 'gpt-4o-mini' });
     expect(provider.key).toBe('openai');
-    expect(provider.version).toBe('openai@gpt-4o-mini@prompts-v1');
+    expect(provider.version).toBe('openai@gpt-4o-mini@prompts-v1.2');
   });
 
   test('returns ready with full providerResult on success', async () => {
@@ -83,7 +83,28 @@ describe('OpenAITextProvider', () => {
       { canonicalNarrative: '  ', variantType: 'normal', language: 'sv' },
     );
     expect(result.status).toBe('failed');
-    expect(result.errorMessage).toContain('canonicalNarrative');
+    expect(result.errorMessage).toMatch(/source pack|canonicalNarrative/i);
+  });
+
+  test('accepts source pack without narrative', async () => {
+    const fetchFn = mockFetch({
+      body: {
+        choices: [{ message: { content: 'From pack.', finish_reason: 'stop' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      },
+    });
+    const provider = new OpenAITextProvider({ apiKey: 'sk-test', fetchFn, rpm: 100 });
+    const result = await provider.generate(
+      {},
+      {
+        canonicalNarrative: '',
+        variantType: 'deep',
+        language: 'en',
+        sourcePackText: '[Source 1: wikipedia] Place\nURL: https://example.com\nFacts here.',
+      },
+    );
+    expect(result.status).toBe('ready');
+    expect(result.presentationText).toBe('From pack.');
   });
 
   test('returns failed when API key is missing', async () => {

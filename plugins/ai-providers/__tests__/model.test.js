@@ -251,6 +251,7 @@ describe('AIProviderSettingsModel', () => {
         expect.objectContaining({
           providerKey: 'openai',
           defaultModel: OPENAI_DEFAULT_MODEL,
+          textGenerationCapable: true,
           models: expect.arrayContaining([
             expect.objectContaining({ id: 'gpt-4o-mini', label: 'GPT-4o mini' }),
           ]),
@@ -258,6 +259,7 @@ describe('AIProviderSettingsModel', () => {
         expect.objectContaining({
           providerKey: 'anthropic',
           defaultModel: 'claude-sonnet-4-5',
+          textGenerationCapable: false,
           models: expect.arrayContaining([
             expect.objectContaining({ id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' }),
             expect.objectContaining({ id: 'claude-opus-4-5' }),

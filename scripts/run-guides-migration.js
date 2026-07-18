@@ -22,11 +22,13 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/099-guide-production-v2-async.sql'),
   path.join(__dirname, '../server/migrations/100-ai-provider-settings.sql'),
   path.join(__dirname, '../server/migrations/101-ai-provider-routing.sql'),
+  path.join(__dirname, '../server/migrations/102-guides-place-identity.sql'),
+  path.join(__dirname, '../server/migrations/103-guide-production-item-failure-code.sql'),
 ];
-const MAIN_MIGRATION = path.join(
-  __dirname,
-  '../server/migrations/091-grant-guides-plugin-access.sql',
-);
+const MAIN_MIGRATIONS = [
+  path.join(__dirname, '../server/migrations/091-grant-guides-plugin-access.sql'),
+  path.join(__dirname, '../server/migrations/104-grant-places-plugin-access.sql'),
+];
 
 async function runMigrationOnTenant(connectionString, tenantInfo, migrationFile) {
   const pool = new Pool({ connectionString });
@@ -83,17 +85,19 @@ async function runMainMigration() {
 
   const mainPool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
-    console.log('\nRunning main DB migration for guides plugin access...');
-    const sql = fs.readFileSync(MAIN_MIGRATION, 'utf8');
-    await mainPool.query(sql);
-    console.log(`   Applied ${path.basename(MAIN_MIGRATION)}`);
+    console.log('\nRunning main DB migrations for plugin access...');
+    for (const migration of MAIN_MIGRATIONS) {
+      const sql = fs.readFileSync(migration, 'utf8');
+      await mainPool.query(sql);
+      console.log(`   Applied ${path.basename(migration)}`);
+    }
   } finally {
     await mainPool.end();
   }
 }
 
 async function main() {
-  for (const migrationFile of [...TENANT_MIGRATIONS, MAIN_MIGRATION]) {
+  for (const migrationFile of [...TENANT_MIGRATIONS, ...MAIN_MIGRATIONS]) {
     if (!fs.existsSync(migrationFile)) {
       console.error(`Migration file not found: ${migrationFile}`);
       process.exit(1);

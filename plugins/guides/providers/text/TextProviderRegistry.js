@@ -31,6 +31,10 @@ class TextProviderRegistry {
     }
     return entry;
   }
+
+  listKeys() {
+    return Array.from(this._providers.keys());
+  }
 }
 
 module.exports = new TextProviderRegistry();

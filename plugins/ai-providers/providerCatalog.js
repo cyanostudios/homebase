@@ -13,13 +13,69 @@ const PROVIDER_CATALOG = Object.freeze({
     defaultModel: 'gpt-4o-mini',
     envApiKey: 'OPENAI_API_KEY',
     envModel: 'GUIDES_TEXT_OPENAI_MODEL',
+    /** True when Guides has a registered text adapter for this provider. */
+    textGenerationCapable: true,
     models: freezeModels([
-      { id: 'gpt-4o-mini', label: 'GPT-4o mini' },
-      { id: 'gpt-4o', label: 'GPT-4o' },
-      { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
-      { id: 'gpt-4.1', label: 'GPT-4.1' },
-      { id: 'o4-mini', label: 'o4-mini' },
-      { id: 'o3-mini', label: 'o3-mini' },
+      {
+        id: 'gpt-4o-mini',
+        label: 'GPT-4o mini',
+        pricing: {
+          inputPer1M: 0.15,
+          outputPer1M: 0.6,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'gpt-4o',
+        label: 'GPT-4o',
+        pricing: {
+          inputPer1M: 2.5,
+          outputPer1M: 10,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'gpt-4.1-mini',
+        label: 'GPT-4.1 mini',
+        pricing: {
+          inputPer1M: 0.4,
+          outputPer1M: 1.6,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'gpt-4.1',
+        label: 'GPT-4.1',
+        pricing: {
+          inputPer1M: 2,
+          outputPer1M: 8,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'o4-mini',
+        label: 'o4-mini',
+        pricing: {
+          inputPer1M: 1.1,
+          outputPer1M: 4.4,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'o3-mini',
+        label: 'o3-mini',
+        pricing: {
+          inputPer1M: 1.1,
+          outputPer1M: 4.4,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
     ]),
   }),
   anthropic: Object.freeze({

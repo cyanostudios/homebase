@@ -13,7 +13,7 @@ describe('TextPromptLoader', () => {
       variantType: 'normal',
     });
 
-    expect(prompts.promptSetVersion).toBe('v1');
+    expect(prompts.promptSetVersion).toBe('v1.2');
     expect(prompts.promptVersion).toBe('v1');
     expect(prompts.maxCompletionTokens).toBe(400);
     expect(prompts.system).toContain('tour guide');
@@ -38,7 +38,7 @@ describe('TextPromptLoader', () => {
   });
 
   test('getPromptSetVersion returns manifest version', () => {
-    expect(TextPromptLoader.getPromptSetVersion()).toBe('v1');
+    expect(TextPromptLoader.getPromptSetVersion()).toBe('v1.2');
   });
 
   test('throws for unknown variant type', () => {

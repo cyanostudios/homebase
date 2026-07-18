@@ -19,6 +19,8 @@ export interface ProviderCatalogModel {
 export interface ProviderCatalogEntry {
   providerKey: string;
   defaultModel: string;
+  /** True when Guides has a registered text adapter for this provider. */
+  textGenerationCapable?: boolean;
   models: ProviderCatalogModel[];
 }
 

@@ -12,6 +12,7 @@ export interface Guide {
   displayName: string;
   shortIntro: string | null;
   geographicReference: string | null;
+  place?: PlaceResolved | null;
   lifecycleStatus: GuideLifecycleStatus;
   masterGuideId: string | null;
   sourceLanguage: string;
@@ -24,9 +25,75 @@ export interface GuidePayload {
   displayName: string;
   shortIntro?: string | null;
   geographicReference?: string | null;
+  place?: PlaceResolved | null;
   lifecycleStatus?: GuideLifecycleStatus;
   sourceLanguage?: string;
   masterGuideEditorialStatus?: MasterGuideEditorialStatus;
+}
+
+export type PlaceProviderKey = 'nominatim' | 'google' | 'mapbox' | 'manual';
+
+export interface PlaceResolved {
+  provider: PlaceProviderKey | string;
+  providerRef: string | null;
+  displayName: string;
+  formattedAddress: string | null;
+  coordinates: { lat: number; lng: number } | null;
+  countryCode: string | null;
+  adminArea: string | null;
+  locality: string | null;
+  placeTypes: string[];
+  bbox: [number, number, number, number] | null;
+  resolvedAt: string;
+}
+
+export type GenerationFailureCode =
+  | 'provider_not_configured'
+  | 'provider_auth_failed'
+  | 'provider_quota_exhausted'
+  | 'provider_rate_limited'
+  | 'provider_unavailable'
+  | 'provider_invalid_request'
+  | 'content_input_invalid'
+  | 'provider_unknown_error';
+
+export const RETRYABLE_GENERATION_FAILURE_CODES: GenerationFailureCode[] = [
+  'provider_rate_limited',
+  'provider_unavailable',
+];
+
+export function isRetryableGenerationFailure(code: string | null | undefined): boolean {
+  return RETRYABLE_GENERATION_FAILURE_CODES.includes(code as GenerationFailureCode);
+}
+
+export interface GenerationUsageSummary {
+  provider: string | null;
+  model: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  latencyMs: number;
+  estimatedCost: {
+    currency: string;
+    totalCost: number;
+    estimated: boolean;
+  } | null;
+  sources?: GenerationSourceSummary | null;
+}
+
+export interface GenerationSourceSummaryEntry {
+  sourceKey: string;
+  status: 'ok' | 'empty' | 'failed' | string;
+  excerptCount: number;
+  errorMessage?: string | null;
+  attribution?: string | null;
+}
+
+export interface GenerationSourceSummary {
+  fetchedAt: string | null;
+  placeDisplayName: string | null;
+  sources: GenerationSourceSummaryEntry[];
+  excerptCount: number;
 }
 
 export interface GuideStop {
@@ -174,6 +241,20 @@ export interface ProductionJobOptions {
   phases?: ProductionItemStep[];
   languages?: string[];
   force?: boolean;
+  sourcePack?: {
+    fetchedAt?: string;
+    placeDisplayName?: string | null;
+    sources?: Array<{
+      sourceKey: string;
+      status: string;
+      excerptCount?: number;
+      excerpts?: unknown[];
+      errorMessage?: string | null;
+      attribution?: string | null;
+    }>;
+    excerpts?: unknown[];
+    combinedText?: string;
+  } | null;
 }
 
 export interface ProductionJob {
@@ -212,9 +293,22 @@ export interface ProductionJobItemProviderResult {
     finishReason?: string | null;
   };
   usage?: {
+    provider?: string;
+    model?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
     promptTokens?: number;
     completionTokens?: number;
-    totalTokens?: number;
+    latencyMs?: number;
+  };
+  cost?: {
+    currency: string;
+    inputCost: number;
+    outputCost: number;
+    totalCost: number;
+    estimated: boolean;
+    pricingSource?: string;
   };
   requestedAt?: string;
   latencyMs?: number;
@@ -240,6 +334,7 @@ export interface ProductionJobItem {
   externalId: string | null;
   workerClaimedAt: string | null;
   errorMessage: string | null;
+  failureCode?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -247,6 +342,7 @@ export interface ProductionJobItem {
 export interface ProductionJobDetail {
   job: ProductionJob;
   items: ProductionJobItem[];
+  usageSummary?: GenerationUsageSummary | null;
 }
 
 export interface StartProductionJobPayload {

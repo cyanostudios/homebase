@@ -9,10 +9,16 @@ import type { ProductionJob, ProductionJobItem } from '../types/guides';
 import {
   countPendingReviewItems,
   getCurrentPhaseStep,
+  getProductionJobFailureSummary,
+  getTextPipelineStage,
   isProductionJobActive,
+  isProductionJobStalled,
+  resolveSourceSummary,
   summarizePhaseProgress,
 } from '../utils/productionJobHelpers';
 import { ProductionPhaseIndicator } from './ProductionPhaseIndicator';
+import { SourceResearchSummary } from './SourceResearchSummary';
+import { TextPipelineIndicator } from './TextPipelineIndicator';
 
 interface ProductionPhaseBannerProps {
   job: ProductionJob;
@@ -35,9 +41,23 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
 }) => {
   const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(false);
+  const [, setStallTick] = useState(0);
   const phaseStep = getCurrentPhaseStep(job);
   const progress = summarizePhaseProgress(job, items);
   const pendingReview = countPendingReviewItems(job, items);
+  const pipelineStage = getTextPipelineStage(job, items);
+  const sourceSummary = resolveSourceSummary(null, job);
+  const isTextPhase = phaseStep === 'text_derivation' || !phaseStep;
+  const stalled = isProductionJobStalled(job, items);
+  const failureSummary =
+    job.status === 'failed' ? getProductionJobFailureSummary(job, items) : null;
+
+  useEffect(() => {
+    if (job.status !== 'pending' && job.status !== 'planning') return;
+    if (items.length > 0) return;
+    const id = window.setInterval(() => setStallTick((n) => n + 1), 5000);
+    return () => window.clearInterval(id);
+  }, [job.id, job.status, items.length]);
 
   useEffect(() => {
     if (job.status !== 'completed') {
@@ -57,13 +77,17 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
   }
 
   const messageKey = (() => {
-    if (job.status === 'pending') return 'guides.production.banner.pending';
-    if (job.status === 'planning') return 'guides.production.banner.planning';
     if (job.status === 'failed') return 'guides.production.banner.failed';
     if (job.status === 'completed') return 'guides.production.banner.completed';
     if (job.status === 'awaiting_review') {
       return 'guides.production.banner.awaitingReview';
     }
+    if (stalled) return 'guides.production.banner.stalled';
+    if (isTextPhase && ['research', 'deep', 'summarize'].includes(pipelineStage)) {
+      return `guides.production.banner.pipeline.${pipelineStage}`;
+    }
+    if (job.status === 'pending') return 'guides.production.banner.pending';
+    if (job.status === 'planning') return 'guides.production.banner.planning';
     if (job.status === 'processing' && phaseStep) {
       return `guides.production.banner.processing.${phaseStep}`;
     }
@@ -71,14 +95,14 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
   })();
 
   const tone = (() => {
-    if (job.status === 'failed') return 'danger';
+    if (job.status === 'failed' || stalled) return 'danger';
     if (job.status === 'completed') return 'success';
     if (job.status === 'awaiting_review') return 'review';
     return 'active';
   })();
 
   const Icon =
-    job.status === 'failed'
+    job.status === 'failed' || stalled
       ? AlertCircle
       : job.status === 'completed'
         ? CheckCircle2
@@ -109,12 +133,13 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
             <Icon
               className={cn(
                 'h-4 w-4 shrink-0',
-                job.status === 'failed' && 'text-destructive',
+                (job.status === 'failed' || stalled) && 'text-destructive',
                 job.status === 'completed' && 'text-emerald-600 dark:text-emerald-400',
                 job.status === 'awaiting_review' && 'text-amber-700 dark:text-amber-400',
-                !['failed', 'completed', 'awaiting_review'].includes(job.status) &&
+                !stalled &&
+                  !['failed', 'completed', 'awaiting_review'].includes(job.status) &&
                   'animate-spin text-primary',
-                job.status === 'pending' && 'animate-none text-muted-foreground',
+                !stalled && job.status === 'pending' && 'animate-none text-muted-foreground',
               )}
               aria-hidden
             />
@@ -124,12 +149,38 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
                 phase: phaseStep ? t(`guides.production.phases.${phaseStep}`) : '',
               })}
             </span>
-            {isPolling && (
+            {isPolling && !stalled && job.status !== 'awaiting_review' && (
               <span className="text-xs text-muted-foreground">
                 {t('guides.production.polling')}
               </span>
             )}
           </div>
+
+          {stalled && (
+            <p className="text-xs text-destructive" role="alert">
+              {t('guides.production.banner.stalledHint')}
+            </p>
+          )}
+
+          {failureSummary && (
+            <div className="space-y-1 text-xs" role="alert">
+              <p className="font-medium text-destructive">
+                {failureSummary.failureCode
+                  ? t(`guides.generation.failure.${failureSummary.failureCode}.title`, {
+                      defaultValue: t('guides.production.banner.failed'),
+                    })
+                  : t('guides.production.banner.failed')}
+              </p>
+              <p className="text-destructive/90">
+                {failureSummary.failureCode
+                  ? t(`guides.generation.failure.${failureSummary.failureCode}.message`, {
+                      defaultValue:
+                        failureSummary.detail || t('guides.production.banner.failedGeneric'),
+                    })
+                  : failureSummary.detail || t('guides.production.banner.failedGeneric')}
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>{t('guides.production.jobLabel', { id: job.id })}</span>
@@ -141,12 +192,21 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
                 })}
               </span>
             )}
-            {job.errorMessage && job.status === 'failed' && (
-              <span className="text-destructive">{job.errorMessage}</span>
-            )}
           </div>
 
-          <ProductionPhaseIndicator job={job} />
+          {isTextPhase ? (
+            <TextPipelineIndicator job={job} items={items} />
+          ) : (
+            <ProductionPhaseIndicator job={job} />
+          )}
+
+          {sourceSummary && (
+            <SourceResearchSummary
+              sources={sourceSummary}
+              compact
+              className="rounded-md border border-border/50 bg-background/60 px-2.5 py-2"
+            />
+          )}
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">

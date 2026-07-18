@@ -13,21 +13,36 @@ const {
   ensureTranslationProvidersRegistered,
 } = require('../providers/translation/registerDefaultProviders');
 const TextProviderConfigResolver = require('../providers/text/TextProviderConfigResolver');
+const { listGeneratableTextProviderKeys } = require('../providers/text/registerDefaultProviders');
+const { AIProviderRouter } = require('../../ai-providers/AIProviderRouter');
+const SourcePackService = require('../sources/SourcePackService');
 
 const DEFAULT_TEXT_PROVIDER = 'noop';
 const DEFAULT_TRANSLATION_PROVIDER = 'noop';
+const GUIDES_PLUGIN_KEY = 'guides';
 const WORKER_BATCH_SIZE = Number(process.env.GUIDES_PRODUCTION_WORKER_BATCH_SIZE) || 5;
 const IN_FLIGHT_ITEM_STATUSES = ['pending', 'queued', 'processing', 'awaiting_callback'];
 const REGENERATABLE_REVIEW_STATUSES = ['pending_review', 'rejected'];
+const VARIANT_PLAN_ORDER = { deep: 0, normal: 1, quick: 2 };
+const DEEP_WAIT_RETRY_MS = 3_000;
+const ALLOW_NOOP_TEXT =
+  String(process.env.GUIDES_ALLOW_NOOP_TEXT || '')
+    .trim()
+    .toLowerCase() === '1' ||
+  String(process.env.GUIDES_ALLOW_NOOP_TEXT || '')
+    .trim()
+    .toLowerCase() === 'true';
 
 class ProductionOrchestrationService {
   /**
    * @param {import('../model')} guidesModel
    */
-  constructor(guidesModel) {
+  constructor(guidesModel, options = {}) {
     this.guidesModel = guidesModel;
     this.jobModel = new ProductionJobModel();
     this.textProviderConfigResolver = new TextProviderConfigResolver();
+    this.aiProviderRouter = new AIProviderRouter();
+    this.sourcePackService = options.sourcePackService ?? new SourcePackService();
   }
 
   /**
@@ -38,6 +53,24 @@ class ProductionOrchestrationService {
    */
   async startJob(req, placeId, options) {
     await this.guidesModel.getById(req, placeId);
+
+    const readiness = await this.aiProviderRouter.checkReadiness(req, {
+      pluginKey: GUIDES_PLUGIN_KEY,
+      generatableProviderKeys: listGeneratableTextProviderKeys(),
+    });
+    if (!readiness.ready) {
+      const code = readiness.failure?.code || 'provider_not_configured';
+      throw new AppError('AI provider is not ready for generation', 422, code);
+    }
+
+    if (
+      !ALLOW_NOOP_TEXT &&
+      String(readiness.providerKey || '')
+        .trim()
+        .toLowerCase() === 'noop'
+    ) {
+      throw new AppError('AI provider is not ready for generation', 422, 'provider_not_configured');
+    }
 
     if (await this.jobModel.hasActiveJob(req, placeId)) {
       throw new AppError(
@@ -67,7 +100,7 @@ class ProductionOrchestrationService {
     });
 
     const items = await this.jobModel.listJobItems(req, job.id);
-    return { job, items };
+    return { job, items, usageSummary: null };
   }
 
   /**
@@ -184,6 +217,9 @@ class ProductionOrchestrationService {
       providerKey,
       providerVersion,
       regenerateNonce: item.id,
+      sourcePackFingerprint: job.jobOptions?.sourcePack?.combinedText
+        ? String(job.jobOptions.sourcePack.combinedText).slice(0, 500)
+        : null,
     });
 
     const newItem = await this.jobModel.createJobItem(req, jobId, {
@@ -287,12 +323,134 @@ class ProductionOrchestrationService {
   async getJob(req, placeId, jobId) {
     const job = await this.jobModel.getJobById(req, placeId, jobId);
     const items = await this.jobModel.listJobItems(req, jobId);
-    return { job, items };
+    return { job, items, usageSummary: this._buildUsageSummary(items, job) };
   }
 
   async listJobs(req, placeId) {
     const jobs = await this.jobModel.listJobs(req, placeId);
     return jobs;
+  }
+
+  /**
+   * Derived usage summary for completed text_derivation items on a job (latest job scope).
+   * @param {Array<object>} items
+   * @param {object|null} [job]
+   */
+  _buildUsageSummary(items, job = null) {
+    const completed = (items || []).filter(
+      (item) =>
+        item.status === 'completed' &&
+        item.step === 'text_derivation' &&
+        item.providerResult?.usage,
+    );
+
+    const sources = this._summarizeSourcePack(job?.jobOptions?.sourcePack);
+
+    if (!completed.length && !sources) return null;
+
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let totalTokens = 0;
+    let latencyMs = 0;
+    let totalCost = 0;
+    let currency = null;
+    let provider = null;
+    let model = null;
+    let estimated = true;
+
+    for (const item of completed) {
+      const usage = item.providerResult.usage;
+      const cost = item.providerResult.cost;
+      inputTokens += Number(usage.inputTokens ?? usage.promptTokens ?? 0) || 0;
+      outputTokens += Number(usage.outputTokens ?? usage.completionTokens ?? 0) || 0;
+      totalTokens += Number(usage.totalTokens ?? 0) || 0;
+      latencyMs += Number(usage.latencyMs ?? item.providerResult.latencyMs ?? 0) || 0;
+      if (!provider && usage.provider) provider = usage.provider;
+      if (!model && usage.model) model = usage.model;
+      if (cost) {
+        totalCost += Number(cost.totalCost ?? 0) || 0;
+        currency = cost.currency || currency;
+        estimated = cost.estimated !== false;
+      }
+    }
+
+    return {
+      provider: provider || completed[0]?.providerKey || null,
+      model: model || null,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      latencyMs,
+      estimatedCost:
+        currency != null
+          ? { currency, totalCost: Math.round(totalCost * 1e8) / 1e8, estimated }
+          : null,
+      sources,
+    };
+  }
+
+  /**
+   * @param {object|null|undefined} pack
+   */
+  _summarizeSourcePack(pack) {
+    if (!pack || typeof pack !== 'object') return null;
+    const sources = Array.isArray(pack.sources) ? pack.sources : [];
+    if (!sources.length && !Array.isArray(pack.excerpts)) return null;
+    return {
+      fetchedAt: pack.fetchedAt ?? null,
+      placeDisplayName: pack.placeDisplayName ?? null,
+      sources: sources.map((s) => ({
+        sourceKey: s.sourceKey,
+        status: s.status,
+        excerptCount: Array.isArray(s.excerpts) ? s.excerpts.length : 0,
+        errorMessage: s.errorMessage ?? null,
+        attribution: s.attribution ?? null,
+      })),
+      excerptCount: Array.isArray(pack.excerpts) ? pack.excerpts.length : 0,
+    };
+  }
+
+  /**
+   * Build placeContext subset for text prompts from a guide place snapshot.
+   * @param {object} placeGuide
+   */
+  _buildPlaceContext(placeGuide) {
+    const place = placeGuide?.place;
+    if (!place) {
+      if (placeGuide?.displayName || placeGuide?.geographicReference) {
+        return {
+          displayName: placeGuide.displayName || placeGuide.geographicReference || null,
+          formattedAddress: null,
+          countryCode: null,
+          adminArea: null,
+          locality: null,
+          coordinates: null,
+          placeTypes: [],
+        };
+      }
+      return null;
+    }
+    return {
+      displayName: place.displayName || placeGuide.displayName || null,
+      formattedAddress: place.formattedAddress || null,
+      countryCode: place.countryCode || null,
+      adminArea: place.adminArea || null,
+      locality: place.locality || null,
+      coordinates: place.coordinates || null,
+      placeTypes: Array.isArray(place.placeTypes) ? place.placeTypes : [],
+    };
+  }
+
+  /**
+   * @param {object} placeGuide
+   * @returns {import('../sources/ContentSource').PlaceQuery}
+   */
+  _buildPlaceQuery(placeGuide) {
+    const ctx = this._buildPlaceContext(placeGuide) || {};
+    return {
+      ...ctx,
+      language: placeGuide?.sourceLanguage || 'en',
+    };
   }
 
   /**
@@ -583,6 +741,7 @@ class ProductionOrchestrationService {
     providerKey,
     providerVersion,
     regenerateNonce,
+    sourcePackFingerprint,
   }) {
     if (step === 'translation') {
       return computeProductionFingerprint({
@@ -606,6 +765,7 @@ class ProductionOrchestrationService {
       providerKey,
       providerVersion,
       regenerateNonce,
+      sourcePackFingerprint: sourcePackFingerprint ?? null,
     });
   }
 
@@ -619,9 +779,29 @@ class ProductionOrchestrationService {
 
     const force = Boolean(options.force);
     const place = await this.guidesModel.getById(req, job.placeId);
-    const targets = await this._resolveTargetsForPhase(req, job.placeId, job, options);
 
-    for (const target of targets) {
+    if (step === 'text_derivation' && !options.sourcePack) {
+      const pack = await this.sourcePackService.buildPack(this._buildPlaceQuery(place));
+      await this.jobModel.mergeJobOptions(req, job.id, { sourcePack: pack });
+      job.jobOptions = { ...options, sourcePack: pack };
+      await this.jobModel.appendEvent(req, job.id, 'source_research_completed', {
+        excerptCount: pack.excerpts?.length ?? 0,
+        sources: (pack.sources || []).map((s) => ({
+          sourceKey: s.sourceKey,
+          status: s.status,
+          excerptCount: Array.isArray(s.excerpts) ? s.excerpts.length : 0,
+        })),
+      });
+    }
+
+    const targets = await this._resolveTargetsForPhase(req, job.placeId, job, options);
+    const orderedTargets = [...targets].sort((a, b) => {
+      const ao = VARIANT_PLAN_ORDER[a.variant?.variantType] ?? 9;
+      const bo = VARIANT_PLAN_ORDER[b.variant?.variantType] ?? 9;
+      return ao - bo;
+    });
+
+    for (const target of orderedTargets) {
       await this._planStepItem(req, job, target, step, force, place);
     }
 
@@ -634,7 +814,21 @@ class ProductionOrchestrationService {
   async _planStepItem(req, job, target, step, force, place) {
     const { stop, variant } = target;
     const providerKey = await this._providerKeyForStep(req, step);
+    if (
+      step === 'text_derivation' &&
+      !ALLOW_NOOP_TEXT &&
+      String(providerKey).toLowerCase() === 'noop'
+    ) {
+      throw new AppError(
+        'No generatable text provider is configured',
+        422,
+        'provider_not_configured',
+      );
+    }
     const providerVersion = await this._providerVersionForStep(req, step, providerKey);
+    const sourcePackFingerprint = job.jobOptions?.sourcePack?.combinedText
+      ? String(job.jobOptions.sourcePack.combinedText).slice(0, 500)
+      : null;
 
     const fingerprint = this._computeFingerprintForTarget({
       step,
@@ -643,6 +837,7 @@ class ProductionOrchestrationService {
       place,
       providerKey,
       providerVersion,
+      sourcePackFingerprint,
     });
 
     if (!force && (await this.jobModel.hasCompletedFingerprint(req, fingerprint))) {
@@ -688,20 +883,72 @@ class ProductionOrchestrationService {
     );
 
     if (item.step === 'text_derivation') {
+      if (
+        !ALLOW_NOOP_TEXT &&
+        String(item.providerKey || DEFAULT_TEXT_PROVIDER).toLowerCase() === 'noop'
+      ) {
+        await this.jobModel.updateJobItem(req, item.id, {
+          status: 'failed',
+          errorMessage: 'Noop text provider is not allowed for production',
+          failureCode: 'provider_not_configured',
+        });
+        return;
+      }
+
+      const placeGuide = await this.guidesModel.getById(req, job.placeId);
+      const sourcePack = job.jobOptions?.sourcePack ?? null;
+      const sourcePackText = sourcePack?.combinedText ? String(sourcePack.combinedText).trim() : '';
+
+      let sourceDeepText = null;
+      if (variant.variantType !== 'deep') {
+        const deepWait = await this._resolveDeepDependency(req, job, item);
+        if (deepWait.action === 'wait') {
+          await this.jobModel.updateJobItem(req, item.id, {
+            status: 'pending',
+            retryAfter: new Date(Date.now() + DEEP_WAIT_RETRY_MS).toISOString(),
+            errorMessage: 'Waiting for deep variant',
+          });
+          return;
+        }
+        if (deepWait.action === 'fail') {
+          await this.jobModel.updateJobItem(req, item.id, {
+            status: 'failed',
+            errorMessage: deepWait.errorMessage || 'Deep variant failed',
+            failureCode: 'content_input_invalid',
+          });
+          return;
+        }
+        sourceDeepText = deepWait.sourceDeepText || null;
+      }
+
+      const narrative = String(stop.canonicalNarrative ?? '').trim();
+      if (!narrative && !sourcePackText && !sourceDeepText) {
+        await this.jobModel.updateJobItem(req, item.id, {
+          status: 'failed',
+          errorMessage: 'No research excerpts and no canonical narrative — cannot generate text',
+          failureCode: 'content_input_invalid',
+        });
+        return;
+      }
+
       const provider = await this.textProviderConfigResolver.createProvider(
         req,
         item.providerKey || DEFAULT_TEXT_PROVIDER,
       );
       const result = await provider.generate(req, {
-        canonicalNarrative: stop.canonicalNarrative,
+        canonicalNarrative: narrative || null,
         variantType: variant.variantType,
         language: variant.language,
+        placeContext: this._buildPlaceContext(placeGuide),
+        sourcePackText: sourcePackText || null,
+        sourceDeepText: sourceDeepText || null,
       });
       if (result.status === 'retry') {
         await this.jobModel.updateJobItem(req, item.id, {
           status: 'pending',
           retryAfter: new Date(Date.now() + (result.retryAfterMs ?? 30000)).toISOString(),
           errorMessage: result.errorMessage ?? 'Rate limited — retry scheduled',
+          failureCode: result.failureCode ?? 'provider_rate_limited',
         });
         return;
       }
@@ -709,6 +956,7 @@ class ProductionOrchestrationService {
         await this.jobModel.updateJobItem(req, item.id, {
           status: 'failed',
           errorMessage: result.errorMessage ?? 'Text derivation failed',
+          failureCode: result.failureCode ?? 'provider_unknown_error',
         });
         return;
       }
@@ -753,6 +1001,56 @@ class ProductionOrchestrationService {
       status: 'skipped',
       errorMessage: 'Audio step not implemented in batch v1',
     });
+  }
+
+  /**
+   * Wait for / use completed deep sibling when summarizing normal/quick.
+   * @returns {Promise<{ action: 'proceed'|'wait'|'fail', sourceDeepText?: string|null, errorMessage?: string }>}
+   */
+  async _resolveDeepDependency(req, job, item) {
+    const siblings = await this.jobModel.listJobItems(req, job.id);
+    let deepItem = null;
+    for (const sibling of siblings) {
+      if (sibling.id === item.id) continue;
+      if (sibling.stopId !== item.stopId) continue;
+      if (sibling.step !== 'text_derivation') continue;
+      if (sibling.phaseIndex !== item.phaseIndex) continue;
+      const siblingVariant = await this.guidesModel.getVariantById(
+        req,
+        job.placeId,
+        sibling.stopId,
+        sibling.variantId,
+      );
+      if (siblingVariant?.variantType === 'deep') {
+        deepItem = sibling;
+        break;
+      }
+    }
+
+    if (!deepItem) {
+      return { action: 'proceed', sourceDeepText: null };
+    }
+
+    if (deepItem.status === 'failed' || deepItem.status === 'cancelled') {
+      return {
+        action: 'fail',
+        errorMessage: deepItem.errorMessage || 'Deep variant failed',
+      };
+    }
+
+    if (deepItem.status === 'completed') {
+      const text = deepItem.providerResult?.presentationText;
+      if (!text) {
+        return { action: 'fail', errorMessage: 'Deep variant produced no text' };
+      }
+      return { action: 'proceed', sourceDeepText: String(text) };
+    }
+
+    if (deepItem.status === 'skipped') {
+      return { action: 'proceed', sourceDeepText: null };
+    }
+
+    return { action: 'wait' };
   }
 
   _shouldCheckpoint(job) {

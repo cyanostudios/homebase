@@ -16,6 +16,46 @@ class AIProviderRouter {
   }
 
   /**
+   * Credit-free readiness check for a plugin. Never returns tokens/balance/credit.
+   * @param {import('express').Request} req
+   * @param {{ pluginKey: string, capability?: string, generatableProviderKeys?: string[] }} options
+   * @returns {Promise<{ ready: boolean, providerKey?: string, model?: string, failure?: { code: string } }>}
+   */
+  async checkReadiness(req, { pluginKey, capability, generatableProviderKeys } = {}) {
+    const resolved = await this.resolve(req, { pluginKey, capability });
+    if (!resolved?.providerKey || !resolved?.apiKey) {
+      return {
+        ready: false,
+        failure: { code: 'provider_not_configured' },
+      };
+    }
+
+    const key = String(resolved.providerKey).toLowerCase();
+    if (key === 'noop') {
+      return {
+        ready: false,
+        failure: { code: 'provider_not_configured' },
+      };
+    }
+
+    if (Array.isArray(generatableProviderKeys) && generatableProviderKeys.length > 0) {
+      const allowed = new Set(generatableProviderKeys.map((k) => String(k).toLowerCase()));
+      if (!allowed.has(key)) {
+        return {
+          ready: false,
+          failure: { code: 'provider_not_configured' },
+        };
+      }
+    }
+
+    return {
+      ready: true,
+      providerKey: resolved.providerKey,
+      model: resolved.model || undefined,
+    };
+  }
+
+  /**
    * @param {import('express').Request} req
    * @param {{ pluginKey: string, capability?: string }} options
    * @returns {Promise<{ providerKey: string, model: string, apiKey: string, source: 'plugin'|'global'|'legacy'|'none' }|null>}

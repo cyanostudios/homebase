@@ -30,6 +30,7 @@ function computeProductionFingerprint(input) {
       providerKey: input.providerKey,
       providerVersion: input.providerVersion ?? '1',
       regenerateNonce: input.regenerateNonce ?? null,
+      sourcePackFingerprint: input.sourcePackFingerprint ?? null,
     };
   }
 

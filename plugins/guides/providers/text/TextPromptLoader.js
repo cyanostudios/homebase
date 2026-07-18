@@ -29,7 +29,14 @@ function interpolate(template, variables) {
 
 /**
  * @param {'quick'|'normal'|'deep'} variantType
- * @param {{ canonicalNarrative: string, language: string, variantType: string }} variables
+ * @param {{
+ *   canonicalNarrative?: string,
+ *   language: string,
+ *   variantType: string,
+ *   placeContext?: object|null,
+ *   sourcePackText?: string,
+ *   sourceDeepText?: string,
+ * }} variables
  */
 function getPrompts(variantType, variables) {
   const manifest = loadManifest();
@@ -37,10 +44,29 @@ function getPrompts(variantType, variables) {
   if (!entry) {
     throw new Error(`No prompt config for variant type: ${variantType}`);
   }
+  const place = variables.placeContext ?? null;
+  const placeBlock = formatPlaceContextBlock(place);
   const vars = {
-    canonicalNarrative: variables.canonicalNarrative,
+    canonicalNarrative: variables.canonicalNarrative ?? '',
     language: variables.language,
     variantType: variables.variantType,
+    sourcePackText: variables.sourcePackText
+      ? String(variables.sourcePackText)
+      : '(no research excerpts)',
+    sourceDeepText: variables.sourceDeepText ? String(variables.sourceDeepText) : '(not provided)',
+    placeDisplayName: place?.displayName ? String(place.displayName) : '',
+    placeFormattedAddress: place?.formattedAddress ? String(place.formattedAddress) : '',
+    placeCountryCode: place?.countryCode ? String(place.countryCode) : '',
+    placeAdminArea: place?.adminArea ? String(place.adminArea) : '',
+    placeLocality: place?.locality ? String(place.locality) : '',
+    placeCoordinates:
+      place?.coordinates &&
+      Number.isFinite(place.coordinates.lat) &&
+      Number.isFinite(place.coordinates.lng)
+        ? `${place.coordinates.lat}, ${place.coordinates.lng}`
+        : '',
+    placeTypes: Array.isArray(place?.placeTypes) ? place.placeTypes.join(', ') : '',
+    placeContextBlock: placeBlock,
   };
   return {
     system: interpolate(readPromptFile(entry.system), vars),
@@ -49,6 +75,34 @@ function getPrompts(variantType, variables) {
     promptSetVersion: manifest.promptSetVersion,
     promptVersion: 'v1',
   };
+}
+
+/**
+ * Build a human-readable place context block for prompt interpolation.
+ * Domains pass structured placeContext; string form is derived only here (PL4).
+ * @param {object|null|undefined} place
+ */
+function formatPlaceContextBlock(place) {
+  if (!place || typeof place !== 'object') {
+    return 'Place context: (not provided)';
+  }
+  const lines = ['Place context:'];
+  if (place.displayName) lines.push(`- Name: ${place.displayName}`);
+  if (place.formattedAddress) lines.push(`- Address: ${place.formattedAddress}`);
+  if (place.locality) lines.push(`- Locality: ${place.locality}`);
+  if (place.adminArea) lines.push(`- Region: ${place.adminArea}`);
+  if (place.countryCode) lines.push(`- Country: ${place.countryCode}`);
+  if (
+    place.coordinates &&
+    Number.isFinite(place.coordinates.lat) &&
+    Number.isFinite(place.coordinates.lng)
+  ) {
+    lines.push(`- Coordinates: ${place.coordinates.lat}, ${place.coordinates.lng}`);
+  }
+  if (Array.isArray(place.placeTypes) && place.placeTypes.length) {
+    lines.push(`- Types: ${place.placeTypes.join(', ')}`);
+  }
+  return lines.length > 1 ? lines.join('\n') : 'Place context: (not provided)';
 }
 
 function getPromptSetVersion() {

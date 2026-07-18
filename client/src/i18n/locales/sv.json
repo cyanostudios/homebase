@@ -7,6 +7,7 @@
     "edit": "Redigera",
     "search": "Sök",
     "loading": "Laddar...",
+    "checking": "Kontrollerar …",
     "saving": "Sparar...",
     "deleting": "Tar bort…",
     "yes": "Ja",
@@ -597,6 +598,72 @@
     "shortIntro": "Kort intro",
     "geographicReference": "Geografisk referens",
     "geographicReferencePlaceholder": "t.ex. Stockholm, Sverige",
+    "place": {
+      "label": "Plats",
+      "placeholder": "Sök stad, plats eller adress …",
+      "minChars": "Skriv minst 2 tecken för att söka",
+      "searching": "Söker …",
+      "noResults": "Inga platser hittades för \"{{q}}\"",
+      "useManual": "Använd \"{{q}}\" som fri text",
+      "manualBadge": "Manuell",
+      "change": "Ändra",
+      "clear": "Rensa",
+      "searchUnavailable": "Sökningen är inte tillgänglig just nu — ange platsen manuellt.",
+      "resolvedHint": "Vald plats sparas som ögonblicksbild."
+    },
+    "usage": {
+      "title": "Genereringsinfo",
+      "provider": "Leverantör",
+      "model": "Modell",
+      "inputTokens": "Tokens in",
+      "outputTokens": "Tokens ut",
+      "totalTokens": "Tokens totalt",
+      "estCost": "Uppskattad kostnad",
+      "latency": "Svarstid",
+      "sources": "Researchkällor",
+      "sourceOk": "{{count}} utdrag",
+      "sourceEmpty": "Ingen träff",
+      "sourceFailed": "Misslyckades",
+      "estimatedNote": "Uppskattad kostnad, ej faktisk debitering."
+    },
+    "generation": {
+      "retry": "Försök igen",
+      "openSettings": "Öppna AI-inställningar",
+      "failure": {
+        "provider_not_configured": {
+          "title": "Ingen AI-leverantör är konfigurerad",
+          "message": "Konfigurera en AI-leverantör som stöder textgenerering (just nu OpenAI) innan du producerar en guide."
+        },
+        "provider_auth_failed": {
+          "title": "Autentiseringen mot AI-leverantören misslyckades",
+          "message": "Kontrollera leverantörens uppgifter i inställningarna och försök igen."
+        },
+        "provider_quota_exhausted": {
+          "title": "AI-leverantörens kvot är slut",
+          "message": "Ditt AI-leverantörskonto har ingen kvarvarande kvot eller kredit. Guides kan inte se saldot — kontrollera leverantörens dashboard och försök igen."
+        },
+        "provider_rate_limited": {
+          "title": "För många förfrågningar just nu",
+          "message": "AI-leverantören är tillfälligt begränsad. Vänta en liten stund och försök igen."
+        },
+        "provider_unavailable": {
+          "title": "AI-leverantören är tillfälligt otillgänglig",
+          "message": "Tjänsten svarar inte just nu. Försök igen om en stund."
+        },
+        "provider_invalid_request": {
+          "title": "Genereringen kunde inte startas",
+          "message": "Förfrågan kunde inte behandlas. Se över guidens innehåll och försök igen."
+        },
+        "content_input_invalid": {
+          "title": "Innehållet kunde inte användas för generering",
+          "message": "Kontrollera guidens uppgifter (t.ex. plats och introtext) och försök igen."
+        },
+        "provider_unknown_error": {
+          "title": "Något gick fel",
+          "message": "Ett oväntat fel inträffade. Försök igen senare."
+        }
+      }
+    },
     "lifecycleStatus": "Livscykelstatus",
     "sourceLanguage": "Källspråk",
     "sourceLanguagePlaceholder": "sv",
@@ -705,14 +772,14 @@
     },
     "production": {
       "panelTitle": "Produktion",
-      "startFullGuide": "Producera hel guide",
+      "startFullGuide": "Skapa guide från plats",
       "panelIdle": "Inget aktivt produktionsjobb.",
       "panelActive": "Produktion pågår",
       "panelPhase": "Fas: {{phase}}",
       "panelAwaitingYou": "{{count}} utkast väntar beslut",
       "jobLabel": "Jobb #{{id}}",
       "progress": "{{done}}/{{total}} klara",
-      "polling": "Uppdaterar…",
+      "polling": "Kollar status…",
       "loadFailed": "Kunde inte ladda produktionsjobb.",
       "actionFailed": "Produktionsåtgärden misslyckades.",
       "activeJobConflict": "Ett produktionsjobb är redan aktivt för denna plats.",
@@ -753,8 +820,8 @@
         "variant": "Variant"
       },
       "banner": {
-        "pending": "Produktion köad…",
-        "planning": "Planerar produktion…",
+        "pending": "I kö — startar strax…",
+        "planning": "Hämtar källor (Wikipedia, UNESCO, …)…",
         "failed": "Produktionen misslyckades",
         "completed": "Produktionen är klar",
         "awaitingReview": "Granska textutkast ({{count}} kvar)",
@@ -763,18 +830,27 @@
           "text_derivation": "Producerar text…",
           "translation": "Översätter…",
           "audio": "Genererar ljud…"
-        }
+        },
+        "pipeline": {
+          "research": "Hämtar källor (Wikipedia, UNESCO, …)…",
+          "deep": "Skriver deep-text…",
+          "summarize": "Sammanfattar normal och quick…"
+        },
+        "stalled": "Produktionen har inte startat",
+        "stalledHint": "Jobbet ligger kvar i kön. Det beror oftast på att bakgrundsprocessen är avstängd — inte på AI-tokens. Starta om servern med workern påslagen, eller avbryt och försök igen.",
+        "failedGeneric": "Något gick fel under produktionen. Se detaljer nedan eller försök igen."
       },
       "start": {
-        "fullGuideTitle": "Starta produktion",
-        "fullGuideDescription": "Starta ett produktionsjobb för hela guiden. Textfasen pausar för granskning innan översättning körs.",
+        "fullGuideTitle": "Skapa guide från plats",
+        "fullGuideDescription": "Starta produktion från platsen: hämta källor, skriv deep-text, sammanfatta normal/quick. Granskning sker efter textfasen.",
         "stopTitle": "Producera stopp",
         "stopDescription": "Starta produktion för stoppet \"{{name}}\".",
         "variantTitle": "Producera variant",
         "variantDescription": "Starta produktion för varianten {{name}}.",
-        "phasesHint": "Faser: Text → Översättning. Granskning sker efter textfasen.",
+        "phasesHint": "Flöde: Hämta källor → Deep-text → Normal/quick-sammanfattningar → Granska.",
         "forceLabel": "Tvinga omkörning (ignorera cache)",
-        "confirm": "Starta produktion"
+        "confirm": "Skapa guide från plats",
+        "confirmScoped": "Starta produktion"
       },
       "review": {
         "queueTitle": "Granska textutkast ({{count}})",
@@ -793,6 +869,14 @@
         "rejectAria": "Avvisa textutkast för {{label}}",
         "regenerateAria": "Regenerera textutkast för {{label}}",
         "continueDisabledTooltip": "{{count}} utkast väntar beslut"
+      },
+      "panelIdleHint": "Hämtar källor (Wikipedia, UNESCO, …), skriver deep-text och sammanfattar normal/quick.",
+      "pipelineAria": "Textpipeline: {{stages}}. Aktiv: {{current}}",
+      "pipeline": {
+        "research": "Källor",
+        "deep": "Deep",
+        "summarize": "Normal/quick",
+        "review": "Granska"
       }
     }
   },

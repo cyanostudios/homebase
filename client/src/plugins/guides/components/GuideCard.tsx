@@ -57,10 +57,12 @@ export function GuideCard({
           <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
         </div>
 
-        {guide.geographicReference ? (
+        {guide.place?.displayName || guide.geographicReference ? (
           <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">{guide.geographicReference}</span>
+            <span className="truncate">
+              {guide.place?.displayName ?? guide.geographicReference}
+            </span>
           </div>
         ) : null}
 
