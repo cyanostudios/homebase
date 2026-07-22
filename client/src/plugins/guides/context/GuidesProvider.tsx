@@ -260,12 +260,16 @@ export function GuidesProvider({
               const status = (produceErr as { status?: number }).status;
               const code = (produceErr as { code?: string }).code;
               if (status === 422 && code) {
+                const title = t(`guides.generation.failure.${code}.title`, {
+                  defaultValue: t('guides.production.actionFailed'),
+                });
+                const detail = t(`guides.generation.failure.${code}.message`, {
+                  defaultValue: '',
+                });
                 setValidationErrors([
                   {
                     field: 'general',
-                    message: t(`guides.generation.failure.${code}.title`, {
-                      defaultValue: t('guides.production.actionFailed'),
-                    }),
+                    message: detail ? `${title}. ${detail}` : title,
                   },
                 ]);
               } else {

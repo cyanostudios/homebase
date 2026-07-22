@@ -650,8 +650,8 @@
       "openSettings": "Öppna AI-inställningar",
       "failure": {
         "provider_not_configured": {
-          "title": "Ingen AI-leverantör är konfigurerad",
-          "message": "Konfigurera en AI-leverantör som stöder textgenerering (just nu OpenAI) innan du producerar en guide."
+          "title": "Guides är inte kopplad till en AI-leverantör",
+          "message": "Koppla Guides till en AI-leverantör under AI-inställningar (t.ex. OpenAI med API-nyckel) innan du producerar en guide."
         },
         "provider_not_generation_capable": {
           "title": "Den här AI-leverantören kan inte generera guidetext",

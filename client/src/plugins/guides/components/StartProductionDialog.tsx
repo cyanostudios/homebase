@@ -304,31 +304,28 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
                   {t('common.cancel')}
                 </Button>
               </AlertDialogCancel>
-              <AlertDialogAction asChild>
-                <Button
-                  variant="primary"
-                  disabled={
-                    isBusy ||
-                    hasActiveJob ||
-                    (mode === 'translation' && selectedLanguages.size === 0)
-                  }
-                  aria-busy={isBusy}
-                  onClick={() =>
-                    onConfirm({
-                      force,
-                      languages: selectedLanguages.size ? Array.from(selectedLanguages) : undefined,
-                    })
-                  }
-                >
-                  {isBusy ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('common.checking')}
-                    </>
-                  ) : (
-                    t(confirmKey)
-                  )}
-                </Button>
+              <AlertDialogAction
+                disabled={
+                  isBusy || hasActiveJob || (mode === 'translation' && selectedLanguages.size === 0)
+                }
+                aria-busy={isBusy}
+                onClick={(event) => {
+                  // Keep dialog open so 422 readiness failures (e.g. no AI provider) stay visible.
+                  event.preventDefault();
+                  onConfirm({
+                    force,
+                    languages: selectedLanguages.size ? Array.from(selectedLanguages) : undefined,
+                  });
+                }}
+              >
+                {isBusy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t('common.checking')}
+                  </>
+                ) : (
+                  t(confirmKey)
+                )}
               </AlertDialogAction>
             </>
           )}

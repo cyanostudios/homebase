@@ -650,8 +650,8 @@
       "openSettings": "Open AI settings",
       "failure": {
         "provider_not_configured": {
-          "title": "No AI provider is configured",
-          "message": "Configure an AI provider that supports text generation (currently OpenAI) before producing a guide."
+          "title": "Guides is not linked to an AI provider",
+          "message": "Link Guides to an AI provider in AI settings (e.g. OpenAI with an API key) before producing a guide."
         },
         "provider_not_generation_capable": {
           "title": "This AI provider cannot generate guide text",
