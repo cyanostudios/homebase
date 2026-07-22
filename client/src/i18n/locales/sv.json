@@ -571,10 +571,16 @@
   "guides": {
     "title": "Guider",
     "listDescription": "Hantera platser för produktion av audioguider.",
+    "stats": {
+      "total": "Totalt",
+      "draft": "Utkast",
+      "active": "Aktiva"
+    },
     "searchPlaceholder": "Sök bland {{count}} platser…",
     "noMatch": "Inga platser matchar sökningen.",
     "noYet": "Inga platser än. Lägg till en plats för att börja bygga en guide.",
     "addPlace": "Lägg till plats",
+    "saveAndProduce": "Spara och producera",
     "loadFailed": "Kunde inte ladda platser.",
     "displayNameRequired": "Visningsnamn krävs",
     "saveFailed": "Kunde inte spara. Försök igen.",
@@ -587,8 +593,10 @@
     "colId": "ID",
     "colName": "Namn",
     "colLocation": "Plats",
+    "colCountry": "Land",
     "colStatus": "Status",
     "colSourceLanguage": "Källspråk",
+    "colLanguages": "Språk",
     "colUpdated": "Uppdaterad",
     "details": "Detaljer",
     "information": "Information",
@@ -609,7 +617,8 @@
       "change": "Ändra",
       "clear": "Rensa",
       "searchUnavailable": "Sökningen är inte tillgänglig just nu — ange platsen manuellt.",
-      "resolvedHint": "Vald plats sparas som ögonblicksbild."
+      "resolvedHint": "Vald plats sparas som ögonblicksbild.",
+      "countryAll": "Alla länder"
     },
     "usage": {
       "title": "Genereringsinfo",
@@ -670,7 +679,7 @@
     },
     "lifecycleStatus": "Livscykelstatus",
     "sourceLanguage": "Källspråk",
-    "sourceLanguagePlaceholder": "sv",
+    "sourceLanguagePlaceholder": "en",
     "sourceLanguageHint": "Kanoniskt språk för denna guide (t.ex. sv, en-us).",
     "masterGuide": "Master guide",
     "masterGuideEditorialStatus": "Redaktionell status",
@@ -688,6 +697,9 @@
       "stale": "Föråldrad"
     },
     "masterGuideId": "Master guide",
+    "information": {
+      "generatedLanguages": "Genererad på"
+    },
     "lifecycle": {
       "draft": "Utkast",
       "active": "Aktiv",
@@ -704,6 +716,9 @@
     "production": {
       "panelTitle": "Produktion",
       "startFullGuide": "Skapa guide från plats",
+      "generateSource": "Generera källtext",
+      "generateTranslations": "Generera översättningar",
+      "translationsNeedSource": "Generera källtext först — översättningar bygger på källtexten.",
       "panelIdle": "Inget aktivt produktionsjobb.",
       "panelActive": "Produktion pågår",
       "panelPhase": "Fas: {{phase}}",
@@ -764,7 +779,20 @@
       "start": {
         "fullGuideTitle": "Skapa guide från plats",
         "fullGuideDescription": "Starta produktion för den här platsen: hämta källor, generera presentationstext och granska. Översättning körs när andra språk begärs.",
+        "sourceTitle": "Generera källtext",
+        "sourceDescription": "Hämta researchkällor och generera presentationstext på källspråket.",
+        "sourcePhasesHint": "Flöde: Hämta källor → Generera text → Granska.",
+        "sourceLanguageLabel": "Källspråk",
+        "sourceConfirm": "Generera källtext",
+        "translationsTitle": "Generera översättningar",
+        "translationsDescription": "Översätt den godkända källtexten till valda språk.",
+        "translationsPhasesHint": "Använder källtexten — ingen ny research.",
+        "translationsConfirm": "Generera översättningar",
+        "prepareLanguagesFailed": "Kunde inte förbereda valda språk. Försök igen.",
         "phasesHint": "Flöde: Hämta källor → Generera text → Granska.",
+        "languagesLabel": "Målspråk",
+        "alreadyGenerated": "Har redan genererad text",
+        "sourceTag": "källa",
         "forceLabel": "Tvinga omkörning (ignorera cache)",
         "confirm": "Skapa guide från plats"
       },
@@ -787,7 +815,7 @@
         "continueDisabledTooltip": "{{count}} utkast väntar beslut",
         "unknownLanguage": "Okänt språk"
       },
-      "panelIdleHint": "Hämtar källor, genererar presentationstext och öppnar granskning.",
+      "panelIdleHint": "Generera källtext från researchkällor, använd sedan Generera översättningar för andra språk.",
       "pipelineAria": "Textpipeline: {{stages}}. Aktiv: {{current}}",
       "pipeline": {
         "research": "Källor",
@@ -810,6 +838,16 @@
     "sourcePresentation": "Källspråk",
     "sourcePresentationEmpty": "Ingen text på källspråket ännu. Skapa guiden eller skriv den här.",
     "otherLanguages": "Andra språk",
+    "otherLanguagesEmpty": "Inga andra språk ännu. Lägg till ett för att aktivera översättning vid nästa Skapa guide.",
+    "otherLanguageEmpty": "Ingen text ännu. Skapa guiden för att översätta till det här språket.",
+    "addLanguage": "Lägg till språk",
+    "addLanguageLabel": "Språk",
+    "addLanguageHint": "Välj målspråk i Generera översättningar, eller lägg till ett språk här för manuell redigering.",
+    "addLanguagePlaceholder": "t.ex. en",
+    "addLanguageConfirm": "Lägg till",
+    "addLanguageInvalid": "Ange en giltig språkkod (t.ex. en, sv, it).",
+    "addLanguageExists": "Det språket finns redan.",
+    "addLanguageFailed": "Kunde inte lägga till språket.",
     "editPresentation": "Redigera presentation ({{language}})",
     "approvalStatus": "Godkännandestatus",
     "approval": {

@@ -9,9 +9,14 @@ import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { guidesApi } from '../api/guidesApi';
-import type { Guide, GuidePayload, GuideValidationError } from '../types/guides';
+import type {
+  Guide,
+  GuidePayload,
+  GuideValidationError,
+  ProductionJobDetail,
+} from '../types/guides';
 
-import { GuidesContext, type GuidesContextType } from './GuidesContext';
+import { GuidesContext, type GuideSaveOptions, type GuidesContextType } from './GuidesContext';
 
 interface GuidesProviderProps {
   children: ReactNode;
@@ -37,6 +42,16 @@ export function GuidesProvider({
     usePluginValidation<GuideValidationError>();
   const [guides, setGuides] = useState<Guide[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingProductionDetail, setPendingProductionDetail] =
+    useState<ProductionJobDetail | null>(null);
+  const pendingProductionDetailRef = useRef<ProductionJobDetail | null>(null);
+
+  const consumePendingProductionDetail = useCallback(() => {
+    const detail = pendingProductionDetailRef.current;
+    pendingProductionDetailRef.current = null;
+    setPendingProductionDetail(null);
+    return detail;
+  }, []);
 
   const {
     selectedIds: selectedGuideIds,
@@ -168,7 +183,8 @@ export function GuidesProvider({
   );
 
   const saveGuide = useCallback(
-    async (raw: GuidePayload): Promise<boolean> => {
+    async (raw: GuidePayload, options?: GuideSaveOptions): Promise<boolean> => {
+      const produce = Boolean(options?.produce);
       const payload: GuidePayload = {
         displayName: raw.displayName.trim(),
         shortIntro: raw.shortIntro?.trim() ? raw.shortIntro.trim() : null,
@@ -177,7 +193,7 @@ export function GuidesProvider({
           : null,
         place: raw.place ?? null,
         lifecycleStatus: raw.lifecycleStatus ?? 'draft',
-        sourceLanguage: raw.sourceLanguage?.trim() ? raw.sourceLanguage.trim().toLowerCase() : 'sv',
+        sourceLanguage: raw.sourceLanguage?.trim() ? raw.sourceLanguage.trim().toLowerCase() : 'en',
       };
       const errors = validate(payload);
       setValidationErrors(errors);
@@ -202,8 +218,54 @@ export function GuidesProvider({
           setPanelMode('view');
         } else {
           const saved = await guidesApi.createGuide(payload);
-          setGuides((prev) => [saved, ...prev]);
-          closeGuidePanel();
+          const nextGuides = [saved, ...guides.filter((g) => String(g.id) !== String(saved.id))];
+          setGuides(nextGuides);
+
+          if (produce) {
+            const sourceLanguage = saved.sourceLanguage?.trim().toLowerCase() || 'en';
+            try {
+              const detail = await guidesApi.startProductionJob(saved.id, {
+                type: 'full_guide',
+                phases: ['text_derivation'],
+                languages: [sourceLanguage],
+              });
+              pendingProductionDetailRef.current = detail;
+              setPendingProductionDetail(detail);
+            } catch (produceErr) {
+              console.error('Failed to start guide production after create:', produceErr);
+              const status = (produceErr as { status?: number }).status;
+              const code = (produceErr as { code?: string }).code;
+              if (status === 422 && code) {
+                setValidationErrors([
+                  {
+                    field: 'general',
+                    message: t(`guides.generation.failure.${code}.title`, {
+                      defaultValue: t('guides.production.actionFailed'),
+                    }),
+                  },
+                ]);
+              } else {
+                setValidationErrors([
+                  { field: 'general', message: t('guides.production.actionFailed') },
+                ]);
+              }
+              setCurrentGuide(saved);
+              setPanelMode('view');
+              setIsGuidePanelOpen(true);
+              onCloseOtherPanels();
+              navigateToItem(saved, nextGuides, 'displayName');
+              return true;
+            }
+
+            setCurrentGuide(saved);
+            setPanelMode('view');
+            setIsGuidePanelOpen(true);
+            clearValidationErrors();
+            onCloseOtherPanels();
+            navigateToItem(saved, nextGuides, 'displayName');
+          } else {
+            closeGuidePanel();
+          }
         }
         clearValidationErrors();
         return true;
@@ -220,7 +282,17 @@ export function GuidesProvider({
         setIsSaving(false);
       }
     },
-    [clearValidationErrors, closeGuidePanel, currentGuide, setValidationErrors, t, validate],
+    [
+      clearValidationErrors,
+      closeGuidePanel,
+      currentGuide,
+      guides,
+      navigateToItem,
+      onCloseOtherPanels,
+      setValidationErrors,
+      t,
+      validate,
+    ],
   );
 
   const deleteGuide = useCallback(
@@ -297,6 +369,8 @@ export function GuidesProvider({
       validationErrors,
       guides,
       isSaving,
+      pendingProductionDetail,
+      consumePendingProductionDetail,
       openGuidePanel,
       openGuideForEdit,
       openGuideForView,
@@ -320,6 +394,8 @@ export function GuidesProvider({
       validationErrors,
       guides,
       isSaving,
+      pendingProductionDetail,
+      consumePendingProductionDetail,
       openGuidePanel,
       openGuideForEdit,
       openGuideForView,

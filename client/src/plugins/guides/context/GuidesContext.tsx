@@ -1,8 +1,17 @@
 import React, { createContext, useContext } from 'react';
 
-import type { Guide, GuidePayload, GuideValidationError } from '../types/guides';
+import type {
+  Guide,
+  GuidePayload,
+  GuideValidationError,
+  ProductionJobDetail,
+} from '../types/guides';
 
 export type GuidePanelMode = 'create' | 'edit' | 'view';
+
+export type GuideSaveOptions = {
+  produce?: boolean;
+};
 
 export interface GuidesContextType {
   isGuidePanelOpen: boolean;
@@ -11,11 +20,14 @@ export interface GuidesContextType {
   validationErrors: GuideValidationError[];
   guides: Guide[];
   isSaving: boolean;
+  /** Job detail from Save-and-produce; consumed once by GuideView / useProductionJob. */
+  pendingProductionDetail: ProductionJobDetail | null;
+  consumePendingProductionDetail: () => ProductionJobDetail | null;
   openGuidePanel: (item: Guide | null) => void;
   openGuideForEdit: (item: Guide) => void;
   openGuideForView: (item: Guide) => void;
   closeGuidePanel: () => void;
-  saveGuide: (data: GuidePayload) => Promise<boolean>;
+  saveGuide: (data: GuidePayload, options?: GuideSaveOptions) => Promise<boolean>;
   deleteGuide: (id: string) => Promise<void>;
   deleteGuides: (ids: string[]) => Promise<void>;
   selectedGuideIds: string[];
@@ -46,6 +58,8 @@ export function GuideNullProvider({ children }: { children: React.ReactNode }) {
     validationErrors: [],
     guides: [],
     isSaving: false,
+    pendingProductionDetail: null,
+    consumePendingProductionDetail: () => null,
     openGuidePanel: () => {},
     openGuideForEdit: () => {},
     openGuideForView: () => {},

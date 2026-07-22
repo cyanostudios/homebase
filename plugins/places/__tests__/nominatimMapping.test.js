@@ -1,8 +1,5 @@
-const {
-  mapNominatimItem,
-  buildProviderRef,
-  mapBoundingBox,
-} = require('../adapters/NominatimPlaceProvider');
+const NominatimPlaceProvider = require('../adapters/NominatimPlaceProvider');
+const { mapNominatimItem, buildProviderRef, mapBoundingBox } = NominatimPlaceProvider;
 
 describe('NominatimPlaceProvider mapping', () => {
   test('maps Nominatim item to PlaceResolved', () => {
@@ -36,5 +33,29 @@ describe('NominatimPlaceProvider mapping', () => {
     expect(mapped.bbox).toEqual([12.48, 41.88, 12.5, 41.9]);
     expect(buildProviderRef({ osm_type: 'node', osm_id: 9 })).toBe('N9');
     expect(mapBoundingBox(['1', '2', '3', '4'])).toEqual([3, 1, 4, 2]);
+  });
+});
+
+describe('NominatimPlaceProvider search with countryCode', () => {
+  test('passes countrycodes param to Nominatim when countryCode option is set', async () => {
+    const captured = { url: null };
+    const mockFetch = async (url) => {
+      captured.url = url;
+      return { ok: true, json: async () => [] };
+    };
+    const provider = new NominatimPlaceProvider({ fetchFn: mockFetch });
+    await provider.search('Colosseum', { countryCode: 'IT' });
+    expect(captured.url).toContain('countrycodes=it');
+  });
+
+  test('does not pass countrycodes when countryCode is not set', async () => {
+    const captured = { url: null };
+    const mockFetch = async (url) => {
+      captured.url = url;
+      return { ok: true, json: async () => [] };
+    };
+    const provider = new NominatimPlaceProvider({ fetchFn: mockFetch });
+    await provider.search('Colosseum');
+    expect(captured.url).not.toContain('countrycodes');
   });
 });

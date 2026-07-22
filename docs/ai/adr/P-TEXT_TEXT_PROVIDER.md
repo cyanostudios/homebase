@@ -144,18 +144,20 @@ plugins/guides/providers/text/prompts/
 
 ```json
 {
-  "promptSetVersion": "v1.3",
+  "promptSetVersion": "v1.4",
   "entry": {
     "system": "text_derivation/v1.system.md",
     "user": "text_derivation/v1.user.md"
   },
   "tokenBudgets": {
-    "maxCompletionTokens": 400
+    "maxCompletionTokens": 2800
   }
 }
 ```
 
-> **Historiskt:** Separata mappar `quick/` / `normal/` / `deep/` med per-variant `manifest.variants` och token budgets (150 / 400 / 800).
+> **Aktuellt (v1.4):** Audioguide-narrativ (~1200–1800 ord / ~8–12 min spoken). Budget 2800 completion tokens.
+>
+> **Historiskt:** Separata mappar `quick/` / `normal/` / `deep/` med per-variant `manifest.variants` och token budgets (150 / 400 / 800). Place-presentation v1.3 hade en kort prompt med budget 400.
 
 ### `TextPromptLoader`
 
@@ -209,7 +211,7 @@ Ingen migration krävs — `provider_result JSONB` är redan flexibel.
     "text": "Exakt modell-output före eventuell trimning",
     "model": "gpt-4o-mini",
     "promptVersion": "v1",
-    "promptSetVersion": "v1.3",
+    "promptSetVersion": "v1.4",
     "language": "sv",
     "finishReason": "stop"
   },
@@ -357,7 +359,7 @@ Ingen frontend-ändring krävs för P-TEXT MVP.
 
 ## Token-budgetar
 
-**Aktuellt:** En budget i `manifest.json` (`maxCompletionTokens`: 400). Prompten instruerar längd och ton.
+**Aktuellt:** En budget i `manifest.json` (`maxCompletionTokens`: 2800). Prompten instruerar audioguide-narrativ (~1200–1800 ord / ~8–12 min spoken).
 
 > **Historiskt — per varianttyp:**
 

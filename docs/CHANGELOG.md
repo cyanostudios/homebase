@@ -4,6 +4,51 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07 – Guides produce UX split (knappar, badges, språkkolumn)
+
+**Status:** Implementerat lokalt.
+
+**Sammanfattning:** Separata knappar för källtext vs översättningar, färgkodade statusbadges, listkolumn med genererade språk.
+
+### Frontend
+
+- **GuideProductionPanel** — _Generera källtext_ (`phases: text_derivation`) och _Generera översättningar_ (`phases: translation`, multi-välj målspråk; skapar presentation-shells vid behov).
+- **StartProductionDialog** — lägen `source` | `translation` med egna titlar och språkval.
+- **GuideLanguageBadges** — delad komponent för språk-badges (källspråk markerat).
+- **GuideList / GuideCard** — kolumn _Språk_ ersätter källspråk; visar bara språk med text.
+- **Badge-färger** — `GUIDE_PUBLICATION_COLORS`, `GUIDE_APPROVAL_COLORS`, `GUIDE_STALENESS_COLORS` i presentationsvy.
+
+### Backend
+
+- **GET /guides** och **GET /guides/:id** — fält `languages: string[]` (presentationer med non-empty `presentation_text`).
+
+---
+
+## 2026-07 – Guides Create UX Polish (land-filter, språkval, collapsible)
+
+**Status:** Implementerat lokalt.
+
+**Sammanfattning:** Förbättrar manuellt guide-skapande – enklare formulär, land-filter i platssök, per-språk produktion och collapsible texter.
+
+### Frontend
+
+- **GuideForm** — `short intro`-fältet borttaget från skapa/redigera-UI (kolumn kvar nullable); `sourceLanguage` default ändrat till `en`.
+- **PlaceSearchField** — land-dropdown (ISO alpha-2) ovanför sökfältet; skickar `countryCode` till API.
+- **StartProductionDialog** — multi-select för språk; default = språk utan text; `force` påverkar bara valda språk.
+- **GuidePresentationSection** — collapsible kort per språk; källspråk öppet, övriga med text kollapsade som standard; `onPresentationsChange`-callback.
+- **GuideView** — genererade språk visas som badges i info-sidopanelen.
+
+### Backend
+
+- **`GET /places/search`** — optional `countryCode` (ISO alpha-2) vidarebefordras som `countrycodes` till Nominatim.
+- **`NominatimPlaceProvider`** — accepterar `options.countryCode`.
+
+### Tester
+
+- `nominatimMapping.test.js` — ny testsvit för `countryCode`-param.
+
+---
+
 ## 2026-07 – Content Production Pipeline P-TEXT (`guides`-plugin, backend, Fas 2)
 
 **Status:** Backend klar (QA, Security, Documentation). **Ej deployad** — väntar commit/merge till `main` / Railway. Bygger på P-FRONTEND + P-REGEN (lokal).

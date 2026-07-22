@@ -23,6 +23,45 @@ class PostgreSQLAdapter extends DatabaseService {
   }
 
   /**
+   * Find first occurrence of `search` at parenthesis depth 0.
+   * Ignores matches inside subqueries / LATERAL / function args (e.g. ARRAY_AGG(... ORDER BY ...)).
+   */
+  _findTopLevelIndex(sql, search) {
+    const upper = sql.toUpperCase();
+    const needle = search.toUpperCase();
+    let depth = 0;
+
+    for (let i = 0; i <= upper.length - needle.length; i++) {
+      const ch = upper[i];
+      if (ch === '(') {
+        depth += 1;
+        continue;
+      }
+      if (ch === ')') {
+        depth = Math.max(0, depth - 1);
+        continue;
+      }
+      if (depth === 0 && upper.startsWith(needle, i)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /**
+   * Earliest top-level trailing clause (ORDER BY / GROUP BY / LIMIT / OFFSET).
+   */
+  _findTopLevelTrailingClauseIndex(sql) {
+    const positions = [
+      this._findTopLevelIndex(sql, ' ORDER BY '),
+      this._findTopLevelIndex(sql, ' GROUP BY '),
+      this._findTopLevelIndex(sql, ' LIMIT '),
+      this._findTopLevelIndex(sql, ' OFFSET '),
+    ].filter((p) => p !== -1);
+    return positions.length > 0 ? Math.min(...positions) : -1;
+  }
+
+  /**
    * Add tenant isolation to SQL query
    * Automatically adds WHERE user_id = ? clause if not present
    */
@@ -41,97 +80,47 @@ class PostgreSQLAdapter extends DatabaseService {
 
     // For SELECT queries, add WHERE clause
     if (upperSql.startsWith('SELECT')) {
-      // Find the position of ORDER BY, GROUP BY, LIMIT, OFFSET (these must come after WHERE)
-      const orderByIndex = upperSql.indexOf(' ORDER BY ');
-      const groupByIndex = upperSql.indexOf(' GROUP BY ');
-      const limitIndex = upperSql.indexOf(' LIMIT ');
-      const offsetIndex = upperSql.indexOf(' OFFSET ');
+      const trailingIndex = this._findTopLevelTrailingClauseIndex(sql);
+      const whereIndex = this._findTopLevelIndex(sql, ' WHERE ');
 
-      // Find the last clause that must come after WHERE
-      const lastClauseIndex = Math.max(
-        orderByIndex === -1 ? -1 : orderByIndex,
-        groupByIndex === -1 ? -1 : groupByIndex,
-        limitIndex === -1 ? -1 : limitIndex,
-        offsetIndex === -1 ? -1 : offsetIndex,
-      );
-
-      const whereIndex = upperSql.indexOf(' WHERE ');
       if (whereIndex === -1) {
-        // No WHERE clause
-        if (lastClauseIndex === -1) {
-          // No ORDER BY, GROUP BY, LIMIT, OFFSET - just add WHERE at the end
+        // No top-level WHERE clause
+        if (trailingIndex === -1) {
           return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
-        } else {
-          // Has ORDER BY/GROUP BY/LIMIT/OFFSET - insert WHERE before them
-          const insertPos = sql
-            .toUpperCase()
-            .indexOf(upperSql.substring(lastClauseIndex, lastClauseIndex + 10));
-          const beforeClause = sql.substring(0, insertPos);
-          const afterClause = sql.substring(insertPos);
-          return `${beforeClause} WHERE user_id = $${this._getParamCount(sql) + 1} ${afterClause}`;
         }
-      } else {
-        // Has WHERE clause, add AND at the end of WHERE clause (before ORDER BY/etc)
-        // Find where to insert: after existing WHERE conditions but before ORDER BY/GROUP BY/LIMIT/OFFSET
-        if (lastClauseIndex === -1) {
-          // No ORDER BY/GROUP BY/LIMIT/OFFSET - add AND at the end
-          const paramNum = this._getParamCount(sql) + 1;
-          // Insert AND user_id = $N at the end, before any semicolon
-          const sqlEnd = sql.length;
-          return `${sql.substring(0, sqlEnd)} AND user_id = $${paramNum}`;
-        } else {
-          // Has ORDER BY/GROUP BY/LIMIT/OFFSET - insert AND before them
-          // Find the exact position in the original SQL (case-sensitive)
-          let insertPos = -1;
-          const orderByPos = sql.toUpperCase().indexOf(' ORDER BY ');
-          const groupByPos = sql.toUpperCase().indexOf(' GROUP BY ');
-          const limitPos = sql.toUpperCase().indexOf(' LIMIT ');
-          const offsetPos = sql.toUpperCase().indexOf(' OFFSET ');
-
-          // Find the earliest clause position
-          const positions = [orderByPos, groupByPos, limitPos, offsetPos].filter((p) => p !== -1);
-          if (positions.length > 0) {
-            insertPos = Math.min(...positions);
-          }
-
-          if (insertPos === -1) {
-            // Fallback: add at the end
-            const paramNum = this._getParamCount(sql) + 1;
-            return `${sql} AND user_id = $${paramNum}`;
-          }
-
-          const beforeClause = sql.substring(0, insertPos).trim();
-          const afterClause = sql.substring(insertPos);
-          const paramNum = this._getParamCount(sql) + 1;
-          return `${beforeClause} AND user_id = $${paramNum} ${afterClause}`;
-        }
+        const beforeClause = sql.substring(0, trailingIndex);
+        const afterClause = sql.substring(trailingIndex);
+        return `${beforeClause} WHERE user_id = $${this._getParamCount(sql) + 1} ${afterClause}`;
       }
+
+      // Has top-level WHERE — append AND before trailing clauses (or at end)
+      const paramNum = this._getParamCount(sql) + 1;
+      if (trailingIndex === -1) {
+        return `${sql} AND user_id = $${paramNum}`;
+      }
+      const beforeClause = sql.substring(0, trailingIndex).trim();
+      const afterClause = sql.substring(trailingIndex);
+      return `${beforeClause} AND user_id = $${paramNum} ${afterClause}`;
     }
 
     // For UPDATE/DELETE, add WHERE clause if not present
     if (upperSql.startsWith('UPDATE') || upperSql.startsWith('DELETE')) {
-      const whereIndex = upperSql.indexOf('WHERE');
+      const whereIndex = this._findTopLevelIndex(sql, ' WHERE ');
       if (whereIndex === -1) {
-        // No WHERE clause - this is dangerous, but we'll add user_id filter
         return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
-      } else {
-        // Check if user_id already in WHERE
-        if (!upperSql.includes('USER_ID')) {
-          // Check if query has RETURNING clause - if so, insert AND before RETURNING
-          // Use case-insensitive search in original SQL to get correct position
-          const returningIndex = sql.toUpperCase().indexOf('RETURNING');
-          if (returningIndex !== -1) {
-            // Insert AND user_id = $N before RETURNING
-            const beforeReturning = sql.substring(0, returningIndex).trim();
-            const returningClause = sql.substring(returningIndex);
-            const paramNum = this._getParamCount(sql) + 1;
-            return `${beforeReturning} AND user_id = $${paramNum} ${returningClause}`;
-          } else {
-            // No RETURNING clause - append at end
-            return `${sql} AND user_id = $${this._getParamCount(sql) + 1}`;
-          }
-        }
       }
+
+      // Has WHERE — insert AND before top-level RETURNING when present
+      const returningIndex = this._findTopLevelIndex(sql, ' RETURNING');
+      const returningBare =
+        returningIndex === -1 ? this._findTopLevelIndex(sql, 'RETURNING') : returningIndex;
+      if (returningBare !== -1) {
+        const beforeReturning = sql.substring(0, returningBare).trim();
+        const returningClause = sql.substring(returningBare);
+        const paramNum = this._getParamCount(sql) + 1;
+        return `${beforeReturning} AND user_id = $${paramNum} ${returningClause}`;
+      }
+      return `${sql} AND user_id = $${this._getParamCount(sql) + 1}`;
     }
 
     return sql;

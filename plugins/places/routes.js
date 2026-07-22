@@ -15,6 +15,7 @@ function createPlacesRoutes(controller, context) {
     query('q').isString().trim().isLength({ min: 2, max: 200 }),
     query('limit').optional().isInt({ min: 1, max: 10 }),
     query('language').optional().isString().isLength({ max: 35 }),
+    query('countryCode').optional().isString().isAlpha().isLength({ min: 2, max: 2 }),
     validateRequest,
     (req, res) => controller.search(req, res),
   );

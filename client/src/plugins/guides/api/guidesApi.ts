@@ -68,6 +68,13 @@ class GuidesApi {
     );
   }
 
+  createPresentation(placeId: string, language: string) {
+    return apiRequest<GuidePresentation>(`/${placeId}/presentations`, {
+      method: 'POST',
+      body: JSON.stringify({ language }),
+    });
+  }
+
   updatePresentation(placeId: string, language: string, payload: GuidePresentationUpdatePayload) {
     return apiRequest<GuidePresentation>(
       `/${placeId}/presentations/${encodeURIComponent(language)}`,

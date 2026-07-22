@@ -571,10 +571,16 @@
   "guides": {
     "title": "Guides",
     "listDescription": "Manage places for audioguide content production.",
+    "stats": {
+      "total": "Total",
+      "draft": "Draft",
+      "active": "Active"
+    },
     "searchPlaceholder": "Search {{count}} places...",
     "noMatch": "No places match your search.",
     "noYet": "No places yet. Add a place to start building a guide.",
     "addPlace": "Add place",
+    "saveAndProduce": "Save and produce",
     "loadFailed": "Failed to load places.",
     "displayNameRequired": "Display name is required",
     "saveFailed": "Failed to save. Please try again.",
@@ -587,8 +593,10 @@
     "colId": "ID",
     "colName": "Name",
     "colLocation": "Location",
+    "colCountry": "Country",
     "colStatus": "Status",
     "colSourceLanguage": "Source language",
+    "colLanguages": "Languages",
     "colUpdated": "Updated",
     "details": "Details",
     "information": "Information",
@@ -609,7 +617,8 @@
       "change": "Change",
       "clear": "Clear",
       "searchUnavailable": "Search is unavailable right now — enter the place manually.",
-      "resolvedHint": "Selected place is saved as a snapshot."
+      "resolvedHint": "Selected place is saved as a snapshot.",
+      "countryAll": "All countries"
     },
     "usage": {
       "title": "Generation info",
@@ -670,7 +679,7 @@
     },
     "lifecycleStatus": "Lifecycle status",
     "sourceLanguage": "Source language",
-    "sourceLanguagePlaceholder": "sv",
+    "sourceLanguagePlaceholder": "en",
     "sourceLanguageHint": "Canonical language for this guide (e.g. sv, en-us).",
     "masterGuide": "Master guide",
     "masterGuideEditorialStatus": "Editorial status",
@@ -688,6 +697,9 @@
       "stale": "Stale"
     },
     "masterGuideId": "Master guide",
+    "information": {
+      "generatedLanguages": "Generated in"
+    },
     "lifecycle": {
       "draft": "Draft",
       "active": "Active",
@@ -704,6 +716,9 @@
     "production": {
       "panelTitle": "Production",
       "startFullGuide": "Create guide from place",
+      "generateSource": "Generate source text",
+      "generateTranslations": "Generate translations",
+      "translationsNeedSource": "Generate source text first — translations use the approved source presentation.",
       "panelIdle": "No active production job.",
       "panelActive": "Production in progress",
       "panelPhase": "Phase: {{phase}}",
@@ -764,8 +779,21 @@
       "start": {
         "fullGuideTitle": "Create guide from place",
         "fullGuideDescription": "Start production for this place: research sources, generate presentation text, then review. Translation runs when other languages are requested.",
+        "sourceTitle": "Generate source text",
+        "sourceDescription": "Fetch research sources and generate presentation text in the source language.",
+        "sourcePhasesHint": "Flow: Fetch sources → Generate text → Review.",
+        "sourceLanguageLabel": "Source language",
+        "sourceConfirm": "Generate source text",
+        "translationsTitle": "Generate translations",
+        "translationsDescription": "Translate the approved source text into the selected languages.",
+        "translationsPhasesHint": "Uses the source presentation text — no new research.",
+        "translationsConfirm": "Generate translations",
+        "prepareLanguagesFailed": "Could not prepare the selected languages. Try again.",
         "phasesHint": "Flow: Fetch sources → Generate text → Review.",
         "forceLabel": "Force rerun (ignore cache)",
+        "languagesLabel": "Target languages",
+        "alreadyGenerated": "Already has generated text",
+        "sourceTag": "source",
         "confirm": "Create guide from place"
       },
       "review": {
@@ -787,7 +815,7 @@
         "continueDisabledTooltip": "{{count}} drafts still awaiting review",
         "unknownLanguage": "Unknown language"
       },
-      "panelIdleHint": "Fetches sources, generates presentation text, then opens review.",
+      "panelIdleHint": "Generate source text from research sources, then use Generate translations for other languages.",
       "pipelineAria": "Text pipeline: {{stages}}. Active: {{current}}",
       "pipeline": {
         "research": "Sources",
@@ -810,6 +838,16 @@
     "sourcePresentation": "Source language",
     "sourcePresentationEmpty": "No source-language text yet. Produce the guide or write it here.",
     "otherLanguages": "Other languages",
+    "otherLanguagesEmpty": "No other languages yet. Add one to enable translation on the next Produce.",
+    "otherLanguageEmpty": "No text yet. Produce the guide to translate into this language.",
+    "addLanguage": "Add language",
+    "addLanguageLabel": "Language",
+    "addLanguageHint": "Pick target languages in Generate translations, or add a language shell here for manual editing.",
+    "addLanguagePlaceholder": "e.g. en",
+    "addLanguageConfirm": "Add",
+    "addLanguageInvalid": "Use a valid language code (e.g. en, sv, it).",
+    "addLanguageExists": "That language is already added.",
+    "addLanguageFailed": "Failed to add language.",
     "editPresentation": "Edit presentation ({{language}})",
     "approvalStatus": "Approval status",
     "approval": {

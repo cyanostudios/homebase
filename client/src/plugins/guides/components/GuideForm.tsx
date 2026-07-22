@@ -1,4 +1,4 @@
-import { Check, Info, Languages, X } from 'lucide-react';
+import { Check, Factory, Info, Languages, X } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -7,7 +7,6 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
@@ -17,6 +16,7 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
+import type { GuideSaveOptions } from '../context/GuidesContext';
 import { useGuides } from '../hooks/useGuides';
 import {
   GUIDE_LIFECYCLE_STATUSES,
@@ -39,7 +39,7 @@ interface GuideFormProps {
     sourceLanguage: string;
     masterGuideEditorialStatus: GuidePayload['masterGuideEditorialStatus'];
   };
-  onSave: (data: GuidePayload) => Promise<boolean> | boolean;
+  onSave: (data: GuidePayload, options?: GuideSaveOptions) => Promise<boolean> | boolean;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
@@ -69,7 +69,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
     geographicReference: null,
     place: null,
     lifecycleStatus: 'draft',
-    sourceLanguage: 'sv',
+    sourceLanguage: 'en',
     masterGuideEditorialStatus: 'draft',
   });
 
@@ -89,7 +89,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
       geographicReference: null,
       place: null,
       lifecycleStatus: 'draft',
-      sourceLanguage: 'sv',
+      sourceLanguage: 'en',
       masterGuideEditorialStatus: 'draft',
     });
     markClean();
@@ -112,21 +112,24 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
     }
   }, [currentItem, markClean, resetForm]);
 
-  const handleSubmit = useCallback(async () => {
-    if (isCurrentlySubmitting) return;
-    setIsSubmitting(true);
-    try {
-      const ok = await onSave(formData);
-      if (ok) {
-        markClean();
-        if (!currentItem) {
-          resetForm();
+  const handleSubmit = useCallback(
+    async (options?: GuideSaveOptions) => {
+      if (isCurrentlySubmitting) return;
+      setIsSubmitting(true);
+      try {
+        const ok = await onSave(formData, options);
+        if (ok) {
+          markClean();
+          if (!currentItem) {
+            resetForm();
+          }
         }
+      } finally {
+        setIsSubmitting(false);
       }
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [formData, onSave, markClean, currentItem, resetForm, isCurrentlySubmitting]);
+    },
+    [formData, onSave, markClean, currentItem, resetForm, isCurrentlySubmitting],
+  );
 
   const handleCancel = useCallback(() => {
     attemptAction(() => onCancel());
@@ -243,16 +246,6 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                   </div>
 
                   <div>
-                    <Label htmlFor="guide-short-intro">{t('guides.shortIntro')}</Label>
-                    <Textarea
-                      id="guide-short-intro"
-                      value={formData.shortIntro ?? ''}
-                      onChange={(e) => updateField('shortIntro', e.target.value || null)}
-                      rows={4}
-                    />
-                  </div>
-
-                  <div>
                     <Label htmlFor="guide-place">{t('guides.place.label')}</Label>
                     <div id="guide-place" className="mt-1">
                       <PlaceSearchField
@@ -309,7 +302,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                     <Label htmlFor="guide-source-language">{t('guides.sourceLanguage')}</Label>
                     <Input
                       id="guide-source-language"
-                      value={formData.sourceLanguage ?? 'sv'}
+                      value={formData.sourceLanguage ?? 'en'}
                       onChange={(e) => updateField('sourceLanguage', e.target.value.toLowerCase())}
                       placeholder={t('guides.sourceLanguagePlaceholder')}
                       className={cn(getFieldError('sourceLanguage') && 'border-destructive')}
@@ -365,12 +358,15 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
               </Button>
               <Button
                 type="button"
-                variant="primary"
+                variant={isCreateMode ? 'secondary' : 'primary'}
                 size="sm"
                 icon={Check}
                 onClick={() => void handleSubmit()}
                 disabled={hasBlockingErrors || isCurrentlySubmitting}
-                className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
+                className={cn(
+                  'h-9 px-3 text-xs',
+                  !isCreateMode && 'bg-green-600 hover:bg-green-700 text-white border-none',
+                )}
               >
                 {isCurrentlySubmitting
                   ? t('common.saving')
@@ -378,6 +374,19 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                     ? t('common.update')
                     : t('common.save')}
               </Button>
+              {isCreateMode && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  icon={Factory}
+                  onClick={() => void handleSubmit({ produce: true })}
+                  disabled={hasBlockingErrors || isCurrentlySubmitting}
+                  className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
+                >
+                  {isCurrentlySubmitting ? t('common.saving') : t('guides.saveAndProduce')}
+                </Button>
+              )}
             </div>
           </form>
         </DetailLayout>

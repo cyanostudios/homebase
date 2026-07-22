@@ -169,6 +169,37 @@ describe('ProductionOrchestrationService', () => {
     );
   });
 
+  test('startJob accepts translation-only phases with language filter', async () => {
+    const guidesModel = {
+      getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'en', displayName: 'Place' }),
+      ensureSourceLanguagePresentation: jest.fn().mockResolvedValue({ id: '20', language: 'en' }),
+      getPresentations: jest.fn().mockResolvedValue([
+        { id: '20', language: 'en', presentationText: 'Source text' },
+        { id: '21', language: 'sv', presentationText: null },
+      ]),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    mockReadyProvider(service);
+    jest.spyOn(service.jobModel, 'hasActiveJob').mockResolvedValue(false);
+    jest.spyOn(service.jobModel, 'createJob').mockResolvedValue({ id: '1', status: 'pending' });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([]);
+
+    await service.startJob({}, '1', {
+      type: 'full_guide',
+      phases: ['translation'],
+      languages: ['sv'],
+    });
+
+    expect(service.jobModel.createJob).toHaveBeenCalledWith(
+      {},
+      '1',
+      expect.objectContaining({
+        phases: ['translation'],
+        jobOptions: expect.objectContaining({ languages: ['sv'] }),
+      }),
+    );
+  });
+
   test('startJob rejects when active job exists', async () => {
     const guidesModel = {
       getById: jest.fn().mockResolvedValue({ id: '1' }),

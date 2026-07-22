@@ -34,9 +34,9 @@ describe('guides validation', () => {
     expect(parseSourceLanguage('en-US')).toBe('en-us');
   });
 
-  test('parseSourceLanguage defaults to sv when omitted', () => {
-    expect(parseSourceLanguage()).toBe('sv');
-    expect(parseSourceLanguage(null)).toBe('sv');
+  test('parseSourceLanguage defaults to en when omitted', () => {
+    expect(parseSourceLanguage()).toBe('en');
+    expect(parseSourceLanguage(null)).toBe('en');
   });
 
   test('parseSourceLanguage rejects invalid codes', () => {

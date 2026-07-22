@@ -1,5 +1,5 @@
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -13,22 +13,31 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
 import {
+  GUIDE_LANGUAGE_SOURCE_BADGE_CLASS,
   isRetryableGenerationFailure,
+  SUGGESTED_GUIDE_LANGUAGES,
   type GenerationFailureCode,
+  type GuidePresentation,
+  type ProductionStartMode,
   type ProductionStartScope,
 } from '../types/guides';
 
 interface StartProductionDialogProps {
   isOpen: boolean;
+  mode: ProductionStartMode;
   scope: ProductionStartScope;
   isBusy?: boolean;
   hasActiveJob?: boolean;
   failureCode?: string | null;
-  onConfirm: (options: { force: boolean }) => void;
+  actionError?: string | null;
+  presentations?: GuidePresentation[];
+  sourceLanguage?: string;
+  onConfirm: (options: { force: boolean; languages?: string[] }) => void;
   onRetry?: () => void;
   onCancel: () => void;
   onClearFailure?: () => void;
@@ -42,11 +51,19 @@ function isSettingsFailure(code: string | null | undefined): boolean {
   );
 }
 
+function isSameLanguage(a: string, b: string): boolean {
+  return a.toLowerCase().slice(0, 2) === b.toLowerCase().slice(0, 2);
+}
+
 export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
   isOpen,
+  mode,
   isBusy = false,
   hasActiveJob = false,
   failureCode = null,
+  actionError = null,
+  presentations = [],
+  sourceLanguage = '',
   onConfirm,
   onRetry,
   onCancel,
@@ -54,17 +71,69 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
 }) => {
   const { t } = useTranslation();
   const [force, setForce] = useState(false);
+  const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(new Set());
+
+  const sourceCode = sourceLanguage.toLowerCase();
+
+  const translationOptions = useMemo(() => {
+    const fromPresentations = presentations
+      .filter((p) => !isSameLanguage(p.language, sourceCode))
+      .map((p) => ({
+        code: p.language.toLowerCase(),
+        hasText: Boolean(p.presentationText?.trim()),
+        exists: true,
+      }));
+
+    const existingCodes = new Set([
+      sourceCode,
+      ...fromPresentations.map((o) => o.code),
+      ...presentations.map((p) => p.language.toLowerCase()),
+    ]);
+
+    const fromSuggested = SUGGESTED_GUIDE_LANGUAGES.filter((code) => !existingCodes.has(code)).map(
+      (code) => ({
+        code,
+        hasText: false,
+        exists: false,
+      }),
+    );
+
+    return [...fromPresentations, ...fromSuggested].sort((a, b) => a.code.localeCompare(b.code));
+  }, [presentations, sourceCode]);
 
   useEffect(() => {
     if (!isOpen) {
       setForce(false);
+      return;
     }
-  }, [isOpen]);
+
+    if (mode === 'source') {
+      setSelectedLanguages(new Set(sourceCode ? [sourceCode] : []));
+      return;
+    }
+
+    // Default: only existing target presentations that still lack text (not all suggested).
+    const defaults = translationOptions.filter((o) => o.exists && !o.hasText).map((o) => o.code);
+    setSelectedLanguages(new Set(defaults));
+  }, [isOpen, mode, sourceCode, translationOptions]);
 
   const hasFailure = Boolean(failureCode);
   const retryable = isRetryableGenerationFailure(failureCode);
   const settingsLink = isSettingsFailure(failureCode);
   const codeKey = (failureCode || 'provider_unknown_error') as GenerationFailureCode;
+
+  const titleKey =
+    mode === 'source'
+      ? 'guides.production.start.sourceTitle'
+      : 'guides.production.start.translationsTitle';
+  const descriptionKey =
+    mode === 'source'
+      ? 'guides.production.start.sourceDescription'
+      : 'guides.production.start.translationsDescription';
+  const confirmKey =
+    mode === 'source'
+      ? 'guides.production.start.sourceConfirm'
+      : 'guides.production.start.translationsConfirm';
 
   return (
     <AlertDialog
@@ -98,12 +167,19 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
             </>
           ) : (
             <>
-              <AlertDialogTitle>{t('guides.production.start.fullGuideTitle')}</AlertDialogTitle>
+              <AlertDialogTitle>{t(titleKey)}</AlertDialogTitle>
               <AlertDialogDescription className="space-y-2 pt-1">
-                <p>{t('guides.production.start.fullGuideDescription')}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t('guides.production.start.phasesHint')}
-                </p>
+                <p>{t(descriptionKey)}</p>
+                {mode === 'source' && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('guides.production.start.sourcePhasesHint')}
+                  </p>
+                )}
+                {mode === 'translation' && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('guides.production.start.translationsPhasesHint')}
+                  </p>
+                )}
                 {hasActiveJob && (
                   <p className="text-sm text-destructive">
                     {t('guides.production.activeJobConflict')}
@@ -113,6 +189,65 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
             </>
           )}
         </AlertDialogHeader>
+
+        {!hasFailure && actionError && (
+          <p className="text-sm text-destructive" role="alert">
+            {actionError}
+          </p>
+        )}
+
+        {!hasFailure && mode === 'source' && sourceCode && (
+          <div className="py-1">
+            <Label className="text-sm font-medium">
+              {t('guides.production.start.sourceLanguageLabel')}
+            </Label>
+            <div className="mt-2">
+              <Badge className={GUIDE_LANGUAGE_SOURCE_BADGE_CLASS}>{sourceCode}</Badge>
+            </div>
+          </div>
+        )}
+
+        {!hasFailure && mode === 'translation' && translationOptions.length > 0 && (
+          <div className="space-y-2 py-1">
+            <Label className="text-sm font-medium">
+              {t('guides.production.start.languagesLabel')}
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {translationOptions.map((opt) => {
+                const checked = selectedLanguages.has(opt.code);
+                return (
+                  <label
+                    key={opt.code}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                      checked
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50'
+                    } ${isBusy ? 'pointer-events-none opacity-60' : ''}`}
+                    title={opt.hasText ? t('guides.production.start.alreadyGenerated') : undefined}
+                  >
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={checked}
+                      disabled={isBusy}
+                      onChange={(e) => {
+                        setSelectedLanguages((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(opt.code);
+                          else next.delete(opt.code);
+                          return next;
+                        });
+                      }}
+                    />
+                    <span className="uppercase font-semibold">{opt.code}</span>
+                    {!opt.exists && <span className="text-[10px] text-muted-foreground">+</span>}
+                    {opt.hasText && <span className="text-[10px] text-muted-foreground">✓</span>}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {!hasFailure && (
           <div className="flex items-start gap-2 py-1">
@@ -172,9 +307,18 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
               <AlertDialogAction asChild>
                 <Button
                   variant="primary"
-                  disabled={isBusy || hasActiveJob}
+                  disabled={
+                    isBusy ||
+                    hasActiveJob ||
+                    (mode === 'translation' && selectedLanguages.size === 0)
+                  }
                   aria-busy={isBusy}
-                  onClick={() => onConfirm({ force })}
+                  onClick={() =>
+                    onConfirm({
+                      force,
+                      languages: selectedLanguages.size ? Array.from(selectedLanguages) : undefined,
+                    })
+                  }
                 >
                   {isBusy ? (
                     <>
@@ -182,7 +326,7 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
                       {t('common.checking')}
                     </>
                   ) : (
-                    t('guides.production.start.confirm')
+                    t(confirmKey)
                   )}
                 </Button>
               </AlertDialogAction>

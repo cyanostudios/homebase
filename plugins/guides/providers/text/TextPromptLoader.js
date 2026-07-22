@@ -66,7 +66,7 @@ function getPrompts(variables) {
   return {
     system: interpolate(readPromptFile(entry.system), vars),
     user: interpolate(readPromptFile(entry.user), vars),
-    maxCompletionTokens: manifest.tokenBudgets?.maxCompletionTokens ?? 400,
+    maxCompletionTokens: manifest.tokenBudgets?.maxCompletionTokens ?? 2800,
     promptSetVersion: manifest.promptSetVersion,
     promptVersion: 'v1',
   };

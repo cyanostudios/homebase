@@ -11,10 +11,11 @@ export interface PlacesSearchResponse {
 }
 
 class PlacesApi {
-  search(query: string, options?: { limit?: number; language?: string }) {
+  search(query: string, options?: { limit?: number; language?: string; countryCode?: string }) {
     const params = new URLSearchParams({ q: query });
     if (options?.limit) params.set('limit', String(options.limit));
     if (options?.language) params.set('language', options.language);
+    if (options?.countryCode) params.set('countryCode', options.countryCode);
     return request(`/search?${params.toString()}`) as Promise<PlacesSearchResponse>;
   }
 }

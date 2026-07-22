@@ -145,7 +145,52 @@ describe('GuidesModel guide presentations', () => {
     expect(query.mock.calls[0][0]).toContain('INSERT INTO guide_presentations');
   });
 
-  test('applyProductionPresentationText sets pending_review', async () => {
+  test('ensurePresentationForLanguage creates target language row', async () => {
+    jest
+      .spyOn(model, '_getMasterGuideForPlace')
+      .mockResolvedValue({ id: 10, sourceLanguage: 'sv' });
+    jest
+      .spyOn(model, 'getPresentationByLanguage')
+      .mockRejectedValueOnce(new AppError('Presentation not found', 404, AppError.CODES.NOT_FOUND));
+
+    const query = jest.fn().mockResolvedValueOnce([
+      {
+        id: 21,
+        master_guide_id: 10,
+        language: 'en',
+        presentation_text: null,
+        publication_status: 'draft',
+        staleness_status: 'fresh',
+        approval_status: 'draft',
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    Database.get.mockReturnValue({ query });
+
+    const result = await model.ensurePresentationForLanguage({}, '1', 'EN');
+    expect(result).toMatchObject({ id: '21', language: 'en' });
+    expect(query.mock.calls[0][1]).toEqual([10, 'en', 'draft', 'fresh', 'draft']);
+  });
+
+  test('ensurePresentationForLanguage returns existing row', async () => {
+    jest
+      .spyOn(model, '_getMasterGuideForPlace')
+      .mockResolvedValue({ id: 10, sourceLanguage: 'sv' });
+    jest.spyOn(model, 'getPresentationByLanguage').mockResolvedValueOnce({
+      id: '21',
+      language: 'en',
+      presentationText: null,
+    });
+    const query = jest.fn();
+    Database.get.mockReturnValue({ query });
+
+    const result = await model.ensurePresentationForLanguage({}, '1', 'en');
+    expect(result.id).toBe('21');
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  test('applyProductionPresentationText sets approved', async () => {
     Database.get.mockReturnValue({
       query: jest.fn().mockResolvedValueOnce([
         {
@@ -155,7 +200,7 @@ describe('GuidesModel guide presentations', () => {
           presentation_text: 'Generated text',
           publication_status: 'draft',
           staleness_status: 'fresh',
-          approval_status: 'pending_review',
+          approval_status: 'approved',
           created_at: '2026-01-01T00:00:00.000Z',
           updated_at: '2026-01-02T00:00:00.000Z',
         },
@@ -163,7 +208,7 @@ describe('GuidesModel guide presentations', () => {
     });
 
     const result = await model.applyProductionPresentationText({}, '1', '20', 'Generated text');
-    expect(result.approvalStatus).toBe('pending_review');
+    expect(result.approvalStatus).toBe('approved');
     expect(result.presentationText).toBe('Generated text');
   });
 });

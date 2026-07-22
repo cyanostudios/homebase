@@ -7,7 +7,13 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import type { GuidePresentation, ProductionJobItem } from '../types/guides';
-import { isProductionReviewStatus } from '../types/guides';
+import {
+  GUIDE_ITEM_FAILED_BADGE_CLASS,
+  GUIDE_ITEM_PROCESSING_BADGE_CLASS,
+  GUIDE_LANGUAGE_BADGE_CLASS,
+  GUIDE_REVIEW_STATUS_COLORS,
+  isProductionReviewStatus,
+} from '../types/guides';
 import { getProposedItemText } from '../utils/productionJobHelpers';
 
 interface GuideReviewItemProps {
@@ -66,29 +72,26 @@ export const GuideReviewItem: React.FC<GuideReviewItemProps> = ({
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium uppercase">{label}</span>
+            <Badge className={GUIDE_LANGUAGE_BADGE_CLASS}>{label}</Badge>
             {reviewStatus === 'approved' && (
-              <Badge
-                variant="secondary"
-                className="gap-1 text-[10px] text-emerald-700 dark:text-emerald-400"
-              >
+              <Badge className={cn(GUIDE_REVIEW_STATUS_COLORS.approved, 'gap-1')}>
                 <Check className="h-3 w-3" aria-hidden />
                 {t('guides.production.review.approved')}
               </Badge>
             )}
             {reviewStatus === 'rejected' && (
-              <Badge variant="outline" className="text-[10px]">
+              <Badge className={GUIDE_REVIEW_STATUS_COLORS.rejected}>
                 {t('guides.production.review.rejected')}
               </Badge>
             )}
             {isProcessing && (
-              <Badge variant="outline" className="gap-1 text-[10px]">
+              <Badge className={GUIDE_ITEM_PROCESSING_BADGE_CLASS}>
                 <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
                 {t('guides.production.review.regenerating')}
               </Badge>
             )}
             {isFailed && (
-              <Badge variant="outline" className="text-[10px] text-destructive">
+              <Badge className={GUIDE_ITEM_FAILED_BADGE_CLASS}>
                 {t('guides.production.review.failed')}
               </Badge>
             )}

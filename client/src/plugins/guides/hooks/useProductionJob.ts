@@ -1,20 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { guidesApi } from '../api/guidesApi';
 import type {
   GenerationUsageSummary,
+  ProductionItemStep,
   ProductionJob,
+  ProductionJobDetail,
   ProductionJobItem,
   ProductionStartScope,
   StartProductionJobPayload,
 } from '../types/guides';
 import {
   findActiveJob,
+  isProductionJobActive,
   isProductionJobTerminal,
   shouldPollProductionJob,
   upsertJobInList,
 } from '../utils/productionJobHelpers';
+import { useGuides } from './useGuides';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -32,7 +36,10 @@ export interface UseProductionJobResult {
   hasActiveJob: boolean;
   refreshJobs: () => Promise<void>;
   selectJob: (jobId: string | null) => void;
-  startJob: (scope: ProductionStartScope, options?: { force?: boolean }) => Promise<boolean>;
+  startJob: (
+    scope: ProductionStartScope,
+    options?: { force?: boolean; languages?: string[]; phases?: ProductionItemStep[] },
+  ) => Promise<boolean>;
   clearFailure: () => void;
   approveItem: (itemId: string) => Promise<void>;
   rejectItem: (itemId: string) => Promise<void>;
@@ -44,16 +51,19 @@ export interface UseProductionJobResult {
 
 function scopeToPayload(
   scope: ProductionStartScope,
-  options?: { force?: boolean },
+  options?: { force?: boolean; languages?: string[]; phases?: ProductionItemStep[] },
 ): StartProductionJobPayload {
   return {
     type: scope.type,
     force: options?.force,
+    languages: options?.languages?.length ? options.languages : undefined,
+    phases: options?.phases?.length ? options.phases : undefined,
   };
 }
 
 export function useProductionJob(placeId: string): UseProductionJobResult {
   const { t } = useTranslation();
+  const { consumePendingProductionDetail, pendingProductionDetail } = useGuides();
   const [jobs, setJobs] = useState<ProductionJob[]>([]);
   const [job, setJob] = useState<ProductionJob | null>(null);
   const [items, setItems] = useState<ProductionJobItem[]>([]);
@@ -65,10 +75,15 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
   const [error, setError] = useState<string | null>(null);
   const [failureCode, setFailureCode] = useState<string | null>(null);
   const selectedJobIdRef = useRef<string | null>(null);
+  const jobRef = useRef<ProductionJob | null>(null);
 
   useEffect(() => {
     selectedJobIdRef.current = selectedJobId;
   }, [selectedJobId]);
+
+  useEffect(() => {
+    jobRef.current = job;
+  }, [job]);
 
   const applyDetail = useCallback(
     (detail: {
@@ -82,9 +97,28 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
         setUsageSummary(detail.usageSummary);
       }
       setJobs((prev) => upsertJobInList(prev, detail.job));
+      setSelectedJobId(detail.job.id);
     },
     [],
   );
+
+  const seedFromPendingDetail = useCallback(
+    (detail: ProductionJobDetail | null) => {
+      if (!detail?.job) return false;
+      if (placeId && String(detail.job.placeId) !== String(placeId)) return false;
+      applyDetail(detail);
+      setIsLoading(false);
+      return true;
+    },
+    [applyDetail, placeId],
+  );
+
+  // Apply Save-and-produce job before paint so the status banner is visible immediately.
+  useLayoutEffect(() => {
+    if (!placeId || !pendingProductionDetail) return;
+    const detail = consumePendingProductionDetail();
+    seedFromPendingDetail(detail);
+  }, [placeId, pendingProductionDetail, consumePendingProductionDetail, seedFromPendingDetail]);
 
   const refreshJobs = useCallback(async () => {
     if (!placeId) return;
@@ -95,6 +129,11 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       const active = findActiveJob(list);
       const targetId = selectedJobIdRef.current ?? active?.id ?? null;
       if (!targetId) {
+        // Avoid clearing a freshly seeded active job when a concurrent list fetch is stale.
+        const current = jobRef.current;
+        if (current && isProductionJobActive(current.status)) {
+          return;
+        }
         setJob(null);
         setItems([]);
         setUsageSummary(null);
@@ -129,14 +168,22 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
+    if (!placeId) {
+      setIsLoading(false);
+      return;
+    }
+    const alreadySeeded =
+      jobRef.current != null && String(jobRef.current.placeId) === String(placeId);
+    if (!alreadySeeded) {
+      setIsLoading(true);
+    }
     void refreshJobs().finally(() => {
       if (!cancelled) setIsLoading(false);
     });
     return () => {
       cancelled = true;
     };
-  }, [refreshJobs]);
+  }, [refreshJobs, placeId]);
 
   useEffect(() => {
     if (!job || !shouldPollProductionJob(job.status)) {
@@ -211,7 +258,10 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
   );
 
   const startJob = useCallback(
-    async (scope: ProductionStartScope, options?: { force?: boolean }) => {
+    async (
+      scope: ProductionStartScope,
+      options?: { force?: boolean; languages?: string[]; phases?: ProductionItemStep[] },
+    ) => {
       try {
         await runMutation(() =>
           guidesApi.startProductionJob(placeId, scopeToPayload(scope, options)),
@@ -282,7 +332,7 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
     error,
     failureCode,
     selectedJobId,
-    hasActiveJob: active !== null,
+    hasActiveJob: active !== null || (job != null && isProductionJobActive(job.status)),
     refreshJobs,
     selectJob,
     startJob,

@@ -56,9 +56,14 @@ class PlacesController {
           ? req.query.language.trim().slice(0, 35)
           : undefined;
 
+      const countryCode =
+        typeof req.query.countryCode === 'string' && req.query.countryCode.trim()
+          ? req.query.countryCode.trim().toLowerCase().slice(0, 2)
+          : undefined;
+
       const providerKey = this._activeProviderKey();
       const provider = this.registry.create(providerKey);
-      const results = await provider.search(q, { limit, language });
+      const results = await provider.search(q, { limit, language, countryCode });
 
       res.json({
         provider: providerKey,

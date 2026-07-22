@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 
 import type { Guide } from '../types/guides';
 import { GUIDE_LIFECYCLE_COLORS } from '../types/guides';
+import { GuideLanguageBadges } from './GuideLanguageBadges';
 
 export function GuideCard({
   guide,
@@ -70,9 +71,10 @@ export function GuideCard({
           <Badge className={GUIDE_LIFECYCLE_COLORS[guide.lifecycleStatus]}>
             {t(`guides.lifecycle.${guide.lifecycleStatus}`)}
           </Badge>
-          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            {guide.sourceLanguage}
-          </span>
+          <GuideLanguageBadges
+            languages={guide.languages ?? []}
+            sourceLanguage={guide.sourceLanguage}
+          />
         </div>
 
         <div className="mt-auto text-xs text-muted-foreground">

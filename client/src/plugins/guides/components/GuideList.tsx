@@ -24,14 +24,59 @@ import { cn } from '@/lib/utils';
 
 import { useGuides } from '../hooks/useGuides';
 import { type Guide, GUIDE_LIFECYCLE_COLORS } from '../types/guides';
+import { GuideLanguageBadges } from './GuideLanguageBadges';
 
 import { GuideCard } from './GuideCard';
 
 type SortField = 'id' | 'displayName' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+type GuideListFilter = 'all' | 'draft' | 'active';
 
 const GUIDES_VIEW_MODE_STORAGE_KEY = 'guides:viewMode';
+
+function StatCard({
+  label,
+  value,
+  dotClassName,
+  active = false,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  dotClassName: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Card
+      className={cn(
+        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
+        onClick && 'cursor-pointer hover:bg-muted/50',
+        active && 'ring-1 ring-border/70',
+      )}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
+        <span>{label}</span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+    </Card>
+  );
+}
 
 function getInitialViewMode(): ViewMode {
   if (typeof window === 'undefined') {
@@ -61,6 +106,7 @@ export const GuideList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('displayName');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [activeFilter, setActiveFilter] = useState<GuideListFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -71,16 +117,33 @@ export const GuideList: React.FC = () => {
     }
   }, []);
 
+  const stats = useMemo(() => {
+    let draft = 0;
+    let active = 0;
+    for (const guide of guides) {
+      if (guide.lifecycleStatus === 'draft') draft += 1;
+      else if (guide.lifecycleStatus === 'active') active += 1;
+    }
+    return { total: guides.length, draft, active };
+  }, [guides]);
+
   const filteredAndSorted = useMemo(() => {
-    const needle = searchTerm.trim().toLowerCase();
-    const filtered = guides.filter((guide) => {
-      if (!needle) return true;
-      return (
-        guide.displayName.toLowerCase().includes(needle) ||
-        String(guide.id).toLowerCase().includes(needle) ||
-        (guide.geographicReference ?? '').toLowerCase().includes(needle)
-      );
+    const byFilter = guides.filter((guide) => {
+      if (activeFilter === 'draft') return guide.lifecycleStatus === 'draft';
+      if (activeFilter === 'active') return guide.lifecycleStatus === 'active';
+      return true;
     });
+
+    const needle = searchTerm.trim().toLowerCase();
+    const filtered = needle
+      ? byFilter.filter((guide) => {
+          return (
+            guide.displayName.toLowerCase().includes(needle) ||
+            String(guide.id).toLowerCase().includes(needle) ||
+            (guide.geographicReference ?? '').toLowerCase().includes(needle)
+          );
+        })
+      : byFilter;
 
     return [...filtered].sort((a, b) => {
       let av: string | number = '';
@@ -104,7 +167,7 @@ export const GuideList: React.FC = () => {
       });
       return sortOrder === 'asc' ? res : -res;
     });
-  }, [guides, searchTerm, sortField, sortOrder]);
+  }, [guides, searchTerm, sortField, sortOrder, activeFilter]);
 
   const visibleGuideIds = useMemo(
     () => filteredAndSorted.map((guide) => String(guide.id)),
@@ -213,6 +276,30 @@ export const GuideList: React.FC = () => {
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <StatCard
+            label={t('guides.stats.total')}
+            value={stats.total}
+            dotClassName="bg-blue-500"
+            active={activeFilter === 'all'}
+            onClick={() => setActiveFilter('all')}
+          />
+          <StatCard
+            label={t('guides.stats.draft')}
+            value={stats.draft}
+            dotClassName="bg-slate-500"
+            active={activeFilter === 'draft'}
+            onClick={() => setActiveFilter('draft')}
+          />
+          <StatCard
+            label={t('guides.stats.active')}
+            value={stats.active}
+            dotClassName="bg-emerald-500"
+            active={activeFilter === 'active'}
+            onClick={() => setActiveFilter('active')}
+          />
+        </div>
+
         {selectedCount > 0 && (
           <BulkActionBar
             selectedCount={selectedCount}
@@ -297,7 +384,7 @@ export const GuideList: React.FC = () => {
           {filteredAndSorted.length === 0 ? (
             <Card className="shadow-none">
               <div className="p-6 text-center text-muted-foreground">
-                {searchTerm ? t('guides.noMatch') : t('guides.noYet')}
+                {searchTerm || activeFilter !== 'all' ? t('guides.noMatch') : t('guides.noYet')}
               </div>
             </Card>
           ) : viewMode === 'grid' ? (
@@ -362,9 +449,12 @@ export const GuideList: React.FC = () => {
                         <SortIcon field="displayName" />
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs">{t('guides.colLocation')}</TableHead>
+                    <TableHead className="max-w-[10rem] text-xs">
+                      {t('guides.colLocation')}
+                    </TableHead>
+                    <TableHead className="w-20 text-xs">{t('guides.colCountry')}</TableHead>
                     <TableHead className="text-xs">{t('guides.colStatus')}</TableHead>
-                    <TableHead className="text-xs">{t('guides.colSourceLanguage')}</TableHead>
+                    <TableHead className="text-xs">{t('guides.colLanguages')}</TableHead>
                     <TableHead
                       className="cursor-pointer select-none text-xs hover:bg-muted/50"
                       onClick={() => handleSort('updatedAt')}
@@ -416,16 +506,35 @@ export const GuideList: React.FC = () => {
                           {formatDisplayNumber('guides', guide.id)}
                         </TableCell>
                         <TableCell className="font-medium">{guide.displayName}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {guide.geographicReference || '—'}
+                        <TableCell className="max-w-[10rem] text-muted-foreground">
+                          <span
+                            className="block truncate"
+                            title={
+                              guide.place?.locality ||
+                              guide.place?.displayName ||
+                              guide.geographicReference ||
+                              undefined
+                            }
+                          >
+                            {guide.place?.locality ||
+                              guide.place?.displayName ||
+                              guide.geographicReference ||
+                              '—'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="uppercase text-muted-foreground">
+                          {guide.place?.countryCode || '—'}
                         </TableCell>
                         <TableCell>
                           <Badge className={GUIDE_LIFECYCLE_COLORS[guide.lifecycleStatus]}>
                             {t(`guides.lifecycle.${guide.lifecycleStatus}`)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="uppercase text-muted-foreground">
-                          {guide.sourceLanguage}
+                        <TableCell>
+                          <GuideLanguageBadges
+                            languages={guide.languages ?? []}
+                            sourceLanguage={guide.sourceLanguage}
+                          />
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDate(guide.updatedAt)}

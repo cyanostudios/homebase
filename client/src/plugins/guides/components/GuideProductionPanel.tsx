@@ -1,10 +1,11 @@
-import { Factory, Play, X } from 'lucide-react';
+import { Factory, Languages, Play, X } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 
 import type { ProductionJob, ProductionJobItem } from '../types/guides';
@@ -21,7 +22,9 @@ interface GuideProductionPanelProps {
   items: ProductionJobItem[];
   hasActiveJob: boolean;
   isBusy?: boolean;
-  onStartFullGuide: () => void;
+  sourceHasText?: boolean;
+  onStartSource: () => void;
+  onStartTranslations: () => void;
   onShowReview?: () => void;
   onCancel?: () => void;
 }
@@ -31,7 +34,9 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
   items,
   hasActiveJob,
   isBusy = false,
-  onStartFullGuide,
+  sourceHasText = false,
+  onStartSource,
+  onStartTranslations,
   onShowReview,
   onCancel,
 }) => {
@@ -43,10 +48,11 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
   const progress = job ? summarizePhaseProgress(job, items) : null;
   const pendingReview = job ? countPendingReviewItems(job, items) : 0;
   const pipelineStage = job ? getTextPipelineStage(job, items) : null;
+  const jobDisabled = isBusy || hasActiveJob;
 
   return (
     <>
-      <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('guides.production.panelTitle')}
           icon={Factory}
@@ -60,13 +66,29 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
               size="sm"
               icon={Play}
               className="h-9 w-full justify-start px-3 text-xs"
-              disabled={isBusy || hasActiveJob}
-              onClick={onStartFullGuide}
+              disabled={jobDisabled}
+              onClick={onStartSource}
             >
-              {t('guides.production.startFullGuide')}
+              {t('guides.production.generateSource')}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={Languages}
+              className="h-9 w-full justify-start px-3 text-xs"
+              disabled={jobDisabled || !sourceHasText}
+              onClick={onStartTranslations}
+            >
+              {t('guides.production.generateTranslations')}
             </Button>
             {!active && !hasActiveJob && (
               <p className="text-muted-foreground">{t('guides.production.panelIdleHint')}</p>
+            )}
+            {!sourceHasText && !hasActiveJob && (
+              <p className="text-muted-foreground">
+                {t('guides.production.translationsNeedSource')}
+              </p>
             )}
 
             <Button
@@ -140,7 +162,7 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
       </Card>
 
       {showSources && (
-        <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <ContentSourcesSettings />
         </Card>
       )}

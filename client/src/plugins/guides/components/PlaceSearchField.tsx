@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/select';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 
 import { placesApi } from '../api/placesApi';
@@ -12,6 +13,29 @@ import type { PlaceResolved } from '../types/guides';
 
 const MIN_CHARS = 2;
 const DEBOUNCE_MS = 300;
+
+const COMMON_COUNTRIES: { code: string; label: string }[] = [
+  { code: 'se', label: 'Sweden' },
+  { code: 'no', label: 'Norway' },
+  { code: 'dk', label: 'Denmark' },
+  { code: 'fi', label: 'Finland' },
+  { code: 'de', label: 'Germany' },
+  { code: 'fr', label: 'France' },
+  { code: 'es', label: 'Spain' },
+  { code: 'it', label: 'Italy' },
+  { code: 'gb', label: 'United Kingdom' },
+  { code: 'us', label: 'United States' },
+  { code: 'jp', label: 'Japan' },
+  { code: 'cn', label: 'China' },
+  { code: 'au', label: 'Australia' },
+  { code: 'nl', label: 'Netherlands' },
+  { code: 'pt', label: 'Portugal' },
+  { code: 'gr', label: 'Greece' },
+  { code: 'pl', label: 'Poland' },
+  { code: 'at', label: 'Austria' },
+  { code: 'ch', label: 'Switzerland' },
+  { code: 'be', label: 'Belgium' },
+];
 
 interface PlaceSearchFieldProps {
   value: PlaceResolved | null;
@@ -49,6 +73,7 @@ export const PlaceSearchField: React.FC<PlaceSearchFieldProps> = ({
   const { t } = useTranslation();
   const listboxId = useId();
   const [query, setQuery] = useState('');
+  const [countryCode, setCountryCode] = useState('');
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<PlaceResolved[]>([]);
@@ -82,7 +107,7 @@ export const PlaceSearchField: React.FC<PlaceSearchFieldProps> = ({
       setSearching(true);
       setSearchError(false);
       void placesApi
-        .search(q)
+        .search(q, countryCode ? { countryCode } : undefined)
         .then((res) => {
           setResults(res.results);
           setAttribution(res.attribution);
@@ -95,7 +120,7 @@ export const PlaceSearchField: React.FC<PlaceSearchFieldProps> = ({
         })
         .finally(() => setSearching(false));
     }, DEBOUNCE_MS);
-  }, [query, isEditing]);
+  }, [query, countryCode, isEditing]);
 
   const selectPlace = (place: PlaceResolved) => {
     const geo =
@@ -178,100 +203,121 @@ export const PlaceSearchField: React.FC<PlaceSearchFieldProps> = ({
   }
 
   return (
-    <Popover open={showPopover} onOpenChange={setOpen}>
-      <PopoverAnchor asChild>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            role="combobox"
-            aria-expanded={showPopover}
-            aria-controls={listboxId}
-            aria-autocomplete="list"
-            aria-activedescendant={activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined}
-            value={query}
-            disabled={disabled}
-            placeholder={t('guides.place.placeholder')}
-            className="pl-9"
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setOpen(true);
-            }}
-            onFocus={() => setOpen(true)}
-            onKeyDown={(e) => {
-              if (!showPopover) return;
-              if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setActiveIndex((i) => Math.min(i + 1, options.length - 1));
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setActiveIndex((i) => Math.max(i - 1, 0));
-              } else if (e.key === 'Enter' && activeIndex >= 0 && options[activeIndex]) {
-                e.preventDefault();
-                selectPlace(options[activeIndex].place);
-              } else if (e.key === 'Escape') {
-                setOpen(false);
-              }
-            }}
-          />
-        </div>
-      </PopoverAnchor>
-      <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0"
-        align="start"
-        onOpenAutoFocus={(e) => e.preventDefault()}
+    <div className="space-y-2">
+      <NativeSelect
+        value={countryCode}
+        onChange={(e) => {
+          setCountryCode(e.target.value);
+          setResults([]);
+        }}
+        className="text-xs"
       >
-        <div
-          id={listboxId}
-          role="listbox"
-          aria-busy={searching}
-          className="max-h-64 overflow-auto py-1"
+        <option value="">{t('guides.place.countryAll')}</option>
+        {COMMON_COUNTRIES.map((c) => (
+          <option key={c.code} value={c.code}>
+            {c.label}
+          </option>
+        ))}
+      </NativeSelect>
+      <Popover open={showPopover} onOpenChange={setOpen}>
+        <PopoverAnchor asChild>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              role="combobox"
+              aria-expanded={showPopover}
+              aria-controls={listboxId}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
+              }
+              value={query}
+              disabled={disabled}
+              placeholder={t('guides.place.placeholder')}
+              className="pl-9"
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setOpen(true);
+              }}
+              onFocus={() => setOpen(true)}
+              onKeyDown={(e) => {
+                if (!showPopover) return;
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setActiveIndex((i) => Math.min(i + 1, options.length - 1));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setActiveIndex((i) => Math.max(i - 1, 0));
+                } else if (e.key === 'Enter' && activeIndex >= 0 && options[activeIndex]) {
+                  e.preventDefault();
+                  selectPlace(options[activeIndex].place);
+                } else if (e.key === 'Escape') {
+                  setOpen(false);
+                }
+              }}
+            />
+          </div>
+        </PopoverAnchor>
+        <PopoverContent
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {searching && (
-            <div
-              className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground"
-              role="status"
-            >
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {t('guides.place.searching')}
-            </div>
-          )}
-          {!searching && trimmed.length > 0 && trimmed.length < MIN_CHARS && (
-            <p className="px-3 py-2 text-xs text-muted-foreground">{t('guides.place.minChars')}</p>
-          )}
-          {!searching && searchError && (
-            <p className="px-3 py-2 text-xs text-muted-foreground">
-              {t('guides.place.searchUnavailable')}
-            </p>
-          )}
-          {!searching && !searchError && trimmed.length >= MIN_CHARS && results.length === 0 && (
-            <p className="px-3 py-2 text-xs text-muted-foreground">
-              {t('guides.place.noResults', { q: trimmed })}
-            </p>
-          )}
-          {options.map((opt, index) => (
-            <button
-              key={opt.key}
-              id={`${listboxId}-opt-${index}`}
-              type="button"
-              role="option"
-              aria-selected={index === activeIndex}
-              className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-muted/80 ${
-                index === activeIndex ? 'bg-muted/80' : ''
-              }`}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => selectPlace(opt.place)}
-            >
-              <span className="font-medium">{opt.label}</span>
-              {opt.sub && <span className="text-xs text-muted-foreground">{opt.sub}</span>}
-            </button>
-          ))}
-          {attribution && (
-            <p className="border-t border-border/50 px-3 py-1.5 text-[10px] text-muted-foreground">
-              {attribution}
-            </p>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-busy={searching}
+            className="max-h-64 overflow-auto py-1"
+          >
+            {searching && (
+              <div
+                className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground"
+                role="status"
+              >
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {t('guides.place.searching')}
+              </div>
+            )}
+            {!searching && trimmed.length > 0 && trimmed.length < MIN_CHARS && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                {t('guides.place.minChars')}
+              </p>
+            )}
+            {!searching && searchError && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                {t('guides.place.searchUnavailable')}
+              </p>
+            )}
+            {!searching && !searchError && trimmed.length >= MIN_CHARS && results.length === 0 && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                {t('guides.place.noResults', { q: trimmed })}
+              </p>
+            )}
+            {options.map((opt, index) => (
+              <button
+                key={opt.key}
+                id={`${listboxId}-opt-${index}`}
+                type="button"
+                role="option"
+                aria-selected={index === activeIndex}
+                className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-muted/80 ${
+                  index === activeIndex ? 'bg-muted/80' : ''
+                }`}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => selectPlace(opt.place)}
+              >
+                <span className="font-medium">{opt.label}</span>
+                {opt.sub && <span className="text-xs text-muted-foreground">{opt.sub}</span>}
+              </button>
+            ))}
+            {attribution && (
+              <p className="border-t border-border/50 px-3 py-1.5 text-[10px] text-muted-foreground">
+                {attribution}
+              </p>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 };

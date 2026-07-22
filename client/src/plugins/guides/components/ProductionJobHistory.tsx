@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 
 import type { ProductionJob } from '../types/guides';
-import { isProductionJobStatus } from '../types/guides';
-import { isProductionJobActive } from '../utils/productionJobHelpers';
+import { GUIDE_PRODUCTION_JOB_STATUS_COLORS, isProductionJobStatus } from '../types/guides';
 
 interface ProductionJobHistoryProps {
   jobs: ProductionJob[];
@@ -30,7 +30,7 @@ export const ProductionJobHistory: React.FC<ProductionJobHistoryProps> = ({
   }
 
   return (
-    <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection
         title={t('guides.production.historyTitle')}
         icon={History}
@@ -41,7 +41,6 @@ export const ProductionJobHistory: React.FC<ProductionJobHistoryProps> = ({
           {jobs.map((job) => {
             const status = isProductionJobStatus(job.status) ? job.status : 'pending';
             const isSelected = selectedJobId === job.id;
-            const isActive = isProductionJobActive(status);
             return (
               <li key={job.id}>
                 <Button
@@ -53,7 +52,7 @@ export const ProductionJobHistory: React.FC<ProductionJobHistoryProps> = ({
                   <div className="flex w-full flex-col gap-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs">#{job.id}</span>
-                      <Badge variant={isActive ? 'default' : 'secondary'} className="text-[10px]">
+                      <Badge className={GUIDE_PRODUCTION_JOB_STATUS_COLORS[status]}>
                         {t(`guides.production.status.${status}`)}
                       </Badge>
                     </div>

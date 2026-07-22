@@ -148,6 +148,14 @@ function sanitizePlaceSnapshot(place) {
   };
 }
 
+function parseGeneratedLanguages(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map((lang) => String(lang).trim().toLowerCase()).filter(Boolean);
+  }
+  return [];
+}
+
 function buildPlaceFromRow(row) {
   if (!row || !row.place_provider) return null;
   const lat = row.latitude != null ? Number(row.latitude) : null;
@@ -183,6 +191,7 @@ class GuidesModel {
       sourceLanguage: masterGuideRow?.source_language ?? DEFAULT_SOURCE_LANGUAGE,
       masterGuideEditorialStatus:
         masterGuideRow?.editorial_status ?? DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
+      languages: parseGeneratedLanguages(placeRow.generated_languages),
       createdAt: placeRow.created_at,
       updatedAt: placeRow.updated_at,
     };
@@ -197,9 +206,16 @@ class GuidesModel {
             p.*,
             mg.id AS master_guide_id,
             mg.source_language,
-            mg.editorial_status AS master_editorial_status
+            mg.editorial_status AS master_editorial_status,
+            COALESCE(lang.languages, ARRAY[]::text[]) AS generated_languages
           FROM ${PLACES_TABLE} p
           INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.place_id = p.id
+          LEFT JOIN LATERAL (
+            SELECT ARRAY_AGG(gp.language ORDER BY gp.language) AS languages
+            FROM ${PRESENTATIONS_TABLE} gp
+            WHERE gp.master_guide_id = mg.id
+              AND NULLIF(TRIM(gp.presentation_text), '') IS NOT NULL
+          ) lang ON true
           ORDER BY p.updated_at DESC, p.id DESC
         `,
         [],
@@ -226,9 +242,16 @@ class GuidesModel {
             p.*,
             mg.id AS master_guide_id,
             mg.source_language,
-            mg.editorial_status AS master_editorial_status
+            mg.editorial_status AS master_editorial_status,
+            COALESCE(lang.languages, ARRAY[]::text[]) AS generated_languages
           FROM ${PLACES_TABLE} p
           INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.place_id = p.id
+          LEFT JOIN LATERAL (
+            SELECT ARRAY_AGG(gp.language ORDER BY gp.language) AS languages
+            FROM ${PRESENTATIONS_TABLE} gp
+            WHERE gp.master_guide_id = mg.id
+              AND NULLIF(TRIM(gp.presentation_text), '') IS NOT NULL
+          ) lang ON true
           WHERE p.id = $1
         `,
         [placeId],
@@ -628,10 +651,23 @@ class GuidesModel {
   }
 
   async ensureSourceLanguagePresentation(req, placeId) {
+    const masterGuide = await this._getMasterGuideForPlace(req, placeId);
+    return this.ensurePresentationForLanguage(req, placeId, masterGuide.sourceLanguage);
+  }
+
+  /**
+   * Ensure an empty presentation row exists for the given language (idempotent).
+   * @param {import('express').Request} req
+   * @param {string} placeId
+   * @param {string} language
+   */
+  async ensurePresentationForLanguage(req, placeId, language) {
     try {
       const masterGuide = await this._getMasterGuideForPlace(req, placeId);
+      const normalizedLanguage = parseLanguage(language);
+
       try {
-        return await this.getPresentationByLanguage(req, placeId, masterGuide.sourceLanguage);
+        return await this.getPresentationByLanguage(req, placeId, normalizedLanguage);
       } catch (error) {
         if (!(error instanceof AppError) || error.statusCode !== 404) {
           throw error;
@@ -654,29 +690,32 @@ class GuidesModel {
           `,
           [
             masterGuide.id,
-            masterGuide.sourceLanguage,
+            normalizedLanguage,
             DEFAULT_PUBLICATION_STATUS,
             DEFAULT_STALENESS_STATUS,
             DEFAULT_APPROVAL_STATUS,
           ],
         );
-        Logger.info('Guide source-language presentation ensured', {
+        Logger.info('Guide presentation ensured for language', {
           placeId,
           presentationId: rows[0].id,
-          language: masterGuide.sourceLanguage,
+          language: normalizedLanguage,
         });
         return this.transformPresentationRow(rows[0], placeId, masterGuide.id);
       } catch (error) {
         if (error.code === '23505') {
-          return this.getPresentationByLanguage(req, placeId, masterGuide.sourceLanguage);
+          return this.getPresentationByLanguage(req, placeId, normalizedLanguage);
         }
         throw error;
       }
     } catch (error) {
       if (error instanceof AppError) throw error;
-      Logger.error('Failed to ensure source-language presentation', error, { placeId });
+      Logger.error('Failed to ensure guide presentation for language', error, {
+        placeId,
+        language,
+      });
       throw new AppError(
-        'Failed to ensure source-language presentation',
+        'Failed to ensure presentation for language',
         500,
         AppError.CODES.DATABASE_ERROR,
       );
@@ -695,8 +734,16 @@ class GuidesModel {
           ? parsePublicationStatus(data.publicationStatus)
           : existing.publicationStatus;
 
+      const presentationChanged =
+        data.presentationText !== undefined &&
+        !narrativesEqual(presentationText, existing.presentationText);
+      // Saving presentation text (including unchanged text from the editor) marks content approved.
+      const approvalStatus =
+        presentationChanged || data.presentationText !== undefined
+          ? 'approved'
+          : (existing.approvalStatus ?? DEFAULT_APPROVAL_STATUS);
+
       if (publicationStatus === 'published') {
-        const approvalStatus = existing.approvalStatus ?? DEFAULT_APPROVAL_STATUS;
         if (approvalStatus !== 'approved' || existing.stalenessStatus !== 'fresh') {
           throw new AppError(
             'published requires approved content and fresh staleness',
@@ -705,14 +752,6 @@ class GuidesModel {
           );
         }
       }
-
-      const presentationChanged =
-        data.presentationText !== undefined &&
-        !narrativesEqual(presentationText, existing.presentationText);
-      const approvalStatus =
-        presentationChanged || data.presentationText !== undefined
-          ? 'approved'
-          : (existing.approvalStatus ?? DEFAULT_APPROVAL_STATUS);
 
       const normalizedLanguage = parseLanguage(language);
       const db = Database.get(req);
@@ -754,7 +793,7 @@ class GuidesModel {
         UPDATE ${PRESENTATIONS_TABLE} gp
         SET
           presentation_text = $1,
-          approval_status = 'pending_review',
+          approval_status = 'approved',
           updated_at = CURRENT_TIMESTAMP
         FROM ${MASTER_GUIDES_TABLE} mg
         INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id

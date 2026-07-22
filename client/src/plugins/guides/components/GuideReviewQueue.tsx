@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 
 import { guidesApi } from '../api/guidesApi';
 import type { GuidePresentation, ProductionJob, ProductionJobItem } from '../types/guides';
@@ -100,7 +101,7 @@ export const GuideReviewQueue = forwardRef<GuideReviewQueueHandle, GuideReviewQu
 
     return (
       <div ref={containerRef}>
-        <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection
             title={t('guides.production.review.queueTitle', { count: pendingCount })}
             icon={ChevronRight}

@@ -137,6 +137,25 @@ class GuidesController {
     }
   }
 
+  async createPresentation(req, res) {
+    try {
+      const presentation = await this.model.ensurePresentationForLanguage(
+        req,
+        req.params.id,
+        req.body.language,
+      );
+      res.status(201).json(presentation);
+    } catch (error) {
+      Logger.error('Create guide presentation failed', error, {
+        placeId: req.params.id,
+        language: req.body?.language,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to create presentation' });
+    }
+  }
+
   async setIngestSource(req, res) {
     try {
       if (!this.ingestBridge) {

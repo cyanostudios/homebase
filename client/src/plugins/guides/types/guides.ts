@@ -16,6 +16,8 @@ export interface Guide {
   masterGuideId: string | null;
   sourceLanguage: string;
   masterGuideEditorialStatus: MasterGuideEditorialStatus;
+  /** ISO language codes with non-empty presentation text. */
+  languages: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -159,6 +161,48 @@ export const GUIDE_LIFECYCLE_COLORS: Record<GuideLifecycleStatus, string> = {
     'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-secondary/50 text-secondary-foreground',
 };
 
+export const GUIDE_PUBLICATION_COLORS: Record<PublicationStatus, string> = {
+  draft:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  ready:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-amber-50/90 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+  published:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+};
+
+export const GUIDE_APPROVAL_COLORS: Record<PresentationApprovalStatus, string> = {
+  draft:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  pending_review:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  approved:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+};
+
+export const GUIDE_STALENESS_COLORS: Record<StalenessStatus, string> = {
+  fresh:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300',
+  stale:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-orange-50/90 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300',
+};
+
+export const GUIDE_EDITORIAL_COLORS: Record<MasterGuideEditorialStatus, string> = {
+  draft:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  'in-progress':
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  complete:
+    'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+};
+
+export const GUIDE_LANGUAGE_SOURCE_BADGE_CLASS =
+  'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase bg-plugin-subtle text-plugin';
+
+export const GUIDE_LANGUAGE_BADGE_CLASS =
+  'border border-border/70 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase bg-muted/40 text-muted-foreground';
+
+export type ProductionStartMode = 'source' | 'translation';
+
 export const MASTER_GUIDE_EDITORIAL_STATUSES: MasterGuideEditorialStatus[] = [
   'draft',
   'in-progress',
@@ -178,6 +222,21 @@ export type ProductionJobStatus =
   | 'completed'
   | 'failed'
   | 'cancelled';
+export const SUGGESTED_GUIDE_LANGUAGES = [
+  'en',
+  'sv',
+  'it',
+  'de',
+  'fr',
+  'es',
+  'pt',
+  'nl',
+  'da',
+  'no',
+  'fi',
+  'pl',
+];
+
 export type ProductionItemStep = 'text_derivation' | 'translation';
 export type ProductionItemStatus =
   | 'pending'
@@ -190,6 +249,40 @@ export type ProductionItemStatus =
   | 'cancelled';
 export type ProductionReviewStatus = 'pending_review' | 'approved' | 'rejected' | 'superseded';
 export type ProductionCheckpointMode = 'after_text' | 'after_each' | 'auto';
+
+export const GUIDE_PRODUCTION_JOB_STATUS_COLORS: Record<ProductionJobStatus, string> = {
+  pending:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  planning:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  processing:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  awaiting_review:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-amber-50/90 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+  completed:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  failed:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-red-50/90 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+  cancelled:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-secondary/50 text-secondary-foreground',
+};
+
+export const GUIDE_REVIEW_STATUS_COLORS: Record<ProductionReviewStatus, string> = {
+  pending_review:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  approved:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  rejected:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-secondary/50 text-secondary-foreground',
+  superseded:
+    'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+};
+
+export const GUIDE_ITEM_PROCESSING_BADGE_CLASS =
+  'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold gap-1 bg-blue-50/90 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300';
+
+export const GUIDE_ITEM_FAILED_BADGE_CLASS =
+  'border-0 rounded-md px-2 py-0.5 text-[10px] font-semibold bg-red-50/90 text-red-700 dark:bg-red-950/40 dark:text-red-300';
 
 export interface ProductionJobOptions {
   type?: ProductionJobType;

@@ -1,10 +1,10 @@
 {
-  "promptSetVersion": "v1.3",
+  "promptSetVersion": "v1.4",
   "entry": {
     "system": "text_derivation/v1.system.md",
     "user": "text_derivation/v1.user.md"
   },
   "tokenBudgets": {
-    "maxCompletionTokens": 400
+    "maxCompletionTokens": 2800
   }
 }

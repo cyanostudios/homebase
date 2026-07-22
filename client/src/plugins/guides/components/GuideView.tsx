@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -21,12 +22,19 @@ import { ProductionPhaseBanner } from './ProductionPhaseBanner';
 import { StartProductionDialog } from './StartProductionDialog';
 import {
   isMasterGuideEditorialStatus,
+  GUIDE_EDITORIAL_COLORS,
+  GUIDE_LANGUAGE_SOURCE_BADGE_CLASS,
+  GUIDE_LIFECYCLE_COLORS,
   type Guide,
   type GuideLifecycleStatus,
+  type GuidePresentation,
+  type ProductionStartMode,
   type ProductionStartScope,
 } from '../types/guides';
 import { isProductionJobActive, resolveSourceSummary } from '../utils/productionJobHelpers';
 import { SourceResearchSummary } from './SourceResearchSummary';
+import { GuideLanguageBadges } from './GuideLanguageBadges';
+import { guidesApi } from '../api/guidesApi';
 
 interface GuideViewProps {
   guide?: Guide;
@@ -35,10 +43,14 @@ interface GuideViewProps {
 
 export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
   const { t } = useTranslation();
-  const { openGuideForEdit, deleteGuide } = useGuides();
+  const { openGuideForEdit, deleteGuide, validationErrors } = useGuides();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [startDialogMode, setStartDialogMode] = useState<ProductionStartMode>('source');
   const [startScope, setStartScope] = useState<ProductionStartScope>({ type: 'full_guide' });
+  const [presentations, setPresentations] = useState<GuidePresentation[]>([]);
+  const [produceActionError, setProduceActionError] = useState<string | null>(null);
+  const [lastTranslationLanguages, setLastTranslationLanguages] = useState<string[]>([]);
   const reviewQueueRef = useRef<GuideReviewQueueHandle>(null);
   const actualGuide = guide || item;
   const production = useProductionJob(actualGuide?.id ?? '');
@@ -55,32 +67,114 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
 
   if (!actualGuide) return null;
 
+  const generalError = validationErrors.find((e) => e.field === 'general')?.message ?? null;
+
   const editorialStatus = isMasterGuideEditorialStatus(actualGuide.masterGuideEditorialStatus)
     ? actualGuide.masterGuideEditorialStatus
     : 'draft';
 
   const lifecycleLabel = (status: GuideLifecycleStatus) => t(`guides.lifecycle.${status}`);
 
+  const sourceHasText = presentations.some(
+    (p) =>
+      p.language.toLowerCase() === actualGuide.sourceLanguage.toLowerCase() &&
+      Boolean(p.presentationText?.trim()),
+  );
+
+  const generatedLanguageCodes = presentations
+    .filter((p) => p.presentationText?.trim())
+    .map((p) => p.language.toLowerCase());
+
   const handleDeleteConfirm = () => {
     setDeleteOpen(false);
     void deleteGuide(actualGuide.id);
   };
 
-  const openStartDialog = (scope: ProductionStartScope) => {
-    setStartScope(scope);
+  const openStartDialog = (mode: ProductionStartMode) => {
+    setStartDialogMode(mode);
+    setStartScope({ type: 'full_guide' });
+    setProduceActionError(null);
     setStartDialogOpen(true);
   };
 
-  const handleStartConfirm = async (options: { force: boolean }) => {
-    const ok = await production.startJob(startScope, options);
-    if (ok) {
+  const handleStartConfirm = async (options: { force: boolean; languages?: string[] }) => {
+    if (startDialogMode === 'source') {
+      setProduceActionError(null);
+      const ok = await production.startJob(startScope, {
+        force: options.force,
+        languages: [actualGuide.sourceLanguage.toLowerCase()],
+        phases: ['text_derivation'],
+      });
+      if (ok) {
+        production.clearFailure();
+        setStartDialogOpen(false);
+      }
+      return;
+    }
+
+    const selected = (options.languages ?? []).map((l) => l.toLowerCase());
+    if (selected.length === 0) return;
+
+    setProduceActionError(null);
+    setLastTranslationLanguages(selected);
+
+    try {
       production.clearFailure();
-      setStartDialogOpen(false);
+      const existing = new Set(presentations.map((p) => p.language.toLowerCase()));
+      for (const lang of selected) {
+        if (!existing.has(lang)) {
+          await guidesApi.createPresentation(actualGuide.id, lang);
+        }
+      }
+      const ok = await production.startJob(startScope, {
+        force: options.force,
+        languages: selected,
+        phases: ['translation'],
+      });
+      if (ok) {
+        setStartDialogOpen(false);
+      }
+    } catch {
+      setProduceActionError(t('guides.production.start.prepareLanguagesFailed'));
     }
   };
 
   const handleStartRetry = async () => {
-    const ok = await production.startJob(startScope, { force: false });
+    setProduceActionError(null);
+    if (startDialogMode === 'source') {
+      const ok = await production.startJob(startScope, {
+        force: false,
+        languages: [actualGuide.sourceLanguage.toLowerCase()],
+        phases: ['text_derivation'],
+      });
+      if (ok) {
+        production.clearFailure();
+        setStartDialogOpen(false);
+      }
+      return;
+    }
+
+    const languages =
+      lastTranslationLanguages.length > 0
+        ? lastTranslationLanguages
+        : presentations
+            .filter(
+              (p) =>
+                p.language.toLowerCase() !== actualGuide.sourceLanguage.toLowerCase() &&
+                !p.presentationText?.trim(),
+            )
+            .map((p) => p.language.toLowerCase());
+
+    if (languages.length === 0) {
+      setProduceActionError(t('guides.production.start.prepareLanguagesFailed'));
+      return;
+    }
+
+    const ok = await production.startJob(startScope, {
+      force: false,
+      languages,
+      phases: ['translation'],
+    });
     if (ok) {
       production.clearFailure();
       setStartDialogOpen(false);
@@ -98,7 +192,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
       production.job.status === 'failed');
 
   return (
-    <div className="plugin-guides min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6">
+    <div className="plugin-guides">
       <DetailLayout
         sidebar={
           <div className="space-y-4">
@@ -107,7 +201,9 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               items={production.items}
               hasActiveJob={production.hasActiveJob}
               isBusy={production.isBusy}
-              onStartFullGuide={() => openStartDialog({ type: 'full_guide' })}
+              sourceHasText={sourceHasText}
+              onStartSource={() => openStartDialog('source')}
+              onStartTranslations={() => openStartDialog('translation')}
               onShowReview={() => reviewQueueRef.current?.scrollIntoView()}
               onCancel={() => void production.cancelJob()}
             />
@@ -118,10 +214,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               onSelectJob={production.selectJob}
             />
 
-            <Card
-              padding="none"
-              className="overflow-hidden border border-border/70 bg-card shadow-sm"
-            >
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('guides.quickActions')}
                 icon={Edit}
@@ -153,10 +246,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               </DetailSection>
             </Card>
 
-            <Card
-              padding="none"
-              className="overflow-hidden border border-border/70 bg-card shadow-sm"
-            >
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('guides.information')}
                 icon={Info}
@@ -182,15 +272,23 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
                     <span className="text-muted-foreground">{t('common.updated')}</span>
                     <span>{formatDate(actualGuide.updatedAt)}</span>
                   </div>
+                  {generatedLanguageCodes.length > 0 && (
+                    <div className="border-t border-border/50 pt-3">
+                      <div className="mb-1.5 text-muted-foreground">
+                        {t('guides.information.generatedLanguages')}
+                      </div>
+                      <GuideLanguageBadges
+                        languages={generatedLanguageCodes}
+                        sourceLanguage={actualGuide.sourceLanguage}
+                      />
+                    </div>
+                  )}
                 </div>
               </DetailSection>
             </Card>
 
             {showUsageCard && (
-              <Card
-                padding="none"
-                className="overflow-hidden border border-border/70 bg-card shadow-sm"
-              >
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection title={t('guides.usage.title')} icon={Receipt} className="p-4">
                   <div className="space-y-3 text-xs">
                     {usage && (
@@ -267,6 +365,11 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
         }
       >
         <div className="space-y-4">
+          {generalError && (
+            <p className="text-sm text-destructive" role="alert">
+              {generalError}
+            </p>
+          )}
           {production.error && (
             <p className="text-sm text-destructive" role="alert">
               {production.error}
@@ -299,10 +402,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
             />
           )}
 
-          <Card
-            padding="none"
-            className="overflow-hidden border border-border/70 bg-card shadow-sm"
-          >
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={t('guides.details')}
               icon={MapPin}
@@ -317,16 +417,26 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
                   <div className="text-lg font-semibold">{actualGuide.displayName}</div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{lifecycleLabel(actualGuide.lifecycleStatus)}</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className={GUIDE_LIFECYCLE_COLORS[actualGuide.lifecycleStatus]}>
+                    {lifecycleLabel(actualGuide.lifecycleStatus)}
+                  </Badge>
+                  <Badge className={GUIDE_LANGUAGE_SOURCE_BADGE_CLASS}>
+                    {actualGuide.sourceLanguage}
+                  </Badge>
+                  <Badge className={GUIDE_EDITORIAL_COLORS[editorialStatus]}>
+                    {t(`guides.editorial.${editorialStatus}`)}
+                  </Badge>
                 </div>
 
-                <div className="border-t border-border/50 pt-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t('guides.shortIntro')}
+                {actualGuide.shortIntro && (
+                  <div className="border-t border-border/50 pt-4">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t('guides.shortIntro')}
+                    </div>
+                    <div className="whitespace-pre-wrap text-sm">{actualGuide.shortIntro}</div>
                   </div>
-                  <div className="whitespace-pre-wrap text-sm">{actualGuide.shortIntro ?? '—'}</div>
-                </div>
+                )}
 
                 <div className="border-t border-border/50 pt-4">
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -350,45 +460,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
             </DetailSection>
           </Card>
 
-          <Card
-            padding="none"
-            className="overflow-hidden border border-border/70 bg-card shadow-sm"
-          >
-            <DetailSection
-              title={t('guides.masterGuide')}
-              icon={Languages}
-              iconPlugin="guides"
-              className="p-6"
-            >
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="uppercase">
-                    {actualGuide.sourceLanguage}
-                  </Badge>
-                  <Badge variant="secondary">{t(`guides.editorial.${editorialStatus}`)}</Badge>
-                </div>
-                <div className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {t('guides.sourceLanguage')}
-                    </div>
-                    <div className="mt-1 uppercase">{actualGuide.sourceLanguage}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {t('guides.masterGuideEditorialStatus')}
-                    </div>
-                    <div className="mt-1">{t(`guides.editorial.${editorialStatus}`)}</div>
-                  </div>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-
-          <Card
-            padding="none"
-            className="overflow-hidden border border-border/70 bg-card shadow-sm"
-          >
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={t('guides.presentations')}
               icon={Languages}
@@ -400,6 +472,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
                 sourceLanguage={actualGuide.sourceLanguage}
                 disabled={production.hasActiveJob || production.isBusy}
                 refreshKey={presentationsRefreshKey}
+                onPresentationsChange={setPresentations}
               />
             </DetailSection>
           </Card>
@@ -408,15 +481,23 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
 
       <StartProductionDialog
         isOpen={startDialogOpen}
+        mode={startDialogMode}
         scope={startScope}
         isBusy={production.isBusy}
         hasActiveJob={production.hasActiveJob}
         failureCode={production.failureCode}
+        actionError={produceActionError}
+        presentations={presentations}
+        sourceLanguage={actualGuide.sourceLanguage}
         onConfirm={(options) => void handleStartConfirm(options)}
         onRetry={() => void handleStartRetry()}
-        onClearFailure={production.clearFailure}
+        onClearFailure={() => {
+          production.clearFailure();
+          setProduceActionError(null);
+        }}
         onCancel={() => {
           production.clearFailure();
+          setProduceActionError(null);
           setStartDialogOpen(false);
         }}
       />

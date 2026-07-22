@@ -122,7 +122,7 @@ class NominatimPlaceProvider {
 
   /**
    * @param {string} query
-   * @param {{ limit?: number, language?: string }} [options]
+   * @param {{ limit?: number, language?: string, countryCode?: string }} [options]
    * @returns {Promise<import('../PlaceProvider').PlaceResolved[]>}
    */
   async search(query, options = {}) {
@@ -138,6 +138,9 @@ class NominatimPlaceProvider {
     });
     if (options.language) {
       params.set('accept-language', String(options.language));
+    }
+    if (options.countryCode) {
+      params.set('countrycodes', String(options.countryCode).toLowerCase().slice(0, 2));
     }
     if (this._email) {
       params.set('email', this._email);

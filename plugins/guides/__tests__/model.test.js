@@ -51,9 +51,32 @@ describe('GuidesModel', () => {
       masterGuideId: '10',
       sourceLanguage: 'sv',
       masterGuideEditorialStatus: 'draft',
+      languages: [],
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     });
+  });
+
+  test('transformRow maps generated languages from aggregate', () => {
+    const result = model.transformRow(
+      {
+        id: 2,
+        display_name: 'Colosseum',
+        short_intro: null,
+        geographic_reference: 'Rome',
+        lifecycle_status: 'draft',
+        generated_languages: ['de', 'en'],
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-02T00:00:00.000Z',
+      },
+      {
+        id: 11,
+        source_language: 'en',
+        editorial_status: 'draft',
+      },
+    );
+
+    expect(result.languages).toEqual(['de', 'en']);
   });
 
   test('create inserts place with user_id and master guide in a transaction', async () => {

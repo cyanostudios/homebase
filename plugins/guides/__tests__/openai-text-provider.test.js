@@ -21,7 +21,7 @@ describe('OpenAITextProvider', () => {
   test('version includes model and prompt set', () => {
     const provider = new OpenAITextProvider({ apiKey: 'sk-test', model: 'gpt-4o-mini' });
     expect(provider.key).toBe('openai');
-    expect(provider.version).toBe('openai@gpt-4o-mini@prompts-v1.3');
+    expect(provider.version).toBe('openai@gpt-4o-mini@prompts-v1.4');
   });
 
   test('returns ready with full providerResult on success', async () => {

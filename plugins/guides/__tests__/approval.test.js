@@ -75,6 +75,44 @@ describe('GuidesModel approval workflow', () => {
     expect(result.publicationStatus).toBe('published');
   });
 
+  test('updatePresentation allows published when save also approves text', async () => {
+    jest.spyOn(model, 'getPresentationByLanguage').mockResolvedValue({
+      id: '7',
+      masterGuideId: '10',
+      placeId: '1',
+      language: 'sv',
+      presentationText: 'Text',
+      publicationStatus: 'ready',
+      stalenessStatus: 'fresh',
+      approvalStatus: 'pending_review',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    Database.get.mockReturnValue({
+      query: jest.fn().mockResolvedValueOnce([
+        {
+          id: 7,
+          master_guide_id: 10,
+          language: 'sv',
+          presentation_text: 'Text',
+          publication_status: 'published',
+          staleness_status: 'fresh',
+          approval_status: 'approved',
+          created_at: '2026-01-01T00:00:00.000Z',
+          updated_at: '2026-01-02T00:00:00.000Z',
+        },
+      ]),
+    });
+
+    const result = await model.updatePresentation({}, '1', 'sv', {
+      presentationText: 'Text',
+      publicationStatus: 'published',
+    });
+    expect(result.publicationStatus).toBe('published');
+    expect(result.approvalStatus).toBe('approved');
+  });
+
   test('update place active requires publishable presentation', async () => {
     jest.spyOn(model, 'getById').mockResolvedValue({
       id: '1',

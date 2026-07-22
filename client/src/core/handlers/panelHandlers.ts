@@ -47,12 +47,12 @@ export const createPanelHandlers = (
   currentItem: any,
   formRef: RefObject<PanelFormHandle | null>,
 ) => {
-  const handleSave = async (data: any) => {
+  const handleSave = async (data: any, ...rest: any[]) => {
     if (currentPluginContext && currentPlugin) {
       // DYNAMIC: Find save function automatically
       const saveFunction = findPluginFunction(currentPluginContext, 'save', currentPlugin.name);
       if (saveFunction) {
-        return await saveFunction(data);
+        return await saveFunction(data, ...rest);
       }
       if (isDev) {
         const cap = getSingularCap(currentPlugin.name);

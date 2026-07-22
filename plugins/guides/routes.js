@@ -14,6 +14,7 @@ const {
   masterGuideEditorialStatusBodyRule,
   sourceLanguageBodyRule,
   publicationStatusBodyRule,
+  languageBodyRule,
   parseLanguage,
 } = require('./validation');
 const { JOB_TYPES, ITEM_STEPS, CHECKPOINT_MODES } = require('./production/ProductionJobModel');
@@ -192,6 +193,16 @@ function createGuidesRoutes(controller, context) {
 
   router.get('/:id/presentations', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.listPresentations(req, res),
+  );
+
+  router.post(
+    '/:id/presentations',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    languageBodyRule({ required: true }),
+    validateRequest,
+    (req, res) => controller.createPresentation(req, res),
   );
 
   router.get(

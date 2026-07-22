@@ -12,17 +12,19 @@ describe('TextPromptLoader', () => {
       language: 'sv',
     });
 
-    expect(prompts.promptSetVersion).toBe('v1.3');
+    expect(prompts.promptSetVersion).toBe('v1.4');
     expect(prompts.promptVersion).toBe('v1');
-    expect(prompts.maxCompletionTokens).toBe(400);
-    expect(prompts.system).toContain('tour guide');
+    expect(prompts.maxCompletionTokens).toBe(2800);
+    expect(prompts.system).toContain('audioguide');
+    expect(prompts.system).toContain('1200–1800');
     expect(prompts.user).toContain('A historic square with a fountain.');
     expect(prompts.user).toContain('Language: sv');
+    expect(prompts.user).toContain('1200–1800');
     expect(prompts.user).not.toContain('Variant type');
   });
 
   test('getPromptSetVersion returns manifest version', () => {
-    expect(TextPromptLoader.getPromptSetVersion()).toBe('v1.3');
+    expect(TextPromptLoader.getPromptSetVersion()).toBe('v1.4');
   });
 
   test('includes place context block when provided', () => {
