@@ -4,17 +4,38 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-22 – Generate source audio + safe regenerate
+
+**Status:** Implementerat och pushat till `homebase-v3.8`. QA Approved; Security Needs Decision → **A1/A2 accepterade av TPM**. **Ej prod-release** utan explicit beslut. Documentation sync denna post.
+
+**Sammanfattning:** Production-panelen har **Generate source audio** (källspråk, samma `POST …/audio/generate` som presentationens audio-sektion). Vid befintlig ready/stale-fil visas overwrite-varning. Misslyckad generate (t.ex. quota) **behåller** föregående ljudfil; fel visas i popup med provider-/servermeddelande. Cancel under regenerate återställer `stale`/`ready` via intern restore-hint (`preserveRestoreHint`).
+
+### Verifierat beteende
+
+- Panel: `GuideProductionPanel` → `GuideView` → `guidesApi.generateAudio(placeId, sourceLanguage)`; kräver approved källpresentation med text.
+- Orkestrering: behåller `storage_ref` under `processing`; raderar gammal blob **först efter** lyckad ny upload (`AudioOrchestrationService`).
+- Fel-UX: `resolveAudioGenerateErrorMessage` + `ConfirmDialog` (alert-läge utan cancel).
+
+### Accepterade säkerhetsrisker (TPM 2026-07-22)
+
+| ID  | Risk                                                   | Beslut                                                     |
+| --- | ------------------------------------------------------ | ---------------------------------------------------------- |
+| A1  | Rå provider-feltext till autentiserad guides-användare | Accepterad — CMS-operatörsyta; React textnoder (ingen XSS) |
+| A2  | Ingen dedikerad rate limit på audio-generate           | Accepterad — samma trust-modell som text-production        |
+
+---
+
 ## 2026-07-22 – Total cost text + total cost audio
 
-**Status:** Implementerat lokalt. Migration `109-guide-audio-cost.sql` (`guide_audio.cost`).
+**Status:** Implementerat och pushat till `homebase-v3.8`. Migration `109-guide-audio-cost.sql` (`guide_audio.cost`).
 
-**Sammanfattning:** Information-kortet visar separat **Total cost text** (production ledger) och **Total cost audio** (kumulativ TTS-estimat per plats). ElevenLabs generate sparar estimated cost; list/get production-jobs returnerar `placeTotalEstimatedAudioCost`.
+**Sammanfattning:** Information-kortet visar separat **Total cost text** (`placeTotalEstimatedCost`, user-scoped production items) och **Total cost audio** (`placeTotalEstimatedAudioCost`, kumulativ TTS-estimat på platsens `guide_audio`). List/get production-jobs returnerar båda fälten. ElevenLabs generate sparar estimated cost via `calculateTtsCost`.
 
 ---
 
 ## 2026-07-22 – ElevenLabs voice selection in AI Providers
 
-**Status:** Implementerat lokalt. Migration `108-ai-provider-settings-options.sql` (JSONB `options`).
+**Status:** Implementerat och pushat till `homebase-v3.8`. Migration `108-ai-provider-settings-options.sql` (JSONB `options`).
 
 **Sammanfattning:** ElevenLabs-settings har röstväljare (listar `/v1/voices` eller manuell voice id). Sparad `voiceId` används vid Guides audio-generate.
 
@@ -22,9 +43,9 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-07-22 – ElevenLabs TTS adapter (Guides audio)
 
-**Status:** Implementerat lokalt. **Ej prod-release.**
+**Status:** Implementerat och pushat till `homebase-v3.8`. **Ej prod-release.**
 
-**Sammanfattning:** `ElevenLabsAudioProvider` registrerad — connection test (`GET /v1/user`) + manuell generate (TTS → mp3). Syns som `audioGenerationCapable` i AI Providers; kan routas under Guides (audio).
+**Sammanfattning:** `ElevenLabsAudioProvider` registrerad — connection test via **minimal TTS-probe** (`"Hi"`, inte `GET /v1/user`; restricted keys saknar ofta `user_read`) + manuell generate (TTS → mp3). Syns som `audioGenerationCapable` i AI Providers; kan routas under Guides (audio).
 
 - Adapter: `plugins/guides/audio/adapters/ElevenLabsAudioProvider.js`
 - Env: `ELEVENLABS_API_KEY`, `GUIDES_AUDIO_ELEVENLABS_MODEL`, `GUIDES_AUDIO_ELEVENLABS_VOICE_ID`
@@ -34,9 +55,9 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-07-22 – Audio provider wiring (text-mönster)
 
-**Status:** Implementerat lokalt. Security Approved (wiring). **Ej prod-release.** Ingen TTS-vendor.
+**Status:** Implementerat och pushat till `homebase-v3.8`. Security Approved (wiring). **Ej prod-release.**
 
-**Sammanfattning:** Manuell audio-generate speglar text: `AudioProviderConfigResolver` → `AIProviderRouter` (`guides-audio`) → env `GUIDES_AUDIO_PROVIDER` → `AudioProviderRegistry.create(key, options)`. Endast `noop` registrerad.
+**Sammanfattning:** Manuell audio-generate speglar text: `AudioProviderConfigResolver` → `AIProviderRouter` (`guides-audio`) → env `GUIDES_AUDIO_PROVIDER` → `AudioProviderRegistry.create(key, options)`. Registrerade: `noop` + `elevenlabs`.
 
 ### Backend
 
@@ -57,23 +78,21 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-07-22 – Guides: place total estimated cost + list jobs response shape
 
-**Status:** Implementerat lokalt; under QA-omarbetning. **Ej prod-release.**
+**Status:** Implementerat och pushat till `homebase-v3.8`. **Ej prod-release.**
 
 **Brytande API-kontrakt (eskalerat till SA/TPM):**
 
 - Tidigare: `GET /api/guides/:placeId/production-jobs` → `ProductionJob[]`
-- Nu: `{ jobs: ProductionJob[], placeTotalEstimatedCost: { currency, totalCost, estimated } | null }`
-- `GET /api/guides/:placeId/production-jobs/:jobId` inkluderar samma `placeTotalEstimatedCost` (utöver `usageSummary`).
+- Nu: `{ jobs, placeTotalEstimatedCost, placeTotalEstimatedAudioCost }`
+- Job-detail inkluderar samma cost-fält (utöver `usageSummary`).
 
-**Beteende:** `placeTotalEstimatedCost` summerar `provider_result.cost` för alla **completed** job-items på platsen (text, translation, framtida steg med cost). Manuell audio-generate (prep) ingår **inte** förrän audio har cost i samma ledger. SQL filtrerar med `j.user_id` (undviker ambigous tenant-injection på joins).
-
-**UI:** Information-kortet visar alltid “Total kostnad” från detta fält.
+**Beteende:** `placeTotalEstimatedCost` summerar `provider_result.cost` för **completed** job-items på platsen filtrerat med `j.user_id`. `placeTotalEstimatedAudioCost` summerar `guide_audio.cost` för platsen (migration 109). UI: “Total cost text” / “Total cost audio”.
 
 ---
 
 ## 2026-07-22 – P-AUDIO_GENERATION_PREP: audiogenerering (stub / noop)
 
-**Status:** Implementerat lokalt på `homebase-v3.8`. Security Approved för prep. **QA:** se separat post för post-prep cost/list-kontrakt. **Ej merge till `main` / Railway** utan explicit releasebeslut. Ingen riktig TTS-vendor.
+**Status:** Implementerat och pushat till `homebase-v3.8`. Security Approved för prep. **Ej merge till `main` / Railway** utan explicit releasebeslut. Utökad med ElevenLabs + cost + panel generate (se poster ovan).
 
 **Sammanfattning:** Presentation-skopad `guide_audio` (1:1), manuell generate/cancel/preview/delete, noop-WAV, lagring under `guides/audio/`, AI Providers-capability `audioGenerationCapable` + routing-scope `guides-audio`.
 

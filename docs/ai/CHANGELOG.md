@@ -2,18 +2,30 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Generate source audio + safe regenerate (2026-07-22)
+
+Docs-sync efter QA Approved + TPM-accept av Security A1/A2; push `homebase-v3.8`.
+
+- Production-panel: Generate source audio (källspråk).
+- Keep previous blob until successful upload; cancel restores stale/ready via `preserveRestoreHint`.
+- Overwrite warning + error popup with provider message.
+- ADR: [`P-AUDIO_GENERATION_PREP.md`](adr/P-AUDIO_GENERATION_PREP.md) uppdaterad (decisions 9–12).
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+**Inaktuellt (historisk Epic 6-notering):** “Regenerering raderar befintlig blob före ny upload” gäller **inte** presentation-scoped prep 2026-07-22 — se ADR decision 10.
+
 ## Total cost text + total cost audio (2026-07-22)
 
 - UI: `totalCost` → “Total cost text”; ny `totalCostAudio`.
 - `guide_audio.cost` (migration 109); ElevenLabs `calculateTtsCost`; kumulativ merge vid regenerate.
-- Production list/get: `placeTotalEstimatedAudioCost`.
+- Production list/get: `placeTotalEstimatedCost` + `placeTotalEstimatedAudioCost`.
 - Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
 
 ## Audio provider wiring — text-mönster (2026-07-22)
 
-Wiring av audio mot samma ConfigResolver/Router/registry-kedja som text. **Ingen TTS-vendor.** Security Approved för wiring.
+Wiring av audio mot samma ConfigResolver/Router/registry-kedja som text. Security Approved för wiring. **ElevenLabs** tillagd samma dag (se produktchangelog).
 
-**ADR:** [`docs/ai/adr/P-AUDIO_GENERATION_PREP.md`](adr/P-AUDIO_GENERATION_PREP.md) — decision 5 uppdaterad: generate använder `AudioProviderConfigResolver` + `guides-audio` (ej längre “routing förberedd, ej wired”).
+**ADR:** [`docs/ai/adr/P-AUDIO_GENERATION_PREP.md`](adr/P-AUDIO_GENERATION_PREP.md) — decision 5: generate använder `AudioProviderConfigResolver` + `guides-audio`.
 
 - `AudioProviderConfigResolver` ↔ `TextProviderConfigResolver` (`guides-audio` / `GUIDES_AUDIO_PROVIDER`)
 - Registry `create(key, options)`; orchestration skriver `provider_key`
@@ -21,17 +33,17 @@ Wiring av audio mot samma ConfigResolver/Router/registry-kedja som text. **Ingen
 
 ## Guides place total cost + breaking listProductionJobs (2026-07-22)
 
-Tillägg efter audio-prep: platsnivå `placeTotalEstimatedCost` och brytande list-svar.
+Tillägg efter audio-prep: platsnivå costs och brytande list-svar.
 
-- `GET .../production-jobs` → `{ jobs, placeTotalEstimatedCost }` (tidigare array).
-- Job-detail inkluderar `placeTotalEstimatedCost`.
-- Summerar completed items’ `provider_result.cost` (alla steg); manuell audio-prep utan cost i ledger ingår inte.
+- `GET .../production-jobs` → `{ jobs, placeTotalEstimatedCost, placeTotalEstimatedAudioCost }` (tidigare array).
+- Job-detail inkluderar samma fält.
+- Text: completed items’ `provider_result.cost` (user-scoped). Audio: `guide_audio.cost` (place-scoped).
 - Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
-- **Eskalerat:** brytande API — SA/TPM ska bekräfta kontraktet; QA omgranskar efter tester.
+- **Eskalerat:** brytande API — SA/TPM ska bekräfta kontraktet.
 
 ## P-AUDIO_GENERATION_PREP — Audiogenerering stub (2026-07-22)
 
-Förberedelsefas: presentation-skopad audio utan TTS-vendor. Security Approved för prep; **QA för hela branchen (inkl. cost/list) ej slutligt godkänd**; **ej prod-release**.
+Förberedelsefas: presentation-skopad audio. Security Approved för prep; utökad med ElevenLabs/cost/panel (se poster ovan). **Ej prod-release.**
 
 **ADR:** [`docs/ai/adr/P-AUDIO_GENERATION_PREP.md`](adr/P-AUDIO_GENERATION_PREP.md)
 
@@ -1455,6 +1467,7 @@ stateDiagram-v2
 
 - `generate` upsertar `guide_audio` om saknas; **409** om redan `processing`.
 - Regenerering raderar befintlig blob (best-effort) före ny upload.
+  - **Superseded 2026-07-22 (presentation-scoped prep):** blob behålls tills ny upload lyckas — se [`P-AUDIO_GENERATION_PREP.md`](adr/P-AUDIO_GENERATION_PREP.md) decision 10. Denna punkt beskriver äldre variant-skopad Epic 6-semantik.
 - `DELETE …/audio` raderar DB-post + best-effort storage cleanup.
 - `storageRef` sätts endast av orkestrering vid lyckad upload (format `local:guide-audio-{variantId}-{ts}.wav` i dev).
 
