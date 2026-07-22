@@ -146,6 +146,7 @@ class AIProvidersController {
         String(req.body?.defaultModel || saved?.defaultModel || '').trim() ||
         getProviderDefaultModel(providerKey) ||
         undefined;
+      const voiceId = String(req.body?.voiceId || saved?.voiceId || '').trim() || undefined;
 
       if (!apiKey) {
         return res.status(400).json({ error: 'API key is required to test connection' });
@@ -158,6 +159,7 @@ class AIProvidersController {
       const provider = this.connectionTestRegistry.create(providerKey, {
         apiKey,
         model,
+        voiceId,
       });
 
       if (typeof provider?.testConnection !== 'function') {
@@ -178,6 +180,46 @@ class AIProvidersController {
       }
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Failed to test AI provider settings',
+      });
+    }
+  }
+
+  async listVoices(req, res) {
+    try {
+      const providerKey = normalizeProviderKey(req.params.providerKey);
+      if (!this.connectionTestRegistry.has(providerKey)) {
+        return res.status(400).json({ error: 'Voice listing not available for this provider' });
+      }
+
+      const useSaved = Boolean(req.body?.useSaved ?? true);
+      const saved =
+        useSaved || String(req.body?.apiKey ?? '').startsWith(MASKED_SECRET)
+          ? await this.model.getSettings(req, providerKey, { includeSecret: true })
+          : null;
+
+      const apiKeyInput =
+        req.body?.apiKey != null && !String(req.body.apiKey).startsWith(MASKED_SECRET)
+          ? String(req.body.apiKey).trim()
+          : '';
+      const apiKey = apiKeyInput || saved?.apiKeyRaw || '';
+      if (!apiKey) {
+        return res.status(400).json({ error: 'API key is required to list voices' });
+      }
+
+      const provider = this.connectionTestRegistry.create(providerKey, { apiKey });
+      if (typeof provider?.listVoices !== 'function') {
+        return res.status(400).json({ error: 'Voice listing not available for this provider' });
+      }
+
+      const voices = await provider.listVoices();
+      res.json({ voices });
+    } catch (error) {
+      Logger.error('List AI provider voices failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to list voices',
       });
     }
   }

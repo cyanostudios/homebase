@@ -7,17 +7,21 @@ class GuidesController {
    * @param {import('./model')} model
    * @param {import('./ingest/GuideIngestBridgeService')|null} [ingestBridge]
    * @param {import('./production/ProductionOrchestrationService')|null} [productionOrchestration]
+   * @param {import('./sources/ContentSourceSettingsModel')|null} [contentSourceSettingsModel]
+   * @param {import('./audio/AudioOrchestrationService')|null} [audioOrchestration]
    */
   constructor(
     model,
     ingestBridge = null,
     productionOrchestration = null,
     contentSourceSettingsModel = null,
+    audioOrchestration = null,
   ) {
     this.model = model;
     this.ingestBridge = ingestBridge;
     this.productionOrchestration = productionOrchestration;
     this.contentSourceSettingsModel = contentSourceSettingsModel;
+    this.audioOrchestration = audioOrchestration;
   }
 
   async getAll(req, res) {
@@ -139,6 +143,12 @@ class GuidesController {
 
   async deletePresentation(req, res) {
     try {
+      if (this.audioOrchestration) {
+        const existing = await this.model.getAudioIfExists(req, req.params.id, req.params.language);
+        if (existing) {
+          await this.audioOrchestration.deleteWithBlob(req, req.params.id, req.params.language);
+        }
+      }
       const result = await this.model.deletePresentation(req, req.params.id, req.params.language);
       res.json(result);
     } catch (error) {
@@ -248,8 +258,8 @@ class GuidesController {
       if (!this.productionOrchestration) {
         return res.status(500).json({ error: 'Production orchestration not configured' });
       }
-      const jobs = await this.productionOrchestration.listJobs(req, req.params.id);
-      res.json(jobs);
+      const result = await this.productionOrchestration.listJobs(req, req.params.id);
+      res.json(result);
     } catch (error) {
       Logger.error('List production jobs failed', error, {
         placeId: req.params.id,
@@ -498,6 +508,113 @@ class GuidesController {
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to update content source' });
+    }
+  }
+
+  async getAudio(req, res) {
+    try {
+      const audio = await this.model.getAudio(req, req.params.id, req.params.language);
+      res.json(audio);
+    } catch (error) {
+      Logger.error('Get guide audio failed', error, {
+        placeId: req.params.id,
+        language: req.params.language,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch audio' });
+    }
+  }
+
+  async deleteAudio(req, res) {
+    try {
+      if (!this.audioOrchestration) {
+        return res.status(500).json({ error: 'Audio orchestration not configured' });
+      }
+      await this.audioOrchestration.deleteWithBlob(req, req.params.id, req.params.language);
+      res.json({ deleted: true });
+    } catch (error) {
+      Logger.error('Delete guide audio failed', error, {
+        placeId: req.params.id,
+        language: req.params.language,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to delete audio' });
+    }
+  }
+
+  async generateAudio(req, res) {
+    try {
+      if (!this.audioOrchestration) {
+        return res.status(500).json({ error: 'Audio orchestration not configured' });
+      }
+      const audio = await this.audioOrchestration.generate(req, req.params.id, req.params.language);
+      res.json(audio);
+    } catch (error) {
+      Logger.error('Generate guide audio failed', error, {
+        placeId: req.params.id,
+        language: req.params.language,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to generate audio' });
+    }
+  }
+
+  async cancelAudio(req, res) {
+    try {
+      if (!this.audioOrchestration) {
+        return res.status(500).json({ error: 'Audio orchestration not configured' });
+      }
+      const audio = await this.audioOrchestration.cancel(req, req.params.id, req.params.language);
+      res.json(audio);
+    } catch (error) {
+      Logger.error('Cancel guide audio failed', error, {
+        placeId: req.params.id,
+        language: req.params.language,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to cancel audio' });
+    }
+  }
+
+  async previewAudio(req, res) {
+    try {
+      if (!this.audioOrchestration) {
+        return res.status(500).json({ error: 'Audio orchestration not configured' });
+      }
+      const { stream, mimeType } = await this.audioOrchestration.preview(
+        req,
+        req.params.id,
+        req.params.language,
+      );
+
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+
+      stream.on('error', (err) => {
+        Logger.error('Guide audio preview stream error', err, {
+          placeId: req.params.id,
+          language: req.params.language,
+        });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Preview failed' });
+        } else {
+          res.destroy();
+        }
+      });
+      stream.pipe(res);
+    } catch (error) {
+      Logger.error('Preview guide audio failed', error, {
+        placeId: req.params.id,
+        language: req.params.language,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to preview audio' });
     }
   }
 }

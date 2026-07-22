@@ -52,12 +52,12 @@ class R2StorageAdapter extends StorageProvider {
 
   /**
    * @param {import('express').Request} _req
-   * @param {{ path: string, storedFilename: string, filename: string, mimeType?: string|null, size?: number|null }} input
+   * @param {{ path: string, storedFilename: string, filename: string, mimeType?: string|null, size?: number|null, keyPrefix?: string, objectKey?: string }} input
    */
   async upload(_req, input) {
     this._init();
     const storedFilename = input.storedFilename || path.basename(input.path);
-    const key = `cups/${storedFilename}`;
+    const key = resolveObjectKey(input, storedFilename);
     const fileBuffer = fs.readFileSync(input.path);
 
     try {
@@ -145,6 +145,23 @@ function trimEnv(name) {
   const v = process.env[name];
   if (v === undefined || v === null) return '';
   return String(v).trim();
+}
+
+/**
+ * @param {{ keyPrefix?: string, objectKey?: string }} input
+ * @param {string} storedFilename
+ */
+function resolveObjectKey(input, storedFilename) {
+  const explicit = String(input.objectKey ?? '')
+    .trim()
+    .replace(/^\/+/, '');
+  if (explicit) {
+    return explicit;
+  }
+  const prefix = String(input.keyPrefix ?? 'cups')
+    .trim()
+    .replace(/^\/+|\/+$/g, '');
+  return `${prefix || 'cups'}/${storedFilename}`;
 }
 
 /**

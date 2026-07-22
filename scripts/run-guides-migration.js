@@ -26,6 +26,9 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/103-guide-production-item-failure-code.sql'),
   path.join(__dirname, '../server/migrations/105-guide-content-source-settings.sql'),
   path.join(__dirname, '../server/migrations/106-guides-place-presentation.sql'),
+  path.join(__dirname, '../server/migrations/107-guide-audio-presentations.sql'),
+  path.join(__dirname, '../server/migrations/108-ai-provider-settings-options.sql'),
+  path.join(__dirname, '../server/migrations/109-guide-audio-cost.sql'),
 ];
 const MAIN_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/091-grant-guides-plugin-access.sql'),

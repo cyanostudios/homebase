@@ -192,6 +192,16 @@ export const AIProviderView: React.FC<AIProviderViewProps> = ({
                       {provider.defaultModel || '—'}
                     </span>
                   </div>
+                  {provider.providerKey === 'elevenlabs' ? (
+                    <div className={DETAIL_INFO_ROW_CLASS}>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {t('aiProviders.voice', { defaultValue: 'Voice' })}
+                      </span>
+                      <span className="truncate text-right font-mono text-sm font-semibold text-foreground">
+                        {provider.voiceId || '—'}
+                      </span>
+                    </div>
+                  ) : null}
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('aiProviders.apiKey')}

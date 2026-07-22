@@ -40,6 +40,41 @@ function normalizeRoutingModel(value, providerKey) {
   return trimmed.slice(0, 255);
 }
 
+function parseOptions(raw) {
+  let value = raw;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return { ...value };
+}
+
+function normalizeVoiceId(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, 255) : null;
+}
+
+function mergeSettingsOptions(existingOptions, data) {
+  const options = parseOptions(existingOptions);
+  if (data.voiceId !== undefined) {
+    const voiceId = normalizeVoiceId(data.voiceId);
+    if (voiceId) {
+      options.voiceId = voiceId;
+    } else {
+      delete options.voiceId;
+    }
+  }
+  return options;
+}
+
 function normalizeRoutingScope(value) {
   const normalized = String(value ?? '').trim();
   if (!normalized) {
@@ -73,12 +108,15 @@ class AIProviderSettingsModel {
     }
     const hasApiKey = !!row.api_key;
     const catalogDefault = getProviderDefaultModel(row.provider_key);
+    const options = parseOptions(row.options);
+    const catalogEntry = getProviderCatalogEntry(row.provider_key);
     const out = {
       id: String(row.id),
       userId: String(row.user_id),
       providerKey: row.provider_key,
       enabled: Boolean(row.enabled),
       defaultModel: row.default_model || catalogDefault,
+      voiceId: options.voiceId || catalogEntry?.defaultVoiceId || null,
       apiKey: hasApiKey ? MASKED_SECRET : '',
       hasApiKey,
       createdAt: row.created_at,
@@ -91,12 +129,14 @@ class AIProviderSettingsModel {
   }
 
   _buildDefault(providerKey) {
+    const catalogEntry = getProviderCatalogEntry(providerKey);
     return {
       id: null,
       userId: null,
       providerKey,
       enabled: false,
       defaultModel: getProviderDefaultModel(providerKey),
+      voiceId: catalogEntry?.defaultVoiceId || null,
       apiKey: '',
       hasApiKey: false,
       createdAt: null,
@@ -111,7 +151,7 @@ class AIProviderSettingsModel {
       const normalizedProvider = normalizeProviderKey(providerKey);
       const rows = await db.query(
         `
-          SELECT id, user_id, provider_key, enabled, api_key, default_model, created_at, updated_at
+          SELECT id, user_id, provider_key, enabled, api_key, default_model, options, created_at, updated_at
           FROM ${SETTINGS_TABLE}
           WHERE user_id = $1 AND provider_key = $2
           LIMIT 1
@@ -150,7 +190,7 @@ class AIProviderSettingsModel {
       const userId = this._requireUserId(req);
       const rows = await db.query(
         `
-          SELECT id, user_id, provider_key, enabled, api_key, default_model, created_at, updated_at
+          SELECT id, user_id, provider_key, enabled, api_key, default_model, options, created_at, updated_at
           FROM ${SETTINGS_TABLE}
           WHERE user_id = $1
           ORDER BY provider_key ASC
@@ -170,11 +210,13 @@ class AIProviderSettingsModel {
   }
 
   listCatalog() {
-    const generatableKeys = this._listGeneratableTextProviderKeys();
+    const generatableTextKeys = this._listGeneratableTextProviderKeys();
+    const generatableAudioKeys = this._listGeneratableAudioProviderKeys();
     return Object.values(PROVIDER_CATALOG).map((entry) => ({
       providerKey: entry.key,
       defaultModel: entry.defaultModel,
-      textGenerationCapable: generatableKeys.has(entry.key),
+      textGenerationCapable: generatableTextKeys.has(entry.key),
+      audioGenerationCapable: generatableAudioKeys.has(entry.key),
       models: (entry.models || []).map((model) => ({
         id: model.id,
         label: model.label || model.id,
@@ -197,6 +239,25 @@ class AIProviderSettingsModel {
       return new Set(
         Object.values(PROVIDER_CATALOG)
           .filter((entry) => entry.textGenerationCapable === true)
+          .map((entry) => entry.key),
+      );
+    }
+  }
+
+  /**
+   * Intersection source for audioGenerationCapable: Guides audio adapter registry.
+   * @returns {Set<string>}
+   */
+  _listGeneratableAudioProviderKeys() {
+    try {
+      const {
+        listGeneratableAudioProviderKeys,
+      } = require('../guides/audio/registerDefaultProviders');
+      return new Set(listGeneratableAudioProviderKeys());
+    } catch {
+      return new Set(
+        Object.values(PROVIDER_CATALOG)
+          .filter((entry) => entry.audioGenerationCapable === true)
           .map((entry) => entry.key),
       );
     }
@@ -235,7 +296,7 @@ class AIProviderSettingsModel {
       const apiKeyInput = normalizeApiKey(data.apiKey);
       const rows = await db.query(
         `
-          SELECT id, api_key, enabled, default_model
+          SELECT id, api_key, enabled, default_model, options
           FROM ${SETTINGS_TABLE}
           WHERE user_id = $1 AND provider_key = $2
           LIMIT 1
@@ -250,6 +311,7 @@ class AIProviderSettingsModel {
         data.defaultModel !== undefined
           ? normalizeModel(data.defaultModel, normalizedProvider)
           : existing?.default_model || catalogDefault;
+      const options = mergeSettingsOptions(existing?.options, data);
 
       let apiKey = existing?.api_key ?? null;
       if (apiKeyInput === null) {
@@ -265,18 +327,19 @@ class AIProviderSettingsModel {
       const savedRows = await db.query(
         `
           INSERT INTO ${SETTINGS_TABLE} (
-            user_id, provider_key, enabled, api_key, default_model, created_at, updated_at
+            user_id, provider_key, enabled, api_key, default_model, options, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            $1, $2, $3, $4, $5, $6::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
           )
           ON CONFLICT (user_id, provider_key) DO UPDATE SET
             enabled = EXCLUDED.enabled,
             api_key = EXCLUDED.api_key,
             default_model = EXCLUDED.default_model,
+            options = EXCLUDED.options,
             updated_at = CURRENT_TIMESTAMP
-          RETURNING id, user_id, provider_key, enabled, api_key, default_model, created_at, updated_at
+          RETURNING id, user_id, provider_key, enabled, api_key, default_model, options, created_at, updated_at
         `,
-        [userId, normalizedProvider, enabled, apiKey, defaultModel],
+        [userId, normalizedProvider, enabled, apiKey, defaultModel, JSON.stringify(options)],
       );
       return this._transformRow(savedRows[0]);
     } catch (error) {
@@ -288,7 +351,7 @@ class AIProviderSettingsModel {
 
   /**
    * DB-only resolution: enabled row with stored API key.
-   * @returns {Promise<{ providerKey: string, enabled: boolean, apiKey: string, defaultModel: string }|null>}
+   * @returns {Promise<{ providerKey: string, enabled: boolean, apiKey: string, defaultModel: string, voiceId?: string|null }|null>}
    */
   async getResolvedProviderConfig(req, providerKey) {
     const settings = await this.getSettings(req, providerKey, { includeSecret: true });
@@ -301,12 +364,13 @@ class AIProviderSettingsModel {
       enabled: settings.enabled,
       apiKey: settings.apiKeyRaw,
       defaultModel: settings.defaultModel || catalogDefault,
+      voiceId: settings.voiceId || null,
     };
   }
 
   /**
    * Runtime config: DB (enabled + key) first, then env via PROVIDER_CATALOG metadata.
-   * @returns {Promise<{ providerKey: string, apiKey: string, defaultModel: string }|null>}
+   * @returns {Promise<{ providerKey: string, apiKey: string, defaultModel: string, voiceId?: string|null }|null>}
    */
   async resolveRuntimeConfig(req, providerKey) {
     const normalized = normalizeProviderKey(providerKey);
@@ -316,6 +380,7 @@ class AIProviderSettingsModel {
         providerKey: fromDb.providerKey,
         apiKey: fromDb.apiKey,
         defaultModel: fromDb.defaultModel,
+        voiceId: fromDb.voiceId || null,
       };
     }
 
@@ -328,6 +393,7 @@ class AIProviderSettingsModel {
       providerKey: normalized,
       apiKey: process.env[entry.envApiKey] ?? '',
       defaultModel: process.env[entry.envModel] || entry.defaultModel,
+      voiceId: (entry.envVoiceId && process.env[entry.envVoiceId]) || entry.defaultVoiceId || null,
     };
   }
 
@@ -360,7 +426,11 @@ class AIProviderSettingsModel {
     };
   }
 
-  async _assertRoutingProviderAvailable(req, providerKey, { requireTextGeneration = false } = {}) {
+  async _assertRoutingProviderAvailable(
+    req,
+    providerKey,
+    { requireTextGeneration = false, requireAudioGeneration = false } = {},
+  ) {
     const normalized = normalizeProviderKey(providerKey);
     const resolved = await this.getResolvedProviderConfig(req, normalized);
     if (!resolved) {
@@ -375,6 +445,16 @@ class AIProviderSettingsModel {
       if (!generatableKeys.has(normalized)) {
         throw new AppError(
           'Selected provider cannot generate Guides text',
+          400,
+          'provider_not_generation_capable',
+        );
+      }
+    }
+    if (requireAudioGeneration) {
+      const generatableKeys = this._listGeneratableAudioProviderKeys();
+      if (!generatableKeys.has(normalized)) {
+        throw new AppError(
+          'Selected provider cannot generate Guides audio',
           400,
           'provider_not_generation_capable',
         );
@@ -455,8 +535,10 @@ class AIProviderSettingsModel {
       const normalizedScope = normalizeRoutingScope(scope);
       const requireTextGeneration =
         normalizedScope === GLOBAL_ROUTING_SCOPE || normalizedScope === 'guides';
+      const requireAudioGeneration = normalizedScope === 'guides-audio';
       const normalizedProvider = await this._assertRoutingProviderAvailable(req, data.providerKey, {
         requireTextGeneration,
+        requireAudioGeneration,
       });
       const model = normalizeRoutingModel(data.model, normalizedProvider);
 

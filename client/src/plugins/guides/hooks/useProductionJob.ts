@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { guidesApi } from '../api/guidesApi';
 import type {
   GenerationUsageSummary,
+  PlaceTotalEstimatedCost,
   ProductionItemStep,
   ProductionJob,
   ProductionJobDetail,
@@ -15,6 +16,8 @@ import {
   findActiveJob,
   isProductionJobActive,
   isProductionJobTerminal,
+  parseProductionJobListResponse,
+  resolveProductionJobTargetId,
   shouldPollProductionJob,
   upsertJobInList,
 } from '../utils/productionJobHelpers';
@@ -27,6 +30,8 @@ export interface UseProductionJobResult {
   job: ProductionJob | null;
   items: ProductionJobItem[];
   usageSummary: GenerationUsageSummary | null;
+  placeTotalEstimatedCost: PlaceTotalEstimatedCost | null;
+  placeTotalEstimatedAudioCost: PlaceTotalEstimatedCost | null;
   isLoading: boolean;
   isPolling: boolean;
   isBusy: boolean;
@@ -68,6 +73,10 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
   const [job, setJob] = useState<ProductionJob | null>(null);
   const [items, setItems] = useState<ProductionJobItem[]>([]);
   const [usageSummary, setUsageSummary] = useState<GenerationUsageSummary | null>(null);
+  const [placeTotalEstimatedCost, setPlaceTotalEstimatedCost] =
+    useState<PlaceTotalEstimatedCost | null>(null);
+  const [placeTotalEstimatedAudioCost, setPlaceTotalEstimatedAudioCost] =
+    useState<PlaceTotalEstimatedCost | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false);
@@ -90,11 +99,19 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       job: ProductionJob;
       items: ProductionJobItem[];
       usageSummary?: GenerationUsageSummary | null;
+      placeTotalEstimatedCost?: PlaceTotalEstimatedCost | null;
+      placeTotalEstimatedAudioCost?: PlaceTotalEstimatedCost | null;
     }) => {
       setJob(detail.job);
       setItems(detail.items);
       if (detail.usageSummary !== undefined) {
         setUsageSummary(detail.usageSummary);
+      }
+      if (detail.placeTotalEstimatedCost !== undefined) {
+        setPlaceTotalEstimatedCost(detail.placeTotalEstimatedCost);
+      }
+      if (detail.placeTotalEstimatedAudioCost !== undefined) {
+        setPlaceTotalEstimatedAudioCost(detail.placeTotalEstimatedAudioCost);
       }
       setJobs((prev) => upsertJobInList(prev, detail.job));
       setSelectedJobId(detail.job.id);
@@ -124,10 +141,16 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
     if (!placeId) return;
     setError(null);
     try {
-      const list = await guidesApi.listProductionJobs(placeId);
-      setJobs(list);
-      const active = findActiveJob(list);
-      const targetId = selectedJobIdRef.current ?? active?.id ?? null;
+      const listResponse = await guidesApi.listProductionJobs(placeId);
+      const {
+        jobs: jobsList,
+        placeTotalEstimatedCost: placeCost,
+        placeTotalEstimatedAudioCost: audioCost,
+      } = parseProductionJobListResponse(listResponse);
+      setJobs(jobsList);
+      setPlaceTotalEstimatedCost(placeCost);
+      setPlaceTotalEstimatedAudioCost(audioCost);
+      const targetId = resolveProductionJobTargetId(jobsList, selectedJobIdRef.current);
       if (!targetId) {
         // Avoid clearing a freshly seeded active job when a concurrent list fetch is stale.
         const current = jobRef.current;
@@ -141,8 +164,8 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       }
       const detail = await guidesApi.getProductionJob(placeId, targetId);
       applyDetail(detail);
-      if (!selectedJobIdRef.current && active) {
-        setSelectedJobId(active.id);
+      if (!selectedJobIdRef.current) {
+        setSelectedJobId(targetId);
       }
     } catch {
       setError(t('guides.production.loadFailed'));
@@ -150,6 +173,8 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       setJob(null);
       setItems([]);
       setUsageSummary(null);
+      setPlaceTotalEstimatedCost(null);
+      setPlaceTotalEstimatedAudioCost(null);
     }
   }, [applyDetail, placeId, t]);
 
@@ -158,8 +183,14 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       const detail = await guidesApi.getProductionJob(placeId, jobId);
       applyDetail(detail);
       if (isProductionJobTerminal(detail.job.status)) {
-        const list = await guidesApi.listProductionJobs(placeId);
-        setJobs(list);
+        const {
+          jobs: jobsList,
+          placeTotalEstimatedCost: placeCost,
+          placeTotalEstimatedAudioCost: audioCost,
+        } = parseProductionJobListResponse(await guidesApi.listProductionJobs(placeId));
+        setJobs(jobsList);
+        setPlaceTotalEstimatedCost(placeCost);
+        setPlaceTotalEstimatedAudioCost(audioCost);
       }
       return detail;
     },
@@ -227,6 +258,8 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
         job: ProductionJob;
         items: ProductionJobItem[];
         usageSummary?: GenerationUsageSummary | null;
+        placeTotalEstimatedCost?: PlaceTotalEstimatedCost | null;
+        placeTotalEstimatedAudioCost?: PlaceTotalEstimatedCost | null;
       }>,
     ) => {
       setIsBusy(true);
@@ -235,8 +268,14 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
       try {
         const result = await action();
         applyDetail(result);
-        const list = await guidesApi.listProductionJobs(placeId);
-        setJobs(list);
+        const {
+          jobs: jobsList,
+          placeTotalEstimatedCost: placeCost,
+          placeTotalEstimatedAudioCost: audioCost,
+        } = parseProductionJobListResponse(await guidesApi.listProductionJobs(placeId));
+        setJobs(jobsList);
+        setPlaceTotalEstimatedCost(placeCost);
+        setPlaceTotalEstimatedAudioCost(audioCost);
         setSelectedJobId(result.job.id);
       } catch (err) {
         const status = (err as { status?: number }).status;
@@ -326,6 +365,8 @@ export function useProductionJob(placeId: string): UseProductionJobResult {
     job,
     items,
     usageSummary,
+    placeTotalEstimatedCost,
+    placeTotalEstimatedAudioCost,
     isLoading,
     isPolling,
     isBusy,

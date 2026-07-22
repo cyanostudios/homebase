@@ -4,6 +4,8 @@ export interface ProviderSettings {
   providerKey: string;
   enabled: boolean;
   defaultModel: string;
+  /** TTS voice id when provider supports voices (e.g. ElevenLabs). */
+  voiceId?: string | null;
   /** Masked (`••••••••`) when a key is stored; empty string when unset. */
   apiKey: string;
   hasApiKey: boolean;
@@ -21,6 +23,8 @@ export interface ProviderCatalogEntry {
   defaultModel: string;
   /** True when Guides has a registered text adapter for this provider. */
   textGenerationCapable?: boolean;
+  /** True when Guides has a registered audio/TTS adapter for this provider. */
+  audioGenerationCapable?: boolean;
   models: ProviderCatalogModel[];
 }
 
@@ -36,12 +40,24 @@ export interface SaveProviderSettingsInput {
   enabled?: boolean;
   apiKey?: string | null;
   defaultModel?: string;
+  voiceId?: string | null;
 }
 
 export interface TestConnectionInput {
   apiKey?: string | null;
   defaultModel?: string;
+  voiceId?: string | null;
   useSaved?: boolean;
+}
+
+export interface ProviderVoice {
+  id: string;
+  name: string;
+  category?: string;
+}
+
+export interface ProviderVoicesResponse {
+  voices: ProviderVoice[];
 }
 
 export interface TestConnectionResult {

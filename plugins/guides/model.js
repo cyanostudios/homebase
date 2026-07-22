@@ -7,16 +7,21 @@ const {
   DEFAULT_PUBLICATION_STATUS,
   DEFAULT_STALENESS_STATUS,
   DEFAULT_APPROVAL_STATUS,
+  DEFAULT_AUDIO_STATUS,
+  DEFAULT_AUDIO_PROVIDER_KEY,
   parseLifecycleStatus,
   parseMasterGuideEditorialStatus,
   parseSourceLanguage,
   parsePublicationStatus,
   parseLanguage,
+  parseAudioStatus,
+  parseProviderKey,
 } = require('./validation');
 
 const PLACES_TABLE = 'guide_places';
 const MASTER_GUIDES_TABLE = 'guide_master_guides';
 const PRESENTATIONS_TABLE = 'guide_presentations';
+const AUDIO_TABLE = 'guide_audio';
 
 function sanitizeDisplayName(value) {
   const trimmed = (value || '').toString().trim();
@@ -192,6 +197,7 @@ class GuidesModel {
       masterGuideEditorialStatus:
         masterGuideRow?.editorial_status ?? DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
       languages: parseGeneratedLanguages(placeRow.generated_languages),
+      hasReadyAudio: Boolean(placeRow.has_ready_audio),
       createdAt: placeRow.created_at,
       updatedAt: placeRow.updated_at,
     };
@@ -207,7 +213,14 @@ class GuidesModel {
             mg.id AS master_guide_id,
             mg.source_language,
             mg.editorial_status AS master_editorial_status,
-            COALESCE(lang.languages, ARRAY[]::text[]) AS generated_languages
+            COALESCE(lang.languages, ARRAY[]::text[]) AS generated_languages,
+            EXISTS (
+              SELECT 1
+              FROM ${PRESENTATIONS_TABLE} gp
+              INNER JOIN ${AUDIO_TABLE} ga ON ga.presentation_id = gp.id
+              WHERE gp.master_guide_id = mg.id
+                AND ga.status = 'ready'
+            ) AS has_ready_audio
           FROM ${PLACES_TABLE} p
           INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.place_id = p.id
           LEFT JOIN LATERAL (
@@ -243,7 +256,14 @@ class GuidesModel {
             mg.id AS master_guide_id,
             mg.source_language,
             mg.editorial_status AS master_editorial_status,
-            COALESCE(lang.languages, ARRAY[]::text[]) AS generated_languages
+            COALESCE(lang.languages, ARRAY[]::text[]) AS generated_languages,
+            EXISTS (
+              SELECT 1
+              FROM ${PRESENTATIONS_TABLE} gp
+              INNER JOIN ${AUDIO_TABLE} ga ON ga.presentation_id = gp.id
+              WHERE gp.master_guide_id = mg.id
+                AND ga.status = 'ready'
+            ) AS has_ready_audio
           FROM ${PLACES_TABLE} p
           INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.place_id = p.id
           LEFT JOIN LATERAL (
@@ -777,6 +797,10 @@ class GuidesModel {
         throw new AppError('Presentation not found', 404, AppError.CODES.NOT_FOUND);
       }
 
+      if (presentationChanged) {
+        await this._markAudioStaleForPresentation(db, rows[0].id);
+      }
+
       Logger.info('Guide presentation updated', { placeId, language: normalizedLanguage });
       return this.transformPresentationRow(rows[0], placeId, existing.masterGuideId);
     } catch (error) {
@@ -858,6 +882,8 @@ class GuidesModel {
     if (!rows.length) {
       throw new AppError('Presentation not found', 404, AppError.CODES.NOT_FOUND);
     }
+    // Production writeback replaces listen-ready narrative — mark ready audio stale.
+    await this._markAudioStaleForPresentation(db, presentationId);
     return this.transformPresentationRow(rows[0], placeId, rows[0].master_guide_id);
   }
 
@@ -953,6 +979,283 @@ class GuidesModel {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to update guide ingest run id', error, { placeId });
       throw new AppError('Failed to update ingest run', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  transformAudioRow(row, placeId, language, options = {}) {
+    if (!row) return null;
+    const rawError = row.error_message ?? null;
+    const isRestoreHint = typeof rawError === 'string' && rawError.startsWith('__hb_restore__:');
+    // Strip internal cancel/restore hint from API-facing payloads by default.
+    // Orchestration cancel must pass preserveRestoreHint to decode stale vs ready.
+    const errorMessage = isRestoreHint && !options.preserveRestoreHint ? null : rawError;
+    return {
+      id: String(row.id),
+      presentationId: String(row.presentation_id),
+      placeId: String(placeId),
+      language: String(language),
+      status: row.status ?? DEFAULT_AUDIO_STATUS,
+      providerKey: row.provider_key ?? DEFAULT_AUDIO_PROVIDER_KEY,
+      storageRef: row.storage_ref ?? null,
+      durationMs: row.duration_ms ?? null,
+      mimeType: row.mime_type ?? null,
+      errorMessage,
+      cost: row.cost ?? null,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async _markAudioStaleForPresentation(db, presentationId) {
+    // Join through place so tenant filter can resolve user_id (guide_audio has no user_id).
+    await db.query(
+      `
+        UPDATE ${AUDIO_TABLE} ga
+        SET status = 'stale', updated_at = CURRENT_TIMESTAMP
+        FROM ${PRESENTATIONS_TABLE} gp
+        INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gp.master_guide_id
+        INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+        WHERE ga.presentation_id = gp.id
+          AND ga.presentation_id = $1
+          AND ga.status = 'ready'
+      `,
+      [presentationId],
+    );
+  }
+
+  async getAudioIfExists(req, placeId, language) {
+    try {
+      return await this.getAudio(req, placeId, language);
+    } catch (error) {
+      if (error instanceof AppError && error.statusCode === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getAudio(req, placeId, language, options = {}) {
+    try {
+      const presentation = await this.getPresentationByLanguage(req, placeId, language);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          SELECT ga.*
+          FROM ${AUDIO_TABLE} ga
+          INNER JOIN ${PRESENTATIONS_TABLE} gp ON gp.id = ga.presentation_id
+          INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gp.master_guide_id
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE ga.presentation_id = $1
+            AND mg.place_id = $2
+        `,
+        [presentation.id, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      return this.transformAudioRow(rows[0], placeId, presentation.language, options);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to fetch guide audio', error, { placeId, language });
+      throw new AppError('Failed to fetch audio', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async createAudio(req, placeId, language, data = {}) {
+    try {
+      const presentation = await this.getPresentationByLanguage(req, placeId, language);
+      const status = parseAudioStatus(data.status);
+      const providerKey = parseProviderKey(data.providerKey);
+      if (data.storageRef !== undefined && data.storageRef !== null) {
+        throw new AppError(
+          'storageRef cannot be set by client',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+      if (status === 'ready') {
+        throw new AppError(
+          'Use audio generate to reach ready status',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      const db = Database.get(req);
+      try {
+        const rows = await db.query(
+          `
+            INSERT INTO ${AUDIO_TABLE} (
+              presentation_id,
+              status,
+              provider_key,
+              storage_ref,
+              duration_ms,
+              mime_type,
+              error_message
+            )
+            VALUES ($1, $2, $3, NULL, NULL, NULL, NULL)
+            RETURNING *
+          `,
+          [presentation.id, status, providerKey],
+        );
+
+        Logger.info('Guide audio created', {
+          placeId,
+          language: presentation.language,
+          audioId: rows[0].id,
+        });
+        return this.transformAudioRow(rows[0], placeId, presentation.language);
+      } catch (error) {
+        if (error.code === '23505') {
+          throw new AppError(
+            'Audio already exists for this presentation',
+            409,
+            AppError.CODES.CONFLICT,
+          );
+        }
+        throw error;
+      }
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to create guide audio', error, { placeId, language });
+      throw new AppError('Failed to create audio', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async setAudioGenerationState(req, placeId, language, state) {
+    try {
+      const presentation = await this.getPresentationByLanguage(req, placeId, language);
+      const providerKey =
+        state.providerKey !== undefined && state.providerKey !== null
+          ? parseProviderKey(state.providerKey)
+          : null;
+      const costJson =
+        state.cost === undefined ? null : state.cost === null ? null : JSON.stringify(state.cost);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          UPDATE ${AUDIO_TABLE} ga
+          SET
+            status = $1,
+            storage_ref = $2,
+            duration_ms = $3,
+            mime_type = $4,
+            error_message = $5,
+            provider_key = COALESCE($8, ga.provider_key),
+            cost = CASE WHEN $9::boolean THEN $10::jsonb ELSE ga.cost END,
+            updated_at = CURRENT_TIMESTAMP
+          FROM ${PRESENTATIONS_TABLE} gp
+          INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gp.master_guide_id
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE ga.presentation_id = gp.id
+            AND ga.presentation_id = $6
+            AND mg.place_id = $7
+          RETURNING ga.*
+        `,
+        [
+          state.status,
+          state.storageRef ?? null,
+          state.durationMs ?? null,
+          state.mimeType ?? null,
+          state.errorMessage ?? null,
+          presentation.id,
+          placeId,
+          providerKey,
+          state.cost !== undefined,
+          costJson,
+        ],
+      );
+
+      if (!rows.length) {
+        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      return this.transformAudioRow(rows[0], placeId, presentation.language);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update guide audio generation state', error, { placeId, language });
+      throw new AppError('Failed to update audio', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * Sum cumulative estimated TTS costs on guide_audio for a place.
+   * @returns {Promise<{ currency: string, totalCost: number, estimated: boolean }|null>}
+   */
+  async sumPlaceEstimatedAudioCost(req, placeId) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          SELECT
+            COALESCE(SUM((ga.cost->>'totalCost')::numeric), 0) AS total_cost,
+            (
+              SELECT ga2.cost->>'currency'
+              FROM ${AUDIO_TABLE} ga2
+              INNER JOIN ${PRESENTATIONS_TABLE} gp2 ON gp2.id = ga2.presentation_id
+              INNER JOIN ${MASTER_GUIDES_TABLE} mg2 ON mg2.id = gp2.master_guide_id
+              INNER JOIN ${PLACES_TABLE} p2 ON p2.id = mg2.place_id
+              WHERE mg2.place_id = $1
+                AND ga2.cost->>'currency' IS NOT NULL
+              ORDER BY ga2.id DESC
+              LIMIT 1
+            ) AS currency,
+            BOOL_AND(COALESCE((ga.cost->>'estimated')::boolean, true)) AS all_estimated
+          FROM ${AUDIO_TABLE} ga
+          INNER JOIN ${PRESENTATIONS_TABLE} gp ON gp.id = ga.presentation_id
+          INNER JOIN ${MASTER_GUIDES_TABLE} mg ON mg.id = gp.master_guide_id
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE mg.place_id = $1
+            AND ga.cost->>'totalCost' IS NOT NULL
+        `,
+        [placeId],
+      );
+      const row = rows[0];
+      if (!row || row.currency == null) {
+        return null;
+      }
+      return {
+        currency: String(row.currency),
+        totalCost: Math.round(Number(row.total_cost || 0) * 1e8) / 1e8,
+        estimated: row.all_estimated !== false,
+      };
+    } catch (error) {
+      Logger.error('Failed to sum place audio estimated cost', error, { placeId });
+      throw new AppError(
+        'Failed to sum place audio estimated cost',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
+    }
+  }
+
+  async deleteAudioRecord(req, placeId, language) {
+    try {
+      const presentation = await this.getPresentationByLanguage(req, placeId, language);
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          DELETE FROM ${AUDIO_TABLE} ga
+          USING ${PRESENTATIONS_TABLE} gp, ${MASTER_GUIDES_TABLE} mg, ${PLACES_TABLE} p
+          WHERE ga.presentation_id = gp.id
+            AND gp.master_guide_id = mg.id
+            AND mg.place_id = p.id
+            AND ga.presentation_id = $1
+            AND mg.place_id = $2
+          RETURNING ga.id
+        `,
+        [presentation.id, placeId],
+      );
+      if (!rows.length) {
+        throw new AppError('Audio not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      Logger.info('Guide audio deleted', { placeId, language: presentation.language });
+      return { id: String(rows[0].id) };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to delete guide audio', error, { placeId, language });
+      throw new AppError('Failed to delete audio', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 }

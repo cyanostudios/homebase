@@ -52,6 +52,7 @@ describe('GuidesModel', () => {
       sourceLanguage: 'sv',
       masterGuideEditorialStatus: 'draft',
       languages: [],
+      hasReadyAudio: false,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     });
@@ -66,6 +67,7 @@ describe('GuidesModel', () => {
         geographic_reference: 'Rome',
         lifecycle_status: 'draft',
         generated_languages: ['de', 'en'],
+        has_ready_audio: true,
         created_at: '2026-01-01T00:00:00.000Z',
         updated_at: '2026-01-02T00:00:00.000Z',
       },
@@ -77,6 +79,7 @@ describe('GuidesModel', () => {
     );
 
     expect(result.languages).toEqual(['de', 'en']);
+    expect(result.hasReadyAudio).toBe(true);
   });
 
   test('create inserts place with user_id and master guide in a transaction', async () => {

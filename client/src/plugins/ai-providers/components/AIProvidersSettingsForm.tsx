@@ -19,7 +19,8 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import { cn } from '@/lib/utils';
 
 import { useAIProviders } from '../hooks/useAIProviders';
-import type { ProviderSettings } from '../types/aiProviders';
+import { aiProvidersApi } from '../api/aiProvidersApi';
+import type { ProviderSettings, ProviderVoice } from '../types/aiProviders';
 import {
   MASKED_SECRET,
   buildSavePayload,
@@ -48,6 +49,7 @@ function buildDraftForProvider(
     enabled: false,
     apiKey: '',
     defaultModel,
+    voiceId: '',
     hasApiKey: false,
   };
 }
@@ -94,6 +96,11 @@ export const AIProvidersSettingsForm = React.forwardRef<
     buildDraftForProvider(currentAIProvider, activeProviderKey, fallbackModel),
   );
   const [error, setError] = useState<string | null>(null);
+  const [voices, setVoices] = useState<ProviderVoice[]>([]);
+  const [voicesLoading, setVoicesLoading] = useState(false);
+  const [voicesError, setVoicesError] = useState<string | null>(null);
+
+  const supportsVoice = activeProviderKey === 'elevenlabs';
 
   const modelOptions = useMemo(() => {
     const options = catalogModels.map((model) => ({
@@ -107,10 +114,71 @@ export const AIProvidersSettingsForm = React.forwardRef<
     return options;
   }, [catalogModels, draft.defaultModel]);
 
+  const voiceOptions = useMemo(() => {
+    const options = voices.map((voice) => ({
+      id: voice.id,
+      label: voice.category ? `${voice.name} (${voice.category})` : voice.name,
+    }));
+    const current = draft.voiceId.trim();
+    if (current && !options.some((option) => option.id === current)) {
+      options.unshift({ id: current, label: current });
+    }
+    return options;
+  }, [voices, draft.voiceId]);
+
   useEffect(() => {
     setDraft(buildDraftForProvider(currentAIProvider, activeProviderKey, fallbackModel));
     setError(null);
+    setVoices([]);
+    setVoicesError(null);
   }, [activeProviderKey, currentAIProvider, fallbackModel]);
+
+  useEffect(() => {
+    if (!supportsVoice) return;
+    const canLoad =
+      draft.hasApiKey || (draft.apiKey.trim() && !draft.apiKey.startsWith(MASKED_SECRET));
+    if (!canLoad) {
+      setVoices([]);
+      return;
+    }
+
+    let cancelled = false;
+    setVoicesLoading(true);
+    setVoicesError(null);
+
+    const payload: { useSaved?: boolean; apiKey?: string } = {};
+    if (draft.apiKey.trim() && !draft.apiKey.startsWith(MASKED_SECRET)) {
+      payload.apiKey = draft.apiKey.trim();
+      payload.useSaved = false;
+    } else {
+      payload.useSaved = true;
+    }
+
+    aiProvidersApi
+      .listVoices(activeProviderKey, payload)
+      .then((res) => {
+        if (!cancelled) setVoices(res.voices || []);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setVoices([]);
+          setVoicesError(
+            err instanceof Error
+              ? err.message
+              : t('aiProviders.voicesLoadError', {
+                  defaultValue: 'Could not load voices. Enter a voice id manually.',
+                }),
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setVoicesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supportsVoice, activeProviderKey, draft.hasApiKey, draft.apiKey, t]);
 
   const title = activeProviderKey
     ? t(`aiProviders.providers.${activeProviderKey}.title`, {
@@ -172,6 +240,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
   const enabledId = `ai-${activeProviderKey || 'new'}-enabled`;
   const apiKeyId = `ai-${activeProviderKey || 'new'}-api-key`;
   const modelId = `ai-${activeProviderKey || 'new'}-model`;
+  const voiceId = `ai-${activeProviderKey || 'new'}-voice`;
 
   const formSidebar = currentAIProvider ? (
     <div className="space-y-4">
@@ -250,18 +319,31 @@ export const AIProvidersSettingsForm = React.forwardRef<
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableCatalog.map((entry) => (
-                        <SelectItem key={entry.providerKey} value={entry.providerKey}>
-                          {t(`aiProviders.providers.${entry.providerKey}.title`, {
-                            defaultValue: entry.providerKey,
-                          })}
-                          {!entry.textGenerationCapable
-                            ? ` (${t('aiProviders.notGeneratable', {
-                                defaultValue: 'no text generation yet',
-                              })})`
-                            : ''}
-                        </SelectItem>
-                      ))}
+                      {availableCatalog.map((entry) => {
+                        const capabilityHints: string[] = [];
+                        if (!entry.textGenerationCapable) {
+                          capabilityHints.push(
+                            t('aiProviders.notGeneratable', {
+                              defaultValue: 'no text generation yet',
+                            }),
+                          );
+                        }
+                        if (!entry.audioGenerationCapable) {
+                          capabilityHints.push(
+                            t('aiProviders.notAudioGeneratable', {
+                              defaultValue: 'no audio generation yet',
+                            }),
+                          );
+                        }
+                        return (
+                          <SelectItem key={entry.providerKey} value={entry.providerKey}>
+                            {t(`aiProviders.providers.${entry.providerKey}.title`, {
+                              defaultValue: entry.providerKey,
+                            })}
+                            {capabilityHints.length ? ` (${capabilityHints.join('; ')})` : ''}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   {availableCatalog.length === 0 ? (
@@ -284,6 +366,19 @@ export const AIProvidersSettingsForm = React.forwardRef<
                 {t('aiProviders.notGeneratableHint', {
                   defaultValue:
                     'This provider can be saved for credentials, but Guides text generation only works with providers that have a registered adapter (currently OpenAI).',
+                })}
+              </p>
+            </Card>
+          ) : null}
+
+          {activeProviderKey &&
+          catalog.find((e) => e.providerKey === activeProviderKey)?.audioGenerationCapable ===
+            false ? (
+            <Card className="border-amber-500/40 bg-amber-500/5 p-4 shadow-none">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                {t('aiProviders.notAudioGeneratableHint', {
+                  defaultValue:
+                    'This provider can be saved for credentials, but Guides audio generation needs a registered TTS adapter (none yet — noop stub is used in prep).',
                 })}
               </p>
             </Card>
@@ -378,6 +473,64 @@ export const AIProvidersSettingsForm = React.forwardRef<
                         />
                       )}
                     </div>
+
+                    {supportsVoice ? (
+                      <div>
+                        <Label htmlFor={voiceId}>
+                          {t('aiProviders.voice', { defaultValue: 'Voice' })}
+                        </Label>
+                        {voiceOptions.length > 0 ? (
+                          <Select
+                            value={draft.voiceId || undefined}
+                            onValueChange={(value) =>
+                              setDraft((prev) => ({ ...prev, voiceId: value }))
+                            }
+                          >
+                            <SelectTrigger id={voiceId} className="mt-1">
+                              <SelectValue
+                                placeholder={
+                                  voicesLoading
+                                    ? t('aiProviders.voicesLoading', {
+                                        defaultValue: 'Loading voices…',
+                                      })
+                                    : t('aiProviders.chooseVoicePlaceholder', {
+                                        defaultValue: 'Select a voice…',
+                                      })
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {voiceOptions.map((voice) => (
+                                <SelectItem key={voice.id} value={voice.id}>
+                                  {voice.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            id={voiceId}
+                            type="text"
+                            value={draft.voiceId}
+                            onChange={(event) =>
+                              setDraft((prev) => ({ ...prev, voiceId: event.target.value }))
+                            }
+                            placeholder={t('aiProviders.voiceIdPlaceholder', {
+                              defaultValue: 'ElevenLabs voice id',
+                            })}
+                            className="mt-1"
+                            disabled={voicesLoading}
+                          />
+                        )}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {voicesError ||
+                            t('aiProviders.voiceHint', {
+                              defaultValue:
+                                'Used for Guides audio generation. Save after changing voice.',
+                            })}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 </DetailSection>
               </Card>

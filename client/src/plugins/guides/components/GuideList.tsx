@@ -41,7 +41,7 @@ import { GuideCard } from './GuideCard';
 type SortField = 'id' | 'displayName' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
-type GuideListFilter = 'all' | 'draft' | 'active';
+type GuideListFilter = 'all' | 'draft' | 'active' | 'audioReady';
 
 const GUIDES_VIEW_MODE_STORAGE_KEY = 'guides:viewMode';
 
@@ -137,17 +137,20 @@ export const GuideList: React.FC = () => {
   const stats = useMemo(() => {
     let draft = 0;
     let active = 0;
+    let audioReady = 0;
     for (const guide of guides) {
       if (guide.lifecycleStatus === 'draft') draft += 1;
       else if (guide.lifecycleStatus === 'active') active += 1;
+      if (guide.hasReadyAudio) audioReady += 1;
     }
-    return { total: guides.length, draft, active };
+    return { total: guides.length, draft, active, audioReady };
   }, [guides]);
 
   const filteredAndSorted = useMemo(() => {
     const byFilter = guides.filter((guide) => {
       if (activeFilter === 'draft') return guide.lifecycleStatus === 'draft';
       if (activeFilter === 'active') return guide.lifecycleStatus === 'active';
+      if (activeFilter === 'audioReady') return Boolean(guide.hasReadyAudio);
       return true;
     });
 
@@ -293,7 +296,7 @@ export const GuideList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard
             label={t('guides.stats.total')}
             value={stats.total}
@@ -314,6 +317,13 @@ export const GuideList: React.FC = () => {
             dotClassName="bg-emerald-500"
             active={activeFilter === 'active'}
             onClick={() => setActiveFilter('active')}
+          />
+          <StatCard
+            label={t('guides.stats.audioReady')}
+            value={stats.audioReady}
+            dotClassName="bg-green-500"
+            active={activeFilter === 'audioReady'}
+            onClick={() => setActiveFilter('audioReady')}
           />
         </div>
 

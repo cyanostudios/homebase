@@ -3,6 +3,7 @@ import { createApiClient } from '@/core/api/createApiClient';
 import type {
   ProviderCatalogResponse,
   ProviderRoutingResponse,
+  ProviderVoicesResponse,
   ProvidersSettingsResponse,
   ProviderSettings,
   SaveProviderRoutingInput,
@@ -75,6 +76,16 @@ class AIProvidersApi {
       method: 'POST',
       body: JSON.stringify(data),
     }) as Promise<TestConnectionResult>;
+  }
+
+  async listVoices(
+    providerKey: string,
+    data: { apiKey?: string | null; useSaved?: boolean } = {},
+  ): Promise<ProviderVoicesResponse> {
+    return this.request(`/settings/${encodeURIComponent(providerKey)}/voices`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }) as Promise<ProviderVoicesResponse>;
   }
 }
 

@@ -1,10 +1,18 @@
-import { Check, ChevronDown, ChevronRight, Edit, Languages, Plus, Trash2, X } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Edit,
+  FileText,
+  Languages,
+  Trash2,
+  X,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,19 +25,14 @@ import {
   isPublicationStatus,
   isStalenessStatus,
   PUBLICATION_STATUSES,
-  GUIDE_APPROVAL_COLORS,
   GUIDE_LANGUAGE_BADGE_CLASS,
   GUIDE_LANGUAGE_SOURCE_BADGE_CLASS,
   GUIDE_PUBLICATION_COLORS,
-  GUIDE_STALENESS_COLORS,
-  SUGGESTED_GUIDE_LANGUAGES,
   type GuidePresentation,
   type GuidePresentationUpdatePayload,
   type GuideValidationError,
 } from '../types/guides';
-
-/** Common ISO 639-1 codes offered in the add-language picker. */
-const SUGGESTED_LANGUAGES = SUGGESTED_GUIDE_LANGUAGES;
+import { GuideAudioSection } from './GuideAudioSection';
 
 interface GuidePresentationSectionProps {
   placeId: string;
@@ -37,8 +40,12 @@ interface GuidePresentationSectionProps {
   disabled?: boolean;
   /** Bump to reload presentations (e.g. after production approve). */
   refreshKey?: string;
+  /** Bump to reload audio rows (e.g. after generate from production panel). */
+  audioRefreshKey?: string | number;
   /** Called whenever the presentation list changes. */
   onPresentationsChange?: (presentations: GuidePresentation[]) => void;
+  /** Called after audio generate/delete so place cost totals can refresh. */
+  onAudioLedgerChange?: () => void;
 }
 
 export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> = ({
@@ -46,7 +53,9 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
   sourceLanguage,
   disabled = false,
   refreshKey = '',
+  audioRefreshKey = '',
   onPresentationsChange,
+  onAudioLedgerChange,
 }) => {
   const { t } = useTranslation();
   const [presentations, setPresentations] = useState<GuidePresentation[]>([]);
@@ -59,9 +68,6 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
   });
   const [validationErrors, setValidationErrors] = useState<GuideValidationError[]>([]);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [showAddLanguage, setShowAddLanguage] = useState(false);
-  const [newLanguage, setNewLanguage] = useState('');
-  const [addLanguageError, setAddLanguageError] = useState<string | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<GuidePresentation | null>(null);
 
@@ -112,16 +118,6 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
   const otherPresentations = useMemo(
     () => presentations.filter((p) => !sourcePresentation || p.id !== sourcePresentation.id),
     [presentations, sourcePresentation],
-  );
-
-  const existingLanguages = useMemo(
-    () => new Set(presentations.map((p) => p.language.toLowerCase())),
-    [presentations],
-  );
-
-  const availableSuggestedLanguages = useMemo(
-    () => SUGGESTED_LANGUAGES.filter((code) => !existingLanguages.has(code)),
-    [existingLanguages],
   );
 
   const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);
@@ -182,34 +178,6 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
     } catch {
       setGeneralError(t('guides.presentationDeleteFailed'));
       setDeleteTarget(null);
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
-  const handleAddLanguage = async () => {
-    const code = newLanguage.trim().toLowerCase();
-    setAddLanguageError(null);
-    if (!/^[a-z]{2}(-[a-z]{2})?$/.test(code)) {
-      setAddLanguageError(t('guides.addLanguageInvalid'));
-      return;
-    }
-    if (existingLanguages.has(code)) {
-      setAddLanguageError(t('guides.addLanguageExists'));
-      return;
-    }
-
-    setIsBusy(true);
-    try {
-      const created = await guidesApi.createPresentation(placeId, code);
-      setPresentations((prev) => {
-        if (prev.some((p) => p.id === created.id)) return prev;
-        return [...prev, created].sort((a, b) => a.language.localeCompare(b.language));
-      });
-      setNewLanguage('');
-      setShowAddLanguage(false);
-    } catch {
-      setAddLanguageError(t('guides.addLanguageFailed'));
     } finally {
       setIsBusy(false);
     }
@@ -298,33 +266,30 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
 
     return (
       <div className="flex flex-wrap items-center gap-1.5">
-        <NativeSelect
-          aria-label={t('guides.publicationStatus')}
-          value={publication}
-          disabled={isBusy || disabled}
-          onChange={(e) => {
-            void handleQuickPublicationChange(
-              presentation,
-              e.target.value as GuidePresentationUpdatePayload['publicationStatus'],
-            );
-          }}
-          className={cn(
-            'h-6 w-auto min-w-0 border-0 py-0 pl-2 pr-6 text-xs font-semibold shadow-none focus-visible:ring-1',
-            GUIDE_PUBLICATION_COLORS[publication],
-          )}
-        >
-          {PUBLICATION_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {t(`guides.publication.${status}`)}
-            </option>
-          ))}
-        </NativeSelect>
-        <Badge className={GUIDE_STALENESS_COLORS[staleness]}>
-          {t(`guides.staleness.${staleness}`)}
-        </Badge>
-        <Badge className={GUIDE_APPROVAL_COLORS[approval]}>
-          {t(`guides.approval.${approval}`)}
-        </Badge>
+        <span className="inline-flex items-center gap-1">
+          <FileText className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+          <NativeSelect
+            aria-label={t('guides.publicationStatus')}
+            value={publication}
+            disabled={isBusy || disabled}
+            onChange={(e) => {
+              void handleQuickPublicationChange(
+                presentation,
+                e.target.value as GuidePresentationUpdatePayload['publicationStatus'],
+              );
+            }}
+            className={cn(
+              'h-6 w-auto min-w-0 border-0 py-0 pl-2 pr-6 text-xs font-semibold shadow-none focus-visible:ring-1',
+              GUIDE_PUBLICATION_COLORS[publication],
+            )}
+          >
+            {PUBLICATION_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {t(`guides.publication.${status}`)}
+              </option>
+            ))}
+          </NativeSelect>
+        </span>
         {!isReadyToShip && (
           <Button
             type="button"
@@ -482,6 +447,18 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
               </span>
             )}
           </button>
+          {isCollapsed && (
+            <GuideAudioSection
+              placeId={placeId}
+              language={presentation.language}
+              presentationText={presentation.presentationText}
+              approvalStatus={presentation.approvalStatus}
+              parentBusy={isBusy || disabled}
+              compact
+              refreshKey={audioRefreshKey}
+              onLedgerChange={onAudioLedgerChange}
+            />
+          )}
           <div className="min-w-0 shrink-0">{renderStatusControls(presentation)}</div>
         </div>
 
@@ -511,6 +488,17 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
               )}
             </div>
             {isEditing && <div className="mt-3">{renderEditor(presentation)}</div>}
+            {!isEditing && (
+              <GuideAudioSection
+                placeId={placeId}
+                language={presentation.language}
+                presentationText={presentation.presentationText}
+                approvalStatus={presentation.approvalStatus}
+                parentBusy={isBusy || disabled}
+                refreshKey={audioRefreshKey}
+                onLedgerChange={onAudioLedgerChange}
+              />
+            )}
           </div>
         )}
       </li>
@@ -547,102 +535,9 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
           </div>
 
           <div className="space-y-2 border-t border-border/50 pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t('guides.otherLanguages')}
-              </div>
-              {!showAddLanguage && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  icon={Plus}
-                  className="h-8 px-3 text-xs"
-                  disabled={isBusy || disabled}
-                  onClick={() => {
-                    setShowAddLanguage(true);
-                    setAddLanguageError(null);
-                    setNewLanguage(availableSuggestedLanguages[0] ?? '');
-                  }}
-                >
-                  {t('guides.addLanguage')}
-                </Button>
-              )}
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('guides.otherLanguages')}
             </div>
-
-            <p className="text-xs text-muted-foreground">{t('guides.addLanguageHint')}</p>
-
-            {showAddLanguage && (
-              <div className="space-y-3 rounded-md border border-border/70 bg-muted/10 p-4">
-                <div className="space-y-2">
-                  <Label htmlFor="guide-add-language">{t('guides.addLanguageLabel')}</Label>
-                  {availableSuggestedLanguages.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {availableSuggestedLanguages.map((code) => (
-                        <Button
-                          key={code}
-                          type="button"
-                          variant={newLanguage === code ? 'primary' : 'secondary'}
-                          size="sm"
-                          className="h-7 px-2 text-xs uppercase"
-                          disabled={isBusy || disabled}
-                          onClick={() => {
-                            setNewLanguage(code);
-                            setAddLanguageError(null);
-                          }}
-                        >
-                          {code}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                  <Input
-                    id="guide-add-language"
-                    value={newLanguage}
-                    disabled={isBusy || disabled}
-                    placeholder={t('guides.addLanguagePlaceholder')}
-                    maxLength={10}
-                    onChange={(e) => {
-                      setNewLanguage(e.target.value.toLowerCase());
-                      setAddLanguageError(null);
-                    }}
-                  />
-                  {addLanguageError && (
-                    <p className="text-xs text-destructive" role="alert">
-                      {addLanguageError}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    icon={Plus}
-                    className="h-8 px-3 text-xs"
-                    disabled={isBusy || disabled || !newLanguage.trim()}
-                    onClick={() => void handleAddLanguage()}
-                  >
-                    {t('guides.addLanguageConfirm')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={X}
-                    className="h-8 px-3 text-xs"
-                    disabled={isBusy}
-                    onClick={() => {
-                      setShowAddLanguage(false);
-                      setAddLanguageError(null);
-                      setNewLanguage('');
-                    }}
-                  >
-                    {t('common.cancel')}
-                  </Button>
-                </div>
-              </div>
-            )}
 
             {otherPresentations.length > 0 ? (
               <ul className="space-y-3">
@@ -653,9 +548,7 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
                 )}
               </ul>
             ) : (
-              !showAddLanguage && (
-                <p className="text-sm text-muted-foreground">{t('guides.otherLanguagesEmpty')}</p>
-              )
+              <p className="text-sm text-muted-foreground">{t('guides.otherLanguagesEmpty')}</p>
             )}
           </div>
         </>

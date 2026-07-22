@@ -9,12 +9,15 @@ const MASTER_GUIDE_EDITORIAL_STATUSES = ['draft', 'in-progress', 'complete'];
 const PUBLICATION_STATUSES = ['draft', 'ready', 'published'];
 const STALENESS_STATUSES = ['fresh', 'stale'];
 const APPROVAL_STATUSES = ['draft', 'pending_review', 'approved'];
+const AUDIO_STATUSES = ['pending', 'processing', 'ready', 'failed', 'stale'];
 const DEFAULT_SOURCE_LANGUAGE = 'en';
 const DEFAULT_LIFECYCLE_STATUS = 'draft';
 const DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS = 'draft';
 const DEFAULT_PUBLICATION_STATUS = 'draft';
 const DEFAULT_STALENESS_STATUS = 'fresh';
 const DEFAULT_APPROVAL_STATUS = 'draft';
+const DEFAULT_AUDIO_STATUS = 'pending';
+const DEFAULT_AUDIO_PROVIDER_KEY = 'noop';
 const SOURCE_LANGUAGE_REGEX = /^[a-z]{2}(-[a-z]{2})?$/;
 
 function parseSourceLanguage(value) {
@@ -108,6 +111,37 @@ function parseLanguage(value) {
   return parseSourceLanguage(value);
 }
 
+function parseAudioStatus(value) {
+  if (value === null || value === undefined || value === '') {
+    return DEFAULT_AUDIO_STATUS;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (!AUDIO_STATUSES.includes(normalized)) {
+    throw new AppError('Invalid audio status', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  return normalized;
+}
+
+function parseProviderKey(value) {
+  const { ensureAudioProvidersRegistered } = require('./audio/registerDefaultProviders');
+  const AudioProviderRegistry = require('./audio/AudioProviderRegistry');
+  ensureAudioProvidersRegistered();
+  if (value === null || value === undefined || value === '') {
+    const fromEnv = String(process.env.GUIDES_AUDIO_PROVIDER || DEFAULT_AUDIO_PROVIDER_KEY)
+      .trim()
+      .toLowerCase();
+    if (!AudioProviderRegistry.has(fromEnv)) {
+      return DEFAULT_AUDIO_PROVIDER_KEY;
+    }
+    return fromEnv;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (!AudioProviderRegistry.has(normalized)) {
+    throw new AppError('Invalid audio provider key', 400, AppError.CODES.VALIDATION_ERROR);
+  }
+  return normalized;
+}
+
 function languageBodyRule(options = {}) {
   const rule = body('language');
   if (options.required) {
@@ -144,12 +178,15 @@ module.exports = {
   PUBLICATION_STATUSES,
   STALENESS_STATUSES,
   APPROVAL_STATUSES,
+  AUDIO_STATUSES,
   DEFAULT_SOURCE_LANGUAGE,
   DEFAULT_LIFECYCLE_STATUS,
   DEFAULT_MASTER_GUIDE_EDITORIAL_STATUS,
   DEFAULT_PUBLICATION_STATUS,
   DEFAULT_STALENESS_STATUS,
   DEFAULT_APPROVAL_STATUS,
+  DEFAULT_AUDIO_STATUS,
+  DEFAULT_AUDIO_PROVIDER_KEY,
   parseSourceLanguage,
   parseLifecycleStatus,
   parseMasterGuideEditorialStatus,
@@ -157,6 +194,8 @@ module.exports = {
   parseStalenessStatus,
   parseApprovalStatus,
   parseLanguage,
+  parseAudioStatus,
+  parseProviderKey,
   sourceLanguageBodyRule,
   masterGuideEditorialStatusBodyRule,
   languageBodyRule,

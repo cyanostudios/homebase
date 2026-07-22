@@ -12,6 +12,8 @@ const {
   ensureTranslationProvidersRegistered,
 } = require('./providers/translation/registerDefaultProviders');
 const { ensureContentSourcesRegistered } = require('./sources/registerDefaultSources');
+const { ensureAudioProvidersRegistered } = require('./audio/registerDefaultProviders');
+const AudioOrchestrationService = require('./audio/AudioOrchestrationService');
 
 let guidesWorker = null;
 
@@ -19,17 +21,20 @@ function initializeGuidesPlugin(context) {
   ensureTextProvidersRegistered();
   ensureTranslationProvidersRegistered();
   ensureContentSourcesRegistered();
+  ensureAudioProvidersRegistered();
   const model = new GuidesModel();
   const ingestBridge = new GuideIngestBridgeService(model);
   const contentSourceSettingsModel = new ContentSourceSettingsModel();
   const productionOrchestration = new ProductionOrchestrationService(model, {
     contentSourceSettingsModel,
   });
+  const audioOrchestration = new AudioOrchestrationService(model);
   const controller = new GuidesController(
     model,
     ingestBridge,
     productionOrchestration,
     contentSourceSettingsModel,
+    audioOrchestration,
   );
   const router = createGuidesRoutes(controller, context);
 
@@ -43,6 +48,7 @@ function initializeGuidesPlugin(context) {
     controller,
     ingestBridge,
     productionOrchestration,
+    audioOrchestration,
     productionWorker: guidesWorker,
   };
 }

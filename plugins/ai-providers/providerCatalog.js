@@ -178,6 +178,61 @@ const PROVIDER_CATALOG = Object.freeze({
       { id: 'o4-mini', label: 'o4-mini (deployment)' },
     ]),
   }),
+  elevenlabs: Object.freeze({
+    key: 'elevenlabs',
+    defaultModel: 'eleven_multilingual_v2',
+    envApiKey: 'ELEVENLABS_API_KEY',
+    envModel: 'GUIDES_AUDIO_ELEVENLABS_MODEL',
+    envVoiceId: 'GUIDES_AUDIO_ELEVENLABS_VOICE_ID',
+    defaultVoiceId: 'JBFqnCBsd6RMkjVDRZzb',
+    models: freezeModels([
+      {
+        id: 'eleven_multilingual_v2',
+        label: 'Eleven Multilingual v2',
+        pricing: {
+          per1kCharacters: 0.1,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'eleven_v3',
+        label: 'Eleven v3',
+        pricing: {
+          per1kCharacters: 0.1,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'eleven_flash_v2_5',
+        label: 'Eleven Flash v2.5',
+        pricing: {
+          per1kCharacters: 0.05,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'eleven_turbo_v2_5',
+        label: 'Eleven Turbo v2.5',
+        pricing: {
+          per1kCharacters: 0.05,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+      {
+        id: 'eleven_flash_v2',
+        label: 'Eleven Flash v2',
+        pricing: {
+          per1kCharacters: 0.05,
+          currency: 'USD',
+          effectiveDate: '2026-07',
+        },
+      },
+    ]),
+  }),
 });
 
 const SUPPORTED_PROVIDERS = new Set(Object.keys(PROVIDER_CATALOG));

@@ -192,6 +192,53 @@ class ProductionJobModel {
     return rows.map((row) => this.transformJobRow(row));
   }
 
+  /**
+   * Sum estimated provider costs across all completed production items for a place
+   * (text, translation, future audio steps — any item with provider_result.cost).
+   * @returns {{ currency: string, totalCost: number, estimated: boolean }|null}
+   */
+  async sumPlaceEstimatedCost(req, placeId) {
+    const { db, userId } = this._requireUserId(req);
+    const rows = await db.query(
+      `
+        SELECT
+          COALESCE(
+            SUM((i.provider_result->'cost'->>'totalCost')::numeric),
+            0
+          ) AS total_cost,
+          (
+            SELECT i2.provider_result->'cost'->>'currency'
+            FROM ${ITEMS_TABLE} i2
+            INNER JOIN ${JOBS_TABLE} j2 ON j2.id = i2.job_id
+            WHERE j2.place_id = $1
+              AND j2.user_id = $2
+              AND i2.status = 'completed'
+              AND i2.provider_result->'cost'->>'currency' IS NOT NULL
+            ORDER BY i2.id DESC
+            LIMIT 1
+          ) AS currency,
+          BOOL_AND(COALESCE((i.provider_result->'cost'->>'estimated')::boolean, true))
+            AS all_estimated
+        FROM ${ITEMS_TABLE} i
+        INNER JOIN ${JOBS_TABLE} j ON j.id = i.job_id
+        WHERE j.place_id = $1
+          AND j.user_id = $2
+          AND i.status = 'completed'
+          AND i.provider_result->'cost'->>'totalCost' IS NOT NULL
+      `,
+      [placeId, userId],
+    );
+    const row = rows[0];
+    if (!row || row.currency == null) {
+      return null;
+    }
+    return {
+      currency: String(row.currency),
+      totalCost: Math.round(Number(row.total_cost || 0) * 1e8) / 1e8,
+      estimated: row.all_estimated !== false,
+    };
+  }
+
   async hasActiveJob(req, placeId) {
     const db = Database.get(req);
     const rows = await db.query(

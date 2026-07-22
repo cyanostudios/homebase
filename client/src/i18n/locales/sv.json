@@ -574,7 +574,8 @@
     "stats": {
       "total": "Totalt",
       "draft": "Utkast",
-      "active": "Aktiva"
+      "active": "Aktiva",
+      "audioReady": "Ljud klart"
     },
     "searchPlaceholder": "Sök bland {{count}} platser…",
     "noMatch": "Inga platser matchar sökningen.",
@@ -690,7 +691,7 @@
     "lifecycleStatus": "Livscykelstatus",
     "sourceLanguage": "Källspråk",
     "sourceLanguagePlaceholder": "en",
-    "sourceLanguageHint": "Kanoniskt språk för denna guide (t.ex. sv, en-us).",
+    "sourceLanguageHint": "Kanoniskt språk för guidens källtext.",
     "masterGuide": "Master guide",
     "masterGuideEditorialStatus": "Redaktionell status",
     "presentationText": "Presentationstext",
@@ -709,7 +710,9 @@
     "masterGuideId": "Master guide",
     "information": {
       "title": "Information",
-      "generatedLanguages": "Genererad på"
+      "generatedLanguages": "Genererad på",
+      "totalCost": "Total kostnad text",
+      "totalCostAudio": "Total kostnad audio"
     },
     "lifecycle": {
       "draft": "Utkast",
@@ -729,6 +732,9 @@
       "startFullGuide": "Skapa guide från plats",
       "generateSource": "Generera källtext",
       "generateTranslations": "Generera översättningar",
+      "generateSourceAudio": "Generera källaudio",
+      "generatingSourceAudio": "Genererar källaudio…",
+      "sourceAudioNeedsApproval": "Godkänn källpresentationen innan du genererar audio.",
       "translationsNeedSource": "Generera källtext först — översättningar bygger på källtexten.",
       "panelIdle": "Inget aktivt produktionsjobb.",
       "panelActive": "Produktion pågår",
@@ -736,6 +742,7 @@
       "panelAwaitingYou": "{{count}} utkast väntar beslut",
       "jobLabel": "Jobb #{{id}}",
       "progress": "{{done}}/{{total}} klara",
+      "elapsed": "Pågått {{time}}",
       "polling": "Kollar status…",
       "loadFailed": "Kunde inte ladda produktionsjobb.",
       "actionFailed": "Produktionsåtgärden misslyckades.",
@@ -856,22 +863,47 @@
     "sourcePresentation": "Källspråk",
     "sourcePresentationEmpty": "Ingen text på källspråket ännu. Skapa guiden eller skriv den här.",
     "otherLanguages": "Andra språk",
-    "otherLanguagesEmpty": "Inga andra språk ännu. Lägg till ett för att aktivera översättning vid nästa Skapa guide.",
+    "otherLanguagesEmpty": "Inga andra språk ännu. Använd Generera översättningar för att lägga till målspråk.",
     "otherLanguageEmpty": "Ingen text ännu. Skapa guiden för att översätta till det här språket.",
-    "addLanguage": "Lägg till språk",
-    "addLanguageLabel": "Språk",
-    "addLanguageHint": "Välj målspråk i Generera översättningar, eller lägg till ett språk här för manuell redigering.",
-    "addLanguagePlaceholder": "t.ex. en",
-    "addLanguageConfirm": "Lägg till",
-    "addLanguageInvalid": "Ange en giltig språkkod (t.ex. en, sv, it).",
-    "addLanguageExists": "Det språket finns redan.",
-    "addLanguageFailed": "Kunde inte lägga till språket.",
     "editPresentation": "Redigera presentation ({{language}})",
     "approvalStatus": "Godkännandestatus",
     "approval": {
       "draft": "Utkast",
       "pending_review": "Väntar på granskning",
       "approved": "Godkänd"
+    },
+    "audio": {
+      "title": "Ljud",
+      "generate": "Generera ljud",
+      "regenerate": "Generera om",
+      "retry": "Försök igen",
+      "cancel": "Avbryt",
+      "deleteTitle": "Ta bort ljud",
+      "deleteDescription": "Ta bort ljudfilen för detta språk? Detta kan inte ångras.",
+      "regenerateTitle": "Generera om ljud",
+      "regenerateDescriptionStale": "Källtexten har ändrats. Omgenerering ersätter befintligt ljud.",
+      "regenerateDescriptionReady": "Omgenerering ersätter den befintliga ljudfilen.",
+      "regenerateDescriptionFailed": "Försök generera ljud igen? Föregående försök misslyckades.",
+      "emptyHint": "Ingen ljudfil — generera från godkänd presentationstext.",
+      "processingHint": "Genererar ljud…",
+      "staleHint": "Ljudet matchar inte längre källtexten.",
+      "noPresentationText": "Presentationstext krävs för ljudgenerering.",
+      "requiresApproval": "Godkänn presentationstexten innan du genererar ljud.",
+      "loadFailed": "Kunde inte ladda ljud.",
+      "actionFailed": "Ljudåtgärden misslyckades.",
+      "generateFailedTitle": "Ljudgenerering misslyckades",
+      "deleteFailed": "Kunde inte ta bort ljud.",
+      "alreadyProcessing": "Generering pågår redan.",
+      "polling": "Uppdaterar…",
+      "previewLabel": "Förhandslyssning",
+      "status": {
+        "none": "Inget ljud",
+        "pending": "Ljud väntar",
+        "processing": "Genererar ljud…",
+        "ready": "Ljud klart",
+        "failed": "Ljud misslyckades",
+        "stale": "Ljud föråldrat"
+      }
     }
   },
   "files": {
@@ -1049,6 +1081,10 @@
     "chooseProviderPlaceholder": "Välj en leverantör…",
     "chooseProviderError": "Välj en leverantörstyp innan du sparar.",
     "allProvidersConfigured": "Alla tillgängliga leverantörstyper är redan konfigurerade.",
+    "notGeneratable": "ingen textgenerering ännu",
+    "notGeneratableHint": "Leverantören kan sparas för credentials, men Guides textgenerering kräver en registrerad adapter (just nu OpenAI).",
+    "notAudioGeneratable": "ingen audiogenerering ännu",
+    "notAudioGeneratableHint": "Leverantören kan sparas för credentials, men Guides audiogenerering kräver en TTS-adapter (ingen ännu — noop används i prep).",
     "createSubtitle": "Välj en leverantörstyp och konfigurera inloggningsuppgifter.",
     "statusEnabled": "Aktiverad",
     "statusDisabled": "Inaktiverad",
@@ -1095,6 +1131,8 @@
       "useProviderDefault": "Använd leverantörens standard",
       "chooseProviderFirst": "Välj en leverantör för att se tillgängliga modeller.",
       "noEnabledProviders": "Aktivera en leverantör och spara en API-nyckel först — sedan syns den här.",
+      "noGeneratableProviders": "Aktivera OpenAI (eller annan textkapabel leverantör) med API-nyckel — sedan syns den här.",
+      "noAudioGeneratableProviders": "Ingen audiokapabel leverantör ännu. TTS-adaptrar syns här när de registreras.",
       "globalProviderRequired": "Välj en leverantör för global standard.",
       "pluginProviderRequired": "Välj en plugin-överskridning eller rensa tilldelningen.",
       "saveError": "Kunde inte spara routing-inställningar."
@@ -1171,8 +1209,22 @@
         "docsUrl": "https://portal.azure.com/",
         "docsLabel": "portal.azure.com",
         "apiKeyPlaceholder": "..."
+      },
+      "elevenlabs": {
+        "title": "ElevenLabs",
+        "settingsDescription": "Konfigurera ElevenLabs för guide-ljud (TTS). Aktiverade inställningar åsidosätter miljövariabler.",
+        "testHint": "Validerar API-nyckeln med ett minimalt TTS-anrop (begränsade nycklar saknar ofta user_read).",
+        "docsUrl": "https://elevenlabs.io/app/settings/api-keys",
+        "docsLabel": "elevenlabs.io",
+        "apiKeyPlaceholder": "xi-..."
       }
-    }
+    },
+    "voice": "Röst",
+    "chooseVoicePlaceholder": "Välj en röst…",
+    "voicesLoading": "Laddar röster…",
+    "voicesLoadError": "Kunde inte ladda röster. Ange voice id manuellt.",
+    "voiceIdPlaceholder": "ElevenLabs voice id",
+    "voiceHint": "Används för Guides audiogenerering. Spara efter röstbyte."
   },
   "cups": {
     "listDescription": "Hantera cuper, synlighet och import från ingest.",

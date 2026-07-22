@@ -1,9 +1,8 @@
-import { Edit, Info, Languages, MapPin, Receipt, Trash2 } from 'lucide-react';
+import { Info, Languages, MapPin, Receipt } from 'lucide-react';
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -21,8 +20,6 @@ import { ProductionJobHistory } from './ProductionJobHistory';
 import { ProductionPhaseBanner } from './ProductionPhaseBanner';
 import { StartProductionDialog } from './StartProductionDialog';
 import {
-  isMasterGuideEditorialStatus,
-  GUIDE_EDITORIAL_COLORS,
   GUIDE_LANGUAGE_SOURCE_BADGE_CLASS,
   GUIDE_LIFECYCLE_COLORS,
   type Guide,
@@ -32,6 +29,7 @@ import {
   type ProductionStartScope,
 } from '../types/guides';
 import { isProductionJobActive, resolveSourceSummary } from '../utils/productionJobHelpers';
+import { resolveAudioGenerateErrorMessage } from '../utils/resolveAudioGenerateErrorMessage';
 import { SourceResearchSummary } from './SourceResearchSummary';
 import { GuideLanguageBadges } from './GuideLanguageBadges';
 import { guidesApi } from '../api/guidesApi';
@@ -43,14 +41,17 @@ interface GuideViewProps {
 
 export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
   const { t } = useTranslation();
-  const { openGuideForEdit, deleteGuide, validationErrors } = useGuides();
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const { validationErrors } = useGuides();
   const [startDialogOpen, setStartDialogOpen] = useState(false);
   const [startDialogMode, setStartDialogMode] = useState<ProductionStartMode>('source');
   const [startScope, setStartScope] = useState<ProductionStartScope>({ type: 'full_guide' });
   const [presentations, setPresentations] = useState<GuidePresentation[]>([]);
   const [produceActionError, setProduceActionError] = useState<string | null>(null);
   const [lastTranslationLanguages, setLastTranslationLanguages] = useState<string[]>([]);
+  const [isGeneratingSourceAudio, setIsGeneratingSourceAudio] = useState(false);
+  const [sourceAudioError, setSourceAudioError] = useState<string | null>(null);
+  const [sourceAudioReplaceOpen, setSourceAudioReplaceOpen] = useState(false);
+  const [audioRefreshKey, setAudioRefreshKey] = useState(0);
   const reviewQueueRef = useRef<GuideReviewQueueHandle>(null);
   const actualGuide = guide || item;
   const production = useProductionJob(actualGuide?.id ?? '');
@@ -69,25 +70,49 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
 
   const generalError = validationErrors.find((e) => e.field === 'general')?.message ?? null;
 
-  const editorialStatus = isMasterGuideEditorialStatus(actualGuide.masterGuideEditorialStatus)
-    ? actualGuide.masterGuideEditorialStatus
-    : 'draft';
-
   const lifecycleLabel = (status: GuideLifecycleStatus) => t(`guides.lifecycle.${status}`);
 
-  const sourceHasText = presentations.some(
-    (p) =>
-      p.language.toLowerCase() === actualGuide.sourceLanguage.toLowerCase() &&
-      Boolean(p.presentationText?.trim()),
+  const sourcePresentation = presentations.find(
+    (p) => p.language.toLowerCase() === actualGuide.sourceLanguage.toLowerCase(),
   );
+  const sourceHasText = Boolean(sourcePresentation?.presentationText?.trim());
+  const canGenerateSourceAudio = sourceHasText && sourcePresentation?.approvalStatus === 'approved';
 
   const generatedLanguageCodes = presentations
     .filter((p) => p.presentationText?.trim())
     .map((p) => p.language.toLowerCase());
 
-  const handleDeleteConfirm = () => {
-    setDeleteOpen(false);
-    void deleteGuide(actualGuide.id);
+  const handleGenerateSourceAudio = async () => {
+    if (!canGenerateSourceAudio || isGeneratingSourceAudio) return;
+    if (production.hasActiveJob || production.isBusy) return;
+    setIsGeneratingSourceAudio(true);
+    setSourceAudioError(null);
+    try {
+      await guidesApi.generateAudio(actualGuide.id, actualGuide.sourceLanguage);
+      setAudioRefreshKey((key) => key + 1);
+      await production.refreshJobs();
+    } catch (err) {
+      setSourceAudioError(resolveAudioGenerateErrorMessage(err, t));
+      setAudioRefreshKey((key) => key + 1);
+    } finally {
+      setIsGeneratingSourceAudio(false);
+    }
+  };
+
+  const requestGenerateSourceAudio = async () => {
+    if (!canGenerateSourceAudio || isGeneratingSourceAudio) return;
+    if (production.hasActiveJob || production.isBusy) return;
+    setSourceAudioError(null);
+    try {
+      const existing = await guidesApi.getAudioOrNull(actualGuide.id, actualGuide.sourceLanguage);
+      if (existing?.storageRef && (existing.status === 'ready' || existing.status === 'stale')) {
+        setSourceAudioReplaceOpen(true);
+        return;
+      }
+    } catch {
+      // If status check fails, still attempt generate — server will validate.
+    }
+    await handleGenerateSourceAudio();
   };
 
   const openStartDialog = (mode: ProductionStartMode) => {
@@ -202,49 +227,14 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               hasActiveJob={production.hasActiveJob}
               isBusy={production.isBusy}
               sourceHasText={sourceHasText}
+              canGenerateSourceAudio={canGenerateSourceAudio}
+              isGeneratingSourceAudio={isGeneratingSourceAudio}
               onStartSource={() => openStartDialog('source')}
               onStartTranslations={() => openStartDialog('translation')}
+              onGenerateSourceAudio={() => void requestGenerateSourceAudio()}
               onShowReview={() => reviewQueueRef.current?.scrollIntoView()}
               onCancel={() => void production.cancelJob()}
             />
-
-            <ProductionJobHistory
-              jobs={production.jobs}
-              selectedJobId={production.selectedJobId}
-              onSelectJob={production.selectJob}
-            />
-
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('guides.quickActions')}
-                icon={Edit}
-                iconPlugin="guides"
-                className="p-4"
-              >
-                <div className="flex flex-col items-start gap-1.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={Edit}
-                    className="h-9 justify-start rounded-md px-3 text-xs"
-                    onClick={() => openGuideForEdit(actualGuide)}
-                  >
-                    {t('common.edit')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={Trash2}
-                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    {t('common.delete')}
-                  </Button>
-                </div>
-              </DetailSection>
-            </Card>
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
@@ -272,6 +262,26 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
                     <span className="text-muted-foreground">{t('common.updated')}</span>
                     <span>{formatDate(actualGuide.updatedAt)}</span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      {t('guides.information.totalCost')}
+                    </span>
+                    <span>
+                      {production.placeTotalEstimatedCost
+                        ? `~${production.placeTotalEstimatedCost.totalCost.toFixed(4)} ${production.placeTotalEstimatedCost.currency}`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      {t('guides.information.totalCostAudio')}
+                    </span>
+                    <span>
+                      {production.placeTotalEstimatedAudioCost
+                        ? `~${production.placeTotalEstimatedAudioCost.totalCost.toFixed(4)} ${production.placeTotalEstimatedAudioCost.currency}`
+                        : '—'}
+                    </span>
+                  </div>
                   {generatedLanguageCodes.length > 0 && (
                     <div className="border-t border-border/50 pt-3">
                       <div className="mb-1.5 text-muted-foreground">
@@ -287,9 +297,20 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               </DetailSection>
             </Card>
 
+            <ProductionJobHistory
+              jobs={production.jobs}
+              selectedJobId={production.selectedJobId}
+              onSelectJob={production.selectJob}
+            />
+
             {showUsageCard && (
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title={t('guides.usage.title')} icon={Receipt} className="p-4">
+                <DetailSection
+                  title={t('guides.usage.title')}
+                  icon={Receipt}
+                  iconPlugin="guides"
+                  className="p-4"
+                >
                   <div className="space-y-3 text-xs">
                     {usage && (
                       <>
@@ -424,9 +445,6 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
                   <Badge className={GUIDE_LANGUAGE_SOURCE_BADGE_CLASS}>
                     {actualGuide.sourceLanguage}
                   </Badge>
-                  <Badge className={GUIDE_EDITORIAL_COLORS[editorialStatus]}>
-                    {t(`guides.editorial.${editorialStatus}`)}
-                  </Badge>
                 </div>
 
                 {actualGuide.shortIntro && (
@@ -470,9 +488,11 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
               <GuidePresentationSection
                 placeId={actualGuide.id}
                 sourceLanguage={actualGuide.sourceLanguage}
-                disabled={production.hasActiveJob || production.isBusy}
+                disabled={production.hasActiveJob || production.isBusy || isGeneratingSourceAudio}
                 refreshKey={presentationsRefreshKey}
+                audioRefreshKey={audioRefreshKey}
                 onPresentationsChange={setPresentations}
+                onAudioLedgerChange={() => void production.refreshJobs()}
               />
             </DetailSection>
           </Card>
@@ -503,14 +523,28 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
       />
 
       <ConfirmDialog
-        isOpen={deleteOpen}
-        title={t('guides.deletePlaceTitle')}
-        message={t('guides.deletePlaceDescription', { name: actualGuide.displayName })}
-        confirmText={t('common.delete')}
+        isOpen={sourceAudioReplaceOpen}
+        title={t('guides.audio.regenerateTitle')}
+        message={t('guides.audio.regenerateDescriptionReady')}
+        confirmText={t('guides.audio.regenerate')}
         cancelText={t('common.cancel')}
+        variant="warning"
+        confirmDisabled={isGeneratingSourceAudio}
+        onConfirm={() => {
+          setSourceAudioReplaceOpen(false);
+          void handleGenerateSourceAudio();
+        }}
+        onCancel={() => setSourceAudioReplaceOpen(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(sourceAudioError)}
+        title={t('guides.audio.generateFailedTitle')}
+        message={sourceAudioError ?? ''}
+        confirmText={t('common.close')}
         variant="danger"
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => setSourceAudioError(null)}
+        onCancel={() => setSourceAudioError(null)}
       />
     </div>
   );

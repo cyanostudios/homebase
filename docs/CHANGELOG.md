@@ -4,6 +4,108 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-22 – Total cost text + total cost audio
+
+**Status:** Implementerat lokalt. Migration `109-guide-audio-cost.sql` (`guide_audio.cost`).
+
+**Sammanfattning:** Information-kortet visar separat **Total cost text** (production ledger) och **Total cost audio** (kumulativ TTS-estimat per plats). ElevenLabs generate sparar estimated cost; list/get production-jobs returnerar `placeTotalEstimatedAudioCost`.
+
+---
+
+## 2026-07-22 – ElevenLabs voice selection in AI Providers
+
+**Status:** Implementerat lokalt. Migration `108-ai-provider-settings-options.sql` (JSONB `options`).
+
+**Sammanfattning:** ElevenLabs-settings har röstväljare (listar `/v1/voices` eller manuell voice id). Sparad `voiceId` används vid Guides audio-generate.
+
+---
+
+## 2026-07-22 – ElevenLabs TTS adapter (Guides audio)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** `ElevenLabsAudioProvider` registrerad — connection test (`GET /v1/user`) + manuell generate (TTS → mp3). Syns som `audioGenerationCapable` i AI Providers; kan routas under Guides (audio).
+
+- Adapter: `plugins/guides/audio/adapters/ElevenLabsAudioProvider.js`
+- Env: `ELEVENLABS_API_KEY`, `GUIDES_AUDIO_ELEVENLABS_MODEL`, `GUIDES_AUDIO_ELEVENLABS_VOICE_ID`
+- Default voice: ElevenLabs demo (`JBFqnCBsd6RMkjVDRZzb`)
+
+---
+
+## 2026-07-22 – Audio provider wiring (text-mönster)
+
+**Status:** Implementerat lokalt. Security Approved (wiring). **Ej prod-release.** Ingen TTS-vendor.
+
+**Sammanfattning:** Manuell audio-generate speglar text: `AudioProviderConfigResolver` → `AIProviderRouter` (`guides-audio`) → env `GUIDES_AUDIO_PROVIDER` → `AudioProviderRegistry.create(key, options)`. Endast `noop` registrerad.
+
+### Backend
+
+- Ny: `plugins/guides/audio/AudioProviderConfigResolver.js`
+- `AudioProviderRegistry` — factory/`create` som text-registry
+- `AudioOrchestrationService` — preferred key + credentials via resolver; `provider_key` skrivs vid generate
+- `setAudioGenerationState` kan uppdatera `provider_key`
+
+### Tester
+
+- `audio-provider-config-resolver.test.js`; uppdaterade orchestration/model-tester
+
+### Dokumentation
+
+- ADR: [`docs/ai/adr/P-AUDIO_GENERATION_PREP.md`](ai/adr/P-AUDIO_GENERATION_PREP.md) (decision 5 + diagram)
+
+---
+
+## 2026-07-22 – Guides: place total estimated cost + list jobs response shape
+
+**Status:** Implementerat lokalt; under QA-omarbetning. **Ej prod-release.**
+
+**Brytande API-kontrakt (eskalerat till SA/TPM):**
+
+- Tidigare: `GET /api/guides/:placeId/production-jobs` → `ProductionJob[]`
+- Nu: `{ jobs: ProductionJob[], placeTotalEstimatedCost: { currency, totalCost, estimated } | null }`
+- `GET /api/guides/:placeId/production-jobs/:jobId` inkluderar samma `placeTotalEstimatedCost` (utöver `usageSummary`).
+
+**Beteende:** `placeTotalEstimatedCost` summerar `provider_result.cost` för alla **completed** job-items på platsen (text, translation, framtida steg med cost). Manuell audio-generate (prep) ingår **inte** förrän audio har cost i samma ledger. SQL filtrerar med `j.user_id` (undviker ambigous tenant-injection på joins).
+
+**UI:** Information-kortet visar alltid “Total kostnad” från detta fält.
+
+---
+
+## 2026-07-22 – P-AUDIO_GENERATION_PREP: audiogenerering (stub / noop)
+
+**Status:** Implementerat lokalt på `homebase-v3.8`. Security Approved för prep. **QA:** se separat post för post-prep cost/list-kontrakt. **Ej merge till `main` / Railway** utan explicit releasebeslut. Ingen riktig TTS-vendor.
+
+**Sammanfattning:** Presentation-skopad `guide_audio` (1:1), manuell generate/cancel/preview/delete, noop-WAV, lagring under `guides/audio/`, AI Providers-capability `audioGenerationCapable` + routing-scope `guides-audio`.
+
+### Backend
+
+- Migration `107-guide-audio-presentations.sql` — DROP legacy + CREATE `guide_audio.presentation_id`.
+- `plugins/guides/audio/*` — provider-kontrakt, registry, noop, orchestration, storageRef, upload.
+- API under `/api/guides/:id/presentations/:language/audio` (+ generate/cancel/preview).
+- Generate-gate: icke-tom text + `approval_status === 'approved'`; klient kan inte sätta `storageRef`/`ready`.
+- Stale när presentationstext ändras och audio var `ready`.
+- R2/local: valfri `keyPrefix`/`objectKey`.
+- AI Providers: `audioGenerationCapable`; routable `guides-audio`.
+- Env: `GUIDES_AUDIO_PROVIDER` (default `noop`).
+
+### Frontend
+
+- `GuideAudioSection` i presentationskort; `guidesApi` audio-metoder; i18n `guides.audio.*`.
+- AI Providers UI: audio-capability + routing-rad Guides (audio).
+
+### Dokumentation
+
+- ADR: [`docs/ai/adr/P-AUDIO_GENERATION_PREP.md`](ai/adr/P-AUDIO_GENERATION_PREP.md)
+- Synk: plats-ADR, pipeline v2, P-AI-SETTINGS (se `docs/ai/CHANGELOG.md`).
+
+### Begränsningar / residual (Security 2026-07-22)
+
+- Ingen prod-TTS; generate använder registry/`GUIDES_AUDIO_PROVIDER`, inte ännu `AIProviderRouter` för `guides-audio`.
+- Medium defense-in-depth inför TTS: mime-allowlist på preview; R2 prefix-check; harden `objectKey`; överväg redaktera `storageRef` i API.
+- Batch-fas `audio` / publik playback: utanför scope.
+
+---
+
 ## 2026-07-22 – Fix: translation-only jobs stuck in `awaiting_review`
 
 **Status:** Implementerat lokalt. QA + Security godkända. **Ej merge till `main` / Railway** utan explicit releasebeslut.

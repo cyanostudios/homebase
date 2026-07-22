@@ -1,9 +1,11 @@
 import type {
   GenerationSourceSummary,
   GenerationSourceSummaryEntry,
+  PlaceTotalEstimatedCost,
   ProductionItemStep,
   ProductionJob,
   ProductionJobItem,
+  ProductionJobListResponse,
   ProductionJobStatus,
 } from '../types/guides';
 import { PRODUCTION_POLL_JOB_STATUSES } from '../types/guides';
@@ -14,6 +16,32 @@ export function shouldPollProductionJob(status: ProductionJobStatus): boolean {
 
 export function isProductionJobActive(status: ProductionJobStatus): boolean {
   return shouldPollProductionJob(status);
+}
+
+/** True while the job is generating/waiting on the worker (not review / terminal). */
+export function isProductionJobGenerating(status: ProductionJobStatus): boolean {
+  return status === 'pending' || status === 'planning' || status === 'processing';
+}
+
+/**
+ * Best available start timestamp for an elapsed-time clock.
+ * Prefer worker claim / started → queued → created.
+ */
+export function getProductionElapsedStartIso(job: ProductionJob): string | null {
+  return job.startedAt || job.workerClaimedAt || job.queuedAt || job.createdAt || null;
+}
+
+/** Format elapsed milliseconds as m:ss or h:mm:ss. */
+export function formatProductionElapsed(elapsedMs: number): string {
+  if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return '0:00';
+  const totalSec = Math.floor(elapsedMs / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 export function getCurrentPhaseStep(job: ProductionJob): ProductionItemStep | null {
@@ -104,6 +132,45 @@ export function hasActiveProductionJob<T extends { status: ProductionJobStatus }
   jobs: T[],
 ): boolean {
   return findActiveJob(jobs) !== null;
+}
+
+/**
+ * Normalize GET .../production-jobs payload.
+ * Contract is `{ jobs, placeTotalEstimatedCost, placeTotalEstimatedAudioCost }`.
+ */
+export function parseProductionJobListResponse(
+  response: ProductionJobListResponse | ProductionJob[] | null | undefined,
+): {
+  jobs: ProductionJob[];
+  placeTotalEstimatedCost: PlaceTotalEstimatedCost | null;
+  placeTotalEstimatedAudioCost: PlaceTotalEstimatedCost | null;
+} {
+  if (Array.isArray(response)) {
+    return { jobs: response, placeTotalEstimatedCost: null, placeTotalEstimatedAudioCost: null };
+  }
+  if (!response || typeof response !== 'object') {
+    return { jobs: [], placeTotalEstimatedCost: null, placeTotalEstimatedAudioCost: null };
+  }
+  const jobs = Array.isArray(response.jobs) ? response.jobs : [];
+  const placeTotalEstimatedCost = response.placeTotalEstimatedCost ?? null;
+  const placeTotalEstimatedAudioCost = response.placeTotalEstimatedAudioCost ?? null;
+  return { jobs, placeTotalEstimatedCost, placeTotalEstimatedAudioCost };
+}
+
+/**
+ * Prefer explicit selection → active job → latest job (list is created_at DESC).
+ * Keeps Generation info / history wired for completed-only places.
+ */
+export function resolveProductionJobTargetId(
+  jobs: Array<{ id: string; status: ProductionJobStatus }>,
+  selectedJobId: string | null,
+): string | null {
+  if (selectedJobId && jobs.some((job) => job.id === selectedJobId)) {
+    return selectedJobId;
+  }
+  const active = findActiveJob(jobs);
+  if (active) return active.id;
+  return jobs[0]?.id ?? null;
 }
 
 /** Visible editor pipeline for research-first text production. */

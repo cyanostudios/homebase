@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+import { useProductionElapsed } from '../hooks/useProductionElapsed';
 import type { ProductionJob, ProductionJobItem } from '../types/guides';
 import {
   countPendingReviewItems,
@@ -42,6 +43,7 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
   const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(false);
   const [, setStallTick] = useState(0);
+  const elapsed = useProductionElapsed(job);
   const phaseStep = getCurrentPhaseStep(job);
   const progress = summarizePhaseProgress(job, items);
   const pendingReview = countPendingReviewItems(job, items);
@@ -149,7 +151,12 @@ export const ProductionPhaseBanner: React.FC<ProductionPhaseBannerProps> = ({
                 phase: phaseStep ? t(`guides.production.phases.${phaseStep}`) : '',
               })}
             </span>
-            {isPolling && !stalled && job.status !== 'awaiting_review' && (
+            {elapsed && (
+              <span className="font-mono text-xs tabular-nums text-muted-foreground" aria-hidden>
+                {t('guides.production.elapsed', { time: elapsed })}
+              </span>
+            )}
+            {isPolling && !stalled && !elapsed && job.status !== 'awaiting_review' && (
               <span className="text-xs text-muted-foreground">
                 {t('guides.production.polling')}
               </span>

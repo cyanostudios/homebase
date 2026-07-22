@@ -1,4 +1,4 @@
-import { Check, Factory, Info, Languages, X } from 'lucide-react';
+import { Check, Factory, Info, MapPin, X } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -20,7 +20,7 @@ import type { GuideSaveOptions } from '../context/GuidesContext';
 import { useGuides } from '../hooks/useGuides';
 import {
   GUIDE_LIFECYCLE_STATUSES,
-  MASTER_GUIDE_EDITORIAL_STATUSES,
+  SUGGESTED_GUIDE_LANGUAGES,
   type GuidePayload,
   type PlaceResolved,
 } from '../types/guides';
@@ -179,18 +179,6 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                 {formatDisplayNumber('guides', currentItem.id)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{t('guides.colSourceLanguage')}</span>
-              <span className="uppercase">{currentItem.sourceLanguage}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">
-                {t('guides.masterGuideEditorialStatus')}
-              </span>
-              <span>
-                {t(`guides.editorial.${currentItem.masterGuideEditorialStatus ?? 'draft'}`)}
-              </span>
-            </div>
           </div>
         </DetailSection>
       </Card>
@@ -227,7 +215,12 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
             )}
 
             <Card padding="none" className={FORM_CARD_CLASS}>
-              <DetailSection title={t('guides.details')} iconPlugin="guides" className="p-6">
+              <DetailSection
+                title={t('guides.details')}
+                icon={MapPin}
+                iconPlugin="guides"
+                className="p-6"
+              >
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="guide-display-name">{t('guides.displayName')}</Label>
@@ -268,6 +261,60 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                   </div>
 
                   <div>
+                    <Label id="guide-source-language-label">{t('guides.sourceLanguage')}</Label>
+                    <div
+                      role="radiogroup"
+                      aria-labelledby="guide-source-language-label"
+                      className="mt-2 flex flex-wrap gap-2"
+                    >
+                      {(SUGGESTED_GUIDE_LANGUAGES.includes(
+                        (formData.sourceLanguage ?? 'en').toLowerCase(),
+                      )
+                        ? SUGGESTED_GUIDE_LANGUAGES
+                        : [
+                            (formData.sourceLanguage ?? 'en').toLowerCase(),
+                            ...SUGGESTED_GUIDE_LANGUAGES,
+                          ]
+                      ).map((code) => {
+                        const selected = (formData.sourceLanguage ?? 'en').toLowerCase() === code;
+                        return (
+                          <label
+                            key={code}
+                            className={cn(
+                              'flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors',
+                              selected
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border text-muted-foreground hover:border-primary/50',
+                              isCurrentlySubmitting && 'pointer-events-none opacity-60',
+                              getFieldError('sourceLanguage') &&
+                                !selected &&
+                                'border-destructive/50',
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name="guide-source-language"
+                              className="sr-only"
+                              checked={selected}
+                              disabled={isCurrentlySubmitting}
+                              onChange={() => updateField('sourceLanguage', code)}
+                            />
+                            <span className="font-semibold uppercase">{code}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t('guides.sourceLanguageHint')}
+                    </p>
+                    {getFieldError('sourceLanguage') && (
+                      <p className="mt-1 text-sm text-destructive">
+                        {getFieldError('sourceLanguage')?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
                     <Label htmlFor="guide-lifecycle-status">{t('guides.lifecycleStatus')}</Label>
                     <NativeSelect
                       id="guide-lifecycle-status"
@@ -295,60 +342,6 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                       </p>
                     )}
                   </div>
-                </div>
-              </DetailSection>
-            </Card>
-
-            <Card padding="none" className={FORM_CARD_CLASS}>
-              <DetailSection
-                title={t('guides.masterGuide')}
-                icon={Languages}
-                iconPlugin="guides"
-                className="p-6"
-              >
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="guide-source-language">{t('guides.sourceLanguage')}</Label>
-                    <Input
-                      id="guide-source-language"
-                      value={formData.sourceLanguage ?? 'en'}
-                      onChange={(e) => updateField('sourceLanguage', e.target.value.toLowerCase())}
-                      placeholder={t('guides.sourceLanguagePlaceholder')}
-                      className={cn(getFieldError('sourceLanguage') && 'border-destructive')}
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t('guides.sourceLanguageHint')}
-                    </p>
-                    {getFieldError('sourceLanguage') && (
-                      <p className="mt-1 text-sm text-destructive">
-                        {getFieldError('sourceLanguage')?.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {!isCreateMode && (
-                    <div>
-                      <Label htmlFor="guide-editorial-status">
-                        {t('guides.masterGuideEditorialStatus')}
-                      </Label>
-                      <NativeSelect
-                        id="guide-editorial-status"
-                        value={formData.masterGuideEditorialStatus ?? 'draft'}
-                        onChange={(e) =>
-                          updateField(
-                            'masterGuideEditorialStatus',
-                            e.target.value as GuidePayload['masterGuideEditorialStatus'],
-                          )
-                        }
-                      >
-                        {MASTER_GUIDE_EDITORIAL_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {t(`guides.editorial.${status}`)}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    </div>
-                  )}
                 </div>
               </DetailSection>
             </Card>

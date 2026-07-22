@@ -322,12 +322,28 @@ class ProductionOrchestrationService {
   async getJob(req, placeId, jobId) {
     const job = await this.jobModel.getJobById(req, placeId, jobId);
     const items = await this.jobModel.listJobItems(req, jobId);
-    return { job, items, usageSummary: this._buildUsageSummary(items, job) };
+    const placeTotalEstimatedCost = await this.jobModel.sumPlaceEstimatedCost(req, placeId);
+    const placeTotalEstimatedAudioCost = await this.guidesModel.sumPlaceEstimatedAudioCost(
+      req,
+      placeId,
+    );
+    return {
+      job,
+      items,
+      usageSummary: this._buildUsageSummary(items, job),
+      placeTotalEstimatedCost,
+      placeTotalEstimatedAudioCost,
+    };
   }
 
   async listJobs(req, placeId) {
     const jobs = await this.jobModel.listJobs(req, placeId);
-    return jobs;
+    const placeTotalEstimatedCost = await this.jobModel.sumPlaceEstimatedCost(req, placeId);
+    const placeTotalEstimatedAudioCost = await this.guidesModel.sumPlaceEstimatedAudioCost(
+      req,
+      placeId,
+    );
+    return { jobs, placeTotalEstimatedCost, placeTotalEstimatedAudioCost };
   }
 
   /**

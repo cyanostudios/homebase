@@ -8,6 +8,7 @@ describe('providerFormHelpers', () => {
     providerKey: 'openai',
     enabled: true,
     defaultModel: 'gpt-4o-mini',
+    voiceId: null,
     apiKey: MASKED_SECRET,
     hasApiKey: true,
     createdAt: null,
@@ -18,6 +19,7 @@ describe('providerFormHelpers', () => {
     expect(draftFromProvider(baseProvider)).toEqual({
       enabled: true,
       defaultModel: 'gpt-4o-mini',
+      voiceId: '',
       hasApiKey: true,
       apiKey: MASKED_SECRET,
     });
@@ -34,6 +36,7 @@ describe('providerFormHelpers', () => {
     ).toEqual({
       enabled: false,
       defaultModel: 'gpt-4o-mini',
+      voiceId: '',
       hasApiKey: false,
       apiKey: '',
     });
@@ -45,6 +48,7 @@ describe('providerFormHelpers', () => {
         enabled: true,
         apiKey: MASKED_SECRET,
         defaultModel: 'gpt-4.1-mini',
+        voiceId: '',
         hasApiKey: true,
       },
       'gpt-4o-mini',
@@ -52,15 +56,17 @@ describe('providerFormHelpers', () => {
     expect(payload).toEqual({
       enabled: true,
       defaultModel: 'gpt-4.1-mini',
+      voiceId: null,
     });
   });
 
-  test('buildSavePayload includes new apiKey', () => {
+  test('buildSavePayload includes new apiKey and voiceId', () => {
     const payload = buildSavePayload(
       {
         enabled: false,
         apiKey: 'sk-new',
         defaultModel: '',
+        voiceId: 'voice-abc',
         hasApiKey: false,
       },
       'gpt-4o-mini',
@@ -68,6 +74,7 @@ describe('providerFormHelpers', () => {
     expect(payload).toEqual({
       enabled: false,
       defaultModel: 'gpt-4o-mini',
+      voiceId: 'voice-abc',
       apiKey: 'sk-new',
     });
   });

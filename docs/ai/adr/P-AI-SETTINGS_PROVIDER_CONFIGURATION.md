@@ -3,7 +3,7 @@
 **Status:** Backend + frontend implementerade. Provider Management UI (lista/visa/lägg till/redigera/ta bort) implementerad 2026-07-17. Multi-provider-katalog + modellistor i katalog. **Provider routing** (global default + per-plugin override, `AIProviderRouter`) implementerad 2026-07-17; migration `101` lokal körd; **Security Grind 5 godkänd 2026-07-17**. Plattformsgeneralisering QA + Security godkända 2026-07-16. Provider Management QA + Security godkända 2026-07-17. **Ej commit/deployad.**  
 **Epic:** P-AI-SETTINGS  
 **Relaterad:** [`P-TEXT_TEXT_PROVIDER.md`](P-TEXT_TEXT_PROVIDER.md) (text-adapter; denna ADR äger runtime-konfiguration)  
-**Datum:** 2026-07-16 (uppdaterad 2026-07-17: multi-katalog, routing, modellistor, Security routing; **2026-07-19:** Guides/global routing kräver genererbar text-adapter; `textGenerationCapable` från registry)
+**Datum:** 2026-07-16 (uppdaterad 2026-07-17: multi-katalog, routing, modellistor, Security routing; **2026-07-19:** Guides/global routing kräver genererbar text-adapter; `textGenerationCapable` från registry; **2026-07-22:** `audioGenerationCapable` + routing-scope `guides-audio` — se [`P-AUDIO_GENERATION_PREP.md`](P-AUDIO_GENERATION_PREP.md))
 
 ---
 
@@ -163,12 +163,13 @@ _Tidigare:_ en post per katalog-provider även utan DB-rad. Efter Provider Manag
 
 **Svar:** `{ providers: CatalogEntry[] }` — tillgängliga provider-typer från `PROVIDER_CATALOG`.
 
-| Fält                    | Typ               | Kommentar                                                                                                                          |
-| ----------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `providerKey`           | string            | t.ex. `openai`                                                                                                                     |
-| `defaultModel`          | string            | Katalogdefault                                                                                                                     |
-| `textGenerationCapable` | boolean           | **Effektiv** flagga: intersection av katalog med Guides text-adapter-registry (`listCatalog` / `_listGeneratableTextProviderKeys`) |
-| `models`                | `{ id, label }[]` | Modellista per provider (UI)                                                                                                       |
+| Fält                     | Typ               | Kommentar                                                                                                                                             |
+| ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `providerKey`            | string            | t.ex. `openai`                                                                                                                                        |
+| `defaultModel`           | string            | Katalogdefault                                                                                                                                        |
+| `textGenerationCapable`  | boolean           | **Effektiv** flagga: intersection av katalog med Guides text-adapter-registry (`listCatalog` / `_listGeneratableTextProviderKeys`)                    |
+| `audioGenerationCapable` | boolean           | **Effektiv** flagga: intersection med Guides audio-registry (`listGeneratableAudioProviderKeys`, exkl. `noop`); **tom** tills TTS-adapter registreras |
+| `models`                 | `{ id, label }[]` | Modellista per provider (UI)                                                                                                                          |
 
 ### `GET /api/ai-providers/routing`
 
@@ -186,9 +187,11 @@ Sparar global default. Body: `{ providerKey, model? }`.
 **Krav (backend):** provider måste ha enabled DB-rad **och** lagrad `api_key` (`getResolvedProviderConfig`). Env-only räcker **inte** för att tilldela routing.  
 **Textgenerering (2026-07-19):** för scope `*` (global) och `guides` måste providern även finnas i Guides generatable text-registry (`listGeneratableTextProviderKeys`, idag `openai`). Annars **400** med kod `provider_not_generation_capable`.
 
+**Audiogenerering (2026-07-22):** scope `guides-audio` kräver enabled + lagrad API-nyckel **och** `audioGenerationCapable` (samma 400-kod-mönster). Prep har inga audio-capable adapters → routing-raden är tom tills TTS-epic.
+
 ### `PUT /api/ai-providers/routing/plugins/:pluginKey`
 
-Sparar plugin-override. Body: `{ providerKey, model? }`. Samma krav på enabled + lagrad API-nyckel. För `pluginKey === 'guides'`: samma generatable-krav som global. Övriga routable plugins (om/när fler tillkommer) kräver inte text-adapter.
+Sparar plugin-override. Body: `{ providerKey, model? }`. Samma krav på enabled + lagrad API-nyckel. För `pluginKey === 'guides'`: samma generatable-krav som global. För `pluginKey === 'guides-audio'`: kräver `audioGenerationCapable`.
 
 ### `DELETE /api/ai-providers/routing/plugins/:pluginKey`
 
@@ -274,7 +277,7 @@ Eget frontend-plugin. Nav: **Tools → AI Providers** (`/ai-providers`).
 - **Redigera:** från detaljvy eller header Edit → form (`edit`); informationssidofält i edit (contacts-mönster).
 - **Ta bort:** bekräftelsedialog i detaljvy → `DELETE`.
 - **Routing:** list-toolbar → Routing-vy; global default + plugin-tabell (Guides v1).
-- **Routing-dropdown:** visar endast providers med `enabled === true` **och** `hasApiKey === true`. För **global default** och **Guides**-override filtreras listan ytterligare till `textGenerationCapable === true`. Providers utan sparad nyckel syns i provider-listan men **inte** i routing-valet. Routing-vyn laddar om settings vid öppning så nyligen aktiverade providers syns.
+- **Routing-dropdown:** visar endast providers med `enabled === true` **och** `hasApiKey === true`. För **global default** och **Guides**-override filtreras listan ytterligare till `textGenerationCapable === true`. För **Guides (audio)** (`guides-audio`) filtreras till `audioGenerationCapable === true`. Providers utan sparad nyckel syns i provider-listan men **inte** i routing-valet. Routing-vyn laddar om settings vid öppning så nyligen aktiverade providers syns.
 - **Provider form:** hint “no text generation yet” visas när vald provider saknar Guides text-adapter (create **och** edit).
 - Formulär: modellväljare från katalogens `models[]` per `providerKey` (sparad modell utanför listan visas ändå).
 - Bakåtkompatibilitet: befintliga OpenAI-rader och legacy resolve fungerar när routing saknas.
@@ -318,7 +321,8 @@ P-TEXT ADR:s sektioner om env-only runtime gäller som **historisk design**; run
 - Text-adapters / connection tests för icke-`openai` katalogproviders (settings kan fortfarande lagra credentials; **Guides/global routing** blockerar icke-genererbara assignments)
 - Capability-baserad / cost / failover / load-balancing routing (`capability` accepteras men ignoreras i v1)
 - Platform-wide eller tenant-delad default (routing är per `user_id`)
-- Fler routable plugins än `guides` i allowlist
+- Fler routable plugins än `guides` + `guides-audio` i allowlist
+- Riktiga audio/TTS-adapters utöver ElevenLabs (OpenAI TTS m.m.); röstväljare i Guides-UI
 - Bulk-hantering av providers
 - App-level encryption av secrets
 - Kostnadstak / observability (P-OBS)

@@ -18,7 +18,8 @@ interface ConfirmDialogProps {
   title: string;
   message: string;
   confirmText: string;
-  cancelText: string;
+  /** Omit to show a single-action alert (confirm only). */
+  cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
   variant?: 'danger' | 'warning';
@@ -52,11 +53,13 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <AlertDialogDescription className="pt-2">{message}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel asChild>
-            <Button variant="secondary" onClick={onCancel}>
-              {cancelText}
-            </Button>
-          </AlertDialogCancel>
+          {cancelText ? (
+            <AlertDialogCancel asChild>
+              <Button variant="secondary" onClick={onCancel}>
+                {cancelText}
+              </Button>
+            </AlertDialogCancel>
+          ) : null}
           <AlertDialogAction asChild>
             <Button
               variant={variant === 'danger' ? 'destructive' : 'default'}

@@ -16,7 +16,7 @@ Guides previously modeled Place → MasterGuide → Stop → Variant(type × lan
 4. **Prompts:** Single text_derivation prompt set (no per-length folders). Prompt set **v1.4** targets a spoken audioguide narrative (~1200–1800 words; `maxCompletionTokens` 2800).
 5. **API:** `GET/PUT /api/guides/:id/presentations` (+ `/:language`); `POST /api/guides/:id/presentations` creates an empty language shell idempotently (`ensurePresentationForLanguage`); remove `/:id/stops/**` and nested audio.
 6. **Public:** Expose place + presentations (not stop tree).
-7. **Audio/TTS:** Out of scope; `guide_audio` dropped with variants.
+7. **Audio/TTS (2026-07-22):** Variant-/stop-skopad audio dropped with the place model. **Presentation-scoped** audio is in scope again as a prep epic — see [`P-AUDIO_GENERATION_PREP.md`](P-AUDIO_GENERATION_PREP.md) (`guide_audio.presentation_id` 1:1; manual generate; no pipeline `audio` phase yet; noop TTS only).
 8. **HITL writeback (2026-07-22):** `applyProductionPresentationText` sets `approval_status = approved` so job-item approve is sufficient for the approval gate (publish still requires `approved` + `fresh`).
 
 ## Consequences

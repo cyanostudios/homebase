@@ -1,4 +1,4 @@
-import { Factory, Languages, Play, X } from 'lucide-react';
+import { Factory, Languages, Loader2, Play, Volume2, X } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +8,7 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 
+import { useProductionElapsed } from '../hooks/useProductionElapsed';
 import type { ProductionJob, ProductionJobItem } from '../types/guides';
 import {
   countPendingReviewItems,
@@ -23,8 +24,11 @@ interface GuideProductionPanelProps {
   hasActiveJob: boolean;
   isBusy?: boolean;
   sourceHasText?: boolean;
+  canGenerateSourceAudio?: boolean;
+  isGeneratingSourceAudio?: boolean;
   onStartSource: () => void;
   onStartTranslations: () => void;
+  onGenerateSourceAudio?: () => void;
   onShowReview?: () => void;
   onCancel?: () => void;
 }
@@ -35,20 +39,26 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
   hasActiveJob,
   isBusy = false,
   sourceHasText = false,
+  canGenerateSourceAudio = false,
+  isGeneratingSourceAudio = false,
   onStartSource,
   onStartTranslations,
+  onGenerateSourceAudio,
   onShowReview,
   onCancel,
 }) => {
   const { t } = useTranslation();
   const [cancelOpen, setCancelOpen] = React.useState(false);
   const [showSources, setShowSources] = React.useState(false);
+  const elapsed = useProductionElapsed(job);
 
   const active = job && isProductionJobActive(job.status);
   const progress = job ? summarizePhaseProgress(job, items) : null;
   const pendingReview = job ? countPendingReviewItems(job, items) : 0;
   const pipelineStage = job ? getTextPipelineStage(job, items) : null;
   const jobDisabled = isBusy || hasActiveJob;
+  const audioDisabled =
+    jobDisabled || isGeneratingSourceAudio || !canGenerateSourceAudio || !onGenerateSourceAudio;
 
   return (
     <>
@@ -66,7 +76,7 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
               size="sm"
               icon={Play}
               className="h-9 w-full justify-start px-3 text-xs"
-              disabled={jobDisabled}
+              disabled={jobDisabled || isGeneratingSourceAudio}
               onClick={onStartSource}
             >
               {t('guides.production.generateSource')}
@@ -77,10 +87,27 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
               size="sm"
               icon={Languages}
               className="h-9 w-full justify-start px-3 text-xs"
-              disabled={jobDisabled || !sourceHasText}
+              disabled={jobDisabled || isGeneratingSourceAudio || !sourceHasText}
               onClick={onStartTranslations}
             >
               {t('guides.production.generateTranslations')}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={isGeneratingSourceAudio ? Loader2 : Volume2}
+              className={
+                isGeneratingSourceAudio
+                  ? 'h-9 w-full justify-start px-3 text-xs [&_svg]:animate-spin'
+                  : 'h-9 w-full justify-start px-3 text-xs'
+              }
+              disabled={audioDisabled}
+              onClick={() => onGenerateSourceAudio?.()}
+            >
+              {isGeneratingSourceAudio
+                ? t('guides.production.generatingSourceAudio')
+                : t('guides.production.generateSourceAudio')}
             </Button>
             {!active && !hasActiveJob && (
               <p className="text-muted-foreground">{t('guides.production.panelIdleHint')}</p>
@@ -88,6 +115,11 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
             {!sourceHasText && !hasActiveJob && (
               <p className="text-muted-foreground">
                 {t('guides.production.translationsNeedSource')}
+              </p>
+            )}
+            {sourceHasText && !canGenerateSourceAudio && !hasActiveJob && (
+              <p className="text-muted-foreground">
+                {t('guides.production.sourceAudioNeedsApproval')}
               </p>
             )}
 
@@ -105,8 +137,15 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
 
             {active && job && (
               <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
-                <div className="font-medium text-foreground">
-                  {t('guides.production.panelActive')}
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                  <div className="font-medium text-foreground">
+                    {t('guides.production.panelActive')}
+                  </div>
+                  {elapsed && (
+                    <div className="font-mono tabular-nums text-muted-foreground" aria-hidden>
+                      {t('guides.production.elapsed', { time: elapsed })}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1 text-muted-foreground">
                   {pipelineStage && ['research', 'generate', 'review'].includes(pipelineStage) && (

@@ -17,7 +17,7 @@ Guide CMS v1.0 (`guides-v1.0`) levererade redaktionell domän, noop-baserad `Pro
 2. **Research / optional narrative** — place-level source pack; tom narrativ OK när pack har excerpts; se [`P-GUIDES_CONTENT_SOURCES.md`](P-GUIDES_CONTENT_SOURCES.md). Narrativ-`approval_status` är editorial/publish-gate, **inte** Produce-startgate.
 3. **Text Derivation** — AI genererar `presentation_text` för **en presentation per språk** (fas 0; `presentation_id`). Length variants borttagna — se [`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md).
 4. **Translation** — AI översätter godkänd text till andra språkpresentationer (fas 1, efter text-HITL när aktiverad).
-5. **Audio** — **historiskt / out of scope** i platsmodellen (TTS ej produktmål).
+5. **Audio** — **manuell prep** under platsmodellen ([`P-AUDIO_GENERATION_PREP.md`](P-AUDIO_GENERATION_PREP.md)); **inte** pipeline-fas/`ITEM_STEPS` i denna leverans. Batch-TTS (P-AUDIO-BATCH) reserverad.
 6. **Publicering** — redaktör sätter `published` + `active` (befintliga gates).
 
 **Låsta TPM-beslut:**
@@ -71,11 +71,12 @@ erDiagram
 
 **Aktuellt (2026-07-19):** `guide_places` → `guide_master_guides` → `guide_presentations` (`master_guide_id` + `language`, unique). Job items reference `presentation_id`. Se [`P-GUIDES_PLACE_PRESENTATION.md`](P-GUIDES_PLACE_PRESENTATION.md).
 
-| Entitet                                                       | Nyckelfält                                                                       | Produktionsroll                                         |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `guide_places`                                                | `lifecycle_status`, `ingest_source_id`, `ingest_run_id`                          | Scope för jobb; ingest-invalidering av fingerprint      |
-| `guide_presentations`                                         | `presentation_text`, `approval_status`, `publication_status`, `staleness_status` | Output-mål efter HITL; publiceringsgate (ett per språk) |
-| `guide_stops` / `guide_variant_presentations` / `guide_audio` | —                                                                                | **Historiskt** — borttaget i platsmodellen              |
+| Entitet                                                      | Nyckelfält                                                                       | Produktionsroll                                                    |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `guide_places`                                               | `lifecycle_status`, `ingest_source_id`, `ingest_run_id`                          | Scope för jobb; ingest-invalidering av fingerprint                 |
+| `guide_presentations`                                        | `presentation_text`, `approval_status`, `publication_status`, `staleness_status` | Output-mål efter HITL; publiceringsgate (ett per språk)            |
+| `guide_audio` (presentation-scoped)                          | `presentation_id` UNIQUE, `status`, `storage_ref`, …                             | **Aktuellt (prep)** — manuell TTS-stub; se P-AUDIO_GENERATION_PREP |
+| `guide_stops` / `guide_variant_presentations` / legacy audio | —                                                                                | **Historiskt** — borttaget i platsmodellen                         |
 
 ER-diagrammet ovan (stops → variants → audio) är **historisk** v2-design.
 

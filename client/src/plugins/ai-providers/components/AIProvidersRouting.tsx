@@ -89,10 +89,23 @@ export const AIProvidersRouting: React.FC = () => {
     [routableProviders, catalog],
   );
 
+  /** Guides (audio) may only route to providers with a real audio-generation adapter. */
+  const audioGeneratableRoutableProviders = useMemo(
+    () =>
+      routableProviders.filter((provider) => {
+        const entry = catalog.find((item) => item.providerKey === provider.providerKey);
+        return entry?.audioGenerationCapable === true;
+      }),
+    [routableProviders, catalog],
+  );
+
   const providersForPluginScope = useCallback(
-    (pluginKey: string) =>
-      pluginKey === 'guides' ? textGeneratableRoutableProviders : routableProviders,
-    [textGeneratableRoutableProviders, routableProviders],
+    (pluginKey: string) => {
+      if (pluginKey === 'guides') return textGeneratableRoutableProviders;
+      if (pluginKey === 'guides-audio') return audioGeneratableRoutableProviders;
+      return routableProviders;
+    },
+    [textGeneratableRoutableProviders, audioGeneratableRoutableProviders, routableProviders],
   );
 
   const [globalProviderKey, setGlobalProviderKey] = useState('');
@@ -412,6 +425,15 @@ export const AIProvidersRouting: React.FC = () => {
                             ))}
                           </SelectContent>
                         </Select>
+                        {plugin.pluginKey === 'guides-audio' &&
+                        providersForPluginScope(plugin.pluginKey).length === 0 ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t('aiProviders.routing.noAudioGeneratableProviders', {
+                              defaultValue:
+                                'No audio-capable provider yet. TTS adapters will appear here when registered.',
+                            })}
+                          </p>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         {draft.providerKey && modelOptions.length > 0 ? (

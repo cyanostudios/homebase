@@ -226,6 +226,12 @@ export function AIProvidersProvider({
                 ? null
                 : String(data.apiKey),
           defaultModel: data.defaultModel !== undefined ? String(data.defaultModel) : undefined,
+          voiceId:
+            data.voiceId === undefined
+              ? undefined
+              : data.voiceId === null
+                ? null
+                : String(data.voiceId),
         });
         return true;
       } catch {

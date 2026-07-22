@@ -7,9 +7,10 @@ import type {
   GuidePresentation,
   GuidePresentationUpdatePayload,
   GuideValidationError,
+  GuideAudio,
   ContentSourceSetting,
-  ProductionJob,
   ProductionJobDetail,
+  ProductionJobListResponse,
   StartProductionJobPayload,
 } from '../types/guides';
 
@@ -92,8 +93,51 @@ class GuidesApi {
     );
   }
 
+  getAudio(placeId: string, language: string) {
+    return apiRequest<GuideAudio>(
+      `/${placeId}/presentations/${encodeURIComponent(language)}/audio`,
+    );
+  }
+
+  async getAudioOrNull(placeId: string, language: string) {
+    try {
+      return await this.getAudio(placeId, language);
+    } catch (err) {
+      const error = err as ApiError;
+      if (error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  generateAudio(placeId: string, language: string) {
+    return apiRequest<GuideAudio>(
+      `/${placeId}/presentations/${encodeURIComponent(language)}/audio/generate`,
+      { method: 'POST', body: JSON.stringify({}) },
+    );
+  }
+
+  cancelAudio(placeId: string, language: string) {
+    return apiRequest<GuideAudio>(
+      `/${placeId}/presentations/${encodeURIComponent(language)}/audio/cancel`,
+      { method: 'POST', body: JSON.stringify({}) },
+    );
+  }
+
+  deleteAudio(placeId: string, language: string) {
+    return apiRequest<{ deleted: boolean }>(
+      `/${placeId}/presentations/${encodeURIComponent(language)}/audio`,
+      { method: 'DELETE' },
+    );
+  }
+
+  getAudioPreviewUrl(placeId: string, language: string) {
+    return `/api/guides/${placeId}/presentations/${encodeURIComponent(language)}/audio/preview`;
+  }
+
   listProductionJobs(placeId: string) {
-    return apiRequest<ProductionJob[]>(`/${placeId}/production-jobs`);
+    return apiRequest<ProductionJobListResponse>(`/${placeId}/production-jobs`);
   }
 
   getProductionJob(placeId: string, jobId: string) {

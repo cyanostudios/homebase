@@ -166,6 +166,7 @@ describe('AIProviderSettingsModel', () => {
       providerKey: 'openai',
       apiKey: 'sk-db',
       defaultModel: 'gpt-4.1-mini',
+      voiceId: null,
     });
   });
 
@@ -182,6 +183,7 @@ describe('AIProviderSettingsModel', () => {
         providerKey: 'openai',
         apiKey: 'sk-env',
         defaultModel: 'gpt-env',
+        voiceId: null,
       });
     } finally {
       process.env.OPENAI_API_KEY = previousApiKey;
@@ -245,6 +247,7 @@ describe('AIProviderSettingsModel', () => {
       'deepseek',
       'openrouter',
       'azure-openai',
+      'elevenlabs',
     ]);
     expect(result).toEqual(
       expect.arrayContaining([
@@ -252,6 +255,7 @@ describe('AIProviderSettingsModel', () => {
           providerKey: 'openai',
           defaultModel: OPENAI_DEFAULT_MODEL,
           textGenerationCapable: true,
+          audioGenerationCapable: false,
           models: expect.arrayContaining([
             expect.objectContaining({ id: 'gpt-4o-mini', label: 'GPT-4o mini' }),
           ]),
@@ -260,6 +264,7 @@ describe('AIProviderSettingsModel', () => {
           providerKey: 'anthropic',
           defaultModel: 'claude-sonnet-4-5',
           textGenerationCapable: false,
+          audioGenerationCapable: false,
           models: expect.arrayContaining([
             expect.objectContaining({ id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' }),
             expect.objectContaining({ id: 'claude-opus-4-5' }),
@@ -269,6 +274,18 @@ describe('AIProviderSettingsModel', () => {
           providerKey: 'azure-openai',
           defaultModel: 'gpt-4o-mini',
           models: expect.any(Array),
+        }),
+        expect.objectContaining({
+          providerKey: 'elevenlabs',
+          defaultModel: 'eleven_multilingual_v2',
+          textGenerationCapable: false,
+          audioGenerationCapable: true,
+          models: expect.arrayContaining([
+            expect.objectContaining({
+              id: 'eleven_multilingual_v2',
+              label: 'Eleven Multilingual v2',
+            }),
+          ]),
         }),
       ]),
     );
@@ -325,6 +342,18 @@ describe('AIProviderSettingsModel', () => {
           providerKey: 'anthropic',
           model: 'claude-sonnet-4-5',
         }),
+        expect.objectContaining({
+          pluginKey: 'guides-audio',
+          label: 'Guides (audio)',
+          providerKey: null,
+          model: null,
+        }),
+      ]),
+    );
+    expect(result.routablePlugins).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'guides' }),
+        expect.objectContaining({ key: 'guides-audio' }),
       ]),
     );
   });
@@ -353,6 +382,29 @@ describe('AIProviderSettingsModel', () => {
 
     await expect(
       model.saveRouting({}, '*', { providerKey: 'anthropic', model: 'claude-sonnet-4-5' }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'provider_not_generation_capable',
+    });
+  });
+
+  test('saveRouting rejects non-audio-capable provider for guides-audio', async () => {
+    Context.getTenantUserId.mockReturnValue(7);
+    Database.get.mockReturnValue({
+      query: jest.fn().mockResolvedValue([
+        {
+          id: 1,
+          user_id: 7,
+          provider_key: 'openai',
+          enabled: true,
+          api_key: 'sk-test',
+          default_model: 'gpt-4o-mini',
+        },
+      ]),
+    });
+
+    await expect(
+      model.saveRouting({}, 'guides-audio', { providerKey: 'openai', model: 'gpt-4o-mini' }),
     ).rejects.toMatchObject({
       statusCode: 400,
       code: 'provider_not_generation_capable',

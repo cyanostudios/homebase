@@ -2,6 +2,63 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Total cost text + total cost audio (2026-07-22)
+
+- UI: `totalCost` → “Total cost text”; ny `totalCostAudio`.
+- `guide_audio.cost` (migration 109); ElevenLabs `calculateTtsCost`; kumulativ merge vid regenerate.
+- Production list/get: `placeTotalEstimatedAudioCost`.
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+## Audio provider wiring — text-mönster (2026-07-22)
+
+Wiring av audio mot samma ConfigResolver/Router/registry-kedja som text. **Ingen TTS-vendor.** Security Approved för wiring.
+
+**ADR:** [`docs/ai/adr/P-AUDIO_GENERATION_PREP.md`](adr/P-AUDIO_GENERATION_PREP.md) — decision 5 uppdaterad: generate använder `AudioProviderConfigResolver` + `guides-audio` (ej längre “routing förberedd, ej wired”).
+
+- `AudioProviderConfigResolver` ↔ `TextProviderConfigResolver` (`guides-audio` / `GUIDES_AUDIO_PROVIDER`)
+- Registry `create(key, options)`; orchestration skriver `provider_key`
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md)
+
+## Guides place total cost + breaking listProductionJobs (2026-07-22)
+
+Tillägg efter audio-prep: platsnivå `placeTotalEstimatedCost` och brytande list-svar.
+
+- `GET .../production-jobs` → `{ jobs, placeTotalEstimatedCost }` (tidigare array).
+- Job-detail inkluderar `placeTotalEstimatedCost`.
+- Summerar completed items’ `provider_result.cost` (alla steg); manuell audio-prep utan cost i ledger ingår inte.
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+- **Eskalerat:** brytande API — SA/TPM ska bekräfta kontraktet; QA omgranskar efter tester.
+
+## P-AUDIO_GENERATION_PREP — Audiogenerering stub (2026-07-22)
+
+Förberedelsefas: presentation-skopad audio utan TTS-vendor. Security Approved för prep; **QA för hela branchen (inkl. cost/list) ej slutligt godkänd**; **ej prod-release**.
+
+**ADR:** [`docs/ai/adr/P-AUDIO_GENERATION_PREP.md`](adr/P-AUDIO_GENERATION_PREP.md)
+
+### Docs-sync
+
+- [`P-GUIDES_PLACE_PRESENTATION.md`](adr/P-GUIDES_PLACE_PRESENTATION.md) — punkt 7: audio in-scope via prep-ADR (inte längre OOS).
+- [`CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md) — audio = manuell prep; batch fortfarande reserverad; `guide_audio` presentation-scoped i domäntabell.
+- [`P-AI-SETTINGS_PROVIDER_CONFIGURATION.md`](adr/P-AI-SETTINGS_PROVIDER_CONFIGURATION.md) — `audioGenerationCapable`; routing-scope `guides-audio`.
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+### Leverans (verifierad mot kod)
+
+- Migration `107`; `plugins/guides/audio/*`; presentations-API audio-endpoints; noop via `GUIDES_AUDIO_PROVIDER`.
+- AI Providers: capability + `guides-audio` allowlist/save-gate.
+- Frontend: `GuideAudioSection` + AI Providers routing/capability UI.
+
+### Säkerhet (Grind 5)
+
+Security Expert: **godkänt** för prep. Inga Critical/High. Medium defense-in-depth inför TTS (mime-allowlist, R2 prefix, harden objectKey, storageRef-redaktion) — dokumenterade i ADR, kräver inte TPM-beslut för stub.
+
+### Kända begränsningar
+
+- Ingen riktig TTS; generate-path använder `AudioProviderConfigResolver` + noop (routing wired; `audioGenerationCapable` tom tills TTS-adapter).
+- Ingen pipeline-fas `audio`; ingen publik playback.
+
+---
+
 ## Fix: after_text checkpoint by phase name (2026-07-22)
 
 Bugfix: `_shouldCheckpoint` under `after_text` nycklar på fasnamn `text_derivation` (inte `currentPhaseIndex === 0`). Translation-only jobb auto-completar; text-HITL oförändrad.

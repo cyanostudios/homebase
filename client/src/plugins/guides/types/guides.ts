@@ -18,6 +18,8 @@ export interface Guide {
   masterGuideEditorialStatus: MasterGuideEditorialStatus;
   /** ISO language codes with non-empty presentation text. */
   languages: string[];
+  /** True when at least one language has audio status ready. */
+  hasReadyAudio: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -148,6 +150,30 @@ export function isStalenessStatus(value: string): value is StalenessStatus {
 
 export function isPresentationApprovalStatus(value: string): value is PresentationApprovalStatus {
   return PRESENTATION_APPROVAL_STATUSES.includes(value as PresentationApprovalStatus);
+}
+
+export type AudioStatus = 'pending' | 'processing' | 'ready' | 'failed' | 'stale';
+
+export const AUDIO_STATUSES: AudioStatus[] = ['pending', 'processing', 'ready', 'failed', 'stale'];
+
+export function isAudioStatus(value: string): value is AudioStatus {
+  return AUDIO_STATUSES.includes(value as AudioStatus);
+}
+
+export interface GuideAudio {
+  id: string;
+  presentationId: string;
+  placeId: string;
+  language: string;
+  status: AudioStatus;
+  providerKey: string;
+  storageRef: string | null;
+  durationMs: number | null;
+  mimeType: string | null;
+  errorMessage: string | null;
+  cost?: PlaceTotalEstimatedCost | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const GUIDE_LIFECYCLE_STATUSES: GuideLifecycleStatus[] = ['draft', 'active', 'archived'];
@@ -383,10 +409,26 @@ export interface ProductionJobItem {
   updatedAt: string;
 }
 
+export interface PlaceTotalEstimatedCost {
+  currency: string;
+  totalCost: number;
+  estimated: boolean;
+}
+
 export interface ProductionJobDetail {
   job: ProductionJob;
   items: ProductionJobItem[];
   usageSummary?: GenerationUsageSummary | null;
+  /** Sum of estimated costs across all completed production items for the place (text/translation). */
+  placeTotalEstimatedCost?: PlaceTotalEstimatedCost | null;
+  /** Sum of cumulative estimated TTS costs on guide_audio for the place. */
+  placeTotalEstimatedAudioCost?: PlaceTotalEstimatedCost | null;
+}
+
+export interface ProductionJobListResponse {
+  jobs: ProductionJob[];
+  placeTotalEstimatedCost?: PlaceTotalEstimatedCost | null;
+  placeTotalEstimatedAudioCost?: PlaceTotalEstimatedCost | null;
 }
 
 export interface StartProductionJobPayload {

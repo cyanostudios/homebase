@@ -574,7 +574,8 @@
     "stats": {
       "total": "Total",
       "draft": "Draft",
-      "active": "Active"
+      "active": "Active",
+      "audioReady": "Audio ready"
     },
     "searchPlaceholder": "Search {{count}} places...",
     "noMatch": "No places match your search.",
@@ -690,7 +691,7 @@
     "lifecycleStatus": "Lifecycle status",
     "sourceLanguage": "Source language",
     "sourceLanguagePlaceholder": "en",
-    "sourceLanguageHint": "Canonical language for this guide (e.g. sv, en-us).",
+    "sourceLanguageHint": "Canonical language for this guide’s source text.",
     "masterGuide": "Master guide",
     "masterGuideEditorialStatus": "Editorial status",
     "presentationText": "Presentation text",
@@ -709,7 +710,9 @@
     "masterGuideId": "Master guide",
     "information": {
       "title": "Information",
-      "generatedLanguages": "Generated in"
+      "generatedLanguages": "Generated in",
+      "totalCost": "Total cost text",
+      "totalCostAudio": "Total cost audio"
     },
     "lifecycle": {
       "draft": "Draft",
@@ -729,6 +732,9 @@
       "startFullGuide": "Create guide from place",
       "generateSource": "Generate source text",
       "generateTranslations": "Generate translations",
+      "generateSourceAudio": "Generate source audio",
+      "generatingSourceAudio": "Generating source audio…",
+      "sourceAudioNeedsApproval": "Approve the source presentation before generating audio.",
       "translationsNeedSource": "Generate source text first — translations use the approved source presentation.",
       "panelIdle": "No active production job.",
       "panelActive": "Production in progress",
@@ -736,6 +742,7 @@
       "panelAwaitingYou": "{{count}} drafts awaiting review",
       "jobLabel": "Job #{{id}}",
       "progress": "{{done}}/{{total}} done",
+      "elapsed": "Elapsed {{time}}",
       "polling": "Checking status…",
       "loadFailed": "Failed to load production jobs.",
       "actionFailed": "Production action failed.",
@@ -856,22 +863,47 @@
     "sourcePresentation": "Source language",
     "sourcePresentationEmpty": "No source-language text yet. Produce the guide or write it here.",
     "otherLanguages": "Other languages",
-    "otherLanguagesEmpty": "No other languages yet. Add one to enable translation on the next Produce.",
+    "otherLanguagesEmpty": "No other languages yet. Use Generate translations to add target languages.",
     "otherLanguageEmpty": "No text yet. Produce the guide to translate into this language.",
-    "addLanguage": "Add language",
-    "addLanguageLabel": "Language",
-    "addLanguageHint": "Pick target languages in Generate translations, or add a language shell here for manual editing.",
-    "addLanguagePlaceholder": "e.g. en",
-    "addLanguageConfirm": "Add",
-    "addLanguageInvalid": "Use a valid language code (e.g. en, sv, it).",
-    "addLanguageExists": "That language is already added.",
-    "addLanguageFailed": "Failed to add language.",
     "editPresentation": "Edit presentation ({{language}})",
     "approvalStatus": "Approval status",
     "approval": {
       "draft": "Draft",
       "pending_review": "Pending review",
       "approved": "Approved"
+    },
+    "audio": {
+      "title": "Audio",
+      "generate": "Generate audio",
+      "regenerate": "Regenerate",
+      "retry": "Try again",
+      "cancel": "Cancel",
+      "deleteTitle": "Delete audio",
+      "deleteDescription": "Remove the audio file for this language? This cannot be undone.",
+      "regenerateTitle": "Regenerate audio",
+      "regenerateDescriptionStale": "The source text has changed. Regenerating will replace the existing audio.",
+      "regenerateDescriptionReady": "Regenerating will replace the existing audio file.",
+      "regenerateDescriptionFailed": "Try generating audio again? The previous attempt failed.",
+      "emptyHint": "No audio file — generate from approved presentation text.",
+      "processingHint": "Generating audio…",
+      "staleHint": "Audio no longer matches the source text.",
+      "noPresentationText": "Presentation text is required for audio generation.",
+      "requiresApproval": "Approve the presentation text before generating audio.",
+      "loadFailed": "Failed to load audio.",
+      "actionFailed": "Audio action failed.",
+      "generateFailedTitle": "Audio generation failed",
+      "deleteFailed": "Failed to delete audio.",
+      "alreadyProcessing": "Generation is already in progress.",
+      "polling": "Updating…",
+      "previewLabel": "Audio preview",
+      "status": {
+        "none": "No audio",
+        "pending": "Audio pending",
+        "processing": "Generating audio…",
+        "ready": "Audio ready",
+        "failed": "Audio failed",
+        "stale": "Audio stale"
+      }
     }
   },
   "files": {
@@ -1049,6 +1081,10 @@
     "chooseProviderPlaceholder": "Select a provider…",
     "chooseProviderError": "Choose a provider type before saving.",
     "allProvidersConfigured": "All available provider types are already configured.",
+    "notGeneratable": "no text generation yet",
+    "notGeneratableHint": "This provider can be saved for credentials, but Guides text generation only works with providers that have a registered adapter (currently OpenAI).",
+    "notAudioGeneratable": "no audio generation yet",
+    "notAudioGeneratableHint": "This provider can be saved for credentials, but Guides audio generation needs a registered TTS adapter (none yet — noop stub is used in prep).",
     "createSubtitle": "Choose a provider type and configure credentials.",
     "statusEnabled": "Enabled",
     "statusDisabled": "Disabled",
@@ -1095,6 +1131,8 @@
       "useProviderDefault": "Use provider default",
       "chooseProviderFirst": "Choose a provider to see available models.",
       "noEnabledProviders": "Enable a provider and save an API key first — then it appears here.",
+      "noGeneratableProviders": "Enable OpenAI (or another text-capable provider) with an API key — then it appears here.",
+      "noAudioGeneratableProviders": "No audio-capable provider yet. TTS adapters will appear here when registered.",
       "globalProviderRequired": "Choose a provider for the global default.",
       "pluginProviderRequired": "Choose a provider override or clear the assignment.",
       "saveError": "Failed to save routing settings."
@@ -1171,8 +1209,22 @@
         "docsUrl": "https://portal.azure.com/",
         "docsLabel": "portal.azure.com",
         "apiKeyPlaceholder": "..."
+      },
+      "elevenlabs": {
+        "title": "ElevenLabs",
+        "settingsDescription": "Configure ElevenLabs for guide audio (TTS). Enabled settings override environment variables.",
+        "testHint": "Validates the API key with a minimal TTS call (restricted keys often lack user_read).",
+        "docsUrl": "https://elevenlabs.io/app/settings/api-keys",
+        "docsLabel": "elevenlabs.io",
+        "apiKeyPlaceholder": "xi-..."
       }
-    }
+    },
+    "voice": "Voice",
+    "chooseVoicePlaceholder": "Select a voice…",
+    "voicesLoading": "Loading voices…",
+    "voicesLoadError": "Could not load voices. Enter a voice id manually.",
+    "voiceIdPlaceholder": "ElevenLabs voice id",
+    "voiceHint": "Used for Guides audio generation. Save after changing voice."
   },
   "cups": {
     "listDescription": "Manage cups, visibility, and imports from ingest.",

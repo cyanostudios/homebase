@@ -116,6 +116,7 @@ class AIProviderRouter {
       providerKey: runtime.providerKey,
       model,
       apiKey: runtime.apiKey,
+      voiceId: runtime.voiceId || null,
       source,
     };
   }

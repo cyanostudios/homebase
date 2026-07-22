@@ -212,19 +212,22 @@ describe('GuidesModel guide presentations', () => {
 
   test('applyProductionPresentationText sets approved', async () => {
     Database.get.mockReturnValue({
-      query: jest.fn().mockResolvedValueOnce([
-        {
-          id: 20,
-          master_guide_id: 10,
-          language: 'sv',
-          presentation_text: 'Generated text',
-          publication_status: 'draft',
-          staleness_status: 'fresh',
-          approval_status: 'approved',
-          created_at: '2026-01-01T00:00:00.000Z',
-          updated_at: '2026-01-02T00:00:00.000Z',
-        },
-      ]),
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            id: 20,
+            master_guide_id: 10,
+            language: 'sv',
+            presentation_text: 'Generated text',
+            publication_status: 'draft',
+            staleness_status: 'fresh',
+            approval_status: 'approved',
+            created_at: '2026-01-01T00:00:00.000Z',
+            updated_at: '2026-01-02T00:00:00.000Z',
+          },
+        ])
+        .mockResolvedValueOnce([]),
     });
 
     const result = await model.applyProductionPresentationText({}, '1', '20', 'Generated text');

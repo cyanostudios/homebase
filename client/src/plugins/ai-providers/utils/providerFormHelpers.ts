@@ -6,6 +6,7 @@ export interface ProviderDraft {
   enabled: boolean;
   apiKey: string;
   defaultModel: string;
+  voiceId: string;
   hasApiKey: boolean;
 }
 
@@ -13,6 +14,7 @@ export function draftFromProvider(provider: ProviderSettings): ProviderDraft {
   return {
     enabled: Boolean(provider.enabled),
     defaultModel: provider.defaultModel || '',
+    voiceId: provider.voiceId || '',
     hasApiKey: Boolean(provider.hasApiKey),
     apiKey: provider.hasApiKey ? MASKED_SECRET : '',
   };
@@ -25,15 +27,18 @@ export function buildSavePayload(
 ): {
   enabled: boolean;
   defaultModel: string;
+  voiceId?: string | null;
   apiKey?: string | null;
 } {
   const payload: {
     enabled: boolean;
     defaultModel: string;
+    voiceId?: string | null;
     apiKey?: string | null;
   } = {
     enabled: draft.enabled,
     defaultModel: draft.defaultModel.trim() || fallbackModel || '',
+    voiceId: draft.voiceId.trim() || null,
   };
 
   const trimmedKey = draft.apiKey.trim();

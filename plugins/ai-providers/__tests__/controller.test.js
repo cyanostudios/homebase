@@ -59,8 +59,14 @@ describe('AIProvidersController', () => {
   test('getRouting returns routing configuration', async () => {
     model.listRouting.mockResolvedValue({
       global: { providerKey: 'openai', model: 'gpt-4o-mini' },
-      plugins: [{ pluginKey: 'guides', label: 'Guides', providerKey: null, model: null }],
-      routablePlugins: [{ key: 'guides', label: 'Guides' }],
+      plugins: [
+        { pluginKey: 'guides', label: 'Guides', providerKey: null, model: null },
+        { pluginKey: 'guides-audio', label: 'Guides (audio)', providerKey: null, model: null },
+      ],
+      routablePlugins: [
+        { key: 'guides', label: 'Guides' },
+        { key: 'guides-audio', label: 'Guides (audio)' },
+      ],
     });
 
     await controller.getRouting({}, res);
@@ -68,8 +74,14 @@ describe('AIProvidersController', () => {
     expect(model.listRouting).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith({
       global: { providerKey: 'openai', model: 'gpt-4o-mini' },
-      plugins: [{ pluginKey: 'guides', label: 'Guides', providerKey: null, model: null }],
-      routablePlugins: [{ key: 'guides', label: 'Guides' }],
+      plugins: [
+        { pluginKey: 'guides', label: 'Guides', providerKey: null, model: null },
+        { pluginKey: 'guides-audio', label: 'Guides (audio)', providerKey: null, model: null },
+      ],
+      routablePlugins: [
+        { key: 'guides', label: 'Guides' },
+        { key: 'guides-audio', label: 'Guides (audio)' },
+      ],
     });
   });
 

@@ -240,6 +240,54 @@ function createGuidesRoutes(controller, context) {
     (req, res) => controller.deletePresentation(req, res),
   );
 
+  router.get(
+    '/:id/presentations/:language/audio',
+    gate,
+    commonRules.id('id'),
+    languageParamRule(),
+    validateRequest,
+    (req, res) => controller.getAudio(req, res),
+  );
+
+  router.get(
+    '/:id/presentations/:language/audio/preview',
+    gate,
+    commonRules.id('id'),
+    languageParamRule(),
+    validateRequest,
+    (req, res) => controller.previewAudio(req, res),
+  );
+
+  router.post(
+    '/:id/presentations/:language/audio/generate',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    languageParamRule(),
+    validateRequest,
+    (req, res) => controller.generateAudio(req, res),
+  );
+
+  router.post(
+    '/:id/presentations/:language/audio/cancel',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    languageParamRule(),
+    validateRequest,
+    (req, res) => controller.cancelAudio(req, res),
+  );
+
+  router.delete(
+    '/:id/presentations/:language/audio',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    languageParamRule(),
+    validateRequest,
+    (req, res) => controller.deleteAudio(req, res),
+  );
+
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res),
   );

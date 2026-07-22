@@ -219,9 +219,13 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
                   <label
                     key={opt.code}
                     className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors ${
-                      checked
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:border-primary/50'
+                      opt.hasText
+                        ? checked
+                          ? 'border-emerald-500/60 bg-emerald-50/90 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          : 'border-emerald-500/40 bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : checked
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-muted-foreground hover:border-primary/50'
                     } ${isBusy ? 'pointer-events-none opacity-60' : ''}`}
                     title={opt.hasText ? t('guides.production.start.alreadyGenerated') : undefined}
                   >
@@ -241,7 +245,9 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
                     />
                     <span className="uppercase font-semibold">{opt.code}</span>
                     {!opt.exists && <span className="text-[10px] text-muted-foreground">+</span>}
-                    {opt.hasText && <span className="text-[10px] text-muted-foreground">✓</span>}
+                    {opt.hasText && (
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400">✓</span>
+                    )}
                   </label>
                 );
               })}
@@ -250,16 +256,16 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
         )}
 
         {!hasFailure && (
-          <div className="flex items-start gap-2 py-1">
+          <div className="flex items-center gap-2 py-1">
             <input
               id="production-force"
               type="checkbox"
               checked={force}
               disabled={isBusy}
               onChange={(e) => setForce(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-border"
+              className="h-4 w-4 shrink-0 rounded border-border"
             />
-            <Label htmlFor="production-force" className="text-sm font-normal leading-snug">
+            <Label htmlFor="production-force" className="text-sm font-normal leading-none">
               {t('guides.production.start.forceLabel')}
             </Label>
           </div>

@@ -56,6 +56,7 @@ function createAIProvidersRoutes(controller, context) {
       body('enabled').optional().isBoolean(),
       body('apiKey').optional({ values: 'null' }).isString(),
       body('defaultModel').optional().isString().isLength({ min: 1, max: 255 }),
+      body('voiceId').optional({ values: 'null' }).isString().isLength({ max: 255 }),
     ],
     validateRequest,
     (req, res) => controller.saveSettings(req, res),
@@ -68,10 +69,23 @@ function createAIProvidersRoutes(controller, context) {
     [
       body('apiKey').optional({ values: 'null' }).isString(),
       body('defaultModel').optional().isString().isLength({ min: 1, max: 255 }),
+      body('voiceId').optional({ values: 'null' }).isString().isLength({ max: 255 }),
       body('useSaved').optional().isBoolean(),
     ],
     validateRequest,
     (req, res) => controller.testSettings(req, res),
+  );
+
+  router.post(
+    '/settings/:providerKey/voices',
+    gate,
+    csrfProtection,
+    [
+      body('apiKey').optional({ values: 'null' }).isString(),
+      body('useSaved').optional().isBoolean(),
+    ],
+    validateRequest,
+    (req, res) => controller.listVoices(req, res),
   );
 
   return router;

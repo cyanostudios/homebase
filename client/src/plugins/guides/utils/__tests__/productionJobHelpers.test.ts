@@ -2,11 +2,16 @@ import type { ProductionJob, ProductionJobItem } from '../../types/guides';
 import {
   canAdvancePhase,
   countPendingReviewItems,
+  formatProductionElapsed,
+  getProductionElapsedStartIso,
   getProductionJobFailureSummary,
   getProposedItemText,
   getTextPipelineStage,
   hasActiveProductionJob,
+  isProductionJobGenerating,
   isProductionJobStalled,
+  parseProductionJobListResponse,
+  resolveProductionJobTargetId,
   resolveSourceSummary,
   shouldPollProductionJob,
   shouldShowReviewQueue,
@@ -203,5 +208,117 @@ describe('productionJobHelpers', () => {
     ]);
     expect(summary.failureCode).toBe('provider_quota_exhausted');
     expect(summary.detail).toContain('quota');
+  });
+
+  it('parseProductionJobListResponse reads jobs + placeTotalEstimatedCost', () => {
+    const jobs = [makeJob({ id: '49', status: 'completed' })];
+    const placeTotalEstimatedCost = {
+      currency: 'USD',
+      totalCost: 0.0027,
+      estimated: true,
+    };
+    const placeTotalEstimatedAudioCost = {
+      currency: 'USD',
+      totalCost: 0.01,
+      estimated: true,
+    };
+    expect(
+      parseProductionJobListResponse({
+        jobs,
+        placeTotalEstimatedCost,
+        placeTotalEstimatedAudioCost,
+      }),
+    ).toEqual({ jobs, placeTotalEstimatedCost, placeTotalEstimatedAudioCost });
+  });
+
+  it('parseProductionJobListResponse tolerates legacy array and invalid jobs', () => {
+    const jobs = [makeJob({ id: '1' })];
+    expect(parseProductionJobListResponse(jobs)).toEqual({
+      jobs,
+      placeTotalEstimatedCost: null,
+      placeTotalEstimatedAudioCost: null,
+    });
+    expect(parseProductionJobListResponse({ jobs: undefined as unknown as never })).toEqual({
+      jobs: [],
+      placeTotalEstimatedCost: null,
+      placeTotalEstimatedAudioCost: null,
+    });
+    expect(parseProductionJobListResponse(null)).toEqual({
+      jobs: [],
+      placeTotalEstimatedCost: null,
+      placeTotalEstimatedAudioCost: null,
+    });
+  });
+
+  it('resolveProductionJobTargetId prefers selection, then active, then latest', () => {
+    const completed = makeJob({ id: '40', status: 'completed' });
+    const active = makeJob({ id: '41', status: 'awaiting_review' });
+    const olderCompleted = makeJob({ id: '39', status: 'completed' });
+    // List order is created_at DESC (latest first).
+    const list = [completed, active, olderCompleted];
+
+    expect(resolveProductionJobTargetId(list, '39')).toBe('39');
+    expect(resolveProductionJobTargetId(list, null)).toBe('41');
+    expect(resolveProductionJobTargetId([completed, olderCompleted], null)).toBe('40');
+    expect(resolveProductionJobTargetId([], null)).toBeNull();
+    expect(resolveProductionJobTargetId(list, 'missing')).toBe('41');
+  });
+
+  it('isProductionJobGenerating covers worker-side statuses only', () => {
+    expect(isProductionJobGenerating('pending')).toBe(true);
+    expect(isProductionJobGenerating('planning')).toBe(true);
+    expect(isProductionJobGenerating('processing')).toBe(true);
+    expect(isProductionJobGenerating('awaiting_review')).toBe(false);
+    expect(isProductionJobGenerating('completed')).toBe(false);
+    expect(isProductionJobGenerating('failed')).toBe(false);
+  });
+
+  it('getProductionElapsedStartIso prefers started → claimed → queued → created', () => {
+    expect(
+      getProductionElapsedStartIso(
+        makeJob({
+          startedAt: '2026-01-01T00:03:00Z',
+          workerClaimedAt: '2026-01-01T00:02:00Z',
+          queuedAt: '2026-01-01T00:01:00Z',
+          createdAt: '2026-01-01T00:00:00Z',
+        }),
+      ),
+    ).toBe('2026-01-01T00:03:00Z');
+    expect(
+      getProductionElapsedStartIso(
+        makeJob({
+          startedAt: null,
+          workerClaimedAt: '2026-01-01T00:02:00Z',
+          queuedAt: '2026-01-01T00:01:00Z',
+        }),
+      ),
+    ).toBe('2026-01-01T00:02:00Z');
+    expect(
+      getProductionElapsedStartIso(
+        makeJob({
+          startedAt: null,
+          workerClaimedAt: null,
+          queuedAt: '2026-01-01T00:01:00Z',
+        }),
+      ),
+    ).toBe('2026-01-01T00:01:00Z');
+    expect(
+      getProductionElapsedStartIso(
+        makeJob({
+          startedAt: null,
+          workerClaimedAt: null,
+          queuedAt: null,
+          createdAt: '2026-01-01T00:00:00Z',
+        }),
+      ),
+    ).toBe('2026-01-01T00:00:00Z');
+  });
+
+  it('formatProductionElapsed formats m:ss and h:mm:ss', () => {
+    expect(formatProductionElapsed(0)).toBe('0:00');
+    expect(formatProductionElapsed(1000)).toBe('0:01');
+    expect(formatProductionElapsed(65_000)).toBe('1:05');
+    expect(formatProductionElapsed(3_661_000)).toBe('1:01:01');
+    expect(formatProductionElapsed(-5)).toBe('0:00');
   });
 });
