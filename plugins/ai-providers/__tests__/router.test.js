@@ -34,6 +34,7 @@ describe('AIProviderRouter', () => {
       providerKey: 'anthropic',
       model: 'claude-sonnet-4-5',
       apiKey: 'sk-ant',
+      voiceId: null,
       source: 'plugin',
     });
   });
@@ -57,6 +58,7 @@ describe('AIProviderRouter', () => {
       providerKey: 'openai',
       model: 'gpt-4o-mini',
       apiKey: 'sk-openai',
+      voiceId: null,
       source: 'global',
     });
   });
@@ -77,6 +79,7 @@ describe('AIProviderRouter', () => {
       providerKey: 'openai',
       model: 'gpt-4.1-mini',
       apiKey: 'sk-legacy',
+      voiceId: null,
       source: 'legacy',
     });
   });
