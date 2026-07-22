@@ -38,6 +38,13 @@ export interface GuidesContextType {
   selectedCount: number;
   isSelected: (id: string) => boolean;
   clearValidationErrors: () => void;
+  refreshGuides: () => Promise<void>;
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 export const GuidesContext = createContext<GuidesContextType | undefined>(undefined);
@@ -75,6 +82,13 @@ export function GuideNullProvider({ children }: { children: React.ReactNode }) {
     selectedCount: 0,
     isSelected: () => false,
     clearValidationErrors: () => {},
+    refreshGuides: async () => {},
+    navigateToPrevItem: () => {},
+    navigateToNextItem: () => {},
+    hasPrevItem: false,
+    hasNextItem: false,
+    currentItemIndex: 0,
+    totalItems: 0,
   };
   return <GuidesContext.Provider value={empty}>{children}</GuidesContext.Provider>;
 }

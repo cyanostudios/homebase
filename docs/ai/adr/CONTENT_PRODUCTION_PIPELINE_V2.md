@@ -221,15 +221,15 @@ flowchart TD
 
 ### Fasövergångar
 
-| Från                                                  | Till                 | Trigger                                              |
-| ----------------------------------------------------- | -------------------- | ---------------------------------------------------- |
-| Fas N items alla `completed` \| `skipped` \| `failed` | `awaiting_review`    | `checkpoint_mode` kräver stopp (default efter fas 0) |
-| Fas N items alla `completed` \| `skipped`             | Fas N+1 `processing` | `checkpoint_mode = auto` ELLER efter `approve-phase` |
-| Sista fas godkänd                                     | `completed`          | `approve-phase` på sista fasen                       |
-| Item `failed` med retries kvar                        | Item `pending`       | Supervisor/backoff                                   |
-| Item `failed` max retries                             | Job `failed`         | Om kritisk andel failed (konfigurerbart)             |
+| Från                                                  | Till                 | Trigger                                                                                                   |
+| ----------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
+| Fas N items alla `completed` \| `skipped` \| `failed` | `awaiting_review`    | `checkpoint_mode` kräver stopp (`after_text` = efter `text_derivation`; `after_each` = varje fas)         |
+| Fas N items alla `completed` \| `skipped`             | Fas N+1 `processing` | `checkpoint_mode = auto` ELLER efter `approve-phase` (eller auto-advance när `after_text` och fas ≠ text) |
+| Sista fas godkänd                                     | `completed`          | `approve-phase` på sista fasen (eller auto-advance)                                                       |
+| Item `failed` med retries kvar                        | Item `pending`       | Supervisor/backoff                                                                                        |
+| Item `failed` max retries                             | Job `failed`         | Om kritisk andel failed (konfigurerbart)                                                                  |
 
-**Default `checkpoint_mode: after_text`:** Fas 0 (text) körs → job `awaiting_review` → redaktör godkänner/avvisar/regenererar → `approve-phase` startar fas 1 (translation) endast för **godkända** variants → ny review vid `after_each` för translation och audio (rekommenderat, se avvägningar).
+**Default `checkpoint_mode: after_text`:** När aktuell fas är **`text_derivation`** → job `awaiting_review` → redaktör godkänner/avvisar/regenererar → `approve-phase` startar nästa fas (translation) endast för **godkända** presentations → translation auto-advancerar under `after_text` (ingen separat HITL). Translation-only jobb (`phases: ['translation']`) checkpointar **inte** under `after_text`. Ny review vid `after_each` för translation/audio (rekommenderat om HITL önskas där).
 
 ---
 
@@ -290,7 +290,7 @@ stateDiagram-v2
 ### Principer
 
 1. Providers skriver **aldrig** direkt till guides-domän.
-2. `approveItem` applicerar `provider_result` till domän via befintlig `applyProductionPresentationText` (sätter `pending_review` på variant).
+2. `approveItem` applicerar `provider_result` till domän via `applyProductionPresentationText` (sätter presentation `approval_status = approved` — **uppdaterat 2026-07-22**; tidigare felaktigt dokumenterat som `pending_review`).
 3. `rejectItem` lämnar domän oförändrad; item `review_status = rejected`.
 4. `regenerateItem` markerar item `superseded`, skapar **nytt** item (`pending`, `force` fingerprint) för samma target + steg.
 5. `approve-phase` kräver att alla items i aktuell fas har terminal `review_status` (`approved` \| `rejected` \| `superseded`).
@@ -314,13 +314,13 @@ Befintlig `POST …/approve` **ersätts** av `approve-phase` + per-item `approve
 
 ### Domänintegration efter approve
 
-| Steg                      | Domänaction                                                                              |
-| ------------------------- | ---------------------------------------------------------------------------------------- |
-| `text_derivation` approve | `applyProductionPresentationText` → variant `pending_review`                             |
-| `translation` approve     | Samma                                                                                    |
-| `audio` approve           | Skapa/uppdatera `guide_audio` via refaktoriserad batch-handler (ej direkt från provider) |
+| Steg                      | Domänaction                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| `text_derivation` approve | `applyProductionPresentationText` → presentation `approval_status = approved` (HITL = publish-klar) |
+| `translation` approve     | Samma                                                                                               |
+| `audio` approve           | Skapa/uppdatera `guide_audio` via refaktoriserad batch-handler (ej direkt från provider)            |
 
-Redaktör anropar därefter befintlig `POST …/approve-content` för att sätta `approved` innan publicering.
+> **2026-07-22:** Extra `POST …/approve-content` efter job-item approve krävs **inte** för att nå `approved` — HITL-approve skriver `approved` direkt. Publicering kräver fortfarande `approved` + `fresh` (och övriga gates).
 
 ---
 

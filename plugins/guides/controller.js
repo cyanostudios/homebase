@@ -137,6 +137,21 @@ class GuidesController {
     }
   }
 
+  async deletePresentation(req, res) {
+    try {
+      const result = await this.model.deletePresentation(req, req.params.id, req.params.language);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Delete guide presentation failed', error, {
+        placeId: req.params.id,
+        language: req.params.language,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to delete presentation' });
+    }
+  }
+
   async createPresentation(req, res) {
     try {
       const presentation = await this.model.ensurePresentationForLanguage(

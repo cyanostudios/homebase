@@ -248,7 +248,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
-                title={t('guides.information')}
+                title={t('guides.information.title')}
                 icon={Info}
                 iconPlugin="guides"
                 className="p-4"

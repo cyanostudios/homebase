@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronRight, Edit, Languages, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Edit, Languages, Plus, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { cn } from '@/lib/utils';
 
 import { guidesApi } from '../api/guidesApi';
@@ -62,6 +63,7 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
   const [newLanguage, setNewLanguage] = useState('');
   const [addLanguageError, setAddLanguageError] = useState<string | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<GuidePresentation | null>(null);
 
   useEffect(() => {
     onPresentationsChange?.(presentations);
@@ -166,6 +168,25 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
     }
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsBusy(true);
+    setGeneralError(null);
+    try {
+      await guidesApi.deletePresentation(placeId, deleteTarget.language);
+      setPresentations((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      if (editingId === deleteTarget.id) {
+        setEditingId(null);
+      }
+      setDeleteTarget(null);
+    } catch {
+      setGeneralError(t('guides.presentationDeleteFailed'));
+      setDeleteTarget(null);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const handleAddLanguage = async () => {
     const code = newLanguage.trim().toLowerCase();
     setAddLanguageError(null);
@@ -194,7 +215,75 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
     }
   };
 
-  const renderStatusBadges = (presentation: GuidePresentation) => {
+  const patchPresentation = async (
+    presentation: GuidePresentation,
+    payload: GuidePresentationUpdatePayload,
+  ) => {
+    setIsBusy(true);
+    setGeneralError(null);
+    try {
+      const updated = await guidesApi.updatePresentation(placeId, presentation.language, payload);
+      setPresentations((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      return true;
+    } catch (err) {
+      const error = err as { message?: string; errors?: GuideValidationError[] };
+      if (
+        typeof error.message === 'string' &&
+        error.message.includes('published requires approved')
+      ) {
+        setGeneralError(t('guides.presentationPublishRequiresApproved'));
+      } else if (Array.isArray(error.errors) && error.errors.length > 0) {
+        setGeneralError(error.errors[0]?.message ?? t('guides.presentationsSaveFailed'));
+      } else {
+        setGeneralError(t('guides.presentationsSaveFailed'));
+      }
+      return false;
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleQuickPublicationChange = async (
+    presentation: GuidePresentation,
+    nextStatus: GuidePresentationUpdatePayload['publicationStatus'],
+  ) => {
+    if (!nextStatus || nextStatus === presentation.publicationStatus) return;
+    if (nextStatus === 'published') {
+      const text = presentation.presentationText?.trim();
+      if (!text) {
+        setGeneralError(t('guides.presentationPublishNeedsText'));
+        return;
+      }
+      if (presentation.stalenessStatus === 'stale') {
+        setGeneralError(t('guides.presentationPublishNeedsFresh'));
+        return;
+      }
+      await patchPresentation(presentation, {
+        presentationText: presentation.presentationText,
+        publicationStatus: 'published',
+      });
+      return;
+    }
+    await patchPresentation(presentation, { publicationStatus: nextStatus });
+  };
+
+  const handleQuickApproveAndPublish = async (presentation: GuidePresentation) => {
+    const text = presentation.presentationText?.trim();
+    if (!text) {
+      setGeneralError(t('guides.presentationPublishNeedsText'));
+      return;
+    }
+    if (presentation.stalenessStatus === 'stale') {
+      setGeneralError(t('guides.presentationPublishNeedsFresh'));
+      return;
+    }
+    await patchPresentation(presentation, {
+      presentationText: presentation.presentationText,
+      publicationStatus: 'published',
+    });
+  };
+
+  const renderStatusControls = (presentation: GuidePresentation) => {
     const publication = isPublicationStatus(presentation.publicationStatus)
       ? presentation.publicationStatus
       : 'draft';
@@ -204,27 +293,51 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
     const approval = isPresentationApprovalStatus(presentation.approvalStatus)
       ? presentation.approvalStatus
       : 'draft';
+    const isReadyToShip = publication === 'published' && approval === 'approved';
+    const hasText = Boolean(presentation.presentationText?.trim());
 
     return (
       <div className="flex flex-wrap items-center gap-1.5">
-        <Badge
-          className={
-            presentation.language.toLowerCase() === sourceLanguage.toLowerCase()
-              ? GUIDE_LANGUAGE_SOURCE_BADGE_CLASS
-              : GUIDE_LANGUAGE_BADGE_CLASS
-          }
+        <NativeSelect
+          aria-label={t('guides.publicationStatus')}
+          value={publication}
+          disabled={isBusy || disabled}
+          onChange={(e) => {
+            void handleQuickPublicationChange(
+              presentation,
+              e.target.value as GuidePresentationUpdatePayload['publicationStatus'],
+            );
+          }}
+          className={cn(
+            'h-6 w-auto min-w-0 border-0 py-0 pl-2 pr-6 text-xs font-semibold shadow-none focus-visible:ring-1',
+            GUIDE_PUBLICATION_COLORS[publication],
+          )}
         >
-          {presentation.language}
-        </Badge>
-        <Badge className={GUIDE_PUBLICATION_COLORS[publication]}>
-          {t(`guides.publication.${publication}`)}
-        </Badge>
+          {PUBLICATION_STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {t(`guides.publication.${status}`)}
+            </option>
+          ))}
+        </NativeSelect>
         <Badge className={GUIDE_STALENESS_COLORS[staleness]}>
           {t(`guides.staleness.${staleness}`)}
         </Badge>
         <Badge className={GUIDE_APPROVAL_COLORS[approval]}>
           {t(`guides.approval.${approval}`)}
         </Badge>
+        {!isReadyToShip && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={Check}
+            className="h-6 w-6 px-0 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+            disabled={isBusy || disabled || !hasText || staleness === 'stale'}
+            aria-label={t('guides.approveAndPublish')}
+            title={t('guides.approveAndPublish')}
+            onClick={() => void handleQuickApproveAndPublish(presentation)}
+          />
+        )}
       </div>
     );
   };
@@ -300,6 +413,17 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
           >
             {t('common.cancel')}
           </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            icon={Trash2}
+            className="ml-auto h-8 px-3 text-xs"
+            disabled={isBusy || disabled}
+            onClick={() => setDeleteTarget(presentation)}
+          >
+            {t('common.delete')}
+          </Button>
         </div>
       </div>
     );
@@ -329,25 +453,37 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
           options?.emphasize && 'border-primary/20',
         )}
       >
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors rounded-lg"
-          onClick={toggleCollapsed}
-          aria-expanded={!isCollapsed}
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          )}
-          <div className="min-w-0 flex-1">{renderStatusBadges(presentation)}</div>
-          {isCollapsed && text && (
-            <span className="ml-2 truncate max-w-[200px] text-xs text-muted-foreground">
-              {text.slice(0, 80)}
-              {text.length > 80 ? '…' : ''}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2 px-4 py-3">
+          <Badge
+            className={cn(
+              'shrink-0',
+              presentation.language.toLowerCase() === sourceLanguage.toLowerCase()
+                ? GUIDE_LANGUAGE_SOURCE_BADGE_CLASS
+                : GUIDE_LANGUAGE_BADGE_CLASS,
+            )}
+          >
+            {presentation.language}
+          </Badge>
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-80 transition-opacity rounded-md"
+            onClick={toggleCollapsed}
+            aria-expanded={!isCollapsed}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            )}
+            {isCollapsed && text && (
+              <span className="truncate max-w-[180px] text-xs text-muted-foreground">
+                {text.slice(0, 80)}
+                {text.length > 80 ? '…' : ''}
+              </span>
+            )}
+          </button>
+          <div className="min-w-0 shrink-0">{renderStatusControls(presentation)}</div>
+        </div>
 
         {!isCollapsed && (
           <div className="px-4 pb-4">
@@ -368,10 +504,7 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
                   className="h-8 px-3 text-xs"
                   disabled={isBusy || disabled}
                   aria-label={t('guides.editPresentation', { language: presentation.language })}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEdit(presentation);
-                  }}
+                  onClick={() => openEdit(presentation)}
                 >
                   {t('common.edit')}
                 </Button>
@@ -527,6 +660,20 @@ export const GuidePresentationSection: React.FC<GuidePresentationSectionProps> =
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title={t('guides.deletePresentationTitle')}
+        message={t('guides.deletePresentationDescription', {
+          language: deleteTarget?.language?.toUpperCase() ?? '',
+        })}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        variant="danger"
+        confirmDisabled={isBusy}
+        onConfirm={() => void handleDeleteConfirm()}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

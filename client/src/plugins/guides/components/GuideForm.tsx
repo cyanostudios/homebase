@@ -167,7 +167,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
     <div className="space-y-4">
       <Card padding="none" className={FORM_CARD_CLASS}>
         <DetailSection
-          title={t('guides.information')}
+          title={t('guides.information.title')}
           icon={Info}
           iconPlugin="guides"
           className="p-4"
@@ -278,6 +278,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                           e.target.value as GuidePayload['lifecycleStatus'],
                         )
                       }
+                      className={cn(getFieldError('lifecycleStatus') && 'border-destructive')}
                     >
                       {GUIDE_LIFECYCLE_STATUSES.map((status) => (
                         <option key={status} value={status}>
@@ -285,6 +286,14 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
                         </option>
                       ))}
                     </NativeSelect>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t('guides.lifecycleActiveHint')}
+                    </p>
+                    {getFieldError('lifecycleStatus') && (
+                      <p className="mt-1 text-sm text-destructive">
+                        {getFieldError('lifecycleStatus')?.message}
+                      </p>
+                    )}
                   </div>
                 </div>
               </DetailSection>

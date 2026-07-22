@@ -190,6 +190,26 @@ describe('GuidesModel guide presentations', () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  test('deletePresentation removes job items then presentation row', async () => {
+    jest.spyOn(model, 'getPresentationByLanguage').mockResolvedValueOnce({
+      id: '21',
+      language: 'en',
+      masterGuideId: '10',
+    });
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 21 }]);
+    Database.get.mockReturnValue({ query });
+
+    const result = await model.deletePresentation({}, '1', 'EN');
+    expect(result).toEqual({ deleted: true, id: '21', language: 'en' });
+    expect(query.mock.calls[0][0]).toContain('DELETE FROM guide_production_job_items');
+    expect(query.mock.calls[0][1]).toEqual(['21']);
+    expect(query.mock.calls[1][0]).toContain('DELETE FROM guide_presentations');
+    expect(query.mock.calls[1][1]).toEqual(['en', '1']);
+  });
+
   test('applyProductionPresentationText sets approved', async () => {
     Database.get.mockReturnValue({
       query: jest.fn().mockResolvedValueOnce([

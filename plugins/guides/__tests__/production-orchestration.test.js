@@ -839,6 +839,60 @@ describe('ProductionOrchestrationService', () => {
     expect(service.jobModel.requeueJobForNextPhase).toHaveBeenCalledWith({}, '1', '99');
   });
 
+  test('_evaluateProcessingJobs auto-completes translation-only after_text jobs', async () => {
+    const guidesModel = {
+      applyProductionPresentationText: jest.fn().mockResolvedValue({ id: '21' }),
+    };
+    const service = new ProductionOrchestrationService(guidesModel);
+    const job = {
+      id: '99',
+      placeId: '1',
+      status: 'processing',
+      phases: ['translation'],
+      currentPhaseIndex: 0,
+      checkpointMode: 'after_text',
+    };
+
+    jest.spyOn(service.jobModel, 'listJobsByStatus').mockResolvedValue([job]);
+    jest.spyOn(service.jobModel, 'countInFlightItems').mockResolvedValue(0);
+    jest.spyOn(service.jobModel, 'summarizeJobItems').mockResolvedValue({
+      total: 1,
+      failed: 0,
+      skipped: 0,
+      reviewable: 1,
+    });
+    jest.spyOn(service.jobModel, 'listJobItems').mockResolvedValue([
+      {
+        id: '1',
+        phaseIndex: 0,
+        status: 'completed',
+        step: 'translation',
+        presentationId: '21',
+        reviewStatus: 'pending_review',
+        providerResult: { translatedText: 'Hej' },
+      },
+    ]);
+    jest.spyOn(service.jobModel, 'updateJobItem').mockResolvedValue({});
+    jest.spyOn(service.jobModel, 'updateJobStatus').mockResolvedValue({
+      ...job,
+      status: 'completed',
+    });
+    jest.spyOn(service.jobModel, 'appendEvent').mockResolvedValue(undefined);
+    jest.spyOn(service, '_approveSingleItem').mockResolvedValue({});
+
+    await service._evaluateProcessingJobs({});
+
+    expect(service.jobModel.updateJobStatus).not.toHaveBeenCalledWith(
+      {},
+      '1',
+      '99',
+      'awaiting_review',
+      expect.anything(),
+    );
+    expect(service._approveSingleItem).toHaveBeenCalled();
+    expect(service.jobModel.updateJobStatus).toHaveBeenCalledWith({}, '1', '99', 'completed');
+  });
+
   test('startJob stores languages in jobOptions', async () => {
     const guidesModel = {
       getById: jest.fn().mockResolvedValue({ id: '1', sourceLanguage: 'sv', displayName: 'Place' }),
@@ -875,16 +929,41 @@ describe('ProductionOrchestrationService', () => {
 
   test('_shouldCheckpoint respects after_text and after_each', () => {
     const service = new ProductionOrchestrationService({});
-    expect(service._shouldCheckpoint({ checkpointMode: 'after_text', currentPhaseIndex: 0 })).toBe(
-      true,
-    );
-    expect(service._shouldCheckpoint({ checkpointMode: 'after_text', currentPhaseIndex: 1 })).toBe(
-      false,
-    );
-    expect(service._shouldCheckpoint({ checkpointMode: 'after_each', currentPhaseIndex: 1 })).toBe(
-      true,
-    );
-    expect(service._shouldCheckpoint({ checkpointMode: 'auto', currentPhaseIndex: 0 })).toBe(false);
+    expect(
+      service._shouldCheckpoint({
+        checkpointMode: 'after_text',
+        currentPhaseIndex: 0,
+        phases: ['text_derivation'],
+      }),
+    ).toBe(true);
+    expect(
+      service._shouldCheckpoint({
+        checkpointMode: 'after_text',
+        currentPhaseIndex: 0,
+        phases: ['translation'],
+      }),
+    ).toBe(false);
+    expect(
+      service._shouldCheckpoint({
+        checkpointMode: 'after_text',
+        currentPhaseIndex: 1,
+        phases: ['text_derivation', 'translation'],
+      }),
+    ).toBe(false);
+    expect(
+      service._shouldCheckpoint({
+        checkpointMode: 'after_each',
+        currentPhaseIndex: 1,
+        phases: ['text_derivation', 'translation'],
+      }),
+    ).toBe(true);
+    expect(
+      service._shouldCheckpoint({
+        checkpointMode: 'auto',
+        currentPhaseIndex: 0,
+        phases: ['text_derivation'],
+      }),
+    ).toBe(false);
   });
 
   test('_providerKeyForStep resolves preferred text and translation providers', async () => {

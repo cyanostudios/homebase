@@ -14,12 +14,14 @@ Guides previously modeled Place → MasterGuide → Stop → Variant(type × lan
 2. **Migrate:** Prefer existing text in order `normal` → `deep` → `quick` per `(place, language)`; then drop audio, variants, stops.
 3. **Production jobs:** Type `full_guide` only. Job items reference `presentation_id` (not stop/variant). No deep-sibling wait. One `text_derivation` item per language presentation; translation targets other-language presentations.
 4. **Prompts:** Single text_derivation prompt set (no per-length folders). Prompt set **v1.4** targets a spoken audioguide narrative (~1200–1800 words; `maxCompletionTokens` 2800).
-5. **API:** `GET/PUT /api/guides/:id/presentations` (+ `/:language`); remove `/:id/stops/**` and nested audio.
+5. **API:** `GET/PUT /api/guides/:id/presentations` (+ `/:language`); `POST /api/guides/:id/presentations` creates an empty language shell idempotently (`ensurePresentationForLanguage`); remove `/:id/stops/**` and nested audio.
 6. **Public:** Expose place + presentations (not stop tree).
 7. **Audio/TTS:** Out of scope; `guide_audio` dropped with variants.
+8. **HITL writeback (2026-07-22):** `applyProductionPresentationText` sets `approval_status = approved` so job-item approve is sufficient for the approval gate (publish still requires `approved` + `fresh`).
 
 ## Consequences
 
 - Auto-stop provisioning removed.
 - Review/produce UI is place-scoped.
 - Existing multi-stop tours collapse to one presentation per language (data loss of other stops’ texts beyond migrate preference rule — accepted).
+- Create UX may start source `text_derivation` immediately (**Save and produce**); translations remain a separate editor action from detail.

@@ -1048,7 +1048,9 @@ class ProductionOrchestrationService {
     const mode = job.checkpointMode ?? 'after_text';
     if (mode === 'auto') return false;
     if (mode === 'after_each') return true;
-    return job.currentPhaseIndex === 0;
+    // after_text: checkpoint only after text_derivation (not merely phase index 0)
+    const phases = Array.isArray(job.phases) ? job.phases : DEFAULT_PHASES;
+    return phases[job.currentPhaseIndex] === 'text_derivation';
   }
 
   _normalizePhases(phases) {

@@ -4,6 +4,68 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-22 – Fix: translation-only jobs stuck in `awaiting_review`
+
+**Status:** Implementerat lokalt. QA + Security godkända. **Ej merge till `main` / Railway** utan explicit releasebeslut.
+
+**Sammanfattning:** `checkpoint_mode: after_text` checkpointade felaktigt på fas-**index** 0. Translation-only jobb (`phases: ['translation']`) fastnade i `awaiting_review` med `reviewPhase: translation` utan review-UI, vilket låste Add/Edit via `hasActiveJob`.
+
+### Backend
+
+- **`_shouldCheckpoint`** — `after_text` stoppar endast när aktuell fas är **`text_derivation`** (fasnamn), inte när `currentPhaseIndex === 0`.
+- Translation-only under `after_text` → auto-approve + `completed` (samma semantik som translation-fas i kombinerade jobb).
+- Text-only och `[text_derivation, translation]` behåller HITL efter text.
+
+### Tester
+
+- `production-orchestration.test.js` — uppdaterat `_shouldCheckpoint`; nytt fall för translation-only auto-complete.
+
+### Lokal recovery (verifierad)
+
+- GDS 20 / GDS 23: stuck jobs approve item + approve-phase → `completed`; Add/Edit upplåsta.
+
+**Säkerhet:** Inga nya attackytor; inga nya accepterade risker (Security 2026-07-22).
+
+---
+
+## 2026-07-22 – Guides create/produce polish + list/production reliability (`8a81785`)
+
+**Status:** Implementerat på branch `homebase-v3.8` (commit `8a81785`). QA + Security godkända. **Ej merge till `main` / Railway** utan explicit releasebeslut.
+
+**Sammanfattning:** Save and produce vid skapa; list-/detail-polish; HITL-approve sätter `approved`; tenant-filter fix för LATERAL/nästlade `ORDER BY`.
+
+### Frontend
+
+- **GuideForm** — knappar Cancel · Save · **Save and produce** (`guides.saveAndProduce`). Produce startar `phases: ['text_derivation']` för källspråk (default `en`), öppnar detail-vy; vanlig Save stänger till listan utan jobb.
+- **GuidesProvider / useProductionJob** — efter produce seeds `pendingProductionDetail` så `ProductionPhaseBanner` syns direkt (`useLayoutEffect`).
+- **GuideList** — filter StatCards Total / Draft / Active (`lifecycleStatus`); land-kolumn (`place.countryCode`); platsnamn trunkeras.
+- **GuideView** — detail-layout i linje med contacts (`DETAIL_VIEW_CARD_CLASS`); sammanslagen info/lifecycle/editorial.
+- **GuidePresentationSection** — alla presentationskort **kollapsade** vid full load (användaren expanderar).
+- Översättningar: oförändrat manuellt flöde från detail (shells + `phases: ['translation']`).
+
+### Backend
+
+- **`POST /api/guides/:id/presentations`** — idempotent shell per språk (`ensurePresentationForLanguage`); gate + CSRF + `languageBodyRule`.
+- **`applyProductionPresentationText`** — sätter `approval_status = 'approved'` (tidigare `pending_review`), så HITL-approve möjliggör publish utan extra approve-steg.
+- **Publish-gate** — använder beräknad approval (inkl. när samma request sparar text som godkänd).
+- **`PostgreSQLAdapter._addTenantFilter`** — top-level-only detektion av `WHERE` / `ORDER BY` / `GROUP BY` / `LIMIT` / `OFFSET` (fixar LATERAL/`ARRAY_AGG(... ORDER BY ...)` som tidigare kunde bryta listan / tenant-filter).
+- **`GET /places/search?countryCode=`** — oförändrat kontrakt från Create UX Polish (validerad ISO alpha-2).
+
+### Tester / smoke
+
+- Guides: approval, presentations, tenantFilter, production-orchestration m.fl.
+- `scripts/guides-save-and-produce-smoke.js` — lokal API-smoke (env: `GUIDES_SMOKE_API_URL`, `GUIDES_E2E_EMAIL`, `GUIDES_E2E_PASSWORD`; defaults endast för lokal e2e).
+
+### Begränsningar / residual (Security 2026-07-22)
+
+- Inga accepterade nya risker som kräver TPM-beslut.
+- Residual: `_addTenantFilter` hoppar över om SQL redan nämner `\buser_id\b` (befintligt mönster).
+- Prompt-injection via källinnehåll till text-provider: oförändrad LLM-yta.
+
+**ADR:** [`docs/ai/adr/P-GUIDES_PLACE_PRESENTATION.md`](ai/adr/P-GUIDES_PLACE_PRESENTATION.md); HITL-domänwriteback korrigerad i [`CONTENT_PRODUCTION_PIPELINE_V2.md`](ai/adr/CONTENT_PRODUCTION_PIPELINE_V2.md).
+
+---
+
 ## 2026-07 – Guides produce UX split (knappar, badges, språkkolumn)
 
 **Status:** Implementerat lokalt.
@@ -35,7 +97,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - **GuideForm** — `short intro`-fältet borttaget från skapa/redigera-UI (kolumn kvar nullable); `sourceLanguage` default ändrat till `en`.
 - **PlaceSearchField** — land-dropdown (ISO alpha-2) ovanför sökfältet; skickar `countryCode` till API.
 - **StartProductionDialog** — multi-select för språk; default = språk utan text; `force` påverkar bara valda språk.
-- **GuidePresentationSection** — collapsible kort per språk; källspråk öppet, övriga med text kollapsade som standard; `onPresentationsChange`-callback.
+- **GuidePresentationSection** — collapsible kort per språk; `onPresentationsChange`-callback. _(Superseded 2026-07-22: alla kort kollapsade vid full load — se posten `8a81785`.)_
 - **GuideView** — genererade språk visas som badges i info-sidopanelen.
 
 ### Backend
@@ -245,7 +307,7 @@ Blockerade E2E tills åtgärdade (P-ASYNC/P-CHAIN-berörda):
 
 - **Fasvis planering:** worker planerar endast aktuell fas (`phases[currentPhaseIndex]`); fas N+1 endast för varianter med `review_status=approved` i fas N.
 - **`approve-phase`:** fasövergångsgate (semantik skärpt i **P-REGEN** — se egen sektion).
-- **Checkpoint:** `after_text` (default) stoppar vid fas 0; `after_each` stoppar efter varje fas; `auto` auto-advancerar utan `awaiting_review`.
+- **Checkpoint:** `after_text` (default) stoppar efter fasen **`text_derivation`** (fasnamn, inte index 0); `after_each` stoppar efter varje fas; `auto` auto-advancerar utan `awaiting_review`. Translation-only jobb under `after_text` checkpointar **inte**.
 - **Deprecated:** `POST …/approve` delegerar till `approvePhase({ continue: true })` med varning i logg.
 - **F1-fix:** cancel under planning skriver inte över `cancelled` → `processing`.
 - **Tester:** 123 i guides-sviten (+5 P-CHAIN-tester).
@@ -264,7 +326,7 @@ Blockerade E2E tills åtgärdade (P-ASYNC/P-CHAIN-berörda):
 
 - Per-item HITL tillkom i **P-REGEN** (se egen sektion).
 - Audio-fas planeras som `skipped` om angiven — batch audio tillhör P-AUDIO-BATCH.
-- Med `after_text` auto-advancerar fas 1+ utan `awaiting_review` (translation får ingen HITL-stopp som default).
+- Med `after_text` auto-advancerar faser som **inte** är `text_derivation` utan `awaiting_review` (translation — inkl. translation-only jobb — får ingen HITL-stopp som default).
 
 **Spec:** `docs/ai/CHANGELOG.md` § Content Production Pipeline – P-CHAIN.
 

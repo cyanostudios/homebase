@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '@/core/api/AppContext';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
@@ -62,6 +63,20 @@ export function GuidesProvider({
     isSelected,
     selectedCount,
   } = useBulkSelection();
+
+  const refreshGuides = useCallback(async () => {
+    if (!isAuthenticated) {
+      setGuides([]);
+      return;
+    }
+    try {
+      const data = await guidesApi.getGuides();
+      setGuides(data);
+    } catch (err) {
+      console.error('Failed to load guides:', err);
+      setValidationErrors([{ field: 'general', message: t('guides.loadFailed') }]);
+    }
+  }, [isAuthenticated, setValidationErrors, t]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -145,6 +160,15 @@ export function GuidesProvider({
   useEffect(() => {
     openGuideForViewRef.current = openGuideForView;
   }, [openGuideForView]);
+
+  const {
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex,
+    totalItems,
+  } = usePluginNavigation(guides, currentGuide, openGuideForView);
 
   const guidesDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -270,10 +294,26 @@ export function GuidesProvider({
         clearValidationErrors();
         return true;
       } catch (err) {
-        const error = err as { errors?: GuideValidationError[] };
+        const error = err as {
+          errors?: GuideValidationError[];
+          message?: string;
+          code?: string;
+        };
         console.error('Failed to save guide place:', err);
-        if (Array.isArray(error.errors)) {
+        if (Array.isArray(error.errors) && error.errors.length > 0) {
           setValidationErrors(error.errors);
+        } else if (
+          typeof error.message === 'string' &&
+          error.message.includes('active lifecycle requires')
+        ) {
+          setValidationErrors([
+            {
+              field: 'lifecycleStatus',
+              message: t('guides.lifecycleActiveRequiresPublished'),
+            },
+          ]);
+        } else if (typeof error.message === 'string' && error.message.trim()) {
+          setValidationErrors([{ field: 'general', message: error.message }]);
         } else {
           setValidationErrors([{ field: 'general', message: t('guides.saveFailed') }]);
         }
@@ -386,6 +426,13 @@ export function GuidesProvider({
       selectedCount,
       isSelected,
       clearValidationErrors,
+      refreshGuides,
+      navigateToPrevItem,
+      navigateToNextItem,
+      hasPrevItem,
+      hasNextItem,
+      currentItemIndex,
+      totalItems,
     }),
     [
       isGuidePanelOpen,
@@ -411,6 +458,13 @@ export function GuidesProvider({
       selectedCount,
       isSelected,
       clearValidationErrors,
+      refreshGuides,
+      navigateToPrevItem,
+      navigateToNextItem,
+      hasPrevItem,
+      hasNextItem,
+      currentItemIndex,
+      totalItems,
     ],
   );
 

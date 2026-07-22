@@ -1,4 +1,13 @@
-import { ArrowDown, ArrowUp, Grid3x3, List, Plus, Search, Trash2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Grid3x3,
+  List,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +33,7 @@ import { cn } from '@/lib/utils';
 
 import { useGuides } from '../hooks/useGuides';
 import { type Guide, GUIDE_LIFECYCLE_COLORS } from '../types/guides';
+import { BulkStatusDialog } from './BulkStatusDialog';
 import { GuideLanguageBadges } from './GuideLanguageBadges';
 
 import { GuideCard } from './GuideCard';
@@ -99,6 +109,7 @@ export const GuideList: React.FC = () => {
     clearGuideSelection,
     selectedCount,
     isSelected,
+    refreshGuides,
   } = useGuides();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
@@ -108,6 +119,7 @@ export const GuideList: React.FC = () => {
   const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
   const [activeFilter, setActiveFilter] = useState<GuideListFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const setViewMode = useCallback((mode: ViewMode) => {
@@ -116,6 +128,11 @@ export const GuideList: React.FC = () => {
       window.sessionStorage.setItem(GUIDES_VIEW_MODE_STORAGE_KEY, mode);
     }
   }, []);
+
+  const selectedGuides = useMemo(() => {
+    const idSet = new Set(selectedGuideIds.map(String));
+    return guides.filter((guide) => idSet.has(String(guide.id)));
+  }, [guides, selectedGuideIds]);
 
   const stats = useMemo(() => {
     let draft = 0;
@@ -306,6 +323,11 @@ export const GuideList: React.FC = () => {
             onClearSelection={clearGuideSelection}
             actions={[
               {
+                label: t('guides.bulkStatusAction'),
+                icon: SlidersHorizontal,
+                onClick: () => setShowBulkStatusDialog(true),
+              },
+              {
                 label: t('common.delete'),
                 icon: Trash2,
                 onClick: () => setShowBulkDeleteModal(true),
@@ -314,6 +336,16 @@ export const GuideList: React.FC = () => {
             ]}
           />
         )}
+
+        <BulkStatusDialog
+          isOpen={showBulkStatusDialog}
+          onClose={() => setShowBulkStatusDialog(false)}
+          selectedGuides={selectedGuides}
+          onSuccess={async () => {
+            await refreshGuides();
+            clearGuideSelection();
+          }}
+        />
 
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}

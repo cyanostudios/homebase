@@ -85,6 +85,13 @@ class GuidesApi {
     );
   }
 
+  deletePresentation(placeId: string, language: string) {
+    return apiRequest<{ deleted: boolean; id: string; language: string }>(
+      `/${placeId}/presentations/${encodeURIComponent(language)}`,
+      { method: 'DELETE' },
+    );
+  }
+
   listProductionJobs(placeId: string) {
     return apiRequest<ProductionJob[]>(`/${placeId}/production-jobs`);
   }

@@ -2,6 +2,27 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Fix: after_text checkpoint by phase name (2026-07-22)
+
+Bugfix: `_shouldCheckpoint` under `after_text` nycklar på fasnamn `text_derivation` (inte `currentPhaseIndex === 0`). Translation-only jobb auto-completar; text-HITL oförändrad.
+
+Dokumentation: [`docs/CHANGELOG.md`](../CHANGELOG.md) (ny post); P-CHAIN-rad + [`CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md) fasövergångar korrigerade.
+
+QA + Security: godkända. Inga nya accepterade säkerhetsrisker.
+
+---
+
+## Guides create/produce polish + reliability docs sync (2026-07-22)
+
+Produkt-/beteendeändringar i commit `8a81785` dokumenterade i [`docs/CHANGELOG.md`](../CHANGELOG.md). ADR-sync:
+
+- [`P-GUIDES_PLACE_PRESENTATION.md`](adr/P-GUIDES_PLACE_PRESENTATION.md) — `POST …/presentations`; HITL → `approved`.
+- [`CONTENT_PRODUCTION_PIPELINE_V2.md`](adr/CONTENT_PRODUCTION_PIPELINE_V2.md) — korrigerat att `applyProductionPresentationText` sätter `approved` (inte `pending_review`).
+
+QA + Security: godkända för intervallet `783beb9..8a81785`. Inga nya accepterade säkerhetsrisker som kräver TPM-beslut.
+
+---
+
 ## P-GUIDES_PLACE_PRESENTATION — One guide per place (2026-07-19)
 
 Place-only Guides: `guide_presentations` (no stops/variants/audio); `full_guide` items use `presentation_id`; single `text_derivation` prompt. ADR: [`docs/ai/adr/P-GUIDES_PLACE_PRESENTATION.md`](adr/P-GUIDES_PLACE_PRESENTATION.md). Docs synced: content sources, P-TEXT, pipeline v2, UX v1/v2.
@@ -671,11 +692,13 @@ Body: { continue?: boolean }   // default true
 
 ### Checkpoint-beteende
 
-| `checkpointMode`       | Fas 0 (text)      | Fas 1+ (translation)            |
-| ---------------------- | ----------------- | ------------------------------- |
-| `after_text` (default) | `awaiting_review` | Auto-advance (ingen HITL-stopp) |
-| `after_each`           | `awaiting_review` | `awaiting_review`               |
-| `auto`                 | Auto-advance      | Auto-advance                    |
+`after_text` avgörs av **fasnamn** (`text_derivation`), inte fasindex. Translation-only (`phases: ['translation']`) under `after_text` → ingen HITL (auto-complete).
+
+| `checkpointMode`       | När fas = `text_derivation` | När fas = `translation` (inkl. enda fas) |
+| ---------------------- | --------------------------- | ---------------------------------------- |
+| `after_text` (default) | `awaiting_review`           | Auto-advance / complete (ingen HITL)     |
+| `after_each`           | `awaiting_review`           | `awaiting_review`                        |
+| `auto`                 | Auto-advance                | Auto-advance                             |
 
 ### Fasflöde (default `after_text`, 2 faser — med P-REGEN HITL)
 

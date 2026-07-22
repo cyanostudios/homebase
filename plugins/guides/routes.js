@@ -230,6 +230,16 @@ function createGuidesRoutes(controller, context) {
     (req, res) => controller.updatePresentation(req, res),
   );
 
+  router.delete(
+    '/:id/presentations/:language',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    languageParamRule(),
+    validateRequest,
+    (req, res) => controller.deletePresentation(req, res),
+  );
+
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res),
   );

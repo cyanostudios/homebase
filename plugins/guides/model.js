@@ -786,6 +786,57 @@ class GuidesModel {
     }
   }
 
+  /**
+   * Delete a language presentation for a place.
+   * Removes production job items that reference the presentation first (FK is NOT NULL).
+   * @param {import('express').Request} req
+   * @param {string} placeId
+   * @param {string} language
+   */
+  async deletePresentation(req, placeId, language) {
+    try {
+      const existing = await this.getPresentationByLanguage(req, placeId, language);
+      const normalizedLanguage = parseLanguage(language);
+      const db = Database.get(req);
+
+      await db.query(
+        `
+          DELETE FROM guide_production_job_items
+          WHERE presentation_id = $1
+        `,
+        [existing.id],
+      );
+
+      const rows = await db.query(
+        `
+          DELETE FROM ${PRESENTATIONS_TABLE} gp
+          USING ${MASTER_GUIDES_TABLE} mg
+          INNER JOIN ${PLACES_TABLE} p ON p.id = mg.place_id
+          WHERE gp.master_guide_id = mg.id
+            AND gp.language = $1
+            AND mg.place_id = $2
+          RETURNING gp.id
+        `,
+        [normalizedLanguage, placeId],
+      );
+
+      if (!rows.length) {
+        throw new AppError('Presentation not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      Logger.info('Guide presentation deleted', {
+        placeId,
+        language: normalizedLanguage,
+        presentationId: existing.id,
+      });
+      return { deleted: true, id: existing.id, language: normalizedLanguage };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to delete guide presentation', error, { placeId, language });
+      throw new AppError('Failed to delete presentation', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async applyProductionPresentationText(req, placeId, presentationId, presentationText) {
     const db = Database.get(req);
     const rows = await db.query(
