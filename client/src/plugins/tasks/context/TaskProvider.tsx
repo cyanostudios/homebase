@@ -27,6 +27,7 @@ import {
   formatStatusForDisplay,
 } from '../types/tasks';
 import { getTaskExportBaseFilename, getTasksExportConfig } from '../utils/taskExportConfig';
+import { shouldApplyOpenTaskSaveEffects } from '../utils/taskListSave';
 
 import { TaskContext } from './TaskContext';
 import type { TaskContextType } from './TaskContext';
@@ -302,16 +303,19 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
                 : task,
             ),
           );
-          if (currentTask && currentTask.id === idToUpdate) {
+          if (shouldApplyOpenTaskSaveEffects(currentTask?.id, String(idToUpdate))) {
             setCurrentTask({
               ...savedTask,
               createdAt: new Date(savedTask.createdAt),
               updatedAt: new Date(savedTask.updatedAt),
               dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
             });
+            // List (or other) saves of the open task must not leave a stale quick-edit draft.
+            setQuickEditDraft(null);
+            setPanelMode('view');
+            setValidationErrors([]);
           }
-          setPanelMode('view');
-          setValidationErrors([]);
+          // Updates of a different task (e.g. list inline status) must not force the open panel to view.
         } else {
           savedTask = await tasksApi.createTask(taskData);
           setTasks((prev) => [
@@ -820,6 +824,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const importTasks = useCallback(
     async (data: any[]) => {
       let successCount = 0;
+      let failureCount = 0;
       for (const row of data) {
         try {
           const payload = {
@@ -831,12 +836,14 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           await tasksApi.createTask(payload);
           successCount++;
         } catch (error) {
+          failureCount++;
           console.error('Failed to import task', row, error);
         }
       }
       if (successCount > 0) {
         await loadTasks();
       }
+      return { successCount, failureCount };
     },
     [loadTasks],
   );

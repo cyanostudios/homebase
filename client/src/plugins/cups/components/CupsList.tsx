@@ -2,42 +2,52 @@ import {
   ArrowDown,
   ArrowUp,
   Download,
-  Grid3x3,
-  List,
   Plus,
   Search,
   Settings,
   SlidersHorizontal,
   Trash2,
   X,
+  XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
 
 import { useCups } from '../hooks/useCups';
+import {
+  CUPS_COLUMN_COUNT_STORAGE_KEY,
+  CUPS_SETTINGS_KEY,
+  getInitialCupColumnCount,
+  resolveCupColumnCount,
+  type CupColumnCount,
+} from '../utils/cupColumnCount';
+import {
+  compareCupsTwoLevel,
+  isCupAscDefaultField,
+  type CupSortField,
+  type CupSortOrder,
+} from '../utils/cupListSort';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
-import { CupCard } from './CupCard';
+import { CupListItem } from './CupListItem';
 import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
@@ -45,102 +55,22 @@ import {
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
 import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView';
 
-type SortField =
-  | 'name'
-  | 'start_date'
-  | 'location'
-  | 'updated_at'
-  | 'ingest'
-  | 'featured'
-  | 'ratings_count';
-type SortOrder = 'asc' | 'desc';
-type CupsViewMode = 'grid' | 'list';
+type SortField = CupSortField;
+type SortOrder = CupSortOrder;
 type CupFilter = 'all' | 'visible' | 'featured' | 'upcoming' | 'removed';
 
-const CUPS_VIEW_MODE_STORAGE_KEY = 'cups:viewMode';
+const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'updatedAt', label: 'Updated' },
+  { value: 'name', label: 'Name' },
+  { value: 'start_date', label: 'Start date' },
+  { value: 'location', label: 'Location' },
+  { value: 'ingest', label: 'Ingest' },
+  { value: 'featured', label: 'Featured' },
+  { value: 'ratings_count', label: 'Ratings' },
+  { value: 'visible', label: 'Visible' },
+];
 
-function StatCard({
-  label,
-  value,
-  dotClassName,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
-        onClick && 'cursor-pointer hover:bg-muted/50',
-        active && 'ring-1 ring-border/70',
-      )}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
-
-function SortableHead({
-  label,
-  field,
-  sortField,
-  sortOrder,
-  className,
-  onSort,
-}: {
-  label: string;
-  field: SortField;
-  sortField: SortField;
-  sortOrder: SortOrder;
-  className?: string;
-  onSort: (field: SortField) => void;
-}) {
-  return (
-    <TableHead
-      className={cn('cursor-pointer select-none py-1.5 text-xs hover:bg-muted/50', className)}
-      onClick={() => onSort(field)}
-    >
-      <div className="flex items-center gap-1.5">
-        <span>{label}</span>
-        {sortField === field &&
-          (sortOrder === 'asc' ? (
-            <ArrowUp className="h-3 w-3 shrink-0" />
-          ) : (
-            <ArrowDown className="h-3 w-3 shrink-0" />
-          ))}
-      </div>
-    </TableHead>
-  );
-}
-
-function getInitialViewMode(): CupsViewMode {
-  if (typeof window === 'undefined') {
-    return 'list';
-  }
-  return window.sessionStorage.getItem(CUPS_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
-}
+const COLUMN_OPTIONS: CupColumnCount[] = [1, 2, 3];
 
 export function CupsList() {
   const { t } = useTranslation();
@@ -164,14 +94,17 @@ export function CupsList() {
   } = useCups();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
   const [search, setSearch] = useState('');
-  const [sortField, setSortField] = useState<SortField>('updated_at');
+  const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
+  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [columnCount, setColumnCountState] = useState<CupColumnCount>(getInitialCupColumnCount);
   const [activeFilter, setActiveFilter] = useState<CupFilter>('all');
-  const [viewMode, setViewModeState] = useState<CupsViewMode>(getInitialViewMode);
   const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('view');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkPropertiesDialog, setShowBulkPropertiesDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [pickImportOpen, setPickImportOpen] = useState(false);
   const [pickImportSettings, setPickImportSettings] = useState<{
     allowedIds: string[];
@@ -195,6 +128,7 @@ export function CupsList() {
   } | null>(null);
   const [ingestSources, setIngestSources] = useState<IngestSource[]>([]);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
   const selectedCups = useMemo(
     () => cups.filter((c) => selectedCupIds.includes(c.id)),
     [cups, selectedCupIds],
@@ -235,14 +169,15 @@ export function CupsList() {
 
   useEffect(() => {
     let cancelled = false;
-    getSettings('cups')
-      .then((settings: { viewMode?: CupsViewMode }) => {
-        if (!cancelled) {
-          const nextMode: CupsViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
-          setViewModeState(nextMode);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(CUPS_VIEW_MODE_STORAGE_KEY, nextMode);
-          }
+    getSettings(CUPS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        const next = resolveCupColumnCount(settings);
+        setColumnCountState(next);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
       })
       .catch(() => {});
@@ -251,15 +186,50 @@ export function CupsList() {
     };
   }, [getSettings, settingsVersion]);
 
-  const setViewMode = useCallback(
-    (mode: CupsViewMode) => {
-      setViewModeState(mode);
+  const setColumnCount = useCallback(
+    (count: CupColumnCount) => {
+      setColumnCountState(count);
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(CUPS_VIEW_MODE_STORAGE_KEY, mode);
+        window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings('cups', { viewMode: mode }).catch(() => {});
+      updateSettings(CUPS_SETTINGS_KEY, { columnCount: count }).catch(() => {});
     },
     [updateSettings],
+  );
+
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isCupAscDefaultField(field) ? 'asc' : 'desc');
+    setSecondarySort((prev) => (prev === field ? '' : prev));
+  };
+
+  const handleSecondarySortChange = (value: string) => {
+    if (value === '' || value === 'none') {
+      setSecondarySort('');
+      return;
+    }
+    const field = value as SortField;
+    if (field === primarySort) {
+      return;
+    }
+    setSecondarySort(field);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const secondarySortOptions = useMemo(
+    () => SORT_FIELD_OPTIONS.filter((option) => option.value !== primarySort),
+    [primarySort],
+  );
+
+  const primarySortOptions = useMemo(
+    () =>
+      secondarySort
+        ? SORT_FIELD_OPTIONS.filter((option) => option.value !== secondarySort)
+        : SORT_FIELD_OPTIONS,
+    [secondarySort],
   );
 
   const filtered = useMemo(() => {
@@ -303,47 +273,11 @@ export function CupsList() {
   }, [cups, search, ingestTitleForCup, activeFilter]);
 
   const filteredAndSorted = useMemo(() => {
-    const list = [...filtered];
-    return list.sort((a, b) => {
-      let av: string | number = '';
-      let bv: string | number = '';
-      if (sortField === 'name') {
-        av = (a.name || '').toLowerCase();
-        bv = (b.name || '').toLowerCase();
-      } else if (sortField === 'location') {
-        av = (a.location || '').toLowerCase();
-        bv = (b.location || '').toLowerCase();
-      } else if (sortField === 'start_date') {
-        av = a.start_date ? new Date(a.start_date).getTime() : 0;
-        bv = b.start_date ? new Date(b.start_date).getTime() : 0;
-      } else if (sortField === 'ingest') {
-        const ta = ingestTitleForCup(a.ingest_source_id);
-        const tb = ingestTitleForCup(b.ingest_source_id);
-        const emptyA = !a.ingest_source_id || ta === '';
-        const emptyB = !b.ingest_source_id || tb === '';
-        if (emptyA !== emptyB) {
-          return sortOrder === 'asc' ? (emptyA ? 1 : -1) : emptyA ? -1 : 1;
-        }
-        av = ta.toLowerCase();
-        bv = tb.toLowerCase();
-      } else if (sortField === 'featured') {
-        av = a.featured === true ? 1 : 0;
-        bv = b.featured === true ? 1 : 0;
-      } else if (sortField === 'ratings_count') {
-        av = a.ratings_count ?? 0;
-        bv = b.ratings_count ?? 0;
-      } else {
-        av = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-        bv = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-      }
+    return [...filtered].sort((a, b) =>
+      compareCupsTwoLevel(a, b, primarySort, secondarySort, sortOrder, ingestTitleForCup),
+    );
+  }, [filtered, primarySort, secondarySort, sortOrder, ingestTitleForCup]);
 
-      if (typeof av === 'number' && typeof bv === 'number') {
-        return sortOrder === 'asc' ? av - bv : bv - av;
-      }
-      const cmp = String(av).localeCompare(String(bv), undefined, { sensitivity: 'base' });
-      return sortOrder === 'asc' ? cmp : -cmp;
-    });
-  }, [filtered, sortField, sortOrder, ingestTitleForCup]);
   const stats = useMemo(() => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -365,8 +299,16 @@ export function CupsList() {
   }, [cups]);
 
   const visibleIds = useMemo(() => filteredAndSorted.map((c) => c.id), [filteredAndSorted]);
-  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(id));
-  const someVisibleSelected = visibleIds.some((id) => isSelected(id));
+
+  const allVisibleSelected = useMemo(
+    () => visibleIds.length > 0 && visibleIds.every((id) => isSelected(id)),
+    [visibleIds, isSelected],
+  );
+
+  const someVisibleSelected = useMemo(
+    () => visibleIds.some((id) => isSelected(id)),
+    [visibleIds, isSelected],
+  );
 
   useEffect(() => {
     if (!headerCheckboxRef.current) {
@@ -374,6 +316,37 @@ export function CupsList() {
     }
     headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
   }, [allVisibleSelected, someVisibleSelected]);
+
+  const handleHeaderCheckboxChange = () => {
+    if (allVisibleSelected) {
+      clearCupSelection();
+    } else {
+      const union = Array.from(new Set([...selectedCupIds, ...visibleIds]));
+      selectAllCups(union);
+    }
+  };
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleIds,
+      mergeIntoSelection: mergeIntoCupSelection,
+      toggleOne: toggleCupSelected,
+    });
+
+  const handleBulkDelete = async () => {
+    if (selectedCupIds.length === 0) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteCups(selectedCupIds);
+      setShowBulkDeleteModal(false);
+    } catch (err: any) {
+      console.error('Bulk delete failed:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const openImportPicker = useCallback(async () => {
     const settings = await getSettings('cups').catch(
@@ -453,24 +426,6 @@ export function CupsList() {
     [importFromIngestSource, pickImportSettings.allowedIds],
   );
 
-  const onToggleAllVisible = useCallback(() => {
-    if (allVisibleSelected) {
-      const set = new Set(visibleIds);
-      const remaining = selectedCupIds.filter((id) => !set.has(id));
-      selectAllCups(remaining);
-    } else {
-      const union = Array.from(new Set([...selectedCupIds, ...visibleIds]));
-      selectAllCups(union);
-    }
-  }, [allVisibleSelected, selectAllCups, selectedCupIds, visibleIds]);
-
-  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
-    useShiftRangeListSelection({
-      orderedVisibleIds: visibleIds,
-      mergeIntoSelection: mergeIntoCupSelection,
-      toggleOne: toggleCupSelected,
-    });
-
   if (cupsContentView === 'settings') {
     return (
       <div className="plugin-cups min-h-full bg-background">
@@ -499,7 +454,7 @@ export function CupsList() {
 
   return (
     <div className="plugin-cups min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.cups')}</h2>
@@ -543,28 +498,28 @@ export function CupsList() {
             stats.removed > 0 ? 'md:grid-cols-5' : 'md:grid-cols-4',
           )}
         >
-          <StatCard
+          <ListFilterStatCard
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Visible"
             value={stats.visible}
             dotClassName="bg-emerald-500"
             active={activeFilter === 'visible'}
             onClick={() => setActiveFilter('visible')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Featured"
             value={stats.featured}
             dotClassName="bg-amber-500"
             active={activeFilter === 'featured'}
             onClick={() => setActiveFilter('featured')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Upcoming"
             value={stats.upcoming}
             dotClassName="bg-violet-500"
@@ -572,7 +527,7 @@ export function CupsList() {
             onClick={() => setActiveFilter('upcoming')}
           />
           {stats.removed > 0 && (
-            <StatCard
+            <ListFilterStatCard
               label="Removed"
               value={stats.removed}
               dotClassName="bg-red-400"
@@ -582,35 +537,13 @@ export function CupsList() {
           )}
         </div>
 
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearCupSelection}
-            actions={[
-              {
-                label: t('slots.properties'),
-                icon: SlidersHorizontal,
-                onClick: () => setShowBulkPropertiesDialog(true),
-              },
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                variant: 'destructive',
-                onClick: () => setShowBulkDeleteModal(true),
-              },
-            ]}
-          />
-        )}
-
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}
           onClose={() => setShowBulkDeleteModal(false)}
-          onConfirm={async () => {
-            await deleteCups(selectedCupIds);
-            setShowBulkDeleteModal(false);
-          }}
+          onConfirm={handleBulkDelete}
           itemCount={selectedCount}
           itemLabel={selectedCount === 1 ? 'cup' : 'cups'}
+          isLoading={deleting}
         />
 
         <BulkPropertiesDialog
@@ -651,20 +584,9 @@ export function CupsList() {
           />
         )}
 
-        <Card
-          className={cn(
-            'rounded-xl border-0',
-            viewMode === 'grid'
-              ? 'overflow-visible bg-transparent shadow-none'
-              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
-          )}
-        >
-          <div
-            className={cn(
-              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
-              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
-            )}
-          >
+        <div className="flex flex-col gap-3">
+          {/* Toolbar: search + two-level sort + asc/desc + columns */}
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -675,54 +597,170 @@ export function CupsList() {
               />
             </div>
             <div className="flex flex-shrink-0 items-center gap-1">
+              <div className="mr-1 flex items-center gap-1">
+                <Select
+                  value={primarySort}
+                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                >
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="Sort by"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    {primarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="And sort by"
+                  >
+                    <SelectValue placeholder="And..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    <SelectItem value="none" className="rounded-md text-xs">
+                      And...
+                    </SelectItem>
+                    {secondarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 px-0 text-xs"
+                  onClick={toggleSortOrder}
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                >
+                  {sortOrder === 'asc' ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
               <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Grid3x3}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'grid'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('grid')}
-                >
-                  {t('slots.grid')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={List}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'list'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('list')}
-                >
-                  {t('slots.list')}
-                </Button>
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                      columnCount === count
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`cups.columns${count}`)}
+                    aria-pressed={columnCount === count}
+                  >
+                    {count}
+                  </Button>
+                ))}
               </div>
             </div>
           </div>
 
+          {/* Select-all / bulk action bar */}
+          {filteredAndSorted.length > 0 ? (
+            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
+              {selectedCount === 0 ? (
+                <div className="flex h-9 min-w-0 items-center gap-2">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleHeaderCheckboxChange}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label="Select all cups"
+                  />
+                  <span className="text-xs text-muted-foreground">Select all</span>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearCupSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={SlidersHorizontal}
+                    onClick={() => setShowBulkPropertiesDialog(true)}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    {t('slots.properties')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+
           {filteredAndSorted.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                {search.trim() ? t('cups.noMatch') : t('cups.noYet')}
-              </div>
-            </Card>
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
+              {search.trim() ? t('cups.noMatch') : t('cups.noYet')}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'grid gap-3',
+                columnCount === 1 && 'grid-cols-1',
+                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+              )}
+            >
               {filteredAndSorted.map((cup, index) => (
-                <CupCard
+                <CupListItem
                   key={cup.id}
                   cup={cup}
                   selected={isSelected(cup.id)}
-                  ingestTitle={ingestTitleForCup(cup.ingest_source_id) || null}
                   onClick={() => attemptNavigation(() => openCupForView(cup))}
+                  ingestTitle={ingestTitleForCup(cup.ingest_source_id) || null}
                   checkbox={
                     <input
                       type="checkbox"
@@ -731,203 +769,19 @@ export function CupsList() {
                       onChange={() => onVisibleRowCheckboxChange(cup.id)}
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 cursor-pointer"
+                      aria-label={isSelected(cup.id) ? 'Unselect cup' : 'Select cup'}
                     />
                   }
                 />
               ))}
             </div>
-          ) : (
-            <Card className="shadow-none">
-              <Table rowBorders={false}>
-                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
-                  <TableRow className="h-8">
-                    <TableHead className="w-10 py-1.5 text-xs">
-                      <input
-                        ref={headerCheckboxRef}
-                        type="checkbox"
-                        className="h-3.5 w-3.5 cursor-pointer"
-                        checked={allVisibleSelected}
-                        onChange={onToggleAllVisible}
-                      />
-                    </TableHead>
-                    <SortableHead
-                      label={t('cups.columnName')}
-                      field="name"
-                      sortField={sortField}
-                      sortOrder={sortOrder}
-                      onSort={(f) => {
-                        if (sortField === f) {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField(f);
-                          setSortOrder('asc');
-                        }
-                      }}
-                    />
-                    <TableHead className="py-1.5 text-xs text-muted-foreground">Status</TableHead>
-                    <SortableHead
-                      label={t('cups.columnLocation')}
-                      field="location"
-                      sortField={sortField}
-                      sortOrder={sortOrder}
-                      onSort={(f) => {
-                        if (sortField === f) {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField(f);
-                          setSortOrder('asc');
-                        }
-                      }}
-                    />
-                    <SortableHead
-                      label={t('cups.columnIngest')}
-                      field="ingest"
-                      sortField={sortField}
-                      sortOrder={sortOrder}
-                      className="max-w-[12rem]"
-                      onSort={(f) => {
-                        if (sortField === f) {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField(f);
-                          setSortOrder('asc');
-                        }
-                      }}
-                    />
-                    <SortableHead
-                      label={t('cups.columnStart')}
-                      field="start_date"
-                      sortField={sortField}
-                      sortOrder={sortOrder}
-                      onSort={(f) => {
-                        if (sortField === f) {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField(f);
-                          setSortOrder('asc');
-                        }
-                      }}
-                    />
-                    <SortableHead
-                      label="Betyg"
-                      field="ratings_count"
-                      sortField={sortField}
-                      sortOrder={sortOrder}
-                      className="w-20 text-right"
-                      onSort={(f) => {
-                        if (sortField === f) {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField(f);
-                          setSortOrder('desc');
-                        }
-                      }}
-                    />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSorted.map((cup, index) => (
-                    <TableRow
-                      key={cup.id}
-                      className={cn(
-                        'h-9 cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
-                        isSelected(cup.id) && 'bg-plugin-subtle',
-                        cup.deleted_at !== null && cup.deleted_at !== undefined && 'opacity-50',
-                      )}
-                      onClick={(e) => {
-                        if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                          return;
-                        }
-                        attemptNavigation(() => openCupForView(cup));
-                      }}
-                      role="button"
-                    >
-                      <TableCell
-                        className="w-10 py-1.5 text-xs"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected(cup.id)}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(cup.id)}
-                          className="h-3.5 w-3.5 cursor-pointer"
-                        />
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <div className="flex flex-col gap-0">
-                          <span className="text-sm font-medium leading-tight">
-                            {cup.name || '—'}
-                          </span>
-                          {cup.organizer && (
-                            <span className="text-[11px] leading-tight text-muted-foreground">
-                              {cup.organizer}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-1.5">
-                        <div className="flex items-center gap-1">
-                          {cup.visible ? (
-                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                              Vis
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                              Dold
-                            </span>
-                          )}
-                          {cup.featured && (
-                            <span className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                              Top
-                            </span>
-                          )}
-                          {cup.deleted_at !== null && cup.deleted_at !== undefined && (
-                            <span className="inline-flex items-center rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400">
-                              Borttagen
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-1.5 text-xs text-muted-foreground">
-                        {cup.location || '—'}
-                      </TableCell>
-                      <TableCell
-                        className="max-w-[12rem] truncate py-1.5 text-xs text-muted-foreground"
-                        title={ingestTitleForCup(cup.ingest_source_id) || undefined}
-                      >
-                        {ingestTitleForCup(cup.ingest_source_id) || '—'}
-                      </TableCell>
-                      <TableCell className="py-1.5 text-xs text-muted-foreground">
-                        {cup.start_date
-                          ? new Date(cup.start_date).toLocaleDateString('sv-SE')
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="w-20 py-1.5 text-right text-xs tabular-nums text-muted-foreground">
-                        {cup.ratings_count > 0 ? (
-                          <span className="font-medium text-foreground">{cup.ratings_count}</span>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
           )}
-          <div
-            className={cn(
-              'px-4 py-2 text-xs text-muted-foreground',
-              viewMode === 'grid'
-                ? 'mx-1 mb-1 mt-3 rounded-xl bg-white dark:bg-slate-950'
-                : 'border-t border-border/60',
-            )}
-          >
+
+          <div className="rounded-xl bg-white px-4 py-3 text-xs text-muted-foreground shadow-sm dark:bg-slate-950">
             Showing {filteredAndSorted.length} of{' '}
             {activeFilter === 'removed' ? stats.removed : stats.total} Cups
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

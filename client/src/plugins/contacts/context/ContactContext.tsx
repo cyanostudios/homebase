@@ -34,7 +34,7 @@ export interface ContactContextType {
   getDeleteMessage: (item: Contact | null) => string;
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Contact) => void;
-  importContacts: (data: any[]) => Promise<void>;
+  importContacts: (data: any[]) => Promise<{ successCount: number; failureCount: number }>;
   displayTags: string[];
   addTagToDraft: (tag: string) => void;
   removeTagFromDraft: (tag: string) => void;
@@ -117,7 +117,7 @@ const EMPTY_CONTACT_CONTEXT: ContactContextType = {
   getDeleteMessage: () => '',
   exportFormats: [],
   onExportItem: () => {},
-  importContacts: async () => {},
+  importContacts: async () => ({ successCount: 0, failureCount: 0 }),
   displayTags: [],
   addTagToDraft: () => {},
   removeTagFromDraft: () => {},

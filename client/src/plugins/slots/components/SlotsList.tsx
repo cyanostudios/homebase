@@ -2,8 +2,6 @@ import {
   ArrowDown,
   ArrowUp,
   FileSpreadsheet,
-  Grid3x3,
-  List,
   Mail,
   MessageSquare,
   Plus,
@@ -12,37 +10,34 @@ import {
   SlidersHorizontal,
   Trash2,
   X,
+  XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { exportItems } from '@/core/utils/exportUtils';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
 import { slotsApi } from '../api/slotsApi';
 import { useSlotsContext as useSlots } from '../context/SlotsContext';
-import type { Slot, SlotsViewMode } from '../types/slots';
-import { SLOTS_SETTINGS_KEY } from '../types/slots';
+import type { Slot } from '../types/slots';
 import {
   appendPublicBookingsToEmailRecipients,
   appendPublicBookingsToMessageRecipients,
@@ -51,67 +46,39 @@ import {
   resolveSlotsToContacts,
   resolveSlotsToEmailContacts,
 } from '../utils/slotContactUtils';
-import { isSlotTimePast } from '../utils/slotTimeUtils';
+import {
+  getInitialSlotColumnCount,
+  resolveSlotColumnCount,
+  SLOTS_COLUMN_COUNT_STORAGE_KEY,
+  SLOTS_SETTINGS_KEY,
+  type SlotColumnCount,
+} from '../utils/slotColumnCount';
+import {
+  compareSlotsTwoLevel,
+  isSlotAscDefaultField,
+  type SlotSortField,
+  type SlotSortOrder,
+} from '../utils/slotListSort';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
-import { CapacityAssignedDots } from './CapacityAssignedDots';
+import { SlotListItem } from './SlotListItem';
 import { SlotsSettingsView } from './SlotsSettingsView';
 
-type SortField = 'name' | 'slot_time' | 'location' | 'updatedAt';
-type SortOrder = 'asc' | 'desc';
+type SortField = SlotSortField;
+type SortOrder = SlotSortOrder;
 type SlotFilter = 'all' | 'visible' | 'upcoming' | 'withCategory';
-const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
-const SLOTS_VIEW_MODE_STORAGE_KEY = 'slots:viewMode';
 
-function StatCard({
-  label,
-  value,
-  dotClassName,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
-        onClick && 'cursor-pointer hover:bg-muted/50',
-        active && 'ring-1 ring-border/70',
-      )}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
+const COLUMN_OPTIONS: SlotColumnCount[] = [1, 2, 3];
 
-function getInitialViewMode(): SlotsViewMode {
-  if (typeof window === 'undefined') {
-    return 'list';
-  }
-  return window.sessionStorage.getItem(SLOTS_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
-}
+const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'slot_time', label: 'Time' },
+  { value: 'name', label: 'Name' },
+  { value: 'location', label: 'Location' },
+  { value: 'category', label: 'Category' },
+  { value: 'updatedAt', label: 'Updated' },
+  { value: 'visible', label: 'Visible' },
+  { value: 'booked_count', label: 'Bookings' },
+];
 
 export function SlotsList() {
   const { t } = useTranslation();
@@ -141,10 +108,11 @@ export function SlotsList() {
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('slot_time');
+  const [primarySort, setPrimarySort] = useState<SortField>('slot_time');
+  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [activeFilter, setActiveFilter] = useState<SlotFilter>('all');
-  const [viewMode, setViewModeState] = useState<SlotsViewMode>(getInitialViewMode);
+  const [columnCount, setColumnCountState] = useState<SlotColumnCount>(getInitialSlotColumnCount);
   const [settingsCategory, setSettingsCategory] = useState<'view' | 'categories'>('view');
 
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -165,13 +133,14 @@ export function SlotsList() {
   useEffect(() => {
     let cancelled = false;
     getSettings(SLOTS_SETTINGS_KEY)
-      .then((settings: { viewMode?: SlotsViewMode }) => {
-        if (!cancelled) {
-          const nextMode: SlotsViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
-          setViewModeState(nextMode);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(SLOTS_VIEW_MODE_STORAGE_KEY, nextMode);
-          }
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        const next = resolveSlotColumnCount(settings);
+        setColumnCountState(next);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
       })
       .catch(() => {});
@@ -180,13 +149,13 @@ export function SlotsList() {
     };
   }, [getSettings, settingsVersion]);
 
-  const setViewMode = useCallback(
-    (mode: SlotsViewMode) => {
-      setViewModeState(mode);
+  const setColumnCount = useCallback(
+    (count: SlotColumnCount) => {
+      setColumnCountState(count);
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(SLOTS_VIEW_MODE_STORAGE_KEY, mode);
+        window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(SLOTS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+      updateSettings(SLOTS_SETTINGS_KEY, { columnCount: count }).catch(() => {});
     },
     [updateSettings],
   );
@@ -196,9 +165,6 @@ export function SlotsList() {
       s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '',
     [],
   );
-
-  const formatDateTime = (s: string | null) =>
-    s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
   const filteredAndSorted = useMemo(() => {
     const byFilter = slots.filter((s) => {
@@ -224,38 +190,18 @@ export function SlotsList() {
       const locationStr = (s.location ?? '').toLowerCase();
       return nameStr.includes(needle) || locationStr.includes(needle) || timeStr.includes(needle);
     });
-    return [...filtered].sort((a, b) => {
-      let aVal: string | number;
-      let bVal: string | number;
-      switch (sortField) {
-        case 'name':
-          aVal = (a.name?.trim() || a.location || '').toLowerCase();
-          bVal = (b.name?.trim() || b.location || '').toLowerCase();
-          break;
-        case 'slot_time':
-          aVal = a.slot_time ? new Date(a.slot_time).getTime() : 0;
-          bVal = b.slot_time ? new Date(b.slot_time).getTime() : 0;
-          return sortOrder === 'asc'
-            ? (aVal as number) - (bVal as number)
-            : (bVal as number) - (aVal as number);
-        case 'location':
-          aVal = (a.location ?? '').toLowerCase();
-          bVal = (b.location ?? '').toLowerCase();
-          break;
-        case 'updatedAt':
-          aVal = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-          bVal = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-          return sortOrder === 'asc'
-            ? (aVal as number) - (bVal as number)
-            : (bVal as number) - (aVal as number);
-        default:
-          aVal = '';
-          bVal = '';
-      }
-      const cmp = String(aVal).localeCompare(String(bVal), undefined, { sensitivity: 'base' });
-      return sortOrder === 'asc' ? cmp : -cmp;
-    });
-  }, [slots, searchTerm, sortField, sortOrder, formatDateTimeForFilter, activeFilter]);
+    return [...filtered].sort((a, b) =>
+      compareSlotsTwoLevel(a, b, primarySort, secondarySort, sortOrder),
+    );
+  }, [
+    slots,
+    searchTerm,
+    primarySort,
+    secondarySort,
+    sortOrder,
+    formatDateTimeForFilter,
+    activeFilter,
+  ]);
   const stats = useMemo(
     () => ({
       total: slots.length,
@@ -304,6 +250,41 @@ export function SlotsList() {
       selectAllSlots(union);
     }
   }, [allVisibleSelected, visibleSlotIds, selectedSlotIds, selectAllSlots]);
+
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isSlotAscDefaultField(field) ? 'asc' : 'desc');
+    setSecondarySort((prev) => (prev === field ? '' : prev));
+  };
+
+  const handleSecondarySortChange = (value: string) => {
+    if (value === '' || value === 'none') {
+      setSecondarySort('');
+      return;
+    }
+    const field = value as SortField;
+    if (field === primarySort) {
+      return;
+    }
+    setSecondarySort(field);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const secondarySortOptions = useMemo(
+    () => SORT_FIELD_OPTIONS.filter((option) => option.value !== primarySort),
+    [primarySort],
+  );
+
+  const primarySortOptions = useMemo(
+    () =>
+      secondarySort
+        ? SORT_FIELD_OPTIONS.filter((option) => option.value !== secondarySort)
+        : SORT_FIELD_OPTIONS,
+    [secondarySort],
+  );
 
   const handleOpenForView = (slot: Slot) => attemptNavigation(() => openSlotForView(slot));
 
@@ -459,29 +440,29 @@ export function SlotsList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <ListFilterStatCard
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Visible"
             value={stats.visible}
             dotClassName="bg-emerald-500"
             active={activeFilter === 'visible'}
             onClick={() => setActiveFilter('visible')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Upcoming"
             value={stats.upcoming}
             dotClassName="bg-amber-500"
             active={activeFilter === 'upcoming'}
             onClick={() => setActiveFilter('upcoming')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="With Category"
             value={stats.withCategory}
             dotClassName="bg-violet-500"
@@ -490,49 +471,6 @@ export function SlotsList() {
           />
         </div>
 
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearSlotSelection}
-            actions={[
-              ...(canSendMessages
-                ? [
-                    {
-                      label: t('bulk.sendMessageTitle'),
-                      icon: MessageSquare,
-                      onClick: openBulkMessageDialog,
-                    },
-                  ]
-                : []),
-              ...(canSendEmail
-                ? [
-                    {
-                      label: t('bulk.sendEmailTitle'),
-                      icon: Mail,
-                      onClick: openBulkEmailDialog,
-                    },
-                  ]
-                : []),
-              {
-                label: t('slots.properties'),
-                icon: SlidersHorizontal,
-                onClick: () => setShowBulkPropertiesDialog(true),
-              },
-              {
-                label: t('common.exportCsv'),
-                icon: FileSpreadsheet,
-                onClick: handleBulkExportCSV,
-              },
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                onClick: () => setShowBulkDeleteModal(true),
-                variant: 'destructive',
-              },
-            ]}
-          />
-        )}
-
         <BulkMessageDialog
           isOpen={showBulkMessageDialog}
           onClose={closeBulkMessageDialog}
@@ -540,7 +478,6 @@ export function SlotsList() {
           pluginSource="slots"
           showRecipientSelection
         />
-
         <BulkEmailDialog
           isOpen={showBulkEmailDialog}
           onClose={closeBulkEmailDialog}
@@ -578,20 +515,8 @@ export function SlotsList() {
           isLoading={deleting}
         />
 
-        <Card
-          className={cn(
-            'rounded-xl border-0',
-            viewMode === 'grid'
-              ? 'overflow-visible bg-transparent shadow-none'
-              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
-          )}
-        >
-          <div
-            className={cn(
-              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
-              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
-            )}
-          >
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -602,68 +527,205 @@ export function SlotsList() {
               />
             </div>
             <div className="flex flex-shrink-0 items-center gap-1">
+              <div className="mr-1 flex items-center gap-1">
+                <Select
+                  value={primarySort}
+                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                >
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="Sort by"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    {primarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="And sort by"
+                  >
+                    <SelectValue placeholder="And..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    <SelectItem value="none" className="rounded-md text-xs">
+                      And...
+                    </SelectItem>
+                    {secondarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 px-0 text-xs"
+                  onClick={toggleSortOrder}
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                >
+                  {sortOrder === 'asc' ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
               <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Grid3x3}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'grid'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('grid')}
-                >
-                  {t('slots.grid')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={List}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'list'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('list')}
-                >
-                  {t('slots.list')}
-                </Button>
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                      columnCount === count
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`slots.columns${count}`)}
+                    aria-pressed={columnCount === count}
+                  >
+                    {count}
+                  </Button>
+                ))}
               </div>
             </div>
           </div>
 
+          {filteredAndSorted.length > 0 ? (
+            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
+              {selectedCount === 0 ? (
+                <div className="flex h-9 min-w-0 items-center gap-2">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={onToggleAllVisible}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label={
+                      allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground">{t('common.selectAll')}</span>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearSlotSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  {canSendMessages ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={MessageSquare}
+                      onClick={openBulkMessageDialog}
+                      className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                    >
+                      {t('bulk.sendMessageTitle')}
+                    </Button>
+                  ) : null}
+                  {canSendEmail ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Mail}
+                      onClick={openBulkEmailDialog}
+                      className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                    >
+                      {t('bulk.sendEmailTitle')}
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={SlidersHorizontal}
+                    onClick={() => setShowBulkPropertiesDialog(true)}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    {t('slots.properties')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={FileSpreadsheet}
+                    onClick={handleBulkExportCSV}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    {t('common.exportCsv')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+
           {filteredAndSorted.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
-              </div>
-            </Card>
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
+              {searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'grid gap-3',
+                columnCount === 1 && 'grid-cols-1',
+                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+              )}
+            >
               {filteredAndSorted.map((slot, index) => {
                 const selected = isSelected(slot.id);
                 return (
-                  <Card
+                  <SlotListItem
                     key={slot.id}
-                    className={cn(
-                      'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
-                      selected
-                        ? 'plugin-slots bg-plugin-subtle ring-1 border-plugin-subtle'
-                        : 'hover:border-plugin-subtle hover:plugin-slots hover:shadow-md',
-                      recentlyDuplicatedSlotId === String(slot.id) && HIGHLIGHT_CLASS,
-                    )}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                        return;
-                      }
-                      handleOpenForView(slot);
-                    }}
-                    role="button"
-                  >
-                    <div className="flex items-center justify-between gap-2">
+                    slot={slot}
+                    selected={selected}
+                    highlighted={recentlyDuplicatedSlotId === String(slot.id)}
+                    onClick={() => handleOpenForView(slot)}
+                    checkbox={
                       <input
                         type="checkbox"
                         checked={selected}
@@ -673,213 +735,17 @@ export function SlotsList() {
                         className="h-4 w-4 cursor-pointer"
                         aria-label={selected ? t('common.deselect') : t('common.select')}
                       />
-                      {slot.category?.trim() && (
-                        <Badge className="border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                          {slot.category.trim()}
-                        </Badge>
-                      )}
-                    </div>
-                    <h3 className="line-clamp-1 text-base font-semibold leading-snug">
-                      {slot.name?.trim() || `SLT ${slot.id}`}
-                    </h3>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {slot.location?.trim() || '—'}
-                    </div>
-                    <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
-                      <span
-                        className={cn(
-                          isSlotTimePast(slot.slot_time) &&
-                            'font-medium text-red-600 dark:text-red-400',
-                        )}
-                      >
-                        {formatDateTime(slot.slot_time)}
-                      </span>
-                      <span>
-                        {t('common.capacity')} {slot.capacity}{' '}
-                        <CapacityAssignedDots
-                          capacity={slot.capacity}
-                          assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
-                        />
-                      </span>
-                    </div>
-                    <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
-                      <div>Updated: {new Date(slot.updated_at).toLocaleDateString('sv-SE')}</div>
-                      <div>Created: {new Date(slot.created_at).toLocaleDateString('sv-SE')}</div>
-                    </div>
-                  </Card>
+                    }
+                  />
                 );
               })}
             </div>
-          ) : (
-            <Card className="shadow-none">
-              <Table rowBorders={false}>
-                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
-                  <TableRow>
-                    <TableHead className="w-12 text-xs">
-                      <input
-                        ref={headerCheckboxRef}
-                        type="checkbox"
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={
-                          allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
-                        }
-                        checked={allVisibleSelected}
-                        onChange={onToggleAllVisible}
-                      />
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => {
-                        if (sortField === 'name') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField('name');
-                          setSortOrder('asc');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('slots.nameLabel')}</span>
-                        {sortField === 'name' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => {
-                        if (sortField === 'location') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField('location');
-                          setSortOrder('asc');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('common.location')}</span>
-                        {sortField === 'location' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => {
-                        if (sortField === 'slot_time') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortField('slot_time');
-                          setSortOrder('asc');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('common.time')}</span>
-                        {sortField === 'slot_time' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-xs">{t('common.capacity')}</TableHead>
-                    <TableHead className="text-xs">
-                      {t('common.visible')} / {t('common.notifications')}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSorted.map((slot, index) => (
-                    <TableRow
-                      key={slot.id}
-                      className={cn(
-                        'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
-                        isSelected(slot.id) && 'bg-plugin-subtle',
-                        recentlyDuplicatedSlotId === String(slot.id) && HIGHLIGHT_CLASS,
-                      )}
-                      onClick={(e) => {
-                        if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                          return;
-                        }
-                        handleOpenForView(slot);
-                      }}
-                      role="button"
-                    >
-                      <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected(slot.id)}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(slot.id)}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={
-                            isSelected(slot.id) ? t('common.unselectSlot') : t('common.selectSlot')
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate">{slot.name?.trim() || `SLT ${slot.id}`}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span>{slot.location || '—'}</span>
-                          {slot.category?.trim() && (
-                            <Badge variant="secondary" className="h-5 px-2 text-[10px]">
-                              {slot.category.trim()}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          'text-sm',
-                          isSlotTimePast(slot.slot_time)
-                            ? 'font-medium text-red-600 dark:text-red-400'
-                            : 'text-muted-foreground',
-                        )}
-                      >
-                        {formatDateTime(slot.slot_time)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          {slot.capacity}
-                          <CapacityAssignedDots
-                            capacity={slot.capacity}
-                            assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
-                          />
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {slot.visible ? t('common.yes') : t('common.no')} ·{' '}
-                        {slot.notifications_enabled ? t('common.on') : t('common.off')}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
           )}
-          <div
-            className={cn(
-              'px-4 py-2 text-xs text-muted-foreground',
-              viewMode === 'grid'
-                ? 'mx-1 mb-1 mt-3 rounded-xl bg-white dark:bg-slate-950'
-                : 'border-t border-border/60',
-            )}
-          >
+
+          <div className="rounded-xl bg-white px-4 py-3 text-xs text-muted-foreground shadow-sm dark:bg-slate-950">
             Showing {filteredAndSorted.length} of {slots.length} Slots
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

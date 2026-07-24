@@ -1,6 +1,6 @@
 // Notes settings: same embedding pattern as SlotsSettingsView (inline header row + card).
 
-import { Check, LayoutGrid, List, Upload } from 'lucide-react';
+import { Check, Download, LayoutGrid, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -11,15 +11,16 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import type { ImportSchema } from '@/core/utils/importUtils';
+import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 import { cn } from '@/lib/utils';
 
 import { useNotes } from '../hooks/useNotes';
-
-const NOTES_SETTINGS_KEY = 'notes';
-
-type NoteViewMode = 'grid' | 'list';
-
-export type NotesSettingsCategory = 'view' | 'import';
+import {
+  NOTES_COLUMN_COUNT_STORAGE_KEY,
+  NOTES_SETTINGS_KEY,
+  resolveNoteColumnCount,
+  type NoteColumnCount,
+} from '../utils/noteColumnCount';
 
 const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
   fields: [
@@ -27,6 +28,8 @@ const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
     { key: 'content', label: t('notes.content'), required: true },
   ],
 });
+
+export type NotesSettingsCategory = 'view' | 'import';
 
 interface NotesSettingsCategoryDef {
   id: NotesSettingsCategory;
@@ -38,6 +41,8 @@ const notesSettingsCategories: NotesSettingsCategoryDef[] = [
   { id: 'view', label: 'View', icon: LayoutGrid },
   { id: 'import', label: 'Import', icon: Upload },
 ];
+
+const COLUMN_OPTIONS: NoteColumnCount[] = [1, 2, 3];
 
 interface NotesSettingsViewProps {
   selectedCategory?: NotesSettingsCategory;
@@ -61,8 +66,8 @@ export function NotesSettingsView({
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [viewMode, setViewMode] = useState<NoteViewMode>('grid');
-  const [initialViewMode, setInitialViewMode] = useState<NoteViewMode>('grid');
+  const [columnCount, setColumnCount] = useState<NoteColumnCount>(1);
+  const [initialColumnCount, setInitialColumnCount] = useState<NoteColumnCount>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
@@ -112,9 +117,9 @@ export function NotesSettingsView({
         if (cancelled) {
           return;
         }
-        const loaded = settings?.viewMode === 'list' ? 'list' : 'grid';
-        setViewMode(loaded);
-        setInitialViewMode(loaded);
+        const loaded = resolveNoteColumnCount(settings);
+        setColumnCount(loaded);
+        setInitialColumnCount(loaded);
       })
       .catch(() => {})
       .finally(() => {
@@ -127,32 +132,26 @@ export function NotesSettingsView({
     };
   }, [getSettings, settingsVersion]);
 
-  const isDirty = viewMode !== initialViewMode;
+  const isDirty = columnCount !== initialColumnCount;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings(NOTES_SETTINGS_KEY, { viewMode });
-      setInitialViewMode(viewMode);
+      await updateSettings(NOTES_SETTINGS_KEY, { columnCount });
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(NOTES_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+      }
+      setInitialColumnCount(columnCount);
     } catch (error) {
       console.error('Failed to save notes settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [viewMode, updateSettings]);
+  }, [columnCount, updateSettings]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
   }
-
-  const viewModes: {
-    id: NoteViewMode;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }[] = [
-    { id: 'grid', label: 'Grid', icon: LayoutGrid },
-    { id: 'list', label: 'List', icon: List },
-  ];
 
   return (
     <div className="space-y-4">
@@ -174,16 +173,15 @@ export function NotesSettingsView({
 
       <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
         {activeCategory === 'view' && (
-          <DetailSection title="Default view" className="pt-0">
+          <DetailSection title={t('notes.defaultColumns')} className="pt-0">
             <div className="flex flex-wrap items-center gap-2">
-              {viewModes.map((mode) => {
-                const ModeIcon = mode.icon;
-                const isActive = viewMode === mode.id;
+              {COLUMN_OPTIONS.map((count) => {
+                const isActive = columnCount === count;
                 return (
                   <Button
-                    key={mode.id}
+                    key={count}
                     variant="ghost"
-                    onClick={() => setViewMode(mode.id)}
+                    onClick={() => setColumnCount(count)}
                     className={cn(
                       'h-9 text-xs px-3 rounded-lg font-medium',
                       'flex items-center gap-1.5',
@@ -192,33 +190,47 @@ export function NotesSettingsView({
                         : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
                     )}
                   >
-                    <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>{mode.label}</span>
+                    <span>{t(`notes.columns${count}`)}</span>
                   </Button>
                 );
               })}
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Notes will be displayed in the selected layout by default.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{t('notes.columnsHelp')}</p>
           </DetailSection>
         )}
 
         {activeCategory === 'import' && (
           <DetailSection title={t('common.import')} className="pt-0">
-            <p className="mb-4 text-sm text-muted-foreground">
-              {t('notes.importDescription') ||
-                'Import notes from a CSV file. The file should have columns for title and content.'}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Upload}
-              onClick={() => setIsImportWizardOpen(true)}
-              className="h-9 text-xs px-3"
-            >
-              {t('notes.importTitle') || t('common.import')}
-            </Button>
+            <p className="mb-4 text-sm text-muted-foreground">{t('notes.importDescription')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Download}
+                onClick={() =>
+                  downloadImportCsvTemplate({
+                    schema: getNoteImportSchema(t),
+                    filename: 'notes-import-template.csv',
+                    exampleRow: {
+                      title: t('notes.importTemplateExampleTitle'),
+                      content: t('notes.importTemplateExampleContent'),
+                    },
+                  })
+                }
+                className="h-9 text-xs px-3"
+              >
+                {t('importWizard.downloadTemplate')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Upload}
+                onClick={() => setIsImportWizardOpen(true)}
+                className="h-9 text-xs px-3"
+              >
+                {t('notes.importTitle') || t('common.import')}
+              </Button>
+            </div>
           </DetailSection>
         )}
       </Card>

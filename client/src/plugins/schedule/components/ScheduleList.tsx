@@ -385,7 +385,7 @@ export function ScheduleList() {
               'flex items-center gap-1.5 sm:gap-2',
               teamFilter === 'all'
                 ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                : 'border-transparent bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary',
             )}
           >
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -416,7 +416,7 @@ export function ScheduleList() {
                   'flex items-center gap-1.5 sm:gap-2',
                   isActive
                     ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                    : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                    : 'border-transparent bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary',
                 )}
               >
                 <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

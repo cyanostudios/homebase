@@ -3,102 +3,66 @@ import {
   ArrowUp,
   FileSpreadsheet,
   FileText,
-  Grid3x3,
-  List,
   Plus,
   Search,
   Settings,
   Trash2,
   X,
+  XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useNotes } from '../hooks/useNotes';
+import {
+  getInitialNoteColumnCount,
+  NOTES_COLUMN_COUNT_STORAGE_KEY,
+  NOTES_SETTINGS_KEY,
+  resolveNoteColumnCount,
+  type NoteColumnCount,
+} from '../utils/noteColumnCount';
+import {
+  compareNotesTwoLevel,
+  isNoteStringSortField,
+  type NoteSortField,
+  type NoteSortOrder,
+} from '../utils/noteListSort';
 import { notesExportConfig } from '../utils/noteExportConfig';
 
-import { NoteCard } from './NoteCard';
+import { NoteListItem } from './NoteListItem';
 import { NoteQuickAdd } from './NoteQuickAdd';
 import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsView';
 
-const NOTES_SETTINGS_KEY = 'notes';
-const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
-
-function StatCard({
-  label,
-  value,
-  dotClassName,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
-        onClick && 'cursor-pointer hover:bg-muted/50',
-        active && 'ring-1 ring-border/70',
-      )}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
-
-type SortField = 'title' | 'createdAt' | 'updatedAt';
-type SortOrder = 'asc' | 'desc';
-type ViewMode = 'grid' | 'list';
+type SortField = NoteSortField;
+type SortOrder = NoteSortOrder;
 type NoteFilter = 'all' | 'withMentions' | 'withContent' | 'recentlyUpdated';
-const NOTES_VIEW_MODE_STORAGE_KEY = 'notes:viewMode';
 
-function getInitialViewMode(): ViewMode {
-  if (typeof window === 'undefined') {
-    return 'list';
-  }
-  return window.sessionStorage.getItem(NOTES_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
-}
+const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'updatedAt', label: 'Updated' },
+  { value: 'title', label: 'Title' },
+  { value: 'createdAt', label: 'Created' },
+  { value: 'mentions', label: 'Mentions' },
+];
+
+const COLUMN_OPTIONS: NoteColumnCount[] = [1, 2, 3];
 
 export const NoteList: React.FC = () => {
   const { t } = useTranslation();
@@ -127,9 +91,10 @@ export const NoteList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
 
   const { getSettings, updateSettings, settingsVersion } = useApp();
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
+  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [columnCount, setColumnCountState] = useState<NoteColumnCount>(getInitialNoteColumnCount);
   const [activeFilter, setActiveFilter] = useState<NoteFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('view');
 
@@ -140,10 +105,10 @@ export const NoteList: React.FC = () => {
         if (cancelled) {
           return;
         }
-        const nextMode: ViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
-        setViewModeState(nextMode);
+        const next = resolveNoteColumnCount(settings);
+        setColumnCountState(next);
         if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(NOTES_VIEW_MODE_STORAGE_KEY, nextMode);
+          window.sessionStorage.setItem(NOTES_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
       })
       .catch(() => {});
@@ -152,25 +117,51 @@ export const NoteList: React.FC = () => {
     };
   }, [getSettings, settingsVersion]);
 
-  const setViewMode = useCallback(
-    (mode: ViewMode) => {
-      setViewModeState(mode);
+  const setColumnCount = useCallback(
+    (count: NoteColumnCount) => {
+      setColumnCountState(count);
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(NOTES_VIEW_MODE_STORAGE_KEY, mode);
+        window.sessionStorage.setItem(NOTES_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(NOTES_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+      updateSettings(NOTES_SETTINGS_KEY, { columnCount: count }).catch(() => {});
     },
     [updateSettings],
   );
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isNoteStringSortField(field) || field === 'mentions' ? 'asc' : 'desc');
+    setSecondarySort((prev) => (prev === field ? '' : prev));
   };
+
+  const handleSecondarySortChange = (value: string) => {
+    if (value === '' || value === 'none') {
+      setSecondarySort('');
+      return;
+    }
+    const field = value as SortField;
+    if (field === primarySort) {
+      return;
+    }
+    setSecondarySort(field);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const secondarySortOptions = useMemo(
+    () => SORT_FIELD_OPTIONS.filter((option) => option.value !== primarySort),
+    [primarySort],
+  );
+
+  const primarySortOptions = useMemo(
+    () =>
+      secondarySort
+        ? SORT_FIELD_OPTIONS.filter((option) => option.value !== secondarySort)
+        : SORT_FIELD_OPTIONS,
+    [secondarySort],
+  );
 
   const sortedNotes = useMemo(() => {
     const byFilter = notes.filter((note) => {
@@ -197,33 +188,10 @@ export const NoteList: React.FC = () => {
           )),
     );
 
-    return [...filtered].sort((a, b) => {
-      let aValue: string | Date;
-      let bValue: string | Date;
-
-      if (sortField === 'title') {
-        aValue = a.title.toLowerCase();
-        bValue = b.title.toLowerCase();
-      } else if (sortField === 'createdAt') {
-        aValue = a.createdAt;
-        bValue = b.createdAt;
-      } else {
-        aValue = a.updatedAt;
-        bValue = b.updatedAt;
-      }
-
-      if (sortField === 'title') {
-        if (sortOrder === 'asc') {
-          return (aValue as string).localeCompare(bValue as string);
-        }
-        return (bValue as string).localeCompare(aValue as string);
-      }
-      if (sortOrder === 'asc') {
-        return (aValue as Date).getTime() - (bValue as Date).getTime();
-      }
-      return (bValue as Date).getTime() - (aValue as Date).getTime();
-    });
-  }, [notes, searchTerm, sortField, sortOrder, activeFilter]);
+    return [...filtered].sort((a, b) =>
+      compareNotesTwoLevel(a, b, primarySort, secondarySort, sortOrder),
+    );
+  }, [notes, searchTerm, primarySort, secondarySort, sortOrder, activeFilter]);
 
   const visibleNoteIds = useMemo(() => sortedNotes.map((note) => String(note.id)), [sortedNotes]);
   const stats = useMemo(
@@ -337,14 +305,6 @@ export const NoteList: React.FC = () => {
     [createNote, setRecentlyDuplicatedNoteId],
   );
 
-  const truncateContent = (content: string, maxLength: number = 100) => {
-    const plain = stripHtml(content);
-    if (plain.length <= maxLength) {
-      return plain;
-    }
-    return `${plain.substring(0, maxLength)}…`;
-  };
-
   if (notesContentView === 'settings') {
     return (
       <div className="plugin-notes min-h-full bg-background">
@@ -373,7 +333,7 @@ export const NoteList: React.FC = () => {
 
   return (
     <div className="plugin-notes min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.notes')}</h2>
@@ -402,29 +362,29 @@ export const NoteList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <ListFilterStatCard
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="With Mentions"
             value={stats.withMentions}
             dotClassName="bg-emerald-500"
             active={activeFilter === 'withMentions'}
             onClick={() => setActiveFilter('withMentions')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="With Content"
             value={stats.withContent}
             dotClassName="bg-amber-500"
             active={activeFilter === 'withContent'}
             onClick={() => setActiveFilter('withContent')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Updated 7d"
             value={stats.recentlyUpdated}
             dotClassName="bg-violet-500"
@@ -432,33 +392,6 @@ export const NoteList: React.FC = () => {
             onClick={() => setActiveFilter('recentlyUpdated')}
           />
         </div>
-
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearNoteSelection}
-            actions={[
-              {
-                label: t('common.exportCsv'),
-                icon: FileSpreadsheet,
-                onClick: handleExportCSV,
-                variant: 'default',
-              },
-              {
-                label: t('common.exportPdf'),
-                icon: FileText,
-                onClick: handleExportPDF,
-                variant: 'default',
-              },
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                onClick: () => setShowBulkDeleteModal(true),
-                variant: 'destructive',
-              },
-            ]}
-          />
-        )}
 
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}
@@ -468,21 +401,8 @@ export const NoteList: React.FC = () => {
           itemLabel="notes"
           isLoading={deleting}
         />
-
-        <Card
-          className={cn(
-            'rounded-xl border-0',
-            viewMode === 'grid'
-              ? 'overflow-visible bg-transparent shadow-none'
-              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
-          )}
-        >
-          <div
-            className={cn(
-              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
-              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
-            )}
-          >
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -493,51 +413,177 @@ export const NoteList: React.FC = () => {
               />
             </div>
             <div className="flex flex-shrink-0 items-center gap-1">
+              <div className="mr-1 flex items-center gap-1">
+                <Select
+                  value={primarySort}
+                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                >
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="Sort by"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    {primarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="And sort by"
+                  >
+                    <SelectValue placeholder="And..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    <SelectItem value="none" className="rounded-md text-xs">
+                      And...
+                    </SelectItem>
+                    {secondarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 px-0 text-xs"
+                  onClick={toggleSortOrder}
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                >
+                  {sortOrder === 'asc' ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
               <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Grid3x3}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'grid'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('grid')}
-                >
-                  {t('slots.grid')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={List}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'list'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('list')}
-                >
-                  {t('slots.list')}
-                </Button>
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                      columnCount === count
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`notes.columns${count}`)}
+                    aria-pressed={columnCount === count}
+                  >
+                    {count}
+                  </Button>
+                ))}
               </div>
             </div>
           </div>
 
+          {sortedNotes.length > 0 ? (
+            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
+              {selectedCount === 0 ? (
+                <div className="flex h-9 min-w-0 items-center gap-2">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={onToggleAllVisible}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label={
+                      allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground">{t('common.selectAll')}</span>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearNoteSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={FileSpreadsheet}
+                    onClick={handleExportCSV}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    {t('common.exportCsv')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={FileText}
+                    onClick={handleExportPDF}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    {t('common.exportPdf')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+
           {sortedNotes.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm ? t('notes.noMatch') : t('notes.noYet')}
-              </div>
-            </Card>
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
+              {searchTerm ? t('notes.noMatch') : t('notes.noYet')}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'grid gap-3',
+                columnCount === 1 && 'grid-cols-1',
+                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+              )}
+            >
               {sortedNotes.map((note, index) => {
                 const noteIsSelected = isSelected(note.id);
                 return (
-                  <NoteCard
+                  <NoteListItem
                     key={note.id}
                     note={note}
                     selected={noteIsSelected}
@@ -565,155 +611,16 @@ export const NoteList: React.FC = () => {
                 className="col-span-full"
               />
             </div>
-          ) : (
-            <Card className="shadow-none">
-              <Table rowBorders={false}>
-                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
-                  <TableRow>
-                    <TableHead className="w-12 text-xs">
-                      <input
-                        ref={headerCheckboxRef}
-                        type="checkbox"
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={
-                          allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
-                        }
-                        checked={allVisibleSelected}
-                        onChange={onToggleAllVisible}
-                      />
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('title')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('notes.title')}</span>
-                        {sortField === 'title' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-xs">{t('notes.content')}</TableHead>
-                    <TableHead className="text-xs">{t('notes.mentions')}</TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('updatedAt')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('common.updated')}</span>
-                        {sortField === 'updatedAt' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('createdAt')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('slots.created')}</span>
-                        {sortField === 'createdAt' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="inline h-3 w-3" />
-                          ))}
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedNotes.map((note, index) => {
-                    const noteIsSelected = isSelected(note.id);
-                    return (
-                      <TableRow
-                        key={note.id}
-                        className={cn(
-                          'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
-                          noteIsSelected && 'bg-plugin-subtle',
-                          recentlyDuplicatedNoteId === String(note.id) && HIGHLIGHT_CLASS,
-                        )}
-                        tabIndex={0}
-                        data-list-item={JSON.stringify(note)}
-                        data-plugin-name="notes"
-                        role="button"
-                        aria-label={`Open note ${note.title}`}
-                        onClick={(e) => {
-                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                            return;
-                          }
-                          e.preventDefault();
-                          handleOpenForView(note);
-                        }}
-                      >
-                        <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 cursor-pointer"
-                            checked={noteIsSelected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(note.id)}
-                            aria-label={
-                              noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="font-semibold">{note.title}</TableCell>
-                        <TableCell>
-                          <div className="max-w-[300px] line-clamp-2 text-xs text-muted-foreground">
-                            {truncateContent(note.content, 100)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {note.mentions && note.mentions.length > 0 ? (
-                            <div className="text-sm">
-                              <span>
-                                @{note.mentions[0].contactName}
-                                {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {new Date(note.updatedAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {new Date(note.createdAt).toLocaleDateString()}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              <NoteQuickAdd viewMode="list" onCreate={handleQuickCreate} />
-            </Card>
           )}
 
           {sortedNotes.length === 0 ? (
-            <div className="px-1 pt-3">
-              <NoteQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
-            </div>
+            <NoteQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
           ) : null}
 
-          <div
-            className={cn(
-              'px-4 py-2 text-xs text-muted-foreground',
-              viewMode === 'grid'
-                ? 'mx-1 mb-1 mt-3 rounded-xl bg-white dark:bg-slate-950'
-                : 'border-t border-border/60',
-            )}
-          >
+          <div className="rounded-xl bg-white px-4 py-3 text-xs text-muted-foreground shadow-sm dark:bg-slate-950">
             Showing {sortedNotes.length} of {notes.length} Notes
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

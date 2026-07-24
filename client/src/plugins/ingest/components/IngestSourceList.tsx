@@ -1,100 +1,55 @@
-import { ArrowDown, ArrowUp, Grid3x3, List, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Search, Trash2, XCircle } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
-import { formatDate, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useIngest } from '../hooks/useIngest';
 import type { IngestSource } from '../types/ingest';
+import {
+  getInitialIngestColumnCount,
+  INGEST_COLUMN_COUNT_STORAGE_KEY,
+  INGEST_SETTINGS_KEY,
+  resolveIngestColumnCount,
+  type IngestColumnCount,
+} from '../utils/ingestColumnCount';
+import {
+  compareIngestTwoLevel,
+  isIngestAscDefaultField,
+  type IngestSortField,
+  type IngestSortOrder,
+} from '../utils/ingestListSort';
 
-const INGEST_SETTINGS_KEY = 'ingest';
-const INGEST_VIEW_MODE_STORAGE_KEY = 'ingest:viewMode';
+import { IngestSourceListItem } from './IngestSourceListItem';
 
-type ViewMode = 'grid' | 'list';
-type SortField = 'name' | 'sourceType' | 'lastFetchedAt' | 'updatedAt' | 'lastFetchStatus';
-type SortOrder = 'asc' | 'desc';
+type SortField = IngestSortField;
+type SortOrder = IngestSortOrder;
 type IngestFilter = 'all' | 'active' | 'success' | 'failed';
 
-function StatCard({
-  label,
-  value,
-  dotClassName,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
-        onClick && 'cursor-pointer hover:bg-muted/50',
-        active && 'ring-1 ring-border/70',
-      )}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
+const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'updatedAt', label: 'Updated' },
+  { value: 'name', label: 'Name' },
+  { value: 'sourceType', label: 'Type' },
+  { value: 'isActive', label: 'Active' },
+  { value: 'lastFetchStatus', label: 'Status' },
+  { value: 'lastFetchedAt', label: 'Last Fetched' },
+];
 
-function getInitialViewMode(): ViewMode {
-  if (typeof window === 'undefined') {
-    return 'list';
-  }
-  return window.sessionStorage.getItem(INGEST_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
-}
-
-function statusBadgeClass(status: string) {
-  if (status === 'success') {
-    return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
-  }
-  if (status === 'failed') {
-    return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
-  }
-  if (status === 'running') {
-    return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
-  }
-  return 'bg-muted text-muted-foreground';
-}
+const COLUMN_OPTIONS: IngestColumnCount[] = [1, 2, 3];
 
 export const IngestSourceList: React.FC = () => {
   const { t } = useTranslation();
@@ -116,9 +71,12 @@ export const IngestSourceList: React.FC = () => {
   } = useIngest();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
+  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [columnCount, setColumnCountState] = useState<IngestColumnCount>(
+    getInitialIngestColumnCount,
+  );
   const [activeFilter, setActiveFilter] = useState<IngestFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -127,13 +85,14 @@ export const IngestSourceList: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     getSettings(INGEST_SETTINGS_KEY)
-      .then((settings: { viewMode?: ViewMode }) => {
-        if (!cancelled) {
-          const nextMode: ViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
-          setViewModeState(nextMode);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(INGEST_VIEW_MODE_STORAGE_KEY, nextMode);
-          }
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        const next = resolveIngestColumnCount(settings);
+        setColumnCountState(next);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(INGEST_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
       })
       .catch(() => {});
@@ -142,15 +101,50 @@ export const IngestSourceList: React.FC = () => {
     };
   }, [getSettings, settingsVersion]);
 
-  const setViewMode = useCallback(
-    (mode: ViewMode) => {
-      setViewModeState(mode);
+  const setColumnCount = useCallback(
+    (count: IngestColumnCount) => {
+      setColumnCountState(count);
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(INGEST_VIEW_MODE_STORAGE_KEY, mode);
+        window.sessionStorage.setItem(INGEST_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(INGEST_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+      updateSettings(INGEST_SETTINGS_KEY, { columnCount: count }).catch(() => {});
     },
     [updateSettings],
+  );
+
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isIngestAscDefaultField(field) ? 'asc' : 'desc');
+    setSecondarySort((prev) => (prev === field ? '' : prev));
+  };
+
+  const handleSecondarySortChange = (value: string) => {
+    if (value === '' || value === 'none') {
+      setSecondarySort('');
+      return;
+    }
+    const field = value as SortField;
+    if (field === primarySort) {
+      return;
+    }
+    setSecondarySort(field);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const secondarySortOptions = useMemo(
+    () => SORT_FIELD_OPTIONS.filter((option) => option.value !== primarySort),
+    [primarySort],
+  );
+
+  const primarySortOptions = useMemo(
+    () =>
+      secondarySort
+        ? SORT_FIELD_OPTIONS.filter((option) => option.value !== secondarySort)
+        : SORT_FIELD_OPTIONS,
+    [secondarySort],
   );
 
   const filteredAndSorted = useMemo(() => {
@@ -180,32 +174,11 @@ export const IngestSourceList: React.FC = () => {
       );
     });
 
-    return [...filtered].sort((a, b) => {
-      const flip = sortOrder === 'asc' ? 1 : -1;
-      if (sortField === 'lastFetchedAt') {
-        const ta = a.lastFetchedAt ? new Date(a.lastFetchedAt).getTime() : 0;
-        const tb = b.lastFetchedAt ? new Date(b.lastFetchedAt).getTime() : 0;
-        return flip * (ta - tb);
-      }
-      if (sortField === 'updatedAt') {
-        const ta = new Date(a.updatedAt).getTime();
-        const tb = new Date(b.updatedAt).getTime();
-        return flip * (ta - tb);
-      }
-      if (sortField === 'name') {
-        const cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-        return flip * cmp;
-      }
-      if (sortField === 'sourceType') {
-        const cmp = a.sourceType.localeCompare(b.sourceType, undefined, { sensitivity: 'base' });
-        return flip * cmp;
-      }
-      const cmp = a.lastFetchStatus.localeCompare(b.lastFetchStatus, undefined, {
-        sensitivity: 'base',
-      });
-      return flip * cmp;
-    });
-  }, [ingest, searchTerm, sortField, sortOrder, activeFilter]);
+    return [...filtered].sort((a, b) =>
+      compareIngestTwoLevel(a, b, primarySort, secondarySort, sortOrder),
+    );
+  }, [ingest, searchTerm, primarySort, secondarySort, sortOrder, activeFilter]);
+
   const stats = useMemo(
     () => ({
       total: ingest.length,
@@ -245,30 +218,14 @@ export const IngestSourceList: React.FC = () => {
     headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
   }, [allVisibleSelected, someVisibleSelected]);
 
-  const onToggleAllVisible = useCallback(() => {
+  const handleHeaderCheckboxChange = () => {
     if (allVisibleSelected) {
-      const set = new Set(visibleSourceIds);
-      const remaining = selectedIngestIds.filter((id) => !set.has(String(id)));
-      selectAllIngest(remaining);
+      clearIngestSelection();
     } else {
       const union = Array.from(new Set([...selectedIngestIds, ...visibleSourceIds]));
       selectAllIngest(union);
     }
-  }, [allVisibleSelected, visibleSourceIds, selectedIngestIds, selectAllIngest]);
-
-  const handleSort = useCallback(
-    (field: SortField) => {
-      if (sortField === field) {
-        setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'));
-      } else {
-        setSortField(field);
-        const defaultAsc =
-          field === 'name' || field === 'sourceType' || field === 'lastFetchStatus';
-        setSortOrder(defaultAsc ? 'asc' : 'desc');
-      }
-    },
-    [sortField],
-  );
+  };
 
   const handleOpenForView = (row: IngestSource) => attemptNavigation(() => openIngestForView(row));
 
@@ -284,18 +241,9 @@ export const IngestSourceList: React.FC = () => {
 
   const generalError = validationErrors.find((e) => e.field === 'general');
 
-  const sortIcon = (field: SortField) =>
-    sortField === field ? (
-      sortOrder === 'asc' ? (
-        <ArrowUp className="h-3 w-3 inline" />
-      ) : (
-        <ArrowDown className="h-3 w-3 inline" />
-      )
-    ) : null;
-
   return (
     <div className="plugin-ingest min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.ingest')}</h2>
@@ -312,29 +260,29 @@ export const IngestSourceList: React.FC = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <ListFilterStatCard
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Active"
             value={stats.active}
             dotClassName="bg-emerald-500"
             active={activeFilter === 'active'}
             onClick={() => setActiveFilter('active')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Success"
             value={stats.success}
             dotClassName="bg-amber-500"
             active={activeFilter === 'success'}
             onClick={() => setActiveFilter('success')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Failed"
             value={stats.failed}
             dotClassName="bg-rose-500"
@@ -343,50 +291,23 @@ export const IngestSourceList: React.FC = () => {
           />
         </div>
 
-        {generalError && (
+        {generalError ? (
           <p className="text-sm text-destructive" role="alert">
             {generalError.message}
           </p>
-        )}
-
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearIngestSelection}
-            actions={[
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                onClick: () => setShowBulkDeleteModal(true),
-                variant: 'destructive',
-              },
-            ]}
-          />
-        )}
+        ) : null}
 
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}
           onClose={() => setShowBulkDeleteModal(false)}
           onConfirm={handleBulkDelete}
           itemCount={selectedCount}
-          itemLabel="ingest"
+          itemLabel="ingest sources"
           isLoading={deleting}
         />
 
-        <Card
-          className={cn(
-            'rounded-xl border-0',
-            viewMode === 'grid'
-              ? 'overflow-visible bg-transparent shadow-none'
-              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
-          )}
-        >
-          <div
-            className={cn(
-              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
-              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
-            )}
-          >
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -396,258 +317,183 @@ export const IngestSourceList: React.FC = () => {
                 className="h-8 bg-background pl-9 text-xs"
               />
             </div>
-            <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={Grid3x3}
-                className={cn(
-                  'h-7 rounded-[6px] px-2 text-xs',
-                  viewMode === 'grid'
-                    ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-                onClick={() => setViewMode('grid')}
-              >
-                {t('slots.grid')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={List}
-                className={cn(
-                  'h-7 rounded-[6px] px-2 text-xs',
-                  viewMode === 'list'
-                    ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-                onClick={() => setViewMode('list')}
-              >
-                {t('slots.list')}
-              </Button>
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <div className="mr-1 flex items-center gap-1">
+                <Select
+                  value={primarySort}
+                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                >
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="Sort by"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    {primarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="And sort by"
+                  >
+                    <SelectValue placeholder="And..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    <SelectItem value="none" className="rounded-md text-xs">
+                      And...
+                    </SelectItem>
+                    {secondarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 px-0 text-xs"
+                  onClick={toggleSortOrder}
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                >
+                  {sortOrder === 'asc' ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
+              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                      columnCount === count
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`ingest.columns${count}`)}
+                    aria-pressed={columnCount === count}
+                  >
+                    {count}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {filteredAndSorted.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                {searchTerm.trim() ? t('ingest.noMatch') : t('ingest.noYet')}
-              </div>
-            </Card>
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredAndSorted.map((row, index) => {
-                const selected = isSelected(row.id);
-                return (
-                  <Card
-                    key={row.id}
-                    className={cn(
-                      'relative flex h-full min-h-[140px] cursor-pointer flex-col gap-3 rounded-xl border-0 bg-white p-5 shadow-sm transition-all dark:bg-slate-950',
-                      selected
-                        ? 'plugin-ingest bg-plugin-subtle ring-1 border-plugin-subtle'
-                        : 'hover:border-plugin-subtle hover:plugin-ingest hover:shadow-md',
-                    )}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                        return;
-                      }
-                      handleOpenForView(row);
-                    }}
-                    data-list-item={JSON.stringify(row)}
-                    data-plugin-name="ingest"
-                    role="button"
-                    aria-label={`Open ${row.name}`}
+          {filteredAndSorted.length > 0 ? (
+            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
+              {selectedCount === 0 ? (
+                <div className="flex h-9 min-w-0 items-center gap-2">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleHeaderCheckboxChange}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label="Select all sources"
+                  />
+                  <span className="text-xs text-muted-foreground">Select all</span>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearIngestSelection}
+                    type="button"
                   >
-                    <div className="flex items-center justify-between gap-2">
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {filteredAndSorted.length === 0 ? (
+            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
+              {searchTerm.trim() ? t('ingest.noMatch') : t('ingest.noYet')}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'grid gap-3',
+                columnCount === 1 && 'grid-cols-1',
+                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+              )}
+            >
+              {filteredAndSorted.map((source, index) => {
+                const sourceIsSelected = isSelected(source.id);
+                return (
+                  <IngestSourceListItem
+                    key={source.id}
+                    source={source}
+                    selected={sourceIsSelected}
+                    onClick={() => handleOpenForView(source)}
+                    checkbox={
                       <input
                         type="checkbox"
-                        checked={selected}
+                        checked={sourceIsSelected}
                         onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(String(row.id))}
+                        onChange={() => onVisibleRowCheckboxChange(String(source.id))}
                         onClick={(e) => e.stopPropagation()}
                         className="h-4 w-4 cursor-pointer"
-                        aria-label={selected ? 'Deselect' : 'Select'}
+                        aria-label={sourceIsSelected ? 'Unselect source' : 'Select source'}
                       />
-                      <Badge
-                        className={cn(
-                          'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
-                          statusBadgeClass(row.lastFetchStatus),
-                        )}
-                      >
-                        {row.lastFetchStatus}
-                      </Badge>
-                    </div>
-                    <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{row.name}</h3>
-                    <div className="truncate text-xs text-muted-foreground">{row.sourceUrl}</div>
-                    <div>
-                      <Badge className="border-0 rounded-md px-2 py-0.5 text-xs font-semibold uppercase bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                        {row.sourceType}
-                      </Badge>
-                    </div>
-                    <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
-                      <div>
-                        {t('ingest.colLastFetched')}: {formatDateTimeShort(row.lastFetchedAt)}
-                      </div>
-                      <div>
-                        {t('ingest.active')}: {row.isActive ? t('common.yes') : t('common.no')}
-                      </div>
-                    </div>
-                    <div className="mt-auto flex flex-col gap-1 text-[10px] leading-snug text-muted-foreground">
-                      <div>
-                        {t('common.updated')}: {formatDate(row.updatedAt)}
-                      </div>
-                      <div>
-                        {t('common.created')}: {formatDate(row.createdAt)}
-                      </div>
-                    </div>
-                  </Card>
+                    }
+                  />
                 );
               })}
             </div>
-          ) : (
-            <Card className="shadow-none">
-              <Table rowBorders={false}>
-                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
-                  <TableRow>
-                    <TableHead className="w-12 text-xs">
-                      <input
-                        ref={headerCheckboxRef}
-                        type="checkbox"
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
-                        checked={allVisibleSelected}
-                        onChange={onToggleAllVisible}
-                      />
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('name')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('ingest.colName')}</span>
-                        {sortIcon('name')}
-                      </div>
-                    </TableHead>
-                    <TableHead className="hidden text-xs md:table-cell">
-                      {t('ingest.colUrl')}
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('sourceType')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('ingest.colType')}</span>
-                        {sortIcon('sourceType')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('lastFetchStatus')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('ingest.colStatus')}</span>
-                        {sortIcon('lastFetchStatus')}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="hidden cursor-pointer select-none text-xs hover:bg-muted/50 lg:table-cell"
-                      onClick={() => handleSort('lastFetchedAt')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('ingest.colLastFetched')}</span>
-                        {sortIcon('lastFetchedAt')}
-                      </div>
-                    </TableHead>
-                    <TableHead className="hidden text-xs lg:table-cell">
-                      {t('ingest.colActive')}
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-right text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('updatedAt')}
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        <span>{t('common.updated')}</span>
-                        {sortIcon('updatedAt')}
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSorted.map((row, index) => (
-                    <TableRow
-                      key={row.id}
-                      className={cn(
-                        'cursor-pointer hover:bg-muted/50',
-                        isSelected(row.id) && 'bg-plugin-subtle',
-                      )}
-                      onClick={(e) => {
-                        if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                          return;
-                        }
-                        handleOpenForView(row);
-                      }}
-                      data-list-item={JSON.stringify(row)}
-                      data-plugin-name="ingest"
-                      role="button"
-                      aria-label={`Open ${row.name}`}
-                    >
-                      <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected(row.id)}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(String(row.id))}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={isSelected(row.id) ? 'Deselect source' : 'Select source'}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium">{row.name}</span>
-                      </TableCell>
-                      <TableCell className="hidden max-w-[240px] truncate text-xs text-muted-foreground md:table-cell">
-                        {row.sourceUrl}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        <Badge className="border-0 rounded-md px-2 py-0.5 text-xs font-semibold uppercase bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                          {row.sourceType}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={cn(
-                            'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
-                            statusBadgeClass(row.lastFetchStatus),
-                          )}
-                        >
-                          {row.lastFetchStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground lg:table-cell">
-                        {formatDateTimeShort(row.lastFetchedAt)}
-                      </TableCell>
-                      <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
-                        {row.isActive ? t('common.yes') : t('common.no')}
-                      </TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">
-                        {row.updatedAt ? formatDate(row.updatedAt) : '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
           )}
-          <div
-            className={cn(
-              'px-4 py-2 text-xs text-muted-foreground',
-              viewMode === 'grid'
-                ? 'mx-1 mb-1 mt-3 rounded-xl bg-white dark:bg-slate-950'
-                : 'border-t border-border/60',
-            )}
-          >
+
+          <div className="rounded-xl bg-white px-4 py-3 text-xs text-muted-foreground shadow-sm dark:bg-slate-950">
             Showing {filteredAndSorted.length} of {ingest.length} Sources
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

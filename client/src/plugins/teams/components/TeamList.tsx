@@ -1,69 +1,72 @@
-import { BarChart2, LayoutGrid, Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowDown,
+  ArrowUp,
+  BarChart2,
+  LayoutGrid,
+  Plus,
+  Search,
+  Settings,
+  Trash2,
+  Users,
+  X,
+  XCircle,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useTeams } from '../hooks/useTeams';
 import { isTeamOnBreak, TEAM_GENDERS, type TeamGender, type TeamStatus } from '../types/teams';
+import {
+  getInitialTeamColumnCount,
+  resolveTeamColumnCount,
+  TEAMS_COLUMN_COUNT_STORAGE_KEY,
+  TEAMS_SETTINGS_KEY,
+  type TeamColumnCount,
+} from '../utils/teamColumnCount';
+import {
+  compareTeamsTwoLevel,
+  isTeamStringSortField,
+  type TeamSortField,
+  type TeamSortOrder,
+} from '../utils/teamListSort';
 
 import { TeamCard } from './TeamCard';
 import { TeamsSettingsView } from './TeamsSettingsView';
 import { TeamsStatisticsView } from './TeamsStatisticsView';
 
+type SortField = TeamSortField;
+type SortOrder = TeamSortOrder;
 type StatusFilter = 'all' | TeamStatus;
 type GenderFilter = 'all' | TeamGender;
 
-function StatCard({
-  label,
-  value,
-  dotClassName,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
-        onClick && 'cursor-pointer hover:bg-muted/50',
-        active && 'ring-1 ring-border/70',
-      )}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
+const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'name', label: 'Name' },
+  { value: 'age_group', label: 'Age group' },
+  { value: 'gender', label: 'Gender' },
+  { value: 'status', label: 'Status' },
+  { value: 'player_count', label: 'Players' },
+  { value: 'updated_at', label: 'Updated' },
+  { value: 'created_at', label: 'Created' },
+];
+
+const COLUMN_OPTIONS: TeamColumnCount[] = [1, 2, 3];
 
 export function TeamList() {
   const { t } = useTranslation();
@@ -78,6 +81,7 @@ export function TeamList() {
     openTeamForView,
     selectedTeamIds,
     mergeIntoTeamSelection,
+    selectAllTeams,
     clearTeamSelection,
     isSelected,
     toggleTeamSelected,
@@ -85,20 +89,30 @@ export function TeamList() {
     selectedCount,
     recentlyDuplicatedTeamId,
   } = useTeams();
-  const { getSettings, settingsVersion } = useApp();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [activeSeason, setActiveSeason] = useState<string>('');
+  const [primarySort, setPrimarySort] = useState<SortField>('name');
+  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [columnCount, setColumnCountState] = useState<TeamColumnCount>(getInitialTeamColumnCount);
 
   useEffect(() => {
     let cancelled = false;
-    getSettings('teams')
-      .then((settings: { activeSeason?: string }) => {
-        if (!cancelled) {
-          setActiveSeason(String(settings?.activeSeason || new Date().getFullYear()));
+    getSettings(TEAMS_SETTINGS_KEY)
+      .then((settings: { activeSeason?: string; columnCount?: unknown }) => {
+        if (cancelled) {
+          return;
+        }
+        setActiveSeason(String(settings?.activeSeason || new Date().getFullYear()));
+        const next = resolveTeamColumnCount(settings);
+        setColumnCountState(next);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(TEAMS_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
       })
       .catch(() => {
@@ -111,9 +125,55 @@ export function TeamList() {
     };
   }, [getSettings, settingsVersion]);
 
-  const filtered = useMemo(() => {
+  const setColumnCount = useCallback(
+    (count: TeamColumnCount) => {
+      setColumnCountState(count);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(TEAMS_COLUMN_COUNT_STORAGE_KEY, String(count));
+      }
+      updateSettings(TEAMS_SETTINGS_KEY, { columnCount: count }).catch(() => {});
+    },
+    [updateSettings],
+  );
+
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isTeamStringSortField(field) || field === 'player_count' ? 'asc' : 'desc');
+    setSecondarySort((prev) => (prev === field ? '' : prev));
+  };
+
+  const handleSecondarySortChange = (value: string) => {
+    if (value === '' || value === 'none') {
+      setSecondarySort('');
+      return;
+    }
+    const field = value as SortField;
+    if (field === primarySort) {
+      return;
+    }
+    setSecondarySort(field);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const secondarySortOptions = useMemo(
+    () => SORT_FIELD_OPTIONS.filter((option) => option.value !== primarySort),
+    [primarySort],
+  );
+
+  const primarySortOptions = useMemo(
+    () =>
+      secondarySort
+        ? SORT_FIELD_OPTIONS.filter((option) => option.value !== secondarySort)
+        : SORT_FIELD_OPTIONS,
+    [secondarySort],
+  );
+
+  const filteredAndSorted = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return teams.filter((team) => {
+    const filtered = teams.filter((team) => {
       if (genderFilter !== 'all' && team.gender !== genderFilter) {
         return false;
       }
@@ -132,7 +192,11 @@ export function TeamList() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [teams, search, genderFilter, statusFilter, t]);
+
+    return [...filtered].sort((a, b) =>
+      compareTeamsTwoLevel(a, b, primarySort, secondarySort, sortOrder),
+    );
+  }, [teams, search, genderFilter, statusFilter, t, primarySort, secondarySort, sortOrder]);
 
   const stats = useMemo(() => {
     let active = 0;
@@ -160,7 +224,7 @@ export function TeamList() {
     return counts;
   }, [teams]);
 
-  const visibleIds = useMemo(() => filtered.map((team) => team.id), [filtered]);
+  const visibleIds = useMemo(() => filteredAndSorted.map((team) => team.id), [filteredAndSorted]);
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -168,6 +232,33 @@ export function TeamList() {
       mergeIntoSelection: mergeIntoTeamSelection,
       toggleOne: toggleTeamSelected,
     });
+
+  const allVisibleSelected = useMemo(
+    () => visibleIds.length > 0 && visibleIds.every((id) => isSelected(id)),
+    [visibleIds, isSelected],
+  );
+
+  const someVisibleSelected = useMemo(
+    () => visibleIds.some((id) => isSelected(id)),
+    [visibleIds, isSelected],
+  );
+
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!headerCheckboxRef.current) {
+      return;
+    }
+    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
+  }, [allVisibleSelected, someVisibleSelected]);
+
+  const handleHeaderCheckboxChange = () => {
+    if (allVisibleSelected) {
+      clearTeamSelection();
+    } else {
+      selectAllTeams(visibleIds);
+    }
+  };
 
   if (teamsContentView === 'settings') {
     return (
@@ -217,7 +308,7 @@ export function TeamList() {
 
   return (
     <div className="plugin-teams min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.teams')}</h2>
@@ -258,22 +349,22 @@ export function TeamList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard
+        <div className="grid grid-cols-3 gap-2">
+          <ListFilterStatCard
             label={t('teams.status.active')}
             value={stats.active}
             dotClassName="bg-emerald-500"
             active={statusFilter === 'active'}
             onClick={() => setStatusFilter(statusFilter === 'active' ? 'all' : 'active')}
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.status.break')}
             value={stats.break}
             dotClassName="bg-orange-500"
             active={statusFilter === 'break'}
             onClick={() => setStatusFilter(statusFilter === 'break' ? 'all' : 'break')}
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.status.dormant')}
             value={stats.dormant}
             dotClassName="bg-amber-500"
@@ -292,7 +383,7 @@ export function TeamList() {
               'flex items-center gap-1.5 sm:gap-2',
               genderFilter === 'all'
                 ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                : 'border-transparent bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary',
             )}
           >
             <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -323,7 +414,7 @@ export function TeamList() {
                   'flex items-center gap-1.5 sm:gap-2',
                   isActive
                     ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                    : 'border-transparent bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                    : 'border-transparent bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary',
                 )}
               >
                 <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -343,21 +434,6 @@ export function TeamList() {
           })}
         </div>
 
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearTeamSelection}
-            actions={[
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                variant: 'destructive',
-                onClick: () => setShowBulkDeleteModal(true),
-              },
-            ]}
-          />
-        )}
-
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}
           onClose={() => setShowBulkDeleteModal(false)}
@@ -369,8 +445,8 @@ export function TeamList() {
           itemLabel={selectedCount === 1 ? t('teams.itemSingular') : t('teams.itemPlural')}
         />
 
-        <Card className="rounded-xl border-0 overflow-visible bg-transparent shadow-none">
-          <div className="mx-1 mt-1 rounded-xl bg-white px-4 py-3 dark:bg-slate-950">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -380,10 +456,143 @@ export function TeamList() {
                 className="h-8 bg-background pl-9 text-xs"
               />
             </div>
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <div className="mr-1 flex items-center gap-1">
+                <Select
+                  value={primarySort}
+                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                >
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="Sort by"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    {primarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="And sort by"
+                  >
+                    <SelectValue placeholder="And..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    <SelectItem value="none" className="rounded-md text-xs">
+                      And...
+                    </SelectItem>
+                    {secondarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 px-0 text-xs"
+                  onClick={toggleSortOrder}
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                >
+                  {sortOrder === 'asc' ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
+              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                      columnCount === count
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`teams.columns${count}`)}
+                    aria-pressed={columnCount === count}
+                  >
+                    {count}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {filtered.length === 0 ? (
-            <Card className="mt-4 shadow-none">
+          {filteredAndSorted.length > 0 ? (
+            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
+              {selectedCount === 0 ? (
+                <div className="flex h-9 min-w-0 items-center gap-2">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleHeaderCheckboxChange}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label="Select all teams"
+                  />
+                  <span className="text-xs text-muted-foreground">Select all</span>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearTeamSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {filteredAndSorted.length === 0 ? (
+            <Card className="shadow-none">
               <div className="flex flex-col items-center gap-2 p-10 text-center">
                 <Users className="h-10 w-10 text-muted-foreground/40" />
                 <p className="text-sm font-medium">{t('teams.noMatchTitle')}</p>
@@ -393,8 +602,15 @@ export function TeamList() {
               </div>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((team, index) => (
+            <div
+              className={cn(
+                'grid gap-3',
+                columnCount === 1 && 'grid-cols-1',
+                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+              )}
+            >
+              {filteredAndSorted.map((team, index) => (
                 <TeamCard
                   key={team.id}
                   team={team}
@@ -415,10 +631,14 @@ export function TeamList() {
               ))}
             </div>
           )}
-          <div className="mx-1 mb-1 mt-3 rounded-xl bg-white px-4 py-2 text-xs text-muted-foreground dark:bg-slate-950">
-            {t('teams.showingCount', { shown: filtered.length, total: teams.length })}
+
+          <div className="rounded-xl bg-white px-4 py-3 text-xs text-muted-foreground shadow-sm dark:bg-slate-950">
+            {t('teams.showingCount', {
+              shown: filteredAndSorted.length,
+              total: teams.length,
+            })}
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

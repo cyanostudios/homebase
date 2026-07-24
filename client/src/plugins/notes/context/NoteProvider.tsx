@@ -616,17 +616,20 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     isSelected,
     importNotes: async (data: any[]) => {
       let successCount = 0;
+      let failureCount = 0;
       for (const item of data) {
         try {
           await notesApi.createNote(item);
           successCount++;
         } catch (error) {
+          failureCount++;
           console.error('Failed to import note', item, error);
         }
       }
       if (successCount > 0) {
         await loadNotes();
       }
+      return { successCount, failureCount };
     },
     getDeleteMessage,
     recentlyDuplicatedNoteId,

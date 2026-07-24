@@ -149,7 +149,8 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tippy.js": "^6.3.7",
-    "twilio": "^5.12.2"
+    "twilio": "^5.12.2",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.2.0",

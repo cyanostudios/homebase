@@ -1,4 +1,4 @@
-import { Check, Eye, LayoutGrid, List } from 'lucide-react';
+import { Check, Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,21 +8,27 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { cn } from '@/lib/utils';
 
-type TaskViewMode = 'grid' | 'list';
+import {
+  resolveTaskColumnCount,
+  TASKS_COLUMN_COUNT_STORAGE_KEY,
+  TASKS_SETTINGS_KEY,
+  type TaskColumnCount,
+} from '../utils/taskColumnCount';
 
 interface TaskSettingsFormProps {
   onCancel: () => void;
 }
 
-const TASKS_SETTINGS_KEY = 'tasks';
+const COLUMN_OPTIONS: TaskColumnCount[] = [1, 2, 3];
 
 export const TaskSettingsForm = React.forwardRef<PanelFormHandle, TaskSettingsFormProps>(
   function TaskSettingsForm({ onCancel }, ref) {
     const { t } = useTranslation();
     const { getSettings, updateSettings } = useApp();
-    const [viewMode, setViewMode] = useState<TaskViewMode>('grid');
-    const [initialViewMode, setInitialViewMode] = useState<TaskViewMode>('grid');
+    const [columnCount, setColumnCount] = useState<TaskColumnCount>(1);
+    const [initialColumnCount, setInitialColumnCount] = useState<TaskColumnCount>(1);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -31,9 +37,9 @@ export const TaskSettingsForm = React.forwardRef<PanelFormHandle, TaskSettingsFo
         setIsLoading(true);
         try {
           const settings = await getSettings(TASKS_SETTINGS_KEY);
-          const loaded = settings?.viewMode === 'list' ? 'list' : 'grid';
-          setViewMode(loaded);
-          setInitialViewMode(loaded);
+          const loaded = resolveTaskColumnCount(settings);
+          setColumnCount(loaded);
+          setInitialColumnCount(loaded);
         } catch (error) {
           console.error('Failed to load tasks settings:', error);
         } finally {
@@ -43,20 +49,23 @@ export const TaskSettingsForm = React.forwardRef<PanelFormHandle, TaskSettingsFo
       load();
     }, [getSettings]);
 
-    const isDirty = viewMode !== initialViewMode;
+    const isDirty = columnCount !== initialColumnCount;
 
     const handleSave = useCallback(async () => {
       setIsSaving(true);
       try {
-        await updateSettings(TASKS_SETTINGS_KEY, { viewMode });
-        setInitialViewMode(viewMode);
+        await updateSettings(TASKS_SETTINGS_KEY, { columnCount });
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(TASKS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+        }
+        setInitialColumnCount(columnCount);
         onCancel();
       } catch (error) {
         console.error('Failed to save tasks settings:', error);
       } finally {
         setIsSaving(false);
       }
-    }, [viewMode, updateSettings, onCancel]);
+    }, [columnCount, updateSettings, onCancel]);
 
     useImperativeHandle(
       ref,
@@ -68,7 +77,7 @@ export const TaskSettingsForm = React.forwardRef<PanelFormHandle, TaskSettingsFo
     );
 
     if (isLoading) {
-      return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+      return <div className="p-6 text-sm text-muted-foreground">{t('common.loading')}</div>;
     }
 
     return (
@@ -77,43 +86,33 @@ export const TaskSettingsForm = React.forwardRef<PanelFormHandle, TaskSettingsFo
           title={
             <div className="flex items-center gap-2">
               <Eye className="w-3.5 h-3.5" />
-              <span>Default view</span>
+              <span>{t('tasks.defaultColumns')}</span>
             </div>
           }
         >
           <DetailCard className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div className="space-y-0.5">
-                <Label className="text-sm font-semibold">View mode</Label>
-                <p className="text-[11px] text-gray-500">How your tasks are displayed by default</p>
+                <Label className="text-sm font-semibold">{t('tasks.columnsLabel')}</Label>
+                <p className="text-[11px] text-gray-500">{t('tasks.columnsHelp')}</p>
               </div>
               <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-100 dark:border-gray-700">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                  size="sm"
-                  className={
-                    viewMode === 'grid'
-                      ? 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight'
-                      : 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
-                  }
-                  onClick={() => setViewMode('grid')}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  Grid
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  className={
-                    viewMode === 'list'
-                      ? 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight'
-                      : 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
-                  }
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-3.5 h-3.5" />
-                  List
-                </Button>
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    variant={columnCount === count ? 'default' : 'ghost'}
+                    size="sm"
+                    className={cn(
+                      'h-8 min-w-8 px-3 text-[10px] font-bold tracking-tight',
+                      columnCount !== count &&
+                        'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`tasks.columns${count}`)}
+                  >
+                    {count}
+                  </Button>
+                ))}
               </div>
             </div>
           </DetailCard>

@@ -4,6 +4,202 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-24 – List filter StatCards + list chrome polish
+
+**Status:** Implementerat. QA Approved; Security Approved; Docs Updated. **Ej prod-release** utan explicit beslut.
+
+**Sammanfattning (verifierat mot kod):**
+
+- **Delad `ListFilterStatCard`** (`@/core/ui/ListFilterStatCard`): label+dot vänster, siffra höger; `px-6 py-4` / `text-3xl`; hover `bg-primary/10` + `text-primary` (samma som små filterchips). Grid `gap-2`.
+- **Små filterchips** (t.ex. Teams gender): inaktiv `bg-card` (ljusare än `bg-muted`).
+- **Bulk-bar:** neutrala actions hover `bg-primary/10` + `text-primary`; Clear selection samma röda hover som Delete.
+- **Listbakgrund:** light `--background: 210 20% 96%` (`client/src/index.css`) — påverkar alla `bg-background`-ytor.
+- **Teams:** färgad top-stripe på `TeamCard` borttagen.
+
+---
+
+## 2026-07-24 – Card-column list expansion (Estimates, Matches, Files, Ingest, Cups, Teams)
+
+**Status:** Implementerat. QA Approved; Security Approved; Docs Updated. **Ej prod-release** utan explicit beslut.
+
+**Sammanfattning (verifierat mot kod):**
+
+- **Migrerade till card-column shell** (§0.1): Estimates, Matches, Files, Ingest, Cups, Teams. Grid/List-toggle och list-`Table` borttagna (Teams behåller `TeamCard` visuellt, utan färgstripe).
+- **Gemensamt:** `*ListItem` (eller TeamCard) + toolbar **1 / 2 / 3** (`columnCount`) + two-level sort (`And...`) + select-all/bulk-bar under search. Helpers `*ColumnCount.ts` / `*ListSort.ts` + tester.
+- **Cups:** behåller `BulkPropertiesDialog` (ej bulk status). Estimates/Matches/Files/Ingest/Teams: ingen bulk status (ej lämplig lifecycle / modal-komplexitet).
+- **Hoppat över (ej applicerbart):** Mail, Pulses (historikloggar); AI Providers (liten konfigkatalog); Schedule (tidgrid); Invoices (explicit undantag); Settings (ej datalista).
+- **Säkerhet:** Klient-side sort; fasta Select-optioner; `columnCount` via settings/session; ingen ny API/auth-yta (Security Approved). Accepterade risker: None.
+
+**UI-standard:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1.
+
+---
+
+## 2026-07-24 – Two-level list sort (Tasks, Contacts, Notes, Guides, Requests, Slots)
+
+**Status:** Implementerat. QA Approved; Security Approved; Docs Updated. **Ej prod-release** utan explicit beslut.
+
+**Sammanfattning (verifierat mot kod):**
+
+- **UI (alla sex listor):** Primär sort-dropdown + valfri sekundär (`And...` / internt `none`). Båda triggers `w-[140px]`, `position="item-aligned"`. Gemensam asc/desc-knapp. Primär och sekundär kan inte vara samma fält (mutual exclusion i options + clear vid krock).
+- **Beteende:** Sekundär bryter likor på primär. När primär är datumfält jämförs först **kalenderdag** (lokal tid) så sekundär syns för rader samma dag; annars är full tidsstämpel oftast unik.
+- **Sortfält utökade från list-meta** (utöver tidigare snäva set): Contacts (`phone`, `tags`, `assignable`, `updatedAt`, `createdAt`); Notes (`mentions`); Guides (`createdAt`, `lifecycleStatus`, `languages`); Requests (`source`); Slots (`category`, `visible`, `booked_count`). Tasks oförändrade (redan kompletta).
+- **Helpers + tester:** `*ListSort.ts` per plugin (`task` / `contact` / `note` / `guide` / `request` / `slot`) + `*ListSort.test.ts`.
+- **Defaults oförändrade i praktiken** när sekundär är tom (t.ex. Tasks/Notes/Requests updated\* desc; Contacts name asc; Guides displayName asc; Slots slot_time asc). Sortval persistens: ingen (session-state i komponent).
+- **Säkerhet:** Klient-side sort på redan laddad data; fasta Select-optioner; ingen ny API/auth-yta (Security Approved).
+- **Begränsningar (verifierade):** Contacts `tags` sorterar på **första** taggen; Notes `mentions` och Guides `languages` sorterar på **antal** (inte innehåll); labels/`And...` delvis hårdkodade EN i flera listor (Guides/Requests mer i18n).
+
+**UI-standard:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1 Sort-rad.
+
+---
+
+## 2026-07-24 – Card list + columns rollout (Contacts, Notes, Guides, Requests, Slots)
+
+**Status:** Implementerat. Tasks-mönstret (kortrad + kolumnväljare 1/2/3) portat till fem plugins. **Ej prod-release** utan explicit beslut.
+
+**Sammanfattning (verifierat mot kod):**
+
+- **Gemensamt:** Grid/List-toggle och list-`Table` borttagna. `*ListItem` med `DETAIL_VIEW_CARD_CLASS`; toolbar **1 / 2 / 3** (`columnCount`); legacy `viewMode` grid→3, list→1.
+- **Contacts / Notes / Slots:** settings + session sparar `columnCount`. Inget bulk-status (ingen lifecycle-status). Slots behåller `BulkPropertiesDialog`.
+- **Guides / Requests:** session-only `columnCount` (ingen layout-settings-API). Guides behåller befintlig bulk status. Requests får `RequestBulkStatusDialog` + inline status; `shouldApplyOpenRequestSaveEffects` i `RequestProvider`.
+- **i18n:** `*.columns*` (en/sv); Requests `requests.bulkStatus*`.
+- **Tester:** `*ColumnCount.test.ts` (+ Requests `requestListSave`); Jest roots utökade.
+- **UI-standard:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1 — card-column list är default för Tasks/Contacts/Notes/Guides/Requests/Slots; legacy table/grid kvar för övriga plugins.
+
+---
+
+## 2026-07-24 – Tasks bulk status change
+
+**Status:** Implementerat. QA Approved; Security Approved. **Ej prod-release** utan explicit beslut. Samma UX-mönster som Guides bulk status.
+
+**Sammanfattning (verifierat mot kod):**
+
+- Select/bulk-raden: **Status** (`tasks.bulkStatusAction`) öppnar `TaskBulkStatusDialog`.
+- Dialog: idle → applying → done; status från `TASK_STATUS_OPTIONS`; progress/resultat; Apply/Cancel/Close.
+- Uppdatering: sekventiellt `saveTask` + `buildTaskListStatusSavePayload` (samma payload som inline list-status) → befintlig `PUT /api/tasks/:id` (auth/CSRF/enum).
+- Efter **Close** i done-fas: `onSuccess` → `clearTaskSelection`.
+
+**Begränsningar / avvägningar:**
+
+- Ingen ny bulk-API; N sekventiella PUT (Guides-paritet). Security: låg residual risk, ingen ny accepterad risk som kräver TPM-beslut.
+- Backdrop/Cancel i done-fas anropar inte `onSuccess` (samma som Guides) — markering kan bli kvar.
+- i18n: `tasks.bulkStatus*` (en/sv).
+
+---
+
+## 2026-07-24 – Tasks list columns (1 / 2 / 3)
+
+**Status:** Implementerat (pilot, Tasks). Grid/list-toggle borttagen.
+
+**Sammanfattning:** Tasks använder en enda kortlista (`TaskListItem`) med kolumnväljare **1 / 2 / 3** (full / halv / tredjedel bredd från `sm`). Settings + session sparar `columnCount`; legacy `viewMode` `grid`→3, `list`→1. Select/bulk och sort alltid synliga. Hjälpare: `taskColumnCount.ts` + unit tests.
+
+---
+
+## 2026-07-24 – Tasks list row redesign (pilot)
+
+**Status:** Implementerat. QA Approved; Security Approved. **Ej prod-release** utan explicit beslut. Pilot: endast **Tasks listläge** (grid oförändrad). Övriga plugins oförändrade.
+
+**Sammanfattning (verifierat mot kod):**
+
+- Listläge: ingen `Table`; vertikala kort via `TaskListItem` (`DETAIL_VIEW_CARD_CLASS`).
+- Radlayout: priority (+ due-badge om due och ej completed) · compact `TaskStatusSelect` · bold titel · plain excerpt (`stripHtml`, utelämnas om tom) · meta (due / assignees / updated).
+- Spacing: `space-y-3` / `gap-3` mellan filter, search, select/bulk, items, footer.
+- Select/bulk-rad (samma vita kortyta): utan val → Select all; med val → Clear selection → antal → **Status** → Export CSV/PDF → Delete (textknappar). (**Status** tillagd 2026-07-24; se post _Tasks bulk status change_.)
+- Sortering: toolbar-dropdown + asc/desc (ej kolumnheaders).
+- Inline status: `buildTaskListStatusSavePayload` → `saveTask`; `shouldApplyOpenTaskSaveEffects` så panel/draft/`view` bara synkas när uppdaterad task = öppen task.
+- Tester: `client/src/plugins/tasks/utils/__tests__/taskListSave.test.ts` (Jest root `client/src/plugins/tasks`).
+
+**Begränsningar / avvägningar:**
+
+- Pilotscope: Notes/Contacts m.fl. behåller tabell/list-shell enligt §0.1 tills eventuell utrullning.
+- Tasks bulk sitter i select-raden (inte klassiska `BulkActionBar`); efter kolumn-pilot finns ingen separat grid/`BulkActionBar`-yta.
+- Security (lågt, befintligt mönster): `stripHtml` via `innerHTML`; `data-list-item` JSON i DOM — se Security-granskning 2026-07-24.
+
+**UI-standard:** Undantag dokumenterat i [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1 (Tasks list pilot).
+
+---
+
+## 2026-07-23 – Reset plugin settings view on navigate
+
+**Status:** Implementerat.
+
+**Sammanfattning:** Vid byte av plugin/sida (URL/`currentPage`) återställs `*ContentView` till list via `close*SettingsView` (och teams statistics / AI Providers routing). Annars stannade t.ex. Contacts Settings öppen efter Notes → Contacts.
+
+---
+
+## 2026-07-23 – CSV-importmallar (contacts / notes / tasks)
+
+**Status:** Implementerat. Användaren kan ladda ner en plugin-specifik CSV-mall från Settings → Import.
+
+**Sammanfattning:** Core `downloadImportCsvTemplate` / `buildImportCsvTemplateContent` genererar CSV med headers = `ImportSchema.field.label` + en exempelrad. Knapp i contacts/notes/tasks Settings.
+
+---
+
+## 2026-07-23 – Tabular Import Wizard (CSV / Excel / paste)
+
+**Status:** Implementerat på `homebase-v3.7`. QA Approved; Security Approved (A1 eskalerad till TPM, se nedan); Docs uppdaterad. **Ej prod-release** utan explicit beslut.
+
+**Sammanfattning:** Core `ImportWizard` stödjer fil (CSV + `.xlsx` första sheet), inklistrad TSV/CSV, required-mappning, resultatsummering. Soft limits: 5 MB (**före** filläsning) / 2000 rader. Contacts/notes/tasks returnerar `{ successCount, failureCount }`. Inget separat import-plugin.
+
+**ADR / UX / standards:** [`docs/ai/adr/TABULAR_IMPORT_EXPORT.md`](ai/adr/TABULAR_IMPORT_EXPORT.md), [`docs/ai/design/TABULAR_IMPORT_WIZARD_UX.md`](ai/design/TABULAR_IMPORT_WIZARD_UX.md), importmönster i [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §5.
+
+**Beroende:** SheetJS `xlsx@0.20.3` via `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (lazy-load; integrity i lockfile).
+
+### Accepterad säkerhetsrisk (eskalerad till TPM)
+
+| ID  | Risk                                                      | Beslut                                                                  |
+| --- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
+| A1  | Installkälla SheetJS CDN (ej npm registry) för patchad CE | **Kräver explicit TPM-godkännande**; mitigering: pinnad URL + integrity |
+
+---
+
+## 2026-07-23 – ADR: Tabular Import/Export (core + adapters)
+
+**Status:** Arkitektur beslutad och **implementerad** (v1) — se posten _Tabular Import Wizard_ ovan.
+
+**ADR:** [`docs/ai/adr/TABULAR_IMPORT_EXPORT.md`](ai/adr/TABULAR_IMPORT_EXPORT.md)
+
+---
+
+## 2026-07-23 – FOGIS lagväljare i TeamForm
+
+**Status:** Implementerat på `homebase-v3.7`. QA Approved; Security Approved (SSRF-risk dokumenterad och eskalerad till TPM, se nedan). **Ej prod-release** utan explicit beslut.
+
+**Sammanfattning:** TeamForm fick en FOGIS-lagväljare som ersätter det tidigare fria textfältet för `external_team_id`. Användaren filtrerar och väljer lag direkt i formuläret; `Import Now` i Matcher → Inställningar är oförändrat.
+
+### Verifierat beteende
+
+- **Lagväljare:** `GET /api/teams/external-options` (gate: `teams`-plugin) hämtar unika FOGIS-lag från SvFF `/club/upcoming-games` och returnerar `{ externalTeams, occupiedBy }`.
+- **Etikett:** `Sorgenfri FF (324323) F16` — åldershint (`F16`, `P17`, `U15` m.m.) härlett ur matchernas `competitionCategoryName`/`competitionName` via regex.
+- **Filtrering:** fritextfält ovanför dropdown filtrerar på **lagnamn** (ej ID, ej ålder).
+- **Occupied:** lag redan kopplade till ett _annat_ Homebase-lag visas disabled med suffix `· används av {lagnamn}`.
+- **Orphan:** om ett sparat FOGIS-ID saknas i aktuell hämtning visas det som valbart extra option.
+- **Felstates:** loading / saknad API-nyckel (länkhint till Matcher → Inställningar) / övriga fel med Försök igen-knapp / tom lista.
+- **Persistens:** oförändrad `PUT /api/teams/:id` med `external_team_id`; ny 409 CONFLICT om ett annat lag redan äger samma ID.
+- **Import:** oförändrat — `POST /api/matches/import` filtrerar på befintliga `external_team_id`.
+
+### Arkitektur
+
+| Ansvar                             | Ägare                                                                                                          |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| FOGIS HTTP-transport + credentials | `plugins/matches/services/svffFogisClient.js` (ny modul)                                                       |
+| Lagväljare: GET + occupiedBy       | `plugins/teams/services/externalTeamOptionsService.js` (ny) + `GET /api/teams/external-options`                |
+| UI: Select + filter + states       | `client/src/plugins/teams/components/TeamForm.tsx`                                                             |
+| Matchimport                        | `plugins/matches/services/matchImportService.js` — oförändrat beteende, intern refaktor till `svffFogisClient` |
+
+Teams `require`:ar `svffFogisClient` direkt (code-beroende, ej HTTP); samma mönster som cups→ingest.
+
+### Accepterad säkerhetsrisk (eskalerad till TPM)
+
+| ID     | Risk                                                                                                                                                                    | Beslut                                                                                                                            |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| SSRF-1 | Användarstyrd `apiBaseUrl` (Matcher → Inställningar) utan `ssrfUrlGuard` — ny `GET`-trigger vid formuläröppning utökar angreppsyta jämfört med tidigare (enbart import) | **Kräver explicit TPM-godkännande**; åtgärd rekommenderas: validera `apiBaseUrl` med `validatePublicHttpsUrl` i `svffFogisClient` |
+
+### Inaktuell dokumentation åtgärdad
+
+Changelog §2026-06 beskrev `external_team_id` som ett fritt textfält. Det är nu ersatt av UI-väljare; fältet kvarstår i DB och API men sätts via Select.
+
+---
+
 ## 2026-07-22 – Generate source audio + safe regenerate
 
 **Status:** Implementerat och pushat till `homebase-v3.8`. QA Approved; Security Needs Decision → **A1/A2 accepterade av TPM**. **Ej prod-release** utan explicit beslut. Documentation sync denna post.
@@ -814,7 +1010,7 @@ Blockerade E2E tills åtgärdade (P-ASYNC/P-CHAIN-berörda):
 - **Vyer:** list/grid (`TeamList`, `TeamCard`), detail med flikar (overview, schedule, responsibles, notes, requests, matches), statistikvy (`TeamsStatisticsView`), reorderable overview cards (`TeamsSettingsView`).
 - **Settings:** full-page `TeamsSettingsView` (active season, overview card order). Panel-`TeamSettingsForm` borttagen (död kod).
 - **Cross-plugin:** `TeamMatchesSection`, `TeamRequestsSection`; klick öppnar match/team via URL (se cross-plugin nedan).
-- **Import:** per-team FOGIS-matchimport när `external_team_id` är satt (`4f415c1`).
+- **Import:** per-team FOGIS-matchimport när `external_team_id` är satt (`4f415c1`). Kopplingen sätts numera via lagväljare i TeamForm (se §2026-07-23); fritt textfält borttaget från UI.
 
 ### Requests (`e101cea`)
 

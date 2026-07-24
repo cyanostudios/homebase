@@ -16,6 +16,8 @@ function createTeamRoutes(controller, context) {
 
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
+  router.get('/external-options', gate, (req, res) => controller.getExternalOptions(req, res));
+
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res),
   );

@@ -209,6 +209,24 @@ export interface TeamValidationError {
   message: string;
 }
 
+export interface ExternalTeamOption {
+  externalTeamId: string;
+  name: string;
+  matchCount: number;
+  ageHints: string[];
+}
+
+export interface OccupiedExternalTeam {
+  externalTeamId: string;
+  teamId: string;
+  teamName: string;
+}
+
+export interface ExternalTeamOptionsResponse {
+  externalTeams: ExternalTeamOption[];
+  occupiedBy: OccupiedExternalTeam[];
+}
+
 export const TEAM_STATUSES: TeamStatus[] = ['active', 'dormant', 'break'];
 export const TEAM_GENDERS: TeamGender[] = ['boys', 'girls', 'mixed'];
 export const TEAM_COLORS: TeamColor[] = [

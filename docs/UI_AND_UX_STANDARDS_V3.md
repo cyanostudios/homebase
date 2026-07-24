@@ -1,6 +1,6 @@
 # Homebase UI & UX Standards (V3 Premium)
 
-**Last Updated:** June 2026
+**Last Updated:** July 2026
 
 This document defines the strict UI/UX standards for the Homebase V3 "Premium" design language. All plugins must adhere to these guidelines to ensure a cohesive user experience.
 
@@ -13,9 +13,24 @@ The v3.6 alignment introduced shared primitive behavior that all plugins should 
 - **`ContentHeader` suffix:** status badges or contextual suffix UI should use `titleSuffix` via layout context (`MainLayout` / `ContentHeader`) instead of ad-hoc title hacks.
 - **Detail view tokens:** reuse `client/src/core/ui/detailViewCardStyles.ts` (`DETAIL_VIEW_CARD_CLASS`, `DETAIL_FIELD_LABEL_CLASS`, etc.) and related helpers in `detailViewCardStyles.ts` / `DetailSection`.
 
-### 0.1 List view shell (contacts-style, rolled out 2026-04)
+### 0.1 List view shell (contacts-style, rolled out 2026-04; card columns 2026-07)
 
-All plugin list views (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoices`, `files`, `mail`, `pulses`, `ingest`, `cups`, `contacts`, `teams`, `requests`, `schedule`, `guides`) should match this shell. **Settings** is excluded (not a data list).
+All plugin list views should match this shell. **Settings** is excluded (not a data list).
+
+**Card-column list (rolled out 2026-07-24)** — reference for **Tasks, Contacts, Notes, Guides, Requests, Slots, Estimates, Matches, Files, Ingest, Cups, Teams**:
+
+| Element          | Standard                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Layout**       | No Grid/List toggle; no list `Table`. CSS grid of `*ListItem` cards using `DETAIL_VIEW_CARD_CLASS` (Teams may keep domain `TeamCard` visuals).                                                                                                                                                                                                                                                                                                    |
+| **Columns**      | Toolbar buttons **1 / 2 / 3** set `columnCount` (full / half / third from `sm`; one column below `sm`). Persist `columnCount` (settings and/or session); migrate legacy `viewMode` grid→3, list→1.                                                                                                                                                                                                                                                |
+| **Sort**         | Two-level toolbar sort: primary + optional secondary (`And...`). Both selects `w-[140px]`; shared asc/desc; mutual exclusion of the same field. Per-plugin `*ListSort.ts` (secondary breaks primary ties; date primary uses calendar-day bucket when secondary is set). Sort fields cover list meta (not only title/dates); client-only, not persisted. Known limits: Contacts `tags` = first tag; Notes `mentions` / Guides `languages` = count. |
+| **Filter stats** | `ListFilterStatCard` (`@/core/ui/ListFilterStatCard`): label+dot left, value right; `px-6 py-4` / `text-3xl`. Hover `bg-primary/10` + `text-primary` (same as small filter chips). Grid `gap-2`. Inactive small chips: `bg-card`.                                                                                                                                                                                                                 |
+| **Rhythm**       | `space-y-3` / `gap-3` between filter stats, search toolbar, select/bulk, items, footer (`gap-2` within the filter-stat grid). List page surface uses `bg-background` (light token `210 20% 96%`).                                                                                                                                                                                                                                                 |
+| **Row content**  | Badges top-left; optional compact status control top-right when the entity has status; bold title; optional plain excerpt; meta row. Teams `TeamCard`: no colored top stripe.                                                                                                                                                                                                                                                                     |
+| **Bulk bar**     | Select-all / clear / actions under search toolbar. Neutral actions: hover `bg-primary/10` + `text-primary`. Clear selection matches Delete red hover.                                                                                                                                                                                                                                                                                             |
+| **Bulk status**  | Where the entity has a status/lifecycle field (Tasks, Guides, Requests): bulk **Status** action → `*BulkStatusDialog` (sequential updates). Contacts/Notes/Slots/Cups: no status bulk (Slots/Cups keep BulkProperties).                                                                                                                                                                                                                           |
+
+**Legacy table/grid shell** (still applies to plugins not yet migrated, e.g. invoices, mail, pulses, ai-providers, schedule):
 
 | Element              | Standard                                                                                                                                                 |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -26,11 +41,9 @@ All plugin list views (`notes`, `tasks`, `matches`, `slots`, `estimates`, `invoi
 | **Grid cards**       | `rounded-xl border-0 … shadow-sm`                                                                                                                        |
 | **Badges**           | `border-0 rounded-md px-2 py-0.5 text-xs font-semibold`; subtle fill, not outline                                                                        |
 
-Reference implementation: `client/src/plugins/contacts/components/ContactList.tsx`. Rollout completed in commit `4021082`; do not reintroduce per-plugin border/outline table styles.
-
 **Additional reference implementations (2026-06):**
 
-- **Grid cards:** `TeamCard` (`client/src/plugins/teams/components/TeamCard.tsx`) — colored stripe, status badge, next training.
+- **Grid cards:** `TeamCard` (`client/src/plugins/teams/components/TeamCard.tsx`) — age/color avatar, status badge, next training (no colored top stripe).
 - **Time grid:** `ScheduleTimeGrid` (`client/src/plugins/schedule/components/ScheduleTimeGrid.tsx`) — week grid with drag/drop training slots.
 
 ## 1. List Views (Tables)
@@ -70,6 +83,8 @@ The `BulkActionBar` component must **always** be placed **above** the list/table
 - **Proximity Principle:** Related controls should be visually grouped together.
 - **Industry Standard:** Gmail, Outlook, Salesforce, and most enterprise applications use this pattern.
 - **Sticky Toolbar:** Enables the action bar to remain visible when scrolling long lists.
+
+**Exception (Tasks list pilot only, 2026-07-24):** Tasks colocates select-all / clear / export / delete in one bar under the search toolbar (no table header). See §0.1. Do not generalize this without updating this standard.
 
 **Correct Pattern:**
 

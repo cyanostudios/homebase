@@ -1,5 +1,6 @@
-import { Eye, LayoutGrid, List, Plus, Tag, X } from 'lucide-react';
+import { Eye, Plus, Tag, X } from 'lucide-react';
 import React, { useImperativeHandle, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,16 +9,21 @@ import { Label } from '@/components/ui/label';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { cn } from '@/lib/utils';
 
 import { useSlotSettings } from '../hooks/useSlotSettings';
+import type { SlotColumnCount } from '../utils/slotColumnCount';
 
 export interface SlotsSettingsFormProps {
   onCancel: () => void;
 }
 
+const COLUMN_OPTIONS: SlotColumnCount[] = [1, 2, 3];
+
 export const SlotsSettingsForm = React.forwardRef<PanelFormHandle, SlotsSettingsFormProps>(
   function SlotsSettingsForm({ onCancel }, ref) {
-    const { viewMode, setViewMode, tags, setTags, isLoading, save } = useSlotSettings();
+    const { t } = useTranslation();
+    const { columnCount, setColumnCount, tags, setTags, isLoading, save } = useSlotSettings();
     const [newTag, setNewTag] = useState('');
     useImperativeHandle(
       ref,
@@ -32,7 +38,7 @@ export const SlotsSettingsForm = React.forwardRef<PanelFormHandle, SlotsSettings
     );
 
     if (isLoading) {
-      return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+      return <div className="p-6 text-sm text-muted-foreground">{t('common.loading')}</div>;
     }
 
     const addTag = () => {
@@ -40,7 +46,7 @@ export const SlotsSettingsForm = React.forwardRef<PanelFormHandle, SlotsSettings
       if (!next) {
         return;
       }
-      const exists = tags.some((t) => t.toLowerCase() === next.toLowerCase());
+      const exists = tags.some((tag) => tag.toLowerCase() === next.toLowerCase());
       if (exists) {
         setNewTag('');
         return;
@@ -50,7 +56,7 @@ export const SlotsSettingsForm = React.forwardRef<PanelFormHandle, SlotsSettings
     };
 
     const removeTag = (tag: string) => {
-      setTags((prev) => prev.filter((t) => t !== tag));
+      setTags((prev) => prev.filter((item) => item !== tag));
     };
 
     return (
@@ -59,37 +65,32 @@ export const SlotsSettingsForm = React.forwardRef<PanelFormHandle, SlotsSettings
           title={
             <div className="flex items-center gap-2">
               <Eye className="w-3.5 h-3.5" />
-              <span>Default view</span>
+              <span>{t('slots.defaultColumns')}</span>
             </div>
           }
         >
           <DetailCard className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div className="space-y-0.5">
-                <Label className="text-sm font-semibold">View mode</Label>
-                <p className="text-[11px] text-muted-foreground">
-                  How slots are shown by default (list or grid)
-                </p>
+                <Label className="text-sm font-semibold">{t('slots.columnsLabel')}</Label>
+                <p className="text-[11px] text-muted-foreground">{t('slots.columnsHelp')}</p>
               </div>
               <div className="flex bg-background p-1 rounded-lg border border-border">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-8 px-3 text-[10px] uppercase font-bold tracking-tight"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  Grid
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-8 px-3 text-[10px] uppercase font-bold tracking-tight text-muted-foreground hover:text-foreground"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-3.5 h-3.5" />
-                  List
-                </Button>
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    variant={columnCount === count ? 'default' : 'ghost'}
+                    size="sm"
+                    className={cn(
+                      'h-8 min-w-8 px-3 text-[10px] font-bold tracking-tight',
+                      columnCount !== count && 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`slots.columns${count}`)}
+                  >
+                    {count}
+                  </Button>
+                ))}
               </div>
             </div>
           </DetailCard>
@@ -141,16 +142,16 @@ export const SlotsSettingsForm = React.forwardRef<PanelFormHandle, SlotsSettings
               <div className="text-sm text-muted-foreground">No categories yet.</div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {tags.map((t) => (
-                  <Badge key={t} variant="secondary" className="flex items-center gap-1 pr-1">
-                    <span>{t}</span>
+                {tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="flex items-center gap-1 pr-1">
+                    <span>{tag}</span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="h-5 w-5 min-w-5 p-0 rounded hover:bg-muted"
-                      onClick={() => removeTag(t)}
-                      aria-label={`Remove category ${t}`}
+                      onClick={() => removeTag(tag)}
+                      aria-label={`Remove category ${tag}`}
                     >
                       <X className="h-3 w-3" />
                     </Button>

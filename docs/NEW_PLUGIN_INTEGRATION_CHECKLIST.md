@@ -41,6 +41,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - Context + hook expose the patterns in **`PLUGIN_RUNTIME_CONVENTIONS.md`** (e.g. `is{Singular}PanelOpen`, `current{Singular}`, `panelMode`, `save{Singular}`, `close{Singular}Panel`, open helpers).
 - **Create / edit / settings `*Form.tsx`:** implement **`PanelFormHandle`** (`forwardRef` + `useImperativeHandle`) so panel header Save/Cancel calls `formRef.current.submit()` / `.cancel()`. Do **not** use `window.submit*Form` globals (see golden template + **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`** §12).
 - **View:** use `DetailLayout` with quick actions, export (if applicable), information sidebar, and **`DetailActivityLog`** when the backend exposes the standard activity pattern on `/api/<plugin>/:id` (same idea as contacts, notes, tasks, slots, matches).
+- **Tabular import (optional):** If the plugin needs CSV/Excel/paste import, wire Settings → core `ImportWizard` + plugin `import*` returning `{ successCount, failureCount }`, and offer `downloadImportCsvTemplate` with an example row — see `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §5 and ADR `ai/adr/TABULAR_IMPORT_EXPORT.md`. Do not create a separate import plugin. Domän/API imports stay plugin-local.
 
 **Reference plugins (2026-06):**
 

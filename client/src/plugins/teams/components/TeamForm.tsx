@@ -22,8 +22,11 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
 import type { TeamPayload } from '../api/teamsApi';
+import { teamsApi } from '../api/teamsApi';
 import { useTeams } from '../hooks/useTeams';
 import type {
+  ExternalTeamOption,
+  OccupiedExternalTeam,
   Responsible,
   SeasonBreak,
   SeriesTeam,
@@ -46,6 +49,15 @@ import {
   TEAM_STATUSES,
   WEEK_DAYS,
 } from '../types/teams';
+import {
+  classifyExternalOptionsError,
+  EXTERNAL_TEAM_NONE_VALUE,
+  filterExternalTeamsByName,
+  findOccupiedByOther,
+  formatExternalTeamLabel,
+  isOrphanExternalTeamId,
+  type ExternalOptionsUiStatus,
+} from '../utils/externalTeamOptions';
 
 import { SeriesTeamBadge } from './ResponsibleRow';
 import { SeriesTeamColorPicker } from './SeriesTeamColorPicker';
@@ -92,8 +104,31 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
     name: string;
   } | null>(null);
   const [pendingRemoveNote, setPendingRemoveNote] = useState<TeamNote | null>(null);
+  const [externalTeams, setExternalTeams] = useState<ExternalTeamOption[]>([]);
+  const [occupiedBy, setOccupiedBy] = useState<OccupiedExternalTeam[]>([]);
+  const [externalOptionsStatus, setExternalOptionsStatus] =
+    useState<ExternalOptionsUiStatus>('loading');
+  const [externalTeamFilter, setExternalTeamFilter] = useState('');
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
     useUnsavedChanges();
+
+  const loadExternalOptions = useCallback(async () => {
+    setExternalOptionsStatus('loading');
+    try {
+      const data = await teamsApi.getExternalOptions();
+      setExternalTeams(data.externalTeams);
+      setOccupiedBy(data.occupiedBy);
+      setExternalOptionsStatus(data.externalTeams.length === 0 ? 'empty' : 'ready');
+    } catch (error) {
+      setExternalTeams([]);
+      setOccupiedBy([]);
+      setExternalOptionsStatus(classifyExternalOptionsError(error));
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadExternalOptions();
+  }, [loadExternalOptions, item?.id]);
 
   useEffect(() => {
     setForm({
@@ -148,6 +183,48 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
       getSeriesTeamOptions({ series_teams: seriesTeams, series_team_count: seriesTeams.length }),
     [seriesTeams],
   );
+
+  const knownExternalTeamIds = useMemo(
+    () => new Set(externalTeams.map((team) => team.externalTeamId)),
+    [externalTeams],
+  );
+
+  const filteredExternalTeams = useMemo(() => {
+    const filtered = filterExternalTeamsByName(externalTeams, externalTeamFilter);
+    const selectedId = form.external_team_id.trim();
+    if (!selectedId) {
+      return filtered;
+    }
+    if (filtered.some((team) => team.externalTeamId === selectedId)) {
+      return filtered;
+    }
+    const selected = externalTeams.find((team) => team.externalTeamId === selectedId);
+    return selected ? [selected, ...filtered] : filtered;
+  }, [externalTeams, externalTeamFilter, form.external_team_id]);
+
+  const externalSelectDisabled =
+    externalOptionsStatus === 'loading' ||
+    externalOptionsStatus === 'missing_api_key' ||
+    externalOptionsStatus === 'error';
+
+  const showOrphanOption =
+    Boolean(form.external_team_id.trim()) &&
+    isOrphanExternalTeamId(form.external_team_id, knownExternalTeamIds);
+
+  const externalOptionsHint = (() => {
+    switch (externalOptionsStatus) {
+      case 'loading':
+        return t('teams.externalTeamHintLoading');
+      case 'missing_api_key':
+        return t('teams.externalTeamHintMissingApiKey');
+      case 'error':
+        return t('teams.externalTeamHintError');
+      case 'empty':
+        return t('teams.externalTeamHintEmpty');
+      default:
+        return t('teams.externalTeamHintReady');
+    }
+  })();
 
   const availableContacts = useMemo(() => {
     const q = contactSearch.trim().toLowerCase();
@@ -366,15 +443,73 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                   </div>
                 </div>
                 <div className="md:col-span-2">
-                  <Label>{t('teams.externalTeamId')}</Label>
+                  <Label htmlFor="team-external-fogis">{t('teams.externalTeam')}</Label>
                   <Input
-                    value={form.external_team_id}
-                    onChange={(e) => onFieldChange('external_team_id', e.target.value)}
-                    placeholder={t('teams.externalTeamIdPlaceholder')}
+                    id="team-external-fogis-filter"
+                    value={externalTeamFilter}
+                    onChange={(e) => setExternalTeamFilter(e.target.value)}
+                    placeholder={t('teams.externalTeamFilterPlaceholder')}
+                    disabled={externalSelectDisabled}
+                    className="mb-2 h-10"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t('teams.externalTeamIdHint')}
-                  </p>
+                  <Select
+                    value={form.external_team_id.trim() || EXTERNAL_TEAM_NONE_VALUE}
+                    onValueChange={(value) =>
+                      onFieldChange(
+                        'external_team_id',
+                        value === EXTERNAL_TEAM_NONE_VALUE ? '' : value,
+                      )
+                    }
+                    disabled={externalSelectDisabled}
+                  >
+                    <SelectTrigger id="team-external-fogis" className="h-10 w-full text-sm">
+                      <SelectValue placeholder={t('teams.externalTeamPlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={EXTERNAL_TEAM_NONE_VALUE}>
+                        {t('teams.externalTeamNone')}
+                      </SelectItem>
+                      {showOrphanOption ? (
+                        <SelectItem value={form.external_team_id.trim()}>
+                          {t('teams.externalTeamOrphan', { id: form.external_team_id.trim() })}
+                        </SelectItem>
+                      ) : null}
+                      {filteredExternalTeams.map((team) => {
+                        const occupied = findOccupiedByOther(
+                          occupiedBy,
+                          team.externalTeamId,
+                          item?.id,
+                        );
+                        const label = formatExternalTeamLabel(team);
+                        return (
+                          <SelectItem
+                            key={team.externalTeamId}
+                            value={team.externalTeamId}
+                            disabled={Boolean(occupied)}
+                          >
+                            {occupied
+                              ? t('teams.externalTeamOccupiedOption', {
+                                  label,
+                                  teamName: occupied.teamName,
+                                })
+                              : label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">{externalOptionsHint}</p>
+                  {externalOptionsStatus === 'error' ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1 h-7 px-2 text-xs"
+                      onClick={() => void loadExternalOptions()}
+                    >
+                      {t('teams.externalTeamRetry')}
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             </DetailSection>

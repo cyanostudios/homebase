@@ -1,99 +1,43 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  Grid3x3,
-  List,
-  Plus,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Search, SlidersHorizontal, Trash2, XCircle } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { formatDate } from '@/core/utils/dateFormat';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
-
 import { useGuides } from '../hooks/useGuides';
-import { type Guide, GUIDE_LIFECYCLE_COLORS } from '../types/guides';
+import { type Guide } from '../types/guides';
+import {
+  getInitialGuideColumnCount,
+  GUIDES_COLUMN_COUNT_STORAGE_KEY,
+  type GuideColumnCount,
+} from '../utils/guideColumnCount';
+import {
+  compareGuidesTwoLevel,
+  isGuideAscDefaultField,
+  type GuideSortField,
+  type GuideSortOrder,
+} from '../utils/guideListSort';
+
 import { BulkStatusDialog } from './BulkStatusDialog';
-import { GuideLanguageBadges } from './GuideLanguageBadges';
+import { GuideListItem } from './GuideListItem';
 
-import { GuideCard } from './GuideCard';
-
-type SortField = 'id' | 'displayName' | 'updatedAt';
-type SortOrder = 'asc' | 'desc';
-type ViewMode = 'grid' | 'list';
+type SortField = GuideSortField;
+type SortOrder = GuideSortOrder;
 type GuideListFilter = 'all' | 'draft' | 'active' | 'audioReady';
 
-const GUIDES_VIEW_MODE_STORAGE_KEY = 'guides:viewMode';
-
-function StatCard({
-  label,
-  value,
-  dotClassName,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
-        onClick && 'cursor-pointer hover:bg-muted/50',
-        active && 'ring-1 ring-border/70',
-      )}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
-
-function getInitialViewMode(): ViewMode {
-  if (typeof window === 'undefined') {
-    return 'list';
-  }
-  return window.sessionStorage.getItem(GUIDES_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
-}
+const COLUMN_OPTIONS: GuideColumnCount[] = [1, 2, 3];
 
 export const GuideList: React.FC = () => {
   const { t } = useTranslation();
@@ -114,20 +58,68 @@ export const GuideList: React.FC = () => {
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('displayName');
+  const [primarySort, setPrimarySort] = useState<SortField>('displayName');
+  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [columnCount, setColumnCountState] = useState<GuideColumnCount>(getInitialGuideColumnCount);
   const [activeFilter, setActiveFilter] = useState<GuideListFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const setViewMode = useCallback((mode: ViewMode) => {
-    setViewModeState(mode);
+  const setColumnCount = useCallback((count: GuideColumnCount) => {
+    setColumnCountState(count);
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(GUIDES_VIEW_MODE_STORAGE_KEY, mode);
+      window.sessionStorage.setItem(GUIDES_COLUMN_COUNT_STORAGE_KEY, String(count));
     }
   }, []);
+
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isGuideAscDefaultField(field) ? 'asc' : 'desc');
+    setSecondarySort((prev) => (prev === field ? '' : prev));
+  };
+
+  const handleSecondarySortChange = (value: string) => {
+    if (value === '' || value === 'none') {
+      setSecondarySort('');
+      return;
+    }
+    const field = value as SortField;
+    if (field === primarySort) {
+      return;
+    }
+    setSecondarySort(field);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const sortFieldOptions = useMemo(
+    (): { value: SortField; label: string }[] => [
+      { value: 'displayName', label: t('guides.colName') },
+      { value: 'id', label: t('guides.colId') },
+      { value: 'updatedAt', label: t('guides.colUpdated') },
+      { value: 'createdAt', label: t('guides.colCreated') },
+      { value: 'lifecycleStatus', label: t('guides.colStatus') },
+      { value: 'languages', label: t('guides.colLanguages') },
+    ],
+    [t],
+  );
+
+  const secondarySortOptions = useMemo(
+    () => sortFieldOptions.filter((option) => option.value !== primarySort),
+    [primarySort, sortFieldOptions],
+  );
+
+  const primarySortOptions = useMemo(
+    () =>
+      secondarySort
+        ? sortFieldOptions.filter((option) => option.value !== secondarySort)
+        : sortFieldOptions,
+    [secondarySort, sortFieldOptions],
+  );
 
   const selectedGuides = useMemo(() => {
     const idSet = new Set(selectedGuideIds.map(String));
@@ -165,29 +157,10 @@ export const GuideList: React.FC = () => {
         })
       : byFilter;
 
-    return [...filtered].sort((a, b) => {
-      let av: string | number = '';
-      let bv: string | number = '';
-      if (sortField === 'updatedAt') {
-        av = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-        bv = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      } else if (sortField === 'id') {
-        av = Number(a.id) || 0;
-        bv = Number(b.id) || 0;
-      } else {
-        av = a.displayName.toLowerCase();
-        bv = b.displayName.toLowerCase();
-      }
-      if (typeof av === 'number' && typeof bv === 'number') {
-        return sortOrder === 'asc' ? av - bv : bv - av;
-      }
-      const res = String(av).localeCompare(String(bv), undefined, {
-        numeric: true,
-        sensitivity: 'base',
-      });
-      return sortOrder === 'asc' ? res : -res;
-    });
-  }, [guides, searchTerm, sortField, sortOrder, activeFilter]);
+    return [...filtered].sort((a, b) =>
+      compareGuidesTwoLevel(a, b, primarySort, secondarySort, sortOrder),
+    );
+  }, [guides, searchTerm, primarySort, secondarySort, sortOrder, activeFilter]);
 
   const visibleGuideIds = useMemo(
     () => filteredAndSorted.map((guide) => String(guide.id)),
@@ -231,24 +204,8 @@ export const GuideList: React.FC = () => {
     }
   }, [allVisibleSelected, visibleGuideIds, selectedGuideIds, selectAllGuides]);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
-
   const handleOpenForView = (guide: Guide) => {
     attemptNavigation(() => openGuideForView(guide));
-  };
-
-  const handleRowKeyDown = (e: React.KeyboardEvent, guide: Guide) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleOpenForView(guide);
-    }
   };
 
   const handleBulkDelete = async () => {
@@ -264,15 +221,6 @@ export const GuideList: React.FC = () => {
     } finally {
       setDeleting(false);
     }
-  };
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortOrder === 'asc' ? (
-      <ArrowUp className="inline h-3 w-3" />
-    ) : (
-      <ArrowDown className="inline h-3 w-3" />
-    );
   };
 
   return (
@@ -296,29 +244,29 @@ export const GuideList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <ListFilterStatCard
             label={t('guides.stats.total')}
             value={stats.total}
             dotClassName="bg-blue-500"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('guides.stats.draft')}
             value={stats.draft}
             dotClassName="bg-slate-500"
             active={activeFilter === 'draft'}
             onClick={() => setActiveFilter('draft')}
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('guides.stats.active')}
             value={stats.active}
             dotClassName="bg-emerald-500"
             active={activeFilter === 'active'}
             onClick={() => setActiveFilter('active')}
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('guides.stats.audioReady')}
             value={stats.audioReady}
             dotClassName="bg-green-500"
@@ -326,26 +274,6 @@ export const GuideList: React.FC = () => {
             onClick={() => setActiveFilter('audioReady')}
           />
         </div>
-
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearGuideSelection}
-            actions={[
-              {
-                label: t('guides.bulkStatusAction'),
-                icon: SlidersHorizontal,
-                onClick: () => setShowBulkStatusDialog(true),
-              },
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                onClick: () => setShowBulkDeleteModal(true),
-                variant: 'destructive',
-              },
-            ]}
-          />
-        )}
 
         <BulkStatusDialog
           isOpen={showBulkStatusDialog}
@@ -356,7 +284,6 @@ export const GuideList: React.FC = () => {
             clearGuideSelection();
           }}
         />
-
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}
           onClose={() => setShowBulkDeleteModal(false)}
@@ -366,20 +293,8 @@ export const GuideList: React.FC = () => {
           isLoading={deleting}
         />
 
-        <Card
-          className={cn(
-            'rounded-xl border-0',
-            viewMode === 'grid'
-              ? 'overflow-visible bg-transparent shadow-none'
-              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
-          )}
-        >
-          <div
-            className={cn(
-              'flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3',
-              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
-            )}
-          >
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -390,51 +305,172 @@ export const GuideList: React.FC = () => {
               />
             </div>
             <div className="flex flex-shrink-0 items-center gap-1">
-              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+              <div className="mr-1 flex items-center gap-1">
+                <Select
+                  value={primarySort}
+                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                >
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="Sort by"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    {primarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="And sort by"
+                  >
+                    <SelectValue placeholder="And..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    <SelectItem value="none" className="rounded-md text-xs">
+                      And...
+                    </SelectItem>
+                    {secondarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
-                  icon={Grid3x3}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'grid'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('grid')}
+                  className="h-7 w-7 px-0 text-xs"
+                  onClick={toggleSortOrder}
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                 >
-                  {t('slots.grid')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={List}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'list'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
+                  {sortOrder === 'asc' ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDown className="h-3.5 w-3.5" />
                   )}
-                  onClick={() => setViewMode('list')}
-                >
-                  {t('slots.list')}
                 </Button>
+              </div>
+              <div
+                className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5"
+                role="group"
+                aria-label={t('guides.columnsLabel')}
+              >
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                      columnCount === count
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`guides.columns${count}`)}
+                    aria-pressed={columnCount === count}
+                  >
+                    {count}
+                  </Button>
+                ))}
               </div>
             </div>
           </div>
 
+          {filteredAndSorted.length > 0 ? (
+            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
+              {selectedCount === 0 ? (
+                <div className="flex h-9 min-w-0 items-center gap-2">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={onToggleAllVisible}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label={
+                      allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground">{t('common.selectAll')}</span>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearGuideSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={SlidersHorizontal}
+                    onClick={() => setShowBulkStatusDialog(true)}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    {t('guides.bulkStatusAction')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+
           {filteredAndSorted.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm || activeFilter !== 'all' ? t('guides.noMatch') : t('guides.noYet')}
-              </div>
-            </Card>
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
+              {searchTerm || activeFilter !== 'all' ? t('guides.noMatch') : t('guides.noYet')}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'grid gap-3',
+                columnCount === 1 && 'grid-cols-1',
+                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+              )}
+            >
               {filteredAndSorted.map((guide, index) => {
                 const guideIsSelected = isSelected(guide.id);
                 return (
-                  <GuideCard
+                  <GuideListItem
                     key={guide.id}
                     guide={guide}
                     selected={guideIsSelected}
@@ -456,139 +492,8 @@ export const GuideList: React.FC = () => {
                 );
               })}
             </div>
-          ) : (
-            <Card className="shadow-none">
-              <Table rowBorders={false}>
-                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
-                  <TableRow>
-                    <TableHead className="w-12 text-xs">
-                      <input
-                        ref={headerCheckboxRef}
-                        type="checkbox"
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={
-                          allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
-                        }
-                        checked={allVisibleSelected}
-                        onChange={onToggleAllVisible}
-                      />
-                    </TableHead>
-                    <TableHead
-                      className="w-24 cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('id')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('guides.colId')}</span>
-                        <SortIcon field="id" />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('displayName')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('guides.colName')}</span>
-                        <SortIcon field="displayName" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="max-w-[10rem] text-xs">
-                      {t('guides.colLocation')}
-                    </TableHead>
-                    <TableHead className="w-20 text-xs">{t('guides.colCountry')}</TableHead>
-                    <TableHead className="text-xs">{t('guides.colStatus')}</TableHead>
-                    <TableHead className="text-xs">{t('guides.colLanguages')}</TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none text-xs hover:bg-muted/50"
-                      onClick={() => handleSort('updatedAt')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{t('guides.colUpdated')}</span>
-                        <SortIcon field="updatedAt" />
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSorted.map((guide, index) => {
-                    const guideIsSelected = isSelected(guide.id);
-                    return (
-                      <TableRow
-                        key={guide.id}
-                        className={cn(
-                          'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
-                          guideIsSelected && 'bg-plugin-subtle',
-                        )}
-                        tabIndex={0}
-                        data-list-item={JSON.stringify(guide)}
-                        data-plugin-name="guides"
-                        role="button"
-                        aria-label={t('guides.openPlace', { name: guide.displayName })}
-                        onClick={(e) => {
-                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                            return;
-                          }
-                          handleOpenForView(guide);
-                        }}
-                        onKeyDown={(e) => handleRowKeyDown(e, guide)}
-                      >
-                        <TableCell className="w-12">
-                          <input
-                            type="checkbox"
-                            checked={guideIsSelected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(guide.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 cursor-pointer"
-                            aria-label={
-                              guideIsSelected ? t('guides.unselectPlace') : t('guides.selectPlace')
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {formatDisplayNumber('guides', guide.id)}
-                        </TableCell>
-                        <TableCell className="font-medium">{guide.displayName}</TableCell>
-                        <TableCell className="max-w-[10rem] text-muted-foreground">
-                          <span
-                            className="block truncate"
-                            title={
-                              guide.place?.locality ||
-                              guide.place?.displayName ||
-                              guide.geographicReference ||
-                              undefined
-                            }
-                          >
-                            {guide.place?.locality ||
-                              guide.place?.displayName ||
-                              guide.geographicReference ||
-                              '—'}
-                          </span>
-                        </TableCell>
-                        <TableCell className="uppercase text-muted-foreground">
-                          {guide.place?.countryCode || '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={GUIDE_LIFECYCLE_COLORS[guide.lifecycleStatus]}>
-                            {t(`guides.lifecycle.${guide.lifecycleStatus}`)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <GuideLanguageBadges
-                            languages={guide.languages ?? []}
-                            sourceLanguage={guide.sourceLanguage}
-                          />
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(guide.updatedAt)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </Card>
           )}
-        </Card>
+        </div>
       </div>
     </div>
   );

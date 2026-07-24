@@ -17,21 +17,30 @@ interface TaskStatusSelectProps {
   onStatusChange: (status: string) => void;
   /** Parent supplies label (Contacts-style property row). */
   hideInlineLabel?: boolean;
+  /** Smaller trigger for inline lists. */
+  compact?: boolean;
 }
 
 export function TaskStatusSelect({
   task,
   onStatusChange,
   hideInlineLabel = false,
+  compact = false,
 }: TaskStatusSelectProps) {
   const selectEl = (
     <Select value={task.status} onValueChange={onStatusChange}>
-      <SelectTrigger className="h-9 w-[180px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-xs">
+      <SelectTrigger
+        className={cn(
+          'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
+          compact ? 'h-8 min-h-8 w-[130px] sm:h-7' : 'h-9 w-[180px]',
+        )}
+      >
         <SelectValue placeholder="Select status">
           <Badge
             variant="outline"
             className={cn(
-              'border-transparent font-medium text-xs px-2 h-5 flex items-center',
+              'flex items-center border-transparent px-2 font-medium',
+              compact ? 'h-5 text-[10px]' : 'h-5 text-xs',
               TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS],
             )}
           >
@@ -39,17 +48,17 @@ export function TaskStatusSelect({
           </Badge>
         </SelectValue>
       </SelectTrigger>
-      <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[180px]">
+      <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
         {TASK_STATUS_OPTIONS.map((status) => (
           <SelectItem
             key={status}
             value={status}
-            className="py-2 focus:bg-accent rounded-md text-xs"
+            className="rounded-md py-2 text-xs focus:bg-accent"
           >
             <Badge
               variant="outline"
               className={cn(
-                'border-transparent font-medium text-xs px-2 h-5',
+                'h-5 border-transparent px-2 text-xs font-medium',
                 TASK_STATUS_COLORS[status as keyof typeof TASK_STATUS_COLORS],
               )}
             >

@@ -764,27 +764,33 @@ export function ContactProvider({
     }
   }, []);
 
-  const importContacts = useCallback(async (data: any[]) => {
-    let successCount = 0;
-    for (const row of data) {
-      try {
-        const payload = {
-          companyName: row.companyName ?? row.name ?? '',
-          contactType: row.contactType ?? row.type ?? 'company',
-          email: row.email ?? '',
-          phone: row.phone ?? '',
-          notes: row.notes ?? '',
-        };
-        await contactsApi.createContact(payload);
-        successCount++;
-      } catch (error) {
-        console.error('Failed to import contact', row, error);
+  const importContacts = useCallback(
+    async (data: any[]) => {
+      let successCount = 0;
+      let failureCount = 0;
+      for (const row of data) {
+        try {
+          const payload = {
+            companyName: row.companyName ?? row.name ?? '',
+            contactType: row.contactType ?? row.type ?? 'company',
+            email: row.email ?? '',
+            phone: row.phone ?? '',
+            notes: row.notes ?? '',
+          };
+          await contactsApi.createContact(payload);
+          successCount++;
+        } catch (error) {
+          failureCount++;
+          console.error('Failed to import contact', row, error);
+        }
       }
-    }
-    if (successCount > 0) {
-      await loadContacts();
-    }
-  }, []);
+      if (successCount > 0) {
+        await loadContacts();
+      }
+      return { successCount, failureCount };
+    },
+    [loadContacts],
+  );
 
   const value: ContactContextType = {
     isContactPanelOpen,

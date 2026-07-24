@@ -1,6 +1,7 @@
 import { createApiClient } from '@/core/api/createApiClient';
 
 import type {
+  ExternalTeamOptionsResponse,
   Responsible,
   SeasonBreak,
   SeriesTeam,
@@ -72,6 +73,46 @@ class TeamsApi {
   async getTeams(): Promise<Team[]> {
     const rows = await this.request('');
     return (rows || []).map((row: Record<string, unknown>) => rowToTeam(row));
+  }
+
+  async getExternalOptions(): Promise<ExternalTeamOptionsResponse> {
+    const data = await this.request('/external-options');
+    const externalTeams = Array.isArray(data?.externalTeams) ? data.externalTeams : [];
+    const occupiedBy = Array.isArray(data?.occupiedBy) ? data.occupiedBy : [];
+    return {
+      externalTeams: externalTeams
+        .map(
+          (row: {
+            externalTeamId?: unknown;
+            name?: unknown;
+            matchCount?: unknown;
+            ageHints?: unknown;
+          }) => ({
+            externalTeamId: String(row.externalTeamId ?? '').trim(),
+            name: String(row.name ?? '').trim() || String(row.externalTeamId ?? '').trim(),
+            matchCount: Number(row.matchCount) || 0,
+            ageHints: Array.isArray(row.ageHints)
+              ? row.ageHints
+                  .map((hint: unknown) =>
+                    String(hint ?? '')
+                      .trim()
+                      .toUpperCase(),
+                  )
+                  .filter(Boolean)
+              : [],
+          }),
+        )
+        .filter((row: { externalTeamId: string }) => row.externalTeamId),
+      occupiedBy: occupiedBy
+        .map((row: { externalTeamId?: unknown; teamId?: unknown; teamName?: unknown }) => ({
+          externalTeamId: String(row.externalTeamId ?? '').trim(),
+          teamId: String(row.teamId ?? '').trim(),
+          teamName: String(row.teamName ?? '').trim() || String(row.teamId ?? '').trim(),
+        }))
+        .filter(
+          (row: { externalTeamId: string; teamId: string }) => row.externalTeamId && row.teamId,
+        ),
+    };
   }
 
   async createTeam(data: TeamPayload): Promise<Team> {

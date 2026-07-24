@@ -175,19 +175,35 @@ export function AppContent() {
     }
   }, [isLoading, isAuthenticated, location.pathname, navigate]);
 
-  // Clear bulk selection in all plugins when user navigates to another page (sidebar)
-  // So selection is not cleared when opening view (list unmounts) but is cleared when switching plugin
+  // Clear bulk selection and leave settings/extra list content views when navigating
+  // to another page. Providers stay mounted, so *ContentView would otherwise stick
+  // (e.g. Contacts settings → Notes → Contacts still shows settings).
   useEffect(() => {
     pluginContexts.forEach(({ plugin, context }) => {
       if (!context) {
         return;
       }
-      const clearFnName = `clear${getSingularCap(plugin.name)}Selection`;
-      const clearFn = context[clearFnName as keyof typeof context];
+      const cap = getSingularCap(plugin.name);
+      const clearFn = context[`clear${cap}Selection` as keyof typeof context];
       if (typeof clearFn === 'function') {
-        clearFn();
+        (clearFn as () => void)();
+      }
+      const closeSettingsFn = context[`close${cap}SettingsView` as keyof typeof context];
+      if (typeof closeSettingsFn === 'function') {
+        (closeSettingsFn as () => void)();
+      }
+      const closeStatisticsFn = context[`close${cap}StatisticsView` as keyof typeof context];
+      if (typeof closeStatisticsFn === 'function') {
+        (closeStatisticsFn as () => void)();
       }
     });
+    // ai-providers uses closeRoutingView (not *SettingsView naming)
+    const aiCtx = pluginContexts.find(({ plugin }) => plugin.name === 'ai-providers')?.context as
+      | { closeRoutingView?: () => void }
+      | undefined;
+    if (typeof aiCtx?.closeRoutingView === 'function') {
+      aiCtx.closeRoutingView();
+    }
   }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps -- pluginContexts is stable from PLUGIN_REGISTRY
 
   // Register "Create task from note" dialog opener so NoteContext footer can open it

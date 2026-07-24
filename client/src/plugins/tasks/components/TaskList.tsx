@@ -3,110 +3,72 @@ import {
   ArrowUp,
   FileSpreadsheet,
   FileText,
-  Grid3x3,
-  List as ListIcon,
   Plus,
   Search,
   Settings,
+  SlidersHorizontal,
   Trash2,
   X,
+  XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
+import { type Task } from '../types/tasks';
 import {
-  type Task,
-  TASK_STATUS_COLORS,
-  TASK_PRIORITY_COLORS,
-  formatStatusForDisplay,
-} from '../types/tasks';
+  getInitialTaskColumnCount,
+  resolveTaskColumnCount,
+  TASKS_COLUMN_COUNT_STORAGE_KEY,
+  TASKS_SETTINGS_KEY,
+  type TaskColumnCount,
+} from '../utils/taskColumnCount';
 import { getTasksExportConfig } from '../utils/taskExportConfig';
+import { buildTaskListStatusSavePayload } from '../utils/taskListSave';
+import {
+  compareTasksTwoLevel,
+  isTaskStringSortField,
+  type TaskSortField,
+  type TaskSortOrder,
+} from '../utils/taskListSort';
 
-import { TaskCard } from './TaskCard';
+import { TaskBulkStatusDialog } from './TaskBulkStatusDialog';
+import { TaskListItem } from './TaskListItem';
 import { TaskQuickAdd } from './TaskQuickAdd';
 import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
 
-type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
-type SortOrder = 'asc' | 'desc';
-type ViewMode = 'grid' | 'list';
+type SortField = TaskSortField;
+type SortOrder = TaskSortOrder;
 type TaskFilter = 'all' | 'open' | 'completed' | 'overdue';
-const TASKS_VIEW_MODE_STORAGE_KEY = 'tasks:viewMode';
 
-function getInitialViewMode(): ViewMode {
-  if (typeof window === 'undefined') {
-    return 'list';
-  }
-  return window.sessionStorage.getItem(TASKS_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
-}
+const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'updatedAt', label: 'Updated' },
+  { value: 'title', label: 'Title' },
+  { value: 'status', label: 'Status' },
+  { value: 'priority', label: 'Priority' },
+  { value: 'dueDate', label: 'Due Date' },
+  { value: 'createdAt', label: 'Created' },
+];
 
-const TASKS_SETTINGS_KEY = 'tasks';
-const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
-
-function StatCard({
-  label,
-  value,
-  dotClassName,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
-        onClick && 'cursor-pointer hover:bg-muted/50',
-        active && 'ring-1 ring-border/70',
-      )}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
+const COLUMN_OPTIONS: TaskColumnCount[] = [1, 2, 3];
 
 export function TaskList() {
   const { t } = useTranslation();
@@ -128,17 +90,21 @@ export function TaskList() {
     recentlyDuplicatedTaskId,
     setRecentlyDuplicatedTaskId,
     createTask,
+    saveTask,
+    currentTask,
+    quickEditDraft,
   } = useTasks();
   const { contacts, getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
-  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
+  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [columnCount, setColumnCountState] = useState<TaskColumnCount>(getInitialTaskColumnCount);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('open');
   const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('view');
 
@@ -149,10 +115,10 @@ export function TaskList() {
         if (cancelled) {
           return;
         }
-        const nextMode: ViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
-        setViewModeState(nextMode);
+        const next = resolveTaskColumnCount(settings);
+        setColumnCountState(next);
         if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(TASKS_VIEW_MODE_STORAGE_KEY, nextMode);
+          window.sessionStorage.setItem(TASKS_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
       })
       .catch(() => {});
@@ -161,26 +127,51 @@ export function TaskList() {
     };
   }, [getSettings, settingsVersion]);
 
-  const setViewMode = useCallback(
-    (mode: ViewMode) => {
-      setViewModeState(mode);
+  const setColumnCount = useCallback(
+    (count: TaskColumnCount) => {
+      setColumnCountState(count);
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(TASKS_VIEW_MODE_STORAGE_KEY, mode);
+        window.sessionStorage.setItem(TASKS_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(TASKS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+      updateSettings(TASKS_SETTINGS_KEY, { columnCount: count }).catch(() => {});
     },
     [updateSettings],
   );
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isTaskStringSortField(field) ? 'asc' : 'desc');
+    setSecondarySort((prev) => (prev === field ? '' : prev));
   };
 
+  const handleSecondarySortChange = (value: string) => {
+    if (value === '' || value === 'none') {
+      setSecondarySort('');
+      return;
+    }
+    const field = value as SortField;
+    if (field === primarySort) {
+      return;
+    }
+    setSecondarySort(field);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const secondarySortOptions = useMemo(
+    () => SORT_FIELD_OPTIONS.filter((option) => option.value !== primarySort),
+    [primarySort],
+  );
+
+  const primarySortOptions = useMemo(
+    () =>
+      secondarySort
+        ? SORT_FIELD_OPTIONS.filter((option) => option.value !== secondarySort)
+        : SORT_FIELD_OPTIONS,
+    [secondarySort],
+  );
   const getAssignedContacts = useCallback(
     (task: Task) => {
       const ids = Array.isArray(task.assignedToIds)
@@ -238,56 +229,19 @@ export function TaskList() {
       return matchesSearch;
     });
 
-    return [...filtered].sort((a, b) => {
-      let aValue: string | Date | null;
-      let bValue: string | Date | null;
-
-      if (sortField === 'title') {
-        aValue = a.title.toLowerCase();
-        bValue = b.title.toLowerCase();
-      } else if (sortField === 'status') {
-        aValue = a.status;
-        bValue = b.status;
-      } else if (sortField === 'priority') {
-        const priorityOrder = { High: 3, Medium: 2, Low: 1 };
-        aValue = priorityOrder[a.priority].toString();
-        bValue = priorityOrder[b.priority].toString();
-      } else if (sortField === 'dueDate') {
-        aValue = a.dueDate;
-        bValue = b.dueDate;
-      } else if (sortField === 'createdAt') {
-        aValue = a.createdAt;
-        bValue = b.createdAt;
-      } else {
-        aValue = a.updatedAt;
-        bValue = b.updatedAt;
-      }
-
-      if (sortField === 'title' || sortField === 'status' || sortField === 'priority') {
-        if (sortOrder === 'asc') {
-          return (aValue as string).localeCompare(bValue as string);
-        } else {
-          return (bValue as string).localeCompare(aValue as string);
-        }
-      } else {
-        if (!aValue && !bValue) {
-          return 0;
-        }
-        if (!aValue) {
-          return sortOrder === 'asc' ? 1 : -1;
-        }
-        if (!bValue) {
-          return sortOrder === 'asc' ? -1 : 1;
-        }
-
-        if (sortOrder === 'asc') {
-          return (aValue as Date).getTime() - (bValue as Date).getTime();
-        } else {
-          return (bValue as Date).getTime() - (aValue as Date).getTime();
-        }
-      }
-    });
-  }, [tasks, searchTerm, sortField, sortOrder, contacts, getAssignedContacts, activeFilter]);
+    return [...filtered].sort((a, b) =>
+      compareTasksTwoLevel(a, b, primarySort, secondarySort, sortOrder),
+    );
+  }, [
+    tasks,
+    searchTerm,
+    primarySort,
+    secondarySort,
+    sortOrder,
+    contacts,
+    getAssignedContacts,
+    activeFilter,
+  ]);
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
   const stats = useMemo(
@@ -339,6 +293,11 @@ export function TaskList() {
       selectAllTasks(visibleTaskIds);
     }
   };
+
+  const selectedTasks = useMemo(
+    () => tasks.filter((task) => selectedTaskIds.includes(String(task.id))),
+    [tasks, selectedTaskIds],
+  );
 
   const handleBulkDelete = async () => {
     if (selectedTaskIds.length === 0) {
@@ -394,34 +353,21 @@ export function TaskList() {
     }
   };
 
-  const formatDueDate = (dueDate: Date | null) => {
-    if (!dueDate) {
-      return null;
-    }
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = due.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) {
-      return {
-        text: `${Math.abs(diffDays)} days overdue`,
-        className: 'text-destructive font-medium',
-      };
-    } else if (diffDays === 0) {
-      return { text: 'Due today', className: 'text-orange-600 dark:text-orange-400 font-medium' };
-    } else if (diffDays === 1) {
-      return { text: 'Due tomorrow', className: 'text-yellow-600 dark:text-yellow-400' };
-    } else {
-      return { text: due.toLocaleDateString(), className: 'text-muted-foreground' };
-    }
-  };
-
-  const shouldShowDueDate = (task: Task) => Boolean(task.dueDate) && task.status !== 'completed';
-
   const handleOpenForView = (task: any) => {
     attemptNavigation(() => openTaskForView(task));
   };
+
+  const handleListStatusChange = useCallback(
+    async (task: Task, newStatus: string) => {
+      if (task.status === newStatus) {
+        return;
+      }
+      const isCurrent = currentTask?.id === task.id;
+      const draft = isCurrent ? quickEditDraft : null;
+      await saveTask(buildTaskListStatusSavePayload(task, newStatus, draft), task.id);
+    },
+    [currentTask?.id, quickEditDraft, saveTask],
+  );
 
   const handleQuickCreate = useCallback(
     async (title: string) => {
@@ -459,7 +405,7 @@ export function TaskList() {
 
   return (
     <div className="plugin-tasks min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.tasks')}</h2>
@@ -488,29 +434,29 @@ export function TaskList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <ListFilterStatCard
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Open"
             value={stats.open}
             dotClassName="bg-amber-500"
             active={activeFilter === 'open'}
             onClick={() => setActiveFilter('open')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Completed"
             value={stats.completed}
             dotClassName="bg-emerald-500"
             active={activeFilter === 'completed'}
             onClick={() => setActiveFilter('completed')}
           />
-          <StatCard
+          <ListFilterStatCard
             label="Overdue"
             value={stats.overdue}
             dotClassName="bg-rose-500"
@@ -518,28 +464,6 @@ export function TaskList() {
             onClick={() => setActiveFilter('overdue')}
           />
         </div>
-
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearTaskSelection}
-            actions={[
-              {
-                label: 'Export CSV',
-                icon: FileSpreadsheet,
-                onClick: handleExportCSV,
-                variant: 'default',
-              },
-              { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                onClick: () => setShowBulkDeleteModal(true),
-                variant: 'destructive',
-              },
-            ]}
-          />
-        )}
 
         <BulkDeleteModal
           isOpen={showBulkDeleteModal}
@@ -550,20 +474,16 @@ export function TaskList() {
           isLoading={deleting}
         />
 
-        <Card
-          className={cn(
-            'rounded-xl border-0',
-            viewMode === 'grid'
-              ? 'overflow-visible bg-transparent shadow-none'
-              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
-          )}
-        >
-          <div
-            className={cn(
-              'flex flex-shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-3',
-              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
-            )}
-          >
+        <TaskBulkStatusDialog
+          isOpen={showBulkStatusDialog}
+          onClose={() => setShowBulkStatusDialog(false)}
+          selectedTasks={selectedTasks}
+          saveTask={saveTask}
+          onSuccess={clearTaskSelection}
+        />
+
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
             <div className="relative w-full max-w-sm md:max-w-md">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -574,57 +494,192 @@ export function TaskList() {
               />
             </div>
             <div className="flex flex-shrink-0 items-center gap-1">
+              <div className="mr-1 flex items-center gap-1">
+                <Select
+                  value={primarySort}
+                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                >
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="Sort by"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    {primarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
+                  <SelectTrigger
+                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                    aria-label="And sort by"
+                  >
+                    <SelectValue placeholder="And..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className="rounded-xl border-border/50 shadow-xl"
+                  >
+                    <SelectItem value="none" className="rounded-md text-xs">
+                      And...
+                    </SelectItem>
+                    {secondarySortOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-md text-xs"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 px-0 text-xs"
+                  onClick={toggleSortOrder}
+                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                >
+                  {sortOrder === 'asc' ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
               <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Grid3x3}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'grid'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('grid')}
-                >
-                  {t('slots.grid')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={ListIcon}
-                  className={cn(
-                    'h-7 rounded-[6px] px-2 text-xs',
-                    viewMode === 'list'
-                      ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setViewMode('list')}
-                >
-                  {t('slots.list')}
-                </Button>
+                {COLUMN_OPTIONS.map((count) => (
+                  <Button
+                    key={count}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                      columnCount === count
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setColumnCount(count)}
+                    aria-label={t(`tasks.columns${count}`)}
+                    aria-pressed={columnCount === count}
+                  >
+                    {count}
+                  </Button>
+                ))}
               </div>
             </div>
           </div>
+
+          {sortedTasks.length > 0 ? (
+            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
+              {selectedCount === 0 ? (
+                <div className="flex h-9 min-w-0 items-center gap-2">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleHeaderCheckboxChange}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label="Select all tasks"
+                  />
+                  <span className="text-xs text-muted-foreground">Select all</span>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearTaskSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={SlidersHorizontal}
+                    onClick={() => setShowBulkStatusDialog(true)}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    {t('tasks.bulkStatusAction')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={FileSpreadsheet}
+                    onClick={handleExportCSV}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    Export CSV
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={FileText}
+                    onClick={handleExportPDF}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    Export PDF
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+
           {sortedTasks.length === 0 ? (
-            <Card className="border-0 shadow-none">
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
-              </div>
-            </Card>
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
+              {searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'grid gap-3',
+                columnCount === 1 && 'grid-cols-1',
+                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+              )}
+            >
               {sortedTasks.map((task, index) => {
                 const taskIsSelected = isSelected(task.id);
                 const assignedContacts = getAssignedContacts(task);
                 return (
-                  <TaskCard
+                  <TaskListItem
                     key={task.id}
                     task={task}
                     selected={taskIsSelected}
                     highlighted={recentlyDuplicatedTaskId === String(task.id)}
                     onClick={() => handleOpenForView(task)}
                     assignedNames={assignedContacts.map((c) => c.companyName)}
+                    onStatusChange={(status) => handleListStatusChange(task, status)}
                     checkbox={
                       <input
                         type="checkbox"
@@ -645,260 +700,16 @@ export function TaskList() {
                 className="col-span-full"
               />
             </div>
-          ) : isMobile ? (
-            <Card className="border-0 shadow-none">
-              <div className="space-y-2 p-4">
-                {sortedTasks.map((task, index) => {
-                  const taskIsSelected = isSelected(task.id);
-                  const assignedContacts = getAssignedContacts(task);
-                  return (
-                    <Card
-                      key={task.id}
-                      className={cn(
-                        'p-4 cursor-pointer hover:bg-accent transition-colors',
-                        recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
-                      )}
-                      onClick={(e) => {
-                        if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                          return;
-                        }
-                        e.preventDefault();
-                        handleOpenForView(task);
-                      }}
-                      data-list-item={JSON.stringify(task)}
-                      data-plugin-name="tasks"
-                      role="button"
-                      aria-label={`Open task ${task.title}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <input
-                              type="checkbox"
-                              checked={taskIsSelected}
-                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                              onChange={() => onVisibleRowCheckboxChange(task.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
-                              aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
-                            />
-                            <h3 className="font-semibold text-base truncate">{task.title}</h3>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <Badge className={TASK_STATUS_COLORS[task.status]}>
-                              {formatStatusForDisplay(task.status)}
-                            </Badge>
-                            <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                              {task.priority}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-col gap-1 text-sm">
-                            {shouldShowDueDate(task) && (
-                              <div className={formatDueDate(task.dueDate)?.className || ''}>
-                                {formatDueDate(task.dueDate)?.text}
-                              </div>
-                            )}
-                            {assignedContacts.length > 0 && (
-                              <div className="plugin-contacts text-plugin">
-                                Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
-                              </div>
-                            )}
-                            <div className="text-muted-foreground">
-                              Updated {new Date(task.updatedAt).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-              <TaskQuickAdd viewMode="list" onCreate={handleQuickCreate} />
-            </Card>
-          ) : (
-            <Card className="border-0 shadow-none">
-              <Table rowBorders={false}>
-                <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
-                  <TableRow>
-                    <TableHead className="w-12 text-xs">
-                      <input
-                        ref={headerCheckboxRef}
-                        type="checkbox"
-                        checked={allVisibleSelected}
-                        onChange={handleHeaderCheckboxChange}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={allVisibleSelected ? 'Deselect all tasks' : 'Select all tasks'}
-                      />
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
-                      onClick={() => handleSort('title')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>Title</span>
-                        {sortField === 'title' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="h-3 w-3 inline" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3 inline" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
-                      onClick={() => handleSort('status')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>Status</span>
-                        {sortField === 'status' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="h-3 w-3 inline" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3 inline" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
-                      onClick={() => handleSort('priority')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>Priority</span>
-                        {sortField === 'priority' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="h-3 w-3 inline" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3 inline" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
-                      onClick={() => handleSort('dueDate')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>Due Date</span>
-                        {sortField === 'dueDate' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="h-3 w-3 inline" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3 inline" />
-                          ))}
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-xs">Assigned</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none text-xs"
-                      onClick={() => handleSort('updatedAt')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>Updated</span>
-                        {sortField === 'updatedAt' &&
-                          (sortOrder === 'asc' ? (
-                            <ArrowUp className="h-3 w-3 inline" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3 inline" />
-                          ))}
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedTasks.map((task, index) => {
-                    const taskIsSelected = isSelected(task.id);
-                    return (
-                      <TableRow
-                        key={task.id}
-                        className={cn(
-                          'cursor-pointer bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/80',
-                          taskIsSelected && 'bg-plugin-subtle',
-                          recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
-                        )}
-                        tabIndex={0}
-                        data-list-item={JSON.stringify(task)}
-                        data-plugin-name="tasks"
-                        role="button"
-                        aria-label={`Open task ${task.title}`}
-                        onClick={(e) => {
-                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                            return;
-                          }
-                          e.preventDefault();
-                          handleOpenForView(task);
-                        }}
-                      >
-                        <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={taskIsSelected}
-                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                            onChange={() => onVisibleRowCheckboxChange(task.id)}
-                            className="h-4 w-4 cursor-pointer"
-                            aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
-                          />
-                        </TableCell>
-                        <TableCell className="font-semibold">{task.title}</TableCell>
-                        <TableCell>
-                          <Badge className={TASK_STATUS_COLORS[task.status]}>
-                            {formatStatusForDisplay(task.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                            {task.priority}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {shouldShowDueDate(task) ? (
-                            <div className={formatDueDate(task.dueDate)?.className || ''}>
-                              {formatDueDate(task.dueDate)?.text}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const assignedContacts = getAssignedContacts(task);
-                            if (assignedContacts.length === 0) {
-                              return <span className="text-muted-foreground text-sm">—</span>;
-                            }
-                            return (
-                              <div className="text-sm plugin-contacts text-plugin">
-                                {assignedContacts.map((c) => c.companyName).join(', ')}
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {new Date(task.updatedAt).toLocaleDateString()}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              <TaskQuickAdd viewMode="list" onCreate={handleQuickCreate} />
-            </Card>
           )}
 
           {sortedTasks.length === 0 ? (
-            <div className="px-1 pt-3">
-              <TaskQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
-            </div>
+            <TaskQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
           ) : null}
 
-          <div
-            className={cn(
-              'px-4 py-2 text-xs text-muted-foreground',
-              viewMode === 'grid'
-                ? 'mx-1 mb-1 mt-3 rounded-xl bg-white dark:bg-slate-950'
-                : 'border-t border-border/60',
-            )}
-          >
+          <div className="rounded-xl bg-white px-4 py-3 text-xs text-muted-foreground shadow-sm dark:bg-slate-950">
             Showing {sortedTasks.length} of {tasks.length} Tasks
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

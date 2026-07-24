@@ -21,6 +21,33 @@ export default {
         '748': '748px',
       },
       colors: {
+        /* Text slate/gray mid/dark steps ~25% toward black; keep 50–300 for light surfaces */
+        slate: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#6f7a8a',
+          500: '#4b5768',
+          600: '#35404f',
+          700: '#263140',
+          800: '#171f2c',
+          900: '#0b111f',
+          950: '#020617',
+        },
+        gray: {
+          50: '#f9fafb',
+          100: '#f3f4f6',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          400: '#757a83',
+          500: '#50565f',
+          600: '#38404a',
+          700: '#29313d',
+          800: '#171f29',
+          900: '#0d121d',
+          950: '#030712',
+        },
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

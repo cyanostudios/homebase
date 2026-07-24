@@ -36,7 +36,7 @@ export interface NoteContextType {
   clearNoteSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
-  importNotes: (data: any[]) => Promise<void>;
+  importNotes: (data: any[]) => Promise<{ successCount: number; failureCount: number }>;
   getDeleteMessage: (item: Note | null) => string;
   recentlyDuplicatedNoteId: string | null;
   setRecentlyDuplicatedNoteId: (id: string | null) => void;
@@ -110,7 +110,7 @@ const EMPTY_NOTE_CONTEXT: NoteContextType = {
   clearNoteSelection: () => {},
   selectedCount: 0,
   isSelected: () => false,
-  importNotes: async () => {},
+  importNotes: async () => ({ successCount: 0, failureCount: 0 }),
   getDeleteMessage: () => '',
   recentlyDuplicatedNoteId: null,
   setRecentlyDuplicatedNoteId: () => {},

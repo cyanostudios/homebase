@@ -1,6 +1,6 @@
 // Tasks settings as full-page content (like Core Settings / Notes): tab row + card + footer.
 
-import { Check, LayoutGrid, List, Upload } from 'lucide-react';
+import { Check, Download, LayoutGrid, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -11,13 +11,16 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import type { ImportSchema } from '@/core/utils/importUtils';
+import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
-
-const TASKS_SETTINGS_KEY = 'tasks';
-
-type TaskViewMode = 'grid' | 'list';
+import {
+  resolveTaskColumnCount,
+  TASKS_COLUMN_COUNT_STORAGE_KEY,
+  TASKS_SETTINGS_KEY,
+  type TaskColumnCount,
+} from '../utils/taskColumnCount';
 
 const getTaskImportSchema = (): ImportSchema => ({
   fields: [
@@ -27,6 +30,13 @@ const getTaskImportSchema = (): ImportSchema => ({
     { key: 'priority', label: 'Priority', required: false },
   ],
 });
+
+const TASK_IMPORT_EXAMPLE_ROW: Record<string, string> = {
+  title: 'Follow up with client',
+  content: 'Send proposal draft',
+  status: 'not started',
+  priority: 'Medium',
+};
 
 export type TaskSettingsCategory = 'view' | 'import';
 
@@ -40,6 +50,8 @@ const getTaskSettingsCategories = (t: (key: string) => string): TaskSettingsCate
   { id: 'view', label: 'View', icon: LayoutGrid },
   { id: 'import', label: t('common.import'), icon: Upload },
 ];
+
+const COLUMN_OPTIONS: TaskColumnCount[] = [1, 2, 3];
 
 interface TaskSettingsViewProps {
   selectedCategory?: TaskSettingsCategory;
@@ -64,8 +76,8 @@ export function TaskSettingsView({
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [viewMode, setViewMode] = useState<TaskViewMode>('grid');
-  const [initialViewMode, setInitialViewMode] = useState<TaskViewMode>('grid');
+  const [columnCount, setColumnCount] = useState<TaskColumnCount>(1);
+  const [initialColumnCount, setInitialColumnCount] = useState<TaskColumnCount>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -114,9 +126,9 @@ export function TaskSettingsView({
         if (cancelled) {
           return;
         }
-        const loaded = settings?.viewMode === 'list' ? 'list' : 'grid';
-        setViewMode(loaded);
-        setInitialViewMode(loaded);
+        const loaded = resolveTaskColumnCount(settings);
+        setColumnCount(loaded);
+        setInitialColumnCount(loaded);
       })
       .catch(() => {})
       .finally(() => {
@@ -129,32 +141,26 @@ export function TaskSettingsView({
     };
   }, [getSettings]);
 
-  const isDirty = viewMode !== initialViewMode;
+  const isDirty = columnCount !== initialColumnCount;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings(TASKS_SETTINGS_KEY, { viewMode });
-      setInitialViewMode(viewMode);
+      await updateSettings(TASKS_SETTINGS_KEY, { columnCount });
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(TASKS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+      }
+      setInitialColumnCount(columnCount);
     } catch (error) {
       console.error('Failed to save tasks settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [viewMode, updateSettings]);
+  }, [columnCount, updateSettings]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
   }
-
-  const viewModes: {
-    id: TaskViewMode;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }[] = [
-    { id: 'grid', label: 'Grid', icon: LayoutGrid },
-    { id: 'list', label: 'List', icon: List },
-  ];
 
   const settingsTitle = t('tasks.settingsTasks');
 
@@ -178,16 +184,15 @@ export function TaskSettingsView({
 
       <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
         {activeCategory === 'view' && (
-          <DetailSection title="Default view" className="pt-0">
+          <DetailSection title={t('tasks.defaultColumns')} className="pt-0">
             <div className="flex flex-wrap items-center gap-2">
-              {viewModes.map((mode) => {
-                const ModeIcon = mode.icon;
-                const isActive = viewMode === mode.id;
+              {COLUMN_OPTIONS.map((count) => {
+                const isActive = columnCount === count;
                 return (
                   <Button
-                    key={mode.id}
+                    key={count}
                     variant="ghost"
-                    onClick={() => setViewMode(mode.id)}
+                    onClick={() => setColumnCount(count)}
                     className={cn(
                       'h-9 text-xs px-3 rounded-lg font-medium',
                       'flex items-center gap-1.5',
@@ -196,32 +201,43 @@ export function TaskSettingsView({
                         : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
                     )}
                   >
-                    <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>{mode.label}</span>
+                    <span>{t(`tasks.columns${count}`)}</span>
                   </Button>
                 );
               })}
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Tasks will be displayed in the selected layout by default.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{t('tasks.columnsHelp')}</p>
           </DetailSection>
         )}
         {activeCategory === 'import' && (
           <DetailSection title={t('common.import')} className="pt-0">
-            <p className="mb-4 text-sm text-muted-foreground">
-              {t('tasks.importDescription') ||
-                'Import tasks from a CSV file. Columns: Title, Content, Status, Priority.'}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Upload}
-              onClick={() => setIsImportWizardOpen(true)}
-              className="h-9 text-xs px-3"
-            >
-              {t('common.import')}
-            </Button>
+            <p className="mb-4 text-sm text-muted-foreground">{t('tasks.importDescription')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Download}
+                onClick={() =>
+                  downloadImportCsvTemplate({
+                    schema: getTaskImportSchema(),
+                    filename: 'tasks-import-template.csv',
+                    exampleRow: TASK_IMPORT_EXAMPLE_ROW,
+                  })
+                }
+                className="h-9 text-xs px-3"
+              >
+                {t('importWizard.downloadTemplate')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Upload}
+                onClick={() => setIsImportWizardOpen(true)}
+                className="h-9 text-xs px-3"
+              >
+                {t('common.import')}
+              </Button>
+            </div>
           </DetailSection>
         )}
       </Card>

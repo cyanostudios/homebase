@@ -1,6 +1,4 @@
-// Contacts settings as full-page content (like Core Settings and Notes): tab row + card + footer.
-
-import { Check, LayoutGrid, List, Plus, Tag, Upload, X } from 'lucide-react';
+import { Check, Download, Eye, Plus, Tag, Upload, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,13 +11,16 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import type { ImportSchema } from '@/core/utils/importUtils';
+import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
-
-const CONTACTS_SETTINGS_KEY = 'contacts';
-
-type ContactViewMode = 'grid' | 'list';
+import {
+  CONTACTS_COLUMN_COUNT_STORAGE_KEY,
+  CONTACTS_SETTINGS_KEY,
+  resolveContactColumnCount,
+  type ContactColumnCount,
+} from '../utils/contactColumnCount';
 
 const getContactImportSchema = (): ImportSchema => ({
   fields: [
@@ -31,6 +32,14 @@ const getContactImportSchema = (): ImportSchema => ({
   ],
 });
 
+const CONTACT_IMPORT_EXAMPLE_ROW: Record<string, string> = {
+  companyName: 'Acme AB',
+  contactType: 'company',
+  email: 'info@acme.se',
+  phone: '0701234567',
+  notes: 'Imported sample',
+};
+
 export type ContactSettingsCategory = 'view' | 'tags' | 'import';
 
 interface ContactSettingsCategoryDef {
@@ -40,11 +49,12 @@ interface ContactSettingsCategoryDef {
 }
 
 const getContactSettingsCategories = (t: (key: string) => string): ContactSettingsCategoryDef[] => [
-  { id: 'view', label: 'View', icon: LayoutGrid },
+  { id: 'view', label: 'View', icon: Eye },
   { id: 'tags', label: 'Tags', icon: Tag },
   { id: 'import', label: t('contacts.import'), icon: Upload },
 ];
 
+const COLUMN_OPTIONS: ContactColumnCount[] = [1, 2, 3];
 interface ContactSettingsViewProps {
   selectedCategory?: ContactSettingsCategory;
   onSelectedCategoryChange?: (category: ContactSettingsCategory) => void;
@@ -68,8 +78,8 @@ export function ContactSettingsView({
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [viewMode, setViewMode] = useState<ContactViewMode>('grid');
-  const [initialViewMode, setInitialViewMode] = useState<ContactViewMode>('grid');
+  const [columnCount, setColumnCount] = useState<ContactColumnCount>(1);
+  const [initialColumnCount, setInitialColumnCount] = useState<ContactColumnCount>(1);
   const [tags, setTags] = useState<string[]>([]);
   const [initialTags, setInitialTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
@@ -121,9 +131,9 @@ export function ContactSettingsView({
         if (cancelled) {
           return;
         }
-        const loadedView = settings?.viewMode === 'list' ? 'list' : 'grid';
-        setViewMode(loadedView);
-        setInitialViewMode(loadedView);
+        const loadedColumns = resolveContactColumnCount(settings);
+        setColumnCount(loadedColumns);
+        setInitialColumnCount(loadedColumns);
         const loadedTags = Array.isArray(settings?.tags)
           ? settings.tags
               .filter((tag: unknown) => typeof tag === 'string')
@@ -146,20 +156,23 @@ export function ContactSettingsView({
 
   const tagsEqual =
     tags.length === initialTags.length && tags.every((tag, i) => tag === initialTags[i]);
-  const isDirty = viewMode !== initialViewMode || !tagsEqual;
+  const isDirty = columnCount !== initialColumnCount || !tagsEqual;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings(CONTACTS_SETTINGS_KEY, { viewMode, tags });
-      setInitialViewMode(viewMode);
+      await updateSettings(CONTACTS_SETTINGS_KEY, { columnCount, tags });
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+      }
+      setInitialColumnCount(columnCount);
       setInitialTags([...tags]);
     } catch (error) {
       console.error('Failed to save contacts settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [viewMode, tags, updateSettings]);
+  }, [columnCount, tags, updateSettings]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -183,15 +196,6 @@ export function ContactSettingsView({
     return <div className="text-sm text-muted-foreground">{t('contacts.loading')}</div>;
   }
 
-  const viewModes: {
-    id: ContactViewMode;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }[] = [
-    { id: 'grid', label: 'Grid', icon: LayoutGrid },
-    { id: 'list', label: 'List', icon: List },
-  ];
-
   const settingsTitle = t('contacts.settingsContacts');
 
   return (
@@ -214,33 +218,30 @@ export function ContactSettingsView({
 
       <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
         {activeCategory === 'view' && (
-          <DetailSection title="Default view" className="pt-0">
+          <DetailSection title={t('contacts.defaultColumns')} className="pt-0">
             <div className="flex flex-wrap items-center gap-2">
-              {viewModes.map((mode) => {
-                const ModeIcon = mode.icon;
-                const isActive = viewMode === mode.id;
+              {COLUMN_OPTIONS.map((count) => {
+                const isActive = columnCount === count;
                 return (
                   <Button
-                    key={mode.id}
+                    key={count}
                     variant="ghost"
-                    onClick={() => setViewMode(mode.id)}
+                    onClick={() => setColumnCount(count)}
                     className={cn(
-                      'h-9 text-xs px-3 rounded-lg font-medium',
-                      'flex items-center gap-1.5',
+                      'h-9 min-w-9 text-xs px-3 rounded-lg font-medium',
                       isActive
                         ? 'bg-primary/10 text-primary border border-primary'
                         : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
                     )}
+                    aria-label={t(`contacts.columns${count}`)}
+                    aria-pressed={isActive}
                   >
-                    <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>{mode.label}</span>
+                    {count}
                   </Button>
                 );
               })}
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Contacts will be displayed in the selected layout by default.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{t('contacts.columnsHelp')}</p>
           </DetailSection>
         )}
 
@@ -302,19 +303,33 @@ export function ContactSettingsView({
 
         {activeCategory === 'import' && (
           <DetailSection title={t('contacts.import')} className="pt-0">
-            <p className="mb-4 text-sm text-muted-foreground">
-              {t('contacts.importDescription') ||
-                'Import contacts from a CSV file. Columns: Name, Type, Email, Phone, Notes.'}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Upload}
-              onClick={() => setIsImportWizardOpen(true)}
-              className="h-9 text-xs px-3"
-            >
-              {t('contacts.import')}
-            </Button>
+            <p className="mb-4 text-sm text-muted-foreground">{t('contacts.importDescription')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Download}
+                onClick={() =>
+                  downloadImportCsvTemplate({
+                    schema: getContactImportSchema(),
+                    filename: 'contacts-import-template.csv',
+                    exampleRow: CONTACT_IMPORT_EXAMPLE_ROW,
+                  })
+                }
+                className="h-9 text-xs px-3"
+              >
+                {t('importWizard.downloadTemplate')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Upload}
+                onClick={() => setIsImportWizardOpen(true)}
+                className="h-9 text-xs px-3"
+              >
+                {t('contacts.import')}
+              </Button>
+            </div>
           </DetailSection>
         )}
       </Card>

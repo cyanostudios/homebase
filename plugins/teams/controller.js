@@ -1,10 +1,24 @@
 // plugins/teams/controller.js
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { getExternalOptions } = require('./services/externalTeamOptionsService');
 
 class TeamController {
   constructor(model) {
     this.model = model;
+  }
+
+  async getExternalOptions(req, res) {
+    try {
+      const options = await getExternalOptions(req);
+      res.json(options);
+    } catch (error) {
+      Logger.error('Get team external options failed', error, {
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch external team options' });
+    }
   }
 
   async getAll(req, res) {

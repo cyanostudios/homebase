@@ -142,10 +142,11 @@ router.post(
 );
 ```
 
-## 5. Frontend: Mentions and export (best practice)
+## 5. Frontend: Mentions, export, and import (best practice)
 
 - **Mentions:** Use the core components `MentionTextarea` and `MentionContent` from `@/core/ui/` for any @-mention of contacts. Do not duplicate mention input or display logic in plugin components. See [MENTIONS_AND_CROSS_PLUGIN_UI.md](MENTIONS_AND_CROSS_PLUGIN_UI.md).
 - **Export:** Implement export via `exportFormats` and `onExportItem` in the plugin context, plus an export config (e.g. `myPluginExportConfig`) used by list and detail actions. Keep export actions in list/detail consistent with other plugins (icon + label, same sizes). If the plugin exports from detail actions, prefer `exportItems(...)` + a plugin export config (see existing plugins like Notes/Tasks/Contacts).
+- **Import (tabular):** Do **not** add a separate import plugin. Reuse core `ImportWizard` + `importUtils` (CSV, Excel `.xlsx` first sheet, paste). See ADR [ai/adr/TABULAR_IMPORT_EXPORT.md](ai/adr/TABULAR_IMPORT_EXPORT.md).
 
 ### Export pattern (canonical)
 
@@ -161,6 +162,20 @@ När en plugin stödjer export (single-item och/eller bulk) ska vi använda samm
 
 **Varför:** Ger konsekvent UX (samma knappar, samma formatnamn) och gör export lätt att återanvända mellan list och detail.
 
+### Import pattern (canonical — tabular file / paste)
+
+När en plugin stödjer manuell tabellimport (inte FOGIS/cups-style API-import):
+
+1. **Schema:** `ImportSchema` / `get*ImportSchema()` med fältnycklar, labels och `required`.
+2. **Settings:** kategori/sektion Import öppnar core `ImportWizard` (`@/core/ui/ImportWizard`) med `schema`, `title`, `onImport`.
+3. **CSV-mall:** erbjud `downloadImportCsvTemplate({ schema, filename, exampleRow })` så användaren får headers = field labels (matchar auto-mapping) + en exempelrad.
+4. **Provider:** `import*(rows)` mappar rader → create-payload, anropar pluginets create-API rad-för-rad, returnerar `{ successCount, failureCount }`.
+5. **Copy:** settings-beskrivning via i18n (t.ex. `*.importDescription`); wizard-strängar under `importWizard.*`.
+
+**Core äger** parsers, wizard och mall-generator. **Plugin äger** schema, exempelrad och persistens. Domän/API-import (matcher FOGIS, cups←ingest) förblir plugin-ägda services — blanda inte ihop med denna yta.
+
+**Varför:** Samma UX för contacts/notes/tasks; nya plugins slipper bygga egen CSV/Excel-UI.
+
 ## 6. List and toolbar UI (mandatory for consistency)
 
 Use the same UI components and styling as other plugins so list views and toolbars look and behave the same across the app.
@@ -171,7 +186,7 @@ Use the same UI components and styling as other plugins so list views and toolba
   - `size="sm"`.
   - `className="h-9 text-xs px-3"` for consistent height and label size.
   - `icon={IconComponent}` for the icon (e.g. `Settings`, `Grid3x3`, `List` from `lucide-react`), and put the label as children (e.g. `Settings`, `Grid`, `List`).
-- **List layout:** Use `Card` from `@/components/ui/card` for the list container with plugin semantic class (e.g. `plugin-my-plugins`). Use `Table` / `TableHead` / `TableBody` / `TableRow` / `TableCell` for list view and `DetailCard` or `Card` for grid view. See [UI_AND_UX_STANDARDS_V3.md](UI_AND_UX_STANDARDS_V3.md) for checkbox column width (`w-12`), row hover, and card padding.
+- **List layout:** Use `Card` from `@/components/ui/card` for the list container with plugin semantic class (e.g. `plugin-my-plugins`). For **Tasks, Contacts, Notes, Guides, Requests, Slots, Estimates, Matches, Files, Ingest, Cups, Teams** use the card-column list shell in [UI_AND_UX_STANDARDS_V3.md](UI_AND_UX_STANDARDS_V3.md) §0.1 (`*ListItem`, **1 / 2 / 3** columns, two-level sort with `And...`). Other plugins still use `Table` / grid until migrated — see §0.1 legacy shell and checkbox column width (`w-12`).
 - **Settings button:** If the plugin has a settings screen, add a **Settings** button in the toolbar with the same style as other toolbar buttons (secondary, sm, icon + label "Settings"), e.g. `icon={Settings}` and children `Settings`. Do not use an icon-only button; keep it consistent with Files, Contacts, and Mail.
 
 ## 7. Plugin settings page (when the plugin has a settings screen)

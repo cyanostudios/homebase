@@ -129,6 +129,28 @@ function sanitizeExternalTeamId(value) {
   return trimmed ? trimmed.slice(0, 100) : null;
 }
 
+async function assertExternalTeamIdAvailable(db, externalTeamId, excludeTeamId = null) {
+  if (!externalTeamId) return;
+
+  const params = [externalTeamId];
+  let sql = 'SELECT id, name FROM teams WHERE external_team_id = $1';
+  if (excludeTeamId != null && String(excludeTeamId).trim() !== '') {
+    sql += ' AND id <> $2';
+    params.push(Number(excludeTeamId));
+  }
+  sql += ' LIMIT 1';
+
+  const rows = await db.query(sql, params);
+  if (rows && rows.length > 0) {
+    const occupiedName = rows[0].name ? String(rows[0].name) : String(rows[0].id);
+    throw new AppError(
+      `External team ID is already linked to "${occupiedName}"`,
+      409,
+      AppError.CODES.CONFLICT,
+    );
+  }
+}
+
 class TeamModel {
   static getChangeSummary(existing, teamData) {
     const labels = {
@@ -295,6 +317,9 @@ class TeamModel {
       const sanitizedSeriesTeams =
         series_teams !== undefined ? sanitizeSeriesTeams(series_teams) : [];
 
+      const nextExternalTeamId = sanitizeExternalTeamId(external_team_id);
+      await assertExternalTeamIdAvailable(db, nextExternalTeamId, null);
+
       const result = await db.insert('teams', {
         name: trimmedName.slice(0, 255),
         age_group: decodeHtmlEntities((age_group || '').trim()) || null,
@@ -312,7 +337,7 @@ class TeamModel {
         season_breaks: JSON.stringify(sanitizeSeasonBreaks(season_breaks)),
         responsibles: JSON.stringify(sanitizeResponsibles(responsibles)),
         color: TEAM_COLORS.includes(color) ? color : 'green',
-        external_team_id: sanitizeExternalTeamId(external_team_id),
+        external_team_id: nextExternalTeamId,
       });
 
       Logger.info('Team created', { teamId: result.id });
@@ -364,6 +389,14 @@ class TeamModel {
         series_teams !== undefined ? sanitizeSeriesTeams(series_teams) : null;
 
       const changeSummary = TeamModel.getChangeSummary(current, teamData);
+
+      const nextExternalTeamId =
+        external_team_id !== undefined
+          ? sanitizeExternalTeamId(external_team_id)
+          : sanitizeExternalTeamId(current.external_team_id);
+      if (external_team_id !== undefined) {
+        await assertExternalTeamIdAvailable(db, nextExternalTeamId, teamId);
+      }
 
       const result = await db.update('teams', teamId, {
         name: trimmedName.slice(0, 255),
@@ -424,9 +457,7 @@ class TeamModel {
               : 'green'
             : (current.color ?? 'green'),
         external_team_id:
-          external_team_id !== undefined
-            ? sanitizeExternalTeamId(external_team_id)
-            : (current.external_team_id ?? null),
+          external_team_id !== undefined ? nextExternalTeamId : (current.external_team_id ?? null),
       });
 
       Logger.info('Team updated', { teamId });

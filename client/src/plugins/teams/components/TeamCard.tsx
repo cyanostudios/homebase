@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 import type { Team, TrainingTime } from '../types/teams';
 import {
   TEAM_COLOR_GRADIENTS,
-  TEAM_COLOR_STRIPES,
   TEAM_STATUS_BADGES,
   isTeamOnBreak,
   teamColorGradientTextClass,
@@ -73,7 +72,6 @@ export function TeamCard({
       }}
       role="button"
     >
-      <div className={cn('h-1.5 w-full flex-shrink-0', TEAM_COLOR_STRIPES[team.color])} />
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3">

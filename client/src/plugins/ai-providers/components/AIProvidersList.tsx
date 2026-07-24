@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
 import { formatDate } from '@/core/utils/dateFormat';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -31,49 +32,6 @@ type ViewMode = 'grid' | 'list';
 type SortField = 'providerKey' | 'defaultModel' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ProviderFilter = 'all' | 'enabled' | 'disabled' | 'configured';
-
-function StatCard({
-  label,
-  value,
-  dotClassName,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        'rounded-xl border-0 bg-card p-4 shadow-sm transition-colors',
-        onClick && 'cursor-pointer hover:bg-muted/50',
-        active && 'ring-1 ring-border/70',
-      )}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
 
 function getInitialViewMode(): ViewMode {
   if (typeof window === 'undefined') {
@@ -262,29 +220,29 @@ export const AIProvidersList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <ListFilterStatCard
             label={t('aiProviders.filterAll', { defaultValue: 'Total' })}
             value={stats.total}
             dotClassName="bg-blue-500"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('aiProviders.statusEnabled')}
             value={stats.enabled}
             dotClassName="bg-emerald-500"
             active={activeFilter === 'enabled'}
             onClick={() => setActiveFilter('enabled')}
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('aiProviders.statusDisabled')}
             value={stats.disabled}
             dotClassName="bg-amber-500"
             active={activeFilter === 'disabled'}
             onClick={() => setActiveFilter('disabled')}
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('aiProviders.keyConfigured')}
             value={stats.configured}
             dotClassName="bg-rose-500"

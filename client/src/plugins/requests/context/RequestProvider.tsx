@@ -13,6 +13,7 @@ import { requestsApi } from '../api/requestsApi';
 import type { RequestPayload } from '../api/requestsApi';
 import { DEFAULT_REQUEST_TYPES } from '../types/requests';
 import type { Request, RequestValidationError } from '../types/requests';
+import { shouldApplyOpenRequestSaveEffects } from '../utils/requestListSave';
 
 const REQUESTS_SETTINGS_KEY = 'requests';
 
@@ -220,8 +221,10 @@ export function RequestProvider({
           const id = String(requestId || currentRequest?.id);
           const updated = await requestsApi.updateRequest(id, data);
           setRequests((prev) => prev.map((r) => (r.id === id ? updated : r)));
-          setCurrentRequest(updated);
-          setPanelMode('view');
+          if (shouldApplyOpenRequestSaveEffects(currentRequest?.id, id)) {
+            setCurrentRequest(updated);
+            setPanelMode('view');
+          }
         } else {
           const created = await requestsApi.createRequest(data);
           setRequests((prev) => [created, ...prev]);

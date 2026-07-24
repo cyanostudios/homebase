@@ -122,12 +122,13 @@ Se `docs/RAILWAY_HOMEBASE_SETUP.md`.
 
 1. **CSRF-migration** (csurf bort) + prod-checklista — **Hög**
 2. **TenantContextService** — dokumentera och testa alla upplösningsvägar; ev. feature-flagga bort legacy — **Hög**
-3. **Notes V2-tester** (ersätt arkiverad suite) — **Medel**
-4. **Resten av `createApiClient` + `dateFormat`** — **Medel**, plugin för plugin
-5. **`parseCupSource.js` split** — **Medel**, egen PR
-6. **Stora UI-komponenter** (ContactList/Form, SlotView) — **Medel**, UX-regressionstest manuellt
-7. **ESLint: minska `any`** (t.ex. mål <100 varningar) — **Låg–Medel**
-8. **npm audit** utvalda paket — **Medel**
+3. **SSRF – `apiBaseUrl` i `svffFogisClient.js`** — validera med `validatePublicHttpsUrl` eller motsvarande vit-lista; utökar angreppsyta med Jul 2026-release (lagväljare kallar API vid varje formuläröppning, inte bara vid import). Se §2026-07-23 i CHANGELOG. — **Hög**
+4. **Notes V2-tester** (ersätt arkiverad suite) — **Medel**
+5. **Resten av `createApiClient` + `dateFormat`** — **Medel**, plugin för plugin
+6. **`parseCupSource.js` split** — **Medel**, egen PR
+7. **Stora UI-komponenter** (ContactList/Form, SlotView) — **Medel**, UX-regressionstest manuellt
+8. **ESLint: minska `any`** (t.ex. mål <100 varningar) — **Låg–Medel**
+9. **npm audit** utvalda paket — **Medel**
 
 ---
 

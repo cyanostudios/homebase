@@ -51,7 +51,7 @@ export interface TaskContextType {
   setRecentlyDuplicatedTaskId: (id: string | null) => void;
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Task) => void;
-  importTasks: (data: any[]) => Promise<void>;
+  importTasks: (data: any[]) => Promise<{ successCount: number; failureCount: number }>;
   quickEditDraft: Partial<{
     status: string;
     priority: string;
@@ -142,7 +142,7 @@ const EMPTY_TASK_CONTEXT: TaskContextType = {
   setRecentlyDuplicatedTaskId: () => {},
   exportFormats: [],
   onExportItem: () => {},
-  importTasks: async () => {},
+  importTasks: async () => ({ successCount: 0, failureCount: 0 }),
   quickEditDraft: null,
   setQuickEditField: () => {},
   hasQuickEditChanges: false,

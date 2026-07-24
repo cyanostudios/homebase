@@ -1,6 +1,6 @@
 // Slots settings as full-page content (like Core Settings): tab row + card + footer.
 
-import { Check, LayoutGrid, List, Plus, Tag, X } from 'lucide-react';
+import { Check, LayoutGrid, Plus, Tag, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,21 +13,14 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import { cn } from '@/lib/utils';
 
 import { useSlotSettings } from '../hooks/useSlotSettings';
-import type { SlotsViewMode } from '../types/slots';
+import type { SlotColumnCount } from '../utils/slotColumnCount';
 
 const slotsSettingsCategories = [
   { id: 'view', label: 'View', icon: LayoutGrid },
   { id: 'categories', label: 'Categories', icon: Tag },
 ];
 
-const viewModes: {
-  id: SlotsViewMode;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { id: 'grid', label: 'Grid', icon: LayoutGrid },
-  { id: 'list', label: 'List', icon: List },
-];
+const COLUMN_OPTIONS: SlotColumnCount[] = [1, 2, 3];
 
 type SlotsSettingsCategory = 'view' | 'categories';
 
@@ -46,7 +39,7 @@ export function SlotsSettingsView({
 }: SlotsSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { setHeaderTrailing } = useContentLayout();
-  const { viewMode, setViewMode, tags, setTags, isDirty, isLoading, isSaving, save } =
+  const { columnCount, setColumnCount, tags, setTags, isDirty, isLoading, isSaving, save } =
     useSlotSettings();
   const [internalSelectedCategory, setInternalSelectedCategory] =
     useState<SlotsSettingsCategory>('view');
@@ -99,7 +92,7 @@ export function SlotsSettingsView({
 
   const removeTag = useCallback(
     (tag: string) => {
-      setTags((prev) => prev.filter((t) => t !== tag));
+      setTags((prev) => prev.filter((item) => item !== tag));
     },
     [setTags],
   );
@@ -136,16 +129,15 @@ export function SlotsSettingsView({
       )}
       <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
         {activeCategory === 'view' && (
-          <DetailSection title="Default view" className="pt-0">
+          <DetailSection title={t('slots.defaultColumns')} className="pt-0">
             <div className="flex items-center gap-2 flex-wrap">
-              {viewModes.map((mode) => {
-                const ModeIcon = mode.icon;
-                const isActive = viewMode === mode.id;
+              {COLUMN_OPTIONS.map((count) => {
+                const isActive = columnCount === count;
                 return (
                   <Button
-                    key={mode.id}
+                    key={count}
                     variant="ghost"
-                    onClick={() => setViewMode(mode.id)}
+                    onClick={() => setColumnCount(count)}
                     className={cn(
                       'h-9 text-xs px-3 rounded-lg font-medium',
                       'flex items-center gap-1.5',
@@ -153,16 +145,15 @@ export function SlotsSettingsView({
                         ? 'bg-primary/10 text-primary border border-primary'
                         : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
                     )}
+                    aria-label={t(`slots.columns${count}`)}
+                    aria-pressed={isActive}
                   >
-                    <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>{mode.label}</span>
+                    <span>{count}</span>
                   </Button>
                 );
               })}
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Slots will be displayed in the selected layout by default.
-            </p>
+            <p className="text-sm text-muted-foreground mt-2">{t('slots.columnsHelp')}</p>
           </DetailSection>
         )}
 
