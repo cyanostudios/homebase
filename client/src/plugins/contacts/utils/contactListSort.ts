@@ -14,7 +14,7 @@ export type ContactSortOrder = 'asc' | 'desc';
 
 export type ContactTimeRankContext = {
   activeTimeTrackingContactId: string | null;
-  contactIdsWithTimeEntries: Set<string | number>;
+  contactIdsWithTimeEntries: ReadonlySet<string | number>;
 };
 
 type ContactSortable = Pick<

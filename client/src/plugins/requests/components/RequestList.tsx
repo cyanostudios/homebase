@@ -126,13 +126,12 @@ export function RequestList() {
     (request: Request) => {
       const ids = Array.isArray(request.assignedToIds) ? request.assignedToIds : [];
       return ids
-        .map((id) =>
-          contacts.find(
+        .map((id) => {
+          const contact = contacts.find(
             (c: { id: string | number; companyName?: string }) => String(c.id) === String(id),
-          ),
-        )
-        .filter(Boolean)
-        .map((c: { companyName?: string }) => c.companyName || '')
+          );
+          return contact?.companyName || '';
+        })
         .filter(Boolean);
     },
     [contacts],
