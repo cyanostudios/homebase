@@ -4,6 +4,18 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-26 – Cupappen hero-band + header polish; mall synkad
+
+**Status:** Implementerat. Docs Updated.
+
+**Sammanfattning (verifierat mot kod):**
+
+- **Cupappen listing:** `#hero-band` (copy + filter + snabbfilter) som en komposition; fast headerhöjd (`--header-h`) frikopplad från logo (`--header-logo-h`); frosted header ~0.5 opacity; infosida samma padding/typografi som hero; distrikt mobil: badges med horisontell scroll istället för sökfilter.
+- **Cup-detalj:** samma header-tokens/logo/Tillbaka-knapp (Rensa-stil) i `cupappen-cup-detail.css`.
+- **Mall:** motsvarande AppShell-mönster portade till `templates/public-app/` (ej distrikt-/cup-URL:er). Se [`PUBLIC_APP_DESIGN.md`](PUBLIC_APP_DESIGN.md).
+
+---
+
 ## 2026-07-26 – Public app template shell chrome (from Cupappen)
 
 **Status:** Implementerat i mall. Docs Updated. **Ej prod-release** (mall).

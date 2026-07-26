@@ -27,6 +27,30 @@
   --radius-xl: 1.5rem;
   --radius-pill: 9999px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Shared with listing AppShell (styles.css) */
+  --page-pad: 1.25rem;
+  --content-max: 80rem;
+  --header-h: 4rem;
+  --header-logo-h: 4.5rem;
+}
+
+@media (min-width: 600px) {
+  :root {
+    --page-pad: 1.5rem;
+  }
+}
+
+@media (min-width: 960px) {
+  :root {
+    --header-h: 4.25rem;
+    --header-logo-h: 6rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --page-pad: 2rem;
+  }
 }
 
 *,
@@ -71,21 +95,9 @@ button {
 }
 
 .container {
-  max-width: 80rem;
+  max-width: var(--content-max);
   margin-inline: auto;
-  padding-inline: 1.25rem;
-}
-
-@media (min-width: 768px) {
-  .container {
-    padding-inline: 1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .container {
-    padding-inline: 2rem;
-  }
+  padding-inline: var(--page-pad);
 }
 
 .h3 {
@@ -95,51 +107,23 @@ button {
   letter-spacing: -0.01em;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-  color: var(--text);
-}
-
-.logo picture {
-  display: block;
-  line-height: 0;
-}
-
-.logo__img {
-  display: block;
-  height: 2.75rem;
-  width: auto;
-  max-width: min(14rem, 62vw);
-  object-fit: contain;
-  object-position: left center;
-}
-
-@media (min-width: 768px) {
-  .logo__img {
-    height: 3.75rem;
-    max-width: min(16rem, 70vw);
-  }
-}
-
 .detail-layout {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
-  padding-block: 1.75rem;
+  padding-block: 2rem 2.25rem;
 }
 @media (min-width: 768px) {
   .detail-layout {
     gap: 2rem;
-    padding-block: 2.75rem;
+    padding-block: 2.75rem 3rem;
   }
 }
-@media (min-width: 1024px) {
+@media (min-width: 960px) {
   .detail-layout {
     grid-template-columns: 1fr 360px;
     gap: 3.5rem;
-    padding-block: 5rem;
+    padding-block: 3.5rem 3.75rem;
   }
 }
 .detail-layout__main {
@@ -151,50 +135,75 @@ button {
   left: 0;
   right: 0;
   z-index: 50;
-  min-height: 3.75rem;
-  height: auto;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  background: rgba(255, 255, 255, 0.75);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  width: 100%;
+  height: var(--header-h);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  background: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.45);
+  overflow: visible;
 }
 .detail-header__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 3.75rem;
-  padding-block: 0.25rem;
+  width: 100%;
+  height: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding: 0 var(--page-pad);
+  gap: 0.75rem;
 }
-@media (min-width: 768px) {
-  .detail-header,
-  .detail-header__inner {
-    min-height: 4.5rem;
-  }
-  .detail-header__inner {
-    padding-block: 0.35rem;
-  }
+.logo {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  text-decoration: none;
+  color: var(--text);
+  overflow: visible;
+}
+.logo picture {
+  display: block;
+  line-height: 0;
+}
+.logo__img {
+  display: block;
+  height: var(--header-logo-h);
+  width: auto;
+  object-fit: contain;
+  object-position: left center;
 }
 .detail-back {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0 1.25rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: #fff;
+  box-shadow: none;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-muted);
   text-decoration: none;
-  transition: color 200ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    border-color 200ms ease,
+    color 200ms ease;
 }
 .detail-back:hover {
-  color: var(--text);
+  border-color: var(--brand);
+  color: var(--brand);
 }
 .cover {
   position: relative;
-  padding-top: 3.75rem;
-}
-@media (min-width: 768px) {
-  .cover {
-    padding-top: 4.5rem;
-  }
+  padding-top: var(--header-h);
 }
 .cover__media {
   position: relative;
@@ -210,7 +219,7 @@ button {
     max-height: none;
   }
 }
-@media (min-width: 1024px) {
+@media (min-width: 960px) {
   .cover__media {
     height: 56vh;
     min-height: 340px;
@@ -237,19 +246,21 @@ button {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  padding: 1.25rem 1.25rem 1.5rem;
+  padding: 1.25rem var(--page-pad) 1.5rem;
   color: #fff;
-  max-width: 80rem;
+  max-width: var(--content-max);
   margin-inline: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 @media (min-width: 768px) {
   .cover__content {
-    padding: 2.5rem 1.5rem;
+    padding: 2.5rem var(--page-pad);
   }
 }
-@media (min-width: 1024px) {
+@media (min-width: 960px) {
   .cover__content {
-    padding: 3.5rem 2rem;
+    padding: 3.5rem var(--page-pad);
   }
 }
 .cover__chip {
@@ -260,7 +271,7 @@ button {
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -273,11 +284,12 @@ button {
 }
 .cover__title {
   font-family: 'Fraunces', serif;
-  font-size: clamp(1.75rem, 7.5vw, 4.75rem);
+  font-size: clamp(1.85rem, 7vw, 4.75rem);
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.08;
   margin: 0.625rem 0 0;
+  max-width: 18ch;
 }
 .cover__meta {
   margin-top: 0.625rem;
@@ -286,17 +298,23 @@ button {
   align-items: center;
   gap: 0.375rem 1rem;
   color: #cbd5e1;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
 }
 @media (min-width: 768px) {
   .cover__title {
     margin: 1rem 0 0;
+    font-size: clamp(2.5rem, 5vw, 4.75rem);
     line-height: 1.02;
   }
   .cover__meta {
     margin-top: 1rem;
     gap: 0.5rem 1.5rem;
-    font-size: 1rem;
+    font-size: 1.125rem;
+  }
+}
+@media (min-width: 960px) {
+  .cover__meta {
+    font-size: 1.25rem;
   }
 }
 .cover__meta-item {
@@ -420,10 +438,10 @@ button {
   flex-direction: column;
   gap: 1rem;
 }
-@media (min-width: 1024px) {
+@media (min-width: 960px) {
   .sidebar {
     position: sticky;
-    top: 6rem;
+    top: calc(var(--header-h) + 1rem);
     align-self: start;
   }
 }
@@ -770,7 +788,7 @@ button {
   border: 1px solid var(--border);
   background: #fff;
 }
-@media (min-width: 1024px) {
+@media (min-width: 960px) {
   .rating-form {
     padding: 2rem;
   }

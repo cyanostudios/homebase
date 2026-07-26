@@ -76,7 +76,28 @@
       </header>
 
       <main id="main" class="app-main no-scrollbar">
-        <nav class="quick-nav no-scrollbar" id="quick-nav" aria-label="Snabbnavigering"></nav>
+        <div class="hero-band" id="hero-band">
+          <section class="hero" id="home-hero" aria-label="Hjälte-sektion">
+            <div class="hero__content">
+              <div class="hero__badge" role="status" aria-live="polite">
+                <span class="hero__badge-dot" aria-hidden="true"></span>
+                <span id="hero-count-line">…</span>
+              </div>
+              <h1 class="hero__title">
+                Hitta det du söker — <em class="display-accent">snabbt</em>.
+              </h1>
+              <p class="hero__lead">
+                Replace this lead copy when copying the public-app template. One short supporting sentence under the headline.
+              </p>
+            </div>
+          </section>
+
+          <!-- Optional: apps that need listing filters mount UI here (hidden by default). -->
+          <div class="shared-filter" id="shared-filter" hidden></div>
+
+          <nav class="quick-nav no-scrollbar" id="quick-nav" aria-label="Snabbnavigering"></nav>
+        </div>
+
         <p id="status" class="status" role="status">Laddar…</p>
         <div id="rows-container"></div>
       </main>

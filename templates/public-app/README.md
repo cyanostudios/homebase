@@ -7,7 +7,7 @@ Reference implementation in production: [`public-cups/`](../../public-cups/) (Cu
 Full ops checklist: [`docs/PUBLIC_APP_TEMPLATE.md`](../../docs/PUBLIC_APP_TEMPLATE.md).  
 Design system (AppShell, tokens, components): [`docs/PUBLIC_APP_DESIGN.md`](../../docs/PUBLIC_APP_DESIGN.md).
 
-**Shell chrome (från Cupappen-designpass):** `.app-atmosphere` bakom UI, frosted `.top-bar` + `.top-bar__inner`, quick-nav med horisontell scroll. Brand via `:root` tokens — kopiera inte Cupappen-färger.
+**Shell chrome (från Cupappen-designpass):** `.app-atmosphere` bakom UI; frosted `.top-bar` med fast `--header-h` (logo via `--header-logo-h` kan överhänga); `.hero-band` som en komposition (hero-copy + valfri `#shared-filter` + quick-nav); info-panel med samma padding-/display-rytm. Brand via `:root` tokens — kopiera inte Cupappen-färger.
 
 ## Quick start
 

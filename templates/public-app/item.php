@@ -201,10 +201,11 @@ $showAudio = $steps !== [];
             Public App
             <span class="brand__dot" aria-hidden="true"></span>
           </a>
-          <a class="hamburger-btn shadow-soft" href="/" aria-label="Till startsidan">
+          <a class="detail-back-btn shadow-soft" href="/" aria-label="Till startsidan">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
               <path d="M15 18l-6-6 6-6" />
             </svg>
+            Tillbaka
           </a>
         </div>
       </header>

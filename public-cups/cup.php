@@ -925,7 +925,7 @@ $jsonLdGraph = jsonLdStripNulls([
 </head>
 <body>
   <header class="detail-header">
-    <div class="container detail-header__inner">
+    <div class="detail-header__inner">
       <a href="/" class="logo" id="detail-logo" aria-label="Cupappen startsida">
         <picture>
           <source srcset="/assets/cupappen-logo.webp" type="image/webp" />
@@ -933,8 +933,8 @@ $jsonLdGraph = jsonLdStripNulls([
             class="logo__img"
             src="/assets/cupappen-logo.png"
             alt="Cupappen"
-            width="360"
-            height="240"
+            width="120"
+            height="40"
             decoding="async"
           />
         </picture>

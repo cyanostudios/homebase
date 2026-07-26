@@ -180,90 +180,93 @@
       </header>
 
       <main id="main" class="app-main no-scrollbar">
-        <section class="hero" id="home-hero" aria-label="Hjälte-sektion">
-          <div class="hero__content">
-            <div class="hero__badge fade-up" role="status" aria-live="polite" data-testid="hero-cup-count-badge">
-              <span class="hero__badge-dot" aria-hidden="true"></span>
-              <span id="hero-cup-count-line">Ny säsong 2026 · …</span>
-            </div>
-
-            <h1 class="hero__title fade-up delay-1">
-              Hitta din nästa <em class="display-accent">fotbollscup</em> — på under en minut.
-            </h1>
-
-            <p class="hero__lead fade-up delay-2">
-              Cupappen samlar Sveriges turneringar på ett ställe. Sök, jämför och anmäl ert lag till rätt cup — utan att scrolla genom tio olika webbsidor.
-            </p>
-          </div>
-        </section>
-
-        <section class="district-page" id="district-hero" aria-label="Distrikt" hidden>
-          <div class="district-page__header">
-            <h1 class="district-page__title" id="district-hero-title"></h1>
-            <p class="district-page__lead" id="district-hero-lead"></p>
-          </div>
-        </section>
-
-        <div class="shared-filter" id="shared-filter">
-          <div class="hero-search-card filter-card filter-card--hero" role="search" aria-label="Filtrera cuper">
-            <div class="hero-search-field">
-              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <div>
-                <label class="hero-search-field__label" for="search-input-hero">Sök</label>
-                <input type="search" id="search-input-hero" data-testid="search-input-hero" placeholder="Cup, arrangör, plats…" autocomplete="off" />
+        <div class="hero-band" id="hero-band">
+          <section class="hero" id="home-hero" aria-label="Hjälte-sektion">
+            <div class="hero__content">
+              <div class="hero__badge fade-up" role="status" aria-live="polite" data-testid="hero-cup-count-badge">
+                <span class="hero__badge-dot" aria-hidden="true"></span>
+                <span id="hero-cup-count-line">Ny säsong 2026 · …</span>
               </div>
+
+              <h1 class="hero__title fade-up delay-1">
+                Hitta din nästa <em class="display-accent">fotbollscup</em> — på under en minut.
+              </h1>
+
+              <p class="hero__lead fade-up delay-2">
+                Cupappen samlar Sveriges turneringar på ett ställe. Sök, jämför och anmäl ert lag till rätt cup — utan att scrolla genom tio olika webbsidor.
+              </p>
             </div>
-            <div class="hero-search-divider" aria-hidden="true"></div>
-            <div class="hero-search-field hero-search-field--select">
-              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <div class="hero-search-field__select-wrap" aria-label="Filtrera på datum">
-                <span class="hero-search-field__label" id="hero-datum-label">Datum</span>
-                <div id="hero-date-filter" class="custom-select" aria-labelledby="hero-datum-label">
-                  <button id="hero-date-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-date-trigger">
-                    <span class="custom-trigger-inner"><span id="hero-date-label">Kommande</span></span>
-                    <span class="custom-chevron" aria-hidden="true">▾</span>
-                  </button>
-                  <div id="hero-date-menu" class="custom-menu" role="listbox" hidden></div>
+          </section>
+
+          <section class="district-page" id="district-hero" aria-label="Distrikt" hidden>
+            <div class="district-page__header">
+              <h1 class="district-page__title" id="district-hero-title"></h1>
+              <p class="district-page__lead" id="district-hero-lead"></p>
+            </div>
+          </section>
+
+          <div class="shared-filter" id="shared-filter">
+            <div class="hero-search-card filter-card filter-card--hero fade-up delay-3" role="search" aria-label="Filtrera cuper">
+              <div class="hero-search-field">
+                <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <div>
+                  <label class="hero-search-field__label" for="search-input-hero">Sök</label>
+                  <input type="search" id="search-input-hero" data-testid="search-input-hero" placeholder="Cup, arrangör, plats…" autocomplete="off" />
                 </div>
               </div>
-            </div>
-            <div class="hero-search-divider" aria-hidden="true"></div>
-            <div class="hero-search-field hero-search-field--select">
-              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <div class="hero-search-field__select-wrap" aria-label="Filtrera på kategori">
-                <span class="hero-search-field__label" id="hero-cat-label">Kategorier</span>
-                <div id="hero-category-filter" class="custom-select" aria-labelledby="hero-cat-label">
-                  <button id="hero-category-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-category-trigger">
-                    <span class="custom-trigger-inner"><span id="hero-category-label">Alla klasser</span></span>
-                    <span class="custom-chevron" aria-hidden="true">▾</span>
-                  </button>
-                  <div id="hero-category-menu" class="custom-menu" role="listbox" hidden></div>
+              <div class="hero-search-divider" aria-hidden="true"></div>
+              <div class="hero-search-field hero-search-field--select">
+                <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <div class="hero-search-field__select-wrap" aria-label="Filtrera på datum">
+                  <span class="hero-search-field__label" id="hero-datum-label">Datum</span>
+                  <div id="hero-date-filter" class="custom-select" aria-labelledby="hero-datum-label">
+                    <button id="hero-date-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-date-trigger">
+                      <span class="custom-trigger-inner"><span id="hero-date-label">Kommande</span></span>
+                      <span class="custom-chevron" aria-hidden="true">▾</span>
+                    </button>
+                    <div id="hero-date-menu" class="custom-menu" role="listbox" hidden></div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="hero-search-divider" aria-hidden="true"></div>
-            <div class="hero-search-field hero-search-field--select">
-              <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h4l2 2h4l2-2h4v16H4V4z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
-              <div class="hero-search-field__select-wrap" aria-label="Filtrera på distrikt">
-                <span class="hero-search-field__label" id="hero-district-label-text">Distrikt</span>
-                <div id="hero-district-filter" class="custom-select" aria-labelledby="hero-district-label-text">
-                  <button id="hero-district-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-district-trigger">
-                    <span class="custom-trigger-inner"><span id="hero-district-label">Alla distrikt</span></span>
-                    <span class="custom-chevron" aria-hidden="true">▾</span>
-                  </button>
-                  <div id="hero-district-menu" class="custom-menu" role="listbox" hidden></div>
+              <div class="hero-search-divider" aria-hidden="true"></div>
+              <div class="hero-search-field hero-search-field--select">
+                <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <div class="hero-search-field__select-wrap" aria-label="Filtrera på kategori">
+                  <span class="hero-search-field__label" id="hero-cat-label">Kategorier</span>
+                  <div id="hero-category-filter" class="custom-select" aria-labelledby="hero-cat-label">
+                    <button id="hero-category-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-category-trigger">
+                      <span class="custom-trigger-inner"><span id="hero-category-label">Alla klasser</span></span>
+                      <span class="custom-chevron" aria-hidden="true">▾</span>
+                    </button>
+                    <div id="hero-category-menu" class="custom-menu" role="listbox" hidden></div>
+                  </div>
                 </div>
               </div>
+              <div class="hero-search-divider" aria-hidden="true"></div>
+              <div class="hero-search-field hero-search-field--select">
+                <svg class="hero-search-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h4l2 2h4l2-2h4v16H4V4z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+                <div class="hero-search-field__select-wrap" aria-label="Filtrera på distrikt">
+                  <span class="hero-search-field__label" id="hero-district-label-text">Distrikt</span>
+                  <div id="hero-district-filter" class="custom-select" aria-labelledby="hero-district-label-text">
+                    <button id="hero-district-trigger" class="custom-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-testid="hero-district-trigger">
+                      <span class="custom-trigger-inner"><span id="hero-district-label">Alla distrikt</span></span>
+                      <span class="custom-chevron" aria-hidden="true">▾</span>
+                    </button>
+                    <div id="hero-district-menu" class="custom-menu" role="listbox" hidden></div>
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="btn btn-primary hero-search-btn" data-testid="hero-search-button" id="hero-search-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Sök cuper
+              </button>
+              <button type="button" class="btn btn-secondary hero-search-btn hero-search-btn--ghost" data-testid="clear-filters-btn-hero" id="clear-filters-btn-hero" aria-label="Rensa filter">Rensa</button>
             </div>
-            <button type="button" class="btn btn-primary hero-search-btn" data-testid="hero-search-button" id="hero-search-btn">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Sök cuper
-            </button>
-            <button type="button" class="btn btn-secondary hero-search-btn hero-search-btn--ghost" data-testid="clear-filters-btn-hero" id="clear-filters-btn-hero" aria-label="Rensa filter">Rensa</button>
           </div>
+
+          <nav class="quick-nav no-scrollbar" id="quick-nav" aria-label="Filtrera på kategori"></nav>
         </div>
 
-        <nav class="quick-nav no-scrollbar" id="quick-nav" aria-label="Filtrera på kategori"></nav>
         <p id="status" class="status" role="status">Laddar cuper…</p>
         <div id="rows-container" aria-live="polite"></div>
       </main>

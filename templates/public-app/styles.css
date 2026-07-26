@@ -5,7 +5,7 @@
    Docs: docs/PUBLIC_APP_DESIGN.md
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap');
 
 :root {
   /* Brand — swap per app */
@@ -37,10 +37,13 @@
   /* Fonts — swap per app */
   --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
 
   /* Layout */
   --shell-max: 440px;
   --page-pad: 1.25rem;
+  --header-h: 4rem;
+  --header-logo-h: 4.5rem;
   --bottom-bar-h: 64px;
   --bottom-offset: 1rem;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -95,6 +98,10 @@ button {
 
 .font-body {
   font-family: var(--font-body);
+}
+
+.font-display {
+  font-family: var(--font-display);
 }
 
 .no-scrollbar {
@@ -262,10 +269,12 @@ button {
   top: 0;
   z-index: 30;
   width: 100%;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  height: var(--header-h);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  overflow: visible;
 }
 
 .top-bar__inner {
@@ -273,22 +282,40 @@ button {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  height: 100%;
   margin-inline: auto;
-  padding: 0.75rem var(--page-pad);
+  padding: 0 var(--page-pad);
   gap: 0.75rem;
 }
 
 .brand {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.25rem;
+  height: 100%;
   text-decoration: none;
   color: var(--text);
   font-family: var(--font-heading);
-  font-size: 1.375rem;
+  font-size: 1.125rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  min-height: 44px;
+  overflow: visible;
+}
+
+.brand__logo {
+  height: var(--header-logo-h);
+  width: auto;
+  object-fit: contain;
+  /* Logo size is independent of --header-h; may overhang the bar */
+}
+
+@media (min-width: 960px) {
+  :root {
+    --header-h: 4.25rem;
+    --header-logo-h: 6rem;
+  }
 }
 
 .brand__dot {
@@ -299,7 +326,8 @@ button {
   background: var(--brand);
 }
 
-.hamburger-btn {
+.hamburger-btn,
+.detail-back-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -313,12 +341,23 @@ button {
   text-decoration: none;
   transition: transform 0.15s var(--ease);
 }
-.hamburger-btn:active {
+.hamburger-btn:active,
+.detail-back-btn:active {
   transform: scale(0.95);
 }
-.hamburger-btn svg {
+.hamburger-btn svg,
+.detail-back-btn svg {
   width: 1.25rem;
   height: 1.25rem;
+}
+
+.detail-back-btn {
+  width: auto;
+  padding: 0 0.875rem;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 /* --- Main scroll --- */
@@ -372,6 +411,272 @@ button {
 .quick-nav__badge.is-active {
   background: var(--brand);
   color: #fff;
+}
+
+@media (min-width: 600px) {
+  .quick-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+    overflow-x: visible;
+    padding: 0.75rem var(--page-pad);
+  }
+
+  .quick-nav::after {
+    display: none;
+  }
+
+  .hero-band .quick-nav {
+    padding: 0.25rem 0 0;
+  }
+}
+
+/* ============================================================
+   Hero band — copy + optional filter + quick-nav as one composition
+   ============================================================ */
+
+.hero-band {
+  position: relative;
+  padding: 2rem var(--page-pad) 2.25rem;
+  overflow: visible;
+}
+
+.hero-band[hidden] {
+  display: none !important;
+}
+
+.hero {
+  position: relative;
+  padding: 0;
+  overflow: visible;
+}
+
+.hero[hidden] {
+  display: none !important;
+}
+
+.hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.hero__badge-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.hero__title {
+  margin: 0;
+  max-width: 18ch;
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 7vw, 4.75rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--text);
+}
+
+.display-accent {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--brand);
+  font-weight: 500;
+}
+
+.hero__lead {
+  margin: 1rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+  max-width: 42rem;
+}
+
+.shared-filter {
+  position: relative;
+  z-index: 5;
+  padding: 0;
+  margin-top: 1.5rem;
+}
+
+.shared-filter[hidden] {
+  display: none !important;
+}
+
+/* Listing-only: no home copy — keep band padding, tighten filter top */
+.hero-band:has(#home-hero[hidden]) .shared-filter {
+  margin-top: 0;
+}
+
+.hero-band .quick-nav {
+  margin-top: 1rem;
+  padding: 0.25rem 0 0;
+  scroll-padding-inline: 0;
+}
+
+.hero-band .quick-nav::after {
+  flex-basis: 0;
+}
+
+/* Tabs with only quick-nav in the band (e.g. Alla) */
+.hero-band:has(#home-hero[hidden]):has(#shared-filter[hidden]) {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.hero-band:has(#home-hero[hidden]):has(#shared-filter[hidden]) .quick-nav {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+@media (min-width: 768px) {
+  .hero-band {
+    padding-top: 2.75rem;
+    padding-bottom: 3rem;
+  }
+
+  .shared-filter {
+    margin-top: 2rem;
+  }
+
+  .hero__title {
+    font-size: clamp(2.5rem, 5vw, 4.75rem);
+    line-height: 1.02;
+  }
+
+  .hero__lead {
+    margin-top: 1.25rem;
+    font-size: 1.125rem;
+  }
+}
+
+@media (min-width: 960px) {
+  .hero-band {
+    padding-top: 3.5rem;
+    padding-bottom: 3.75rem;
+  }
+
+  .shared-filter {
+    margin-top: 2.25rem;
+  }
+
+  .hero__lead {
+    font-size: 1.25rem;
+  }
+}
+
+/* --- Info panel (aligned with hero padding / display titles) --- */
+
+.info-panel {
+  padding: 2rem var(--page-pad) 2.25rem;
+}
+
+.info-panel__eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand);
+}
+
+.info-panel__eyebrow:not(:first-child) {
+  margin-top: 2.5rem;
+}
+
+.info-panel__title {
+  margin: 0.375rem 0 0;
+  max-width: 18ch;
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 7vw, 4.75rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--text);
+}
+
+.info-panel__lead {
+  margin: 1rem 0 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  max-width: 42rem;
+}
+
+.info-panel__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+}
+
+.info-panel__contact {
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .info-panel {
+    padding-top: 2.75rem;
+    padding-bottom: 3rem;
+  }
+
+  .info-panel__title {
+    font-size: clamp(2.5rem, 5vw, 4.75rem);
+    line-height: 1.02;
+  }
+
+  .info-panel__lead {
+    margin-top: 1.25rem;
+    font-size: 1.125rem;
+  }
+
+  .info-panel__contact {
+    margin-top: 2rem;
+    font-size: 0.9375rem;
+    text-align: left;
+  }
+}
+
+@media (min-width: 960px) {
+  .info-panel {
+    padding-top: 3.5rem;
+    padding-bottom: 3.75rem;
+  }
+
+  .info-panel__lead {
+    font-size: 1.25rem;
+  }
+
+  .info-panel__cta {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
 }
 
 /* --- Status --- */

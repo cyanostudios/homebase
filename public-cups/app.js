@@ -92,6 +92,7 @@ const homeHeroEl = document.getElementById('home-hero');
 const districtHeroEl = document.getElementById('district-hero');
 const districtHeroTitleEl = document.getElementById('district-hero-title');
 const districtHeroLeadEl = document.getElementById('district-hero-lead');
+const heroBandEl = document.getElementById('hero-band');
 const sharedFilterEl = document.getElementById('shared-filter');
 const heroCupCountLineEl = document.getElementById('hero-cup-count-line');
 const searchInputHeroEl = document.getElementById('search-input-hero');
@@ -336,8 +337,6 @@ async function loadCups() {
 function renderApp() {
   syncBottomBar();
   syncHeroVisibility();
-  const showQuickNav = ['home', 'upcoming', 'all'].includes(state.activeTab);
-  if (quickNavEl) quickNavEl.hidden = !showQuickNav;
 
   if (state.activeTab === 'info') {
     if (quickNavEl) quickNavEl.innerHTML = '';
@@ -346,8 +345,15 @@ function renderApp() {
     return;
   }
 
-  if (state.activeTab === 'search' || state.activeTab === 'district') {
+  if (state.activeTab === 'search') {
     if (quickNavEl) quickNavEl.innerHTML = '';
+    setStatus('');
+    renderSearchPanel();
+    return;
+  }
+
+  if (state.activeTab === 'district') {
+    renderQuickNav();
     setStatus('');
     renderSearchPanel();
     return;
@@ -386,7 +392,11 @@ function renderApp() {
 
 function syncHeroVisibility() {
   const isDistrictPage = state.activeTab === 'district' && state.selectedDistrict !== 'all';
+  const showFilter = ['home', 'search', 'district'].includes(state.activeTab);
+  const showQuickNav = ['home', 'upcoming', 'all', 'district'].includes(state.activeTab);
+  const showHeroBand = showFilter || showQuickNav;
 
+  if (heroBandEl) heroBandEl.hidden = !showHeroBand;
   if (homeHeroEl) homeHeroEl.hidden = state.activeTab !== 'home';
   if (districtHeroEl) {
     districtHeroEl.hidden = !isDistrictPage;
@@ -401,9 +411,10 @@ function syncHeroVisibility() {
     }
   }
   if (sharedFilterEl) {
-    sharedFilterEl.hidden = !['home', 'search', 'district'].includes(state.activeTab);
+    sharedFilterEl.hidden = !showFilter;
   }
-  if (!sharedFilterEl?.hidden) renderHeroFilters();
+  if (quickNavEl) quickNavEl.hidden = !showQuickNav;
+  if (showFilter) renderHeroFilters();
 }
 
 function updateHeroCupCount(total) {
@@ -713,7 +724,7 @@ function renderInfoPanel() {
       <p class="info-panel__lead">Nå tusentals tränare och föreningar som aktivt söker cuper. Lägg upp er turnering gratis.</p>
       <a class="info-panel__cta" href="mailto:info@cupappen.se">Lägg till cup gratis</a>
 
-      <p class="info-panel__eyebrow" style="margin-top:1.5rem;">Vanliga frågor</p>
+      <p class="info-panel__eyebrow">Vanliga frågor</p>
       <h2 class="info-panel__title">FAQ</h2>
       <div class="faq-list" role="list">
         <div class="faq-item" role="listitem">
