@@ -15,14 +15,17 @@ Cupappen is a public catalogue of football (soccer) tournaments in Sweden, publi
   - `{district}` is the ingest-source / federation district slug (e.g. `skane`). Empty source uses `ovrigt`.
   - `{slug}` is derived from the cup name (ASCII slug). `{year}` is taken from start/end date when available to disambiguate recurring names.
 - **District listing (SPA):** `https://www.cupappen.se/{district}/` (e.g. `/skane/`)
+- **Search (SPA):** `https://www.cupappen.se/sok/` — optional `?q={term}` (and `?date=all` when showing all dates). Prefer this over legacy `#search` hashes.
+- **Other listing paths (SPA):** `/kommande/`, `/alla/`, `/info/`
 - Legacy redirect: older links like `/cup/{slug}-{year}` or `/cup/{id}-{slug}` 301 to the district URL when the cup exists.
-- Homepage `https://www.cupappen.se/` loads the interactive listing (client-side filters). Each visible cup also has the dedicated detail URL in the sitemap.
+- Homepage `https://www.cupappen.se/` loads the interactive listing. Each visible cup also has the dedicated detail URL in the sitemap.
 
 ## Machine-readable metadata
 - Cup detail pages are **server-rendered HTML** (not only a client shell) and include:
   - `rel=canonical`, `hreflang` (`sv-SE`, `x-default`), Open Graph and Twitter tags.
   - **JSON-LD** (`@graph`): `Organization`, `WebSite`, `WebPage`, `BreadcrumbList`, and `SportsEvent` (sport: fotboll). When reviews exist, `aggregateRating` may be present on the `SportsEvent`.
-- The homepage includes base JSON-LD (`Organization`, `WebSite`, `CollectionPage`, `SearchAction`) plus a dynamic `ItemList` of `SportsEvent` items emitted after cups load (IDs/URLs use the same detail pattern as the UI).
+- The homepage includes base JSON-LD (`Organization`, `WebSite`, `CollectionPage`, `SearchAction` targeting `/sok/?q={search_term_string}`) plus a dynamic `ItemList` of `SportsEvent` items emitted after cups load (IDs/URLs use the same detail pattern as the UI).
+- SPA listing routes update `document.title`, `canonical`, and Open Graph URL client-side to match the path.
 
 ## Ratings & user content
 - Authenticated **public** POST to `POST /api/ratings.php` (JSON) attaches a star rating + optional text to a `cup_id`.
@@ -31,7 +34,7 @@ Cupappen is a public catalogue of football (soccer) tournaments in Sweden, publi
 
 ## Sitemaps & discovery
 - XML sitemap: https://www.cupappen.se/sitemap.xml
-  - Includes homepage, district listing URLs (`/{district}/`), and cup detail URLs (`/{district}/{slug}-{year}`).
+  - Includes homepage, `/sok/`, `/kommande/`, `/info/`, district listing URLs (`/{district}/` including `/ovrigt/` when applicable), and cup detail URLs (`/{district}/{slug}-{year}`).
   - Prefer **www** in Search Console (apex redirects can drop paths).
 
 ## Data freshness & accuracy

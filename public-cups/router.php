@@ -30,6 +30,10 @@ $reservedDistrict = [
     'app.js',
     'cupappen-cup-detail.css',
     'cup.php',
+    'sok',
+    'kommande',
+    'alla',
+    'info',
 ];
 
 $isLegacyCup = $uriPath === '/cup' || str_starts_with($uriPath, '/cup/');

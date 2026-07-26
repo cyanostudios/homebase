@@ -17,13 +17,18 @@ Skip-länk: `#main`.
 
 ## URL:er
 
-| Typ        | Exempel                                       |
-| ---------- | --------------------------------------------- |
-| Startsida  | `/`                                           |
-| Distrikt   | `/skane/`                                     |
-| Cup        | `/skane/skanskan-cup-2026`                    |
-| Legacy cup | `/cup/...` → **301** till distrikts-URL       |
-| Sitemap    | `/sitemap.xml` (startsida + distrikt + cuper) |
+| Typ        | Exempel                                                 |
+| ---------- | ------------------------------------------------------- |
+| Startsida  | `/`                                                     |
+| Sök        | `/sok/` (valfritt `?q=…`)                               |
+| Kommande   | `/kommande/`                                            |
+| Alla       | `/alla/`                                                |
+| Info/FAQ   | `/info/`                                                |
+| Distrikt   | `/skane/`                                               |
+| Cup        | `/skane/skanskan-cup-2026`                              |
+| Legacy cup | `/cup/...` → **301** till distrikts-URL                 |
+| Legacy tab | `/#search` m.m. → normaliseras till path i JS           |
+| Sitemap    | `/sitemap.xml` (hem + listing-paths + distrikt + cuper) |
 
 Tom `ingest_source_name` → distriktsslug `ovrigt`.
 
@@ -31,8 +36,8 @@ URL-helpers (delade med Jest): [`lib/districtUrls.js`](lib/districtUrls.js).
 
 ### Begränsningar (verifierade)
 
-- Ett path-segment = SPA-distrikt; två segment = SSR-cup (Caddy/`router.php`).
-- Reserved första-segment (t.ex. `api`, `assets`, `lib`) ska inte tolkas som distrikt — håll listorna synkade mellan `router.php`, `lib/districtUrls.js` och `cup.php` (Caddy förlitar sig främst på handle-ordning för `/api/*`).
+- Ett path-segment = SPA (distrikt **eller** reserved listing-tab: `sok`, `kommande`, `alla`, `info`); två segment = SSR-cup (Caddy/`router.php`).
+- Reserved första-segment ska inte tolkas som distrikt — håll listorna synkade mellan `router.php`, `lib/districtUrls.js` och `cup.php` (Caddy förlitar sig främst på handle-ordning för `/api/*`).
 - Vissa cupnamn som redan innehåller år kan ge slug med dubbelt år (data/namngivning).
 - **Ej prod-deploy** förrän explicit release; lokal utveckling först.
 

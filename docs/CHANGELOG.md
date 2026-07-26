@@ -4,6 +4,19 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-26 – Cupappen path-URL:er för listing + SEO-sync
+
+**Status:** Implementerat lokalt.
+
+**Sammanfattning (verifierat mot kod):**
+
+- Listing-tabs använder path istället för hash: `/sok/`, `/kommande/`, `/alla/`, `/info/` (legacy `/#search` m.m. normaliseras i klienten).
+- Sök synkar `?q=` (och `?date=all` vid behov); `SearchAction` pekar på `/sok/?q={search_term_string}`.
+- Klienten uppdaterar `title` / `canonical` / OG per route; sitemap inkluderar listing-paths + `/ovrigt/` när relevant.
+- Reserved-segment synkade i `lib/districtUrls.js`, `router.php`, `cup.php`.
+
+---
+
 ## 2026-07-26 – Cupappen hero-band + header polish; mall synkad
 
 **Status:** Implementerat. Docs Updated.

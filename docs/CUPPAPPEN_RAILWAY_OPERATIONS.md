@@ -127,13 +127,14 @@ apk del .php-build-deps              # Ta bara bort build-deps
 
 Verifierat mot `public-cups/` (Caddy + `router.php` + `cup.php` / SPA):
 
-| Path                             | Handler             | Anmärkning                        |
-| -------------------------------- | ------------------- | --------------------------------- |
-| `/`                              | SPA `index.html`    | AppShell-listing                  |
-| `/{distrikt}/` (t.ex. `/skane/`) | SPA                 | Distriktsvy; ett path-segment     |
-| `/{distrikt}/{slug}-{år}`        | `cup.php` (SSR)     | Kanonisk cup-detalj               |
-| `/cup/...`                       | `cup.php` → **301** | Legacy → kanonisk distrikts-URL   |
-| `/api/*`, `/sitemap.xml`         | PHP                 | Före distrikts-cup-regexp i Caddy |
+| Path                                      | Handler             | Anmärkning                        |
+| ----------------------------------------- | ------------------- | --------------------------------- |
+| `/`                                       | SPA `index.html`    | AppShell-listing                  |
+| `/sok/`, `/kommande/`, `/alla/`, `/info/` | SPA                 | Listing-tabs (ej hash)            |
+| `/{distrikt}/` (t.ex. `/skane/`)          | SPA                 | Distriktsvy; ett path-segment     |
+| `/{distrikt}/{slug}-{år}`                 | `cup.php` (SSR)     | Kanonisk cup-detalj               |
+| `/cup/...`                                | `cup.php` → **301** | Legacy → kanonisk distrikts-URL   |
+| `/api/*`, `/sitemap.xml`                  | PHP                 | Före distrikts-cup-regexp i Caddy |
 
 Tom `ingest_source_name` → distriktsslug `ovrigt`. Detaljer: [`public-cups/README.md`](../public-cups/README.md), [`public-cups/llms.txt`](../public-cups/llms.txt).
 

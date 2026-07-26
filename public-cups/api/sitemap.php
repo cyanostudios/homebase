@@ -146,10 +146,26 @@ echo '    <changefreq>daily</changefreq>' . "\n";
 echo '    <priority>1.0</priority>' . "\n";
 echo '  </url>' . "\n";
 
+$staticListingPaths = [
+    '/sok/' => '0.9',
+    '/kommande/' => '0.7',
+    '/info/' => '0.6',
+];
+foreach ($staticListingPaths as $path => $priority) {
+    echo '  <url>' . "\n";
+    echo '    <loc>' . xmlText($base . $path) . '</loc>' . "\n";
+    echo '    <lastmod>' . xmlText($homeLastmod) . '</lastmod>' . "\n";
+    echo '    <changefreq>daily</changefreq>' . "\n";
+    echo '    <priority>' . xmlText($priority) . '</priority>' . "\n";
+    echo '  </url>' . "\n";
+}
+
 $districtSlugs = [];
+$hasOvrigt = false;
 foreach ($rows as $row) {
     $district = trim((string) ($row['ingest_source_name'] ?? ''));
     if ($district === '') {
+        $hasOvrigt = true;
         continue;
     }
     $slug = slugify($district);
@@ -157,6 +173,9 @@ foreach ($rows as $row) {
         continue;
     }
     $districtSlugs[$slug] = true;
+}
+if ($hasOvrigt) {
+    $districtSlugs['ovrigt'] = true;
 }
 ksort($districtSlugs, SORT_STRING);
 foreach (array_keys($districtSlugs) as $districtSlug) {

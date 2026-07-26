@@ -26,7 +26,27 @@
     'app.js',
     'cupappen-cup-detail.css',
     'cup.php',
+    // AppShell listing tabs (must not resolve as federation districts)
+    'sok',
+    'kommande',
+    'alla',
+    'info',
   ]);
+
+  /** Tab → canonical listing path (trailing slash). Home is `/`. */
+  const APP_TAB_PATHS = {
+    search: '/sok/',
+    upcoming: '/kommande/',
+    all: '/alla/',
+    info: '/info/',
+  };
+
+  const APP_PATH_SEGMENT_TO_TAB = {
+    sok: 'search',
+    kommande: 'upcoming',
+    alla: 'all',
+    info: 'info',
+  };
 
   function decodeHtmlEntities(value) {
     return String(value || '')
@@ -71,6 +91,30 @@
     if (RESERVED_PATH_SEGMENTS.has(seg)) return null;
     if (seg.includes('.')) return null;
     return seg;
+  }
+
+  /**
+   * Listing app tab from a single-segment path (`/sok/` → `search`).
+   * @returns {'search'|'upcoming'|'all'|'info'|null}
+   */
+  function appTabFromPath(pathname) {
+    const parts = String(pathname || '/')
+      .split('/')
+      .filter(Boolean);
+    if (parts.length !== 1) return null;
+    const seg = parts[0].toLowerCase();
+    return APP_PATH_SEGMENT_TO_TAB[seg] || null;
+  }
+
+  /** Canonical path for a listing tab (`search` → `/sok/`, `home` → `/`). */
+  function appPathForTab(tab) {
+    const key = String(tab || 'home');
+    if (key === 'home' || key === 'district') return '/';
+    return APP_TAB_PATHS[key] || '/';
+  }
+
+  function isAppTabPath(pathname) {
+    return appTabFromPath(pathname) != null;
   }
 
   /**
@@ -139,11 +183,16 @@
 
   return {
     RESERVED_PATH_SEGMENTS,
+    APP_TAB_PATHS,
+    APP_PATH_SEGMENT_TO_TAB,
     normalizeText,
     slugify,
     districtToSlug,
     districtPath,
     districtSlugFromPath,
+    appTabFromPath,
+    appPathForTab,
+    isAppTabPath,
     resolveDistrictFromSlug,
     cupDetailUrl,
     collectDistricts,

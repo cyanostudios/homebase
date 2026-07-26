@@ -145,6 +145,7 @@ function cupReservedDistrictSegments(): array
         'api',
         'assets',
         'cup',
+        'lib',
         'favicon.ico',
         'favicon.svg',
         'index.html',
@@ -155,6 +156,10 @@ function cupReservedDistrictSegments(): array
         'app.js',
         'cupappen-cup-detail.css',
         'cup.php',
+        'sok',
+        'kommande',
+        'alla',
+        'info',
     ];
 }
 

@@ -157,6 +157,14 @@ function districtPath(name) {
   return DistrictUrls.districtPath(name);
 }
 
+function appTabFromPath(pathname) {
+  return DistrictUrls.appTabFromPath(pathname);
+}
+
+function appPathForTab(tab) {
+  return DistrictUrls.appPathForTab(tab);
+}
+
 function resolveDistrictFromSlug(slug) {
   return DistrictUrls.resolveDistrictFromSlug(slug, {
     knownNames: Object.keys(DISTRICT_FEDERATION_GENITIVE),
@@ -181,6 +189,10 @@ function slugify(value) {
 ================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
   applyUrlParams();
+  if (searchInputHeroEl && state.searchQuery) {
+    searchInputHeroEl.value = state.searchQuery;
+  }
+  syncUrlForState({ push: false }); // normalize legacy #hash → /sok/ etc.
   initMenuDrawer();
   initBottomBar();
   initBrandHome();
@@ -194,11 +206,21 @@ function applyUrlParams() {
   const q = params.get('q');
   if (q) {
     state.searchQuery = q;
-    state.activeTab = 'search';
   }
   const date = params.get('date');
   if (date && ['upcoming', 'past', 'all'].includes(date)) {
     state.selectedDateFilter = date === 'past' ? 'all' : date;
+  }
+
+  const appTab = appTabFromPath(window.location.pathname);
+  if (appTab) {
+    state.activeTab = appTab;
+    if (appTab === 'search' && q) {
+      /* keep query */
+    } else if (appTab === 'search' && !q && state.searchQuery) {
+      /* keep in-memory query until synced */
+    }
+    return;
   }
 
   const districtSlug = districtSlugFromPath(window.location.pathname);
@@ -209,49 +231,160 @@ function applyUrlParams() {
     return;
   }
 
+  /* Legacy hash tabs → path URLs (normalized in syncUrlForState). */
   const hash = (window.location.hash || '').replace(/^#/, '');
   if (['home', 'upcoming', 'all', 'search', 'info'].includes(hash)) {
     state.activeTab = hash;
-  } else if (!q) {
-    try {
-      const stored = sessionStorage.getItem(ACTIVE_TAB_KEY);
-      if (stored && ['home', 'upcoming', 'all', 'search', 'info'].includes(stored)) {
-        state.activeTab = stored;
-      }
-    } catch {
-      /* ignore */
+    if (hash === 'search' && q) state.searchQuery = q;
+    return;
+  }
+
+  if (q) {
+    state.activeTab = 'search';
+    return;
+  }
+
+  try {
+    const stored = sessionStorage.getItem(ACTIVE_TAB_KEY);
+    if (stored && ['home', 'upcoming', 'all', 'search', 'info'].includes(stored)) {
+      state.activeTab = stored;
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function applyListingRouteFromLocation() {
+  const appTab = appTabFromPath(window.location.pathname);
+  if (appTab) {
+    state.selectedDistrict = 'all';
+    state.activeTab = appTab;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (appTab === 'search') {
+      state.searchQuery = q || '';
+      if (searchInputHeroEl) searchInputHeroEl.value = state.searchQuery;
+    }
+    return true;
+  }
+
+  const slug = districtSlugFromPath(window.location.pathname);
+  if (slug) {
+    const name = resolveDistrictFromSlug(slug);
+    if (name) {
+      state.selectedDistrict = name;
+      state.districtOptions = DistrictUrls.ensureDistrictOption(state.districtOptions, name);
+      state.selectedCategory = 'all';
+      state.searchQuery = '';
+      state.selectedDateFilter = 'all';
+      state.activeTab = 'district';
+      if (searchInputHeroEl) searchInputHeroEl.value = '';
+      return true;
     }
   }
+
+  state.selectedDistrict = 'all';
+  const hash = (window.location.hash || '').replace(/^#/, '');
+  if (['home', 'upcoming', 'all', 'search', 'info'].includes(hash)) {
+    state.activeTab = hash;
+  } else {
+    state.activeTab = 'home';
+  }
+  return false;
 }
 
 function initPathRouting() {
   window.addEventListener('popstate', () => {
-    const slug = districtSlugFromPath(window.location.pathname);
-    if (slug) {
-      const name = resolveDistrictFromSlug(slug);
-      if (name) {
-        state.selectedDistrict = name;
-        state.districtOptions = DistrictUrls.ensureDistrictOption(state.districtOptions, name);
-        state.selectedCategory = 'all';
-        state.searchQuery = '';
-        state.selectedDateFilter = 'all';
-        state.activeTab = 'district';
-        if (searchInputHeroEl) searchInputHeroEl.value = '';
-        renderApp();
-        return;
-      }
-    }
-    state.selectedDistrict = 'all';
-    const hash = (window.location.hash || '').replace(/^#/, '');
-    state.activeTab = ['home', 'upcoming', 'all', 'search', 'info'].includes(hash) ? hash : 'home';
+    applyListingRouteFromLocation();
     syncUrlForState({ push: false });
     renderApp();
   });
 }
 
+const SITE_ORIGIN = 'https://www.cupappen.se';
+
+const ROUTE_SEO = {
+  home: {
+    title: 'Cupappen - Hitta fotbollscuper',
+    description:
+      'Cupappen samlar Sveriges fotbollscuper på ett ställe. Sök, jämför och anmäl ert lag till rätt cup — utan att scrolla genom tio olika webbsidor.',
+  },
+  search: {
+    title: 'Sök fotbollscuper · Cupappen',
+    description:
+      'Sök och filtrera fotbollscuper i hela Sverige efter namn, plats, datum, kategori och distrikt.',
+  },
+  upcoming: {
+    title: 'Kommande fotbollscuper · Cupappen',
+    description:
+      'Se kommande fotbollscuper i Sverige — filtrera på kategori och hitta rätt turnering för laget.',
+  },
+  all: {
+    title: 'Alla fotbollscuper · Cupappen',
+    description: 'Bläddra bland kommande och passerade fotbollscuper i Sverige.',
+  },
+  info: {
+    title: 'Om Cupappen & FAQ · Cupappen',
+    description:
+      'Vanliga frågor om Cupappen och information för arrangörer som vill lista sin cup.',
+  },
+};
+
+function setMetaByName(name, content) {
+  const el = document.querySelector(`meta[name="${name}"]`);
+  if (el) el.setAttribute('content', content);
+}
+
+function setMetaByProperty(property, content) {
+  const el = document.querySelector(`meta[property="${property}"]`);
+  if (el) el.setAttribute('content', content);
+}
+
+function setLinkHref(rel, href, { hreflang } = {}) {
+  const sel = hreflang
+    ? `link[rel="${rel}"][hreflang="${hreflang}"]`
+    : `link[rel="${rel}"]:not([hreflang])`;
+  const el = document.querySelector(sel);
+  if (el) el.setAttribute('href', href);
+}
+
+/** Keep title/canonical/OG aligned with path URLs (JS-rendered crawlers). */
+function syncDocumentSeo() {
+  let path = '/';
+  let title = ROUTE_SEO.home.title;
+  let description = ROUTE_SEO.home.description;
+
+  if (
+    state.activeTab === 'district' &&
+    state.selectedDistrict &&
+    state.selectedDistrict !== 'all'
+  ) {
+    path = districtPath(state.selectedDistrict);
+    title = `${state.selectedDistrict} · Cupappen`;
+    description = `Fotbollscuper i ${state.selectedDistrict}. ${districtFederationLead(state.selectedDistrict)}`;
+  } else if (ROUTE_SEO[state.activeTab]) {
+    path = appPathForTab(state.activeTab);
+    title = ROUTE_SEO[state.activeTab].title;
+    description = ROUTE_SEO[state.activeTab].description;
+  }
+
+  const absolute = `${SITE_ORIGIN}${path}`;
+  document.title = title;
+  setMetaByName('description', description);
+  setMetaByProperty('og:title', title);
+  setMetaByProperty('og:description', description);
+  setMetaByProperty('og:url', absolute);
+  setMetaByName('twitter:title', title);
+  setMetaByName('twitter:description', description);
+  setLinkHref('canonical', absolute);
+  setLinkHref('alternate', absolute, { hreflang: 'sv-SE' });
+  setLinkHref('alternate', absolute, { hreflang: 'x-default' });
+}
+
 function syncUrlForState({ push = false } = {}) {
   if (!window.history?.replaceState) return;
   const url = new URL(window.location.href);
+
   if (
     state.activeTab === 'district' &&
     state.selectedDistrict &&
@@ -261,13 +394,22 @@ function syncUrlForState({ push = false } = {}) {
     url.hash = '';
     url.search = '';
   } else {
-    if (districtSlugFromPath(url.pathname)) {
-      url.pathname = '/';
+    url.pathname = appPathForTab(state.activeTab);
+    url.hash = '';
+    const params = new URLSearchParams();
+    if (state.activeTab === 'search') {
+      const q = String(state.searchQuery || '').trim();
+      if (q) params.set('q', q);
+      if (state.selectedDateFilter === 'all') {
+        params.set('date', 'all');
+      }
     }
-    url.hash = state.activeTab === 'home' ? '' : state.activeTab;
+    url.search = params.toString() ? `?${params.toString()}` : '';
   }
+
   const method = push ? 'pushState' : 'replaceState';
   window.history[method]({ tab: state.activeTab, district: state.selectedDistrict }, '', url);
+  syncDocumentSeo();
 }
 
 async function loadCups() {
@@ -405,9 +547,6 @@ function syncHeroVisibility() {
       if (districtHeroLeadEl) {
         districtHeroLeadEl.textContent = districtFederationLead(state.selectedDistrict);
       }
-      document.title = `${state.selectedDistrict} · Cupappen`;
-    } else {
-      document.title = 'Cupappen - Hitta fotbollscuper';
     }
   }
   if (sharedFilterEl) {
@@ -415,6 +554,7 @@ function syncHeroVisibility() {
   }
   if (quickNavEl) quickNavEl.hidden = !showQuickNav;
   if (showFilter) renderHeroFilters();
+  syncDocumentSeo();
 }
 
 function updateHeroCupCount(total) {
@@ -907,6 +1047,7 @@ function clearHeroFilters() {
   if (state.activeTab === 'district') {
     setActiveTab('home');
   } else if (state.activeTab === 'search') {
+    syncUrlForState({ push: false });
     renderSearchPanel();
     renderJsonLd(getFilteredCups());
   } else if (state.activeTab === 'home') {
@@ -971,6 +1112,7 @@ function renderHeroDateFilter() {
     if (dateLabelHeroEl) dateLabelHeroEl.textContent = getHeroDateLabel(value);
     closeHeroMenus();
     if (state.activeTab === 'search' || state.activeTab === 'district') {
+      if (state.activeTab === 'search') syncUrlForState({ push: false });
       renderSearchPanel();
       renderJsonLd(getFilteredCups());
     }

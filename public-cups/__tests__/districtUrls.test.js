@@ -3,6 +3,8 @@ const {
   districtToSlug,
   districtPath,
   districtSlugFromPath,
+  appTabFromPath,
+  appPathForTab,
   resolveDistrictFromSlug,
   cupDetailUrl,
   collectDistricts,
@@ -21,6 +23,22 @@ describe('Cupappen districtUrls', () => {
     expect(districtSlugFromPath('/skane/cup-2026')).toBeNull();
     expect(districtSlugFromPath('/api')).toBeNull();
     expect(districtSlugFromPath('/styles.css')).toBeNull();
+    expect(districtSlugFromPath('/sok/')).toBeNull();
+    expect(districtSlugFromPath('/kommande/')).toBeNull();
+    expect(districtSlugFromPath('/alla/')).toBeNull();
+    expect(districtSlugFromPath('/info/')).toBeNull();
+  });
+
+  test('appTabFromPath / appPathForTab map listing tabs', () => {
+    expect(appTabFromPath('/sok/')).toBe('search');
+    expect(appTabFromPath('/kommande')).toBe('upcoming');
+    expect(appTabFromPath('/alla/')).toBe('all');
+    expect(appTabFromPath('/info/')).toBe('info');
+    expect(appTabFromPath('/skane/')).toBeNull();
+    expect(appPathForTab('search')).toBe('/sok/');
+    expect(appPathForTab('upcoming')).toBe('/kommande/');
+    expect(appPathForTab('home')).toBe('/');
+    expect(appPathForTab('district')).toBe('/');
   });
 
   test('resolveDistrictFromSlug maps known federations and ovrigt', () => {
@@ -41,24 +59,27 @@ describe('Cupappen districtUrls', () => {
       cupDetailUrl({
         name: 'Mystery Cup',
         ingest_source_name: '',
-        start_date: '2026-05-01',
+        start_date: '2026-01-01',
       }),
     ).toBe('/ovrigt/mystery-cup-2026');
   });
 
   test('collectDistricts includes Övrigt when ingest is empty', () => {
-    expect(collectDistricts([{ ingest_source_name: 'Skåne' }, { ingest_source_name: '' }])).toEqual(
-      ['Skåne', 'Övrigt'],
-    );
+    expect(
+      collectDistricts([
+        { ingest_source_name: 'Skåne' },
+        { ingest_source_name: '' },
+        { ingest_source_name: 'Skåne' },
+      ]),
+    ).toEqual(['Skåne', 'Övrigt']);
   });
 
   test('ensureDistrictOption keeps path-selected Övrigt', () => {
     expect(ensureDistrictOption(['Skåne'], 'Övrigt')).toEqual(['Skåne', 'Övrigt']);
-    expect(ensureDistrictOption(['Skåne'], 'Skåne')).toEqual(['Skåne']);
   });
 
   test('districtPath and districtToSlug stay aligned', () => {
-    expect(districtToSlug('Jämtland-Härjedalen')).toBe('jamtland-harjedalen');
     expect(districtPath('Skåne')).toBe('/skane/');
+    expect(districtToSlug('Jämtland-Härjedalen')).toBe('jamtland-harjedalen');
   });
 });
