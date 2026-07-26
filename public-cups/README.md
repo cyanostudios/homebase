@@ -1,66 +1,68 @@
 # Public Cups (Cupappen)
 
-Statisk landningssida med live cupdata från `api/cups.php`. Byggs med vanlig HTML/CSS/JS (`index.html`, `styles.css`, `app.js`).
+Publik katalog för fotbollscuper. AppShell (HTML/CSS/JS) + SSR-detaljsidor (`cup.php`). Data från `api/cups.php`.
 
-## Sidstruktur (överkant → fot)
+## Sidstruktur
 
-1. **Header** — logotyp, huvudnav: Cuper (`#cup-listing`), För arrangörer (`#organizer`), FAQ (`#faq`).
-2. **Hero** — rubrik, lead, filterkort (samma fält som listningen; synkas via JS).
-3. **Populära cuper** — `#featured-cups`, utvalda kort (`#featured-cups-grid`).
-4. **Arrangörspanel** — `#organizer` (CTA mot info@cupappen.se).
-5. **Cupdatabasen** — `#cup-listing`: filter, utvalda-rad (vid filter), brödsmulor, rutnät med alla cuper.
-6. **FAQ** — `#faq`, direkt före sidfot.
-7. **Footer** — sidfotsrad (copyright och e-post).
+1. **Header** (fullbredd frosted glass) — logotyp → Hem, hamburgermeny.
+2. **Hero** (Hem) — rubrik, lead, badge med cup-antal.
+3. **Distriktssida** (`/{distrikt}/`, t.ex. `/skane/`) — titel + lead om distriktsförbundet.
+4. **Shared filter** — sök, datum, kategori, distrikt (Hem / Sök / distriktssida).
+5. **Snabbfilter-badges** — kategorier; horisontell scroll på mobil, centrerad wrap från 600px.
+6. **Rader / sökresultat** — Netflix-rader (Hem/Kommande/Alla) eller kortgrid (Sök/distrikt).
+7. **Bottom bar** — Hem / Kommande / Alla / Sök / Info.
+8. **Cup-detalj (SSR)** — `/{distrikt}/{slug}-{år}` (t.ex. `/skane/skanskan-cup-2026`). Egen sida (`cup.php` + `cupappen-cup-detail.css`), **inte** AppShell/bottom bar.
 
-Skip-länk: `#cup-listing`.
+Skip-länk: `#main`.
 
-## Cupkort
+## URL:er
 
-- **Populära cuper** (`#featured-cups-grid`) använder `renderFeaturedCard`: **bild** (uppladdad hjältebild eller standardfoto), samma kropp som övriga kort.
-- **Utlänkar (anmälan):** `utm_source=cupappen` på alla utgående registreringslänkar — `app.js` (`withCupappenUtm`) på startsidan/JSON-LD, `cup.php` + `api/url_helpers.php` på SSR-detaljsidor (`Till anmälan`).
-- **Cupdatabasen** (`#featured-grid`, `#cups-grid`) använder `renderCupCard` med klassen `cup-card--listing`: **samma kortlayout och typografi** (meta, titel, datum, klasser, fot, CTA), men **ingen bildrad** — all text (beskrivning, kategorier, m.m.) ligger i `cup-card__body`.
+| Typ        | Exempel                                       |
+| ---------- | --------------------------------------------- |
+| Startsida  | `/`                                           |
+| Distrikt   | `/skane/`                                     |
+| Cup        | `/skane/skanskan-cup-2026`                    |
+| Legacy cup | `/cup/...` → **301** till distrikts-URL       |
+| Sitemap    | `/sitemap.xml` (startsida + distrikt + cuper) |
 
-## Filterkort (layout)
+Tom `ingest_source_name` → distriktsslug `ovrigt`.
 
-Klasserna `.hero-search-card` och `.filter-card` används i hero och under cup-listan. Gemensamt:
+URL-helpers (delade med Jest): [`lib/districtUrls.js`](lib/districtUrls.js).
 
-- `max-width: min(100%, 72rem)` så kortet inte blir onödigt brett på stora skärmar.
-- `width: 100%` och `margin-inline: auto` så kortet **centreras** i `.container`.
-- Från `768px`: rad-layout med `flex-wrap` och `justify-content: center` så rader vid brytning grupperas mot mitten.
+### Begränsningar (verifierade)
 
-Mobil: `#filter-toggle-btn` visar/döljer `#listing-filter-shell` (klass `is-collapsed` sätts i JS).
+- Ett path-segment = SPA-distrikt; två segment = SSR-cup (Caddy/`router.php`).
+- Reserved första-segment (t.ex. `api`, `assets`, `lib`) ska inte tolkas som distrikt — håll listorna synkade mellan `router.php`, `lib/districtUrls.js` och `cup.php` (Caddy förlitar sig främst på handle-ordning för `/api/*`).
+- Vissa cupnamn som redan innehåller år kan ge slug med dubbelt år (data/namngivning).
+- **Ej prod-deploy** förrän explicit release; lokal utveckling först.
+
+## Cupkort & utlänkar
+
+- Kort länkar till SSR-detaljsidan (`cupDetailUrl`).
+- **Utlänkar (anmälan):** `utm_source=cupappen` — `app.js` (`withCupappenUtm`) och `cup.php` + `api/url_helpers.php`.
+
+## Filterkort
+
+`.hero-search-card` / `.filter-card` i shared filter under hero/distriktsheader.
 
 ## API
 
-Se [api/README.md](./api/README.md) för PHP-endpoint, miljövariabler och svarformat.
+Se [api/README.md](./api/README.md).
 
 ## Docker & Railway (produktion)
 
 [`Dockerfile`](Dockerfile) kör **Caddy** + **PHP-FPM** (Alpine). **HEALTHCHECK** = `GET /api/health.php`.
 
-**Railway (obligatoriskt):**
+Caddy routar:
 
-- **Separat tjänst** från Homebase API — inte samma deploy.
-- **Root Directory** = `public-cups` (se [`railway.toml`](railway.toml)).
-- **`CUPS_DB_URL`** = tenant Postgres (inte Homebase `DATABASE_URL`).
-- Efter deploy: `curl https://www.cupappen.se/api/health.php` → `{"status":"ok"}`.
+- `/api/*` → PHP
+- `/cup/*` och `/{distrikt}/{cup-slug}` → `cup.php`
+- övrigt → static / SPA `index.html`
 
-Full checklist och vanliga misstag (t.ex. `pdo_pgsql` / `libpq`): **[`docs/CUPPAPPEN_RAILWAY_OPERATIONS.md`](../docs/CUPPAPPEN_RAILWAY_OPERATIONS.md)**.
+Lokalt: PHP built-in + [`router.php`](router.php).
 
-Miljövariabler: [`railway.env.example`](railway.env.example). Lokalt: `npm run dev:public-cups` (`php -S` + `router.php`).
+## Tester
 
-## Säkerhet (översikt)
-
-- **HTML:** [`index.html`](index.html) har en **Content-Security-Policy** (meta) anpassad till GTM, Google Fonts, externa bilder (https) och `fetch` mot samma origin / https (samt `localhost:3002` för lokal dev-proxy).
-- **PHP:** [`api/security_headers.php`](api/security_headers.php) anropas från `cups.php` och `sitemap.php`. Detaljer och drift (HSTS, rate limit) finns i [`api/README.md`](./api/README.md).
-- **Klient:** Cupdata som skrivs in i DOM går i huvudsak via `escapeHtml`; hjältebild-URL valideras som `http(s)` eller rot-relativ innan den sätts i `src`.
-
-## SEO
-
-- **JSON-LD (schema.org `ItemList` + `Event`)** fylls i i [`app.js`](app.js) efter att cupdata laddats (`#cups-json-ld`), med t.ex. `eventStatus`, `image` (om `featured_image_url`), `offers` där anmälnings-URL finns, m.m.
-- **Sitemap:** `/sitemap.xml` serveras dynamiskt via `api/sitemap.php` (urlset med startsida + en post per cup som `https://www.cupappen.se/cup/{slug}-{year}` med `lastmod` från `updated_at`). Använd **www** i Search Console — apex `cupappen.se` redirectar till startsidan via Cloudflare. Bas-URL styrs med `CUPS_PUBLIC_SITE_URL` (standard `https://www.cupappen.se`).
-- Databasanslutning delas av `api/cups.php` och `api/sitemap.php` via `api/pdo_env.php` (`getPdoFromEnv()`).
-
-## Plattformen (admin)
-
-I Homebase-klienten visas **hjältebild** för en cup i läsvyn under övriga cupfält; koppling till fältet `featured_image_url` och översättningsnycklarna `cups.heroImageView` / `cups.heroImageNone` i `client/src/i18n/locales/`.
+```bash
+npx jest public-cups/__tests__/districtUrls.test.js
+```

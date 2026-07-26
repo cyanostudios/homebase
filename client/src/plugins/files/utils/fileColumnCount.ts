@@ -7,16 +7,27 @@ export function isFileColumnCount(value: unknown): value is FileColumnCount {
   return value === 1 || value === 2 || value === 3;
 }
 
+type FileColumnSettings =
+  | {
+      columnCount?: unknown;
+      viewMode?: unknown;
+    }
+  | null
+  | undefined;
+
+/** True when settings carry an explicit column preference (not just empty {}). */
+export function settingsHasFileColumnPreference(settings: FileColumnSettings): boolean {
+  if (settings == null) {
+    return false;
+  }
+  if (settings.columnCount != null && settings.columnCount !== '') {
+    return true;
+  }
+  return settings.viewMode === 'grid' || settings.viewMode === 'list';
+}
+
 /** Prefer columnCount; migrate legacy viewMode (grid→3, list→1). Default 1. */
-export function resolveFileColumnCount(
-  settings:
-    | {
-        columnCount?: unknown;
-        viewMode?: unknown;
-      }
-    | null
-    | undefined,
-): FileColumnCount {
+export function resolveFileColumnCount(settings: FileColumnSettings): FileColumnCount {
   if (isFileColumnCount(settings?.columnCount)) {
     return settings.columnCount;
   }

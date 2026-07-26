@@ -1,3 +1,8 @@
+/**
+ * Cupappen listing client — AppShell design system.
+ * Local: Homebase Node public plugin. Prod: same-origin PHP /api/cups.php
+ */
+
 /** Apex cupappen.se redirects /api/* to www homepage in Cloudflare — use www for API. */
 function resolvePublicCupsApiOrigin() {
   if (window.PUBLIC_CUPS_API_BASE) {
@@ -13,11 +18,13 @@ function resolvePublicCupsApiOrigin() {
 const API_BASE = resolvePublicCupsApiOrigin();
 const IS_LOCAL_PUBLIC_CUPS =
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+/**
+ * Prefer same-origin PHP API (works local + prod, avoids CORS/CORP Failed to fetch).
+ * Override with window.PUBLIC_CUPS_API_URL if you need the Node plugin instead.
+ */
 const CUPS_API_URL =
   window.PUBLIC_CUPS_API_URL ||
-  (IS_LOCAL_PUBLIC_CUPS
-    ? `${window.PUBLIC_CUPS_API_BASE || 'http://localhost:3002'}/api/public/cups`
-    : `${API_BASE}/api/cups.php`);
+  (IS_LOCAL_PUBLIC_CUPS ? `${window.location.origin}/api/cups.php` : `${API_BASE}/api/cups.php`);
 
 const CATEGORY_ALIASES = {
   f: 'Flickor',
@@ -37,7 +44,18 @@ const CATEGORY_ALIASES = {
   mixed: 'Mix',
 };
 
-const CATEGORY_FILTER_OPTIONS = [
+/** QuickNav badges (AppShell) — maps to matchesCategoryGroup keys */
+const QUICK_NAV_OPTIONS = [
+  { value: 'all', label: 'Alla' },
+  { value: 'girls', label: 'Flickor' },
+  { value: 'boys', label: 'Pojkar' },
+  { value: 'men', label: 'Herrar' },
+  { value: 'women', label: 'Dam' },
+  { value: 'girls_boys', label: 'Mix' },
+];
+
+/** Hero category filter (live labels) */
+const HERO_CATEGORY_OPTIONS = [
   { value: 'all', label: 'Alla klasser' },
   { value: 'women', label: 'Damer' },
   { value: 'girls', label: 'Flickor' },
@@ -46,38 +64,37 @@ const CATEGORY_FILTER_OPTIONS = [
   { value: 'girls_boys', label: 'Flickor och Pojkar' },
 ];
 
+const FALLBACK_IMAGES = [
+  'https://images.pexels.com/photos/47730/the-ball-stadion-football-the-pitch-47730.jpeg?w=640',
+  'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?w=640',
+  'https://images.pexels.com/photos/1171084/pexels-photo-1171084.jpeg?w=640',
+  'https://images.pexels.com/photos/186239/pexels-photo-186239.jpeg?w=640',
+  'https://images.pexels.com/photos/1308713/pexels-photo-1308713.jpeg?w=640',
+  'https://images.pexels.com/photos/3886384/pexels-photo-3886384.jpeg?w=640',
+];
+
 const state = {
   cups: [],
-  activeCategory: 'all',
+  activeTab: 'home',
+  selectedCategory: 'all',
   selectedDateFilter: 'upcoming',
   selectedDistrict: 'all',
   districtOptions: [],
-  selectedCategory: 'all',
+  searchQuery: '',
+  pendingDistrictSlug: null,
 };
 
-/* ---- DOM refs ---- */
-const loadingEl = document.getElementById('loading');
-const errorEl = document.getElementById('error');
-const emptyEl = document.getElementById('empty');
-const featuredSectionEl = document.getElementById('featured-section');
-const featuredGridEl = document.getElementById('featured-grid');
-const cupsGridEl = document.getElementById('cups-grid');
-const searchShellEl = document.getElementById('listing-filter-shell');
-const filterToggleBtnEl = document.getElementById('filter-toggle-btn');
-const searchInputEl = document.getElementById('search-input');
+const statusEl = document.getElementById('status');
+const rowsContainerEl = document.getElementById('rows-container');
+const quickNavEl = document.getElementById('quick-nav');
+const jsonLdEl = document.getElementById('cups-json-ld');
+const homeHeroEl = document.getElementById('home-hero');
+const districtHeroEl = document.getElementById('district-hero');
+const districtHeroTitleEl = document.getElementById('district-hero-title');
+const districtHeroLeadEl = document.getElementById('district-hero-lead');
+const sharedFilterEl = document.getElementById('shared-filter');
+const heroCupCountLineEl = document.getElementById('hero-cup-count-line');
 const searchInputHeroEl = document.getElementById('search-input-hero');
-const dateFilterEl = document.getElementById('date-filter');
-const dateTriggerEl = document.getElementById('date-trigger');
-const dateLabelEl = document.getElementById('date-label');
-const dateMenuEl = document.getElementById('date-menu');
-const categoryFilterEl = document.getElementById('category-filter');
-const categoryTriggerEl = document.getElementById('category-trigger');
-const categoryLabelEl = document.getElementById('category-label');
-const categoryMenuEl = document.getElementById('category-menu');
-const districtFilterEl = document.getElementById('district-filter');
-const districtTriggerEl = document.getElementById('district-trigger');
-const districtLabelEl = document.getElementById('district-label');
-const districtMenuEl = document.getElementById('district-menu');
 const dateFilterHeroEl = document.getElementById('hero-date-filter');
 const dateTriggerHeroEl = document.getElementById('hero-date-trigger');
 const dateLabelHeroEl = document.getElementById('hero-date-label');
@@ -90,242 +107,170 @@ const heroDistrictFilterEl = document.getElementById('hero-district-filter');
 const heroDistrictTriggerEl = document.getElementById('hero-district-trigger');
 const heroDistrictLabelEl = document.getElementById('hero-district-label');
 const heroDistrictMenuEl = document.getElementById('hero-district-menu');
-const clearFiltersBtnHeroEl = document.getElementById('clear-filters-btn-hero');
-const breadcrumbsEl = document.getElementById('filter-breadcrumbs');
-const footerYearEl = document.getElementById('footer-year');
-const jsonLdEl = document.getElementById('cups-json-ld');
-const searchBtnEl = document.getElementById('search-btn');
-const clearFiltersBtnEl = document.getElementById('clear-filters-btn');
-const featuredCupsGridEl = document.getElementById('featured-cups-grid');
-const heroCupCountLineEl = document.getElementById('hero-cup-count-line');
-const mobileFilterMedia = window.matchMedia('(max-width: 720px)');
-let mobileFiltersCollapsed = true;
+
+const ACTIVE_TAB_KEY = 'cupappen_active_tab';
+
+const DistrictUrls = globalThis.CupappenDistrictUrls;
+if (!DistrictUrls) {
+  throw new Error('CupappenDistrictUrls saknas — ladda /lib/districtUrls.js före app.js');
+}
+
+/** Genitivform för distriktsförbund i lead-texten. */
+const DISTRICT_FEDERATION_GENITIVE = {
+  Blekinge: 'Blekinges',
+  Bohuslän: 'Bohusläns',
+  Dalarna: 'Dalarnas',
+  Dalsland: 'Dalslands',
+  Gotland: 'Gotlands',
+  Gästrikland: 'Gästriklands',
+  Göteborg: 'Göteborgs',
+  Halland: 'Hallands',
+  Hälsingland: 'Hälsinglands',
+  'Jämtland-Härjedalen': 'Jämtland-Härjedalens',
+  Medelpad: 'Medelpads',
+  Norrbotten: 'Norrbottens',
+  Skåne: 'Skånes',
+  Småland: 'Smålands',
+  Stockholm: 'Stockholms',
+  Södermanland: 'Södermanlands',
+  Uppland: 'Upplands',
+  Värmland: 'Värmlands',
+  Västerbotten: 'Västerbottens',
+  Västergötland: 'Västergötlands',
+  Västmanland: 'Västmanlands',
+  Ångermanland: 'Ångermanlands',
+  'Örebro län': 'Örebro läns',
+  Örebro: 'Örebro läns',
+  Östergötland: 'Östergötlands',
+};
+
+function districtSlugFromPath(pathname) {
+  return DistrictUrls.districtSlugFromPath(pathname);
+}
+
+function districtToSlug(name) {
+  return DistrictUrls.districtToSlug(name);
+}
+
+function districtPath(name) {
+  return DistrictUrls.districtPath(name);
+}
+
+function resolveDistrictFromSlug(slug) {
+  return DistrictUrls.resolveDistrictFromSlug(slug, {
+    knownNames: Object.keys(DISTRICT_FEDERATION_GENITIVE),
+    districtOptions: state.districtOptions,
+  });
+}
+
+function collectDistricts(cups) {
+  return DistrictUrls.collectDistricts(cups);
+}
+
+function cupDetailUrl(cup) {
+  return DistrictUrls.cupDetailUrl(cup);
+}
+
+function slugify(value) {
+  return DistrictUrls.slugify(value);
+}
 
 /* ================================================================
    BOOT
 ================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
   applyUrlParams();
-  loadCups();
-  initMobileMenu();
+  initMenuDrawer();
+  initBottomBar();
+  initBrandHome();
   initHeroSearch();
-  initFAQ();
-  initScrollReveal();
-  if (footerYearEl) footerYearEl.textContent = String(new Date().getFullYear());
+  initPathRouting();
+  loadCups();
 });
 
-syncMobileFiltersUI();
-if (filterToggleBtnEl) {
-  filterToggleBtnEl.addEventListener('click', () => {
-    mobileFiltersCollapsed = !mobileFiltersCollapsed;
-    syncMobileFiltersUI();
-  });
-}
-if (mobileFilterMedia) {
-  mobileFilterMedia.addEventListener('change', () => {
-    mobileFiltersCollapsed = mobileFilterMedia.matches;
-    syncMobileFiltersUI();
-  });
-}
-if (searchInputEl) {
-  searchInputEl.addEventListener('input', () => {
-    if (searchInputHeroEl) searchInputHeroEl.value = searchInputEl.value;
-    renderFiltered();
-  });
-}
-if (searchInputHeroEl) {
-  searchInputHeroEl.addEventListener('input', () => {
-    if (searchInputEl) searchInputEl.value = searchInputHeroEl.value;
-    renderFiltered();
-  });
-}
-if (dateTriggerEl) dateTriggerEl.addEventListener('click', () => toggleMenu('date'));
-if (dateTriggerHeroEl) dateTriggerHeroEl.addEventListener('click', () => toggleMenu('dateHero'));
-if (categoryTriggerEl) categoryTriggerEl.addEventListener('click', () => toggleMenu('category'));
-if (categoryTriggerHeroEl)
-  categoryTriggerHeroEl.addEventListener('click', () => toggleMenu('categoryHero'));
-if (districtTriggerEl) districtTriggerEl.addEventListener('click', () => toggleMenu('district'));
-if (heroDistrictTriggerEl)
-  heroDistrictTriggerEl.addEventListener('click', () => toggleMenu('heroDistrict'));
-document.addEventListener('click', (event) => {
-  if (
-    !dateFilterEl?.contains(event.target) &&
-    !categoryFilterEl?.contains(event.target) &&
-    !districtFilterEl?.contains(event.target) &&
-    !dateFilterHeroEl?.contains(event.target) &&
-    !categoryFilterHeroEl?.contains(event.target) &&
-    !heroDistrictFilterEl?.contains(event.target)
-  ) {
-    closeAllMenus();
-  }
-});
-if (searchBtnEl) {
-  searchBtnEl.addEventListener('click', () => {
-    renderFiltered();
-    if (mobileFilterMedia.matches) {
-      mobileFiltersCollapsed = true;
-      syncMobileFiltersUI();
-    }
-  });
-}
-if (clearFiltersBtnEl) clearFiltersBtnEl.addEventListener('click', clearFilters);
-if (clearFiltersBtnHeroEl) clearFiltersBtnHeroEl.addEventListener('click', clearFilters);
-
-/* ================================================================
-   MOBILE MENU
-================================================================ */
-function initMobileMenu() {
-  const menuBtn = document.getElementById('mobile-menu-btn');
-  const drawer = document.getElementById('mobile-drawer');
-  if (!menuBtn || !drawer) return;
-
-  menuBtn.addEventListener('click', () => {
-    const isOpen = drawer.classList.toggle('is-open');
-    menuBtn.setAttribute('aria-expanded', String(isOpen));
-  });
-
-  drawer.addEventListener('click', (e) => {
-    if (e.target === drawer || e.target.tagName === 'A') {
-      drawer.classList.remove('is-open');
-      menuBtn.setAttribute('aria-expanded', 'false');
-    }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && drawer.classList.contains('is-open')) {
-      drawer.classList.remove('is-open');
-      menuBtn.setAttribute('aria-expanded', 'false');
-    }
-  });
-}
-
-/* ================================================================
-   HERO SEARCH — scrolls to cup listing and optionally pre-fills search
-================================================================ */
-function initHeroSearch() {
-  const heroBtn = document.getElementById('hero-search-btn');
-  const cupListingSection = document.getElementById('cup-listing');
-
-  function scrollToListing() {
-    if (cupListingSection) {
-      cupListingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }
-
-  if (heroBtn) {
-    heroBtn.addEventListener('click', () => {
-      if (searchInputEl && searchInputHeroEl) {
-        searchInputEl.value = searchInputHeroEl.value;
-      }
-      renderFiltered();
-      scrollToListing();
-    });
-  }
-}
-
-/* ================================================================
-   FAQ ACCORDION
-================================================================ */
-function initFAQ() {
-  document.querySelectorAll('.faq-toggle').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const answerId = btn.getAttribute('aria-controls');
-      const answer = answerId ? document.getElementById(answerId) : btn.nextElementSibling;
-      if (!answer) return;
-      const isOpen = btn.getAttribute('aria-expanded') === 'true';
-      btn.setAttribute('aria-expanded', String(!isOpen));
-      answer.dataset.open = String(!isOpen);
-    });
-  });
-}
-
-/* ================================================================
-   SCROLL REVEAL (IntersectionObserver)
-================================================================ */
-function initScrollReveal() {
-  const elements = document.querySelectorAll('.reveal');
-  if (!elements.length) return;
-
-  if (!('IntersectionObserver' in window)) {
-    elements.forEach((el) => el.classList.add('is-visible'));
-    return;
-  }
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          observer.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.1, rootMargin: '0px 0px -40px 0px' },
-  );
-
-  elements.forEach((el) => observer.observe(el));
-}
-
-/* ================================================================
-   MOBILE FILTER SYNC
-================================================================ */
-function syncMobileFiltersUI() {
-  if (!searchShellEl || !filterToggleBtnEl) return;
-  if (mobileFilterMedia.matches) {
-    filterToggleBtnEl.hidden = false;
-    searchShellEl.classList.toggle('is-collapsed', mobileFiltersCollapsed);
-    filterToggleBtnEl.textContent = mobileFiltersCollapsed ? 'Visa filter' : 'Dölj filter';
-    filterToggleBtnEl.setAttribute('aria-expanded', mobileFiltersCollapsed ? 'false' : 'true');
-    return;
-  }
-  filterToggleBtnEl.hidden = true;
-  searchShellEl.classList.remove('is-collapsed');
-  filterToggleBtnEl.setAttribute('aria-expanded', 'true');
-}
-
-/* ================================================================
-   DATA FETCH
-================================================================ */
-/** Antal synliga cuper i API-svaret (alla, inte bara kommande / filtrerade i listan). */
-function updateTotalCupCountsUI(total) {
-  const n = Math.max(0, Number(total) || 0);
-  const formatted = n.toLocaleString('sv-SE');
-  if (heroCupCountLineEl) {
-    heroCupCountLineEl.textContent =
-      n === 1
-        ? 'Ny säsong 2026 · 1 cup publicerad'
-        : `Ny säsong 2026 · ${formatted} cuper publicerade`;
-  }
-}
-
-/**
- * Pre-fill search and filters from URL params so that Google's SearchAction
- * (?q=) and shared filter links work correctly.
- * Supported: ?q=searchterm  ?date=upcoming|past|all  ?category=F12  ?district=Småland
- */
 function applyUrlParams() {
   const params = new URLSearchParams(window.location.search);
-
   const q = params.get('q');
-  if (q && searchInputEl) {
-    searchInputEl.value = q;
-    if (searchInputHeroEl) searchInputHeroEl.value = q;
+  if (q) {
+    state.searchQuery = q;
+    state.activeTab = 'search';
+  }
+  const date = params.get('date');
+  if (date && ['upcoming', 'past', 'all'].includes(date)) {
+    state.selectedDateFilter = date === 'past' ? 'all' : date;
   }
 
-  const date = params.get('date');
-  if (date && dateLabelEl) {
-    const valid = ['upcoming', 'past', 'all'];
-    const labelMap = { upcoming: 'Kommande', past: 'Passerade', all: 'Alla' };
-    if (valid.includes(date)) {
-      state.dateFilter = date;
-      dateLabelEl.textContent = labelMap[date] || date;
-      if (dateLabelHeroEl) dateLabelHeroEl.textContent = labelMap[date] || date;
+  const districtSlug = districtSlugFromPath(window.location.pathname);
+  if (districtSlug) {
+    state.pendingDistrictSlug = districtSlug;
+    state.activeTab = 'district';
+    state.selectedDateFilter = 'all';
+    return;
+  }
+
+  const hash = (window.location.hash || '').replace(/^#/, '');
+  if (['home', 'upcoming', 'all', 'search', 'info'].includes(hash)) {
+    state.activeTab = hash;
+  } else if (!q) {
+    try {
+      const stored = sessionStorage.getItem(ACTIVE_TAB_KEY);
+      if (stored && ['home', 'upcoming', 'all', 'search', 'info'].includes(stored)) {
+        state.activeTab = stored;
+      }
+    } catch {
+      /* ignore */
     }
   }
+}
+
+function initPathRouting() {
+  window.addEventListener('popstate', () => {
+    const slug = districtSlugFromPath(window.location.pathname);
+    if (slug) {
+      const name = resolveDistrictFromSlug(slug);
+      if (name) {
+        state.selectedDistrict = name;
+        state.districtOptions = DistrictUrls.ensureDistrictOption(state.districtOptions, name);
+        state.selectedCategory = 'all';
+        state.searchQuery = '';
+        state.selectedDateFilter = 'all';
+        state.activeTab = 'district';
+        if (searchInputHeroEl) searchInputHeroEl.value = '';
+        renderApp();
+        return;
+      }
+    }
+    state.selectedDistrict = 'all';
+    const hash = (window.location.hash || '').replace(/^#/, '');
+    state.activeTab = ['home', 'upcoming', 'all', 'search', 'info'].includes(hash) ? hash : 'home';
+    syncUrlForState({ push: false });
+    renderApp();
+  });
+}
+
+function syncUrlForState({ push = false } = {}) {
+  if (!window.history?.replaceState) return;
+  const url = new URL(window.location.href);
+  if (
+    state.activeTab === 'district' &&
+    state.selectedDistrict &&
+    state.selectedDistrict !== 'all'
+  ) {
+    url.pathname = districtPath(state.selectedDistrict);
+    url.hash = '';
+    url.search = '';
+  } else {
+    if (districtSlugFromPath(url.pathname)) {
+      url.pathname = '/';
+    }
+    url.hash = state.activeTab === 'home' ? '' : state.activeTab;
+  }
+  const method = push ? 'pushState' : 'replaceState';
+  window.history[method]({ tab: state.activeTab, district: state.selectedDistrict }, '', url);
 }
 
 async function loadCups() {
-  showState('loading');
+  setStatus('Laddar cuper…');
   try {
     const response = await fetch(CUPS_API_URL);
     const contentType = response.headers.get('content-type') || '';
@@ -346,224 +291,145 @@ async function loadCups() {
 
     const now = new Date();
     const hasUpcoming = state.cups.some((cup) => isUpcoming(cup, now));
-    if (!hasUpcoming && state.cups.length > 0) {
+    if (!hasUpcoming && state.cups.length > 0 && state.selectedDateFilter === 'upcoming') {
       state.selectedDateFilter = 'all';
     }
 
-    updateTotalCupCountsUI(state.cups.length);
-    renderDateFilter(state.cups);
-    renderCategoryFilter();
-    renderDistrictFilter(state.cups);
-    renderFiltered();
-    renderFeaturedCupsSection();
+    state.districtOptions = collectDistricts(state.cups);
+    updateHeroCupCount(state.cups.length);
+    if (state.pendingDistrictSlug) {
+      const name = resolveDistrictFromSlug(state.pendingDistrictSlug);
+      state.pendingDistrictSlug = null;
+      if (name) {
+        state.selectedDistrict = name;
+        state.districtOptions = DistrictUrls.ensureDistrictOption(state.districtOptions, name);
+        state.selectedCategory = 'all';
+        state.searchQuery = '';
+        state.selectedDateFilter = 'all';
+        state.activeTab = 'district';
+        if (searchInputHeroEl) searchInputHeroEl.value = '';
+        syncUrlForState({ push: false });
+      } else {
+        state.activeTab = 'home';
+        state.selectedDistrict = 'all';
+        syncUrlForState({ push: false });
+      }
+    }
+    renderHeroFilters();
+    renderApp();
   } catch (error) {
     console.error('Failed to load cups:', error);
-    if (errorEl) {
-      const hint =
-        error?.message === 'Failed to fetch cups'
-          ? 'Databasfel på servern — kontrollera CUPS_DB_URL och att Cupappen Railway har redeployats med senaste Docker-image (pdo_pgsql).'
-          : String(error?.message || error);
-      errorEl.textContent = hint;
+    const hint =
+      error?.message === 'Failed to fetch cups'
+        ? 'Databasfel på servern — kontrollera CUPS_DB_URL.'
+        : String(error?.message || error);
+    setStatus(hint);
+    if (rowsContainerEl) {
+      rowsContainerEl.innerHTML = `<div class="empty-state">${escapeHtml(hint)}</div>`;
     }
-    showState('error');
   }
 }
 
 /* ================================================================
-   FEATURED CUPS SECTION (top of page, card-style grid)
+   RENDER ORCHESTRATION
 ================================================================ */
-function renderFeaturedCupsSection() {
-  if (!featuredCupsGridEl) return;
+function renderApp() {
+  syncBottomBar();
+  syncHeroVisibility();
+  const showQuickNav = ['home', 'upcoming', 'all'].includes(state.activeTab);
+  if (quickNavEl) quickNavEl.hidden = !showQuickNav;
 
-  const cups = state.cups
-    .filter((cup) => cup.featured === true || cup.featured === 'true')
-    .sort((a, b) => compareByDate(a, b));
-
-  const shown = cups.slice(0, 6);
-
-  if (shown.length === 0) {
-    featuredCupsGridEl.innerHTML =
-      '<p style="grid-column:1/-1;text-align:center;color:var(--text-faint);padding:3rem 0;">Inga utvalda cuper just nu.</p>';
+  if (state.activeTab === 'info') {
+    if (quickNavEl) quickNavEl.innerHTML = '';
+    setStatus('');
+    renderInfoPanel();
     return;
   }
 
-  featuredCupsGridEl.innerHTML = shown.map((cup, i) => renderFeaturedCard(cup, i)).join('');
+  if (state.activeTab === 'search' || state.activeTab === 'district') {
+    if (quickNavEl) quickNavEl.innerHTML = '';
+    setStatus('');
+    renderSearchPanel();
+    return;
+  }
+
+  renderQuickNav();
+  const filtered = getFilteredCups();
+  setStatus(
+    filtered.length === 0
+      ? state.cups.length === 0
+        ? 'Inga cuper ännu.'
+        : 'Inga cuper matchade filtret.'
+      : `${filtered.length} cup${filtered.length === 1 ? '' : 'er'}`,
+  );
+
+  if (state.activeTab === 'home') {
+    renderCategorizedRows(filtered, {
+      includeFeatured: true,
+      emptyMessage: 'Inga kommande cuper just nu.',
+    });
+  } else if (state.activeTab === 'upcoming') {
+    renderCategorizedRows(filtered, {
+      includeFeatured: false,
+      emptyMessage: 'Inga kommande cuper just nu.',
+    });
+  } else {
+    renderCategorizedRows(filtered, {
+      includeFeatured: false,
+      includePast: true,
+      emptyMessage: 'Inga cuper att visa.',
+    });
+  }
+
+  renderJsonLd(filtered);
 }
 
-function renderFeaturedCard(cup, index) {
-  const name = escapeHtml(normalizeText(cup.name) || 'Okänd cup');
-  const location = normalizeText(cup.location);
-  const dateRange = formatDateRange(cup.start_date, cup.end_date);
-  const categories = normalizeText(cup.categories) || '';
-  const categoriesTruncated = categories.length > 60 ? categories.slice(0, 57) + '…' : categories;
-  const detailUrl = escapeHtml(cupDetailUrl(cup));
+function syncHeroVisibility() {
+  const isDistrictPage = state.activeTab === 'district' && state.selectedDistrict !== 'all';
 
-  const presence = getCategoryPresence(categories);
-  const primaryBadge =
-    presence.hasBoys && presence.hasGirls
-      ? 'Pojkar & Flickor'
-      : presence.hasBoys
-        ? 'Pojkar'
-        : presence.hasGirls
-          ? 'Flickor'
-          : presence.hasWomen || presence.hasMen
-            ? 'Senior'
-            : categories.split(',')[0].trim();
-
-  const heroImages = [
-    'https://images.pexels.com/photos/47730/the-ball-stadion-football-the-pitch-47730.jpeg?w=640',
-    'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?w=640',
-    'https://images.pexels.com/photos/1171084/pexels-photo-1171084.jpeg?w=640',
-    'https://images.pexels.com/photos/186239/pexels-photo-186239.jpeg?w=640',
-    'https://images.pexels.com/photos/1308713/pexels-photo-1308713.jpeg?w=640',
-    'https://images.pexels.com/photos/3886384/pexels-photo-3886384.jpeg?w=640',
-  ];
-  const customSrc = resolveCupImageUrlForAttr(cup);
-  const img = customSrc || heroImages[index % heroImages.length];
-
-  return `
-    <a href="${detailUrl}" style="display:block;color:inherit;text-decoration:none;" aria-label="Öppna ${name}">
-      <article class="cup-card" data-testid="featured-cup-card-${index}">
-        <div class="cup-card__media">
-          <img src="${img}" alt="${name}" loading="lazy" />
-          ${primaryBadge ? `<div class="cup-card__accent"><span class="dot" aria-hidden="true"></span>${escapeHtml(primaryBadge)}</div>` : ''}
-          <div class="cup-card__index">#${String(index + 1).padStart(2, '0')}</div>
-        </div>
-        <div class="cup-card__body">
-          <div class="cup-card__meta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s7-5.6 7-12a7 7 0 1 0-14 0c0 6.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
-            ${escapeHtml(location || 'Plats saknas')}
-          </div>
-          <h3 class="cup-card__title">${name}</h3>
-          <div class="cup-card__date">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            ${escapeHtml(dateRange)}
-          </div>
-          ${categoriesTruncated ? `<div class="cup-card__badges"><span class="badge-brand">${escapeHtml(categoriesTruncated)}</span></div>` : ''}
-          <div class="cup-card__footer">
-            <div class="cup-card__users">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              ${formatTeamCountLabel(cup.team_count)}
-            </div>
-          </div>
-        </div>
-      </article>
-    </a>
-  `;
+  if (homeHeroEl) homeHeroEl.hidden = state.activeTab !== 'home';
+  if (districtHeroEl) {
+    districtHeroEl.hidden = !isDistrictPage;
+    if (isDistrictPage) {
+      if (districtHeroTitleEl) districtHeroTitleEl.textContent = state.selectedDistrict;
+      if (districtHeroLeadEl) {
+        districtHeroLeadEl.textContent = districtFederationLead(state.selectedDistrict);
+      }
+      document.title = `${state.selectedDistrict} · Cupappen`;
+    } else {
+      document.title = 'Cupappen - Hitta fotbollscuper';
+    }
+  }
+  if (sharedFilterEl) {
+    sharedFilterEl.hidden = !['home', 'search', 'district'].includes(state.activeTab);
+  }
+  if (!sharedFilterEl?.hidden) renderHeroFilters();
 }
 
-/* ================================================================
-   FILTER RENDERING
-================================================================ */
-function renderDateFilter(cups) {
-  if (!dateMenuEl && !dateMenuHeroEl) return;
-  const previousValue = state.selectedDateFilter || 'upcoming';
-  const months = new Set();
-  cups.forEach((cup) => {
-    const key = monthKeyFromCup(cup);
-    if (key) months.add(key);
-  });
-
-  const ordered = Array.from(months).sort((a, b) => a.localeCompare(b, 'sv'));
-  const options = [
-    { value: 'upcoming', label: 'Kommande' },
-    { value: 'all', label: 'Alla' },
-    ...ordered.map((key) => ({ value: `month:${key}`, label: monthLabelFromKey(key) })),
-  ];
-  const hasPrevious = options.some((opt) => opt.value === previousValue);
-  state.selectedDateFilter = hasPrevious ? previousValue : 'upcoming';
-  const onDate = (value) => {
-    state.selectedDateFilter = value;
-    if (dateLabelEl) dateLabelEl.textContent = getDateLabel(value);
-    if (dateLabelHeroEl) dateLabelHeroEl.textContent = getDateLabel(value);
-    closeAllMenus();
-    renderFiltered();
-  };
-  if (dateMenuEl) {
-    renderCustomOptions(dateMenuEl, options, state.selectedDateFilter, onDate);
-  }
-  if (dateMenuHeroEl) {
-    renderCustomOptions(dateMenuHeroEl, options, state.selectedDateFilter, onDate);
-  }
-  if (dateLabelEl) dateLabelEl.textContent = getDateLabel(state.selectedDateFilter);
-  if (dateLabelHeroEl) dateLabelHeroEl.textContent = getDateLabel(state.selectedDateFilter);
+function updateHeroCupCount(total) {
+  if (!heroCupCountLineEl) return;
+  const n = Math.max(0, Number(total) || 0);
+  const formatted = n.toLocaleString('sv-SE');
+  heroCupCountLineEl.textContent =
+    n === 1
+      ? 'Ny säsong 2026 · 1 cup publicerad'
+      : `Ny säsong 2026 · ${formatted} cuper publicerade`;
 }
 
-function renderCategoryFilter() {
-  if (!categoryMenuEl && !categoryMenuHeroEl) return;
-  const options = CATEGORY_FILTER_OPTIONS;
-  if (!options.some((opt) => opt.value === state.selectedCategory)) {
-    state.selectedCategory = 'all';
-  }
-  const onCategory = (value) => {
-    state.selectedCategory = value;
-    if (categoryLabelEl) categoryLabelEl.textContent = getCategoryLabel(value);
-    if (categoryLabelHeroEl) categoryLabelHeroEl.textContent = getCategoryLabel(value);
-    closeAllMenus();
-    renderFiltered();
-  };
-  if (categoryMenuEl) {
-    renderCustomOptions(categoryMenuEl, options, state.selectedCategory, onCategory);
-  }
-  if (categoryMenuHeroEl) {
-    renderCustomOptions(categoryMenuHeroEl, options, state.selectedCategory, onCategory);
-  }
-  if (categoryLabelEl) categoryLabelEl.textContent = getCategoryLabel(state.selectedCategory);
-  if (categoryLabelHeroEl)
-    categoryLabelHeroEl.textContent = getCategoryLabel(state.selectedCategory);
-}
-
-function renderDistrictFilter(cups) {
-  if (!districtMenuEl && !heroDistrictMenuEl) return;
-  const districts = new Set();
-  cups.forEach((cup) => {
-    const district = normalizeText(cup.ingest_source_name).trim();
-    if (district) districts.add(district);
-  });
-
-  const ordered = Array.from(districts).sort((a, b) => a.localeCompare(b, 'sv'));
-  state.districtOptions = ordered;
-  if (state.selectedDistrict !== 'all' && !ordered.includes(state.selectedDistrict)) {
-    state.selectedDistrict = 'all';
+function getFilteredCups() {
+  const now = new Date();
+  let dateFilter = state.selectedDateFilter;
+  if (state.activeTab === 'home' || state.activeTab === 'upcoming') {
+    dateFilter = 'upcoming';
+  } else if (state.activeTab === 'all') {
+    dateFilter = 'all';
   }
 
-  const options = [
-    { value: 'all', label: 'Alla distrikt' },
-    ...ordered.map((district) => ({ value: district, label: district })),
-  ];
-  const onDistrictChange = (value) => {
-    state.selectedDistrict = value;
-    if (districtLabelEl) districtLabelEl.textContent = getDistrictLabel(value);
-    if (heroDistrictLabelEl) heroDistrictLabelEl.textContent = getDistrictLabel(value);
-    closeAllMenus();
-    renderFiltered();
-  };
-  if (districtMenuEl) {
-    renderCustomOptions(districtMenuEl, options, state.selectedDistrict, onDistrictChange);
-  }
-  if (heroDistrictMenuEl) {
-    renderCustomOptions(heroDistrictMenuEl, options, state.selectedDistrict, onDistrictChange);
-  }
-  if (districtLabelEl) districtLabelEl.textContent = getDistrictLabel(state.selectedDistrict);
-  if (heroDistrictLabelEl)
-    heroDistrictLabelEl.textContent = getDistrictLabel(state.selectedDistrict);
-}
-
-/* ================================================================
-   MAIN FILTER + RENDER
-================================================================ */
-function renderFiltered() {
-  const query = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
-  const dateFilterValue = state.selectedDateFilter || 'upcoming';
+  const query = state.searchQuery.trim().toLowerCase();
   const selectedCategory = state.selectedCategory || 'all';
   const selectedDistrict = state.selectedDistrict || 'all';
-  const now = new Date();
 
-  const featured = state.cups
-    .filter((cup) => cup.featured === true || cup.featured === 'true')
-    .sort((a, b) => compareByDate(a, b));
-
-  const regular = state.cups
+  return state.cups
     .filter((cup) => {
       const nameText = normalizeText(cup.name);
       const organizerText = normalizeText(cup.organizer);
@@ -591,158 +457,660 @@ function renderFiltered() {
           .join(' ')
           .toLowerCase()
           .includes(query);
+
       const matchesCategory =
         selectedCategory === 'all' || matchesCategoryGroup(categoriesText, selectedCategory);
       const matchesDistrict =
         selectedDistrict === 'all' ||
-        districtText.toLowerCase().trim() === selectedDistrict.toLowerCase();
-      const matchesDate = cupMatchesDateFilter(cup, dateFilterValue, now);
+        (normalizeText(cup.ingest_source_name).trim() || 'Övrigt').toLowerCase() ===
+          selectedDistrict.toLowerCase();
+      const matchesDate = cupMatchesDateFilter(cup, dateFilter, now);
       return matchesText && matchesCategory && matchesDistrict && matchesDate;
     })
     .sort((a, b) => compareByDate(a, b));
-
-  if (breadcrumbsEl) {
-    const categoryLabel = getCategoryLabel(selectedCategory);
-    const districtLabel = getDistrictLabel(selectedDistrict);
-    const line = `${categoryLabel} - ${districtLabel} - ${regular.length}`;
-    const textEl = breadcrumbsEl.querySelector('.filter-breadcrumbs__text');
-    if (textEl) textEl.textContent = line;
-  }
-  renderCups(featured, regular);
-  renderJsonLd([...featured, ...regular]);
-}
-
-function renderCups(featured, regular) {
-  if (featured.length === 0 && regular.length === 0) {
-    if (featuredSectionEl) featuredSectionEl.hidden = true;
-    if (featuredGridEl) featuredGridEl.innerHTML = '';
-    cupsGridEl.hidden = true;
-    showState('empty');
-    return;
-  }
-
-  hideStates();
-
-  if (featuredSectionEl && featuredGridEl) {
-    if (featured.length > 0) {
-      featuredSectionEl.hidden = false;
-      featuredGridEl.innerHTML = featured.map((cup) => renderCupCard(cup)).join('');
-    } else {
-      featuredSectionEl.hidden = true;
-      featuredGridEl.innerHTML = '';
-    }
-  }
-
-  cupsGridEl.hidden = false;
-  cupsGridEl.innerHTML = regular.map((cup) => renderCupCard(cup)).join('');
-}
-
-/* Ikoner (samma som renderFeaturedCard) */
-const CUP_CARD_PIN_SVG =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s7-5.6 7-12a7 7 0 1 0-14 0c0 6.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>';
-const CUP_CARD_CAL_SVG =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-
-/**
- * Listning & “utvalda” i cupdatabasen: samma kortyta som Populära cuper (ingen bild här; bild endast i toppsektionen).
- */
-function renderCupCard(cup) {
-  const name = escapeHtml(normalizeText(cup.name) || 'Okänd cup');
-  const location = normalizeText(cup.location);
-  const dateRange = formatDateRange(cup.start_date, cup.end_date);
-  const categories = normalizeText(cup.categories) || '';
-  const organizerText = normalizeText(cup.organizer);
-  const districtText = normalizeText(cup.ingest_source_name).trim();
-  const organizerLine = organizerText
-    ? districtText
-      ? `${escapeHtml(organizerText)} · ${escapeHtml(districtText)}`
-      : escapeHtml(organizerText)
-    : districtText
-      ? `Arrangör saknas · ${escapeHtml(districtText)}`
-      : 'Arrangör saknas';
-
-  const meta = [
-    metaPill('ball', normalizeText(cup.match_format), !!normalizeText(cup.match_format)),
-    metaPill(
-      'shield',
-      cup.sanctioned === false || cup.sanctioned === 'false' ? 'Ej sanktionerad' : 'Sanktionerad',
-      true,
-      'meta-pill-plain',
-    ),
-  ]
-    .filter(Boolean)
-    .join('');
-
-  const categoriesBlock = categories
-    ? `<div class="cup-card__badges"><span class="badge-brand cup-card__categories-line">${escapeHtml(
-        categories,
-      )}</span></div>`
-    : '';
-
-  const detailUrl = escapeHtml(cupDetailUrl(cup));
-
-  const accentClass = accentClassForCup(cup);
-  const hiddenFromPublic =
-    cup.visible === false || cup.visible === 'false'
-      ? '<p class="cup-card__visibility-hint" role="status">Inte synlig i publik listning</p>'
-      : '';
-
-  return `
-    <a href="${detailUrl}" style="display:block;color:inherit;text-decoration:none;" aria-label="Öppna ${name}">
-      <article class="cup-card cup-card--listing ${accentClass}" data-testid="cup-listing-card">
-        <div class="cup-card__body">
-        <div class="cup-card__meta">
-          ${CUP_CARD_PIN_SVG}
-          ${escapeHtml(location || 'Plats saknas')}
-        </div>
-        <h3 class="cup-card__title">${name}</h3>
-        <p class="cup-card__organizer">${organizerLine}</p>
-        <div class="cup-card__date">
-          ${CUP_CARD_CAL_SVG}
-          ${escapeHtml(dateRange)}
-        </div>
-        ${categoriesBlock}
-        <div class="meta-pills cup-card__meta-pills">${meta}</div>
-        ${hiddenFromPublic}
-        <div class="cup-card__footer">
-          <div class="cup-card__users">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            ${formatTeamCountLabel(cup.team_count)}
-          </div>
-        </div>
-      </div>
-      </article>
-    </a>
-  `;
 }
 
 /* ================================================================
-   HELPERS — pills, icons, dates
+   QUICK NAV
 ================================================================ */
-function metaPill(icon, text, visible, variantClass = '') {
-  if (!visible || !text) return '';
-  const cls = variantClass ? `meta-pill ${variantClass}` : 'meta-pill';
-  return `<span class="${cls}">${iconSvg(icon)}${escapeHtml(text)}</span>`;
+function renderQuickNav() {
+  if (!quickNavEl) return;
+  quickNavEl.innerHTML = QUICK_NAV_OPTIONS.map((opt) => {
+    const isActive = state.selectedCategory === opt.value;
+    return `<button type="button" class="quick-nav__badge shadow-card${isActive ? ' is-active' : ''}" data-category="${escapeHtml(opt.value)}" aria-pressed="${isActive}">${escapeHtml(opt.label)}</button>`;
+  }).join('');
+
+  quickNavEl.querySelectorAll('[data-category]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.selectedCategory = btn.getAttribute('data-category') || 'all';
+      renderApp();
+    });
+  });
 }
 
-function iconSvg(name) {
-  const icons = {
-    calendar:
-      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
-    pin: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-5.6 7-12a7 7 0 1 0-14 0c0 6.4 7 12 7 12z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>',
-    group:
-      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"></circle><circle cx="17" cy="9" r="2"></circle><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><path d="M15 19c0-2.1 1.7-3.9 3.8-3.9 1 0 2 .4 2.7 1.1"></path></svg>',
-    ball: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M8 7l4-3 4 3 1 4-3 3h-4l-3-3z"></path><path d="M5 11l3 3-1 4m12-7-3 3 1 4M10 14l-2 5m8-5 2 5"></path></svg>',
-    tag: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10l-8.5 8.5a2 2 0 0 1-2.8 0L3 13V3h10l7 7z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>',
-    person:
-      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.5-3.5 4-5 8-5s6.5 1.5 8 5"></path></svg>',
-    file: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>',
-    shield:
-      '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v6c0 5-3.5 8.7-7 10-3.5-1.3-7-5-7-10V6z"></path><path d="m9 12 2 2 4-4"></path></svg>',
+/* ================================================================
+   CUP CARD
+================================================================ */
+function primaryCategoryBadge(cup) {
+  const categories = normalizeText(cup.categories) || '';
+  const presence = getCategoryPresence(categories);
+  if (presence.hasBoys && presence.hasGirls) return 'Pojkar & Flickor';
+  if (presence.hasBoys) return 'Pojkar';
+  if (presence.hasGirls) return 'Flickor';
+  if (presence.hasWomen) return 'Dam';
+  if (presence.hasMen) return 'Herr';
+  const first = categories.split(',')[0].trim();
+  return first || 'Cup';
+}
+
+function cupImageSrc(cup, index = 0) {
+  const custom = resolveCupImageUrlForAttr(cup);
+  if (custom) return custom;
+  return FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+}
+
+function renderCupCard(cup, index = 0) {
+  const name = escapeHtml(normalizeText(cup.name) || 'Okänd cup');
+  const dateRange = formatDateRange(cup.start_date, cup.end_date);
+  const district = normalizeText(cup.ingest_source_name).trim() || normalizeText(cup.location);
+  const metaParts = [dateRange, district].filter(Boolean);
+  const meta = escapeHtml(metaParts.join(' · '));
+  const tag = escapeHtml(primaryCategoryBadge(cup));
+  const detailUrl = escapeHtml(cupDetailUrl(cup));
+  const img = cupImageSrc(cup, index);
+
+  return `<a class="item-card shadow-card scroll-snap-start" href="${detailUrl}" data-testid="cup-listing-card" aria-label="Öppna ${name}">
+    <div class="item-card__media">
+      <img src="${img}" alt="" loading="lazy" />
+      <div class="item-card__gradient" aria-hidden="true"></div>
+      <span class="item-card__tag glass">${tag}</span>
+      <div class="item-card__body">
+        <h3 class="item-card__title">${name}</h3>
+        ${meta ? `<p class="item-card__meta">${meta}</p>` : ''}
+      </div>
+    </div>
+  </a>`;
+}
+
+/* ================================================================
+   ROW RENDERERS
+================================================================ */
+function timeBucket(cup, now) {
+  if (!isUpcoming(cup, now)) return 'Passerade';
+  const d = parseCupDate(cup.start_date) || parseCupDate(cup.end_date);
+  if (!d) return 'Senare';
+  const thisMonth = now.getFullYear() * 12 + now.getMonth();
+  const cupMonth = d.getFullYear() * 12 + d.getMonth();
+  if (cupMonth === thisMonth) return 'Den här månaden';
+  if (cupMonth === thisMonth + 1) return 'Nästa månad';
+  return 'Senare';
+}
+
+/**
+ * Hem / Kommande / Alla / Sök — tidsrader + distrikt.
+ * Utvalda endast på Hem (includeFeatured).
+ * includeDistricts: false på distriktssida (bara tidskategorier).
+ */
+function renderCategorizedRows(cups, options = {}) {
+  const includeFeatured = options.includeFeatured === true;
+  const includePast = options.includePast === true;
+  const includeDistricts = options.includeDistricts !== false;
+  const emptyMessage = options.emptyMessage || 'Inga cuper att visa.';
+
+  if (!rowsContainerEl) return;
+  if (cups.length === 0) {
+    rowsContainerEl.innerHTML = `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
+    return;
+  }
+
+  const now = new Date();
+  const order = includePast
+    ? ['Den här månaden', 'Nästa månad', 'Senare', 'Passerade']
+    : ['Den här månaden', 'Nästa månad', 'Senare'];
+  const groups = new Map(order.map((k) => [k, []]));
+  cups.forEach((cup) => {
+    const key = timeBucket(cup, now);
+    if (!groups.has(key)) return;
+    groups.get(key).push(cup);
+  });
+
+  const sections = [];
+
+  if (includeFeatured) {
+    const featured = cups.filter((c) => c.featured === true || c.featured === 'true').slice(0, 8);
+    if (featured.length > 0) {
+      sections.push(rowSectionHtml('Utvalda', featured, 'all'));
+    }
+  }
+
+  order.forEach((label) => {
+    const items = groups.get(label) || [];
+    if (items.length === 0) return;
+    const moreTab = label === 'Passerade' ? 'all' : 'upcoming';
+    sections.push(rowSectionHtml(label, items, includeDistricts ? moreTab : ''));
+  });
+
+  if (includeDistricts) {
+    const byDistrict = new Map();
+    cups.forEach((cup) => {
+      const d = normalizeText(cup.ingest_source_name).trim() || 'Övrigt';
+      if (!byDistrict.has(d)) byDistrict.set(d, []);
+      byDistrict.get(d).push(cup);
+    });
+
+    Array.from(byDistrict.keys())
+      .sort((a, b) => {
+        if (a === 'Övrigt') return 1;
+        if (b === 'Övrigt') return -1;
+        return a.localeCompare(b, 'sv');
+      })
+      .forEach((district) => {
+        const items = byDistrict.get(district) || [];
+        if (items.length === 0) return;
+        sections.push(rowSectionHtml(district, items, 'search', district));
+      });
+  }
+
+  rowsContainerEl.innerHTML = sections.join('');
+  bindRowMoreButtons();
+}
+
+/** Hem/Kommande/Alla: Netflix-style horizontal row with optional "Visa alla". */
+function rowSectionHtml(title, cups, moreTab, moreDistrict) {
+  const moreBtn = moreDistrict
+    ? `<a class="item-row__more" href="${escapeHtml(districtPath(moreDistrict))}" data-goto-tab="district" data-district="${escapeHtml(moreDistrict)}">Visa alla</a>`
+    : moreTab
+      ? `<button type="button" class="item-row__more" data-goto-tab="${escapeHtml(moreTab)}">Visa alla</button>`
+      : '';
+  return `<section class="item-row">
+    <div class="item-row__header">
+      <h2 class="item-row__title">${escapeHtml(title)}</h2>
+      ${moreBtn}
+    </div>
+    <div class="item-row__scroller no-scrollbar scroll-snap-x">
+      ${cups.map((c, i) => renderCupCard(c, i)).join('')}
+    </div>
+  </section>`;
+}
+
+function bindRowMoreButtons() {
+  rowsContainerEl?.querySelectorAll('[data-goto-tab]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const district = btn.getAttribute('data-district');
+      if (district) {
+        e.preventDefault();
+        openDistrictPage(district);
+        return;
+      }
+      const tab = btn.getAttribute('data-goto-tab') || 'all';
+      setActiveTab(tab);
+    });
+  });
+}
+
+/** Genitivform — se DISTRICT_FEDERATION_GENITIVE ovan. */
+function districtFederationLead(district) {
+  const name = String(district || '').trim();
+  if (!name || name === 'Övrigt') {
+    return 'Sanktionerade cuper från distriktsförbunden.';
+  }
+  const genitive =
+    DISTRICT_FEDERATION_GENITIVE[name] || (name.toLowerCase().endsWith('s') ? name : `${name}s`);
+  return `Sanktionerade cuper från ${genitive} fotbollsförbund.`;
+}
+
+/** Öppna distriktssida — egen URL, t.ex. /skane/ */
+function openDistrictPage(district) {
+  const name = String(district || '').trim();
+  if (!name) return;
+  state.selectedDistrict = name;
+  state.districtOptions = DistrictUrls.ensureDistrictOption(state.districtOptions, name);
+  state.searchQuery = '';
+  state.selectedCategory = 'all';
+  state.selectedDateFilter = 'all';
+  state.activeTab = 'district';
+  if (searchInputHeroEl) searchInputHeroEl.value = '';
+  try {
+    sessionStorage.setItem(ACTIVE_TAB_KEY, 'home');
+  } catch {
+    /* ignore */
+  }
+  syncUrlForState({ push: true });
+  renderApp();
+  document.getElementById('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ================================================================
+   SEARCH PANEL
+================================================================ */
+function renderSearchPanel() {
+  const results = getFilteredCups();
+  const district = state.selectedDistrict;
+  const isDistrictPage = state.activeTab === 'district' && district && district !== 'all';
+
+  setStatus('');
+
+  renderCategorizedRows(results, {
+    includeFeatured: false,
+    includePast: true,
+    includeDistricts: !isDistrictPage,
+    emptyMessage: isDistrictPage
+      ? `Inga cuper i ${district} just nu.`
+      : 'Inga cuper matchade din sökning.',
+  });
+  renderJsonLd(results);
+}
+
+/* ================================================================
+   INFO PANEL
+================================================================ */
+function renderInfoPanel() {
+  if (!rowsContainerEl) return;
+  rowsContainerEl.innerHTML = `
+    <div class="info-panel" id="info">
+      <p class="info-panel__eyebrow">För arrangörer</p>
+      <h2 class="info-panel__title">Fyll er cup snabbare</h2>
+      <p class="info-panel__lead">Nå tusentals tränare och föreningar som aktivt söker cuper. Lägg upp er turnering gratis.</p>
+      <a class="info-panel__cta" href="mailto:info@cupappen.se">Lägg till cup gratis</a>
+
+      <p class="info-panel__eyebrow" style="margin-top:1.5rem;">Vanliga frågor</p>
+      <h2 class="info-panel__title">FAQ</h2>
+      <div class="faq-list" role="list">
+        <div class="faq-item" role="listitem">
+          <button type="button" class="faq-toggle" aria-expanded="false" aria-controls="faq-0">
+            Kostar det något att använda Cupappen?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="faq-0" class="faq-answer" role="region">
+            Nej, Cupappen är helt gratis att använda för lag och tränare som söker cuper. För arrangörer som vill exponera sin cup kan det finnas olika paketerbjudanden — kontakta oss för mer information.
+          </div>
+        </div>
+        <div class="faq-item" role="listitem">
+          <button type="button" class="faq-toggle" aria-expanded="false" aria-controls="faq-1">
+            Hur lägger jag upp min cup?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="faq-1" class="faq-answer" role="region">
+            Kontakta oss på <a href="mailto:info@cupappen.se">info@cupappen.se</a>. Vi hjälper er att publicera cupen snabbt — oftast inom ett dygn.
+          </div>
+        </div>
+        <div class="faq-item" role="listitem">
+          <button type="button" class="faq-toggle" aria-expanded="false" aria-controls="faq-2">
+            Kan jag anmäla mitt lag direkt via Cupappen?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="faq-2" class="faq-answer" role="region">
+            Du klickar vidare till arrangörens officiella anmälningssida. Cupappen fungerar som katalog och sökmotor — anmälan sker hos arrangören.
+          </div>
+        </div>
+        <div class="faq-item" role="listitem">
+          <button type="button" class="faq-toggle" aria-expanded="false" aria-controls="faq-3">
+            Hur vet jag att en cup är seriös?
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="faq-3" class="faq-answer" role="region">
+            Vi listar primärt cuper som är sanktionerade av respektive distriktsförbund inom Svensk Fotboll.
+          </div>
+        </div>
+      </div>
+      <p class="info-panel__contact">
+        Hittar du inte svaret? <a href="mailto:info@cupappen.se">Kontakta oss här</a>
+        · © <span id="footer-year"></span> Cupappen
+      </p>
+    </div>`;
+
+  const yearEl = document.getElementById('footer-year');
+  if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+
+  rowsContainerEl.querySelectorAll('.faq-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const answerId = btn.getAttribute('aria-controls');
+      const answer = answerId ? document.getElementById(answerId) : null;
+      if (!answer) return;
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!isOpen));
+      answer.dataset.open = String(!isOpen);
+    });
+  });
+}
+
+/* ================================================================
+   BOTTOM BAR + MENU
+================================================================ */
+function setActiveTab(tab) {
+  state.activeTab = tab;
+  if (tab === 'home' || tab === 'upcoming') {
+    state.selectedDateFilter = 'upcoming';
+  }
+  if (tab === 'all') {
+    state.selectedDateFilter = 'all';
+  }
+  if (tab !== 'district') {
+    state.selectedDistrict = 'all';
+  }
+  try {
+    sessionStorage.setItem(ACTIVE_TAB_KEY, tab === 'district' ? 'home' : tab);
+  } catch {
+    /* ignore */
+  }
+  syncUrlForState({ push: false });
+  renderApp();
+  document.getElementById('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function syncBottomBar() {
+  document.querySelectorAll('.bottom-bar__tab').forEach((tab) => {
+    const key = tab.getAttribute('data-tab') || '';
+    tab.classList.toggle('is-active', key === state.activeTab);
+  });
+}
+
+function initBottomBar() {
+  document.querySelectorAll('.bottom-bar__tab').forEach((tab) => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      const key = tab.getAttribute('data-tab') || 'home';
+      setActiveTab(key);
+    });
+  });
+}
+
+/** Logo always opens Hem (avoids sessionStorage restoring the previous tab on `/`). */
+function initBrandHome() {
+  document.querySelectorAll('a.brand').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      state.selectedCategory = 'all';
+      state.selectedDistrict = 'all';
+      state.searchQuery = '';
+      if (searchInputHeroEl) searchInputHeroEl.value = '';
+      setActiveTab('home');
+    });
+  });
+}
+
+/* ================================================================
+   HERO — live intro + filter card
+================================================================ */
+function initHeroSearch() {
+  if (searchInputHeroEl) {
+    searchInputHeroEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyHeroSearch();
+      }
+    });
+  }
+
+  document.getElementById('hero-search-btn')?.addEventListener('click', applyHeroSearch);
+  document.getElementById('clear-filters-btn-hero')?.addEventListener('click', clearHeroFilters);
+
+  if (dateTriggerHeroEl) dateTriggerHeroEl.addEventListener('click', () => toggleHeroMenu('date'));
+  if (categoryTriggerHeroEl)
+    categoryTriggerHeroEl.addEventListener('click', () => toggleHeroMenu('category'));
+  if (heroDistrictTriggerEl)
+    heroDistrictTriggerEl.addEventListener('click', () => toggleHeroMenu('district'));
+
+  document.addEventListener('click', (event) => {
+    if (
+      !dateFilterHeroEl?.contains(event.target) &&
+      !categoryFilterHeroEl?.contains(event.target) &&
+      !heroDistrictFilterEl?.contains(event.target)
+    ) {
+      closeHeroMenus();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeHeroMenus();
+  });
+}
+
+function applyHeroSearch() {
+  state.searchQuery = searchInputHeroEl?.value?.trim() || '';
+  closeHeroMenus();
+  if (state.selectedDistrict && state.selectedDistrict !== 'all') {
+    state.activeTab = 'district';
+    syncUrlForState({ push: false });
+    renderApp();
+  } else if (state.activeTab === 'search' || state.activeTab === 'district') {
+    state.activeTab = 'search';
+    state.selectedDistrict = 'all';
+    syncUrlForState({ push: false });
+    renderSearchPanel();
+    renderJsonLd(getFilteredCups());
+  } else {
+    setActiveTab('search');
+  }
+  document.getElementById('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function clearHeroFilters() {
+  state.searchQuery = '';
+  state.selectedDateFilter = 'upcoming';
+  state.selectedCategory = 'all';
+  state.selectedDistrict = 'all';
+  if (searchInputHeroEl) searchInputHeroEl.value = '';
+  renderHeroFilters();
+  closeHeroMenus();
+  if (state.activeTab === 'district') {
+    setActiveTab('home');
+  } else if (state.activeTab === 'search') {
+    renderSearchPanel();
+    renderJsonLd(getFilteredCups());
+  } else if (state.activeTab === 'home') {
+    renderApp();
+  } else {
+    setActiveTab('home');
+  }
+}
+
+function toggleHeroMenu(which) {
+  const map = {
+    date: { trigger: dateTriggerHeroEl, menu: dateMenuHeroEl },
+    category: { trigger: categoryTriggerHeroEl, menu: categoryMenuHeroEl },
+    district: { trigger: heroDistrictTriggerEl, menu: heroDistrictMenuEl },
   };
-  return icons[name] || '';
+  const target = map[which];
+  if (!target?.menu || !target?.trigger) return;
+  const willOpen = target.menu.hidden;
+  closeHeroMenus();
+  if (willOpen) {
+    target.menu.hidden = false;
+    target.trigger.setAttribute('aria-expanded', 'true');
+  }
 }
 
+function closeHeroMenus() {
+  [dateMenuHeroEl, categoryMenuHeroEl, heroDistrictMenuEl].forEach((menu) => {
+    if (menu) menu.hidden = true;
+  });
+  [dateTriggerHeroEl, categoryTriggerHeroEl, heroDistrictTriggerEl].forEach((trigger) => {
+    trigger?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function renderHeroFilters() {
+  renderHeroDateFilter();
+  renderHeroCategoryFilter();
+  renderHeroDistrictFilter();
+  if (searchInputHeroEl && document.activeElement !== searchInputHeroEl) {
+    searchInputHeroEl.value = state.searchQuery || '';
+  }
+}
+
+function renderHeroDateFilter() {
+  if (!dateMenuHeroEl) return;
+  const months = new Set();
+  state.cups.forEach((cup) => {
+    const key = monthKeyFromCup(cup);
+    if (key) months.add(key);
+  });
+  const ordered = Array.from(months).sort((a, b) => a.localeCompare(b, 'sv'));
+  const options = [
+    { value: 'upcoming', label: 'Kommande' },
+    { value: 'all', label: 'Alla' },
+    ...ordered.map((key) => ({ value: `month:${key}`, label: monthLabelFromKey(key) })),
+  ];
+  if (!options.some((opt) => opt.value === state.selectedDateFilter)) {
+    state.selectedDateFilter = 'upcoming';
+  }
+  renderCustomOptions(dateMenuHeroEl, options, state.selectedDateFilter, (value) => {
+    state.selectedDateFilter = value;
+    if (dateLabelHeroEl) dateLabelHeroEl.textContent = getHeroDateLabel(value);
+    closeHeroMenus();
+    if (state.activeTab === 'search' || state.activeTab === 'district') {
+      renderSearchPanel();
+      renderJsonLd(getFilteredCups());
+    }
+  });
+  if (dateLabelHeroEl) dateLabelHeroEl.textContent = getHeroDateLabel(state.selectedDateFilter);
+}
+
+function renderHeroCategoryFilter() {
+  if (!categoryMenuHeroEl) return;
+  if (!HERO_CATEGORY_OPTIONS.some((opt) => opt.value === state.selectedCategory)) {
+    state.selectedCategory = 'all';
+  }
+  renderCustomOptions(
+    categoryMenuHeroEl,
+    HERO_CATEGORY_OPTIONS,
+    state.selectedCategory,
+    (value) => {
+      state.selectedCategory = value;
+      if (categoryLabelHeroEl) categoryLabelHeroEl.textContent = getHeroCategoryLabel(value);
+      closeHeroMenus();
+      if (state.activeTab === 'search' || state.activeTab === 'district') {
+        renderSearchPanel();
+        renderJsonLd(getFilteredCups());
+      }
+    },
+  );
+  if (categoryLabelHeroEl)
+    categoryLabelHeroEl.textContent = getHeroCategoryLabel(state.selectedCategory);
+}
+
+function renderHeroDistrictFilter() {
+  if (!heroDistrictMenuEl) return;
+  state.districtOptions = DistrictUrls.ensureDistrictOption(
+    state.districtOptions,
+    state.selectedDistrict,
+  );
+  const options = [
+    { value: 'all', label: 'Alla distrikt' },
+    ...state.districtOptions.map((d) => ({ value: d, label: d })),
+  ];
+  renderCustomOptions(heroDistrictMenuEl, options, state.selectedDistrict, (value) => {
+    if (heroDistrictLabelEl) heroDistrictLabelEl.textContent = getHeroDistrictLabel(value);
+    closeHeroMenus();
+    if (value !== 'all') {
+      openDistrictPage(value);
+      return;
+    }
+    state.selectedDistrict = 'all';
+    if (state.activeTab === 'district') {
+      setActiveTab('home');
+      return;
+    }
+    if (state.activeTab === 'search') {
+      renderSearchPanel();
+      renderJsonLd(getFilteredCups());
+    }
+  });
+  if (heroDistrictLabelEl)
+    heroDistrictLabelEl.textContent = getHeroDistrictLabel(state.selectedDistrict);
+}
+
+function renderCustomOptions(menuEl, options, selectedValue, onSelect) {
+  menuEl.innerHTML = '';
+  options.forEach((option) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'custom-option';
+    btn.setAttribute('data-value', option.value);
+    btn.setAttribute('role', 'option');
+    btn.textContent = option.label;
+    btn.classList.toggle('is-selected', option.value === selectedValue);
+    btn.addEventListener('click', () => onSelect(option.value));
+    menuEl.appendChild(btn);
+  });
+}
+
+function getHeroDateLabel(value) {
+  if (value === 'upcoming') return 'Kommande';
+  if (value === 'all') return 'Alla';
+  if (String(value).startsWith('month:'))
+    return monthLabelFromKey(String(value).slice('month:'.length));
+  return 'Kommande';
+}
+
+function getHeroCategoryLabel(value) {
+  return HERO_CATEGORY_OPTIONS.find((opt) => opt.value === value)?.label || 'Alla klasser';
+}
+
+function getHeroDistrictLabel(value) {
+  if (value === 'all') return 'Alla distrikt';
+  return value || 'Alla distrikt';
+}
+
+function monthKeyFromCup(cup) {
+  const d = parseCupDate(cup.start_date) || parseCupDate(cup.end_date);
+  if (!d) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function monthLabelFromKey(key) {
+  const [y, m] = String(key).split('-').map(Number);
+  if (!y || !m) return key;
+  const date = new Date(y, m - 1, 1);
+  const label = date.toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function initMenuDrawer() {
+  const btn = document.getElementById('menu-btn');
+  const drawer = document.getElementById('menu-drawer');
+  const closeBtn = document.getElementById('menu-close');
+  if (!btn || !drawer) return;
+
+  const open = () => {
+    drawer.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+  };
+  const close = () => {
+    drawer.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+  };
+
+  btn.addEventListener('click', () => (drawer.hidden ? open() : close()));
+  closeBtn?.addEventListener('click', close);
+  drawer.addEventListener('click', (e) => {
+    if (e.target === drawer) close();
+  });
+  drawer.querySelectorAll('[data-drawer-tab]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const tab = a.getAttribute('data-drawer-tab') || 'home';
+      close();
+      setActiveTab(tab);
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !drawer.hidden) close();
+  });
+}
+
+function setStatus(text) {
+  if (!statusEl) return;
+  statusEl.textContent = text || '';
+  statusEl.hidden = !text;
+}
+
+/* ================================================================
+   DATE / CATEGORY HELPERS (preserved from previous Cupappen)
+================================================================ */
 function formatDateRange(startDate, endDate) {
   if (!startDate && !endDate) return 'Datum saknas';
   const start = startDate ? formatDate(startDate) : '';
@@ -799,20 +1167,6 @@ function parseCupDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function monthKeyFromCup(cup) {
-  const date = parseCupDate(cup.start_date) || parseCupDate(cup.end_date);
-  if (!date) return '';
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
-}
-
-function monthLabelFromKey(key) {
-  const date = new Date(`${key}-01T00:00:00`);
-  if (Number.isNaN(date.getTime())) return key;
-  return date.toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' });
-}
-
 function compareByDate(a, b) {
   const aDate = new Date(a.start_date || a.end_date || '9999-12-31');
   const bDate = new Date(b.start_date || b.end_date || '9999-12-31');
@@ -822,6 +1176,9 @@ function compareByDate(a, b) {
   return String(a.name || '').localeCompare(String(b.name || ''), 'sv');
 }
 
+/* ================================================================
+   JSON-LD
+================================================================ */
 function publicSiteOrigin() {
   return typeof window !== 'undefined' ? window.location.origin : 'https://www.cupappen.se';
 }
@@ -838,7 +1195,6 @@ function jsonLdEventItem(cup) {
   const regAbs = toAbsolutePublicUrl(cup.registration_url);
   const regWithUtm = regAbs ? withCupappenUtm(regAbs) : '';
   const imageAbs = resolveCupImageUrlAbsolute(cup);
-  const image = imageAbs || undefined;
   const detailUrl = cupDetailAbsoluteUrl(cup);
   const idPart = String(cup.id || '').trim();
   return {
@@ -853,18 +1209,10 @@ function jsonLdEventItem(cup) {
     startDate: cup.start_date || undefined,
     endDate: cup.end_date || undefined,
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-    image: image || undefined,
-    location: cup.location
-      ? {
-          '@type': 'Place',
-          name: normalizeText(cup.location),
-        }
-      : undefined,
+    image: imageAbs || undefined,
+    location: cup.location ? { '@type': 'Place', name: normalizeText(cup.location) } : undefined,
     organizer: cup.organizer
-      ? {
-          '@type': 'Organization',
-          name: normalizeText(cup.organizer),
-        }
+      ? { '@type': 'Organization', name: normalizeText(cup.organizer) }
       : undefined,
     description: normalizeText(cup.description || cup.categories) || undefined,
     isAccessibleForFree: true,
@@ -895,7 +1243,7 @@ function renderJsonLd(cups) {
     '@id': `${origin}/#cup-catalog-itemlist`,
     name: 'Aktuellt i cupkatalogen – Cupappen',
     description:
-      'Varje SportEvent pekar på en SSR-detaljsida (snäll URL /cup/[slug]-[år]) med fakta och omdömen.',
+      'Varje SportEvent pekar på en SSR-detaljsida (/{distrikt}/{slug}-{år}) med fakta och omdömen.',
     url: `${origin}/`,
     numberOfItems: unique.length,
     itemListOrder: 'https://schema.org/ItemListOrderAscending',
@@ -915,161 +1263,7 @@ function renderJsonLd(cups) {
 }
 
 /* ================================================================
-   STATE HELPERS
-================================================================ */
-function showState(type) {
-  hideStates();
-  loadingEl.hidden = type !== 'loading';
-  errorEl.hidden = type !== 'error';
-  emptyEl.hidden = type !== 'empty';
-  cupsGridEl.hidden = true;
-}
-
-function hideStates() {
-  loadingEl.hidden = true;
-  errorEl.hidden = true;
-  emptyEl.hidden = true;
-}
-
-function clearFilters() {
-  if (searchInputEl) searchInputEl.value = '';
-  if (searchInputHeroEl) searchInputHeroEl.value = '';
-  state.selectedDateFilter = 'upcoming';
-  state.selectedCategory = 'all';
-  state.selectedDistrict = 'all';
-  if (dateLabelEl) dateLabelEl.textContent = getDateLabel('upcoming');
-  if (dateLabelHeroEl) dateLabelHeroEl.textContent = getDateLabel('upcoming');
-  if (categoryLabelEl) categoryLabelEl.textContent = getCategoryLabel('all');
-  if (categoryLabelHeroEl) categoryLabelHeroEl.textContent = getCategoryLabel('all');
-  if (districtLabelEl) districtLabelEl.textContent = getDistrictLabel('all');
-  if (heroDistrictLabelEl) heroDistrictLabelEl.textContent = getDistrictLabel('all');
-  closeAllMenus();
-  refreshCustomOptionSelections();
-  renderFiltered();
-}
-
-function createCustomOptionButton(value, label, isSelected, onSelect) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'custom-option';
-  btn.setAttribute('data-value', value);
-  btn.textContent = label;
-  btn.classList.toggle('is-selected', isSelected);
-  btn.addEventListener('click', () => onSelect(value));
-  return btn;
-}
-
-function renderCustomOptions(menuEl, options, selectedValue, onSelect) {
-  menuEl.innerHTML = '';
-  options.forEach((option) => {
-    menuEl.appendChild(
-      createCustomOptionButton(
-        option.value,
-        option.label,
-        option.value === selectedValue,
-        onSelect,
-      ),
-    );
-  });
-}
-
-function refreshCustomOptionSelections() {
-  if (dateMenuEl) {
-    dateMenuEl.querySelectorAll('.custom-option').forEach((el) => {
-      el.classList.toggle(
-        'is-selected',
-        el.getAttribute('data-value') === state.selectedDateFilter,
-      );
-    });
-  }
-  if (categoryMenuEl) {
-    categoryMenuEl.querySelectorAll('.custom-option').forEach((el) => {
-      el.classList.toggle('is-selected', el.getAttribute('data-value') === state.selectedCategory);
-    });
-  }
-  if (districtMenuEl) {
-    districtMenuEl.querySelectorAll('.custom-option').forEach((el) => {
-      el.classList.toggle('is-selected', el.getAttribute('data-value') === state.selectedDistrict);
-    });
-  }
-  if (heroDistrictMenuEl) {
-    heroDistrictMenuEl.querySelectorAll('.custom-option').forEach((el) => {
-      el.classList.toggle('is-selected', el.getAttribute('data-value') === state.selectedDistrict);
-    });
-  }
-  if (dateMenuHeroEl) {
-    dateMenuHeroEl.querySelectorAll('.custom-option').forEach((el) => {
-      el.classList.toggle(
-        'is-selected',
-        el.getAttribute('data-value') === state.selectedDateFilter,
-      );
-    });
-  }
-  if (categoryMenuHeroEl) {
-    categoryMenuHeroEl.querySelectorAll('.custom-option').forEach((el) => {
-      el.classList.toggle('is-selected', el.getAttribute('data-value') === state.selectedCategory);
-    });
-  }
-}
-
-function getDateLabel(value) {
-  if (value === 'upcoming') return 'Kommande';
-  if (value === 'all') return 'Alla';
-  if (String(value).startsWith('month:'))
-    return monthLabelFromKey(String(value).slice('month:'.length));
-  return 'Kommande';
-}
-
-function getCategoryLabel(value) {
-  const option = CATEGORY_FILTER_OPTIONS.find((opt) => opt.value === value);
-  return option?.label || 'Alla klasser';
-}
-
-function getDistrictLabel(value) {
-  if (value === 'all') return 'Alla distrikt';
-  return value || 'Alla distrikt';
-}
-
-function toggleMenu(kind) {
-  const map = {
-    date: { trigger: dateTriggerEl, menu: dateMenuEl },
-    dateHero: { trigger: dateTriggerHeroEl, menu: dateMenuHeroEl },
-    category: { trigger: categoryTriggerEl, menu: categoryMenuEl },
-    categoryHero: { trigger: categoryTriggerHeroEl, menu: categoryMenuHeroEl },
-    district: { trigger: districtTriggerEl, menu: districtMenuEl },
-    heroDistrict: { trigger: heroDistrictTriggerEl, menu: heroDistrictMenuEl },
-  };
-  const current = map[kind];
-  if (!current?.trigger || !current?.menu) return;
-  const willOpen = current.trigger.getAttribute('aria-expanded') !== 'true';
-  closeAllMenus();
-  current.trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-  current.menu.hidden = !willOpen;
-}
-
-function closeAllMenus() {
-  [
-    dateTriggerEl,
-    dateTriggerHeroEl,
-    categoryTriggerEl,
-    categoryTriggerHeroEl,
-    districtTriggerEl,
-    heroDistrictTriggerEl,
-  ].forEach((trigger) => trigger?.setAttribute('aria-expanded', 'false'));
-  [
-    dateMenuEl,
-    dateMenuHeroEl,
-    categoryMenuEl,
-    categoryMenuHeroEl,
-    districtMenuEl,
-    heroDistrictMenuEl,
-  ].forEach((menu) => {
-    if (menu) menu.hidden = true;
-  });
-}
-
-/* ================================================================
-   STRING UTILS
+   STRING / URL UTILS
 ================================================================ */
 function escapeHtml(value) {
   if (value === null || value === undefined) return '';
@@ -1089,50 +1283,12 @@ function normalizeText(value) {
   return decodeHtmlEntities(String(value || ''));
 }
 
-function slugify(value) {
-  const decoded = normalizeText(value).toLowerCase().trim();
-  const transliterated = decoded
-    .replaceAll('å', 'a')
-    .replaceAll('ä', 'a')
-    .replaceAll('ö', 'o')
-    .replaceAll('é', 'e')
-    .replaceAll('è', 'e')
-    .replaceAll('ü', 'u');
-  return transliterated.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'cup';
-}
-
-function cupDetailUrl(cup) {
-  const slug = slugify(cup?.name || 'cup');
-  const rawDate = cup?.start_date || cup?.end_date || '';
-  const year = new Date(rawDate).getFullYear();
-  if (Number.isFinite(year) && year >= 2000 && year <= 2100) {
-    return `/cup/${slug}-${year}`;
-  }
-  return `/cup/${slug}`;
-}
-
-/**
- * Tillåt endast http(s) eller rot-relativa URL:er; escape för användning i src="…".
- */
 function safeImageUrlForAttr(url) {
   const u = normalizeText(url).trim();
   if (!u) return '';
   if (!(u.startsWith('https://') || u.startsWith('http://') || u.startsWith('/'))) return '';
-  // Admin-API paths (/api/files/...) are not accessible on the public site.
   if (u.startsWith('/api/')) return '';
   return escapeHtml(u);
-}
-
-/** Säker visning av lagantal (endast icke-negativa heltal); annars “Anmälan öppen”. */
-function formatTeamCountLabel(teamCount) {
-  if (teamCount === null || teamCount === undefined || teamCount === '') {
-    return 'Anmälan öppen';
-  }
-  const n = Number(teamCount);
-  if (!Number.isFinite(n) || n < 0) return 'Anmälan öppen';
-  const whole = Math.floor(n);
-  if (whole <= 0) return 'Anmälan öppen';
-  return `${escapeHtml(String(whole))} lag`;
 }
 
 function normalizeCategoryToken(token) {
@@ -1194,7 +1350,6 @@ function matchesCategoryGroup(categoriesText, groupValue) {
   return true;
 }
 
-/** Outbound links from Cupappen always attribute traffic with utm_source=cupappen. */
 function withCupappenUtm(urlValue) {
   const raw = String(urlValue || '').trim();
   if (!raw) return raw;
@@ -1228,12 +1383,4 @@ function resolveCupImageUrlForAttr(cup) {
 
 function resolveCupImageUrlAbsolute(cup) {
   return toAbsolutePublicUrl(cup?.featured_image_url);
-}
-
-function accentClassForCup(cup) {
-  const hasRegistrationUrl = !!String(cup?.registration_url || '').trim();
-  const hasLocation = !!String(cup?.location || '').trim();
-  if (hasRegistrationUrl && hasLocation) return 'accent-green';
-  if (hasRegistrationUrl || hasLocation) return 'accent-blue';
-  return 'accent-amber';
 }

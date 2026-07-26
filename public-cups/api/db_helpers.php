@@ -71,9 +71,19 @@ function publicCupsSitemapSql(PDO $pdo): string
         ? '  AND c.deleted_at IS NULL'
         : '';
 
+    $ingestJoin = publicCupsTableHasColumn($pdo, 'cups', 'ingest_source_id')
+        ? 'LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id'
+        : '';
+
+    $ingestSelect = publicCupsTableHasColumn($pdo, 'cups', 'ingest_source_id')
+        ? 'src.name AS ingest_source_name'
+        : 'NULL::text AS ingest_source_name';
+
     return <<<SQL
-SELECT c.id, c.name, c.start_date, c.end_date, c.updated_at
+SELECT c.id, c.name, c.start_date, c.end_date, c.updated_at,
+       {$ingestSelect}
 FROM cups c
+{$ingestJoin}
 WHERE COALESCE(c.visible, TRUE) = TRUE
 {$deletedFilter}
 ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC

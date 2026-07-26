@@ -62,6 +62,14 @@ curl -sS -o /dev/null -w "%{content_type}\n" https://www.cupappen.se/sitemap.xml
 # application/xml; charset=utf-8
 curl -sS https://www.cupappen.se/sitemap.xml | head -3
 # <?xml version="1.0" ...
+
+# 5) Distriktssida (SPA) + cup-detalj (SSR) — efter URL-omläggning
+curl -sS -o /dev/null -w "%{http_code}\n" https://www.cupappen.se/skane/
+# 200
+curl -sS -o /dev/null -w "%{http_code}\n" "https://www.cupappen.se/skane/<cup-slug>-<år>"
+# 200 (ersätt med verklig slug från sitemap)
+curl -sS -o /dev/null -w "%{http_code} %{redirect_url}\n" https://www.cupappen.se/cup/<slug>-<år>
+# 301 → https://www.cupappen.se/{distrikt}/...
 ```
 
 **Search Console:** Skicka in `https://www.cupappen.se/sitemap.xml` — **inte** apex `https://cupappen.se/sitemap.xml` (Cloudflare redirectar apex-sökvägar till startsidan).
@@ -115,6 +123,24 @@ apk del .php-build-deps              # Ta bara bort build-deps
 
 ---
 
+## Publika URL:er (listing vs detalj)
+
+Verifierat mot `public-cups/` (Caddy + `router.php` + `cup.php` / SPA):
+
+| Path                             | Handler             | Anmärkning                        |
+| -------------------------------- | ------------------- | --------------------------------- |
+| `/`                              | SPA `index.html`    | AppShell-listing                  |
+| `/{distrikt}/` (t.ex. `/skane/`) | SPA                 | Distriktsvy; ett path-segment     |
+| `/{distrikt}/{slug}-{år}`        | `cup.php` (SSR)     | Kanonisk cup-detalj               |
+| `/cup/...`                       | `cup.php` → **301** | Legacy → kanonisk distrikts-URL   |
+| `/api/*`, `/sitemap.xml`         | PHP                 | Före distrikts-cup-regexp i Caddy |
+
+Tom `ingest_source_name` → distriktsslug `ovrigt`. Detaljer: [`public-cups/README.md`](../public-cups/README.md), [`public-cups/llms.txt`](../public-cups/llms.txt).
+
+**Caddy-ordning (viktigt):** `@cupApi` / sitemap **före** `@districtCup` (`path_regexp` två segment), annars kan `/api/...` feltolkas.
+
+---
+
 ## Webbläsarfel — vad de betyder
 
 | Symtom i DevTools                                | Betydelse                          | Åtgärd                                                  |
@@ -163,12 +189,13 @@ Lokal PHP kan falla tillbaka till `DATABASE_URL` i `.env.local` om `CUPS_DB_URL`
 
 ## Relaterade filer
 
-| Fil                                                                  | Innehåll                    |
-| -------------------------------------------------------------------- | --------------------------- |
-| [`public-cups/Dockerfile`](../public-cups/Dockerfile)                | Image med `postgresql-libs` |
-| [`public-cups/railway.toml`](../public-cups/railway.toml)            | Railway config för Cupappen |
-| [`public-cups/api/README.md`](../public-cups/api/README.md)          | API-endpoints               |
-| [`CUPPAPPEN_PATHS_AND_STORAGE.md`](./CUPPAPPEN_PATHS_AND_STORAGE.md) | R2, dataflöde, hjältebilder |
+| Fil                                                                  | Innehåll                                                                                             |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [`public-cups/Dockerfile`](../public-cups/Dockerfile)                | Image med `postgresql-libs`                                                                          |
+| [`public-cups/railway.toml`](../public-cups/railway.toml)            | Railway config för Cupappen                                                                          |
+| [`public-cups/api/README.md`](../public-cups/api/README.md)          | API-endpoints                                                                                        |
+| [`CUPPAPPEN_PATHS_AND_STORAGE.md`](./CUPPAPPEN_PATHS_AND_STORAGE.md) | R2, dataflöde, hjältebilder                                                                          |
+| [`PUBLIC_APP_TEMPLATE.md`](./PUBLIC_APP_TEMPLATE.md)                 | Mall för **nya** SEO-sajter (`templates/public-app/`) — kopiera inte om Cupappen; använd vid app #2+ |
 
 ---
 

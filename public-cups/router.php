@@ -15,7 +15,31 @@ if ($uriPath === '/sitemap.xml') {
     return true;
 }
 
-if ($uriPath === '/cup' || str_starts_with($uriPath, '/cup/')) {
+$reservedDistrict = [
+    'api',
+    'assets',
+    'cup',
+    'lib',
+    'favicon.ico',
+    'favicon.svg',
+    'index.html',
+    'llms.txt',
+    'robots.txt',
+    'sitemap.xml',
+    'styles.css',
+    'app.js',
+    'cupappen-cup-detail.css',
+    'cup.php',
+];
+
+$isLegacyCup = $uriPath === '/cup' || str_starts_with($uriPath, '/cup/');
+$isDistrictCup = false;
+if (preg_match('#^/([a-z0-9-]+)/([a-z0-9-]+)/?$#i', $uriPath, $m)) {
+    $district = strtolower((string) $m[1]);
+    $isDistrictCup = !in_array($district, $reservedDistrict, true);
+}
+
+if ($isLegacyCup || $isDistrictCup) {
     // cup.php applies its own security headers.
     require __DIR__ . '/cup.php';
     return true;

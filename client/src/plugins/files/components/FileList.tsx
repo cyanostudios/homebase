@@ -22,6 +22,7 @@ import { useFiles } from '../hooks/useFiles';
 import {
   getInitialFileColumnCount,
   resolveFileColumnCount,
+  settingsHasFileColumnPreference,
   FILES_COLUMN_COUNT_STORAGE_KEY,
   FILES_SETTINGS_KEY,
   type FileColumnCount,
@@ -86,6 +87,10 @@ export const FileList: React.FC = () => {
     getSettings(FILES_SETTINGS_KEY)
       .then((settings) => {
         if (cancelled) {
+          return;
+        }
+        // Empty/failed settings must not wipe session selection (list remounts on detail close).
+        if (!settingsHasFileColumnPreference(settings)) {
           return;
         }
         const next = resolveFileColumnCount(settings);

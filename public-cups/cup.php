@@ -121,14 +121,57 @@ function cupPrettySlug(array $cup): string
     return $year ? ($base . '-' . $year) : $base;
 }
 
+/** District path segment for a cup (empty source → ovrigt). */
+function cupDistrictSlug(array $cup): string
+{
+    $name = normalizeText((string) ($cup['ingest_source_name'] ?? ''));
+    if ($name === '') {
+        return 'ovrigt';
+    }
+
+    return slugify($name);
+}
+
+/** Canonical cup path: /{district}/{name}-{year} */
+function cupCanonicalPath(array $cup): string
+{
+    return '/' . cupDistrictSlug($cup) . '/' . cupPrettySlug($cup);
+}
+
+/** First path segments that must never be treated as district names. */
+function cupReservedDistrictSegments(): array
+{
+    return [
+        'api',
+        'assets',
+        'cup',
+        'favicon.ico',
+        'favicon.svg',
+        'index.html',
+        'llms.txt',
+        'robots.txt',
+        'sitemap.xml',
+        'styles.css',
+        'app.js',
+        'cupappen-cup-detail.css',
+        'cup.php',
+    ];
+}
+
+/**
+ * @return array{legacyId:?int,slug:string,slugYear:?int,districtSlug:?string,legacyCupPrefix:bool}|null
+ */
 function parseCupPath(): ?array
 {
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+
     if (preg_match('#^/cup/(\d+)(?:-([a-z0-9-]+))?/?$#i', $path, $matches)) {
         return [
             'legacyId' => (int) $matches[1],
             'slug' => $matches[2] ?? '',
             'slugYear' => null,
+            'districtSlug' => null,
+            'legacyCupPrefix' => true,
         ];
     }
     /** Måste testas innan ”slug-only” så `/cup/foo-2026` blir slug+år — inte år saknas. */
@@ -137,6 +180,8 @@ function parseCupPath(): ?array
             'legacyId' => null,
             'slug' => strtolower((string) $matches[1]),
             'slugYear' => (int) $matches[2],
+            'districtSlug' => null,
+            'legacyCupPrefix' => true,
         ];
     }
     if (preg_match('#^/cup/([a-z0-9-]+)/?$#i', $path, $matches)) {
@@ -144,20 +189,49 @@ function parseCupPath(): ?array
             'legacyId' => null,
             'slug' => strtolower((string) $matches[1]),
             'slugYear' => null,
+            'districtSlug' => null,
+            'legacyCupPrefix' => true,
+        ];
+    }
+
+    if (preg_match('#^/([a-z0-9-]+)/([a-z0-9-]+?)-(\d{4})/?$#i', $path, $matches)) {
+        $district = strtolower((string) $matches[1]);
+        if (in_array($district, cupReservedDistrictSegments(), true)) {
+            return null;
+        }
+
+        return [
+            'legacyId' => null,
+            'slug' => strtolower((string) $matches[2]),
+            'slugYear' => (int) $matches[3],
+            'districtSlug' => $district,
+            'legacyCupPrefix' => false,
+        ];
+    }
+    if (preg_match('#^/([a-z0-9-]+)/([a-z0-9-]+)/?$#i', $path, $matches)) {
+        $district = strtolower((string) $matches[1]);
+        if (in_array($district, cupReservedDistrictSegments(), true)) {
+            return null;
+        }
+
+        return [
+            'legacyId' => null,
+            'slug' => strtolower((string) $matches[2]),
+            'slugYear' => null,
+            'districtSlug' => $district,
+            'legacyCupPrefix' => false,
         ];
     }
 
     return null;
 }
 
-function cupRequestPathSegment(): string
+function cupRequestPathNormalized(): string
 {
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-    if (preg_match('#^/cup/([^/]+)/?$#i', $path, $m)) {
-        return strtolower((string) $m[1]);
-    }
+    $path = '/' . trim($path, '/');
 
-    return '';
+    return $path === '/' ? '/' : rtrim($path, '/');
 }
 
 /**
@@ -341,14 +415,16 @@ if ($pathParts === null) {
   <meta name="robots" content="noindex, nofollow" />
   <title>Sidan hittades inte · Cupappen</title>
   <link rel="canonical" href="<?= h(siteBaseUrl() . '/') ?>" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/cupappen-cup-detail.css" />
 </head>
 <body>
-  <div style="max-width:480px;margin:10vh auto;padding:2rem;text-align:center;font-family:sans-serif;">
-    <h1 style="font-size:1.5rem;margin-bottom:0.75rem;">Sidan hittades inte</h1>
-    <p style="color:#666;margin-bottom:1.5rem;">Adressen du angav finns inte. Gå tillbaka till startsidan för att söka bland cuper.</p>
-    <a href="/" style="display:inline-block;padding:0.6rem 1.5rem;background:#099ea2;color:#fff;border-radius:6px;text-decoration:none;">Till startsidan</a>
-  </div>
+  <main class="detail-not-found">
+    <div>
+      <h1>Sidan hittades inte</h1>
+      <p>Adressen du angav finns inte. Gå tillbaka till startsidan för att söka bland cuper.</p>
+      <a href="/">Till startsidan</a>
+    </div>
+  </main>
 </body>
 </html>
 <?php
@@ -378,8 +454,9 @@ try {
         if ($slugYearParam !== null) {
             $y = (int) $slugYearParam;
             $lightStmt = $pdo->prepare(
-                'SELECT c.id, c.name, c.start_date, c.end_date
+                'SELECT c.id, c.name, c.start_date, c.end_date, src.name AS ingest_source_name
                  FROM cups c
+                 LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
                  WHERE COALESCE(c.visible, TRUE) = TRUE
                    AND (
                      (c.start_date IS NOT NULL AND EXTRACT(YEAR FROM c.start_date::timestamp) = :y)
@@ -388,26 +465,60 @@ try {
             );
             $lightStmt->execute(['y' => $y]);
             $lightRows = $lightStmt->fetchAll();
+            $districtNeedle = isset($pathParts['districtSlug'])
+                ? strtolower((string) $pathParts['districtSlug'])
+                : null;
             foreach ($lightRows as $row) {
                 if ((int) (cupYear($row) ?? 0) !== $y) {
                     continue;
                 }
-                if (cupPrettySlug($row) === ($needle . '-' . $y)) {
-                    $cupId = (int) $row['id'];
-                    break;
+                if (cupPrettySlug($row) !== ($needle . '-' . $y)) {
+                    continue;
+                }
+                if ($districtNeedle !== null && cupDistrictSlug($row) !== $districtNeedle) {
+                    continue;
+                }
+                $cupId = (int) $row['id'];
+                break;
+            }
+            /** Legacy /cup/... or wrong district: fall back to first slug+year match, then 301 to canonical. */
+            if ($cupId === null && $districtNeedle !== null) {
+                foreach ($lightRows as $row) {
+                    if ((int) (cupYear($row) ?? 0) !== $y) {
+                        continue;
+                    }
+                    if (cupPrettySlug($row) === ($needle . '-' . $y)) {
+                        $cupId = (int) $row['id'];
+                        break;
+                    }
                 }
             }
         } else {
             $lightStmt = $pdo->query(
-                'SELECT c.id, c.name, c.start_date, c.end_date
+                'SELECT c.id, c.name, c.start_date, c.end_date, src.name AS ingest_source_name
                  FROM cups c
+                 LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
                  WHERE COALESCE(c.visible, TRUE) = TRUE',
             );
             $lightRows = $lightStmt->fetchAll();
+            $districtNeedle = isset($pathParts['districtSlug'])
+                ? strtolower((string) $pathParts['districtSlug'])
+                : null;
             $candidates = [];
             foreach ($lightRows as $row) {
-                if (slugify((string) ($row['name'] ?? 'cup')) === $needle) {
-                    $candidates[] = $row;
+                if (slugify((string) ($row['name'] ?? 'cup')) !== $needle) {
+                    continue;
+                }
+                if ($districtNeedle !== null && cupDistrictSlug($row) !== $districtNeedle) {
+                    continue;
+                }
+                $candidates[] = $row;
+            }
+            if ($candidates === [] && $districtNeedle !== null) {
+                foreach ($lightRows as $row) {
+                    if (slugify((string) ($row['name'] ?? 'cup')) === $needle) {
+                        $candidates[] = $row;
+                    }
                 }
             }
             $picked = pickCupForSharedSlug($candidates);
@@ -441,21 +552,53 @@ try {
         }
     } elseif ($pathParts['slugYear'] !== null) {
         $slugYear = (int) $pathParts['slugYear'];
+        $districtNeedle = isset($pathParts['districtSlug'])
+            ? strtolower((string) $pathParts['districtSlug'])
+            : null;
         foreach ($allCupsFallback as $row) {
             if ((int) (cupYear($row) ?? 0) !== $slugYear) {
                 continue;
             }
-            if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $slugYear)) {
-                $cup = $row;
-                break;
+            if (cupPrettySlug($row) !== ($pathParts['slug'] . '-' . $slugYear)) {
+                continue;
+            }
+            if ($districtNeedle !== null && cupDistrictSlug($row) !== $districtNeedle) {
+                continue;
+            }
+            $cup = $row;
+            break;
+        }
+        if (!$cup && $districtNeedle !== null) {
+            foreach ($allCupsFallback as $row) {
+                if ((int) (cupYear($row) ?? 0) !== $slugYear) {
+                    continue;
+                }
+                if (cupPrettySlug($row) === ($pathParts['slug'] . '-' . $slugYear)) {
+                    $cup = $row;
+                    break;
+                }
             }
         }
     } else {
         $needle = (string) $pathParts['slug'];
+        $districtNeedle = isset($pathParts['districtSlug'])
+            ? strtolower((string) $pathParts['districtSlug'])
+            : null;
         $candidates = [];
         foreach ($allCupsFallback as $row) {
-            if (slugify((string) ($row['name'] ?? 'cup')) === $needle) {
-                $candidates[] = $row;
+            if (slugify((string) ($row['name'] ?? 'cup')) !== $needle) {
+                continue;
+            }
+            if ($districtNeedle !== null && cupDistrictSlug($row) !== $districtNeedle) {
+                continue;
+            }
+            $candidates[] = $row;
+        }
+        if ($candidates === [] && $districtNeedle !== null) {
+            foreach ($allCupsFallback as $row) {
+                if (slugify((string) ($row['name'] ?? 'cup')) === $needle) {
+                    $candidates[] = $row;
+                }
             }
         }
         $cup = pickCupForSharedSlug($candidates);
@@ -476,7 +619,6 @@ if (!$cup) {
     content="Den här cupen finns inte längre på Cupappen eller är inte publik. Utforska aktuella fotbollscuper på cupappen.se."
   />
   <title>Cup hittades inte - Cupappen</title>
-  <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/cupappen-cup-detail.css" />
 </head>
 <body>
@@ -493,19 +635,20 @@ if (!$cup) {
     exit;
 }
 
-$expectedPrettySlug = cupPrettySlug($cup);
-if ($pathParts['legacyId']) {
-    header('Location: /cup/' . $expectedPrettySlug, true, 301);
-    exit;
-}
-$requestedSeg = cupRequestPathSegment();
-if ($requestedSeg !== strtolower((string) $expectedPrettySlug)) {
-    header('Location: /cup/' . $expectedPrettySlug, true, 301);
+$canonicalPath = cupCanonicalPath($cup);
+$requestedPath = cupRequestPathNormalized();
+$expectedPath = rtrim($canonicalPath, '/');
+
+if (
+    !empty($pathParts['legacyCupPrefix'])
+    || !empty($pathParts['legacyId'])
+    || $requestedPath !== $expectedPath
+) {
+    header('Location: ' . $canonicalPath, true, 301);
     exit;
 }
 
 $baseUrl = siteBaseUrl();
-$canonicalPath = '/cup/' . $expectedPrettySlug;
 $canonicalUrl = $baseUrl . $canonicalPath;
 $title = normalizeText((string) ($cup['name'] ?? 'Cup'));
 $dateRange = dateRangeLabel($cup);
@@ -556,12 +699,14 @@ if ($pdo instanceof PDO) {
 
     $lim = max(1, min(48, $sidebarUtvaldaLimit));
     $featuredStmt = $pdo->prepare(
-        'SELECT id, name, location, start_date, end_date, featured_image_url
-         FROM cups
-         WHERE id <> :id
-           AND COALESCE(visible, TRUE) = TRUE
-           AND COALESCE(featured, FALSE) = TRUE
-         ORDER BY start_date ASC NULLS LAST, end_date ASC NULLS LAST, name ASC
+        'SELECT c.id, c.name, c.location, c.start_date, c.end_date, c.featured_image_url,
+                src.name AS ingest_source_name
+         FROM cups c
+         LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
+         WHERE c.id <> :id
+           AND COALESCE(c.visible, TRUE) = TRUE
+           AND COALESCE(c.featured, FALSE) = TRUE
+         ORDER BY c.start_date ASC NULLS LAST, c.end_date ASC NULLS LAST, c.name ASC
          LIMIT ' . (string) ((int) $lim),
     );
     $featuredStmt->execute([
@@ -678,6 +823,12 @@ $websiteLd = [
     'publisher' => ['@id' => $organizationLd['@id']],
 ];
 
+$districtLabel = normalizeText((string) ($cup['ingest_source_name'] ?? ''));
+if ($districtLabel === '') {
+    $districtLabel = 'Övrigt';
+}
+$districtHref = $baseUrl . '/' . cupDistrictSlug($cup) . '/';
+
 $breadcrumbLd = [
     '@type' => 'BreadcrumbList',
     '@id' => $canonicalUrl . '#breadcrumb',
@@ -691,6 +842,12 @@ $breadcrumbLd = [
         [
             '@type' => 'ListItem',
             'position' => 2,
+            'name' => $districtLabel,
+            'item' => $districtHref,
+        ],
+        [
+            '@type' => 'ListItem',
+            'position' => 3,
             'name' => $title,
             'item' => $canonicalUrl,
         ],
@@ -722,7 +879,7 @@ $jsonLdGraph = jsonLdStripNulls([
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title><?= h($title) ?> · Cupappen</title>
   <meta name="description" content="<?= h($metaDescriptionHtml !== '' ? $metaDescriptionHtml : $metaDescription) ?>" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
@@ -760,14 +917,16 @@ $jsonLdGraph = jsonLdStripNulls([
   <link rel="apple-touch-icon" sizes="180x180" href="<?= h($baseUrl . '/assets/cupappen-favicon.png') ?>" />
   <link rel="sitemap" type="application/xml" title="Cupappen sitemap" href="<?= h($baseUrl . '/sitemap.xml') ?>" />
   <link rel="alternate" type="text/plain" title="LLM / AI site guide (llms.txt)" href="<?= h($baseUrl . '/llms.txt') ?>" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/cupappen-cup-detail.css" />
   <script type="application/ld+json"><?= h(json_encode($jsonLdGraph, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
 </head>
 <body>
   <header class="detail-header">
     <div class="container detail-header__inner">
-      <a href="/" class="logo" aria-label="Cupappen startsida">
+      <a href="/" class="logo" id="detail-logo" aria-label="Cupappen startsida">
         <picture>
           <source srcset="/assets/cupappen-logo.webp" type="image/webp" />
           <img
@@ -780,7 +939,7 @@ $jsonLdGraph = jsonLdStripNulls([
           />
         </picture>
       </a>
-      <a class="detail-back" href="/">Tillbaka</a>
+      <a class="detail-back" href="/" id="detail-back-btn">Tillbaka</a>
     </div>
   </header>
 
@@ -800,7 +959,7 @@ $jsonLdGraph = jsonLdStripNulls([
     </div>
   </section>
 
-  <main class="container detail-layout">
+  <main id="main" class="container detail-layout">
     <div class="detail-layout__main">
       <div class="summary-row">
         <span class="summary-chip"><?= h(starString($ratingsAvg)) ?> <strong><?= h(number_format($ratingsAvg, 1)) ?></strong> <span class="summary-chip__count">(<?= h((string) $ratingsCount) ?>)</span></span>
@@ -955,7 +1114,7 @@ $jsonLdGraph = jsonLdStripNulls([
         <ul class="related-list">
           <?php foreach ($sidebarFeaturedCups as $rel):
               $relName = normalizeText((string) ($rel['name'] ?? 'Cup'));
-              $relHref = '/cup/' . cupPrettySlug($rel);
+              $relHref = cupCanonicalPath($rel);
               $relImage = cupImageUrl($rel);
               ?>
             <li>
@@ -975,11 +1134,34 @@ $jsonLdGraph = jsonLdStripNulls([
   </main>
 
   <footer class="detail-footer">
-    <a href="/">Tillbaka till Cupappen</a>
+    <a href="/" id="detail-footer-back">Tillbaka till Cupappen</a>
   </footer>
 
   <script>
     (function () {
+      /** Prefer browser history so Tillbaka returns to listing tab. */
+      function bindBackNav(el) {
+        if (!el) return;
+        el.addEventListener('click', function (e) {
+          if (window.history.length > 1) {
+            e.preventDefault();
+            window.history.back();
+          }
+        });
+      }
+      bindBackNav(document.getElementById('detail-back-btn'));
+      bindBackNav(document.getElementById('detail-footer-back'));
+
+      document.querySelectorAll('#detail-logo, a.logo').forEach(function (el) {
+        el.addEventListener('click', function () {
+          try {
+            sessionStorage.setItem('cupappen_active_tab', 'home');
+          } catch (err) {
+            /* ignore */
+          }
+        });
+      });
+
       const cupId = <?= (int) $cup['id'] ?>;
       const form = document.getElementById('rating-form');
       const errorEl = document.getElementById('rating-error');

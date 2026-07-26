@@ -1,11 +1,14 @@
-# Plugin golden templates
+# Golden templates
 
-Start here when adding a new Homebase plugin (local dev only until you merge/deploy).
+Start here when adding a new Homebase plugin or a Cupappen-class public site.
 
-| Template                    | Copy to                      |
-| --------------------------- | ---------------------------- |
-| `plugin-backend-template/`  | `plugins/<name>/`            |
-| `plugin-frontend-template/` | `client/src/plugins/<name>/` |
+| Template                    | Copy to                                       |
+| --------------------------- | --------------------------------------------- |
+| `plugin-backend-template/`  | `plugins/<name>/`                             |
+| `plugin-frontend-template/` | `client/src/plugins/<name>/`                  |
+| `public-app/`               | `sites/<name>/` or `public-<name>/` (Railway) |
+
+**Public SEO sites (PHP + Caddy):** see [`public-app/README.md`](./public-app/README.md), [`docs/PUBLIC_APP_TEMPLATE.md`](../docs/PUBLIC_APP_TEMPLATE.md), and design rules [`docs/PUBLIC_APP_DESIGN.md`](../docs/PUBLIC_APP_DESIGN.md). Production reference: `public-cups/` (Cupappen). The plugin checklist below does **not** apply to `public-app/` — use the public-app copy checklist instead.
 
 ## Current conventions (2026-07)
 

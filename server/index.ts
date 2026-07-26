@@ -66,9 +66,12 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Security middleware (CSP must allow Vite bundles + theme inline script in dist/public/index.html)
+// Security middleware (CSP must allow Vite bundles + theme inline script in dist/public/index.html).
+// CORP must be cross-origin: public apps (Cupappen :3004, booking, etc.) fetch this API from
+// another origin; Helmet's default same-origin CORP causes browser "Failed to fetch" despite CORS.
 app.use(
   helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -83,7 +86,9 @@ app.use(
 );
 app.use(compression());
 // CORS: allow frontend origin so login/session work when frontend and API are on different hosts
-// Also allows PUBLIC_BOOKING_URL and PUBLIC_CUPS_URL for public apps
+// Also allows PUBLIC_BOOKING_URL / PUBLIC_CUPS_URL (and future PUBLIC_<NAME>_URL) for public apps.
+// New SEO sites: copy templates/public-app/ — see docs/PUBLIC_APP_TEMPLATE.md
+// Template wiring: if (process.env.PUBLIC_<NAME>_URL) allowedOrigins.push(process.env.PUBLIC_<NAME>_URL);
 const allowedOrigins: (string | boolean)[] = [];
 if (process.env.NODE_ENV === 'production') {
   if (process.env.FRONTEND_URL) {
@@ -129,6 +134,14 @@ app.use(
     credentials: true,
   }),
 );
+
+// Chrome Private Network Access: allow local public apps (:3004) to call this API.
+app.use((req, res, next) => {
+  if (req.headers['access-control-request-private-network'] === 'true') {
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  }
+  next();
+});
 
 const sessionSecret = process.env.SESSION_SECRET;
 if (
@@ -404,6 +417,17 @@ async function gracefulShutdown(signal: string) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('Shutdown: public-guides pool', msg);
     }
+
+    // New public-* plugin template (docs/PUBLIC_APP_TEMPLATE.md):
+    // try {
+    //   const publicXPlugin = require('../plugins/public-x/index.js');
+    //   if (typeof publicXPlugin.shutdownPublicXPool === 'function') {
+    //     await publicXPlugin.shutdownPublicXPool();
+    //   }
+    // } catch (err: unknown) {
+    //   const msg = err instanceof Error ? err.message : String(err);
+    //   console.warn('Shutdown: public-x pool', msg);
+    // }
 
     try {
       const bookingPlugin = require('../plugins/booking/index.js');

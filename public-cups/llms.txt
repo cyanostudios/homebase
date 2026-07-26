@@ -10,10 +10,12 @@ Cupappen is a public catalogue of football (soccer) tournaments in Sweden, publi
 - Provide one place to filter by date, category/district, free-text search, then open a dedicated page per cup.
 
 ## URL patterns (important)
-- **Cup detail (primary, SEO/SSR):** `https://www.cupappen.se/cup/{slug}-{year}/`
-  - Example: `https://www.cupappen.se/cup/tjejcupen-2026`
+- **Cup detail (primary, SEO/SSR):** `https://www.cupappen.se/{district}/{slug}-{year}`
+  - Example: `https://www.cupappen.se/skane/tjejcupen-2026`
+  - `{district}` is the ingest-source / federation district slug (e.g. `skane`). Empty source uses `ovrigt`.
   - `{slug}` is derived from the cup name (ASCII slug). `{year}` is taken from start/end date when available to disambiguate recurring names.
-- Legacy redirect: older links like `/cup/{id}-{slug}` 301 to the pretty URL above when the cup exists.
+- **District listing (SPA):** `https://www.cupappen.se/{district}/` (e.g. `/skane/`)
+- Legacy redirect: older links like `/cup/{slug}-{year}` or `/cup/{id}-{slug}` 301 to the district URL when the cup exists.
 - Homepage `https://www.cupappen.se/` loads the interactive listing (client-side filters). Each visible cup also has the dedicated detail URL in the sitemap.
 
 ## Machine-readable metadata
@@ -28,7 +30,9 @@ Cupappen is a public catalogue of football (soccer) tournaments in Sweden, publi
 - Summaries in JSON-LD reflect aggregate scores when data exists; individual comments are in the visible HTML.
 
 ## Sitemaps & discovery
-- XML sitemap: https://www.cupappen.se/sitemap.xml (cup detail URLs included).
+- XML sitemap: https://www.cupappen.se/sitemap.xml
+  - Includes homepage, district listing URLs (`/{district}/`), and cup detail URLs (`/{district}/{slug}-{year}`).
+  - Prefer **www** in Search Console (apex redirects can drop paths).
 
 ## Data freshness & accuracy
 - Cup records are ingested/updated from organisers and sources over time. Fields (dates, venues, links) can change; prefer the on-page values and `lastmod` hints in the sitemap where present.

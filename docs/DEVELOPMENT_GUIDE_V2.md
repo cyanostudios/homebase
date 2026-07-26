@@ -147,6 +147,7 @@ Pre-commit: **lint-staged** runs `eslint --fix --quiet` and Prettier on staged T
 - **Östergötland _Sanktionerade cuper_:** profil `svff_yearmonth_list` när värd är `ostergotland.svenskfotboll.se` och sidan innehåller rubriken _Sanktionerade cuper_; **Futsal**-rader importeras inte.
 - **Historik och full profil-lista:** `docs/CHANGELOG.md` (§ **2026-04 – Cups: SvFF-import**).
 - **Publik cup-sajt:** katalogen `public-cups/` (statisk frontend + `api/cups.php`); listning bygger på API som bara exponerar **synliga** cuper (`visible`). Se samma changelog-avsnitt.
+- **Nya publika SEO-sajter (mall):** kopiera [`templates/public-app/`](../templates/public-app/) → t.ex. `sites/<name>/`. Ops: [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md). Prod-referens: `public-cups/` (Cupappen).
 
 ---
 
@@ -157,6 +158,7 @@ Följ canonical checklistor — duplicera inte steg här.
 | Steg                         | Dokument / plats                                                                                                                                 |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Backend + frontend mallar    | [`templates/README.md`](../templates/README.md)                                                                                                  |
+| Publik SEO-sajt (PHP/Caddy)  | [`templates/public-app/`](../templates/public-app/), [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md)                                          |
 | Integration (obligatorisk)   | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)                                                                     |
 | Design & panel-konventioner  | [`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`](PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md), [`PLUGIN_RUNTIME_CONVENTIONS.md`](PLUGIN_RUNTIME_CONVENTIONS.md) |
 | Kodstandard                  | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                                       |

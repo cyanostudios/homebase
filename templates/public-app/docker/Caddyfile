@@ -2,8 +2,11 @@
 	root * /app
 	encode gzip
 
-	@cupApi path /api/*
-	handle @cupApi {
+	# Detail SSR — rename /item to your path (e.g. /cup, /guide) when copying the template.
+	@itemDetail path /item /item/*
+
+	handle @itemDetail {
+		rewrite * /item.php
 		php_fastcgi 127.0.0.1:9000
 	}
 
@@ -13,22 +16,12 @@
 		php_fastcgi 127.0.0.1:9000
 	}
 
-	# Legacy /cup/... and new /{district}/{cup-slug}
-	# API is handled above so /api/* never hits this regexp.
-	@legacyCup path /cup /cup/*
-	handle @legacyCup {
-		rewrite * /cup.php
+	@appApi path /api/*
+	handle @appApi {
 		php_fastcgi 127.0.0.1:9000
 	}
 
-	@districtCup path_regexp district_cup ^/[a-z0-9-]+/[a-z0-9-]+/?$
-	handle @districtCup {
-		rewrite * /cup.php
-		php_fastcgi 127.0.0.1:9000
-	}
-
-	# Execute via FPM — without this, try_files/file_server could expose *.php raw.
-	handle /cup.php {
+	handle /item.php {
 		php_fastcgi 127.0.0.1:9000
 	}
 

@@ -7,6 +7,7 @@ module.exports = {
     '<rootDir>/server',
     '<rootDir>/plugins',
     '<rootDir>/tools/workflow-runner',
+    '<rootDir>/public-cups',
     '<rootDir>/client/src/core',
     '<rootDir>/client/src/plugins/guides',
     '<rootDir>/client/src/plugins/ai-providers',

@@ -15,6 +15,7 @@ const ALLOWED_SETTINGS_CATEGORIES = new Set([
   'estimates',
   'ingest',
   'schedule',
+  'files',
 ]);
 
 /** Known keys per category (documentation; partial updates merge via JSONB ||). */

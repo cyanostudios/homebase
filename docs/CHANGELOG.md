@@ -4,6 +4,60 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-26 – Public app template shell chrome (from Cupappen)
+
+**Status:** Implementerat i mall. Docs Updated. **Ej prod-release** (mall).
+
+**Sammanfattning (verifierat mot kod):**
+
+- Portat till [`templates/public-app/`](../templates/public-app/): `.app-atmosphere` (blobbar + rutnät bakom UI), frosted fullbredds-`.top-bar` med `.top-bar__inner`, förbättrad `.quick-nav`-scroll.
+- Gäller `index.html`, `item.php`, `styles.css`. Tokens oförändrade (Deep Basil default).
+- Designregler uppdaterade: [`PUBLIC_APP_DESIGN.md`](PUBLIC_APP_DESIGN.md).
+
+---
+
+## 2026-07-26 – Cupappen AppShell + distrikts-URL:er (local)
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (ingen push till live).
+
+**Sammanfattning (verifierat mot kod):**
+
+- Listing (`index.html` / `app.js` / `styles.css`): AppShell med atmosfär (`.app-atmosphere`), fullbredd frosted header (`.top-bar`), shared filter, snabbfilter-badges, Netflix-rader, bottom bar (Hem/Kommande/Alla/Sök/Info).
+- **Distriktssidor (SPA):** `/{distrikt}/` (t.ex. `/skane/`) via History API; inte `#search`.
+- **Cup-detalj (SSR):** `/{distrikt}/{slug}-{år}` (t.ex. `/skane/skanskan-cup-2026`) i `cup.php` + `cupappen-cup-detail.css` (egen layout, **inte** AppShell/bottom bar). Legacy `/cup/...` **301** till kanonisk distrikts-URL.
+- Routing: `docker/Caddyfile` (`/api/*` före distrikts-cup-regexp); lokalt `router.php`. Sitemap: startsida + distrikt + cup-URL:er (`api/sitemap.php`, `db_helpers.php`).
+- Delade URL-helpers: `lib/districtUrls.js` + Jest (`public-cups/__tests__/districtUrls.test.js`).
+- Ops/SEO-doc: [`public-cups/README.md`](../public-cups/README.md), [`llms.txt`](../public-cups/llms.txt), denna changelog, Cupappen ops/paths.
+
+**Begränsningar / kända avvägningar (Security):** Reserved-segment (`lib` m.m.) synkas i `router.php` / JS men Caddy-regexp och `cup.php`-listan kan divergera — låg risk; rekommenderad hygien före prod.
+
+---
+
+## 2026-07-26 – Public app design system (AppShell)
+
+**Status:** Implementerat. Docs Updated. **Ej prod-release** (mall endast).
+
+**Sammanfattning (verifierat mot kod):**
+
+- Mall-UI omskrivet till mobile-first AppShell: phone frame, TopBar, QuickNav badges, Netflix-rader, flytande bottom bar, optional audio-pod, step-swipe detalj ([`styles.css`](../templates/public-app/styles.css), [`index.html`](../templates/public-app/index.html), [`app.js`](../templates/public-app/app.js), [`item.php`](../templates/public-app/item.php)).
+- Designregler: [`PUBLIC_APP_DESIGN.md`](PUBLIC_APP_DESIGN.md) (tokens, komponenter, a11y). Länkar från ops-doc och `docs/README.md`.
+- Brand/font byts via `:root` CSS-variabler per app.
+
+---
+
+## 2026-07-26 – Public app template (`templates/public-app/`)
+
+**Status:** Implementerat. Docs Updated (Documentation Specialist). **Ej prod-release** (mall endast; ingen ny Railway-tjänst). QA/Security: ej formellt granskade i denna leverans.
+
+**Sammanfattning (verifierat mot kod):**
+
+- Ny kopieringsmall [`templates/public-app/`](../templates/public-app/) (PHP-FPM + Caddy + Supervisor) för SEO-sajter i Cupappen-klassen: listning, SSR-detalj (`item.php`), `api/items.php`, sitemap, health, Dockerfile/`railway.toml`.
+- Ops-doc: [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md). Ingångar: [`docs/README.md`](README.md), [`templates/README.md`](../templates/README.md), [`DEVELOPMENT_GUIDE_V2.md`](DEVELOPMENT_GUIDE_V2.md), Cupappen-ops “Se även”.
+- `.env.example` dokumenterar `APP_*` / `PUBLIC_<NAME>_*`. Kommentarer i `server/index.ts` för CORS + shutdown-pool-mönster.
+- `public-cups/` oförändrad (referensimplementation).
+
+---
+
 ## 2026-07-24 – List filter StatCards + list chrome polish
 
 **Status:** Implementerat. QA Approved; Security Approved; Docs Updated. **Ej prod-release** utan explicit beslut.

@@ -61,15 +61,18 @@ Servern laddar `.env` först och sedan **`.env.local` med `override: true`** så
 
 Deploy efter att R2-variabler ändrats behöver normalt **ny deployment** (Railway gör ofta det automatiskt när variabler sparas).
 
-## 3. Publik Cupappen (`public-cups` / `cuppappen.se`)
+## 3. Publik Cupappen (`public-cups` / `cupappen.se`)
 
 | Komponent         | Roll                                                                                                                     |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Statiska filer    | `index.html`, `app.js`, `styles.css` (kan ligga på valfri host)                                                          |
+| Statiska filer    | `index.html`, `app.js`, `styles.css`, `lib/districtUrls.js` (kan ligga på valfri host)                                   |
 | Cup-JSON          | `api/cups.php` (PDO mot Postgres/Neon) — fältet **`featured_image_url`** skickas ut som full URL när bilden ligger på R2 |
 | Bilder i browsern | `<img src="https://pub-....r2.dev/cups/...">` — måste vara **https och publikt**                                         |
+| Publika sidor     | SPA listing + distrikt `/{distrikt}/`; SSR-detalj `/{distrikt}/{slug}-{år}`; legacy `/cup/...` 301                       |
 
 PHP API:t läser **inte** Railway-miljön; det har egen DB-koppling (`CUPS_DB_URL` / motsvarande enligt `public-cups/api/pdo_env.php`). Själva **bild-URL:en** kommer från kolumnen `featured_image_url` som admin sparat — den ska vara den publika R2-URL:en.
+
+**URL-mönster och Caddy-routing:** se [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](./CUPPAPPEN_RAILWAY_OPERATIONS.md) (avsnitt “Publika URL:er”) och [`public-cups/README.md`](../public-cups/README.md).
 
 ## 4. Hjältebild: kodväg (admin → databas → publik sajt)
 
@@ -136,6 +139,7 @@ Sätt dessa **i den miljö där Node-servern kör** (`.env.local` respektive Rai
 ## Se även
 
 - **[`CUPPAPPEN_RAILWAY_OPERATIONS.md`](./CUPPAPPEN_RAILWAY_OPERATIONS.md)** — två Railway-tjänster, Dockerfile/`libpq`, checklista, webbläsar-500
+- **[`PUBLIC_APP_TEMPLATE.md`](./PUBLIC_APP_TEMPLATE.md)** — kopieringsmall för nya publika SEO-sajter (`templates/public-app/`); Cupappen förblir `public-cups/`
 - `.env.example` — mall med `R2_*`-kommentarer
 - `public-cups/railway.env.example` — `CUPS_DB_URL` m.m. för Cupappen-tjänsten
 - `public-cups/README.md` — publik sajt, API, SEO

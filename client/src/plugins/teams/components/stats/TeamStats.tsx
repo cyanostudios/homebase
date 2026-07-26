@@ -1,32 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
-import { cn } from '@/lib/utils';
 
 import { useTeamStats } from '../../hooks/useTeamStats';
 
-function StatCard({
-  label,
-  value,
-  dotClassName,
-}: {
-  label: string;
-  value: number;
-  dotClassName: string;
-}) {
-  return (
-    <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
-        <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} aria-hidden />
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-    </Card>
-  );
-}
+const STAT_GRID = 'mt-3 grid grid-cols-4 gap-2';
 
 function RankRow({
   rank,
@@ -64,30 +45,28 @@ export function TeamStats() {
   return (
     <div className="space-y-6">
       <DetailSection title={t('teams.statistics.overview')} subtleTitle>
-        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
+        <div className={STAT_GRID}>
+          <ListFilterStatCard
             label={t('teams.statistics.totalTeams')}
             value={stats.totalTeams}
             dotClassName="bg-slate-500"
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.statistics.active')}
             value={stats.byStatus.active}
             dotClassName="bg-emerald-500"
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.statistics.onBreak')}
             value={stats.byStatus.onBreak}
             dotClassName="bg-amber-500"
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.statistics.dormant')}
             value={stats.byStatus.dormant}
             dotClassName="bg-slate-400"
           />
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.statistics.totalPlayers')}
             value={stats.totalPlayers}
             dotClassName="bg-blue-500"
@@ -96,23 +75,23 @@ export function TeamStats() {
       </DetailSection>
 
       <DetailSection title={t('teams.statistics.genderDistribution')} subtleTitle>
-        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
+        <div className={STAT_GRID}>
+          <ListFilterStatCard
             label={t('teams.gender.girls')}
             value={stats.byGender.girls}
             dotClassName="bg-pink-500"
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.gender.boys')}
             value={stats.byGender.boys}
             dotClassName="bg-blue-500"
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.gender.mixed')}
             value={stats.byGender.mixed}
             dotClassName="bg-purple-500"
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.statistics.unknownGender')}
             value={stats.byGender.unknown}
             dotClassName="bg-slate-400"
@@ -122,9 +101,9 @@ export function TeamStats() {
 
       {stats.ageGroups.length > 0 && (
         <DetailSection title={t('teams.statistics.ageGroups')} subtleTitle>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className={STAT_GRID}>
             {stats.ageGroups.map((row) => (
-              <StatCard
+              <ListFilterStatCard
                 key={row.ageGroup}
                 label={row.ageGroup}
                 value={row.count}
@@ -136,18 +115,18 @@ export function TeamStats() {
       )}
 
       <DetailSection title={t('teams.statistics.seriesParticipation')} subtleTitle>
-        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
-          <StatCard
+        <div className={STAT_GRID}>
+          <ListFilterStatCard
             label={t('teams.statistics.withSeries')}
             value={stats.withSeriesTeams}
             dotClassName="bg-emerald-500"
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.statistics.withoutSeries')}
             value={stats.withoutSeriesTeams}
             dotClassName="bg-slate-400"
           />
-          <StatCard
+          <ListFilterStatCard
             label={t('teams.statistics.totalSeriesTeams')}
             value={stats.totalSeriesTeams}
             dotClassName="bg-indigo-500"
@@ -156,46 +135,42 @@ export function TeamStats() {
       </DetailSection>
 
       <DetailSection title={t('teams.statistics.responsibles')} subtleTitle>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <StatCard
+        <div className={STAT_GRID}>
+          <ListFilterStatCard
             label={t('teams.statistics.withoutResponsibles')}
             value={stats.teamsWithoutResponsibles}
             dotClassName="bg-rose-500"
           />
+          {stats.roleCounts.map((row) => (
+            <ListFilterStatCard
+              key={row.role}
+              label={t(`teams.roles.${row.role}`, row.role)}
+              value={row.count}
+              dotClassName="bg-violet-500"
+            />
+          ))}
         </div>
-        {stats.roleCounts.length > 0 && (
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {stats.roleCounts.map((row) => (
-              <StatCard
-                key={row.role}
-                label={t(`teams.roles.${row.role}`, row.role)}
-                value={row.count}
-                dotClassName="bg-violet-500"
-              />
-            ))}
-          </div>
-        )}
       </DetailSection>
 
       {hasRequests && stats.requests && (
         <DetailSection title={t('teams.statistics.requests')} subtleTitle>
-          <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard
+          <div className={STAT_GRID}>
+            <ListFilterStatCard
               label={t('teams.statistics.requestsTotal')}
               value={stats.requests.total}
               dotClassName="bg-slate-500"
             />
-            <StatCard
+            <ListFilterStatCard
               label={t('teams.statistics.requestsOpen')}
               value={stats.requests.byStatus.notStarted + stats.requests.byStatus.inProgress}
               dotClassName="bg-blue-500"
             />
-            <StatCard
+            <ListFilterStatCard
               label={t('teams.statistics.requestsCompleted')}
               value={stats.requests.byStatus.completed}
               dotClassName="bg-emerald-500"
             />
-            <StatCard
+            <ListFilterStatCard
               label={t('teams.statistics.requestsUnlinked')}
               value={stats.requests.unlinked}
               dotClassName="bg-amber-500"

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https: http://127.0.0.1:3002 http://localhost:3002; form-action 'self'; upgrade-insecure-requests"
+    />
+    <title>Public App – Template</title>
+    <meta name="description" content="Replace this description when copying the public-app template." />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:locale" content="sv_SE" />
+    <meta property="og:title" content="Public App – Template" />
+    <meta property="og:description" content="Replace this description when copying the public-app template." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.example.se/" />
+    <meta property="og:site_name" content="Public App" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://www.example.se/" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="application/ld+json" id="base-json-ld">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.example.se/#organization",
+            "name": "Public App",
+            "url": "https://www.example.se/"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.example.se/#website",
+            "name": "Public App",
+            "url": "https://www.example.se/",
+            "inLanguage": "sv-SE",
+            "publisher": { "@id": "https://www.example.se/#organization" }
+          },
+          {
+            "@type": "CollectionPage",
+            "@id": "https://www.example.se/#collection",
+            "url": "https://www.example.se/",
+            "name": "Public App – Template",
+            "isPartOf": { "@id": "https://www.example.se/#website" }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Hoppa till innehåll</a>
+
+    <div class="app-bg" aria-hidden="true"></div>
+
+    <div class="app-shell">
+      <div class="app-atmosphere" aria-hidden="true">
+        <div class="app-atmosphere__grid"></div>
+        <div class="app-atmosphere__blob app-atmosphere__blob--left"></div>
+        <div class="app-atmosphere__blob app-atmosphere__blob--right"></div>
+      </div>
+
+      <header class="top-bar">
+        <div class="top-bar__inner">
+          <a class="brand" href="/">
+            Public App
+            <span class="brand__dot" aria-hidden="true"></span>
+          </a>
+          <button type="button" class="hamburger-btn shadow-soft" id="menu-btn" aria-label="Meny" aria-expanded="false" aria-controls="menu-drawer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main id="main" class="app-main no-scrollbar">
+        <nav class="quick-nav no-scrollbar" id="quick-nav" aria-label="Snabbnavigering"></nav>
+        <p id="status" class="status" role="status">Laddar…</p>
+        <div id="rows-container"></div>
+      </main>
+
+      <div class="audio-pod" id="audio-pod" hidden>
+        <div class="audio-pod__inner glass shadow-float">
+          <img class="audio-pod__thumb" id="audio-thumb" src="" alt="" width="48" height="48" />
+          <div class="audio-pod__text">
+            <p class="audio-pod__eyebrow" id="audio-eyebrow">Ljud</p>
+            <p class="audio-pod__title" id="audio-title">Ljudguide</p>
+          </div>
+          <button type="button" class="audio-pod__play shadow-soft" id="audio-play" aria-label="Spela">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <nav class="bottom-bar" aria-label="Sidnavigering">
+        <div class="bottom-bar__inner glass shadow-float">
+          <a class="bottom-bar__tab is-active" href="/" data-tab="home">
+            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z" />
+            </svg>
+            <span class="bottom-bar__label">Hem</span>
+            <span class="bottom-bar__dot" aria-hidden="true"></span>
+          </a>
+          <a class="bottom-bar__tab" href="#all" data-tab="all">
+            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+            <span class="bottom-bar__label">Alla</span>
+            <span class="bottom-bar__dot" aria-hidden="true"></span>
+          </a>
+          <a class="bottom-bar__tab" href="#favourites" data-tab="favourites">
+            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 21s-7-4.5-9.5-8.2C.7 10 2.2 6.5 5.5 6c1.7-.3 3.3.5 4.1 1.8C10.4 6.5 12 5.7 13.7 6c3.3.5 4.8 4 3 6.8C19 16.5 12 21 12 21z" />
+            </svg>
+            <span class="bottom-bar__label">Favoriter</span>
+            <span class="bottom-bar__dot" aria-hidden="true"></span>
+          </a>
+          <a class="bottom-bar__tab" href="#info" data-tab="info">
+            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 10v6M12 7h.01" />
+            </svg>
+            <span class="bottom-bar__label">Info</span>
+            <span class="bottom-bar__dot" aria-hidden="true"></span>
+          </a>
+        </div>
+      </nav>
+
+      <div class="menu-drawer" id="menu-drawer" hidden>
+        <div class="menu-drawer__panel" role="dialog" aria-label="Meny">
+          <button type="button" class="menu-drawer__close" id="menu-close" aria-label="Stäng meny">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+          <ul class="menu-drawer__list">
+            <li><a href="/">Hem</a></li>
+            <li><a href="#all">Alla</a></li>
+            <li><a href="#favourites">Favoriter</a></li>
+            <li><a href="#info">Info</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
