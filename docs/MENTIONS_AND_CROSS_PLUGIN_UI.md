@@ -81,9 +81,21 @@ AppContext provides getters so **ContactView** can show related entities without
 | Getter                           | Data source                                 | Notes                                                      |
 | -------------------------------- | ------------------------------------------- | ---------------------------------------------------------- |
 | `getNotesForContact`             | API fetch                                   | —                                                          |
-| `getTasksForContact`             | `AppContext` tasks (from `syncSharedTasks`) | Assigned tasks                                             |
+| `getTasksForContact`             | `AppContext` tasks (from `syncSharedTasks`) | Assigned via `assignedToIds` (fallback `assignedTo`)       |
 | `getTasksWithMentionsForContact` | `AppContext` tasks                          | Mention-based                                              |
 | `getSlotsForContact`             | `AppContext` slots (from `syncSharedSlots`) | `filterSlotsForContact` — primary `contact_id` or mentions |
+
+`ContactView` shows related **Teams**, **Tasks**, and **Slots** in the main column **below Addresses and Contact Persons** (not under Contact Properties), when the corresponding plugin is enabled and there is at least one row:
+
+| Card  | Plugin gate | Data source                                                                                       | Open                                               |
+| ----- | ----------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Teams | `teams`     | `listTeamAssignmentsForContact(teams, contactId)` over `responsibles` (role + series-team badges) | `navigate('/teams/…')` after `closeContactPanel()` |
+| Tasks | `tasks`     | `getTasksForContact` (`assignedToIds`, fallback `assignedTo`)                                     | `navigate('/tasks/…')` after `closeContactPanel()` |
+| Slots | `slots`     | `getSlotsForContact`                                                                              | `navigate('/slots/…')` after `closeContactPanel()` |
+
+Name click on those rows opens `AssignmentQuickInfoDialog` (preview + Open). Teams responsibility UI reuses the same row pattern as `ResponsibleRow`.
+
+**Notes `NoteView`:** mentioned contacts render under note content (and attachments), not in the sidebar. Name / `@`-mention opens shared `ContactQuickInfoDialog` (copy email/phone + Open contact → `navigate('/contacts/…')`). TeamView’s `ResponsibleContactDialog` wraps the same dialog.
 
 `SlotsProvider` syncs its list via `syncSharedSlots` whenever `slots` changes. **MatchView** reads related slots from `useSlotsContext().slots` filtered by `match_id` (no separate `GET /api/slots`).
 
@@ -126,13 +138,18 @@ For matches, slug field is typically `` `${home_team}-vs-${away_team}` `` (see `
 
 ### Examples in codebase
 
-| From                                      | To           | Implementation                                                                           |
-| ----------------------------------------- | ------------ | ---------------------------------------------------------------------------------------- |
-| `MatchTeamBadge`                          | Team         | `navigate('/teams/…')`                                                                   |
-| `TeamMatchesSection` popup                | Match        | `openMatchForView` → cross-plugin navigate                                               |
-| `ScheduleList` slot click (team calendar) | Team         | Requires `teamId` → `navigate('/teams/…')`                                               |
-| `PlanView` slot click                     | Team or edit | With `teamId` → `/teams/…`; without (plan event) → open edit dialog if unlocked          |
-| Schedule grid pencil / copy icons         | Schedule     | In-plugin only: edit or copy dialog (`mode: 'edit' \| 'copy'`); no cross-plugin navigate |
+| From                                       | To           | Implementation                                                                                             |
+| ------------------------------------------ | ------------ | ---------------------------------------------------------------------------------------------------------- |
+| `ContactView` Teams card                   | Team         | Name → `AssignmentQuickInfoDialog`; Open / dialog CTA → `navigate('/teams/…')` after `closeContactPanel()` |
+| `ContactView` Tasks card                   | Task         | Same pattern → `navigate('/tasks/…')`                                                                      |
+| `ContactView` Slots card                   | Slot         | Same pattern → `navigate('/slots/…')`                                                                      |
+| `NoteView` mentioned contact / `@` mention | Contact      | `ContactQuickInfoDialog`; Open → `navigate('/contacts/…')` after `closeNotePanel()`                        |
+| `ResponsibleContactDialog` (TeamView)      | Contact      | Wraps `ContactQuickInfoDialog` → `navigate('/contacts/…')`                                                 |
+| `MatchTeamBadge`                           | Team         | `navigate('/teams/…')`                                                                                     |
+| `TeamMatchesSection` popup                 | Match        | `openMatchForView` → cross-plugin navigate                                                                 |
+| `ScheduleList` slot click (team calendar)  | Team         | Requires `teamId` → `navigate('/teams/…')`                                                                 |
+| `PlanView` slot click                      | Team or edit | With `teamId` → `/teams/…`; without (plan event) → open edit dialog if unlocked                            |
+| Schedule grid pencil / copy icons          | Schedule     | In-plugin only: edit or copy dialog (`mode: 'edit' \| 'copy'`); no cross-plugin navigate                   |
 
 Use `attemptNavigation()` from `useGlobalNavigationGuard` when unsaved changes may be open.
 

@@ -1,5 +1,5 @@
 import type { RequestPayload } from '../api/requestsApi';
-import type { Request, RequestStatus } from '../types/requests';
+import type { Request, RequestPriority, RequestStatus } from '../types/requests';
 
 /**
  * Whether a successful update should sync the open panel (current request, mode).
@@ -23,5 +23,16 @@ export function buildRequestListStatusSavePayload(
   return {
     title: request.title,
     status: newStatus,
+  };
+}
+
+/** Minimal payload for immediate list priority changes via saveRequest (matches RequestView). */
+export function buildRequestListPrioritySavePayload(
+  request: Pick<Request, 'title'>,
+  newPriority: RequestPriority,
+): RequestPayload {
+  return {
+    title: request.title,
+    priority: newPriority,
   };
 }

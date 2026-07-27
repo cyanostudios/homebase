@@ -8,9 +8,10 @@ import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { htmlToPlainTextWithBreaks } from '@/core/utils/textUtils';
 import { cn } from '@/lib/utils';
 
-import type { Request, RequestStatus } from '../types/requests';
-import { REQUEST_PRIORITY_COLORS, REQUEST_SOURCE_COLORS, getTypeLabel } from '../types/requests';
+import type { Request, RequestPriority, RequestStatus } from '../types/requests';
+import { REQUEST_SOURCE_COLORS, getTypeLabel } from '../types/requests';
 
+import { RequestPrioritySelect } from './RequestPrioritySelect';
 import { RequestStatusSelect } from './RequestStatusSelect';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
@@ -32,6 +33,7 @@ export function RequestListItem({
   teamName,
   assignedNames = [],
   onStatusChange,
+  onPriorityChange,
 }: {
   request: Request;
   selected?: boolean;
@@ -41,6 +43,7 @@ export function RequestListItem({
   teamName?: string | null;
   assignedNames?: string[];
   onStatusChange: (status: RequestStatus) => void;
+  onPriorityChange: (priority: RequestPriority) => void;
 }) {
   const { t } = useTranslation();
   const excerpt = request.description ? truncateContent(request.description) : '';
@@ -88,12 +91,6 @@ export function RequestListItem({
             <Badge variant="outline" className={cn(BADGE_CLASS, 'bg-muted text-muted-foreground')}>
               {typeLabel}
             </Badge>
-            <Badge
-              variant="outline"
-              className={cn(BADGE_CLASS, REQUEST_PRIORITY_COLORS[request.priority])}
-            >
-              {request.priority}
-            </Badge>
             {request.source === 'external' ? (
               <Badge variant="outline" className={cn(BADGE_CLASS, REQUEST_SOURCE_COLORS.external)}>
                 {t('requests.sourceExternal')}
@@ -101,10 +98,16 @@ export function RequestListItem({
             ) : null}
           </div>
           <div
-            className="flex shrink-0 justify-end"
+            className="flex shrink-0 items-center gap-1.5 justify-end"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
+            <RequestPrioritySelect
+              request={request}
+              onPriorityChange={onPriorityChange}
+              hideInlineLabel
+              compact
+            />
             <RequestStatusSelect
               request={request}
               onStatusChange={onStatusChange}

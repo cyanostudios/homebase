@@ -15,7 +15,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +33,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { buildSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 import type { Contact } from '@/plugins/contacts/types/contacts';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
@@ -165,6 +166,7 @@ function TeamQuickActionsCard({
 
 export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: Team | null }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user, getSettings, settingsVersion } = useApp();
   const team = teamProp ?? item ?? null;
   const {
@@ -175,7 +177,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     executeDuplicate,
     setRecentlyDuplicatedTeamId,
   } = useTeams();
-  const { contacts, openContactForView } = useContacts();
+  const { contacts } = useContacts();
   const { openRequestForView } = useRequests();
   const { openMatchForView } = useMatches();
   const enabledPlugins = useEnabledPlugins();
@@ -897,8 +899,9 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
           if (!viewingResponsible) {
             return;
           }
-          openContactForView(viewingResponsible.contact);
+          const contact = viewingResponsible.contact;
           setViewingResponsible(null);
+          navigate(`/contacts/${buildSlug(contact, contacts, 'companyName')}`);
         }}
       />
       <BulkEmailDialog

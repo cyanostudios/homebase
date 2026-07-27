@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   CheckSquare,
   Clock,
   Copy,
@@ -6,6 +7,7 @@ import {
   Edit,
   ExternalLink,
   FileText,
+  Flag,
   Globe,
   Info,
   Mail,
@@ -59,18 +61,55 @@ import {
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
+import { buildSlug } from '@/core/utils/slugUtils';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
+import { useSlotsContext } from '@/plugins/slots/context/SlotsContext';
+import { useTasks } from '@/plugins/tasks/hooks/useTasks';
+import { formatStatusForDisplay } from '@/plugins/tasks/types/tasks';
+import { SeriesTeamBadge } from '@/plugins/teams/components/ResponsibleRow';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import {
+  getSeriesTeamColorForName,
+  getSeriesTeamDisplayLabel,
+  RESPONSIBLE_ROLE_BADGES,
+  RESPONSIBLE_ROLES,
+  responsibleKey,
+} from '@/plugins/teams/types/teams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
+import { listTeamAssignmentsForContact } from '@/plugins/teams/utils/teamContactUtils';
+import { useNavigate } from 'react-router-dom';
 
+import {
+  AssignmentQuickInfoDialog,
+  type AssignmentQuickInfoDetail,
+} from './AssignmentQuickInfoDialog';
+import { ContactAssignmentRow } from './ContactAssignmentRow';
+import { ContactCopyableLink, mailtoHref, telHref, websiteHref } from './ContactCopyableLink';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
 import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
 
+type ViewingAssignment = {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badges: React.ReactNode;
+  details: AssignmentQuickInfoDetail[];
+  openLabel: string;
+  onOpen: () => void;
+};
+
 interface ContactViewProps {
   contact: Contact;
 }
 
-type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
+type RelatedItem = {
+  id: string | number;
+  label: string;
+  onOpen: () => void;
+  pluginClass: string;
+};
 
 function ContactQuickActionsCard({
   contact,
@@ -266,7 +305,9 @@ function RelatedItemsCard({
         <div className="space-y-1.5">
           {items.map((item) => (
             <div key={`${title}-${item.id}`} className={cn(SURFACE_ROW_CLASS, item.pluginClass)}>
-              <span className="truncate text-xs text-muted-foreground">{item.label}</span>
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                {item.label}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
@@ -285,8 +326,80 @@ function RelatedItemsCard({
   );
 }
 
+function ContactAssignmentsCard({
+  title,
+  icon: Icon,
+  iconPlugin,
+  children,
+  isEmpty,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconPlugin: DetailSectionIconPlugin;
+  children: React.ReactNode;
+  isEmpty: boolean;
+}) {
+  if (isEmpty) {
+    return null;
+  }
+
+  return (
+    <Card padding="none" className={CARD_CLASS}>
+      <DetailSection title={title} icon={Icon} iconPlugin={iconPlugin} subtleTitle className="p-4">
+        <div className={cn('space-y-2', `plugin-${iconPlugin}`)}>{children}</div>
+      </DetailSection>
+    </Card>
+  );
+}
+
+function formatAssignmentDueDate(
+  dueDate: Date | string | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): { label: string; className: string } | null {
+  if (!dueDate) {
+    return null;
+  }
+  const due = new Date(dueDate);
+  if (!Number.isFinite(due.getTime())) {
+    return null;
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDay = new Date(due);
+  dueDay.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      label: t('contacts.assignmentDueOverdue', { count: Math.abs(diffDays) }),
+      className: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+    };
+  }
+  if (diffDays === 0) {
+    return {
+      label: t('contacts.assignmentDueToday'),
+      className: 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300',
+    };
+  }
+  if (diffDays === 1) {
+    return {
+      label: t('contacts.assignmentDueTomorrow'),
+      className: 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+    };
+  }
+  return {
+    label: t('contacts.assignmentDueOn', { date: due.toLocaleDateString() }),
+    className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  };
+}
+
 export const ContactView = React.memo(function ContactView({ contact }: ContactViewProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const enabledPlugins = useEnabledPlugins();
+  const { teams } = useTeams();
+  const { tasks } = useTasks();
+  const { slots: allSlots } = useSlotsContext();
   const {
     user,
     getSettings,
@@ -294,13 +407,10 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     getNotesForContact,
     getEstimatesForContact,
     getTasksForContact,
-    getTasksWithMentionsForContact,
     getSlotsForContact,
     getMatchesForContact,
     openNoteForView,
-    openTaskForView,
     openEstimateForView,
-    openSlotForView,
     openMatchForView,
   } = useApp();
 
@@ -334,7 +444,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   const [mentionedInNotes, setMentionedInNotes] = useState<any[]>([]);
   const [relatedEstimates, setRelatedEstimates] = useState<any[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
-  const [mentionedInTasks, setMentionedInTasks] = useState<any[]>([]);
   const [slots, setSlots] = useState<any[]>([]);
   const [matchMatches, setMatchMatches] = useState<any[]>([]);
   const [timeEntries, setTimeEntries] = useState<
@@ -344,6 +453,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   const [confirmDeleteEntryId, setConfirmDeleteEntryId] = useState<string | null>(null);
   const [showDeleteContactConfirm, setShowDeleteContactConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [viewingAssignment, setViewingAssignment] = useState<ViewingAssignment | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [tagToAdd, setTagToAdd] = useState('');
 
@@ -426,9 +536,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     void getTasksForContact(contact.id)
       .then(setAssignedTasks)
       .catch(() => setAssignedTasks([]));
-    void getTasksWithMentionsForContact(contact.id)
-      .then(setMentionedInTasks)
-      .catch(() => setMentionedInTasks([]));
     void getSlotsForContact(contact.id)
       .then(setSlots)
       .catch(() => setSlots([]));
@@ -442,7 +549,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     getNotesForContact,
     getSlotsForContact,
     getTasksForContact,
-    getTasksWithMentionsForContact,
   ]);
 
   const formatDuration = useCallback((seconds: number) => {
@@ -497,19 +603,12 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     [relatedEstimates, closeContactPanel, openEstimateForView],
   );
 
-  const toTaskItems: RelatedItem[] = useMemo(
-    () =>
-      [...assignedTasks, ...mentionedInTasks].map((item: any) => ({
-        id: item.id,
-        label: item.title || 'Task',
-        onOpen: () => {
-          closeContactPanel();
-          openTaskForView?.(item);
-        },
-        pluginClass: 'plugin-tasks bg-plugin-subtle/40',
-      })),
-    [assignedTasks, mentionedInTasks, closeContactPanel, openTaskForView],
-  );
+  const teamAssignments = useMemo(() => {
+    if (!enabledPlugins.has('teams') || !contact?.id) {
+      return [];
+    }
+    return listTeamAssignmentsForContact(teams, contact.id);
+  }, [enabledPlugins, contact?.id, teams]);
 
   const toNoteItems: RelatedItem[] = useMemo(
     () =>
@@ -523,20 +622,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         pluginClass: 'plugin-notes bg-plugin-subtle/40',
       })),
     [mentionedInNotes, closeContactPanel, openNoteForView],
-  );
-
-  const toSlotItems: RelatedItem[] = useMemo(
-    () =>
-      slots.map((item: any) => ({
-        id: item.id,
-        label: item.location || 'Slot',
-        onOpen: () => {
-          closeContactPanel();
-          openSlotForView?.(item);
-        },
-        pluginClass: 'plugin-slots bg-plugin-subtle/40',
-      })),
-    [slots, closeContactPanel, openSlotForView],
   );
 
   const toMatchItems: RelatedItem[] = useMemo(
@@ -581,12 +666,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
             />
 
             <RelatedItemsCard
-              title="Tasks"
-              icon={CheckSquare}
-              iconPlugin="tasks"
-              items={toTaskItems}
-            />
-            <RelatedItemsCard
               title="Estimates"
               icon={FileText}
               iconPlugin="estimates"
@@ -598,9 +677,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               iconPlugin="notes"
               items={toNoteItems}
             />
-            {user?.plugins?.includes('slots') && (
-              <RelatedItemsCard title="Slots" icon={Store} iconPlugin="slots" items={toSlotItems} />
-            )}
             {user?.plugins?.includes('matches') && (
               <RelatedItemsCard
                 title="Matches"
@@ -739,28 +815,32 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                       <Mail className={FIELD_LABEL_ICON_CLASS} />
                       Email
                     </div>
-                    <div className={FIELD_VALUE_CLASS}>{contact.email || '—'}</div>
+                    <ContactCopyableLink value={contact.email} href={mailtoHref(contact.email)} />
                   </div>
                   <div>
                     <div className={FIELD_LABEL_CLASS}>
                       <Globe className={FIELD_LABEL_ICON_CLASS} />
                       Website
                     </div>
-                    <div className={FIELD_VALUE_CLASS}>{contact.website || '—'}</div>
+                    <ContactCopyableLink
+                      value={contact.website}
+                      href={websiteHref(contact.website)}
+                      openInNewTab
+                    />
                   </div>
                   <div>
                     <div className={FIELD_LABEL_CLASS}>
                       <Phone className={FIELD_LABEL_ICON_CLASS} />
                       Phone 1
                     </div>
-                    <div className={FIELD_VALUE_CLASS}>{contact.phone || '—'}</div>
+                    <ContactCopyableLink value={contact.phone} href={telHref(contact.phone)} />
                   </div>
                   <div>
                     <div className={FIELD_LABEL_CLASS}>
                       <Phone className={FIELD_LABEL_ICON_CLASS} />
                       Phone 2
                     </div>
-                    <div className={FIELD_VALUE_CLASS}>{contact.phone2 || '—'}</div>
+                    <ContactCopyableLink value={contact.phone2} href={telHref(contact.phone2)} />
                   </div>
                 </div>
 
@@ -939,7 +1019,10 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                         {address.email && (
                           <div>
                             <div className={FIELD_LABEL_CLASS}>Email</div>
-                            <div className={FIELD_VALUE_CLASS}>{address.email}</div>
+                            <ContactCopyableLink
+                              value={address.email}
+                              href={mailtoHref(address.email)}
+                            />
                           </div>
                         )}
                       </div>
@@ -987,13 +1070,19 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                             {person.email && (
                               <div>
                                 <div className={FIELD_LABEL_CLASS}>Email</div>
-                                <div className={FIELD_VALUE_CLASS}>{person.email}</div>
+                                <ContactCopyableLink
+                                  value={person.email}
+                                  href={mailtoHref(person.email)}
+                                />
                               </div>
                             )}
                             {person.phone && (
                               <div>
                                 <div className={FIELD_LABEL_CLASS}>Phone</div>
-                                <div className={FIELD_VALUE_CLASS}>{person.phone}</div>
+                                <ContactCopyableLink
+                                  value={person.phone}
+                                  href={telHref(person.phone)}
+                                />
                               </div>
                             )}
                           </div>
@@ -1005,8 +1094,302 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               </DetailSection>
             </Card>
           )}
+
+          {enabledPlugins.has('teams') ? (
+            <ContactAssignmentsCard
+              title={t('contacts.relatedTeams')}
+              icon={Users}
+              iconPlugin="teams"
+              isEmpty={teamAssignments.length === 0}
+            >
+              {teamAssignments.map(({ team, responsible }) => {
+                const roleKey = RESPONSIBLE_ROLES.includes(responsible.role as any)
+                  ? responsible.role
+                  : 'other';
+                const hasSeriesTeams = (team.series_teams ?? []).length > 0;
+                const seriesLabel =
+                  getSeriesTeamDisplayLabel(team, responsible.seriesTeam) ??
+                  (hasSeriesTeams ? t('teams.form.seriesTeamAll') : null);
+                const seriesColor = getSeriesTeamColorForName(team, responsible.seriesTeam);
+                const title = formatTeamLabel(team) || team.name || 'Team';
+                const roleBadge = {
+                  label: t(`teams.roles.${roleKey}`),
+                  className:
+                    RESPONSIBLE_ROLE_BADGES[roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES],
+                };
+                const openTeam = () => {
+                  closeContactPanel();
+                  setViewingAssignment(null);
+                  navigate(`/teams/${buildSlug(team, teams, 'name')}`);
+                };
+                const details: AssignmentQuickInfoDetail[] = [
+                  {
+                    icon: User,
+                    label: t('teams.form.statusLabel'),
+                    value: t(`teams.status.${team.status}`),
+                  },
+                ];
+                if (team.age_group?.trim()) {
+                  details.push({
+                    icon: Users,
+                    label: t('teams.form.ageGroupLabel'),
+                    value: team.age_group.trim(),
+                  });
+                }
+                if (team.gender) {
+                  details.push({
+                    icon: Users,
+                    label: t('teams.form.genderLabel'),
+                    value: t(`teams.gender.${team.gender}`),
+                  });
+                }
+                if (team.playing_format) {
+                  details.push({
+                    icon: Trophy,
+                    label: t('teams.form.playingFormatLabel'),
+                    value: team.playing_format,
+                  });
+                }
+                return (
+                  <ContactAssignmentRow
+                    key={`${team.id}-${responsibleKey(responsible)}`}
+                    title={title}
+                    badges={[roleBadge]}
+                    meta={
+                      seriesLabel ? (
+                        <SeriesTeamBadge label={seriesLabel} color={seriesColor} />
+                      ) : null
+                    }
+                    actionLabel={t('contacts.openTeam')}
+                    onTitleClick={() => {
+                      setViewingAssignment({
+                        title,
+                        icon: Users,
+                        badges: (
+                          <>
+                            <span
+                              className={cn(
+                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                roleBadge.className,
+                              )}
+                            >
+                              {roleBadge.label}
+                            </span>
+                            {seriesLabel ? (
+                              <SeriesTeamBadge label={seriesLabel} color={seriesColor} />
+                            ) : null}
+                          </>
+                        ),
+                        details,
+                        openLabel: t('contacts.openTeam'),
+                        onOpen: openTeam,
+                      });
+                    }}
+                    onOpen={openTeam}
+                  />
+                );
+              })}
+            </ContactAssignmentsCard>
+          ) : null}
+          {enabledPlugins.has('tasks') ? (
+            <ContactAssignmentsCard
+              title={t('contacts.relatedTasks')}
+              icon={CheckSquare}
+              iconPlugin="tasks"
+              isEmpty={assignedTasks.length === 0}
+            >
+              {assignedTasks.map((item: any) => {
+                const due =
+                  item.dueDate && item.status !== 'completed'
+                    ? formatAssignmentDueDate(item.dueDate, t)
+                    : null;
+                const statusLabel = item.status
+                  ? formatStatusForDisplay(String(item.status))
+                  : null;
+                const title = item.title || 'Task';
+                const rowBadges = [
+                  ...(statusLabel
+                    ? [
+                        {
+                          label: statusLabel,
+                          className:
+                            'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+                        },
+                      ]
+                    : []),
+                  ...(due ? [{ label: due.label, className: due.className }] : []),
+                  ...(item.priority
+                    ? [
+                        {
+                          label: String(item.priority),
+                          className:
+                            'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                        },
+                      ]
+                    : []),
+                ];
+                const openTask = () => {
+                  closeContactPanel();
+                  setViewingAssignment(null);
+                  navigate(`/tasks/${buildSlug(item, tasks, 'title')}`);
+                };
+                const details: AssignmentQuickInfoDetail[] = [];
+                if (statusLabel) {
+                  details.push({
+                    icon: CheckSquare,
+                    label: t('tasks.propertyStatus'),
+                    value: statusLabel,
+                  });
+                }
+                if (item.priority) {
+                  details.push({
+                    icon: Flag,
+                    label: t('tasks.propertyPriority'),
+                    value: String(item.priority),
+                  });
+                }
+                if (item.dueDate) {
+                  const dueDate = new Date(item.dueDate);
+                  if (Number.isFinite(dueDate.getTime())) {
+                    details.push({
+                      icon: CalendarDays,
+                      label: t('tasks.propertyDueDate'),
+                      value: dueDate.toLocaleDateString(),
+                    });
+                  }
+                }
+                return (
+                  <ContactAssignmentRow
+                    key={item.id}
+                    title={title}
+                    badges={rowBadges}
+                    actionLabel={t('contacts.openTask')}
+                    onTitleClick={() => {
+                      setViewingAssignment({
+                        title,
+                        icon: CheckSquare,
+                        badges: rowBadges.map((badge) => (
+                          <span
+                            key={`${badge.label}-${badge.className ?? ''}`}
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                              badge.className,
+                            )}
+                          >
+                            {badge.label}
+                          </span>
+                        )),
+                        details,
+                        openLabel: t('contacts.openTask'),
+                        onOpen: openTask,
+                      });
+                    }}
+                    onOpen={openTask}
+                  />
+                );
+              })}
+            </ContactAssignmentsCard>
+          ) : null}
+          {enabledPlugins.has('slots') ? (
+            <ContactAssignmentsCard
+              title={t('contacts.relatedSlots')}
+              icon={Store}
+              iconPlugin="slots"
+              isEmpty={slots.length === 0}
+            >
+              {slots.map((item: any) => {
+                const when = item.slot_time ? new Date(item.slot_time).toLocaleString() : null;
+                const title =
+                  (item.name && String(item.name).trim()) ||
+                  item.location ||
+                  t('contacts.relatedSlots');
+                const rowBadges = when
+                  ? [
+                      {
+                        label: when,
+                        className:
+                          'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300',
+                      },
+                    ]
+                  : [];
+                const openSlot = () => {
+                  closeContactPanel();
+                  setViewingAssignment(null);
+                  navigate(
+                    `/slots/${buildSlug(item, allSlots, (i) =>
+                      i.slot_time ? String(i.slot_time).slice(0, 10) : '',
+                    )}`,
+                  );
+                };
+                const details: AssignmentQuickInfoDetail[] = [];
+                if (item.location?.trim()) {
+                  details.push({
+                    icon: MapPin,
+                    label: t('common.location'),
+                    value: item.location.trim(),
+                  });
+                }
+                if (when) {
+                  details.push({
+                    icon: CalendarDays,
+                    label: t('common.time'),
+                    value: when,
+                  });
+                }
+                if (item.capacity != null) {
+                  details.push({
+                    icon: Users,
+                    label: t('common.capacity'),
+                    value: String(item.capacity),
+                  });
+                }
+                return (
+                  <ContactAssignmentRow
+                    key={item.id}
+                    title={title}
+                    badges={rowBadges}
+                    actionLabel={t('contacts.openSlot')}
+                    onTitleClick={() => {
+                      setViewingAssignment({
+                        title,
+                        icon: Store,
+                        badges: rowBadges.map((badge) => (
+                          <span
+                            key={`${badge.label}-${badge.className ?? ''}`}
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                              badge.className,
+                            )}
+                          >
+                            {badge.label}
+                          </span>
+                        )),
+                        details,
+                        openLabel: t('contacts.openSlot'),
+                        onOpen: openSlot,
+                      });
+                    }}
+                    onOpen={openSlot}
+                  />
+                );
+              })}
+            </ContactAssignmentsCard>
+          ) : null}
         </div>
       </DetailLayout>
+
+      <AssignmentQuickInfoDialog
+        isOpen={viewingAssignment !== null}
+        title={viewingAssignment?.title ?? ''}
+        icon={viewingAssignment?.icon ?? Users}
+        badges={viewingAssignment?.badges}
+        details={viewingAssignment?.details ?? []}
+        openLabel={viewingAssignment?.openLabel ?? t('common.open')}
+        onClose={() => setViewingAssignment(null)}
+        onOpen={() => {
+          viewingAssignment?.onOpen();
+        }}
+      />
 
       <ConfirmDialog
         isOpen={showDiscardTagsDialog}

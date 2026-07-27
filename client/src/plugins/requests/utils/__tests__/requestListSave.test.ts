@@ -1,4 +1,5 @@
 import {
+  buildRequestListPrioritySavePayload,
   buildRequestListStatusSavePayload,
   shouldApplyOpenRequestSaveEffects,
 } from '../requestListSave';
@@ -28,6 +29,15 @@ describe('buildRequestListStatusSavePayload', () => {
     expect(buildRequestListStatusSavePayload({ title: 'Pitch booking' }, 'in progress')).toEqual({
       title: 'Pitch booking',
       status: 'in progress',
+    });
+  });
+});
+
+describe('buildRequestListPrioritySavePayload', () => {
+  it('applies new priority and keeps title', () => {
+    expect(buildRequestListPrioritySavePayload({ title: 'Pitch booking' }, 'High')).toEqual({
+      title: 'Pitch booking',
+      priority: 'High',
     });
   });
 });

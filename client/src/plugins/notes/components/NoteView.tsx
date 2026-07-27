@@ -1,10 +1,10 @@
-import { Copy, Download, Edit, ExternalLink, Info, Trash2, Users, Zap } from 'lucide-react';
-import React, { useState, useEffect, useMemo } from 'react';
+import { Copy, Download, Edit, Info, Trash2, Users, Zap } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
@@ -13,15 +13,18 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_INFO_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
-  DETAIL_SURFACE_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
+import { buildSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
+import { ContactAssignmentRow } from '@/plugins/contacts/components/ContactAssignmentRow';
+import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import type { Contact } from '@/plugins/contacts/types/contacts';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import type { Note } from '@/plugins/notes/types/notes';
@@ -261,7 +264,8 @@ function NoteExportOptionsCard({
 
 export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const { t } = useTranslation();
-  const { openContactForView } = useContacts();
+  const navigate = useNavigate();
+  const { contacts } = useContacts();
   const {
     closeNotePanel,
     deleteNote,
@@ -283,56 +287,41 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       closeNotePanel();
     }
   };
-  const { refreshData, user } = useApp();
+  const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
 
-  const [contactsData, setContactsData] = useState<any[]>([]);
   const [showDeleteNoteConfirm, setShowDeleteNoteConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null);
 
-  useEffect(() => {
-    const fetchContactsData = async () => {
-      try {
-        const response = await apiFetch('/api/contacts');
-
-        if (response.ok) {
-          const data = await response.json();
-          setContactsData(data);
-        }
-      } catch (error) {
-        console.error('Failed to load contacts data:', error);
-      }
-    };
-
-    if (note?.mentions && note.mentions.length > 0) {
-      fetchContactsData();
+  const contactById = useMemo(() => {
+    const map = new Map<string, Contact>();
+    for (const contact of contacts) {
+      map.set(String(contact.id), contact);
     }
-  }, [note?.mentions]);
+    return map;
+  }, [contacts]);
 
-  const handleContactClick = async (contactId: string) => {
-    await refreshData();
+  const navigateToContact = (contact: Contact) => {
+    closeNotePanel();
+    setViewingContact(null);
+    navigate(`/contacts/${buildSlug(contact, contacts, 'companyName')}`);
+  };
 
-    try {
-      const response = await apiFetch('/api/contacts');
-
-      if (response.ok) {
-        const contactsData = await response.json();
-        const contact = contactsData.find((c: any) => c.id === contactId);
-
-        if (contact) {
-          const transformedContact = {
-            ...contact,
-            createdAt: new Date(contact.createdAt),
-            updatedAt: new Date(contact.updatedAt),
-          };
-
-          closeNotePanel();
-          openContactForView(transformedContact);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load contact data:', error);
+  const handleContactClick = (contactId: string) => {
+    const contact = contactById.get(String(contactId));
+    if (!contact) {
+      return;
     }
+    setViewingContact(contact);
+  };
+
+  const openMentionContact = (contactId: string) => {
+    const contact = contactById.get(String(contactId));
+    if (!contact) {
+      return;
+    }
+    navigateToContact(contact);
   };
 
   const uniqueMentions = useMemo((): Array<{ contactId: string; contactName?: string }> => {
@@ -363,50 +352,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               onExportItem={onExportItem}
               shareActions={exportShareActions}
             />
-            {note.mentions && note.mentions.length > 0 && (
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('notes.mentionedContacts')}
-                  icon={Users}
-                  iconPlugin="notes"
-                  subtleTitle
-                  className="p-4"
-                >
-                  <div className="space-y-1.5">
-                    {uniqueMentions.map((mention: { contactId: string; contactName?: string }) => {
-                      const contactData = contactsData.find(
-                        (c: { id: string | number }) => String(c.id) === String(mention.contactId),
-                      ) as { id: string; companyName?: string } | undefined;
-
-                      const name =
-                        contactData?.companyName ?? mention.contactName ?? mention.contactId;
-
-                      return (
-                        <div
-                          key={`mention-${mention.contactId}`}
-                          className={cn(DETAIL_SURFACE_ROW_CLASS, 'plugin-contacts')}
-                        >
-                          <span className="truncate text-xs text-muted-foreground">{name}</span>
-                          {contactData ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              icon={ExternalLink}
-                              className="h-7 w-7 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
-                              onClick={() => handleContactClick(mention.contactId)}
-                              aria-label={`${t('common.open')} ${name}`}
-                            >
-                              <span className="sr-only">{t('common.open')}</span>
-                            </Button>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </DetailSection>
-              </Card>
-            )}
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
@@ -470,9 +415,100 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
             <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
           ) : null}
 
+          {uniqueMentions.length > 0 ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('notes.mentionedContacts')}
+                icon={Users}
+                iconPlugin="contacts"
+                subtleTitle
+                className="p-4"
+              >
+                <div className="plugin-contacts space-y-2">
+                  {uniqueMentions.map((mention) => {
+                    const contactData = contactById.get(String(mention.contactId));
+                    const name =
+                      contactData?.companyName ?? mention.contactName ?? mention.contactId;
+                    const typeKey = contactData?.contactType === 'private' ? 'private' : 'company';
+                    const phone = contactData?.phone || contactData?.phone2;
+                    const email = contactData?.email?.trim();
+
+                    return (
+                      <ContactAssignmentRow
+                        key={`mention-${mention.contactId}`}
+                        title={name}
+                        badges={[
+                          {
+                            label: t(`contacts.type.${typeKey}`),
+                            className:
+                              typeKey === 'private'
+                                ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
+                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                          },
+                        ]}
+                        meta={
+                          <>
+                            {phone ? (
+                              <span className="truncate text-xs text-muted-foreground">
+                                {phone}
+                              </span>
+                            ) : null}
+                            {email ? (
+                              <span className="truncate text-xs text-muted-foreground">
+                                {email}
+                              </span>
+                            ) : null}
+                          </>
+                        }
+                        actionLabel={t('notes.openContact')}
+                        onTitleClick={() => {
+                          if (contactData) {
+                            setViewingContact(contactData);
+                          }
+                        }}
+                        onOpen={() => {
+                          if (contactData) {
+                            openMentionContact(mention.contactId);
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </DetailSection>
+            </Card>
+          ) : null}
+
           <NoteShareBlock note={note} />
         </div>
       </DetailLayout>
+
+      <ContactQuickInfoDialog
+        isOpen={viewingContact !== null}
+        contact={viewingContact}
+        onClose={() => setViewingContact(null)}
+        onOpenContact={() => {
+          if (viewingContact) {
+            navigateToContact(viewingContact);
+          }
+        }}
+        badges={
+          viewingContact ? (
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                viewingContact.contactType === 'private'
+                  ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
+                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+              )}
+            >
+              {t(
+                `contacts.type.${viewingContact.contactType === 'private' ? 'private' : 'company'}`,
+              )}
+            </span>
+          ) : null
+        }
+      />
 
       <ConfirmDialog
         isOpen={showDeleteNoteConfirm}

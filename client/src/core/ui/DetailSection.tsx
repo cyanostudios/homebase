@@ -17,6 +17,7 @@ export type DetailSectionIconPlugin =
   | 'ingest'
   | 'guides'
   | 'requests'
+  | 'teams'
   | 'ai-providers';
 
 interface DetailSectionProps {

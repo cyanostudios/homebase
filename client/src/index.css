@@ -89,6 +89,7 @@
     --plugin-ingest: 24 95% 53%;
     /* Orange */
     --plugin-guides: 160 84% 39%;
+    --plugin-teams: 142 52% 40%;
     /* Emerald */
   }
 
@@ -144,6 +145,7 @@
     --plugin-slots: 250 60% 58%;
     --plugin-ingest: 24 95% 53%;
     --plugin-guides: 160 84% 39%;
+    --plugin-teams: 142 52% 40%;
   }
 
   * {
@@ -216,6 +218,10 @@
 
   .plugin-guides {
     --plugin-color: var(--plugin-guides);
+  }
+
+  .plugin-teams {
+    --plugin-color: var(--plugin-teams);
   }
 
   /* Utility classes using the assigned variable */

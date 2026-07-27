@@ -4,6 +4,25 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-28 – Contacts / Notes: related cards, quick-info & copyable contact fields
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (commit/push/deploy ej genomförd i denna leverans).
+
+**Sammanfattning (verifierat mot kod):**
+
+- **ContactView – related cards:** Efter Addresses och Contact Persons visas plugin-styrda kort (döljs om tomma): **Teams** (`listTeamAssignmentsForContact` / `responsibles`), **Tasks** (`getTasksForContact` via `assignedToIds`, fallback `assignedTo`), **Slots** (`getSlotsForContact`). Rad-UI som teams responsibles; namnklick → `AssignmentQuickInfoDialog`; Open → `navigate('/teams|tasks|slots/…')` efter `closeContactPanel()`.
+- **ContactView – fält:** E-post/telefon/website (samt adress-e-post och kontaktpersons e-post/telefon) via `ContactCopyableLink` (`mailto:` / `tel:` / `https…`, copy-ikon; website `target="_blank"` + `rel="noopener noreferrer"`).
+- **Notes – mentioned contacts:** Kort under note-innehåll + bilagor (inte sidebar). Namn/`@`-mention → `ContactQuickInfoDialog` (kopiera e-post/telefon + Open contact); Open-knapp → `/contacts/…`.
+- **Teams:** `ResponsibleContactDialog` wrappas kring delad `ContactQuickInfoDialog`. TeamForm filtrerar `isAssignable !== false` vid val av ansvariga.
+- **Requests-lista:** Inline priority-dropdown (samma mönster som status) via `buildRequestListPrioritySavePayload` → befintlig `saveRequest`.
+- **Docs:** `MENTIONS_AND_CROSS_PLUGIN_UI.md` uppdaterad för related cards-placering och navigering.
+
+**Tester (körda i QA):** `teamContactUtils.test.ts`, `requestListSave.test.ts` (inkl. priority-payload).
+
+**Säkerhet (residual, låg):** Användarstyrd website-URL i ny flik (noopener finns); clipboard/`mailto` av PII på medveten användaråtgärd. Inga oacceptabla risker.
+
+---
+
 ## 2026-07-27 – Contacts: bulk-tagga markerade kontakter
 
 **Status:** Implementerat lokalt.

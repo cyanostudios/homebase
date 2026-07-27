@@ -32,13 +32,16 @@ import { cn } from '@/lib/utils';
 import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useRequests } from '../hooks/useRequests';
 import { getTypeLabel } from '../types/requests';
-import type { Request, RequestStatus } from '../types/requests';
+import type { Request, RequestPriority, RequestStatus } from '../types/requests';
 import {
   getInitialRequestColumnCount,
   REQUESTS_COLUMN_COUNT_STORAGE_KEY,
   type RequestColumnCount,
 } from '../utils/requestColumnCount';
-import { buildRequestListStatusSavePayload } from '../utils/requestListSave';
+import {
+  buildRequestListPrioritySavePayload,
+  buildRequestListStatusSavePayload,
+} from '../utils/requestListSave';
 import {
   compareRequestsTwoLevel,
   isRequestStringSortField,
@@ -245,6 +248,16 @@ export function RequestList() {
         return;
       }
       await saveRequest(buildRequestListStatusSavePayload(request, newStatus), request.id);
+    },
+    [saveRequest],
+  );
+
+  const handleListPriorityChange = useCallback(
+    async (request: Request, newPriority: RequestPriority) => {
+      if (request.priority === newPriority) {
+        return;
+      }
+      await saveRequest(buildRequestListPrioritySavePayload(request, newPriority), request.id);
     },
     [saveRequest],
   );
@@ -626,6 +639,9 @@ export function RequestList() {
                     assignedNames={getAssignedNames(request)}
                     onClick={() => handleOpenForView(request)}
                     onStatusChange={(status) => void handleListStatusChange(request, status)}
+                    onPriorityChange={(priority) =>
+                      void handleListPriorityChange(request, priority)
+                    }
                     checkbox={
                       <input
                         type="checkbox"

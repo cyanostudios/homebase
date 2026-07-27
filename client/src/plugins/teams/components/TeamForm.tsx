@@ -237,6 +237,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
     const linkedKeys = new Set(responsibles.map(responsibleKey));
     const seriesKey = newResponsibleSeriesTeam ?? '';
     return contacts
+      .filter((contact) => (contact as { isAssignable?: boolean }).isAssignable !== false)
       .filter((contact) => !linkedKeys.has(`${contact.id}::${seriesKey}`))
       .filter((contact) => (contact.companyName || '').toLowerCase().includes(q))
       .slice(0, 8);

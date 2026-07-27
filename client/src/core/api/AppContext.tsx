@@ -503,7 +503,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return [];
       }
       const id = String(contactId);
-      return tasks.filter((task: Task) => String(task.assignedTo ?? '') === id);
+      return tasks.filter((task: Task) => {
+        const ids =
+          Array.isArray(task.assignedToIds) && task.assignedToIds.length > 0
+            ? task.assignedToIds.map(String)
+            : task.assignedTo
+              ? [String(task.assignedTo)]
+              : [];
+        return ids.includes(id);
+      });
     },
     [user?.plugins, tasks],
   );
