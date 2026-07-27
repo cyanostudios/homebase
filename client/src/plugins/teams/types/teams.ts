@@ -9,6 +9,8 @@ export interface TrainingTime {
   startTime: string;
   endTime: string;
   location: string;
+  /** When false, session is excluded from booked-time / capacity totals. Default true. */
+  countsTowardCapacity?: boolean;
 }
 
 export interface SeasonBreak {

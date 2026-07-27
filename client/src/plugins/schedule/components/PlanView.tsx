@@ -23,6 +23,8 @@ import {
   type ScheduleTrainingDialogState,
 } from '../types/schedule';
 
+import { ScheduleFooter } from './ScheduleFooter';
+import { ScheduleSlotDetailDialog } from './ScheduleSlotDetailDialog';
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
 import { ScheduleWeekView } from './ScheduleWeekView';
 import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
@@ -45,10 +47,14 @@ export function PlanView({
   const { addPlanEventCount, adjustPlanEventCount, eventsRevision } = schedulePlans;
   const {
     getGridSettingsForSchedule,
+    getAvailableHours,
+    setColumnOrder,
+    settings,
     isLoading: isGridSettingsLoading,
     isLockedForSchedule,
   } = useScheduleSettings();
   const gridSettings = getGridSettingsForSchedule(scheduleId);
+  const availableHours = getAvailableHours(scheduleId);
   const isLocked = isLockedForSchedule(scheduleId);
   const [planData, setPlanData] = useState<SchedulePlanWithEvents | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,6 +62,7 @@ export function PlanView({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingSlotId, setSavingSlotId] = useState<string | null>(null);
   const [dialogState, setDialogState] = useState<ScheduleTrainingDialogState>(null);
+  const [detailSlot, setDetailSlot] = useState<ScheduleSlot | null>(null);
 
   const loadPlan = useCallback(async () => {
     setIsLoading(true);
@@ -83,13 +90,21 @@ export function PlanView({
     return slots.filter((slot) => isSlotVisibleInGrid(slot, gridSettings));
   }, [gridSettings, planData, teamFilter, teams]);
 
-  const handleSlotClick = useCallback(
+  /** Full-schedule slots for capacity footer (ignore team filter + grid visibility). */
+  const capacitySlots = useMemo(() => {
+    if (!planData) {
+      return [];
+    }
+    return buildPlanSlots(planData.events, teams, 'all');
+  }, [planData, teams]);
+
+  const handleSlotClick = useCallback((slot: ScheduleSlot) => {
+    setDetailSlot(slot);
+  }, []);
+
+  const handleNavigateToTeam = useCallback(
     (slot: ScheduleSlot) => {
       if (!slot.teamId) {
-        if (!isLocked) {
-          setDialogState({ mode: 'edit', slot });
-          setSaveError(null);
-        }
         return;
       }
       const team = teams.find((item) => String(item.id) === String(slot.teamId));
@@ -98,7 +113,19 @@ export function PlanView({
       }
       navigate(`/teams/${buildSlug(team, teams, 'name')}`);
     },
-    [isLocked, navigate, teams],
+    [navigate, teams],
+  );
+
+  const columnOrdersByDay = settings.columnOrders?.[scheduleId] ?? {};
+
+  const handleColumnOrderChange = useCallback(
+    (day: string, order: string[]) => {
+      if (isLocked) {
+        return;
+      }
+      void setColumnOrder(scheduleId, day, order);
+    },
+    [isLocked, scheduleId, setColumnOrder],
   );
 
   const updateLocalEvent = useCallback((event: PlanEvent) => {
@@ -148,6 +175,7 @@ export function PlanView({
           startTime: newStartTime,
           endTime: newEndTime,
           location: slot.location,
+          countsTowardCapacity: slot.countsTowardCapacity !== false,
         },
         teams,
         t('schedule.noTeam'),
@@ -182,6 +210,17 @@ export function PlanView({
         return;
       }
       setDialogState({ mode: 'edit', slot });
+      setSaveError(null);
+    },
+    [isLocked],
+  );
+
+  const handleCopySlot = useCallback(
+    (slot: ScheduleSlot) => {
+      if (isLocked) {
+        return;
+      }
+      setDialogState({ mode: 'copy', slot });
       setSaveError(null);
     },
     [isLocked],
@@ -284,12 +323,18 @@ export function PlanView({
               gridSettings={gridSettings}
               savingSlotId={savingSlotId}
               readOnly={isLocked}
+              columnOrdersByDay={columnOrdersByDay}
+              onColumnOrderChange={isLocked ? undefined : handleColumnOrderChange}
               onSlotClick={handleSlotClick}
               onEditSlot={isLocked ? undefined : handleEditSlot}
+              onCopySlot={isLocked ? undefined : handleCopySlot}
               onAddSlot={isLocked ? undefined : handleAddSlot}
               onSlotMove={handleSlotMove}
             />
           )
+        ) : null}
+        {!isLoading && !isGridSettingsLoading ? (
+          <ScheduleFooter slots={capacitySlots} availableHours={availableHours} />
         ) : null}
       </Card>
 
@@ -307,6 +352,15 @@ export function PlanView({
           onDelete={handleDeleteTraining}
         />
       ) : null}
+
+      <ScheduleSlotDetailDialog
+        isOpen={detailSlot !== null}
+        slot={detailSlot}
+        isLocked={isLocked}
+        onClose={() => setDetailSlot(null)}
+        onEdit={isLocked ? undefined : handleEditSlot}
+        onNavigateToTeam={handleNavigateToTeam}
+      />
     </>
   );
 }

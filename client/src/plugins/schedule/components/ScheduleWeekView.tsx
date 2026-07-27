@@ -104,7 +104,7 @@ export function ScheduleWeekView({
                   return (
                     <div key={`${day}-${timeKey}`} className="flex flex-wrap items-stretch gap-1.5">
                       {group.map((slot, index) => {
-                        const isClickable = Boolean((slot.teamId || slot.eventId) && onSlotClick);
+                        const isClickable = Boolean(onSlotClick);
                         const slotClassName = getSlotClassName(slot, isClickable);
                         const slotKey = `${day}-${timeKey}-${slot.teamName || slot.title || ''}-${index}`;
 

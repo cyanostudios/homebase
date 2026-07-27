@@ -150,12 +150,80 @@ export function useScheduleSettings() {
     [setLockedForSchedule],
   );
 
+  const getAvailableHours = useCallback(
+    (scheduleId: string): number | undefined => {
+      const value = settings.availableHours?.[scheduleId];
+      return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+    },
+    [settings.availableHours],
+  );
+
+  const setAvailableHours = useCallback(
+    async (scheduleId: string, hours: number | null) => {
+      const nextHours = { ...settings.availableHours };
+      if (hours == null || !Number.isFinite(hours) || hours < 0) {
+        delete nextHours[scheduleId];
+      } else {
+        nextHours[scheduleId] = Math.min(168, Math.round(hours * 100) / 100);
+      }
+      const next = normalizeScheduleAppSettings({
+        ...settings,
+        availableHours: nextHours,
+      });
+      setIsSaving(true);
+      try {
+        await persistSettings(next);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [persistSettings, settings],
+  );
+
+  const getColumnOrder = useCallback(
+    (scheduleId: string, day: string): string[] => {
+      return settings.columnOrders?.[scheduleId]?.[day] ?? [];
+    },
+    [settings.columnOrders],
+  );
+
+  const setColumnOrder = useCallback(
+    async (scheduleId: string, day: string, order: string[]) => {
+      const next = normalizeScheduleAppSettings({
+        ...settings,
+        columnOrders: {
+          ...settings.columnOrders,
+          [scheduleId]: {
+            ...settings.columnOrders?.[scheduleId],
+            [day]: order,
+          },
+        },
+      });
+      // Optimistic local update so the grid swaps immediately
+      setSettings(next);
+      try {
+        await persistSettings(next);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [persistSettings, settings],
+  );
+
   return {
     settings,
     gridSettings,
     getGridSettingsForSchedule,
     setGridSettings,
     setGridSettingsForSchedule,
+    getAvailableHours,
+    setAvailableHours,
+    getColumnOrder,
+    setColumnOrder,
     initialSettings,
     isLocked,
     isLockedForSchedule,

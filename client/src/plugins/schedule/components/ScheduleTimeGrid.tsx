@@ -10,7 +10,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Loader2, MapPin, Pencil, Plus } from 'lucide-react';
+import { Loader2, Copy, MapPin, Pencil, Plus } from 'lucide-react';
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -30,11 +30,17 @@ import {
   GRID_ROW_HEIGHT_PX,
   GRID_SLOT_MINUTES,
   minutesToTime,
+  slotsOverlap,
+  swapColumnOrder,
   type ScheduleGridSettings,
   type ScheduleSlot,
   type SlotLayout,
 } from '../types/schedule';
 import type { ScheduleSlotHighlight } from '../hooks/useSchedulePendingChanges';
+
+function getSlotDropId(slot: ScheduleSlot): string {
+  return `slot-drop-${getSlotDragId(slot)}`;
+}
 
 function getSlotClassName(
   slot: ScheduleSlot,
@@ -48,6 +54,7 @@ function getSlotClassName(
   return cn(
     'group/slot absolute overflow-hidden rounded-md border px-1.5 py-1 text-left shadow-sm transition-[border-color,box-shadow,background-color] duration-500',
     colorStyles ?? 'border-plugin-subtle/60 bg-background/95 text-foreground',
+    slot.countsTowardCapacity === false && 'border-dashed opacity-70',
     highlight === 'pending' && 'border-orange-400 ring-2 ring-orange-400',
     highlight === 'saved' &&
       'border-green-500 ring-2 ring-green-500 bg-green-50/50 dark:bg-green-950/20',
@@ -170,6 +177,7 @@ function DraggableSlot({
   readOnly,
   onSlotClick,
   onEditSlot,
+  onCopySlot,
 }: {
   layout: SlotLayout;
   gridSettings: ScheduleGridSettings;
@@ -178,27 +186,46 @@ function DraggableSlot({
   readOnly?: boolean;
   onSlotClick?: (slot: ScheduleSlot) => void;
   onEditSlot?: (slot: ScheduleSlot) => void;
+  onCopySlot?: (slot: ScheduleSlot) => void;
 }) {
   const { t } = useTranslation();
   const { slot, colIndex, colCount } = layout;
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    transform,
+    isDragging,
+  } = useDraggable({
     id: getSlotDragId(slot),
     data: { slot },
     disabled: readOnly,
   });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: getSlotDropId(slot),
+    data: { slot, type: 'slot' as const },
+    disabled: readOnly,
+  });
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  };
 
-  const isClickable = Boolean((slot.teamId || slot.eventId) && onSlotClick);
+  const isClickable = Boolean(onSlotClick);
   const isSaving = savingSlotId === getSlotDragId(slot);
   const highlight = getSlotHighlight?.(slot) ?? null;
   const style: React.CSSProperties = {
     top: getSlotTopPx(slot, gridSettings),
     height: Math.max(getSlotHeightPx(slot), GRID_ROW_HEIGHT_PX - 2),
     transform: readOnly ? undefined : CSS.Translate.toString(transform),
-    zIndex: isDragging ? 30 : 10,
+    zIndex: isDragging ? 30 : isOver ? 20 : 10,
     ...getColumnStyle(colIndex, colCount),
   };
 
-  const className = getSlotClassName(slot, isClickable, highlight, isDragging, readOnly);
+  const className = cn(
+    getSlotClassName(slot, isClickable, highlight, isDragging, readOnly),
+    isOver && !isDragging && 'ring-2 ring-primary/50',
+  );
 
   if (!isClickable || readOnly) {
     return (
@@ -256,19 +283,37 @@ function DraggableSlot({
       tabIndex={0}
       aria-label={`${slot.teamId ? slot.teamName || slot.title : t('schedule.noTeam')}, ${slot.startTime}–${slot.endTime}`}
     >
-      {onEditSlot ? (
-        <button
-          type="button"
-          className="absolute right-0.5 top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded bg-background/90 text-foreground shadow-sm sm:opacity-0 sm:transition-opacity sm:group-hover/slot:opacity-100"
-          aria-label={t('schedule.editSlot')}
-          onClick={(event) => {
-            event.stopPropagation();
-            onEditSlot(slot);
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
+      {onEditSlot || onCopySlot ? (
+        <div className="absolute right-0.5 top-0.5 z-20 flex items-center gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-hover/slot:opacity-100">
+          {onCopySlot ? (
+            <button
+              type="button"
+              className="flex h-5 w-5 items-center justify-center rounded bg-background/90 text-foreground shadow-sm"
+              aria-label={t('schedule.copyEvent')}
+              onClick={(event) => {
+                event.stopPropagation();
+                onCopySlot(slot);
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+          ) : null}
+          {onEditSlot ? (
+            <button
+              type="button"
+              className="flex h-5 w-5 items-center justify-center rounded bg-background/90 text-foreground shadow-sm"
+              aria-label={t('schedule.editSlot')}
+              onClick={(event) => {
+                event.stopPropagation();
+                onEditSlot(slot);
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {isSaving ? (
         <div className="absolute inset-0 flex items-center justify-center bg-background/60">
@@ -284,22 +329,26 @@ function DayColumn({
   day,
   slots,
   gridSettings,
+  dayColumnOrder,
   savingSlotId,
   getSlotHighlight,
   readOnly,
   onSlotClick,
   onEditSlot,
+  onCopySlot,
   onAddSlot,
   suppressClickRef,
 }: {
   day: string;
   slots: ScheduleSlot[];
   gridSettings: ScheduleGridSettings;
+  dayColumnOrder?: string[];
   savingSlotId: string | null;
   getSlotHighlight?: (slot: ScheduleSlot) => ScheduleSlotHighlight;
   readOnly?: boolean;
   onSlotClick?: (slot: ScheduleSlot) => void;
   onEditSlot?: (slot: ScheduleSlot) => void;
+  onCopySlot?: (slot: ScheduleSlot) => void;
   onAddSlot?: (day: string, startMinutes: number) => void;
   suppressClickRef: React.MutableRefObject<boolean>;
 }) {
@@ -317,8 +366,8 @@ function DayColumn({
 
   const dayLayouts = useMemo(() => {
     const daySlots = slots.filter((slot) => slot.day === day);
-    return computeDayLayout(daySlots);
-  }, [day, slots]);
+    return computeDayLayout(daySlots, dayColumnOrder);
+  }, [day, dayColumnOrder, slots]);
 
   return (
     <div
@@ -345,6 +394,7 @@ function DayColumn({
           readOnly={readOnly}
           onSlotClick={onSlotClick}
           onEditSlot={onEditSlot}
+          onCopySlot={onCopySlot}
         />
       ))}
     </div>
@@ -357,8 +407,11 @@ export function ScheduleTimeGrid({
   savingSlotId,
   getSlotHighlight,
   readOnly = false,
+  columnOrdersByDay,
+  onColumnOrderChange,
   onSlotClick,
   onEditSlot,
+  onCopySlot,
   onAddSlot,
   onSlotMove,
 }: {
@@ -367,8 +420,12 @@ export function ScheduleTimeGrid({
   savingSlotId: string | null;
   getSlotHighlight?: (slot: ScheduleSlot) => ScheduleSlotHighlight;
   readOnly?: boolean;
+  /** Per-day ordered slot drag IDs for overlapping column placement */
+  columnOrdersByDay?: Record<string, string[]>;
+  onColumnOrderChange?: (day: string, order: string[]) => void;
   onSlotClick?: (slot: ScheduleSlot) => void;
   onEditSlot?: (slot: ScheduleSlot) => void;
+  onCopySlot?: (slot: ScheduleSlot) => void;
   onAddSlot?: (day: string, startMinutes: number) => void;
   onSlotMove: (
     slot: ScheduleSlot,
@@ -415,20 +472,39 @@ export function ScheduleTimeGrid({
     }, 0);
     setActiveSlot(null);
     const slot = event.active.data.current?.slot as ScheduleSlot | undefined;
-    const dropData = event.over?.data.current as
-      | { day?: string; startMinutes?: number }
+    const overData = event.over?.data.current as
+      | { day?: string; startMinutes?: number; slot?: ScheduleSlot; type?: string }
       | undefined;
 
-    if (!slot || !dropData?.day || dropData.startMinutes === undefined) {
+    if (!slot) {
+      return;
+    }
+
+    // Slot-on-slot drop: swap column order when overlapping on the same day
+    if (overData?.type === 'slot' && overData.slot && onColumnOrderChange) {
+      const target = overData.slot;
+      if (
+        getSlotDragId(slot) !== getSlotDragId(target) &&
+        slot.day === target.day &&
+        slotsOverlap(slot, target)
+      ) {
+        const daySlots = slots.filter((item) => item.day === slot.day);
+        const nextOrder = swapColumnOrder(daySlots, columnOrdersByDay?.[slot.day], slot, target);
+        onColumnOrderChange(slot.day, nextOrder);
+        return;
+      }
+    }
+
+    if (!overData?.day || overData.startMinutes === undefined) {
       return;
     }
 
     const duration = getSlotDurationMinutes(slot);
-    const newStartMinutes = dropData.startMinutes;
+    const newStartMinutes = overData.startMinutes;
     const newEndMinutes = Math.min(newStartMinutes + duration, getGridEndMinutes(gridSettings));
 
     if (
-      slot.day === dropData.day &&
+      slot.day === overData.day &&
       slot.startTime === minutesToTime(newStartMinutes) &&
       slot.endTime === minutesToTime(newEndMinutes)
     ) {
@@ -437,7 +513,7 @@ export function ScheduleTimeGrid({
 
     void onSlotMove(
       slot,
-      dropData.day,
+      overData.day,
       minutesToTime(newStartMinutes),
       minutesToTime(newEndMinutes),
     );
@@ -502,11 +578,13 @@ export function ScheduleTimeGrid({
                   day={day}
                   slots={slots}
                   gridSettings={gridSettings}
+                  dayColumnOrder={columnOrdersByDay?.[day]}
                   savingSlotId={savingSlotId}
                   getSlotHighlight={getSlotHighlight}
                   readOnly={readOnly}
                   onSlotClick={onSlotClick}
                   onEditSlot={readOnly ? undefined : onEditSlot}
+                  onCopySlot={readOnly ? undefined : onCopySlot}
                   onAddSlot={readOnly ? undefined : onAddSlot}
                   suppressClickRef={suppressCellClickRef}
                 />

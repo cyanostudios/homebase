@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS schedule_events (
   start_time TEXT,
   end_time TEXT,
   location TEXT,
+  counts_toward_capacity BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

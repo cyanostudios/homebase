@@ -22,6 +22,12 @@ import { cn } from '@/lib/utils';
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
 import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
+import {
+  buildContactTagsSavePayload,
+  hasContactTagsDraftChanges,
+  mergeContactTag,
+  resolveContactDisplayTags,
+} from '../utils/contactTagsDraft';
 import { normalizeContactType } from '../utils/normalizeContactType';
 
 import { ContactContext } from './ContactContext';
@@ -265,20 +271,20 @@ export function ContactProvider({
       const errors: ValidationError[] = [];
 
       if (currentContact) {
-        if (!contactData.contactNumber?.trim()) {
+        const contactNumber = String(contactData.contactNumber ?? '').trim();
+        if (!contactNumber) {
           errors.push({
             field: 'contactNumber',
             message: 'Contact number is required',
           });
         } else {
           const existingContact = contacts.find(
-            (c) =>
-              c.id !== currentContact?.id && c.contactNumber === contactData.contactNumber.trim(),
+            (c) => c.id !== currentContact?.id && String(c.contactNumber) === contactNumber,
           );
           if (existingContact) {
             errors.push({
               field: 'contactNumber',
-              message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`,
+              message: `Contact number "${contactNumber}" already exists for "${existingContact.companyName}"`,
             });
           }
         }
@@ -444,20 +450,13 @@ export function ContactProvider({
     }
   }, [location.pathname, contacts]);
 
-  const contactTagsKey = JSON.stringify(
-    Array.isArray(currentContact?.tags) ? currentContact.tags : [],
-  );
+  const contactIdForDraft = currentContact?.id != null ? String(currentContact.id) : null;
   useEffect(() => {
     setTagsDraft(null);
     setTagError(null);
-  }, [currentContact?.id, contactTagsKey]);
+  }, [contactIdForDraft]);
 
-  const displayTags =
-    currentContact && tagsDraft !== null
-      ? tagsDraft
-      : Array.isArray(currentContact?.tags)
-        ? currentContact.tags
-        : [];
+  const displayTags = resolveContactDisplayTags(currentContact?.tags, tagsDraft);
 
   const addTagToDraft = useCallback(
     (tag: string) => {
@@ -492,15 +491,7 @@ export function ContactProvider({
   );
 
   const hasTagsChanges = Boolean(
-    currentContact &&
-      (() => {
-        const saved = Array.isArray(currentContact.tags) ? currentContact.tags : [];
-        const draft = tagsDraft ?? saved;
-        if (draft.length !== saved.length) {
-          return true;
-        }
-        return draft.some((t, i) => saved[i] !== t);
-      })(),
+    currentContact && hasContactTagsDraftChanges(currentContact.tags, tagsDraft),
   );
 
   const saveContact = useCallback(
@@ -588,17 +579,69 @@ export function ContactProvider({
     [closeContactPanel, currentContact, refreshData, validateContact, setValidationErrors],
   );
 
+  const setContactTags = useCallback(
+    async (contact: Contact, nextTags: string[]): Promise<boolean> => {
+      const existing = Array.isArray(contact.tags) ? contact.tags : [];
+      const unchanged =
+        nextTags.length === existing.length &&
+        nextTags.every((item, index) => item === existing[index]);
+      if (unchanged) {
+        return true;
+      }
+
+      try {
+        const payload = buildContactTagsSavePayload(contact, nextTags);
+        const saved = await contactsApi.updateContact(String(contact.id), payload);
+        const normalized: Contact = {
+          ...saved,
+          tags: nextTags,
+          createdAt: new Date(saved.createdAt),
+          updatedAt: new Date(saved.updatedAt),
+        };
+        setContacts((prev) =>
+          prev.map((c) => (String(c.id) === String(contact.id) ? normalized : c)),
+        );
+        setCurrentContact((prev) =>
+          prev && String(prev.id) === String(contact.id)
+            ? { ...prev, tags: nextTags, updatedAt: normalized.updatedAt }
+            : prev,
+        );
+        return true;
+      } catch (error) {
+        console.error('Failed to update contact tags:', error);
+        return false;
+      }
+    },
+    [],
+  );
+
   const onApplyTagsEdit = useCallback(async () => {
     if (!currentContact) {
       return;
     }
     setTagError(null);
     const nextTags = tagsDraft ?? (Array.isArray(currentContact.tags) ? currentContact.tags : []);
-    const success = await saveContact({ ...currentContact, tags: nextTags });
+    // Dedicated tags update — avoid full saveContact validation / panel mode churn
+    const success = await setContactTags(currentContact, nextTags);
     if (success) {
       setTagsDraft(null);
+    } else {
+      setTagError('Failed to save tags. Please try again.');
     }
-  }, [currentContact, tagsDraft, saveContact]);
+  }, [currentContact, tagsDraft, setContactTags]);
+
+  const applyTagToContact = useCallback(
+    async (contact: Contact, tag: string): Promise<boolean> => {
+      const nextTags = mergeContactTag(contact.tags, tag);
+      return setContactTags(contact, nextTags);
+    },
+    [setContactTags],
+  );
+
+  const clearTagsFromContact = useCallback(
+    async (contact: Contact): Promise<boolean> => setContactTags(contact, []),
+    [setContactTags],
+  );
 
   const getCloseHandler = useCallback(
     (defaultClose: () => void) => {
@@ -616,7 +659,8 @@ export function ContactProvider({
   const onDiscardTagsAndClose = useCallback(() => {
     setTagsDraft(null);
     setShowDiscardTagsDialog(false);
-  }, []);
+    closeContactPanel();
+  }, [closeContactPanel]);
 
   const deleteContact = async (id: string) => {
     try {
@@ -827,6 +871,8 @@ export function ContactProvider({
     removeTagFromDraft,
     hasTagsChanges,
     onApplyTagsEdit,
+    applyTagToContact,
+    clearTagsFromContact,
     showDiscardTagsDialog,
     setShowDiscardTagsDialog,
     getCloseHandler,

@@ -12,6 +12,8 @@ export interface ScheduleSlot {
   title?: string;
   trainingIndex: number;
   eventId?: string;
+  /** When false, excluded from booked-time totals. Missing/undefined = counts. */
+  countsTowardCapacity?: boolean;
 }
 
 export const DEFAULT_SCHEDULE_ID = 'default';
@@ -37,6 +39,7 @@ export interface PlanEvent {
   end_time: string;
   location: string;
   team_id: string | null;
+  counts_toward_capacity?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -64,6 +67,7 @@ export function planEventToSlot(event: PlanEvent, teams: Team[]): ScheduleSlot {
     title: event.title,
     eventId: event.id,
     trainingIndex: -1,
+    countsTowardCapacity: event.counts_toward_capacity === false ? false : true,
   };
 }
 
@@ -100,6 +104,7 @@ export function buildTeamSlots(teams: Team[], teamFilter: string): ScheduleSlot[
         teamName: formatTeamLabel(team),
         teamColor: team.color,
         trainingIndex,
+        countsTowardCapacity: training.countsTowardCapacity === false ? false : true,
       })),
   );
 }
@@ -115,6 +120,13 @@ export interface ScheduleGridSettings {
 export interface ScheduleAppSettings extends ScheduleGridSettings {
   locks?: Record<string, boolean>;
   gridHours?: Record<string, ScheduleGridSettings>;
+  /** Per-schedule available hours for capacity / overbooking indicator */
+  availableHours?: Record<string, number>;
+  /**
+   * Per-schedule, per-day ordered slot drag IDs for overlapping column placement.
+   * Outer key = scheduleId | 'default', inner key = day, value = ordered slotDragIds.
+   */
+  columnOrders?: Record<string, Record<string, string[]>>;
   /** @deprecated migrated to locks.default on load */
   locked?: boolean;
 }
@@ -128,6 +140,8 @@ export const DEFAULT_SCHEDULE_APP_SETTINGS: ScheduleAppSettings = {
   ...DEFAULT_SCHEDULE_GRID_SETTINGS,
   locks: {},
   gridHours: {},
+  availableHours: {},
+  columnOrders: {},
 };
 
 export const SCHEDULE_SETTINGS_KEY = 'schedule';
@@ -175,7 +189,36 @@ export function normalizeScheduleAppSettings(
     }
   }
 
-  return { ...grid, locks, gridHours };
+  const availableHours: Record<string, number> = {};
+  if (raw?.availableHours && typeof raw.availableHours === 'object') {
+    for (const [scheduleId, value] of Object.entries(raw.availableHours)) {
+      const num = Number(value);
+      if (Number.isFinite(num) && num >= 0) {
+        availableHours[scheduleId] = Math.min(168, Math.round(num * 100) / 100);
+      }
+    }
+  }
+
+  const columnOrders: Record<string, Record<string, string[]>> = {};
+  if (raw?.columnOrders && typeof raw.columnOrders === 'object') {
+    for (const [scheduleId, byDay] of Object.entries(raw.columnOrders)) {
+      if (!byDay || typeof byDay !== 'object') {
+        continue;
+      }
+      const dayOrders: Record<string, string[]> = {};
+      for (const [day, order] of Object.entries(byDay)) {
+        if (!Array.isArray(order)) {
+          continue;
+        }
+        dayOrders[day] = order
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+          .slice(0, 200);
+      }
+      columnOrders[scheduleId] = dayOrders;
+    }
+  }
+
+  return { ...grid, locks, gridHours, availableHours, columnOrders };
 }
 
 export function timeToMinutes(time: string): number {
@@ -213,6 +256,25 @@ export function getSlotDurationMinutes(slot: ScheduleSlot): number {
   return duration > 0 ? duration : GRID_SLOT_MINUTES;
 }
 
+export function slotCountsTowardCapacity(slot: ScheduleSlot): boolean {
+  return slot.countsTowardCapacity !== false;
+}
+
+export function computeScheduleStats(slots: ScheduleSlot[]): {
+  totalMinutes: number;
+  hours: number;
+  minutes: number;
+} {
+  const totalMinutes = slots
+    .filter(slotCountsTowardCapacity)
+    .reduce((sum, slot) => sum + getSlotDurationMinutes(slot), 0);
+  return {
+    totalMinutes,
+    hours: Math.floor(totalMinutes / 60),
+    minutes: totalMinutes % 60,
+  };
+}
+
 export function getSlotTopPx(slot: ScheduleSlot, settings: ScheduleGridSettings): number {
   const start = timeToMinutes(slot.startTime);
   const offset = start - getGridStartMinutes(settings);
@@ -247,7 +309,7 @@ export interface SlotLayout {
   colCount: number;
 }
 
-function slotsOverlap(a: ScheduleSlot, b: ScheduleSlot): boolean {
+export function slotsOverlap(a: ScheduleSlot, b: ScheduleSlot): boolean {
   const aStart = timeToMinutes(a.startTime);
   const aEnd = timeToMinutes(a.endTime || a.startTime);
   const bStart = timeToMinutes(b.startTime);
@@ -255,7 +317,42 @@ function slotsOverlap(a: ScheduleSlot, b: ScheduleSlot): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
 
-export function computeDayLayout(slots: ScheduleSlot[]): SlotLayout[] {
+function columnOrderIndex(order: string[] | undefined, slot: ScheduleSlot): number {
+  if (!order?.length) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  const index = order.indexOf(getSlotDragId(slot));
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+/** Swap two slot drag IDs in a day's column order, inserting missing IDs at the end. */
+export function swapColumnOrder(
+  daySlots: ScheduleSlot[],
+  dayColumnOrder: string[] | undefined,
+  slotA: ScheduleSlot,
+  slotB: ScheduleSlot,
+): string[] {
+  const ids = daySlots.map(getSlotDragId);
+  const order = (dayColumnOrder ?? []).filter((id) => ids.includes(id));
+  for (const id of ids) {
+    if (!order.includes(id)) {
+      order.push(id);
+    }
+  }
+  const idA = getSlotDragId(slotA);
+  const idB = getSlotDragId(slotB);
+  const i = order.indexOf(idA);
+  const j = order.indexOf(idB);
+  if (i < 0 || j < 0 || i === j) {
+    return order;
+  }
+  const next = [...order];
+  next[i] = idB;
+  next[j] = idA;
+  return next;
+}
+
+export function computeDayLayout(slots: ScheduleSlot[], dayColumnOrder?: string[]): SlotLayout[] {
   if (!slots.length) {
     return [];
   }
@@ -264,6 +361,10 @@ export function computeDayLayout(slots: ScheduleSlot[]): SlotLayout[] {
     const startDiff = timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
     if (startDiff !== 0) {
       return startDiff;
+    }
+    const orderDiff = columnOrderIndex(dayColumnOrder, a) - columnOrderIndex(dayColumnOrder, b);
+    if (orderDiff !== 0) {
+      return orderDiff;
     }
     return timeToMinutes(a.endTime || a.startTime) - timeToMinutes(b.endTime || b.startTime);
   });
@@ -314,10 +415,12 @@ export function buildScheduleEventPayload(
     end_time: training.endTime,
     location: training.location,
     team_id: resolvedTeamId ? Number(resolvedTeamId) : null,
+    counts_toward_capacity: training.countsTowardCapacity === false ? false : true,
   };
 }
 
 export type ScheduleTrainingDialogState =
   | { mode: 'create'; day: string; startMinutes: number }
   | { mode: 'edit'; slot: ScheduleSlot }
+  | { mode: 'copy'; slot: ScheduleSlot }
   | null;

@@ -20,6 +20,7 @@ import {
   Trophy,
   User,
   Users,
+  X,
   Zap,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -28,6 +29,13 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
@@ -56,6 +64,7 @@ import { cn } from '@/lib/utils';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
+import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
 
 interface ContactViewProps {
   contact: Contact;
@@ -280,6 +289,8 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   const { t } = useTranslation();
   const {
     user,
+    getSettings,
+    settingsVersion,
     getNotesForContact,
     getEstimatesForContact,
     getTasksForContact,
@@ -311,6 +322,13 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     executeDuplicate,
     setRecentlyDuplicatedContactId,
     setContactHasTimeEntries,
+    displayTags,
+    addTagToDraft,
+    removeTagFromDraft,
+    tagError,
+    showDiscardTagsDialog,
+    setShowDiscardTagsDialog,
+    onDiscardTagsAndClose,
   } = useContacts();
 
   const [mentionedInNotes, setMentionedInNotes] = useState<any[]>([]);
@@ -326,6 +344,44 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   const [confirmDeleteEntryId, setConfirmDeleteEntryId] = useState<string | null>(null);
   const [showDeleteContactConfirm, setShowDeleteContactConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [tagToAdd, setTagToAdd] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadTags = async () => {
+      try {
+        const settings = await getSettings(CONTACTS_SETTINGS_KEY);
+        if (cancelled) {
+          return;
+        }
+        const list = Array.isArray(settings?.tags) ? settings.tags : [];
+        setAvailableTags(
+          list
+            .filter((item: unknown): item is string => typeof item === 'string')
+            .map((item: string) => item.trim())
+            .filter(Boolean),
+        );
+      } catch {
+        if (!cancelled) {
+          setAvailableTags([]);
+        }
+      }
+    };
+    void loadTags();
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const addableTags = useMemo(
+    () =>
+      availableTags.filter(
+        (item) =>
+          !displayTags.some((tag) => String(tag).toLowerCase() === String(item).toLowerCase()),
+      ),
+    [availableTags, displayTags],
+  );
 
   useEffect(() => {
     if (!contact?.id) {
@@ -777,23 +833,58 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     </Badge>
                   )}
                 </div>
-                {/* Tags row */}
+                {/* Tags row — draft edit; header Update calls onApplyTagsEdit */}
                 <div className="pt-3">
-                  <div className={FIELD_LABEL_CLASS}>Tags</div>
-                  {Array.isArray(contact.tags) && contact.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {contact.tags.map((item: string) => (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className={FIELD_LABEL_CLASS}>Tags</div>
+                    <Select
+                      value={tagToAdd || '__add_tag__'}
+                      onValueChange={(value) => {
+                        if (value && value !== '__add_tag__') {
+                          addTagToDraft(value);
+                          setTagToAdd('');
+                        }
+                      }}
+                      disabled={addableTags.length === 0}
+                    >
+                      <SelectTrigger className="h-8 w-[160px] text-xs">
+                        <SelectValue placeholder="Add a tag..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__add_tag__">
+                          {addableTags.length === 0 ? 'No more tags to add' : 'Add a tag...'}
+                        </SelectItem>
+                        {addableTags.map((item) => (
+                          <SelectItem key={item} value={item}>
+                            {item}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {tagError ? <p className="mt-1 text-xs text-destructive">{tagError}</p> : null}
+                  {displayTags.length > 0 ? (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {displayTags.map((item: string) => (
                         <Badge
                           key={item}
-                          className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1 text-xs"
+                          className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                         >
                           <Tag className="h-3 w-3" />
                           {item}
+                          <button
+                            type="button"
+                            className="rounded p-0.5 hover:bg-muted"
+                            onClick={() => removeTagFromDraft(item)}
+                            aria-label={`Remove tag ${item}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
                         </Badge>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs text-muted-foreground mt-1 block">No tags</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">No tags</span>
                   )}
                 </div>
               </div>
@@ -916,6 +1007,17 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
           )}
         </div>
       </DetailLayout>
+
+      <ConfirmDialog
+        isOpen={showDiscardTagsDialog}
+        title={t('dialog.unsavedChanges')}
+        message={t('contacts.discardTagsMessage')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
+        onConfirm={onDiscardTagsAndClose}
+        onCancel={() => setShowDiscardTagsDialog(false)}
+        variant="warning"
+      />
 
       <ConfirmDialog
         isOpen={confirmDeleteEntryId !== null}

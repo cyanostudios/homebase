@@ -159,6 +159,81 @@ function ScheduleGridHoursFields({
   );
 }
 
+function ScheduleAvailableHoursFields({
+  scheduleId,
+  availableHours,
+  isSaving,
+  isLocked,
+  onSave,
+}: {
+  scheduleId: string;
+  availableHours?: number;
+  isSaving: boolean;
+  isLocked: boolean;
+  onSave: (scheduleId: string, hours: number | null) => Promise<boolean>;
+}) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState(availableHours != null ? String(availableHours) : '');
+  const [savingHours, setSavingHours] = useState(false);
+
+  useEffect(() => {
+    setDraft(availableHours != null ? String(availableHours) : '');
+  }, [availableHours]);
+
+  const parsedDraft = draft.trim() === '' ? null : Number(draft);
+  const normalizedDraft =
+    parsedDraft != null && Number.isFinite(parsedDraft) && parsedDraft >= 0
+      ? Math.min(168, Math.round(parsedDraft * 100) / 100)
+      : null;
+  const isDirty =
+    (availableHours == null && normalizedDraft != null) ||
+    (availableHours != null && normalizedDraft == null) ||
+    (availableHours != null && normalizedDraft != null && availableHours !== normalizedDraft);
+
+  const handleSave = useCallback(async () => {
+    setSavingHours(true);
+    try {
+      await onSave(scheduleId, normalizedDraft);
+    } finally {
+      setSavingHours(false);
+    }
+  }, [normalizedDraft, onSave, scheduleId]);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">{t('schedule.availableHoursHint')}</p>
+      <div className="flex max-w-lg flex-wrap items-end gap-4">
+        <div className="space-y-2">
+          <Label className="text-xs">{t('schedule.availableHours')}</Label>
+          <Input
+            type="number"
+            min={0}
+            max={168}
+            step={0.5}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            className="h-9 w-28"
+            disabled={isLocked}
+            placeholder="—"
+          />
+        </div>
+        {isDirty && !isLocked ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-9 shrink-0 px-3 text-xs"
+            disabled={isSaving || savingHours || (draft.trim() !== '' && normalizedDraft == null)}
+            onClick={() => void handleSave()}
+          >
+            {savingHours ? t('common.saving') : t('common.save')}
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function ScheduleSettingsView({
   inlineTrailing,
   schedulePlans,
@@ -181,6 +256,8 @@ export function ScheduleSettingsView({
   const {
     getGridSettingsForSchedule,
     setGridSettingsForSchedule,
+    getAvailableHours,
+    setAvailableHours,
     isLoading,
     isSaving,
     isTogglingLock,
@@ -480,6 +557,15 @@ export function ScheduleSettingsView({
                   onSave={setGridSettingsForSchedule}
                 />
               </DetailSection>
+              <DetailSection title={t('schedule.availableHours')} className="pt-0">
+                <ScheduleAvailableHoursFields
+                  scheduleId={DEFAULT_SCHEDULE_ID}
+                  availableHours={getAvailableHours(DEFAULT_SCHEDULE_ID)}
+                  isSaving={isSaving}
+                  isLocked={defaultLocked}
+                  onSave={setAvailableHours}
+                />
+              </DetailSection>
               <div className="flex flex-wrap items-center gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -607,6 +693,15 @@ export function ScheduleSettingsView({
                       isSaving={isSaving}
                       isLocked={planLocked}
                       onSave={setGridSettingsForSchedule}
+                    />
+                  </DetailSection>
+                  <DetailSection title={t('schedule.availableHours')} className="pt-0">
+                    <ScheduleAvailableHoursFields
+                      scheduleId={plan.id}
+                      availableHours={getAvailableHours(plan.id)}
+                      isSaving={isSaving}
+                      isLocked={planLocked}
+                      onSave={setAvailableHours}
                     />
                   </DetailSection>
                   <div className="flex flex-wrap items-center gap-2">

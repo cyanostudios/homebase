@@ -51,6 +51,7 @@ function sanitizeTrainingTimes(value) {
       startTime: String(t.startTime ?? '').slice(0, 10),
       endTime: String(t.endTime ?? '').slice(0, 10),
       location: String(t.location ?? '').slice(0, 255),
+      countsTowardCapacity: t.countsTowardCapacity === false ? false : true,
     }))
     .slice(0, 50);
 }

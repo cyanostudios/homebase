@@ -4,6 +4,65 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-27 – Contacts: bulk-tagga markerade kontakter
+
+**Status:** Implementerat lokalt.
+
+- Markera en eller flera kontakter i listan → bulk-raden får **Taggar** (samma UX som tasks status).
+- Dialog: välj tagg från contacts-settings-katalog → läggs till på varje vald kontakt (befintliga taggar behålls).
+- Loop av `PUT` per kontakt via `applyTagToContact` (ingen ny batch-endpoint).
+
+---
+
+## 2026-07-27 – Schedule: slot-detaljpanel & kolumnbyte
+
+**Status:** Implementerat lokalt. Ej QA/Security/Docs-godkänd ännu.
+
+**Sammanfattning:**
+
+- **Slot-detalj:** klick på ett pass öppnar `ScheduleSlotDetailDialog` (centrerad AlertDialog som matches/teams quick-info) med info + "Gå till lag" istället för direkt navigering. "Redigera" visas bara när schemat inte är låst.
+- **Kolumnbyte:** drag ett överlappande pass på ett annat samma dag → byter vänster/höger-ordning. Ordning sparas i app settings `schedule.columnOrders` (ingen DB-migration).
+
+---
+
+## 2026-07-27 – Schedule: bokad tid, kapacitet, copy & opt-out
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (commit/push/deploy ej genomförd i denna leverans).
+
+**Sammanfattning (verifierat mot kod):**
+
+- **Footer:** `ScheduleFooter` under varje schema visar bokad tid via `computeScheduleStats` (endast pass med `countsTowardCapacity !== false`).
+- **Kapacitetsunderlag:** footern använder `capacitySlots` = alla pass på schemat (`teamFilter: 'all'`, **utan** `isSlotVisibleInGrid`). Team-filter och synliga grid-timmar påverkar bara kalendervyn, inte summering/överbokning.
+- **Tillgängliga timmar:** per-schema i Schema → Inställningar (`availableHours` i app settings `schedule`); grön/röd indikator + kvar/för mycket.
+- **Copy tid:** copy-ikon bredvid pencil i desktop-`ScheduleTimeGrid`; dialog (`mode: 'copy'`) med dagval → `onCreate`. Mobile `ScheduleWeekView` har ingen copy-ikon.
+- **Opt-out:** switch "Räkna till bokad tid" (default på) i create/edit/copy. Lagkalender: `TrainingTime.countsTowardCapacity` i `training_times` JSON (`sanitizeTrainingTimes`). Egna scheman: `schedule_events.counts_toward_capacity` (`111-schedule-counts-toward-capacity.sql` + `npm run migrate:schedule-counts-toward-capacity`; kolumn även i `083-schedule.sql` för nya tenants).
+- **Tester:** `computeScheduleStats.test.ts`, `buildScheduleEventPayload.test.ts` (inkl. opt-out + early/late slots).
+
+**Migration / parity:** `docs/LOCAL_PROD_PARITY.md`; `server/migrations/README.md` §111. Lokal tenant-migration körd; **prod-migration kräver explicit release**.
+
+**Begränsningar / avvägningar:**
+
+- Kapacitetsjämförelse är alltid schema-nivå (ignorera aktivt team-filter).
+- Kopiering av schema (`duplicateSchedule` / settings) kopierar grid hours men **inte** `availableHours`.
+- Security: CSRF + `requirePlugin` på event-mutationer; `counts_toward_capacity` valideras `optional().isBoolean()` + model-coerce. Residual (pre-existerande): tenant-migrationscript `SET search_path TO ${schemaName}` (ops, ej runtime). Opt-out-flagga påverkar endast kapacitetsräkning inom tenant (ingen authz).
+
+## 2026-07-27 – Contacts: återställd tagg-edit i detail (view)
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (inte committat/pusht i denna leverans vid dokumentationstillfället).
+
+**Sammanfattning (verifierat mot kod):**
+
+- **Regression:** View-läge tagg-UI (`displayTags` / add/remove draft) togs bort ur `ContactView` medan draft + header-`Update` (`onApplyTagsEdit` / `hasTagsChanges`) fanns kvar — taggar gick inte att ändra i detaljvyn.
+- **Fix:** Tagg-select + borttagning på badges åter i `ContactView`; katalog från Contacts Settings (`getSettings('contacts').tags`); discard-dialog vid osparade taggar; `onDiscardTagsAndClose` stänger panelen.
+- **Helpers/tester:** `contactTagsDraft.ts` + unit tests (display / dirty / save-payload).
+
+**Begränsningar / avvägningar:**
+
+- Taggar som kan läggas till i view måste finnas i Settings → Tags först (katalog).
+- Security: samma CSRF-skyddade `PUT /api/contacts/:id`; taggar renderas som React text (ingen HTML-injection i denna UI). Residual: API validerar inte `tags`-array schema (pre-existerande).
+
+---
+
 ## 2026-07-27 – Teams spelform + bulk create; schedule utan lag; contacts-import type
 
 **Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (merge/deploy ej genomförd i denna leverans).

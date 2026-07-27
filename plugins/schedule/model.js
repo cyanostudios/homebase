@@ -66,6 +66,13 @@ function sanitizeTeamId(value) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+function sanitizeCountsTowardCapacity(value) {
+  if (value === false || value === 'false' || value === 0 || value === '0') {
+    return false;
+  }
+  return true;
+}
+
 class ScheduleModel {
   constructor() {
     this.schedulesTable = 'schedules';
@@ -242,7 +249,8 @@ class ScheduleModel {
               start_time,
               end_time,
               location,
-              team_id
+              team_id,
+              counts_toward_capacity
             )
             SELECT
               $2,
@@ -254,7 +262,8 @@ class ScheduleModel {
               start_time,
               end_time,
               location,
-              team_id
+              team_id,
+              counts_toward_capacity
             FROM ${this.eventsTable}
             WHERE schedule_id = $1
           `,
@@ -379,8 +388,9 @@ class ScheduleModel {
           end_time = $6,
           location = $7,
           team_id = $8,
+          counts_toward_capacity = $9,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $9 AND schedule_id = $10
+        WHERE id = $10 AND schedule_id = $11
         RETURNING *
       `;
       const rows = await db.query(sql, [
@@ -392,6 +402,7 @@ class ScheduleModel {
         payload.end_time,
         payload.location,
         payload.team_id,
+        payload.counts_toward_capacity,
         eventId,
         scheduleId,
       ]);
@@ -463,6 +474,7 @@ class ScheduleModel {
         end_time: sanitizeTime(data.end_time),
         location: sanitizeLocation(data.location),
         team_id: sanitizeTeamId(data.team_id),
+        counts_toward_capacity: sanitizeCountsTowardCapacity(data.counts_toward_capacity),
       };
     }
 
@@ -483,6 +495,7 @@ class ScheduleModel {
       end_time: sanitizeTime(data.end_time),
       location: sanitizeLocation(data.location),
       team_id: sanitizeTeamId(data.team_id),
+      counts_toward_capacity: sanitizeCountsTowardCapacity(data.counts_toward_capacity),
     };
   }
 
@@ -510,6 +523,7 @@ class ScheduleModel {
       end_time: row.end_time ?? '',
       location: row.location ?? '',
       team_id: row.team_id != null ? String(row.team_id) : null,
+      counts_toward_capacity: row.counts_toward_capacity === false ? false : true,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

@@ -86,7 +86,7 @@ Without these, local dev shows the reset link on screen instead of sending mail.
 | Migrations (tenant)    | Use tenant connection from prod sync; scripts below       | Railway / Neon console / same scripts on prod tenants         |
 | Tenant plugins 076–089 | `npm run migrate:teams` (etc.) on local tenants           | Same scripts with prod `DATABASE_URL` / tenant connections    |
 
-**Tenant migration scripts (jun–jul 2026):** `migrate:teams`, `migrate:teams-team-notes`, `migrate:teams-series-teams`, `migrate:teams-playing-format`, `migrate:requests`, `migrate:schedule`, `migrate:schedule-user-id`, `migrate:schedule-event-team-id`, `migrate:matches-team-external`, `migrate:matches-result`. See `server/migrations/README.md` §076–089 / §110.
+**Tenant migration scripts (jun–jul 2026):** `migrate:teams`, `migrate:teams-team-notes`, `migrate:teams-series-teams`, `migrate:teams-playing-format`, `migrate:requests`, `migrate:schedule`, `migrate:schedule-user-id`, `migrate:schedule-event-team-id`, `migrate:schedule-counts-toward-capacity`, `migrate:matches-team-external`, `migrate:matches-result`. See `server/migrations/README.md` §076–089 / §110–111.
 
 ### Plugin access (`--both`)
 

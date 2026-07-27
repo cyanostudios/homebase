@@ -40,6 +40,10 @@ export interface ContactContextType {
   removeTagFromDraft: (tag: string) => void;
   hasTagsChanges: boolean;
   onApplyTagsEdit: () => Promise<void>;
+  /** Add a tag to a contact (keeps existing tags). Used by bulk tag dialog. */
+  applyTagToContact: (contact: Contact, tag: string) => Promise<boolean>;
+  /** Remove all tags from a contact. Used by bulk clear tags. */
+  clearTagsFromContact: (contact: Contact) => Promise<boolean>;
   showDiscardTagsDialog: boolean;
   setShowDiscardTagsDialog: (show: boolean) => void;
   getCloseHandler: (defaultClose: () => void) => () => void;
@@ -123,6 +127,8 @@ const EMPTY_CONTACT_CONTEXT: ContactContextType = {
   removeTagFromDraft: () => {},
   hasTagsChanges: false,
   onApplyTagsEdit: async () => {},
+  applyTagToContact: async () => false,
+  clearTagsFromContact: async () => false,
   showDiscardTagsDialog: false,
   setShowDiscardTagsDialog: () => {},
   getCloseHandler: (fn) => fn,

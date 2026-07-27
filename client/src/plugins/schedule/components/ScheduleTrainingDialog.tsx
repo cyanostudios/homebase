@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import type { Team, TrainingTime } from '@/plugins/teams/types/teams';
 import { WEEK_DAYS } from '@/plugins/teams/types/teams';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
@@ -41,6 +42,7 @@ type FormState = {
   startTime: string;
   endTime: string;
   location: string;
+  countsTowardCapacity: boolean;
 };
 
 function buildDefaultForm(
@@ -49,13 +51,14 @@ function buildDefaultForm(
   preferredTeamId?: string,
   allowNoTeam = false,
 ): FormState {
-  if (state.mode === 'edit') {
+  if (state.mode === 'edit' || state.mode === 'copy') {
     return {
       teamId: state.slot.teamId ? String(state.slot.teamId) : SCHEDULE_NO_TEAM_VALUE,
       day: state.slot.day,
       startTime: state.slot.startTime,
       endTime: state.slot.endTime,
       location: state.slot.location ?? '',
+      countsTowardCapacity: state.slot.countsTowardCapacity !== false,
     };
   }
 
@@ -74,6 +77,7 @@ function buildDefaultForm(
     startTime: minutesToTime(state.startMinutes),
     endTime: minutesToTime(state.startMinutes + 60),
     location: '',
+    countsTowardCapacity: true,
   };
 }
 
@@ -114,7 +118,12 @@ export function ScheduleTrainingDialog({
   }, [allowNoTeam, preferredTeamId, state, teams]);
 
   const isEdit = state.mode === 'edit';
-  const title = isEdit ? t('schedule.editTraining') : t('schedule.createTraining');
+  const isCopy = state.mode === 'copy';
+  const title = isEdit
+    ? t('schedule.editTraining')
+    : isCopy
+      ? t('schedule.copyEvent')
+      : t('schedule.createTraining');
   const showTeamSelect = !isEdit || allowNoTeam;
 
   const isValid = useMemo(() => {
@@ -139,6 +148,7 @@ export function ScheduleTrainingDialog({
       startTime: form.startTime,
       endTime: form.endTime,
       location: form.location.trim(),
+      countsTowardCapacity: form.countsTowardCapacity,
     };
 
     const teamIdForSave = form.teamId === SCHEDULE_NO_TEAM_VALUE ? '' : form.teamId;
@@ -189,7 +199,9 @@ export function ScheduleTrainingDialog({
             <AlertDialogDescription className="pt-2">
               {isEdit
                 ? state.slot.teamName || t('schedule.noTeam')
-                : t('schedule.createTrainingDescription')}
+                : isCopy
+                  ? t('schedule.copyEventDescription')
+                  : t('schedule.createTrainingDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -219,7 +231,9 @@ export function ScheduleTrainingDialog({
             ) : null}
 
             <div className="space-y-2">
-              <Label className="text-xs">{t('teams.form.dayLabel')}</Label>
+              <Label className="text-xs">
+                {isCopy ? t('schedule.copyEventDay') : t('teams.form.dayLabel')}
+              </Label>
               <Select
                 value={form.day}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, day: value }))}
@@ -272,6 +286,24 @@ export function ScheduleTrainingDialog({
                 className="h-9"
                 placeholder={t('teams.form.locationPlaceholder')}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="countsTowardCapacity"
+                  checked={form.countsTowardCapacity}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, countsTowardCapacity: checked }))
+                  }
+                />
+                <Label htmlFor="countsTowardCapacity" className="text-xs font-medium">
+                  {t('schedule.countTowardCapacity')}
+                </Label>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {t('schedule.countTowardCapacityHint')}
+              </p>
             </div>
 
             {error ? <p className="text-xs text-destructive">{error}</p> : null}

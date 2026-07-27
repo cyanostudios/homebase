@@ -86,6 +86,12 @@ npm run migrate:schedule-user-id
 npm run migrate:schedule-event-team-id
 ```
 
+- **`111-schedule-counts-toward-capacity.sql`** — `counts_toward_capacity` på schedule events (default `true`):
+
+```bash
+npm run migrate:schedule-counts-toward-capacity
+```
+
 ### Matches (087, 089)
 
 - **`087-matches-add-team-external.sql`** — `team_id`, `external_id` på `matches` (körs med 088):

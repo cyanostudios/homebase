@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   Settings,
+  Tag,
   X,
   XCircle,
 } from 'lucide-react';
@@ -52,6 +53,7 @@ import {
   type ContactSortOrder,
 } from '../utils/contactListSort';
 
+import { ContactBulkTagsDialog } from './ContactBulkTagsDialog';
 import { ContactListItem } from './ContactListItem';
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
 
@@ -83,6 +85,8 @@ export const ContactList: React.FC = () => {
     openContactSettings,
     closeContactSettingsView,
     deleteContacts,
+    applyTagToContact,
+    clearTagsFromContact,
     selectedContactIds,
     toggleContactSelected,
     mergeIntoContactSelection,
@@ -104,7 +108,9 @@ export const ContactList: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
+  const [showBulkTagsDialog, setShowBulkTagsDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   const [primarySort, setPrimarySort] = useState<SortField>('name');
   const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
@@ -127,6 +133,12 @@ export const ContactList: React.FC = () => {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
+        const tags = Array.isArray(settings?.tags)
+          ? settings.tags.filter(
+              (tag: unknown): tag is string => typeof tag === 'string' && tag.trim().length > 0,
+            )
+          : [];
+        setAvailableTags(tags);
       })
       .catch(() => {});
     return () => {
@@ -358,6 +370,11 @@ export const ContactList: React.FC = () => {
     [contacts, selectedContactIds],
   );
 
+  const selectedContacts = useMemo(
+    () => contacts.filter((contact) => selectedContactIds.includes(String(contact.id))),
+    [contacts, selectedContactIds],
+  );
+
   const stats = useMemo(() => {
     const hasTimeLogged = (c: Contact) => {
       const idStr = String(c.id);
@@ -487,6 +504,16 @@ export const ContactList: React.FC = () => {
           itemCount={selectedCount}
           itemLabel="contacts"
           isLoading={deleting}
+        />
+
+        <ContactBulkTagsDialog
+          isOpen={showBulkTagsDialog}
+          onClose={() => setShowBulkTagsDialog(false)}
+          selectedContacts={selectedContacts}
+          availableTags={availableTags}
+          applyTagToContact={applyTagToContact}
+          clearTagsFromContact={clearTagsFromContact}
+          onSuccess={clearContactSelection}
         />
 
         <div className="flex flex-col gap-3">
@@ -621,6 +648,15 @@ export const ContactList: React.FC = () => {
                   <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                     {t('bulk.selected', { count: selectedCount })}
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Tag}
+                    onClick={() => setShowBulkTagsDialog(true)}
+                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  >
+                    {t('contacts.bulkTagsAction')}
+                  </Button>
                   {canSendMessages ? (
                     <Button
                       variant="ghost"

@@ -126,12 +126,13 @@ For matches, slug field is typically `` `${home_team}-vs-${away_team}` `` (see `
 
 ### Examples in codebase
 
-| From                                      | To           | Implementation                                                                  |
-| ----------------------------------------- | ------------ | ------------------------------------------------------------------------------- |
-| `MatchTeamBadge`                          | Team         | `navigate('/teams/…')`                                                          |
-| `TeamMatchesSection` popup                | Match        | `openMatchForView` → cross-plugin navigate                                      |
-| `ScheduleList` slot click (team calendar) | Team         | Requires `teamId` → `navigate('/teams/…')`                                      |
-| `PlanView` slot click                     | Team or edit | With `teamId` → `/teams/…`; without (plan event) → open edit dialog if unlocked |
+| From                                      | To           | Implementation                                                                           |
+| ----------------------------------------- | ------------ | ---------------------------------------------------------------------------------------- |
+| `MatchTeamBadge`                          | Team         | `navigate('/teams/…')`                                                                   |
+| `TeamMatchesSection` popup                | Match        | `openMatchForView` → cross-plugin navigate                                               |
+| `ScheduleList` slot click (team calendar) | Team         | Requires `teamId` → `navigate('/teams/…')`                                               |
+| `PlanView` slot click                     | Team or edit | With `teamId` → `/teams/…`; without (plan event) → open edit dialog if unlocked          |
+| Schedule grid pencil / copy icons         | Schedule     | In-plugin only: edit or copy dialog (`mode: 'edit' \| 'copy'`); no cross-plugin navigate |
 
 Use `attemptNavigation()` from `useGlobalNavigationGuard` when unsaved changes may be open.
 
