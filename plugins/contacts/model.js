@@ -3,6 +3,7 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const { toNullableInt } = require('./toNullableInt');
 
 class ContactModel {
   constructor() {
@@ -64,8 +65,8 @@ class ContactModel {
         phone: contactData.phone || '',
         phone2: contactData.phone2 || '',
         website: contactData.website || '',
-        tax_rate: contactData.taxRate || '',
-        payment_terms: contactData.paymentTerms || '',
+        tax_rate: toNullableInt(contactData.taxRate),
+        payment_terms: toNullableInt(contactData.paymentTerms),
         currency: contactData.currency || '',
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
@@ -121,8 +122,8 @@ class ContactModel {
         phone: contactData.phone || '',
         phone2: contactData.phone2 || '',
         website: contactData.website || '',
-        tax_rate: contactData.taxRate || '',
-        payment_terms: contactData.paymentTerms || '',
+        tax_rate: toNullableInt(contactData.taxRate),
+        payment_terms: toNullableInt(contactData.paymentTerms),
         currency: contactData.currency || '',
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
