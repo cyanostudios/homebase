@@ -24,10 +24,12 @@ import {
 } from '@/components/ui/select';
 import type { Team, TrainingTime } from '@/plugins/teams/types/teams';
 import { WEEK_DAYS } from '@/plugins/teams/types/teams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import {
   GRID_SLOT_MINUTES,
   minutesToTime,
+  SCHEDULE_NO_TEAM_VALUE,
   timeToMinutes,
   type ScheduleSlot,
   type ScheduleTrainingDialogState,
@@ -45,10 +47,11 @@ function buildDefaultForm(
   state: Exclude<ScheduleTrainingDialogState, null>,
   teams: Team[],
   preferredTeamId?: string,
+  allowNoTeam = false,
 ): FormState {
   if (state.mode === 'edit') {
     return {
-      teamId: String(state.slot.teamId ?? ''),
+      teamId: state.slot.teamId ? String(state.slot.teamId) : SCHEDULE_NO_TEAM_VALUE,
       day: state.slot.day,
       startTime: state.slot.startTime,
       endTime: state.slot.endTime,
@@ -59,7 +62,11 @@ function buildDefaultForm(
   const defaultTeamId =
     preferredTeamId && teams.some((team) => String(team.id) === preferredTeamId)
       ? preferredTeamId
-      : String(teams[0]?.id ?? '');
+      : teams[0]
+        ? String(teams[0].id)
+        : allowNoTeam
+          ? SCHEDULE_NO_TEAM_VALUE
+          : '';
 
   return {
     teamId: defaultTeamId,
@@ -74,6 +81,7 @@ export function ScheduleTrainingDialog({
   state,
   teams,
   preferredTeamId,
+  allowNoTeam = false,
   isSaving,
   deleteConfirmText,
   onClose,
@@ -84,6 +92,7 @@ export function ScheduleTrainingDialog({
   state: Exclude<ScheduleTrainingDialogState, null>;
   teams: Team[];
   preferredTeamId?: string;
+  allowNoTeam?: boolean;
   isSaving: boolean;
   deleteConfirmText?: string;
   onClose: () => void;
@@ -93,29 +102,30 @@ export function ScheduleTrainingDialog({
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState<FormState>(() =>
-    buildDefaultForm(state, teams, preferredTeamId),
+    buildDefaultForm(state, teams, preferredTeamId, allowNoTeam),
   );
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
-    setForm(buildDefaultForm(state, teams, preferredTeamId));
+    setForm(buildDefaultForm(state, teams, preferredTeamId, allowNoTeam));
     setError(null);
     setShowDeleteConfirm(false);
-  }, [preferredTeamId, state, teams]);
+  }, [allowNoTeam, preferredTeamId, state, teams]);
 
   const isEdit = state.mode === 'edit';
   const title = isEdit ? t('schedule.editTraining') : t('schedule.createTraining');
+  const showTeamSelect = !isEdit || allowNoTeam;
 
   const isValid = useMemo(() => {
     if (!form.day || !form.startTime || !form.endTime) {
       return false;
     }
-    if (!isEdit && !form.teamId) {
+    if (!isEdit && !allowNoTeam && !form.teamId) {
       return false;
     }
     return timeToMinutes(form.endTime) > timeToMinutes(form.startTime);
-  }, [form, isEdit]);
+  }, [allowNoTeam, form, isEdit]);
 
   const handleSave = async () => {
     if (!isValid) {
@@ -131,10 +141,18 @@ export function ScheduleTrainingDialog({
       location: form.location.trim(),
     };
 
+    const teamIdForSave = form.teamId === SCHEDULE_NO_TEAM_VALUE ? '' : form.teamId;
+
     const ok =
       state.mode === 'edit'
-        ? await onUpdate(state.slot, training)
-        : await onCreate(form.teamId, training);
+        ? await onUpdate(
+            {
+              ...state.slot,
+              teamId: teamIdForSave || undefined,
+            },
+            training,
+          )
+        : await onCreate(teamIdForSave, training);
 
     if (ok) {
       onClose();
@@ -169,25 +187,30 @@ export function ScheduleTrainingDialog({
               <AlertDialogTitle>{title}</AlertDialogTitle>
             </div>
             <AlertDialogDescription className="pt-2">
-              {isEdit ? state.slot.teamName : t('schedule.createTrainingDescription')}
+              {isEdit
+                ? state.slot.teamName || t('schedule.noTeam')
+                : t('schedule.createTrainingDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <div className="space-y-4">
-            {!isEdit ? (
+            {showTeamSelect ? (
               <div className="space-y-2">
                 <Label className="text-xs">{t('schedule.selectTeam')}</Label>
                 <Select
-                  value={form.teamId}
+                  value={form.teamId || SCHEDULE_NO_TEAM_VALUE}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, teamId: value }))}
                 >
                   <SelectTrigger className="h-9 w-full text-sm">
                     <SelectValue placeholder={t('schedule.selectTeam')} />
                   </SelectTrigger>
                   <SelectContent>
+                    {allowNoTeam ? (
+                      <SelectItem value={SCHEDULE_NO_TEAM_VALUE}>{t('schedule.noTeam')}</SelectItem>
+                    ) : null}
                     {teams.map((team) => (
                       <SelectItem key={team.id} value={String(team.id)}>
-                        {team.name}
+                        {formatTeamLabel(team)}
                       </SelectItem>
                     ))}
                   </SelectContent>

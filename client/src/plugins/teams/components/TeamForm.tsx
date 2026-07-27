@@ -46,6 +46,7 @@ import {
   RESPONSIBLE_ROLE_BADGES,
   TEAM_COLOR_GRADIENTS,
   TEAM_GENDERS,
+  TEAM_PLAYING_FORMATS,
   TEAM_STATUSES,
   WEEK_DAYS,
 } from '../types/teams';
@@ -86,6 +87,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
     name: '',
     age_group: '',
     gender: '' as Team['gender'] | '',
+    playing_format: '' as Team['playing_format'] | '',
     player_count: '',
     status: 'active' as Team['status'],
     color: 'green' as Team['color'],
@@ -135,6 +137,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
       name: item?.name || '',
       age_group: item?.age_group || '',
       gender: item?.gender || '',
+      playing_format: item?.playing_format || '',
       player_count: item?.player_count != null ? String(item.player_count) : '',
       status: item?.status || 'active',
       color: item?.color || 'green',
@@ -326,6 +329,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
       name: form.name.trim(),
       age_group: form.age_group.trim() || null,
       gender: form.gender || undefined,
+      playing_format: form.playing_format || null,
       player_count: form.player_count.trim() ? Number(form.player_count) : 0,
       series_teams: seriesTeams.filter(isSeriesTeamEntryFilled).map((st) => ({
         name: st.name.trim(),
@@ -390,6 +394,32 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                       {TEAM_GENDERS.map((gender) => (
                         <SelectItem key={gender} value={gender}>
                           {t(`teams.gender.${gender}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>{t('teams.form.playingFormatLabel')}</Label>
+                  <Select
+                    value={form.playing_format || EXTERNAL_TEAM_NONE_VALUE}
+                    onValueChange={(value) =>
+                      onFieldChange(
+                        'playing_format',
+                        value === EXTERNAL_TEAM_NONE_VALUE ? '' : (value as Team['playing_format']),
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-10 w-full text-sm">
+                      <SelectValue placeholder={t('teams.form.playingFormatPlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={EXTERNAL_TEAM_NONE_VALUE}>
+                        {t('teams.form.playingFormatNone')}
+                      </SelectItem>
+                      {TEAM_PLAYING_FORMATS.map((format) => (
+                        <SelectItem key={format} value={format}>
+                          {format}
                         </SelectItem>
                       ))}
                     </SelectContent>

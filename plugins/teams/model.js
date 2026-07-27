@@ -6,6 +6,7 @@ const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHe
 
 const TEAM_STATUSES = ['active', 'dormant', 'break'];
 const TEAM_GENDERS = ['boys', 'girls', 'mixed'];
+const TEAM_PLAYING_FORMATS = ['3v3', '5v5', '7v7', '9v9', '11v11'];
 const TEAM_COLORS = ['green', 'blue', 'red', 'purple', 'orange', 'teal', 'white'];
 
 /** Undo express-validator .escape() layers saved before plainString migration. */
@@ -157,6 +158,7 @@ class TeamModel {
       name: 'Name',
       age_group: 'Age group',
       gender: 'Gender',
+      playing_format: 'Playing format',
       player_count: 'Players',
       series_teams: 'Series teams',
       series_team_count: 'Series teams',
@@ -186,6 +188,13 @@ class TeamModel {
       const next = TEAM_GENDERS.includes(teamData.gender) ? teamData.gender : null;
       const prev = existing.gender ?? null;
       if (next !== prev) changed.push(labels.gender);
+    }
+    if ('playing_format' in teamData) {
+      const next = TEAM_PLAYING_FORMATS.includes(teamData.playing_format)
+        ? teamData.playing_format
+        : null;
+      const prev = existing.playing_format ?? null;
+      if (next !== prev) changed.push(labels.playing_format);
     }
     if ('player_count' in teamData) {
       const next = toIntOrDefault(teamData.player_count, 0);
@@ -296,6 +305,7 @@ class TeamModel {
         name,
         age_group,
         gender,
+        playing_format,
         player_count,
         series_team_count,
         series_teams,
@@ -324,6 +334,7 @@ class TeamModel {
         name: trimmedName.slice(0, 255),
         age_group: decodeHtmlEntities((age_group || '').trim()) || null,
         gender: TEAM_GENDERS.includes(gender) ? gender : null,
+        playing_format: TEAM_PLAYING_FORMATS.includes(playing_format) ? playing_format : null,
         player_count: toIntOrDefault(player_count, 0),
         series_teams: JSON.stringify(sanitizedSeriesTeams),
         series_team_count:
@@ -367,6 +378,7 @@ class TeamModel {
         name,
         age_group,
         gender,
+        playing_format,
         player_count,
         series_team_count,
         series_teams,
@@ -410,6 +422,12 @@ class TeamModel {
               ? gender
               : null
             : (current.gender ?? null),
+        playing_format:
+          playing_format !== undefined
+            ? TEAM_PLAYING_FORMATS.includes(playing_format)
+              ? playing_format
+              : null
+            : (current.playing_format ?? null),
         player_count:
           player_count !== undefined
             ? toIntOrDefault(player_count, 0)
@@ -506,6 +524,7 @@ class TeamModel {
       name: decodeHtmlEntities(row.name),
       age_group: row.age_group != null ? decodeHtmlEntities(row.age_group) : null,
       gender: row.gender ?? null,
+      playing_format: TEAM_PLAYING_FORMATS.includes(row.playing_format) ? row.playing_format : null,
       player_count: row.player_count != null ? Number(row.player_count) : 0,
       series_team_count: row.series_team_count != null ? Number(row.series_team_count) : 0,
       series_teams: sanitizeSeriesTeams(row.series_teams),

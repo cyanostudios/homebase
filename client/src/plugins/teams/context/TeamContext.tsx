@@ -9,7 +9,7 @@ export type TeamsContextType = {
   panelMode: 'create' | 'edit' | 'view';
   validationErrors: TeamValidationError[];
   teams: Team[];
-  teamsContentView: 'list' | 'settings' | 'statistics';
+  teamsContentView: 'list' | 'settings' | 'statistics' | 'bulk';
   isSaving: boolean;
   refreshTeams: () => Promise<void>;
 
@@ -20,6 +20,8 @@ export type TeamsContextType = {
   closeTeamSettingsView: () => void;
   openTeamStatistics: () => void;
   closeTeamStatisticsView: () => void;
+  openTeamBulkCreate: () => void;
+  closeTeamBulkCreate: () => void;
   closeTeamPanel: () => void;
   saveTeam: (data: TeamPayload, teamId?: string) => Promise<boolean>;
   saveTeamTrainingTimes: (teamId: string, trainingTimes: TrainingTime[]) => Promise<boolean>;
@@ -83,6 +85,8 @@ const EMPTY_TEAMS_CONTEXT: TeamsContextType = {
   closeTeamSettingsView: () => {},
   openTeamStatistics: () => {},
   closeTeamStatisticsView: () => {},
+  openTeamBulkCreate: () => {},
+  closeTeamBulkCreate: () => {},
   closeTeamPanel: () => {},
   saveTeam: async () => false,
   saveTeamTrainingTimes: async () => false,

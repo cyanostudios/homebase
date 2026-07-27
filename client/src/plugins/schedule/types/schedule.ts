@@ -1,4 +1,5 @@
 import type { Team, TeamColor, TrainingTime } from '@/plugins/teams/types/teams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 export interface ScheduleSlot {
   day: string;
@@ -44,6 +45,9 @@ export interface SchedulePlanWithEvents extends SchedulePlan {
   events: PlanEvent[];
 }
 
+/** Sentinel for schedule events without a team (Select value + payload). */
+export const SCHEDULE_NO_TEAM_VALUE = '__none__';
+
 export function planEventToSlot(event: PlanEvent, teams: Team[]): ScheduleSlot {
   const team = event.team_id
     ? teams.find((item) => String(item.id) === String(event.team_id))
@@ -55,7 +59,7 @@ export function planEventToSlot(event: PlanEvent, teams: Team[]): ScheduleSlot {
     endTime: event.end_time,
     location: event.location ?? '',
     teamId: event.team_id ?? undefined,
-    teamName: team?.name ?? event.title,
+    teamName: team ? formatTeamLabel(team) : undefined,
     teamColor: team?.color,
     title: event.title,
     eventId: event.id,
@@ -93,7 +97,7 @@ export function buildTeamSlots(teams: Team[], teamFilter: string): ScheduleSlot[
         endTime: training.endTime,
         location: training.location,
         teamId: team.id,
-        teamName: team.name,
+        teamName: formatTeamLabel(team),
         teamColor: team.color,
         trainingIndex,
       })),
@@ -296,16 +300,20 @@ export function buildScheduleEventPayload(
   teamId: string,
   training: TrainingTime,
   teams: Pick<Team, 'id' | 'name'>[],
+  noTeamTitle = 'No team',
 ) {
-  const team = teams.find((item) => String(item.id) === teamId);
+  const resolvedTeamId = !teamId || teamId === SCHEDULE_NO_TEAM_VALUE ? '' : teamId;
+  const team = resolvedTeamId
+    ? teams.find((item) => String(item.id) === resolvedTeamId)
+    : undefined;
   return {
-    title: team?.name ?? 'Training',
+    title: team?.name ?? noTeamTitle,
     event_type: 'recurring' as const,
     day: training.day,
     start_time: training.startTime,
     end_time: training.endTime,
     location: training.location,
-    team_id: teamId ? Number(teamId) : null,
+    team_id: resolvedTeamId ? Number(resolvedTeamId) : null,
   };
 }
 

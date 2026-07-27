@@ -374,6 +374,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
         name: team.name,
         age_group: team.age_group,
         gender: team.gender ?? undefined,
+        playing_format: team.playing_format,
         player_count: team.player_count,
         series_team_count: team.series_team_count,
         series_teams: team.series_teams ?? [],
@@ -590,6 +591,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
+                      {t('teams.form.playingFormatLabel')}
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {team.playing_format || '—'}
+                    </span>
+                  </div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
                     <span className="font-semibold text-foreground">
@@ -622,17 +631,21 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
+                <h2 className="truncate text-2xl font-bold tracking-tight">{team.name}</h2>
                 <p
                   className={cn(
-                    'text-sm font-semibold',
+                    'mt-0.5 text-sm font-semibold',
                     isLightTeamColor(team.color) ? 'text-muted-foreground' : 'text-white/70',
                   )}
                 >
-                  {[team.age_group, team.gender ? t(`teams.gender.${team.gender}`) : null]
+                  {[
+                    team.age_group,
+                    team.gender ? t(`teams.gender.${team.gender}`) : null,
+                    team.playing_format,
+                  ]
                     .filter(Boolean)
-                    .join(' · ')}
+                    .join(' · ') || '—'}
                 </p>
-                <h2 className="mt-0.5 truncate text-2xl font-bold tracking-tight">{team.name}</h2>
               </div>
               <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center justify-end gap-1.5">
                 {headerSeriesTeams.map((seriesTeam, index) => (

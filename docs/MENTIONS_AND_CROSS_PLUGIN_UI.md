@@ -126,11 +126,12 @@ For matches, slug field is typically `` `${home_team}-vs-${away_team}` `` (see `
 
 ### Examples in codebase
 
-| From                       | To    | Implementation                             |
-| -------------------------- | ----- | ------------------------------------------ |
-| `MatchTeamBadge`           | Team  | `navigate('/teams/…')`                     |
-| `TeamMatchesSection` popup | Match | `openMatchForView` → cross-plugin navigate |
-| `ScheduleList` slot click  | Team  | `navigate('/teams/…')`                     |
+| From                                      | To           | Implementation                                                                  |
+| ----------------------------------------- | ------------ | ------------------------------------------------------------------------------- |
+| `MatchTeamBadge`                          | Team         | `navigate('/teams/…')`                                                          |
+| `TeamMatchesSection` popup                | Match        | `openMatchForView` → cross-plugin navigate                                      |
+| `ScheduleList` slot click (team calendar) | Team         | Requires `teamId` → `navigate('/teams/…')`                                      |
+| `PlanView` slot click                     | Team or edit | With `teamId` → `/teams/…`; without (plan event) → open edit dialog if unlocked |
 
 Use `attemptNavigation()` from `useGlobalNavigationGuard` when unsaved changes may be open.
 

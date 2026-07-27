@@ -21,6 +21,7 @@ module.exports = {
     '<rootDir>/client/src/plugins/ingest',
     '<rootDir>/client/src/plugins/estimates',
     '<rootDir>/client/src/plugins/matches',
+    '<rootDir>/client/src/plugins/schedule',
     '<rootDir>/client/src/plugins/files',
     '<rootDir>/client/src/plugins/cups',
   ],

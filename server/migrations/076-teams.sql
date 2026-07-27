@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS teams (
   name VARCHAR(255) NOT NULL,
   age_group VARCHAR(50),
   gender VARCHAR(20),
+  playing_format VARCHAR(10),
   player_count INT DEFAULT 0,
   series_team_count INT DEFAULT 0,
   series_teams JSONB DEFAULT '[]',

@@ -3,6 +3,7 @@ import {
   ArrowUp,
   BarChart2,
   LayoutGrid,
+  ListPlus,
   Plus,
   Search,
   Settings,
@@ -48,6 +49,7 @@ import {
 } from '../utils/teamListSort';
 
 import { TeamCard } from './TeamCard';
+import { TeamsBulkCreateView } from './TeamsBulkCreateView';
 import { TeamsSettingsView } from './TeamsSettingsView';
 import { TeamsStatisticsView } from './TeamsStatisticsView';
 
@@ -78,6 +80,8 @@ export function TeamList() {
     closeTeamSettingsView,
     openTeamStatistics,
     closeTeamStatisticsView,
+    openTeamBulkCreate,
+    closeTeamBulkCreate,
     openTeamForView,
     selectedTeamIds,
     mergeIntoTeamSelection,
@@ -306,6 +310,29 @@ export function TeamList() {
     );
   }
 
+  if (teamsContentView === 'bulk') {
+    return (
+      <div className="plugin-teams min-h-full bg-background">
+        <div className="px-6 py-4">
+          <TeamsBulkCreateView
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeTeamBulkCreate}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="plugin-teams min-h-full bg-background px-6 py-4">
       <div className="space-y-3">
@@ -336,6 +363,16 @@ export function TeamList() {
               title={t('common.statistics')}
             >
               {t('common.statistics')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={ListPlus}
+              className="h-9 px-2.5 text-xs"
+              onClick={openTeamBulkCreate}
+              title={t('teams.bulkCreate')}
+            >
+              {t('teams.bulkCreate')}
             </Button>
             <Button
               variant="primary"

@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
 import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
+import { normalizeContactType } from '../utils/normalizeContactType';
 
 import { ContactContext } from './ContactContext';
 import type { ContactContextType } from './ContactContext';
@@ -772,7 +773,7 @@ export function ContactProvider({
         try {
           const payload = {
             companyName: row.companyName ?? row.name ?? '',
-            contactType: row.contactType ?? row.type ?? 'company',
+            contactType: normalizeContactType(row.contactType ?? row.type),
             email: row.email ?? '',
             phone: row.phone ?? '',
             notes: row.notes ?? '',

@@ -43,6 +43,12 @@ npm run migrate:teams-team-notes
 npm run migrate:teams-series-teams
 ```
 
+- **`110-teams-add-playing-format.sql`** — `playing_format` (3v3–11v11):
+
+```bash
+npm run migrate:teams-playing-format
+```
+
 - **`088-teams-add-external-id.sql`** — `external_team_id` (FOGIS-koppling). Körs tillsammans med 087:
 
 ```bash

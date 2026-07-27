@@ -47,8 +47,9 @@ function groupSlotsByTime(daySlots: ScheduleSlot[]): ScheduleSlot[][] {
 }
 
 function ScheduleSlotBlock({ slot }: { slot: ScheduleSlot }) {
+  const { t } = useTranslation();
   const timeLabel = slot.endTime ? `${slot.startTime}–${slot.endTime}` : slot.startTime;
-  const label = slot.teamName || slot.title;
+  const label = slot.teamId ? slot.teamName || slot.title : t('schedule.noTeam');
 
   return (
     <div className="flex min-w-[7rem] max-w-[10rem] flex-col items-start gap-0.5 text-left">
@@ -103,7 +104,7 @@ export function ScheduleWeekView({
                   return (
                     <div key={`${day}-${timeKey}`} className="flex flex-wrap items-stretch gap-1.5">
                       {group.map((slot, index) => {
-                        const isClickable = Boolean(slot.teamId && onSlotClick);
+                        const isClickable = Boolean((slot.teamId || slot.eventId) && onSlotClick);
                         const slotClassName = getSlotClassName(slot, isClickable);
                         const slotKey = `${day}-${timeKey}-${slot.teamName || slot.title || ''}-${index}`;
 

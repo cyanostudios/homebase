@@ -86,6 +86,10 @@ export function PlanView({
   const handleSlotClick = useCallback(
     (slot: ScheduleSlot) => {
       if (!slot.teamId) {
+        if (!isLocked) {
+          setDialogState({ mode: 'edit', slot });
+          setSaveError(null);
+        }
         return;
       }
       const team = teams.find((item) => String(item.id) === String(slot.teamId));
@@ -94,7 +98,7 @@ export function PlanView({
       }
       navigate(`/teams/${buildSlug(team, teams, 'name')}`);
     },
-    [navigate, teams],
+    [isLocked, navigate, teams],
   );
 
   const updateLocalEvent = useCallback((event: PlanEvent) => {
@@ -146,6 +150,7 @@ export function PlanView({
           location: slot.location,
         },
         teams,
+        t('schedule.noTeam'),
       );
 
       try {
@@ -188,7 +193,7 @@ export function PlanView({
       try {
         const created = await scheduleApi.createEvent(
           scheduleId,
-          buildScheduleEventPayload(teamId, training, teams),
+          buildScheduleEventPayload(teamId, training, teams, t('schedule.noTeam')),
         );
         updateLocalEvent(created);
         addPlanEventCount(scheduleId, 1);
@@ -213,7 +218,7 @@ export function PlanView({
         const updated = await scheduleApi.updateEvent(
           scheduleId,
           slot.eventId,
-          buildScheduleEventPayload(teamId, training, teams),
+          buildScheduleEventPayload(teamId, training, teams, t('schedule.noTeam')),
         );
         updateLocalEvent(updated);
         return true;
@@ -293,6 +298,7 @@ export function PlanView({
           state={dialogState}
           teams={teams}
           preferredTeamId={preferredTeamId}
+          allowNoTeam
           isSaving={Boolean(savingSlotId)}
           deleteConfirmText={t('schedule.deleteEventConfirm')}
           onClose={() => setDialogState(null)}

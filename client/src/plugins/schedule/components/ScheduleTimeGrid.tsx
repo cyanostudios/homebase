@@ -71,8 +71,9 @@ function getColumnStyle(colIndex: number, colCount: number): React.CSSProperties
 }
 
 function ScheduleSlotContent({ slot, compact = false }: { slot: ScheduleSlot; compact?: boolean }) {
+  const { t } = useTranslation();
   const timeLabel = slot.endTime ? `${slot.startTime}–${slot.endTime}` : slot.startTime;
-  const label = slot.teamName || slot.title;
+  const label = slot.teamId ? slot.teamName || slot.title : t('schedule.noTeam');
 
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
@@ -186,7 +187,7 @@ function DraggableSlot({
     disabled: readOnly,
   });
 
-  const isClickable = Boolean(slot.teamId && onSlotClick);
+  const isClickable = Boolean((slot.teamId || slot.eventId) && onSlotClick);
   const isSaving = savingSlotId === getSlotDragId(slot);
   const highlight = getSlotHighlight?.(slot) ?? null;
   const style: React.CSSProperties = {
@@ -253,7 +254,7 @@ function DraggableSlot({
       }}
       role="button"
       tabIndex={0}
-      aria-label={`${slot.teamName || slot.title}, ${slot.startTime}–${slot.endTime}`}
+      aria-label={`${slot.teamId ? slot.teamName || slot.title : t('schedule.noTeam')}, ${slot.startTime}–${slot.endTime}`}
     >
       {onEditSlot ? (
         <button

@@ -38,9 +38,9 @@ export function TeamProvider({
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<TeamValidationError>();
   const [teams, setTeams] = useState<Team[]>([]);
-  const [teamsContentView, setTeamsContentView] = useState<'list' | 'settings' | 'statistics'>(
-    'list',
-  );
+  const [teamsContentView, setTeamsContentView] = useState<
+    'list' | 'settings' | 'statistics' | 'bulk'
+  >('list');
   const [isSaving, setIsSaving] = useState(false);
   const [recentlyDuplicatedTeamId, setRecentlyDuplicatedTeamId] = useState<string | null>(null);
 
@@ -162,6 +162,7 @@ export function TeamProvider({
       name: team.name,
       age_group: team.age_group,
       gender: team.gender,
+      playing_format: team.playing_format,
       player_count: team.player_count,
       series_team_count: team.series_team_count,
       series_teams: team.series_teams,
@@ -290,6 +291,7 @@ export function TeamProvider({
       name: (newName ?? '').trim() || item.name?.trim() || 'Untitled',
       age_group: item.age_group,
       gender: item.gender,
+      playing_format: item.playing_format,
       player_count: item.player_count,
       series_team_count: item.series_team_count,
       series_teams: item.series_teams,
@@ -331,6 +333,16 @@ export function TeamProvider({
   }, [clearTeamSelection, onCloseOtherPanels]);
 
   const closeTeamStatisticsView = useCallback(() => {
+    setTeamsContentView('list');
+  }, []);
+
+  const openTeamBulkCreate = useCallback(() => {
+    clearTeamSelection();
+    setTeamsContentView('bulk');
+    onCloseOtherPanels();
+  }, [clearTeamSelection, onCloseOtherPanels]);
+
+  const closeTeamBulkCreate = useCallback(() => {
     setTeamsContentView('list');
   }, []);
 
@@ -386,6 +398,8 @@ export function TeamProvider({
       closeTeamSettingsView,
       openTeamStatistics,
       closeTeamStatisticsView,
+      openTeamBulkCreate,
+      closeTeamBulkCreate,
       closeTeamPanel,
       saveTeam,
       saveTeamTrainingTimes: persistTrainingTimes,
@@ -429,6 +443,8 @@ export function TeamProvider({
       closeTeamSettingsView,
       openTeamStatistics,
       closeTeamStatisticsView,
+      openTeamBulkCreate,
+      closeTeamBulkCreate,
       closeTeamPanel,
       saveTeam,
       persistTrainingTimes,

@@ -20,14 +20,14 @@ Choose plugin `name` values that work with these rules.
 
 Plugins with full-page settings or extra views use a separate `*ContentView` state (not `panelMode`):
 
-| Plugin     | `contentViewKey`      | Values                                 |
-| ---------- | --------------------- | -------------------------------------- |
-| `teams`    | `teamsContentView`    | `'list' \| 'settings' \| 'statistics'` |
-| `requests` | `requestsContentView` | `'list' \| 'settings'`                 |
-| `schedule` | `scheduleContentView` | `'list' \| 'settings'`                 |
-| `matches`  | `matchesContentView`  | `'list' \| 'settings'`                 |
+| Plugin     | `contentViewKey`      | Values                                           |
+| ---------- | --------------------- | ------------------------------------------------ |
+| `teams`    | `teamsContentView`    | `'list' \| 'settings' \| 'statistics' \| 'bulk'` |
+| `requests` | `requestsContentView` | `'list' \| 'settings'`                           |
+| `schedule` | `scheduleContentView` | `'list' \| 'settings'`                           |
+| `matches`  | `matchesContentView`  | `'list' \| 'settings'`                           |
 
-Settings UI lives in `*SettingsView` components on the list route — **not** in the detail panel form.
+Settings UI lives in `*SettingsView` components on the list route — **not** in the detail panel form. Teams **bulk create** uses the same content-view pattern (`TeamsBulkCreateView` when `teamsContentView === 'bulk'`).
 
 ---
 

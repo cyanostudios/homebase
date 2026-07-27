@@ -7,6 +7,7 @@ const { commonRules, validateRequest } = require('../../server/core/middleware/v
 
 const TEAM_STATUSES = ['active', 'dormant', 'break'];
 const TEAM_GENDERS = ['boys', 'girls', 'mixed'];
+const TEAM_PLAYING_FORMATS = ['3v3', '5v5', '7v7', '9v9', '11v11'];
 const TEAM_COLORS = ['green', 'blue', 'red', 'purple', 'orange', 'teal', 'white'];
 
 function createTeamRoutes(controller, context) {
@@ -29,6 +30,7 @@ function createTeamRoutes(controller, context) {
     commonRules.plainString('name', 1, 255),
     commonRules.htmlContent('age_group', 50),
     commonRules.optionalEnum('gender', TEAM_GENDERS),
+    commonRules.optionalEnum('playing_format', TEAM_PLAYING_FORMATS),
     commonRules.optionalInteger('player_count', 0, 9999),
     commonRules.optionalInteger('series_team_count', 0, 999),
     commonRules.optionalEnum('status', TEAM_STATUSES),
@@ -47,6 +49,7 @@ function createTeamRoutes(controller, context) {
     commonRules.plainString('name', 1, 255),
     commonRules.htmlContent('age_group', 50),
     commonRules.optionalEnum('gender', TEAM_GENDERS),
+    commonRules.optionalEnum('playing_format', TEAM_PLAYING_FORMATS),
     commonRules.optionalInteger('player_count', 0, 9999),
     commonRules.optionalInteger('series_team_count', 0, 999),
     commonRules.optionalEnum('status', TEAM_STATUSES),

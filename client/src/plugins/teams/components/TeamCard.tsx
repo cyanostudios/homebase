@@ -54,6 +54,8 @@ export function TeamCard({
   const nextTraining = getNextTraining(team);
   const genderLabel = team.gender ? t(`teams.gender.${team.gender}`) : null;
   const onSeasonBreak = isTeamOnBreak(team);
+  const metaLine =
+    [team.age_group, genderLabel, team.playing_format].filter(Boolean).join(' · ') || '—';
 
   return (
     <Card
@@ -87,9 +89,7 @@ export function TeamCard({
             </div>
             <div className="min-w-0">
               <h3 className="truncate text-sm font-semibold leading-snug">{team.name}</h3>
-              <p className="truncate text-xs text-muted-foreground">
-                {[team.age_group, genderLabel].filter(Boolean).join(' · ') || '—'}
-              </p>
+              <p className="truncate text-xs text-muted-foreground">{metaLine}</p>
             </div>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1.5">

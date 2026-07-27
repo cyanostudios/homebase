@@ -4,6 +4,26 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-27 – Teams spelform + bulk create; schedule utan lag; contacts-import type
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (merge/deploy ej genomförd i denna leverans).
+
+**Sammanfattning (verifierat mot kod):**
+
+- **Teams – spelform (`playing_format`):** valfria värden `3v3` \| `5v5` \| `7v7` \| `9v9` \| `11v11`. Kolumn via `110-teams-add-playing-format.sql` + `npm run migrate:teams-playing-format`; även noterad i `076-teams.sql` för nya tenant-scheman. API: `optionalEnum` + model-allowlist (`plugins/teams/routes.js`, `model.js`). UI i form, detalj, kort, bulk create.
+- **Teams – Lägg till flera:** `teamsContentView === 'bulk'` (`TeamsBulkCreateView`); skapar via upprepade `POST /api/teams` (tomma namnrader ignoreras; delvis fel behåller felrader).
+- **Schedule – Inget lag:** planvy kan skapa/redigera events utan `team_id` (`SCHEDULE_NO_TEAM_VALUE` → `team_id: null`). Lagväljare/filter/luckor visar `formatTeamLabel` = namn · åldersgrupp (t.ex. `Flickor 2017 · F9`).
+- **Contacts – import type:** `normalizeContactType` + model-coerce till `company` \| `private` (undviker `contacts_contact_type_check`). Tom/okänd type → `company`.
+
+**Migration / parity:** `server/migrations/README.md` (§110); `docs/LOCAL_PROD_PARITY.md` (scriptlista).
+
+**Begränsningar / avvägningar (Security):**
+
+- Okänd contact `contactType` coerce:as tyst till `company` (integritet, inte authz).
+- Tenant-migrationscript använder `SET search_path TO ${schemaName}` (befintligt ops-mönster; teoretisk SQLi om schema-namn i DB komprometteras) — utanför runtime-attackyta.
+
+---
+
 ## 2026-07-26 – Cupappen path-URL:er för listing + SEO-sync
 
 **Status:** Implementerat lokalt.

@@ -28,6 +28,7 @@ import { buildSlug } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import type { TrainingTime } from '@/plugins/teams/types/teams';
 
@@ -420,7 +421,7 @@ export function ScheduleList() {
                 )}
               >
                 <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="truncate">{team.name}</span>
+                <span className="truncate">{formatTeamLabel(team)}</span>
               </Button>
             );
           })}

@@ -31,6 +31,7 @@ function rowToTeam(row: Record<string, unknown>): Team {
     name: (row.name as string) ?? '',
     age_group: (row.age_group as string) ?? null,
     gender: (row.gender as Team['gender']) ?? null,
+    playing_format: (row.playing_format as Team['playing_format']) ?? null,
     player_count: row.player_count != null ? Number(row.player_count) : 0,
     series_team_count: row.series_team_count != null ? Number(row.series_team_count) : 0,
     series_teams: parseJsonArray<SeriesTeam>(row.series_teams),
@@ -54,6 +55,7 @@ export interface TeamPayload {
   name: string;
   age_group?: string | null;
   gender?: Team['gender'];
+  playing_format?: Team['playing_format'] | null;
   player_count?: number | null;
   series_team_count?: number | null;
   series_teams?: SeriesTeam[];

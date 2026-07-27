@@ -42,10 +42,17 @@ class ContactModel {
 
       const contactNumber = await this.getNextContactNumber(req);
 
+      const contactType =
+        String(contactData.contactType || '')
+          .trim()
+          .toLowerCase() === 'private'
+          ? 'private'
+          : 'company';
+
       // Use db.insert for automatic tenant isolation
       const result = await db.insert('contacts', {
         contact_number: contactNumber,
-        contact_type: contactData.contactType || '',
+        contact_type: contactType,
         company_name: contactData.companyName || '',
         company_type: contactData.companyType || '',
         organization_number: contactData.organizationNumber || '',
@@ -92,10 +99,17 @@ class ContactModel {
         throw new AppError('Contact not found', 404, AppError.CODES.NOT_FOUND);
       }
 
+      const contactType =
+        String(contactData.contactType || '')
+          .trim()
+          .toLowerCase() === 'private'
+          ? 'private'
+          : 'company';
+
       // Use db.update for automatic tenant isolation
       const updatePayload = {
         contact_number: contactData.contactNumber,
-        contact_type: contactData.contactType || '',
+        contact_type: contactType,
         company_name: contactData.companyName || '',
         company_type: contactData.companyType || '',
         organization_number: contactData.organizationNumber || '',

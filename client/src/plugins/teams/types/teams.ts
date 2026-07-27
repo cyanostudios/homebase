@@ -1,5 +1,6 @@
 export type TeamStatus = 'active' | 'dormant' | 'break';
 export type TeamGender = 'boys' | 'girls' | 'mixed';
+export type TeamPlayingFormat = '3v3' | '5v5' | '7v7' | '9v9' | '11v11';
 export type TeamColor = 'green' | 'blue' | 'red' | 'purple' | 'orange' | 'teal' | 'white';
 export type ResponsibleRole = 'coach' | 'team_leader' | 'parent_contact' | 'board_member' | 'other';
 
@@ -189,6 +190,7 @@ export interface Team {
   name: string;
   age_group: string | null;
   gender: TeamGender | null;
+  playing_format: TeamPlayingFormat | null;
   player_count: number;
   series_team_count: number;
   series_teams: SeriesTeam[];
@@ -229,6 +231,7 @@ export interface ExternalTeamOptionsResponse {
 
 export const TEAM_STATUSES: TeamStatus[] = ['active', 'dormant', 'break'];
 export const TEAM_GENDERS: TeamGender[] = ['boys', 'girls', 'mixed'];
+export const TEAM_PLAYING_FORMATS: TeamPlayingFormat[] = ['3v3', '5v5', '7v7', '9v9', '11v11'];
 export const TEAM_COLORS: TeamColor[] = [
   'green',
   'blue',
