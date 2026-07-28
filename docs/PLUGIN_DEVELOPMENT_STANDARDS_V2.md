@@ -832,7 +832,7 @@ Following these standards enables:
 - `CORE_SERVICES_ARCHITECTURE.md` - Service details
 - `SECURITY_GUIDELINES.md` - Security requirements
 - `LESSONS_LEARNED.md` - Common mistakes and anti-patterns
-- `MENTIONS_AND_CROSS_PLUGIN_UI.md` - Mention system & cross-plugin navigation
+- `MENTIONS_AND_CROSS_PLUGIN_UI.md` - Mentions, **entity quick-info popup** (required before opening linked entities), and cross-plugin URL navigation
 
 ```
 

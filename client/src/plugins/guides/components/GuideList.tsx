@@ -474,6 +474,7 @@ export const GuideList: React.FC = () => {
                     key={guide.id}
                     guide={guide}
                     selected={guideIsSelected}
+                    columnCount={columnCount}
                     onClick={() => handleOpenForView(guide)}
                     checkbox={
                       <input

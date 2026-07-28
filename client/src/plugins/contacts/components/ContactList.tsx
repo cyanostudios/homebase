@@ -741,6 +741,7 @@ export const ContactList: React.FC = () => {
                     onClick={() => handleOpenForView(contact)}
                     hasTimeLogged={hasTimeLogged}
                     timeTrackingActive={timeTrackingActiveHere}
+                    columnCount={columnCount}
                     checkbox={
                       <input
                         type="checkbox"

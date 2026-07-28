@@ -4,6 +4,32 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-28 – Contacts detail, Open chrome, list meta & hover
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (commit/push/deploy ej genomförd i denna leverans).
+
+**Sammanfattning (verifierat mot kod):**
+
+- **ContactView – kortordning:** Contact content → Properties → Addresses → Contact persons → related cards i sidebar-navordning (Notes → Tasks → Teams → Matches → Slots → Estimates). Content-ikon `User`.
+- **Private vs company:** Personnummer (inte org) för private; F-tax dolt i form/view; `tax_rate` tvingas till `0` och company-fält rensas vid save (`applyContactTypeFieldRules` i `plugins/contacts`). Företag: bolagsform högst i Properties med dropdown-etiketter (`formatCompanyTypeLabel`, t.ex. `AB (Aktiebolag)`).
+- **Related rows:** Notes/Estimates (m.fl.) som AssignmentRow; notes-callout utan gul vänsterkant (`DETAIL_NOTE_CALLOUT_CLASS`); Open-knapp = ExternalLink + etikett (`DETAIL_ENTITY_LINK_TRIGGER_CLASS`).
+- **Cross-plugin Open:** ContactView Notes/Estimates → `navigate('/notes|estimates/…')` efter `closeContactPanel()`. `openNoteForView` / `openEstimateForView` hardnade som MatchProvider (cross-route navigate + path sync).
+- **Listor:** Vid `columnCount === 1` ligger meta i topraden (Tasks, Contacts, Notes, Requests, Estimates, Matches, Guides, Slots, Files, Ingest, Cups, Teams). Hover `DETAIL_LIST_ITEM_HOVER_CLASS`; titel `DETAIL_LIST_ITEM_TITLE_CLASS`.
+- **Docs:** `MENTIONS_AND_CROSS_PLUGIN_UI.md`, `UI_AND_UX_STANDARDS_V3.md`.
+- **Tester:** `formatCompanyTypeLabel.test.ts`, `applyContactTypeFieldRules.test.js`.
+
+**Säkerhet (residual, låg):** Personnummer visas/redigeras i tenant-UI för private (avsiktligt). Vid type-switch private→company behålls `personal_number` i DB (rensas inte spegelvänt). `contactType`/org/VAT/`fTax`/`taxRate`/`personalNumber` saknar dedikerade route-validators (pre-existerande); server-coerce begränsar private-fälten. Cross-plugin Open tillför ingen ny API/authz-yta. Inga oacceptabla risker; inga accepterade risker som kräver TPM.
+
+---
+
+## 2026-07-28 – Docs: entity quick-info popup as standard pattern
+
+**Status:** Docs Updated.
+
+- `MENTIONS_AND_CROSS_PLUGIN_UI.md`: new § **Entity quick-info popup** — required UX before navigating to a linked contact/team/task/slot/match/request (Close + Open; reuse existing `*QuickInfoDialog`s). Indexed from `docs/README.md` and plugin standards See Also.
+
+---
+
 ## 2026-07-28 – Contacts / Notes: related cards, quick-info & copyable contact fields
 
 **Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (commit/push/deploy ej genomförd i denna leverans).

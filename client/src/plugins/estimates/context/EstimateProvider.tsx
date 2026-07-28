@@ -1,6 +1,7 @@
 import { Download, ExternalLink, Share } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
@@ -39,6 +40,8 @@ export function EstimateProvider({
   onCloseOtherPanels,
 }: EstimateProviderProps) {
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, registerEstimatesNavigation } =
     useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/estimates');
@@ -83,22 +86,6 @@ export function EstimateProvider({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- isAuthenticated gate only
   }, [isAuthenticated]);
-
-  const didOpenFromUrlRef = useRef(false);
-  useEffect(() => {
-    if (didOpenFromUrlRef.current || estimates.length === 0) {
-      return;
-    }
-    const parts = window.location.pathname.split('/');
-    if (parts[1] !== 'estimates' || !parts[2]) {
-      return;
-    }
-    const item = resolveSlug(parts[2], estimates, 'estimateNumber');
-    if (item) {
-      didOpenFromUrlRef.current = true;
-      openEstimateForViewRef.current(item as Estimate);
-    }
-  }, [estimates]);
 
   useEffect(() => {
     registerPanelCloseFunction('estimates', closeEstimatePanel);
@@ -187,6 +174,11 @@ export function EstimateProvider({
 
   const openEstimateForView = useCallback(
     (estimate: Estimate) => {
+      // Cross-plugin: navigate only; path sync opens the panel (facit: MatchProvider).
+      if (!window.location.pathname.startsWith('/estimates')) {
+        navigate(`/estimates/${buildSlug(estimate, estimates, 'estimateNumber')}`);
+        return;
+      }
       setRecentlyDuplicatedEstimateId(null);
       setQuickEditDraft(null);
       setCurrentEstimate(estimate);
@@ -196,13 +188,38 @@ export function EstimateProvider({
       onCloseOtherPanels();
       navigateToItem(estimate, estimates, 'estimateNumber');
     },
-    [onCloseOtherPanels, navigateToItem, estimates, setValidationErrors],
+    [navigate, onCloseOtherPanels, navigateToItem, estimates, setValidationErrors],
   );
 
   const openEstimateForViewRef = useRef(openEstimateForView);
   useEffect(() => {
     openEstimateForViewRef.current = openEstimateForView;
   }, [openEstimateForView]);
+
+  const estimatesDeepLinkPathSyncedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (estimates.length === 0) {
+      return;
+    }
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments[0] !== 'estimates') {
+      return;
+    }
+    const slug = segments[1] ?? '';
+    if (!slug) {
+      estimatesDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (estimatesDeepLinkPathSyncedRef.current === pathKey) {
+      return;
+    }
+    const item = resolveSlug(slug, estimates, 'estimateNumber');
+    estimatesDeepLinkPathSyncedRef.current = pathKey;
+    if (item) {
+      openEstimateForViewRef.current(item as Estimate);
+    }
+  }, [location.pathname, estimates]);
 
   const openEstimateForViewBridge = useCallback((estimate: Estimate) => {
     openEstimateForViewRef.current(estimate);

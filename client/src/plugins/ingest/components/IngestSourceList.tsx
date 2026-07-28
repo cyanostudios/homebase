@@ -473,6 +473,7 @@ export const IngestSourceList: React.FC = () => {
                     source={source}
                     selected={sourceIsSelected}
                     onClick={() => handleOpenForView(source)}
+                    columnCount={columnCount}
                     checkbox={
                       <input
                         type="checkbox"

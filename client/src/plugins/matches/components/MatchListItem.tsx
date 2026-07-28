@@ -3,10 +3,15 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_VIEW_CARD_CLASS,
+  DETAIL_LIST_ITEM_HOVER_CLASS,
+  DETAIL_LIST_ITEM_TITLE_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 import { formatMatchDateTime, formatMatchScore, type Match } from '../types/match';
+import type { MatchColumnCount } from '../utils/matchColumnCount';
 
 import { MatchStatusBadges } from './MatchStatusBadges';
 import { MatchTeamBadge } from './MatchTeamBadge';
@@ -30,12 +35,15 @@ export function MatchListItem({
   highlighted,
   onClick,
   checkbox,
+  columnCount = 1,
 }: {
   match: Match;
   selected?: boolean;
   highlighted?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
+  /** When 1, meta sits on the top row; 2/3 keep meta below title/excerpt. */
+  columnCount?: MatchColumnCount;
 }) {
   const { i18n } = useTranslation();
   const locale = i18n.language ?? 'sv-SE';
@@ -47,6 +55,31 @@ export function MatchListItem({
   const matchLabel = match.name?.trim() || `${match.home_team} \u2013 ${match.away_team}`;
 
   const vsLine = match.name?.trim() ? `${match.home_team} \u2013 ${match.away_team}` : null;
+  const metaOnTop = columnCount === 1;
+  const hasMeta = Boolean(dateLabel || match.location || match.competition_name);
+
+  const metaRow = hasMeta ? (
+    <div
+      className={cn(
+        'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground',
+        !metaOnTop && 'mt-0.5 pt-0.5',
+      )}
+    >
+      {dateLabel ? (
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">{dateLabel}</span>
+        </span>
+      ) : null}
+      {match.location ? (
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">{match.location}</span>
+        </span>
+      ) : null}
+      {match.competition_name ? <span className="truncate">{match.competition_name}</span> : null}
+    </div>
+  ) : null;
 
   const openOnKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -61,7 +94,7 @@ export function MatchListItem({
         'group cursor-pointer overflow-hidden p-0 transition-all',
         DETAIL_VIEW_CARD_CLASS,
         highlighted && 'bg-green-50 dark:bg-green-950/30',
-        selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : 'hover:shadow-md',
+        selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
       )}
       onClick={(e) => {
         if (
@@ -86,6 +119,7 @@ export function MatchListItem({
             {checkbox}
             <MatchStatusBadges match={match} />
             <MatchScoreBadge match={match} />
+            {metaOnTop ? metaRow : null}
           </div>
           {match.sport_type || match.format ? (
             <span className="text-[10px] text-muted-foreground">
@@ -95,9 +129,7 @@ export function MatchListItem({
           ) : null}
         </div>
 
-        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
-          {matchLabel}
-        </h3>
+        <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>{matchLabel}</h3>
 
         {vsLine ? <p className="line-clamp-1 text-xs text-muted-foreground">{vsLine}</p> : null}
 
@@ -107,23 +139,7 @@ export function MatchListItem({
           </div>
         ) : null}
 
-        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs text-muted-foreground">
-          {dateLabel ? (
-            <span className="inline-flex min-w-0 items-center gap-1.5">
-              <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{dateLabel}</span>
-            </span>
-          ) : null}
-          {match.location ? (
-            <span className="inline-flex min-w-0 items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{match.location}</span>
-            </span>
-          ) : null}
-          {match.competition_name ? (
-            <span className="truncate">{match.competition_name}</span>
-          ) : null}
-        </div>
+        {!metaOnTop ? metaRow : null}
       </div>
     </Card>
   );

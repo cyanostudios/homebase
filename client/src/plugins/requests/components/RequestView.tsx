@@ -6,12 +6,14 @@ import {
   Phone,
   SlidersHorizontal,
   Trash2,
+  Trophy,
   User,
   Users,
   Zap,
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,7 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_INFO_ROW_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
@@ -29,9 +32,15 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { buildSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
+import {
+  AssignmentQuickInfoDialog,
+  type AssignmentQuickInfoDetail,
+} from '@/plugins/contacts/components/AssignmentQuickInfoDialog';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useRequests } from '../hooks/useRequests';
@@ -99,19 +108,59 @@ function RequestQuickActionsCard({
 
 export function RequestView({ request: requestProp, item }: RequestViewProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const request = requestProp ?? item ?? null;
   const teams = useRequestTeams();
   const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
-  const { openRequestForEdit, deleteRequest, saveRequest } = useRequests();
+  const { openRequestForEdit, deleteRequest, saveRequest, closeRequestPanel } = useRequests();
   const { contacts, openContactForView } = useContacts();
   const [showDelete, setShowDelete] = useState(false);
+  const [showTeamQuickInfo, setShowTeamQuickInfo] = useState(false);
 
-  const teamName = useMemo(() => {
-    if (!request?.teamId) return null;
-    const team = teams.find((t: any) => Number(t.id) === request.teamId);
-    return team ? team.name : null;
+  const linkedTeam = useMemo(() => {
+    if (!request?.teamId) {
+      return null;
+    }
+    return teams.find((team) => Number(team.id) === request.teamId) ?? null;
   }, [request?.teamId, teams]);
+
+  const teamLabel = linkedTeam ? formatTeamLabel(linkedTeam) || linkedTeam.name : null;
+
+  const teamQuickInfoDetails = useMemo((): AssignmentQuickInfoDetail[] => {
+    if (!linkedTeam) {
+      return [];
+    }
+    const details: AssignmentQuickInfoDetail[] = [
+      {
+        icon: User,
+        label: t('teams.form.statusLabel'),
+        value: t(`teams.status.${linkedTeam.status}`),
+      },
+    ];
+    if (linkedTeam.age_group?.trim()) {
+      details.push({
+        icon: Users,
+        label: t('teams.form.ageGroupLabel'),
+        value: linkedTeam.age_group.trim(),
+      });
+    }
+    if (linkedTeam.gender) {
+      details.push({
+        icon: Users,
+        label: t('teams.form.genderLabel'),
+        value: t(`teams.gender.${linkedTeam.gender}`),
+      });
+    }
+    if (linkedTeam.playing_format) {
+      details.push({
+        icon: Trophy,
+        label: t('teams.form.playingFormatLabel'),
+        value: linkedTeam.playing_format,
+      });
+    }
+    return details;
+  }, [linkedTeam, t]);
 
   const linkedContact = useMemo(() => {
     if (!request?.contactId) return null;
@@ -133,6 +182,15 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
 
   const handlePriorityChange = async (newPriority: Request['priority']) => {
     await saveRequest({ title: request.title, priority: newPriority }, request.id);
+  };
+
+  const openLinkedTeam = () => {
+    if (!linkedTeam) {
+      return;
+    }
+    setShowTeamQuickInfo(false);
+    closeRequestPanel();
+    navigate(`/teams/${buildSlug(linkedTeam, teams, 'name')}`);
   };
 
   return (
@@ -251,14 +309,26 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                     {t('requests.view.linkedContact')}
                   </span>
                   {linkedContact ? (
-                    <button
-                      type="button"
-                      onClick={() => openContactForView(linkedContact)}
-                      className="inline-flex max-w-[220px] items-center gap-1.5 truncate text-sm font-medium text-plugin hover:underline"
+                    <div
+                      className={cn(
+                        DETAIL_SURFACE_ROW_CLASS,
+                        'plugin-contacts max-w-[240px] transition-colors hover:bg-muted/70',
+                      )}
                     >
-                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                      {linkedContact.companyName ?? `Contact ${linkedContact.id}`}
-                    </button>
+                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                        {linkedContact.companyName ?? `Contact ${linkedContact.id}`}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={ExternalLink}
+                        className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-contacts')}
+                        onClick={() => openContactForView(linkedContact)}
+                      >
+                        {t('contacts.quickInfo.openContact')}
+                      </Button>
+                    </div>
                   ) : (
                     <span className="text-sm font-medium text-foreground">—</span>
                   )}
@@ -333,16 +403,33 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                       : t('requests.sourceInternal')}
                   </Badge>
                 </div>
-                {teamName && (
+                {teamLabel && linkedTeam ? (
                   <div className={DETAIL_PROP_ROW_CLASS}>
                     <span className="text-sm text-slate-500 dark:text-slate-400">
                       {t('requests.view.team')}
                     </span>
-                    <span className="max-w-[200px] truncate text-sm font-medium text-foreground">
-                      {teamName}
-                    </span>
+                    <div
+                      className={cn(
+                        DETAIL_SURFACE_ROW_CLASS,
+                        'plugin-teams max-w-[240px] transition-colors hover:bg-muted/70',
+                      )}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                        {teamLabel}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={ExternalLink}
+                        className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-teams')}
+                        onClick={() => setShowTeamQuickInfo(true)}
+                      >
+                        {t('contacts.openTeam')}
+                      </Button>
+                    </div>
                   </div>
-                )}
+                ) : null}
               </div>
             </DetailSection>
           </Card>
@@ -357,7 +444,13 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
               >
                 <div className="space-y-1.5">
                   {assignedContacts.map((c: any) => (
-                    <div key={c.id} className={cn(DETAIL_SURFACE_ROW_CLASS, 'plugin-contacts')}>
+                    <div
+                      key={c.id}
+                      className={cn(
+                        DETAIL_SURFACE_ROW_CLASS,
+                        'plugin-contacts transition-colors hover:bg-muted/70',
+                      )}
+                    >
                       <span className="truncate text-xs text-muted-foreground">
                         {c.companyName ?? `Contact ${c.id}`}
                       </span>
@@ -366,11 +459,10 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                         variant="ghost"
                         size="sm"
                         icon={ExternalLink}
-                        className="plugin-contacts h-7 w-7 shrink-0 p-0 text-plugin hover:bg-accent"
+                        className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-contacts')}
                         onClick={() => openContactForView(c)}
-                        aria-label={t('common.open')}
                       >
-                        <span className="sr-only">{t('common.open')}</span>
+                        {t('contacts.quickInfo.openContact')}
                       </Button>
                     </div>
                   ))}
@@ -394,6 +486,16 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
           ) : null}
         </div>
       </DetailLayout>
+
+      <AssignmentQuickInfoDialog
+        isOpen={showTeamQuickInfo && linkedTeam !== null}
+        title={teamLabel || linkedTeam?.name || ''}
+        icon={Users}
+        details={teamQuickInfoDetails}
+        openLabel={t('contacts.openTeam')}
+        onClose={() => setShowTeamQuickInfo(false)}
+        onOpen={openLinkedTeam}
+      />
 
       <ConfirmDialog
         isOpen={showDelete}

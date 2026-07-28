@@ -6,6 +6,23 @@ export const CONTACT_TYPE_COLORS = {
 
 export const CONTACT_TYPE_BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
 
+/** Company type codes → dropdown labels (ContactForm / ContactView). */
+export const COMPANY_TYPE_OPTIONS = [
+  { value: 'AB', label: 'AB (Aktiebolag)' },
+  { value: 'HB', label: 'HB (Handelsbolag)' },
+  { value: 'KB', label: 'KB (Kommanditbolag)' },
+  { value: 'EF', label: 'Enskild Firma' },
+] as const;
+
+export function formatCompanyTypeLabel(companyType: string | null | undefined): string {
+  const raw = companyType?.trim();
+  if (!raw) {
+    return '—';
+  }
+  const match = COMPANY_TYPE_OPTIONS.find((option) => option.value === raw);
+  return match?.label ?? raw;
+}
+
 export interface Contact {
   id: string;
   contactNumber: string;

@@ -2,6 +2,7 @@ import { ExternalLink } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
+import { DETAIL_ENTITY_LINK_TRIGGER_CLASS } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 function getInitials(name: string): string {
@@ -18,7 +19,7 @@ export type ContactAssignmentBadge = {
   className?: string;
 };
 
-/** Row layout aligned with teams `ResponsibleRow` (avatar, name, badges, action). */
+/** Row layout aligned with teams `ResponsibleRow` (avatar, name, badges, Open action). */
 export function ContactAssignmentRow({
   title,
   badges = [],
@@ -26,15 +27,19 @@ export function ContactAssignmentRow({
   actionLabel,
   onOpen,
   onTitleClick,
+  pluginClass,
 }: {
   title: string;
   badges?: ContactAssignmentBadge[];
   meta?: React.ReactNode;
+  /** Visible label next to ExternalLink (e.g. “Open team”). */
   actionLabel: string;
-  /** Primary action button (e.g. navigate to contact). */
+  /** Icon + label button action (open quick-info or navigate). */
   onOpen: () => void;
   /** Optional: avatar/name click (e.g. open quick-info popup). Defaults to onOpen. */
   onTitleClick?: () => void;
+  /** Optional plugin color scope (e.g. `plugin-teams`, `plugin-tasks`). */
+  pluginClass?: string;
 }) {
   const handleTitleClick = onTitleClick ?? onOpen;
 
@@ -75,7 +80,11 @@ export function ContactAssignmentRow({
         variant="ghost"
         size="sm"
         icon={ExternalLink}
-        className="h-7 shrink-0 gap-1.5 px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+        className={cn(
+          DETAIL_ENTITY_LINK_TRIGGER_CLASS,
+          'bg-muted/40 hover:bg-muted/70 dark:bg-muted/25',
+          pluginClass,
+        )}
         onClick={onOpen}
       >
         {actionLabel}

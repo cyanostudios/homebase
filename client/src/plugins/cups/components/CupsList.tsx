@@ -761,6 +761,7 @@ export function CupsList() {
                   selected={isSelected(cup.id)}
                   onClick={() => attemptNavigation(() => openCupForView(cup))}
                   ingestTitle={ingestTitleForCup(cup.ingest_source_id) || null}
+                  columnCount={columnCount}
                   checkbox={
                     <input
                       type="checkbox"

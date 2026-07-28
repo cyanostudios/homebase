@@ -642,6 +642,7 @@ export function RequestList() {
                     onPriorityChange={(priority) =>
                       void handleListPriorityChange(request, priority)
                     }
+                    columnCount={columnCount}
                     checkbox={
                       <input
                         type="checkbox"

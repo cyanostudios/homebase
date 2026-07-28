@@ -3,9 +3,14 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
+import {
+  DETAIL_LIST_ITEM_HOVER_CLASS,
+  DETAIL_LIST_ITEM_TITLE_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 import type { Team, TrainingTime } from '../types/teams';
+import type { TeamColumnCount } from '../utils/teamColumnCount';
 import {
   TEAM_COLOR_GRADIENTS,
   TEAM_STATUS_BADGES,
@@ -43,12 +48,15 @@ export function TeamCard({
   highlighted,
   onClick,
   checkbox,
+  columnCount = 1,
 }: {
   team: Team;
   selected?: boolean;
   highlighted?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
+  /** When 1, stats and next training sit near the top; 2/3 keep them below. */
+  columnCount?: TeamColumnCount;
 }) {
   const { t } = useTranslation();
   const nextTraining = getNextTraining(team);
@@ -56,6 +64,37 @@ export function TeamCard({
   const onSeasonBreak = isTeamOnBreak(team);
   const metaLine =
     [team.age_group, genderLabel, team.playing_format].filter(Boolean).join(' · ') || '—';
+  const metaOnTop = columnCount === 1;
+
+  const metaRow = (
+    <div
+      className={cn(
+        'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground',
+        !metaOnTop && 'mt-0.5 pt-0.5',
+      )}
+    >
+      <span className="inline-flex items-center gap-1.5">
+        <Users className="h-3.5 w-3.5" />
+        {t('teams.playerCount', { count: team.player_count })}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Circle className="h-3 w-3" />
+        {t('teams.seriesTeamCount', { count: team.series_team_count })}
+      </span>
+      {nextTraining ? (
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">
+            {t('teams.nextTraining', {
+              day: t(`teams.daysShort.${nextTraining.day}`),
+              time: nextTraining.startTime,
+            })}
+            {nextTraining.location ? ` · ${nextTraining.location}` : ''}
+          </span>
+        </span>
+      ) : null}
+    </div>
+  );
 
   return (
     <Card
@@ -64,7 +103,7 @@ export function TeamCard({
         highlighted && 'bg-green-50 dark:bg-green-950/30',
         selected
           ? 'bg-plugin-subtle ring-1 border-plugin-subtle'
-          : 'hover:border-plugin-subtle hover:shadow-md',
+          : cn('hover:border-plugin-subtle', DETAIL_LIST_ITEM_HOVER_CLASS),
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -88,7 +127,7 @@ export function TeamCard({
               {(team.age_group || team.name).slice(0, 3).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold leading-snug">{team.name}</h3>
+              <h3 className={cn('truncate', DETAIL_LIST_ITEM_TITLE_CLASS)}>{team.name}</h3>
               <p className="truncate text-xs text-muted-foreground">{metaLine}</p>
             </div>
           </div>
@@ -105,29 +144,35 @@ export function TeamCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5" />
-            {t('teams.playerCount', { count: team.player_count })}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Circle className="h-3 w-3" />
-            {t('teams.seriesTeamCount', { count: team.series_team_count })}
-          </span>
-        </div>
+        {metaOnTop ? metaRow : null}
 
-        {nextTraining && (
-          <div className="mt-auto border-t border-border/60 pt-2.5">
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {t('teams.nextTraining', {
-                day: t(`teams.daysShort.${nextTraining.day}`),
-                time: nextTraining.startTime,
-              })}
-              {nextTraining.location ? ` · ${nextTraining.location}` : ''}
-            </span>
-          </div>
-        )}
+        {!metaOnTop ? (
+          <>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                {t('teams.playerCount', { count: team.player_count })}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Circle className="h-3 w-3" />
+                {t('teams.seriesTeamCount', { count: team.series_team_count })}
+              </span>
+            </div>
+
+            {nextTraining ? (
+              <div className="mt-auto border-t border-border/60 pt-2.5">
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {t('teams.nextTraining', {
+                    day: t(`teams.daysShort.${nextTraining.day}`),
+                    time: nextTraining.startTime,
+                  })}
+                  {nextTraining.location ? ` · ${nextTraining.location}` : ''}
+                </span>
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </div>
     </Card>
   );

@@ -725,6 +725,7 @@ export function SlotsList() {
                     selected={selected}
                     highlighted={recentlyDuplicatedSlotId === String(slot.id)}
                     onClick={() => handleOpenForView(slot)}
+                    columnCount={columnCount}
                     checkbox={
                       <input
                         type="checkbox"

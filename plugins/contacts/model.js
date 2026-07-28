@@ -3,6 +3,10 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const {
+  applyContactTypeFieldRules,
+  normalizeStoredContactType,
+} = require('./applyContactTypeFieldRules');
 const { toNullableInt } = require('./toNullableInt');
 
 class ContactModel {
@@ -43,21 +47,17 @@ class ContactModel {
 
       const contactNumber = await this.getNextContactNumber(req);
 
-      const contactType =
-        String(contactData.contactType || '')
-          .trim()
-          .toLowerCase() === 'private'
-          ? 'private'
-          : 'company';
+      const contactType = normalizeStoredContactType(contactData.contactType);
+      const typeFields = applyContactTypeFieldRules(contactType, contactData);
 
       // Use db.insert for automatic tenant isolation
       const result = await db.insert('contacts', {
         contact_number: contactNumber,
         contact_type: contactType,
         company_name: contactData.companyName || '',
-        company_type: contactData.companyType || '',
-        organization_number: contactData.organizationNumber || '',
-        vat_number: contactData.vatNumber || '',
+        company_type: typeFields.company_type,
+        organization_number: typeFields.organization_number,
+        vat_number: typeFields.vat_number,
         personal_number: contactData.personalNumber || '',
         contact_persons: JSON.stringify(contactData.contactPersons || []),
         addresses: JSON.stringify(contactData.addresses || []),
@@ -65,10 +65,10 @@ class ContactModel {
         phone: contactData.phone || '',
         phone2: contactData.phone2 || '',
         website: contactData.website || '',
-        tax_rate: toNullableInt(contactData.taxRate),
+        tax_rate: typeFields.tax_rate,
         payment_terms: toNullableInt(contactData.paymentTerms),
         currency: contactData.currency || '',
-        f_tax: contactData.fTax || '',
+        f_tax: typeFields.f_tax,
         notes: contactData.notes || '',
         tags: JSON.stringify(contactData.tags || []),
         is_assignable: contactData.isAssignable === true,
@@ -100,21 +100,17 @@ class ContactModel {
         throw new AppError('Contact not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      const contactType =
-        String(contactData.contactType || '')
-          .trim()
-          .toLowerCase() === 'private'
-          ? 'private'
-          : 'company';
+      const contactType = normalizeStoredContactType(contactData.contactType);
+      const typeFields = applyContactTypeFieldRules(contactType, contactData);
 
       // Use db.update for automatic tenant isolation
       const updatePayload = {
         contact_number: contactData.contactNumber,
         contact_type: contactType,
         company_name: contactData.companyName || '',
-        company_type: contactData.companyType || '',
-        organization_number: contactData.organizationNumber || '',
-        vat_number: contactData.vatNumber || '',
+        company_type: typeFields.company_type,
+        organization_number: typeFields.organization_number,
+        vat_number: typeFields.vat_number,
         personal_number: contactData.personalNumber || '',
         contact_persons: JSON.stringify(contactData.contactPersons || []),
         addresses: JSON.stringify(contactData.addresses || []),
@@ -122,10 +118,10 @@ class ContactModel {
         phone: contactData.phone || '',
         phone2: contactData.phone2 || '',
         website: contactData.website || '',
-        tax_rate: toNullableInt(contactData.taxRate),
+        tax_rate: typeFields.tax_rate,
         payment_terms: toNullableInt(contactData.paymentTerms),
         currency: contactData.currency || '',
-        f_tax: contactData.fTax || '',
+        f_tax: typeFields.f_tax,
         notes: contactData.notes || '',
         is_assignable: contactData.isAssignable !== undefined ? contactData.isAssignable : true,
       };

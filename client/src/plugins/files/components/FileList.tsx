@@ -522,6 +522,7 @@ export const FileList: React.FC = () => {
                     file={file}
                     selected={fileIsSelected}
                     onClick={() => handleOpenForView(file)}
+                    columnCount={columnCount}
                     checkbox={
                       <input
                         type="checkbox"

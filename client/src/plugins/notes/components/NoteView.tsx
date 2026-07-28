@@ -461,6 +461,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                           </>
                         }
                         actionLabel={t('notes.openContact')}
+                        pluginClass="plugin-contacts"
                         onTitleClick={() => {
                           if (contactData) {
                             setViewingContact(contactData);

@@ -3,10 +3,15 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_VIEW_CARD_CLASS,
+  DETAIL_LIST_ITEM_HOVER_CLASS,
+  DETAIL_LIST_ITEM_TITLE_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 import type { Cup } from '../types/cups';
+import type { CupColumnCount } from '../utils/cupColumnCount';
 
 const CUP_VISIBLE_BADGE =
   'inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400';
@@ -24,6 +29,7 @@ export function CupListItem({
   onClick,
   checkbox,
   ingestTitle,
+  columnCount = 1,
 }: {
   cup: Cup;
   selected?: boolean;
@@ -31,11 +37,49 @@ export function CupListItem({
   onClick: () => void;
   checkbox?: React.ReactNode;
   ingestTitle?: string | null;
+  /** When 1, meta sits in the top area after title; 2/3 keep meta below. */
+  columnCount?: CupColumnCount;
 }) {
   const { t } = useTranslation();
   const isRemoved = cup.deleted_at !== null && cup.deleted_at !== undefined;
   const startLabel = cup.start_date ? new Date(cup.start_date).toLocaleDateString() : null;
   const updatedLabel = cup.updated_at ? new Date(cup.updated_at).toLocaleDateString() : null;
+  const metaOnTop = columnCount === 1;
+
+  const metaRow = (
+    <div
+      className={cn(
+        'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground',
+        !metaOnTop && 'mt-0.5 pt-0.5',
+      )}
+    >
+      <span className="inline-flex min-w-0 items-center gap-1.5">
+        <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+        <span className="truncate font-medium text-foreground/80">{cup.location || '—'}</span>
+      </span>
+      <span className="inline-flex min-w-0 items-center gap-1.5">
+        <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
+        <span className="truncate">{startLabel || '—'}</span>
+      </span>
+      {ingestTitle ? (
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <Rss className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">{ingestTitle}</span>
+        </span>
+      ) : null}
+      {cup.ratings_count > 0 ? (
+        <span className="inline-flex min-w-0 items-center gap-1.5 tabular-nums">
+          <Star className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" aria-hidden />
+          <span>{cup.ratings_count}</span>
+        </span>
+      ) : null}
+      {updatedLabel ? (
+        <span className="truncate">
+          {t('common.updated')}: {updatedLabel}
+        </span>
+      ) : null}
+    </div>
+  );
 
   const openOnKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -51,7 +95,7 @@ export function CupListItem({
         DETAIL_VIEW_CARD_CLASS,
         isRemoved && 'opacity-60',
         highlighted && 'bg-green-50 dark:bg-green-950/30',
-        selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : 'hover:shadow-md',
+        selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('input[type="checkbox"], button')) {
@@ -71,12 +115,13 @@ export function CupListItem({
           <div className="flex min-w-0 items-start gap-2">
             {checkbox}
             <div className="min-w-0 flex-1">
-              <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+              <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>
                 {cup.name || '—'}
               </h3>
               {cup.organizer ? (
                 <p className="truncate text-xs text-muted-foreground">{cup.organizer}</p>
               ) : null}
+              {metaOnTop ? metaRow : null}
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
@@ -98,33 +143,7 @@ export function CupListItem({
           </div>
         </div>
 
-        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs text-muted-foreground">
-          <span className="inline-flex min-w-0 items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate font-medium text-foreground/80">{cup.location || '—'}</span>
-          </span>
-          <span className="inline-flex min-w-0 items-center gap-1.5">
-            <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">{startLabel || '—'}</span>
-          </span>
-          {ingestTitle ? (
-            <span className="inline-flex min-w-0 items-center gap-1.5">
-              <Rss className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{ingestTitle}</span>
-            </span>
-          ) : null}
-          {cup.ratings_count > 0 ? (
-            <span className="inline-flex min-w-0 items-center gap-1.5 tabular-nums">
-              <Star className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" aria-hidden />
-              <span>{cup.ratings_count}</span>
-            </span>
-          ) : null}
-          {updatedLabel ? (
-            <span className="truncate">
-              {t('common.updated')}: {updatedLabel}
-            </span>
-          ) : null}
-        </div>
+        {!metaOnTop ? metaRow : null}
       </div>
     </Card>
   );

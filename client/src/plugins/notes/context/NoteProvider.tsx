@@ -1,7 +1,7 @@
 import { ExternalLink, Share } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
@@ -13,7 +13,7 @@ import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { noteShareApi, notesApi } from '../api/notesApi';
 import { Note, NoteShare, ValidationError } from '../types/notes';
@@ -31,6 +31,7 @@ interface NoteProviderProps {
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -169,6 +170,11 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openNoteForView = useCallback(
     (note: Note) => {
+      // Cross-plugin: navigate only; path sync opens the panel (facit: MatchProvider).
+      if (!window.location.pathname.startsWith('/notes')) {
+        navigate(`/notes/${buildSlug(note, notes, 'title')}`);
+        return;
+      }
       setRecentlyDuplicatedNoteId(null);
       setCurrentNote(note);
       setPanelMode('view');
@@ -177,7 +183,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       onCloseOtherPanels();
       navigateToItem(note, notes, 'title');
     },
-    [onCloseOtherPanels, navigateToItem, notes, setValidationErrors],
+    [navigate, onCloseOtherPanels, navigateToItem, notes, setValidationErrors],
   );
 
   const openNoteSettings = useCallback(() => {

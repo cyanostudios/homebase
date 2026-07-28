@@ -21,6 +21,7 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_INFO_ROW_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
@@ -435,11 +436,10 @@ export function TaskView({ task }: TaskViewProps) {
                                 variant="ghost"
                                 size="sm"
                                 icon={ExternalLink}
-                                className="h-7 w-7 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
+                                className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-contacts')}
                                 onClick={() => handleContactClick(mention.contactId)}
-                                aria-label={`${t('common.open')} ${name}`}
                               >
-                                <span className="sr-only">{t('common.open')}</span>
+                                {t('contacts.quickInfo.openContact')}
                               </Button>
                             ) : null}
                           </div>

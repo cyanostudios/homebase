@@ -589,6 +589,7 @@ export const NoteList: React.FC = () => {
                     selected={noteIsSelected}
                     highlighted={recentlyDuplicatedNoteId === String(note.id)}
                     onClick={() => handleOpenForView(note)}
+                    columnCount={columnCount}
                     checkbox={
                       <input
                         type="checkbox"

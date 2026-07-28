@@ -603,6 +603,7 @@ export function EstimateList() {
                     estimate={estimate}
                     selected={estimateIsSelected}
                     highlighted={recentlyDuplicatedEstimateId === String(estimate.id)}
+                    columnCount={columnCount}
                     onClick={() => handleOpenForView(estimate)}
                     onStatusChange={(status) => handleListStatusChange(estimate, status)}
                     checkbox={

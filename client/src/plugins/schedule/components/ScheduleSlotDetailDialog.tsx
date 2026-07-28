@@ -103,7 +103,7 @@ export function ScheduleSlotDetailDialog({
         <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <AlertDialogCancel asChild>
             <Button variant="secondary" onClick={onClose}>
-              {t('common.cancel')}
+              {t('common.close')}
             </Button>
           </AlertDialogCancel>
           {canEdit ? (

@@ -680,6 +680,7 @@ export function TaskList() {
                     onClick={() => handleOpenForView(task)}
                     assignedNames={assignedContacts.map((c) => c.companyName)}
                     onStatusChange={(status) => handleListStatusChange(task, status)}
+                    columnCount={columnCount}
                     checkbox={
                       <input
                         type="checkbox"

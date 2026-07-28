@@ -85,15 +85,20 @@ AppContext provides getters so **ContactView** can show related entities without
 | `getTasksWithMentionsForContact` | `AppContext` tasks                          | Mention-based                                              |
 | `getSlotsForContact`             | `AppContext` slots (from `syncSharedSlots`) | `filterSlotsForContact` — primary `contact_id` or mentions |
 
-`ContactView` shows related **Teams**, **Tasks**, and **Slots** in the main column **below Addresses and Contact Persons** (not under Contact Properties), when the corresponding plugin is enabled and there is at least one row:
+`ContactView` main column order: **Contact content** → **Properties** → **Addresses** → **Contact persons**, then related plugin cards in **sidebar nav order** (category then `navigation.order`): Notes → Tasks → Teams → Matches → Slots → Estimates. Cards render when the plugin is enabled and there is at least one related row:
 
-| Card  | Plugin gate | Data source                                                                                       | Open                                               |
-| ----- | ----------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Teams | `teams`     | `listTeamAssignmentsForContact(teams, contactId)` over `responsibles` (role + series-team badges) | `navigate('/teams/…')` after `closeContactPanel()` |
-| Tasks | `tasks`     | `getTasksForContact` (`assignedToIds`, fallback `assignedTo`)                                     | `navigate('/tasks/…')` after `closeContactPanel()` |
-| Slots | `slots`     | `getSlotsForContact`                                                                              | `navigate('/slots/…')` after `closeContactPanel()` |
+| Card      | Plugin gate | Data source                                                                                       | Open                                                                                                                                                        |
+| --------- | ----------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Notes     | `notes`     | `getNotesForContact`                                                                              | Name → `AssignmentQuickInfoDialog`; Open → `navigate('/notes/…')` after `closeContactPanel()` (provider also hardens `openNoteForView` cross-route)         |
+| Tasks     | `tasks`     | `getTasksForContact` (`assignedToIds`, fallback `assignedTo`)                                     | `navigate('/tasks/…')` after `closeContactPanel()`                                                                                                          |
+| Teams     | `teams`     | `listTeamAssignmentsForContact(teams, contactId)` over `responsibles` (role + series-team badges) | `navigate('/teams/…')` after `closeContactPanel()`                                                                                                          |
+| Matches   | `matches`   | `getMatchesForContact`                                                                            | `openMatchForView` after `closeContactPanel()`                                                                                                              |
+| Slots     | `slots`     | `getSlotsForContact`                                                                              | `navigate('/slots/…')` after `closeContactPanel()`                                                                                                          |
+| Estimates | `estimates` | `getEstimatesForContact`                                                                          | Name → `AssignmentQuickInfoDialog`; Open → `navigate('/estimates/…')` after `closeContactPanel()` (provider also hardens `openEstimateForView` cross-route) |
 
-Name click on those rows opens `AssignmentQuickInfoDialog` (preview + Open). Teams responsibility UI reuses the same row pattern as `ResponsibleRow`.
+Name click on assignment rows (teams/tasks/slots/notes/estimates) opens `AssignmentQuickInfoDialog` (preview + Open).
+
+**Private contacts (PII):** For `contactType === 'private'`, ContactView/Form show **personal number** (not organization number); F-tax is hidden; tax rate is forced to `0` on save via `applyContactTypeFieldRules`. Personal number is tenant-visible PII by design.
 
 **Notes `NoteView`:** mentioned contacts render under note content (and attachments), not in the sidebar. Name / `@`-mention opens shared `ContactQuickInfoDialog` (copy email/phone + Open contact → `navigate('/contacts/…')`). TeamView’s `ResponsibleContactDialog` wraps the same dialog.
 
@@ -104,6 +109,57 @@ To avoid type mismatches (e.g. numeric vs string IDs from the API), comparisons 
 - `String(mention.contactId) === String(contactId)`
 
 This is applied in the AppContext implementations of these getters so that cross-plugin lists remain correct regardless of ID representation.
+
+## Entity quick-info popup (required pattern)
+
+When the user clicks a **linked entity** from another context (contact, team, task, slot, match, request, schedule slot, etc.), do **not** navigate straight into that entity’s detail panel.
+
+Instead: open a **quick-info popup** first. The user confirms with an explicit Open action (or closes without leaving the current view).
+
+This is the standard for new and updated cross-links. Follow it in all future UI work.
+
+### Why
+
+- Avoids accidental context switches from dense lists and related cards.
+- Lets the user skim key fields (and copy contact details when relevant) before committing to navigation.
+- Keeps list/detail chrome stable until the user chooses Open.
+
+### Interaction contract
+
+| Step         | Behaviour                                                                                                  |
+| ------------ | ---------------------------------------------------------------------------------------------------------- |
+| 1. Trigger   | Click on the entity **name** / title / `@`-mention (not the inline status/priority controls).              |
+| 2. Popup     | Centred `AlertDialog` with title, optional badges, short detail rows.                                      |
+| 3. Secondary | **Close** — `t('common.close')` (not Cancel). Dismisses without navigation.                                |
+| 4. Primary   | **Open …** — closes the dialog, then navigates / opens the target (see Cross-plugin URL navigation below). |
+
+Optional: a separate row action (e.g. “Open team”) may still navigate immediately; name click still opens quick-info.
+
+### Implementation checklist
+
+1. Prefer an existing `*QuickInfoDialog` for that entity type; only add a new one if none fits.
+2. Use `AlertDialog` + primary `ExternalLink` Open button (same layout as `MatchQuickInfoDialog`).
+3. Keep preview fields short (identity + a few meta rows). No full edit forms inside the popup.
+4. For contacts: use shared [`ContactQuickInfoDialog`](../client/src/plugins/contacts/components/ContactQuickInfoDialog.tsx) (mailto/tel + copy + Open contact). Wrappers (e.g. `ResponsibleContactDialog`) may add badges only.
+5. After Open: close the current panel when leaving the plugin, then `navigate('/plugin/…')` (or the provider’s cross-plugin open helper). Do not rely on `openXForView` alone across routes.
+6. External website links in contact fields: `target="_blank"` + `rel="noopener noreferrer"`.
+
+### Existing dialogs (reuse these)
+
+| Dialog                      | Entity                     | Used from (examples)                                       |
+| --------------------------- | -------------------------- | ---------------------------------------------------------- |
+| `ContactQuickInfoDialog`    | Contact                    | `NoteView` mentions, `ResponsibleContactDialog` (TeamView) |
+| `AssignmentQuickInfoDialog` | Team / task / slot preview | `ContactView` related cards                                |
+| `MatchQuickInfoDialog`      | Match                      | `TeamMatchesSection`                                       |
+| `RequestQuickInfoDialog`    | Request                    | `TeamRequestsSection` (Teams plugin)                       |
+| `ScheduleSlotDetailDialog`  | Schedule slot              | Schedule grid / list slot click                            |
+
+### Anti-patterns
+
+- Clicking a related name jumps straight to another plugin’s detail view.
+- Using **Cancel** as the dismiss label on quick-info (use **Close**).
+- Duplicating a full contact quick-info UI instead of wrapping `ContactQuickInfoDialog`.
+- Putting destructive or save actions in the quick-info footer (Open + Close only).
 
 ## Cross-plugin URL navigation
 
@@ -134,20 +190,25 @@ navigate(`/teams/${buildSlug(team, teams, 'name')}`);
 
 For matches, slug field is typically `` `${home_team}-vs-${away_team}` `` (see `matchSlugNameField` in `MatchProvider`).
 
-**Provider helpers** may wrap this: e.g. `openMatchForView` checks `pathname.startsWith('/matches')` and navigates cross-plugin when false.
+**Provider helpers** may wrap this: e.g. `openMatchForView` / `openNoteForView` / `openEstimateForView` check `pathname.startsWith('/plugin')` and navigate cross-plugin when false.
 
 ### Examples in codebase
 
 | From                                       | To           | Implementation                                                                                             |
 | ------------------------------------------ | ------------ | ---------------------------------------------------------------------------------------------------------- |
+| `ContactView` Notes card                   | Note         | Name → `AssignmentQuickInfoDialog`; Open → `navigate('/notes/…')` after `closeContactPanel()`              |
+| `ContactView` Estimates card               | Estimate     | Same pattern → `navigate('/estimates/…')`                                                                  |
 | `ContactView` Teams card                   | Team         | Name → `AssignmentQuickInfoDialog`; Open / dialog CTA → `navigate('/teams/…')` after `closeContactPanel()` |
 | `ContactView` Tasks card                   | Task         | Same pattern → `navigate('/tasks/…')`                                                                      |
 | `ContactView` Slots card                   | Slot         | Same pattern → `navigate('/slots/…')`                                                                      |
 | `NoteView` mentioned contact / `@` mention | Contact      | `ContactQuickInfoDialog`; Open → `navigate('/contacts/…')` after `closeNotePanel()`                        |
 | `ResponsibleContactDialog` (TeamView)      | Contact      | Wraps `ContactQuickInfoDialog` → `navigate('/contacts/…')`                                                 |
+| `TeamMatchesSection`                       | Match        | Name → `MatchQuickInfoDialog`; Open → `openMatchForView` (cross-plugin navigate)                           |
+| `TeamRequestsSection`                      | Request      | Name → `RequestQuickInfoDialog`; Open → `openRequestForView`                                               |
+| `RequestView` team field                   | Team         | Name → `AssignmentQuickInfoDialog`; Open → `navigate('/teams/…')` after `closeRequestPanel()`              |
 | `MatchTeamBadge`                           | Team         | `navigate('/teams/…')`                                                                                     |
-| `TeamMatchesSection` popup                 | Match        | `openMatchForView` → cross-plugin navigate                                                                 |
-| `ScheduleList` slot click (team calendar)  | Team         | Requires `teamId` → `navigate('/teams/…')`                                                                 |
+| Schedule slot click                        | Slot detail  | `ScheduleSlotDetailDialog` (preview; navigate to team / edit from dialog)                                  |
+| `ScheduleList` “go to team” from slot UI   | Team         | Requires `teamId` → `navigate('/teams/…')`                                                                 |
 | `PlanView` slot click                      | Team or edit | With `teamId` → `/teams/…`; without (plan event) → open edit dialog if unlocked                            |
 | Schedule grid pencil / copy icons          | Schedule     | In-plugin only: edit or copy dialog (`mode: 'edit' \| 'copy'`); no cross-plugin navigate                   |
 
@@ -157,3 +218,5 @@ Use `attemptNavigation()` from `useGlobalNavigationGuard` when unsaved changes m
 
 - [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md) – AppContext and cross-plugin data
 - [PLUGIN_DEVELOPMENT_STANDARDS_V2.md](PLUGIN_DEVELOPMENT_STANDARDS_V2.md) – Plugin conventions (incl. mentions guidance)
+- [UI_AND_UX_STANDARDS_V3.md](UI_AND_UX_STANDARDS_V3.md) – List/toolbar and detail chrome
+- This doc § **Entity quick-info popup** – required pattern before navigating to a linked entity

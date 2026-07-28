@@ -4,10 +4,15 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_VIEW_CARD_CLASS,
+  DETAIL_LIST_ITEM_HOVER_CLASS,
+  DETAIL_LIST_ITEM_TITLE_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 import type { FileItem } from '../types/files';
+import type { FileColumnCount } from '../utils/fileColumnCount';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
 
@@ -50,17 +55,38 @@ export function FileListItem({
   selected,
   onClick,
   checkbox,
+  columnCount = 1,
 }: {
   file: FileItem;
   selected?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
+  /** When 1, meta sits on the top row; 2/3 keep meta below title. */
+  columnCount?: FileColumnCount;
 }) {
   const { t } = useTranslation();
   const isImage = String(file.mimeType ?? '').startsWith('image/');
   const mimeLabel = getMimeLabel(file.mimeType);
   const sizeLabel = humanSize(file.size);
   const updatedLabel = file.updatedAt ? new Date(file.updatedAt).toLocaleDateString() : null;
+  const metaOnTop = columnCount === 1;
+  const hasMeta = Boolean(sizeLabel || updatedLabel);
+
+  const metaRow = hasMeta ? (
+    <div
+      className={cn(
+        'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground',
+        !metaOnTop && 'mt-0.5 pt-0.5',
+      )}
+    >
+      {sizeLabel ? <span className="truncate">{sizeLabel}</span> : null}
+      {updatedLabel ? (
+        <span className="truncate">
+          {t('common.updated')}: {updatedLabel}
+        </span>
+      ) : null}
+    </div>
+  ) : null;
 
   const openOnKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -74,7 +100,7 @@ export function FileListItem({
       className={cn(
         'group cursor-pointer overflow-hidden p-0 transition-all',
         DETAIL_VIEW_CARD_CLASS,
-        selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : 'hover:shadow-md',
+        selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('input[type="checkbox"], button')) {
@@ -101,6 +127,7 @@ export function FileListItem({
                 {mimeLabel}
               </Badge>
             ) : null}
+            {metaOnTop ? metaRow : null}
           </div>
         </div>
 
@@ -121,18 +148,9 @@ export function FileListItem({
           </div>
         )}
 
-        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
-          {file.name || '—'}
-        </h3>
+        <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>{file.name || '—'}</h3>
 
-        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs text-muted-foreground">
-          {sizeLabel ? <span className="truncate">{sizeLabel}</span> : null}
-          {updatedLabel ? (
-            <span className="truncate">
-              {t('common.updated')}: {updatedLabel}
-            </span>
-          ) : null}
-        </div>
+        {!metaOnTop ? metaRow : null}
       </div>
     </Card>
   );

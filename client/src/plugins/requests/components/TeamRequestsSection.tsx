@@ -10,6 +10,7 @@ import type { Request, RequestPriority, RequestStatus } from '../types/requests'
 import { formatSubmittedDateWithAge, getTypeLabel } from '../types/requests';
 
 import { RequestPrioritySelect } from './RequestPrioritySelect';
+import { RequestQuickInfoDialog } from './RequestQuickInfoDialog';
 import { RequestStatusSelect } from './RequestStatusSelect';
 
 function getSubmitterDisplay(request: Request, t: (key: string) => string): string {
@@ -40,6 +41,7 @@ export function TeamRequestsSection({
   const { t } = useTranslation();
   const [requests, setRequests] = useState<Request[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewingRequest, setViewingRequest] = useState<Request | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +101,16 @@ export function TeamRequestsSection({
     [],
   );
 
+  const handleOpenPreview = useCallback(
+    (request: Request) => {
+      if (!onOpenRequest) {
+        return;
+      }
+      setViewingRequest(request);
+    },
+    [onOpenRequest],
+  );
+
   const displayRequests = compact ? requests.slice(0, 5) : requests;
 
   if (isLoading) {
@@ -127,82 +139,97 @@ export function TeamRequestsSection({
   }
 
   return (
-    <div className="space-y-1.5">
-      {displayRequests.map((request) => {
-        const submittedDate = formatSubmittedDateWithAge(request.created_at, t);
-        return (
-          <div
-            key={request.id}
-            className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2"
-          >
-            <button
-              type="button"
-              onClick={() => onOpenRequest?.(request)}
-              disabled={!onOpenRequest}
-              className={cn(
-                'min-w-0 flex-1 text-left',
-                onOpenRequest && 'cursor-pointer transition-opacity hover:opacity-80',
-                !onOpenRequest && 'cursor-default',
-              )}
-            >
-              <p className="truncate text-sm font-medium">{request.title}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {getTypeLabel(request.requestType, t)}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                <span className="text-foreground/80">{getSubmitterDisplay(request, t)}</span>
-                {submittedDate ? (
-                  <>
-                    <span className="mx-1 text-muted-foreground/50">·</span>
-                    <span>
-                      {t('requests.teamRow.submitted')} {submittedDate}
-                    </span>
-                  </>
-                ) : null}
-              </p>
-            </button>
-
+    <>
+      <div className="space-y-1.5">
+        {displayRequests.map((request) => {
+          const submittedDate = formatSubmittedDateWithAge(request.created_at, t);
+          return (
             <div
-              className="flex flex-shrink-0 items-center gap-1.5"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
+              key={request.id}
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2"
             >
-              <RequestPrioritySelect
-                request={request}
-                onPriorityChange={(priority) => void handlePriorityChange(request, priority)}
-                hideInlineLabel
-                compact
-              />
-              <RequestStatusSelect
-                request={request}
-                onStatusChange={(status) => void handleStatusChange(request, status)}
-                hideInlineLabel
-                compact
-              />
-              {onOpenRequest && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+              <button
+                type="button"
+                onClick={() => handleOpenPreview(request)}
+                disabled={!onOpenRequest}
+                className={cn(
+                  'min-w-0 flex-1 text-left',
+                  onOpenRequest && 'cursor-pointer transition-opacity hover:opacity-80',
+                  !onOpenRequest && 'cursor-default',
+                )}
+              >
+                <p className="truncate text-sm font-medium">{request.title}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {getTypeLabel(request.requestType, t)}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <span className="text-foreground/80">{getSubmitterDisplay(request, t)}</span>
+                  {submittedDate ? (
+                    <>
+                      <span className="mx-1 text-muted-foreground/50">·</span>
+                      <span>
+                        {t('requests.teamRow.submitted')} {submittedDate}
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+              </button>
+
+              <div
+                className="flex flex-shrink-0 items-center gap-1.5"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <RequestPrioritySelect
+                  request={request}
+                  onPriorityChange={(priority) => void handlePriorityChange(request, priority)}
+                  hideInlineLabel
+                  compact
+                />
+                <RequestStatusSelect
+                  request={request}
+                  onStatusChange={(status) => void handleStatusChange(request, status)}
+                  hideInlineLabel
+                  compact
+                />
+                {onOpenRequest && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
 
-      {compact && requests.length > 5 && (
-        <p className="pt-1 text-center text-xs text-muted-foreground">
-          {t('requests.moreCount', { count: requests.length - 5 })}
-        </p>
-      )}
+        {compact && requests.length > 5 && (
+          <p className="pt-1 text-center text-xs text-muted-foreground">
+            {t('requests.moreCount', { count: requests.length - 5 })}
+          </p>
+        )}
 
-      {!compact && onCreateRequest && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          icon={Plus}
-          onClick={onCreateRequest}
-          className="mt-2"
-        >
-          {t('requests.addRequest')}
-        </Button>
-      )}
-    </div>
+        {!compact && onCreateRequest && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            icon={Plus}
+            onClick={onCreateRequest}
+            className="mt-2"
+          >
+            {t('requests.addRequest')}
+          </Button>
+        )}
+      </div>
+
+      <RequestQuickInfoDialog
+        isOpen={viewingRequest !== null}
+        request={viewingRequest}
+        onClose={() => setViewingRequest(null)}
+        onOpenRequest={() => {
+          if (!viewingRequest) {
+            return;
+          }
+          onOpenRequest?.(viewingRequest);
+          setViewingRequest(null);
+        }}
+      />
+    </>
   );
 }

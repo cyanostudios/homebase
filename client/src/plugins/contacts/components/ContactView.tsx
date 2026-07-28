@@ -14,7 +14,6 @@ import {
   MapPin,
   Phone,
   SlidersHorizontal,
-  Star,
   StickyNote,
   Store,
   Tag,
@@ -48,6 +47,7 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, type DetailSectionIconPlugin } from '@/core/ui/DetailSection';
 import {
   DETAIL_EMPTY_STATE_CLASS as EMPTY_STATE_CLASS,
+  DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_FIELD_LABEL_CLASS as FIELD_LABEL_CLASS,
   DETAIL_FIELD_LABEL_ICON_CLASS as FIELD_LABEL_ICON_CLASS,
   DETAIL_FIELD_VALUE_CLASS as FIELD_VALUE_CLASS,
@@ -64,6 +64,11 @@ import type { ExportFormat } from '@/core/utils/exportUtils';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
+import {
+  ESTIMATE_STATUS_COLORS,
+  formatEstimateStatusForDisplay,
+} from '@/plugins/estimates/types/estimate';
+import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 import { useSlotsContext } from '@/plugins/slots/context/SlotsContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 import { formatStatusForDisplay } from '@/plugins/tasks/types/tasks';
@@ -88,7 +93,11 @@ import { ContactAssignmentRow } from './ContactAssignmentRow';
 import { ContactCopyableLink, mailtoHref, telHref, websiteHref } from './ContactCopyableLink';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
-import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
+import {
+  CONTACT_TYPE_BADGE_CLASS,
+  CONTACT_TYPE_COLORS,
+  formatCompanyTypeLabel,
+} from '../types/contacts';
 import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
 
 type ViewingAssignment = {
@@ -295,6 +304,7 @@ function RelatedItemsCard({
   iconPlugin: DetailSectionIconPlugin;
   items: RelatedItem[];
 }) {
+  const { t } = useTranslation();
   if (items.length === 0) {
     return null;
   }
@@ -313,10 +323,10 @@ function RelatedItemsCard({
                 variant="ghost"
                 size="sm"
                 icon={ExternalLink}
-                className="h-7 w-7 shrink-0 p-0 hover:bg-accent"
+                className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, item.pluginClass)}
                 onClick={item.onOpen}
               >
-                <span className="sr-only">Open</span>
+                {t('common.open')}
               </Button>
             </div>
           ))}
@@ -399,9 +409,9 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   const enabledPlugins = useEnabledPlugins();
   const { teams } = useTeams();
   const { tasks } = useTasks();
+  const { estimates } = useEstimates();
   const { slots: allSlots } = useSlotsContext();
   const {
-    user,
     getSettings,
     settingsVersion,
     getNotesForContact,
@@ -409,8 +419,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     getTasksForContact,
     getSlotsForContact,
     getMatchesForContact,
-    openNoteForView,
-    openEstimateForView,
     openMatchForView,
   } = useApp();
 
@@ -589,40 +597,12 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     closeContactPanel();
   }, [contact, deleteContact, closeContactPanel]);
 
-  const toEstimateItems: RelatedItem[] = useMemo(
-    () =>
-      relatedEstimates.map((item: any) => ({
-        id: item.id,
-        label: formatDisplayNumber('estimates', item.estimateNumber),
-        onOpen: () => {
-          closeContactPanel();
-          openEstimateForView?.(item);
-        },
-        pluginClass: 'plugin-estimates bg-plugin-subtle/40',
-      })),
-    [relatedEstimates, closeContactPanel, openEstimateForView],
-  );
-
   const teamAssignments = useMemo(() => {
     if (!enabledPlugins.has('teams') || !contact?.id) {
       return [];
     }
     return listTeamAssignmentsForContact(teams, contact.id);
   }, [enabledPlugins, contact?.id, teams]);
-
-  const toNoteItems: RelatedItem[] = useMemo(
-    () =>
-      mentionedInNotes.map((item: any) => ({
-        id: item.id,
-        label: item.title || 'Note',
-        onOpen: () => {
-          closeContactPanel();
-          openNoteForView?.(item);
-        },
-        pluginClass: 'plugin-notes bg-plugin-subtle/40',
-      })),
-    [mentionedInNotes, closeContactPanel, openNoteForView],
-  );
 
   const toMatchItems: RelatedItem[] = useMemo(
     () =>
@@ -664,27 +644,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               exportFormats={exportFormats}
               onExportItem={onExportItem}
             />
-
-            <RelatedItemsCard
-              title="Estimates"
-              icon={FileText}
-              iconPlugin="estimates"
-              items={toEstimateItems}
-            />
-            <RelatedItemsCard
-              title="Note Mentions"
-              icon={StickyNote}
-              iconPlugin="notes"
-              items={toNoteItems}
-            />
-            {user?.plugins?.includes('matches') && (
-              <RelatedItemsCard
-                title="Matches"
-                icon={Trophy}
-                iconPlugin="matches"
-                items={toMatchItems}
-              />
-            )}
 
             {/* Time log card */}
             <Card padding="none" className={CARD_CLASS}>
@@ -767,6 +726,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
           <Card padding="none" className={CARD_CLASS}>
             <DetailSection
               title={t('contacts.contactContent')}
+              icon={User}
               iconPlugin="contacts"
               subtleTitle
               className="p-6"
@@ -803,13 +763,21 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     </div>
                   </div>
                   <div>
-                    <div className={FIELD_LABEL_CLASS}>Organization Number</div>
-                    <div className={FIELD_VALUE_CLASS}>{contact.organizationNumber || '—'}</div>
+                    <div className={FIELD_LABEL_CLASS}>
+                      {isCompany
+                        ? t('contacts.quickInfo.organizationNumber')
+                        : t('contacts.quickInfo.personalNumber')}
+                    </div>
+                    <div className={FIELD_VALUE_CLASS}>
+                      {(isCompany ? contact.organizationNumber : contact.personalNumber) || '—'}
+                    </div>
                   </div>
-                  <div>
-                    <div className={FIELD_LABEL_CLASS}>VAT Number</div>
-                    <div className={FIELD_VALUE_CLASS}>{contact.vatNumber || '—'}</div>
-                  </div>
+                  {isCompany ? (
+                    <div>
+                      <div className={FIELD_LABEL_CLASS}>VAT Number</div>
+                      <div className={FIELD_VALUE_CLASS}>{contact.vatNumber || '—'}</div>
+                    </div>
+                  ) : null}
                   <div>
                     <div className={FIELD_LABEL_CLASS}>
                       <Mail className={FIELD_LABEL_ICON_CLASS} />
@@ -843,24 +811,26 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     <ContactCopyableLink value={contact.phone2} href={telHref(contact.phone2)} />
                   </div>
                 </div>
-
-                {/* Notes — amber left-border callout */}
-                {contact.notes ? (
-                  <div className={NOTE_CLASS}>
-                    <Star className="h-4 w-4 mt-0.5 text-amber-500 fill-amber-400 shrink-0 dark:text-amber-400" />
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.1em] font-semibold text-amber-800 dark:text-amber-400">
-                        Notes
-                      </div>
-                      <div className="mt-0.5 text-sm font-medium text-amber-950 dark:text-amber-200">
-                        {contact.notes}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </DetailSection>
           </Card>
+
+          {contact.notes?.trim() ? (
+            <Card padding="none" className={CARD_CLASS}>
+              <DetailSection
+                title={t('contacts.relatedNotes')}
+                icon={StickyNote}
+                subtleTitle
+                className="p-6"
+              >
+                <div className={NOTE_CLASS}>
+                  <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                    {contact.notes}
+                  </p>
+                </div>
+              </DetailSection>
+            </Card>
+          ) : null}
 
           {/* Contact Properties — divider list with colored pills */}
           <Card padding="none" className={CARD_CLASS}>
@@ -871,10 +841,18 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               className="p-6"
             >
               <div>
+                {isCompany ? (
+                  <div className={PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Company type</span>
+                    <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                      {formatCompanyTypeLabel(contact.companyType)}
+                    </Badge>
+                  </div>
+                ) : null}
                 <div className={PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">Tax rate</span>
                   <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
-                    {contact.taxRate ? `${contact.taxRate}%` : '—'}
+                    {isCompany ? (contact.taxRate ? `${contact.taxRate}%` : '—') : '0%'}
                   </Badge>
                 </div>
                 <div className={PROP_ROW_CLASS}>
@@ -889,18 +867,20 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     {contact.currency || '—'}
                   </Badge>
                 </div>
-                <div className={PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">F-tax</span>
-                  {contact.fTax === 'yes' ? (
-                    <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
-                      Registered
-                    </Badge>
-                  ) : (
-                    <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
-                      No
-                    </Badge>
-                  )}
-                </div>
+                {isCompany ? (
+                  <div className={PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">F-tax</span>
+                    {contact.fTax === 'yes' ? (
+                      <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
+                        Registered
+                      </Badge>
+                    ) : (
+                      <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                        No
+                      </Badge>
+                    )}
+                  </div>
+                ) : null}
                 <div className={PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">Assignable</span>
                   {contact.isAssignable ? (
@@ -1095,97 +1075,71 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
             </Card>
           )}
 
-          {enabledPlugins.has('teams') ? (
+          {/* Related plugin cards — sidebar nav order (Main → Sport → Booking → Business) */}
+          {enabledPlugins.has('notes') ? (
             <ContactAssignmentsCard
-              title={t('contacts.relatedTeams')}
-              icon={Users}
-              iconPlugin="teams"
-              isEmpty={teamAssignments.length === 0}
+              title={t('contacts.relatedNotes')}
+              icon={StickyNote}
+              iconPlugin="notes"
+              isEmpty={mentionedInNotes.length === 0}
             >
-              {teamAssignments.map(({ team, responsible }) => {
-                const roleKey = RESPONSIBLE_ROLES.includes(responsible.role as any)
-                  ? responsible.role
-                  : 'other';
-                const hasSeriesTeams = (team.series_teams ?? []).length > 0;
-                const seriesLabel =
-                  getSeriesTeamDisplayLabel(team, responsible.seriesTeam) ??
-                  (hasSeriesTeams ? t('teams.form.seriesTeamAll') : null);
-                const seriesColor = getSeriesTeamColorForName(team, responsible.seriesTeam);
-                const title = formatTeamLabel(team) || team.name || 'Team';
-                const roleBadge = {
-                  label: t(`teams.roles.${roleKey}`),
-                  className:
-                    RESPONSIBLE_ROLE_BADGES[roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES],
-                };
-                const openTeam = () => {
+              {mentionedInNotes.map((item: any) => {
+                const title = item.title || 'Note';
+                const updatedAt = item.updatedAt ? new Date(item.updatedAt) : null;
+                const updatedLabel =
+                  updatedAt && Number.isFinite(updatedAt.getTime())
+                    ? updatedAt.toLocaleDateString()
+                    : null;
+                const rowBadges = updatedLabel
+                  ? [
+                      {
+                        label: updatedLabel,
+                        className:
+                          'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+                      },
+                    ]
+                  : [];
+                const openNote = () => {
                   closeContactPanel();
                   setViewingAssignment(null);
-                  navigate(`/teams/${buildSlug(team, teams, 'name')}`);
+                  navigate(`/notes/${buildSlug(item, mentionedInNotes, 'title')}`);
                 };
-                const details: AssignmentQuickInfoDetail[] = [
-                  {
-                    icon: User,
-                    label: t('teams.form.statusLabel'),
-                    value: t(`teams.status.${team.status}`),
-                  },
-                ];
-                if (team.age_group?.trim()) {
+                const details: AssignmentQuickInfoDetail[] = [];
+                if (updatedLabel) {
                   details.push({
-                    icon: Users,
-                    label: t('teams.form.ageGroupLabel'),
-                    value: team.age_group.trim(),
-                  });
-                }
-                if (team.gender) {
-                  details.push({
-                    icon: Users,
-                    label: t('teams.form.genderLabel'),
-                    value: t(`teams.gender.${team.gender}`),
-                  });
-                }
-                if (team.playing_format) {
-                  details.push({
-                    icon: Trophy,
-                    label: t('teams.form.playingFormatLabel'),
-                    value: team.playing_format,
+                    icon: CalendarDays,
+                    label: t('common.updated'),
+                    value: updatedLabel,
                   });
                 }
                 return (
                   <ContactAssignmentRow
-                    key={`${team.id}-${responsibleKey(responsible)}`}
+                    key={item.id}
                     title={title}
-                    badges={[roleBadge]}
-                    meta={
-                      seriesLabel ? (
-                        <SeriesTeamBadge label={seriesLabel} color={seriesColor} />
-                      ) : null
-                    }
-                    actionLabel={t('contacts.openTeam')}
+                    badges={rowBadges}
+                    actionLabel={t('contacts.openNote')}
+                    pluginClass="plugin-notes"
                     onTitleClick={() => {
                       setViewingAssignment({
                         title,
-                        icon: Users,
-                        badges: (
-                          <>
-                            <span
-                              className={cn(
-                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
-                                roleBadge.className,
-                              )}
-                            >
-                              {roleBadge.label}
-                            </span>
-                            {seriesLabel ? (
-                              <SeriesTeamBadge label={seriesLabel} color={seriesColor} />
-                            ) : null}
-                          </>
-                        ),
+                        icon: StickyNote,
+                        badges: rowBadges.map((badge) => (
+                          <span
+                            key={`${badge.label}-${badge.className ?? ''}`}
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                              badge.className,
+                            )}
+                          >
+                            {badge.label}
+                          </span>
+                        )),
                         details,
-                        openLabel: t('contacts.openTeam'),
-                        onOpen: openTeam,
+                        openLabel: t('contacts.openNote'),
+                        onOpen: openNote,
                       });
                     }}
-                    onOpen={openTeam}
+                    onOpen={openNote}
                   />
                 );
               })}
@@ -1264,6 +1218,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     title={title}
                     badges={rowBadges}
                     actionLabel={t('contacts.openTask')}
+                    pluginClass="plugin-tasks"
                     onTitleClick={() => {
                       setViewingAssignment({
                         title,
@@ -1289,6 +1244,111 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                 );
               })}
             </ContactAssignmentsCard>
+          ) : null}
+          {enabledPlugins.has('teams') ? (
+            <ContactAssignmentsCard
+              title={t('contacts.relatedTeams')}
+              icon={Users}
+              iconPlugin="teams"
+              isEmpty={teamAssignments.length === 0}
+            >
+              {teamAssignments.map(({ team, responsible }) => {
+                const roleKey = RESPONSIBLE_ROLES.includes(responsible.role as any)
+                  ? responsible.role
+                  : 'other';
+                const hasSeriesTeams = (team.series_teams ?? []).length > 0;
+                const seriesLabel =
+                  getSeriesTeamDisplayLabel(team, responsible.seriesTeam) ??
+                  (hasSeriesTeams ? t('teams.form.seriesTeamAll') : null);
+                const seriesColor = getSeriesTeamColorForName(team, responsible.seriesTeam);
+                const title = formatTeamLabel(team) || team.name || 'Team';
+                const roleBadge = {
+                  label: t(`teams.roles.${roleKey}`),
+                  className:
+                    RESPONSIBLE_ROLE_BADGES[roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES],
+                };
+                const openTeam = () => {
+                  closeContactPanel();
+                  setViewingAssignment(null);
+                  navigate(`/teams/${buildSlug(team, teams, 'name')}`);
+                };
+                const details: AssignmentQuickInfoDetail[] = [
+                  {
+                    icon: User,
+                    label: t('teams.form.statusLabel'),
+                    value: t(`teams.status.${team.status}`),
+                  },
+                ];
+                if (team.age_group?.trim()) {
+                  details.push({
+                    icon: Users,
+                    label: t('teams.form.ageGroupLabel'),
+                    value: team.age_group.trim(),
+                  });
+                }
+                if (team.gender) {
+                  details.push({
+                    icon: Users,
+                    label: t('teams.form.genderLabel'),
+                    value: t(`teams.gender.${team.gender}`),
+                  });
+                }
+                if (team.playing_format) {
+                  details.push({
+                    icon: Trophy,
+                    label: t('teams.form.playingFormatLabel'),
+                    value: team.playing_format,
+                  });
+                }
+                return (
+                  <ContactAssignmentRow
+                    key={`${team.id}-${responsibleKey(responsible)}`}
+                    title={title}
+                    badges={[roleBadge]}
+                    meta={
+                      seriesLabel ? (
+                        <SeriesTeamBadge label={seriesLabel} color={seriesColor} />
+                      ) : null
+                    }
+                    actionLabel={t('contacts.openTeam')}
+                    pluginClass="plugin-teams"
+                    onTitleClick={() => {
+                      setViewingAssignment({
+                        title,
+                        icon: Users,
+                        badges: (
+                          <>
+                            <span
+                              className={cn(
+                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                roleBadge.className,
+                              )}
+                            >
+                              {roleBadge.label}
+                            </span>
+                            {seriesLabel ? (
+                              <SeriesTeamBadge label={seriesLabel} color={seriesColor} />
+                            ) : null}
+                          </>
+                        ),
+                        details,
+                        openLabel: t('contacts.openTeam'),
+                        onOpen: openTeam,
+                      });
+                    }}
+                    onOpen={openTeam}
+                  />
+                );
+              })}
+            </ContactAssignmentsCard>
+          ) : null}
+          {enabledPlugins.has('matches') ? (
+            <RelatedItemsCard
+              title="Matches"
+              icon={Trophy}
+              iconPlugin="matches"
+              items={toMatchItems}
+            />
           ) : null}
           {enabledPlugins.has('slots') ? (
             <ContactAssignmentsCard
@@ -1349,6 +1409,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     title={title}
                     badges={rowBadges}
                     actionLabel={t('contacts.openSlot')}
+                    pluginClass="plugin-slots"
                     onTitleClick={() => {
                       setViewingAssignment({
                         title,
@@ -1370,6 +1431,87 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                       });
                     }}
                     onOpen={openSlot}
+                  />
+                );
+              })}
+            </ContactAssignmentsCard>
+          ) : null}
+          {enabledPlugins.has('estimates') ? (
+            <ContactAssignmentsCard
+              title={t('contacts.relatedEstimates')}
+              icon={FileText}
+              iconPlugin="estimates"
+              isEmpty={relatedEstimates.length === 0}
+            >
+              {relatedEstimates.map((item: any) => {
+                const title = formatDisplayNumber('estimates', item.estimateNumber);
+                const statusKey = String(item.status || '');
+                const statusLabel = statusKey ? formatEstimateStatusForDisplay(statusKey) : null;
+                const statusColor =
+                  statusKey in ESTIMATE_STATUS_COLORS
+                    ? ESTIMATE_STATUS_COLORS[statusKey as keyof typeof ESTIMATE_STATUS_COLORS]
+                    : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+                const rowBadges = statusLabel
+                  ? [
+                      {
+                        label: statusLabel,
+                        className: statusColor,
+                      },
+                    ]
+                  : [];
+                const openEstimate = () => {
+                  closeContactPanel();
+                  setViewingAssignment(null);
+                  navigate(
+                    `/estimates/${buildSlug(item, estimates.length > 0 ? estimates : relatedEstimates, 'estimateNumber')}`,
+                  );
+                };
+                const details: AssignmentQuickInfoDetail[] = [];
+                if (statusLabel) {
+                  details.push({
+                    icon: FileText,
+                    label: t('estimates.fieldStatus'),
+                    value: statusLabel,
+                  });
+                }
+                if (item.validTo) {
+                  const validTo = new Date(item.validTo);
+                  if (Number.isFinite(validTo.getTime())) {
+                    details.push({
+                      icon: CalendarDays,
+                      label: t('estimates.fieldValidTo'),
+                      value: validTo.toLocaleDateString(),
+                    });
+                  }
+                }
+                return (
+                  <ContactAssignmentRow
+                    key={item.id}
+                    title={title}
+                    badges={rowBadges}
+                    actionLabel={t('contacts.openEstimate')}
+                    pluginClass="plugin-estimates"
+                    onTitleClick={() => {
+                      setViewingAssignment({
+                        title,
+                        icon: FileText,
+                        badges: rowBadges.map((badge) => (
+                          <span
+                            key={`${badge.label}-${badge.className ?? ''}`}
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                              badge.className,
+                            )}
+                          >
+                            {badge.label}
+                          </span>
+                        )),
+                        details,
+                        openLabel: t('contacts.openEstimate'),
+                        onOpen: openEstimate,
+                      });
+                    }}
+                    onOpen={openEstimate}
                   />
                 );
               })}

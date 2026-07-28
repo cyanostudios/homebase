@@ -28,6 +28,7 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
+import { COMPANY_TYPE_OPTIONS } from '../types/contacts';
 
 import { ContactSettingsForm } from './ContactSettingsForm';
 
@@ -185,9 +186,11 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
 
   useEffect(() => {
     if (currentContact) {
+      const contactType = currentContact.contactType || 'company';
+      const isPrivate = contactType === 'private';
       setFormData({
         contactNumber: currentContact.contactNumber || '',
-        contactType: currentContact.contactType || 'company',
+        contactType,
         companyName: currentContact.companyName || '',
         companyType: currentContact.companyType || 'AB',
         organizationNumber: currentContact.organizationNumber || '',
@@ -199,10 +202,10 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
         phone: currentContact.phone || '',
         phone2: currentContact.phone2 || '',
         website: currentContact.website || '',
-        taxRate: currentContact.taxRate || '25',
+        taxRate: isPrivate ? '0' : currentContact.taxRate || '25',
         paymentTerms: currentContact.paymentTerms || '30',
         currency: currentContact.currency || 'SEK',
-        fTax: currentContact.fTax || 'yes',
+        fTax: isPrivate ? '' : currentContact.fTax || 'yes',
         notes: currentContact.notes || '',
         isAssignable:
           currentContact.isAssignable !== undefined ? currentContact.isAssignable : false,
@@ -263,7 +266,12 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
   };
 
   const updateField = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      if (field === 'contactType' && value === 'private') {
+        return { ...prev, contactType: 'private', taxRate: '0', fTax: '' };
+      }
+      return { ...prev, [field]: value };
+    });
     markDirty();
     clearValidationErrors();
   };
@@ -508,27 +516,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       />
                     </div>
 
-                    {formData.contactType === 'company' ? (
-                      <div>
-                        <Label
-                          htmlFor="companyType"
-                          className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                        >
-                          Company Type
-                        </Label>
-                        <NativeSelect
-                          id="companyType"
-                          value={formData.companyType}
-                          onChange={(e) => updateField('companyType', e.target.value)}
-                          className="h-10 text-sm"
-                        >
-                          <option value="AB">AB (Aktiebolag)</option>
-                          <option value="HB">HB (Handelsbolag)</option>
-                          <option value="KB">KB (Kommanditbolag)</option>
-                          <option value="EF">Enskild Firma</option>
-                        </NativeSelect>
-                      </div>
-                    ) : (
+                    {formData.contactType === 'private' ? (
                       <div>
                         <Label
                           htmlFor="personalNumber"
@@ -547,39 +535,43 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                           )}
                         />
                       </div>
-                    )}
+                    ) : null}
 
-                    <div>
-                      <Label
-                        htmlFor="organizationNumber"
-                        className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                      >
-                        Organization Number
-                      </Label>
-                      <Input
-                        id="organizationNumber"
-                        type="text"
-                        value={formData.organizationNumber}
-                        onChange={(e) => updateField('organizationNumber', e.target.value)}
-                        className="h-10 text-sm"
-                      />
-                    </div>
+                    {formData.contactType === 'company' ? (
+                      <>
+                        <div>
+                          <Label
+                            htmlFor="organizationNumber"
+                            className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
+                          >
+                            Organization Number
+                          </Label>
+                          <Input
+                            id="organizationNumber"
+                            type="text"
+                            value={formData.organizationNumber}
+                            onChange={(e) => updateField('organizationNumber', e.target.value)}
+                            className="h-10 text-sm"
+                          />
+                        </div>
 
-                    <div>
-                      <Label
-                        htmlFor="vatNumber"
-                        className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                      >
-                        VAT Number
-                      </Label>
-                      <Input
-                        id="vatNumber"
-                        type="text"
-                        value={formData.vatNumber}
-                        onChange={(e) => updateField('vatNumber', e.target.value)}
-                        className="h-10 text-sm"
-                      />
-                    </div>
+                        <div>
+                          <Label
+                            htmlFor="vatNumber"
+                            className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
+                          >
+                            VAT Number
+                          </Label>
+                          <Input
+                            id="vatNumber"
+                            type="text"
+                            value={formData.vatNumber}
+                            onChange={(e) => updateField('vatNumber', e.target.value)}
+                            className="h-10 text-sm"
+                          />
+                        </div>
+                      </>
+                    ) : null}
 
                     <div>
                       <Label
@@ -680,20 +672,46 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {formData.contactType === 'company' ? (
+                    <div className="rounded-lg border border-border p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="text-sm font-medium">Company type</div>
+                        <NativeSelect
+                          id="companyType"
+                          value={formData.companyType}
+                          onChange={(e) => updateField('companyType', e.target.value)}
+                          className="h-10 max-w-[180px] text-sm"
+                        >
+                          {COMPANY_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="rounded-lg border border-border p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div className="text-sm font-medium">Tax Rate (%)</div>
-                      <NativeSelect
-                        id="taxRate"
-                        value={formData.taxRate}
-                        onChange={(e) => updateField('taxRate', e.target.value)}
-                        className="h-10 max-w-[180px] text-sm"
-                      >
-                        <option value="0">0% (Tax Free)</option>
-                        <option value="6">6% (Reduced)</option>
-                        <option value="12">12% (Reduced)</option>
-                        <option value="25">25% (Standard)</option>
-                      </NativeSelect>
+                      {formData.contactType === 'private' ? (
+                        <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                          0% (Tax Free)
+                        </Badge>
+                      ) : (
+                        <NativeSelect
+                          id="taxRate"
+                          value={formData.taxRate}
+                          onChange={(e) => updateField('taxRate', e.target.value)}
+                          className="h-10 max-w-[180px] text-sm"
+                        >
+                          <option value="0">0% (Tax Free)</option>
+                          <option value="6">6% (Reduced)</option>
+                          <option value="12">12% (Reduced)</option>
+                          <option value="25">25% (Standard)</option>
+                        </NativeSelect>
+                      )}
                     </div>
                   </div>
 
@@ -732,20 +750,22 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="text-sm font-medium">F-Tax</div>
-                      <NativeSelect
-                        id="fTax"
-                        value={formData.fTax}
-                        onChange={(e) => updateField('fTax', e.target.value)}
-                        className="h-10 max-w-[180px] text-sm"
-                      >
-                        <option value="yes">Yes</option>
-                        <option value="no">No</option>
-                      </NativeSelect>
+                  {formData.contactType === 'company' ? (
+                    <div className="rounded-lg border border-border p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="text-sm font-medium">F-Tax</div>
+                        <NativeSelect
+                          id="fTax"
+                          value={formData.fTax || 'yes'}
+                          onChange={(e) => updateField('fTax', e.target.value)}
+                          className="h-10 max-w-[180px] text-sm"
+                        >
+                          <option value="yes">Yes</option>
+                          <option value="no">No</option>
+                        </NativeSelect>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
 
                   <div className="rounded-lg border border-border p-4">
                     <div className="flex items-center justify-between gap-4">

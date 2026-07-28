@@ -654,6 +654,7 @@ export function TeamList() {
                   selected={isSelected(team.id)}
                   highlighted={recentlyDuplicatedTeamId === String(team.id)}
                   onClick={() => attemptNavigation(() => openTeamForView(team))}
+                  columnCount={columnCount}
                   checkbox={
                     <input
                       type="checkbox"

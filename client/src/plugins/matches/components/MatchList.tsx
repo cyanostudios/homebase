@@ -524,6 +524,7 @@ export function MatchList() {
                     match={match}
                     selected={matchIsSelected}
                     highlighted={recentlyDuplicatedMatchId === String(match.id)}
+                    columnCount={columnCount}
                     onClick={() => handleOpenForView(match)}
                     checkbox={
                       <input
