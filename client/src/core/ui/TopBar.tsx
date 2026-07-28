@@ -28,7 +28,8 @@ function TopBarInner({
   onDetailPanelClose,
   detailPanelPluginName,
 }: TopBarProps) {
-  const { user, logout, getSettings, settingsVersion } = useApp();
+  const { user, logout, getSettings, settingsVersion, organizationName, organizationLogoUrl } =
+    useApp();
   const { theme, toggleTheme } = useTheme();
   const [openWidgetId, setOpenWidgetId] = useState<string | null>(null);
   const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(
@@ -36,6 +37,9 @@ function TopBarInner({
   );
   const [pomodoroClockEnabled, setPomodoroClockEnabled] = useState(true);
   const [timeTrackingEnabled, setTimeTrackingEnabled] = useState(true);
+
+  const brandName = organizationName.trim() || 'Homebase';
+  const brandInitial = (brandName.charAt(0) || 'H').toUpperCase();
 
   useEffect(() => {
     const loadProfileSettings = async () => {
@@ -158,7 +162,7 @@ function TopBarInner({
   }, [topBarWidgets, handleWidgetToggle]);
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-40 flex h-14 w-full border-b border-border bg-workspace">
+    <header className="fixed left-0 right-0 top-0 z-40 flex h-14 w-full bg-workspace">
       <div className="flex h-full min-w-0 w-full items-center justify-between pl-3 pr-2 sm:pl-4 sm:pr-4 md:pl-4 md:pr-6">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <Button
@@ -172,13 +176,22 @@ function TopBarInner({
           </Button>
 
           <div className="mr-4 hidden flex-shrink-0 items-center gap-2 md:flex">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <span className="text-xs font-bold">H</span>
-            </div>
-            <span className="text-sm font-semibold">Homebase</span>
+            {organizationLogoUrl ? (
+              <img
+                src={organizationLogoUrl}
+                alt=""
+                className="h-8 w-8 rounded-md object-contain bg-muted/40"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <span className="text-xs font-bold">{brandInitial}</span>
+              </div>
+            )}
+            <span className="text-sm font-semibold">{brandName}</span>
           </div>
 
           <TopBarBreadcrumbs
+            brandLabel={brandName}
             activeBreadcrumbLabel={activeBreadcrumbLabel}
             detailPanelTitle={detailPanelTitle}
             onGoDashboard={handleGoDashboard}

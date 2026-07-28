@@ -10,14 +10,10 @@ import {
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
-import { ESTIMATE_STATUS_COLORS, formatEstimateStatusForDisplay } from '../types/estimate';
 import type { Estimate } from '../types/estimate';
 import type { EstimateColumnCount } from '../utils/estimateColumnCount';
 
 import { EstimateStatusSelect } from './EstimateStatusSelect';
-
-const BADGE_CLASS =
-  'inline-flex items-center rounded-md border-0 px-2 py-0.5 text-xs font-semibold';
 
 export function EstimateListItem({
   estimate,
@@ -43,40 +39,36 @@ export function EstimateListItem({
   const validToLabel = estimate.validTo ? new Date(estimate.validTo).toLocaleDateString() : null;
   const isExpired = estimate.validTo && new Date(estimate.validTo).getTime() < Date.now();
   const metaOnTop = columnCount === 1;
+  const itemCount = estimate.lineItems.length;
 
   const metaRow = (
-    <>
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">
-          {typeof estimate.total === 'number' ? estimate.total.toFixed(2) : estimate.total}{' '}
-          {estimate.currency}
+    <div
+      className={cn(
+        'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground',
+        !metaOnTop && 'mt-0.5 pt-0.5',
+      )}
+    >
+      <span className="font-medium text-foreground">
+        {typeof estimate.total === 'number' ? estimate.total.toFixed(2) : estimate.total}{' '}
+        {estimate.currency}
+      </span>
+      <span>
+        {itemCount} item{itemCount !== 1 ? 's' : ''}
+      </span>
+      {validToLabel ? (
+        <span
+          className={cn(
+            'inline-flex min-w-0 items-center gap-1.5',
+            isExpired && estimate.status !== 'accepted' && estimate.status !== 'rejected'
+              ? 'text-destructive'
+              : '',
+          )}
+        >
+          <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">Valid to: {validToLabel}</span>
         </span>
-        <span>
-          {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        {validToLabel ? (
-          <span
-            className={cn(
-              'inline-flex min-w-0 items-center gap-1.5',
-              isExpired && estimate.status !== 'accepted' && estimate.status !== 'rejected'
-                ? 'text-destructive'
-                : '',
-            )}
-          >
-            <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">Valid to: {validToLabel}</span>
-          </span>
-        ) : null}
-        {createdLabel ? <span className="truncate">Created: {createdLabel}</span> : null}
-      </div>
-    </>
-  );
-
-  const metaBlock = (
-    <div className={cn('flex min-w-0 flex-col gap-1', !metaOnTop && 'mt-0.5 pt-0.5')}>
-      {metaRow}
+      ) : null}
+      {createdLabel ? <span className="truncate">Created: {createdLabel}</span> : null}
     </div>
   );
 
@@ -114,23 +106,15 @@ export function EstimateListItem({
     >
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             {checkbox}
             <span className="font-mono text-[10px] text-muted-foreground">
               {formatDisplayNumber('estimates', estimate.estimateNumber)}
             </span>
-            <span
-              className={cn(
-                BADGE_CLASS,
-                ESTIMATE_STATUS_COLORS[estimate.status as keyof typeof ESTIMATE_STATUS_COLORS],
-              )}
-            >
-              {formatEstimateStatusForDisplay(estimate.status)}
-            </span>
-            {metaOnTop ? metaBlock : null}
+            {metaOnTop ? metaRow : null}
           </div>
           <div
-            className="flex shrink-0 justify-end"
+            className="flex shrink-0 items-center justify-end"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
@@ -142,15 +126,18 @@ export function EstimateListItem({
           </div>
         </div>
 
-        <h3 className={cn('line-clamp-1', DETAIL_LIST_ITEM_TITLE_CLASS)}>{estimate.contactName}</h3>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <h3 className={cn('line-clamp-1 min-w-0', DETAIL_LIST_ITEM_TITLE_CLASS)}>
+            {estimate.contactName}
+          </h3>
+          {estimate.organizationNumber ? (
+            <span className="truncate text-xs text-muted-foreground">
+              Org: {estimate.organizationNumber}
+            </span>
+          ) : null}
+        </div>
 
-        {estimate.organizationNumber ? (
-          <p className="line-clamp-1 text-xs text-muted-foreground">
-            Org: {estimate.organizationNumber}
-          </p>
-        ) : null}
-
-        {!metaOnTop ? metaBlock : null}
+        {!metaOnTop ? metaRow : null}
       </div>
     </Card>
   );

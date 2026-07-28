@@ -8,11 +8,13 @@ const AuthService = require('../services/auth/AuthService');
 const PasswordResetService = require('../services/auth/PasswordResetService');
 const ServiceManager = require('../ServiceManager');
 const { emailLimiter } = require('../middleware/rateLimit');
+const { OrganizationService } = require('../services/organization/OrganizationService');
 
 // Dependencies will be injected by setupAuthRoutes()
 let authLimiter = null;
 let requireAuth = null;
 let pluginLoader = null;
+let organizationService = null;
 
 // Initialize AuthService
 const authService = new AuthService();
@@ -56,10 +58,11 @@ function persistAuthenticatedSession(req, sessionPayload, done) {
  * @param {Function} authMiddleware - Auth middleware
  * @param {Object} loader - Plugin loader instance
  */
-function setupAuthRoutes(_pool, limiter, authMiddleware, loader) {
+function setupAuthRoutes(pool, limiter, authMiddleware, loader) {
   authLimiter = limiter;
   requireAuth = authMiddleware;
   pluginLoader = loader;
+  organizationService = pool ? new OrganizationService(pool) : null;
 }
 
 /**
@@ -388,6 +391,22 @@ router.get(
         }
       }
 
+      let organizationName = '';
+      let organizationLogoUrl = '';
+      if (tenantId != null && organizationService) {
+        try {
+          const organization = await organizationService.getOrganization(tenantId);
+          organizationName = organization.name || '';
+          organizationLogoUrl = organization.logoUrl || '';
+        } catch (orgError) {
+          const logger = ServiceManager.get('logger');
+          logger.error('Failed to get organization for /me', orgError, {
+            tenantId,
+            userId: req.session.user.id,
+          });
+        }
+      }
+
       res.json({
         user: {
           ...req.session.user,
@@ -397,6 +416,8 @@ router.get(
         tenantId,
         tenantRole,
         tenantOwnerUserId,
+        organizationName,
+        organizationLogoUrl,
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');

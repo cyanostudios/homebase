@@ -1,4 +1,5 @@
 import {
+  CheckSquare,
   Mail,
   MessageSquare,
   ArrowUp,
@@ -10,10 +11,11 @@ import {
   Search,
   Settings,
   Tag,
+  UserCheck,
   X,
   XCircle,
 } from 'lucide-react';
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -33,6 +35,8 @@ import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -47,12 +51,13 @@ import {
   type ContactColumnCount,
 } from '../utils/contactColumnCount';
 import {
-  compareContactsTwoLevel,
+  compareContactsByField,
   isContactAscDefaultField,
   type ContactSortField,
   type ContactSortOrder,
 } from '../utils/contactListSort';
 
+import { ContactBulkAssignableDialog } from './ContactBulkAssignableDialog';
 import { ContactBulkTagsDialog } from './ContactBulkTagsDialog';
 import { ContactListItem } from './ContactListItem';
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
@@ -87,6 +92,7 @@ export const ContactList: React.FC = () => {
     deleteContacts,
     applyTagToContact,
     clearTagsFromContact,
+    setContactAssignable,
     selectedContactIds,
     toggleContactSelected,
     mergeIntoContactSelection,
@@ -109,11 +115,11 @@ export const ContactList: React.FC = () => {
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [showBulkTagsDialog, setShowBulkTagsDialog] = useState(false);
+  const [showBulkAssignableDialog, setShowBulkAssignableDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   const [primarySort, setPrimarySort] = useState<SortField>('name');
-  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<ContactColumnCount>(
     getInitialContactColumnCount,
@@ -160,37 +166,11 @@ export const ContactList: React.FC = () => {
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
     setSortOrder(isContactAscDefaultField(field) ? 'asc' : 'desc');
-    setSecondarySort((prev) => (prev === field ? '' : prev));
-  };
-
-  const handleSecondarySortChange = (value: string) => {
-    if (value === '' || value === 'none') {
-      setSecondarySort('');
-      return;
-    }
-    const field = value as SortField;
-    if (field === primarySort) {
-      return;
-    }
-    setSecondarySort(field);
   };
 
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
-
-  const secondarySortOptions = useMemo(
-    () => SORT_FIELD_OPTIONS.filter((option) => option.value !== primarySort),
-    [primarySort],
-  );
-
-  const primarySortOptions = useMemo(
-    () =>
-      secondarySort
-        ? SORT_FIELD_OPTIONS.filter((option) => option.value !== secondarySort)
-        : SORT_FIELD_OPTIONS,
-    [secondarySort],
-  );
 
   const sortedContacts = useMemo(() => {
     const timeCtx = {
@@ -199,7 +179,7 @@ export const ContactList: React.FC = () => {
     };
 
     const comparePair = (a: Contact, b: Contact): number =>
-      compareContactsTwoLevel(a, b, primarySort, secondarySort, sortOrder, timeCtx);
+      compareContactsByField(a, b, primarySort, sortOrder, timeCtx);
 
     const byFilter = contacts.filter((contact) => {
       if (activeFilter === 'company') {
@@ -240,7 +220,6 @@ export const ContactList: React.FC = () => {
     contacts,
     searchTerm,
     primarySort,
-    secondarySort,
     sortOrder,
     activeFilter,
     activeTimeTrackingContactId,
@@ -263,20 +242,6 @@ export const ContactList: React.FC = () => {
     () => visibleContactIds.length > 0 && visibleContactIds.every((id) => isSelected(id)),
     [visibleContactIds, isSelected],
   );
-
-  const someVisibleSelected = useMemo(
-    () => visibleContactIds.some((id) => isSelected(id)),
-    [visibleContactIds, isSelected],
-  );
-
-  const headerCheckboxRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!headerCheckboxRef.current) {
-      return;
-    }
-    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
-  }, [allVisibleSelected, someVisibleSelected]);
 
   const handleHeaderCheckboxChange = () => {
     if (allVisibleSelected) {
@@ -516,200 +481,193 @@ export const ContactList: React.FC = () => {
           onSuccess={clearContactSelection}
         />
 
+        <ContactBulkAssignableDialog
+          isOpen={showBulkAssignableDialog}
+          onClose={() => setShowBulkAssignableDialog(false)}
+          selectedContacts={selectedContacts}
+          setContactAssignable={setContactAssignable}
+          onSuccess={clearContactSelection}
+        />
+
         <div className="flex flex-col gap-3">
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
-            <div className="relative w-full max-w-sm md:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
-                className="h-8 bg-background pl-9 text-xs"
-              />
-            </div>
-            <div className="flex flex-shrink-0 items-center gap-1">
-              <div className="mr-1 flex items-center gap-1">
-                <Select
-                  value={primarySort}
-                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                >
-                  <SelectTrigger
-                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                    aria-label="Sort by"
+          <ListToolbar
+            selectedCount={selectedCount}
+            showSelectAll={sortedContacts.length > 0}
+            selectAll={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                icon={CheckSquare}
+                onClick={handleHeaderCheckboxChange}
+              >
+                Select all
+              </Button>
+            }
+            search={
+              <div className="relative w-full max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder={t('contacts.searchPlaceholder', { count: contacts.length })}
+                  className="h-8 bg-background pl-9 text-xs"
+                />
+              </div>
+            }
+            trailing={
+              <>
+                <div className="mr-1 flex items-center gap-1">
+                  <Select
+                    value={primarySort}
+                    onValueChange={(value) => handlePrimarySortChange(value as SortField)}
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent
-                    position="item-aligned"
-                    className="rounded-xl border-border/50 shadow-xl"
+                    <SelectTrigger
+                      className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                      aria-label="Sort by"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="item-aligned"
+                      className="rounded-xl border-border/50 shadow-xl"
+                    >
+                      {SORT_FIELD_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          value={option.value}
+                          className="rounded-md text-xs"
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 px-0 text-xs"
+                    onClick={toggleSortOrder}
+                    aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                   >
-                    {primarySortOptions.map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        className="rounded-md text-xs"
-                      >
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
-                  <SelectTrigger
-                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                    aria-label="And sort by"
-                  >
-                    <SelectValue placeholder="And..." />
-                  </SelectTrigger>
-                  <SelectContent
-                    position="item-aligned"
-                    className="rounded-xl border-border/50 shadow-xl"
-                  >
-                    <SelectItem value="none" className="rounded-md text-xs">
-                      And...
-                    </SelectItem>
-                    {secondarySortOptions.map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        className="rounded-md text-xs"
-                      >
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    {sortOrder === 'asc' ? (
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+                <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
+                  {COLUMN_OPTIONS.map((count) => (
+                    <Button
+                      key={count}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                        columnCount === count
+                          ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                      onClick={() => setColumnCount(count)}
+                      aria-label={t(`contacts.columns${count}`)}
+                      aria-pressed={columnCount === count}
+                    >
+                      {count}
+                    </Button>
+                  ))}
+                </div>
+              </>
+            }
+            bulkActions={
+              <>
                 <Button
-                  type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 px-0 text-xs"
-                  onClick={toggleSortOrder}
-                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                  icon={XCircle}
+                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  onClick={clearContactSelection}
+                  type="button"
                 >
-                  {sortOrder === 'asc' ? (
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  ) : (
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  )}
+                  {t('common.clearSelection')}
                 </Button>
-              </div>
-              <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                {COLUMN_OPTIONS.map((count) => (
-                  <Button
-                    key={count}
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-                      columnCount === count
-                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                    onClick={() => setColumnCount(count)}
-                    aria-label={t(`contacts.columns${count}`)}
-                    aria-pressed={columnCount === count}
-                  >
-                    {count}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {sortedContacts.length > 0 ? (
-            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
-              {selectedCount === 0 ? (
-                <div className="flex h-9 min-w-0 items-center gap-2">
-                  <input
-                    ref={headerCheckboxRef}
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    onChange={handleHeaderCheckboxChange}
-                    className="h-4 w-4 cursor-pointer"
-                    aria-label="Select all contacts"
-                  />
-                  <span className="text-xs text-muted-foreground">Select all</span>
-                </div>
-              ) : (
-                <>
+                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                  {t('bulk.selected', { count: selectedCount })}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Tag}
+                  onClick={() => setShowBulkTagsDialog(true)}
+                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                >
+                  {t('contacts.bulkTagsAction')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={UserCheck}
+                  onClick={() => setShowBulkAssignableDialog(true)}
+                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                >
+                  {t('contacts.bulkAssignableAction')}
+                </Button>
+                {canSendMessages ? (
                   <Button
                     variant="ghost"
                     size="sm"
-                    icon={XCircle}
-                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                    onClick={clearContactSelection}
-                    type="button"
-                  >
-                    {t('common.clearSelection')}
-                  </Button>
-                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                    {t('bulk.selected', { count: selectedCount })}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={Tag}
-                    onClick={() => setShowBulkTagsDialog(true)}
+                    icon={MessageSquare}
+                    onClick={() => setShowBulkMessageDialog(true)}
                     className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
                   >
-                    {t('contacts.bulkTagsAction')}
+                    {t('bulk.sendMessageTitle')}
                   </Button>
-                  {canSendMessages ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={MessageSquare}
-                      onClick={() => setShowBulkMessageDialog(true)}
-                      className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                    >
-                      {t('bulk.sendMessageTitle')}
-                    </Button>
-                  ) : null}
-                  {canSendEmail ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={Mail}
-                      onClick={() => setShowBulkEmailDialog(true)}
-                      className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                    >
-                      {t('bulk.sendEmailTitle')}
-                    </Button>
-                  ) : null}
+                ) : null}
+                {canSendEmail ? (
                   <Button
                     variant="ghost"
                     size="sm"
-                    icon={FileSpreadsheet}
-                    onClick={handleExportCSV}
+                    icon={Mail}
+                    onClick={() => setShowBulkEmailDialog(true)}
                     className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
                   >
-                    {t('contacts.exportCsv')}
+                    {t('bulk.sendEmailTitle')}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={FileText}
-                    onClick={handleExportPDF}
-                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                  >
-                    {t('contacts.exportPdf')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={Trash2}
-                    onClick={() => setShowBulkDeleteModal(true)}
-                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  >
-                    {t('contacts.delete')}
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : null}
+                ) : null}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={FileSpreadsheet}
+                  onClick={handleExportCSV}
+                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                >
+                  {t('contacts.exportCsv')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={FileText}
+                  onClick={handleExportPDF}
+                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                >
+                  {t('contacts.exportPdf')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  onClick={() => setShowBulkDeleteModal(true)}
+                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                >
+                  {t('contacts.delete')}
+                </Button>
+              </>
+            }
+          />
 
           {sortedContacts.length === 0 ? (
             <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
@@ -759,9 +717,13 @@ export const ContactList: React.FC = () => {
             </div>
           )}
 
-          <div className="rounded-xl bg-white px-4 py-3 text-xs text-muted-foreground shadow-sm dark:bg-slate-950">
-            Showing {sortedContacts.length} of {contacts.length} Contacts
-          </div>
+          <ListFooterBar
+            meta={
+              <>
+                Showing {sortedContacts.length} of {contacts.length} Contacts
+              </>
+            }
+          />
         </div>
       </div>
     </div>

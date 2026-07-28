@@ -5,7 +5,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
-import { ContentSurface } from './ContentSurface';
+import { ContentSurface, MAIN_CONTENT_SHELL_CLASS } from './ContentSurface';
 import { DetailPanel } from './DetailPanel';
 import { Sidebar } from './Sidebar';
 import type { NavPage } from '@/core/navigation/navTypes';
@@ -108,28 +108,30 @@ export function MainLayout({
             {/* Mobile: Always show list view when DetailPanel is closed */}
             {!detailPanelOpen && (
               <ContentSurface flush={contentFlush}>
-                <ContentLayoutProvider
-                  onTrailingChange={setHeaderTrailing}
-                  onTitleSuffixChange={setHeaderTitleSuffix}
-                >
-                  <div className="flex h-full flex-col gap-4">
-                    {shouldShowContentHeader && (
-                      <ContentHeader
-                        title={contentTitle}
-                        icon={contentIcon}
-                        titleSuffix={headerTitleSuffix}
-                        actionLabel={contentActionLabel}
-                        actionIcon={contentActionIcon}
-                        actionVariant={contentActionVariant}
-                        onAction={onContentAction}
-                        trailing={headerTrailing}
-                      />
-                    )}
-                    <div className="flex flex-1 flex-col overflow-hidden">
-                      <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                <div className={MAIN_CONTENT_SHELL_CLASS}>
+                  <ContentLayoutProvider
+                    onTrailingChange={setHeaderTrailing}
+                    onTitleSuffixChange={setHeaderTitleSuffix}
+                  >
+                    <div className="flex h-full flex-col gap-4">
+                      {shouldShowContentHeader && (
+                        <ContentHeader
+                          title={contentTitle}
+                          icon={contentIcon}
+                          titleSuffix={headerTitleSuffix}
+                          actionLabel={contentActionLabel}
+                          actionIcon={contentActionIcon}
+                          actionVariant={contentActionVariant}
+                          onAction={onContentAction}
+                          trailing={headerTrailing}
+                        />
+                      )}
+                      <div className="flex flex-1 flex-col overflow-hidden">
+                        <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                      </div>
                     </div>
-                  </div>
-                </ContentLayoutProvider>
+                  </ContentLayoutProvider>
+                </div>
               </ContentSurface>
             )}
             {/* Mobile: DetailPanel as Sheet overlay */}
@@ -166,28 +168,30 @@ export function MainLayout({
               </ContentSurface>
             ) : (
               <ContentSurface flush={contentFlush}>
-                <ContentLayoutProvider
-                  onTrailingChange={setHeaderTrailing}
-                  onTitleSuffixChange={setHeaderTitleSuffix}
-                >
-                  <div className="flex h-full flex-col gap-4">
-                    {shouldShowContentHeader && (
-                      <ContentHeader
-                        title={contentTitle}
-                        icon={contentIcon}
-                        titleSuffix={headerTitleSuffix}
-                        actionLabel={contentActionLabel}
-                        actionIcon={contentActionIcon}
-                        actionVariant={contentActionVariant}
-                        onAction={onContentAction}
-                        trailing={headerTrailing}
-                      />
-                    )}
-                    <div className="flex flex-1 flex-col overflow-hidden">
-                      <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                <div className={MAIN_CONTENT_SHELL_CLASS}>
+                  <ContentLayoutProvider
+                    onTrailingChange={setHeaderTrailing}
+                    onTitleSuffixChange={setHeaderTitleSuffix}
+                  >
+                    <div className="flex h-full flex-col gap-4">
+                      {shouldShowContentHeader && (
+                        <ContentHeader
+                          title={contentTitle}
+                          icon={contentIcon}
+                          titleSuffix={headerTitleSuffix}
+                          actionLabel={contentActionLabel}
+                          actionIcon={contentActionIcon}
+                          actionVariant={contentActionVariant}
+                          onAction={onContentAction}
+                          trailing={headerTrailing}
+                        />
+                      )}
+                      <div className="flex flex-1 flex-col overflow-hidden">
+                        <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                      </div>
                     </div>
-                  </div>
-                </ContentLayoutProvider>
+                  </ContentLayoutProvider>
+                </div>
               </ContentSurface>
             )}
           </>

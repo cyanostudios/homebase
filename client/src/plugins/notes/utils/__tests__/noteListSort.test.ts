@@ -1,4 +1,4 @@
-import { compareNotesByField, compareNotesTwoLevel, isNoteStringSortField } from '../noteListSort';
+import { compareNotesByField, isNoteStringSortField } from '../noteListSort';
 
 const base = {
   title: 'Alpha',
@@ -12,18 +12,6 @@ describe('noteListSort', () => {
     expect(
       compareNotesByField({ ...base, title: 'A' }, { ...base, title: 'B' }, 'title', 'asc'),
     ).toBeLessThan(0);
-  });
-
-  it('breaks ties with secondary field', () => {
-    const a = { ...base, title: 'Same', updatedAt: new Date(2026, 6, 10, 8, 0, 0) };
-    const b = { ...base, title: 'Same', updatedAt: new Date(2026, 6, 10, 18, 0, 0) };
-    expect(compareNotesTwoLevel(a, b, 'title', 'updatedAt', 'asc')).toBeLessThan(0);
-  });
-
-  it('with date primary + secondary, reorders same-day items by secondary', () => {
-    const earlier = { ...base, title: 'Zulu', updatedAt: new Date(2026, 6, 10, 8, 0, 0) };
-    const later = { ...base, title: 'Alpha', updatedAt: new Date(2026, 6, 10, 18, 0, 0) };
-    expect(compareNotesTwoLevel(earlier, later, 'updatedAt', 'title', 'asc')).toBeGreaterThan(0);
   });
 
   it('sorts by mentions count', () => {

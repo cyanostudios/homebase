@@ -80,11 +80,7 @@ export function ContactAssignmentRow({
         variant="ghost"
         size="sm"
         icon={ExternalLink}
-        className={cn(
-          DETAIL_ENTITY_LINK_TRIGGER_CLASS,
-          'bg-muted/40 hover:bg-muted/70 dark:bg-muted/25',
-          pluginClass,
-        )}
+        className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, pluginClass)}
         onClick={onOpen}
       >
         {actionLabel}

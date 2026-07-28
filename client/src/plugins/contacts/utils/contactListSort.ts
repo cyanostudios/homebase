@@ -72,11 +72,6 @@ function toSortTime(value: Date | string): number {
   return value instanceof Date ? value.getTime() : new Date(value).getTime();
 }
 
-function toSortDay(value: Date | string): number {
-  const date = value instanceof Date ? value : new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-}
-
 function compareNullableTimes(
   aValue: Date | string | null | undefined,
   bValue: Date | string | null | undefined,
@@ -157,36 +152,4 @@ export function compareContactsByField(
     return compareStrings(getContactPhone(a), getContactPhone(b), order);
   }
   return compareStrings(getContactFirstTag(a), getContactFirstTag(b), order);
-}
-
-export function compareContactsTwoLevel(
-  a: ContactSortable,
-  b: ContactSortable,
-  primary: ContactSortField,
-  secondary: ContactSortField | '',
-  order: ContactSortOrder,
-  timeCtx?: ContactTimeRankContext,
-): number {
-  if (secondary && (primary === 'updatedAt' || primary === 'createdAt')) {
-    const aPrimary = a[primary];
-    const bPrimary = b[primary];
-    const dayResult = compareNullableTimes(aPrimary, bPrimary, order, toSortDay);
-    if (dayResult !== 0) {
-      return dayResult;
-    }
-    const secondaryResult = compareContactsByField(a, b, secondary, order, timeCtx);
-    if (secondaryResult !== 0) {
-      return secondaryResult;
-    }
-    return compareNullableTimes(aPrimary, bPrimary, order, toSortTime);
-  }
-
-  const primaryResult = compareContactsByField(a, b, primary, order, timeCtx);
-  if (primaryResult !== 0) {
-    return primaryResult;
-  }
-  if (secondary) {
-    return compareContactsByField(a, b, secondary, order, timeCtx);
-  }
-  return 0;
 }

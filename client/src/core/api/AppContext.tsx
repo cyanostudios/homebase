@@ -127,6 +127,11 @@ interface AppContextType {
   getSettings: (category?: string) => Promise<any>;
   updateSettings: (category: string, settings: any) => Promise<any>;
   settingsVersion: number;
+
+  /** Shared account (tenant) display name from Settings → Profile. */
+  organizationName: string;
+  organizationLogoUrl: string;
+  refreshOrganization: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -227,6 +232,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [organizationName, setOrganizationName] = useState('');
+  const [organizationLogoUrl, setOrganizationLogoUrl] = useState('');
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -304,13 +311,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
+  const applyOrganizationFromMe = useCallback(
+    (me: { organizationName?: string; organizationLogoUrl?: string }) => {
+      setOrganizationName(
+        typeof me.organizationName === 'string' ? me.organizationName.trim() : '',
+      );
+      setOrganizationLogoUrl(
+        typeof me.organizationLogoUrl === 'string' ? me.organizationLogoUrl.trim() : '',
+      );
+    },
+    [],
+  );
+
   const checkAuth = async () => {
     try {
       const response = await api.getMe();
       setUser(response.user);
+      applyOrganizationFromMe(response);
       setIsAuthenticated(true);
     } catch {
       setUser(null);
+      setOrganizationName('');
+      setOrganizationLogoUrl('');
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
@@ -369,6 +391,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await api.login(email, password);
         const me = await api.getMe();
         setUser(me.user);
+        applyOrganizationFromMe(me);
         setIsAuthenticated(true);
         return { success: true };
       } catch (error: any) {
@@ -378,7 +401,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, error: errorMessage };
       }
     },
-    [],
+    [applyOrganizationFromMe],
   );
 
   const signup = useCallback(
@@ -393,6 +416,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await api.signup(email, password);
         const me = await api.getMe();
         setUser(me.user);
+        applyOrganizationFromMe(me);
         setIsAuthenticated(true);
         return { success: true };
       } catch (error: any) {
@@ -401,7 +425,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, error: errorMessage };
       }
     },
-    [],
+    [applyOrganizationFromMe],
   );
 
   const logout = useCallback(async () => {
@@ -412,6 +436,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       pomodoroAudio.close();
       setUser(null);
+      setOrganizationName('');
+      setOrganizationLogoUrl('');
       setIsAuthenticated(false);
       setContacts([]);
       setNotes([]);
@@ -419,6 +445,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSlots([]);
     }
   }, []);
+
+  const refreshOrganization = useCallback(async () => {
+    try {
+      const me = await api.getMe();
+      applyOrganizationFromMe(me);
+    } catch (error) {
+      console.error('Failed to refresh organization:', error);
+    }
+  }, [applyOrganizationFromMe]);
 
   const registerPanelCloseFunction = useCallback(
     (pluginName: string, closeFunction: () => void) => {
@@ -658,6 +693,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getSettings,
       updateSettings,
       settingsVersion,
+      organizationName,
+      organizationLogoUrl,
+      refreshOrganization,
     }),
     [
       user,
@@ -702,6 +740,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getSettings,
       updateSettings,
       settingsVersion,
+      organizationName,
+      organizationLogoUrl,
+      refreshOrganization,
     ],
   );
 

@@ -50,12 +50,6 @@ function toSortTime(value: string): number {
   return new Date(value).getTime();
 }
 
-/** Calendar day in local time — lets secondary sort reorder same-day items. */
-function toSortDay(value: string): number {
-  const d = new Date(value);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-}
-
 function compareNullableStrings(
   a: string | null | undefined,
   b: string | null | undefined,
@@ -99,34 +93,4 @@ export function compareTeamsByField(
   const aVal = getTeamSortValue(a, field) as string | null;
   const bVal = getTeamSortValue(b, field) as string | null;
   return compareNullableStrings(aVal, bVal, order);
-}
-
-/**
- * Primary then optional secondary; shared order for both levels.
- * When primary is a date field and secondary is set, primary is compared by
- * calendar day so secondary can reorder same-day items.
- */
-export function compareTeamsTwoLevel(
-  a: TeamSortable,
-  b: TeamSortable,
-  primary: TeamSortField,
-  secondary: TeamSortField | '',
-  order: TeamSortOrder,
-): number {
-  if (secondary && isTeamDateSortField(primary)) {
-    const aDate = primary === 'updated_at' ? a.updated_at : a.created_at;
-    const bDate = primary === 'updated_at' ? b.updated_at : b.created_at;
-    const dayResult = compareNullableTimes(aDate, bDate, order, toSortDay);
-    if (dayResult !== 0) return dayResult;
-    const secondaryResult = compareTeamsByField(a, b, secondary, order);
-    if (secondaryResult !== 0) return secondaryResult;
-    return compareNullableTimes(aDate, bDate, order, toSortTime);
-  }
-
-  const primaryResult = compareTeamsByField(a, b, primary, order);
-  if (primaryResult !== 0) return primaryResult;
-  if (secondary) {
-    return compareTeamsByField(a, b, secondary, order);
-  }
-  return 0;
 }

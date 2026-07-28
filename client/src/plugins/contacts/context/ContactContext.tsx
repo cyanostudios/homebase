@@ -44,6 +44,8 @@ export interface ContactContextType {
   applyTagToContact: (contact: Contact, tag: string) => Promise<boolean>;
   /** Remove all tags from a contact. Used by bulk clear tags. */
   clearTagsFromContact: (contact: Contact) => Promise<boolean>;
+  /** Set assignable flag on a contact. Used by bulk assignable dialog. */
+  setContactAssignable: (contact: Contact, isAssignable: boolean) => Promise<boolean>;
   showDiscardTagsDialog: boolean;
   setShowDiscardTagsDialog: (show: boolean) => void;
   getCloseHandler: (defaultClose: () => void) => () => void;
@@ -129,6 +131,7 @@ const EMPTY_CONTACT_CONTEXT: ContactContextType = {
   onApplyTagsEdit: async () => {},
   applyTagToContact: async () => false,
   clearTagsFromContact: async () => false,
+  setContactAssignable: async () => false,
   showDiscardTagsDialog: false,
   setShowDiscardTagsDialog: () => {},
   getCloseHandler: (fn) => fn,

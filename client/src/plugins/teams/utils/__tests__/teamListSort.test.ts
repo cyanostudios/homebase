@@ -1,6 +1,5 @@
 import {
   compareTeamsByField,
-  compareTeamsTwoLevel,
   getTeamSortValue,
   isTeamStringSortField,
   isTeamDateSortField,
@@ -84,60 +83,5 @@ describe('compareTeamsByField', () => {
     const withoutGroup = { ...base, age_group: null };
     expect(compareTeamsByField(withoutGroup, withGroup, 'age_group', 'asc')).toBeGreaterThan(0);
     expect(compareTeamsByField(withoutGroup, withGroup, 'age_group', 'desc')).toBeLessThan(0);
-  });
-});
-
-describe('compareTeamsTwoLevel', () => {
-  it('uses primary only when secondary is empty', () => {
-    const a = { ...base, name: 'Alpha', player_count: 20 };
-    const b = { ...base, name: 'Zeta', player_count: 5 };
-    expect(compareTeamsTwoLevel(a, b, 'name', '', 'asc')).toBeLessThan(0);
-  });
-
-  it('breaks name ties with player_count', () => {
-    const a = { ...base, name: 'Same FC', player_count: 5 };
-    const b = { ...base, name: 'Same FC', player_count: 20 };
-    expect(compareTeamsTwoLevel(a, b, 'name', 'player_count', 'asc')).toBeLessThan(0);
-    expect(compareTeamsTwoLevel(a, b, 'name', 'player_count', 'desc')).toBeGreaterThan(0);
-  });
-
-  it('returns 0 when primary and secondary are equal', () => {
-    const a = { ...base, name: 'Same FC', player_count: 15 };
-    const b = { ...base, name: 'Same FC', player_count: 15 };
-    expect(compareTeamsTwoLevel(a, b, 'name', 'player_count', 'asc')).toBe(0);
-  });
-
-  it('with date primary + secondary, reorders same-day items by secondary', () => {
-    const earlyInDay = {
-      ...base,
-      name: 'Zeta FC',
-      updated_at: '2026-07-10T08:00:00.000Z',
-    };
-    const lateInDay = {
-      ...base,
-      name: 'Alpha FC',
-      updated_at: '2026-07-10T18:00:00.000Z',
-    };
-    // Same calendar day + name asc → Alpha before Zeta
-    expect(
-      compareTeamsTwoLevel(earlyInDay, lateInDay, 'updated_at', 'name', 'asc'),
-    ).toBeGreaterThan(0);
-    expect(compareTeamsTwoLevel(lateInDay, earlyInDay, 'updated_at', 'name', 'asc')).toBeLessThan(
-      0,
-    );
-  });
-
-  it('with date primary + secondary, different days still follow primary day order', () => {
-    const day1 = {
-      ...base,
-      name: 'Alpha FC',
-      updated_at: '2026-07-09T23:00:00.000Z',
-    };
-    const day2 = {
-      ...base,
-      name: 'Zeta FC',
-      updated_at: '2026-07-10T01:00:00.000Z',
-    };
-    expect(compareTeamsTwoLevel(day1, day2, 'updated_at', 'name', 'desc')).toBeGreaterThan(0);
   });
 });

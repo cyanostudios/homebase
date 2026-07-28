@@ -895,6 +895,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       List: SettingsList,
       Form: SettingsForm,
     },
+    contentFlush: true,
     // No navigation: settings is reached only via TopBar profile dropdown (Settings), not sidebar
   },
 ];

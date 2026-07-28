@@ -12,12 +12,14 @@ import {
 import { Button } from '@/components/ui/button';
 
 export const TopBarBreadcrumbs = React.memo(function TopBarBreadcrumbs({
+  brandLabel = 'Homebase',
   activeBreadcrumbLabel,
   detailPanelTitle,
   onGoDashboard,
   onBreadcrumbPrimaryClick,
   onDetailChipClose,
 }: {
+  brandLabel?: string;
   activeBreadcrumbLabel: string;
   detailPanelTitle?: string | React.ReactNode;
   onGoDashboard: () => void;
@@ -35,7 +37,7 @@ export const TopBarBreadcrumbs = React.memo(function TopBarBreadcrumbs({
               onClick={onGoDashboard}
               className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground hover:no-underline font-normal"
             >
-              Homebase
+              {brandLabel}
             </Button>
           </BreadcrumbLink>
         </BreadcrumbItem>

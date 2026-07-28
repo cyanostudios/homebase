@@ -2,7 +2,6 @@
  * Authenticated shell: plugin contexts, navigation guard, MainLayout, cross-plugin dialogs.
  */
 
-import { Settings } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -364,7 +363,8 @@ export function AppContent() {
       return '';
     }
     if (currentPage === 'settings') {
-      return 'Settings';
+      // Own page header inside SettingsList (Contacts-style shell).
+      return '';
     }
     if (!currentPagePlugin?.navigation) {
       return '';
@@ -383,7 +383,7 @@ export function AppContent() {
       return undefined;
     }
     if (currentPage === 'settings') {
-      return Settings;
+      return undefined;
     }
     if (!currentPagePlugin?.navigation) {
       return undefined;

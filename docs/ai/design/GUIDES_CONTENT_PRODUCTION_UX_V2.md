@@ -279,7 +279,7 @@ Avstämd med ADR v2:
 
 ## 6. Angränsande förbättringsmöjligheter
 
-- **GuideList:** visa "Produktion pågår" / "Väntar granskning" på `GuideCard`.
+- **GuideList:** visa "Produktion pågår" / "Väntar granskning" på listkortet (`GuideListItem`; äldre namn `GuideCard` — komponenten `GuideCard` finns inte längre).
 - **Notifikationer:** browser-notis när async jobb går till `awaiting_review` (ej Fas 2-scope).
 - **Slide-over review-kö:** bättre för guider med 50+ items (P-OBS).
 - **GuideList aggregate:** antal guides som väntar HITL (redan noterat i v1).

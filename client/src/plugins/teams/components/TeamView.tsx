@@ -31,6 +31,8 @@ import {
   DETAIL_INFO_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
+  LIST_FILTER_CHIP_LG_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_LG_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -718,7 +720,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             </div>
           </Card>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
             {tabs.map((tab) => {
               const TabIcon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -729,11 +731,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                   variant="ghost"
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
-                    'flex items-center gap-1.5 sm:gap-2',
-                    isActive
-                      ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                      : 'border-transparent bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                    isActive ? LIST_FILTER_CHIP_LG_ACTIVE_CLASS : LIST_FILTER_CHIP_LG_CLASS,
                   )}
                 >
                   <TabIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -742,16 +740,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                     {tab.count != null ? (
                       <>
                         {' '}
-                        <span
-                          className={cn(
-                            'tabular-nums font-semibold',
-                            isActive
-                              ? 'text-primary'
-                              : 'text-muted-foreground group-hover:text-primary',
-                          )}
-                        >
-                          ({tab.count})
-                        </span>
+                        <span className="tabular-nums font-semibold">({tab.count})</span>
                       </>
                     ) : null}
                   </span>

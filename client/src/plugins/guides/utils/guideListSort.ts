@@ -29,11 +29,6 @@ function toSortTime(value: Date | string): number {
   return value instanceof Date ? value.getTime() : new Date(value).getTime();
 }
 
-function toSortDay(value: Date | string): number {
-  const date = value instanceof Date ? value : new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-}
-
 function compareNullableTimes(
   aValue: Date | string | null | undefined,
   bValue: Date | string | null | undefined,
@@ -82,35 +77,4 @@ export function compareGuidesByField(
     sensitivity: 'base',
   });
   return order === 'asc' ? res : -res;
-}
-
-export function compareGuidesTwoLevel(
-  a: GuideSortable,
-  b: GuideSortable,
-  primary: GuideSortField,
-  secondary: GuideSortField | '',
-  order: GuideSortOrder,
-): number {
-  if (secondary && (primary === 'updatedAt' || primary === 'createdAt')) {
-    const aPrimary = a[primary];
-    const bPrimary = b[primary];
-    const dayResult = compareNullableTimes(aPrimary, bPrimary, order, toSortDay);
-    if (dayResult !== 0) {
-      return dayResult;
-    }
-    const secondaryResult = compareGuidesByField(a, b, secondary, order);
-    if (secondaryResult !== 0) {
-      return secondaryResult;
-    }
-    return compareNullableTimes(aPrimary, bPrimary, order, toSortTime);
-  }
-
-  const primaryResult = compareGuidesByField(a, b, primary, order);
-  if (primaryResult !== 0) {
-    return primaryResult;
-  }
-  if (secondary) {
-    return compareGuidesByField(a, b, secondary, order);
-  }
-  return 0;
 }

@@ -24,6 +24,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import {
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -413,32 +417,20 @@ export function ScheduleList() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           <Button
             type="button"
             variant="ghost"
+            size="sm"
             onClick={() => setTeamFilter('all')}
             className={cn(
-              'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
-              'flex items-center gap-1.5 sm:gap-2',
-              teamFilter === 'all'
-                ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                : 'border-transparent bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary',
+              teamFilter === 'all' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
             )}
           >
-            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <Users className="h-3.5 w-3.5" />
             <span>
               {t('schedule.filterAll')}{' '}
-              <span
-                className={cn(
-                  'tabular-nums font-semibold',
-                  teamFilter === 'all'
-                    ? 'text-primary'
-                    : 'text-muted-foreground group-hover:text-primary',
-                )}
-              >
-                ({teams.length})
-              </span>
+              <span className="tabular-nums font-semibold">({teams.length})</span>
             </span>
           </Button>
           {teams.map((team) => {
@@ -448,16 +440,11 @@ export function ScheduleList() {
                 key={team.id}
                 type="button"
                 variant="ghost"
+                size="sm"
                 onClick={() => setTeamFilter(isActive ? 'all' : String(team.id))}
-                className={cn(
-                  'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
-                  'flex items-center gap-1.5 sm:gap-2',
-                  isActive
-                    ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                    : 'border-transparent bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary',
-                )}
+                className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
               >
-                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <Users className="h-3.5 w-3.5" />
                 <span className="truncate">{formatTeamLabel(team)}</span>
               </Button>
             );

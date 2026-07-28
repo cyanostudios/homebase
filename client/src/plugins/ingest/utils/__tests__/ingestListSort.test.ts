@@ -1,6 +1,5 @@
 import {
   compareIngestByField,
-  compareIngestTwoLevel,
   getIngestSortValue,
   isIngestAscDefaultField,
   isIngestStringSortField,
@@ -90,60 +89,5 @@ describe('compareIngestByField', () => {
       0,
     );
     expect(compareIngestByField(withoutFetch, withFetch, 'lastFetchedAt', 'desc')).toBeLessThan(0);
-  });
-});
-
-describe('compareIngestTwoLevel', () => {
-  it('uses primary only when secondary is empty', () => {
-    const a = { ...base, name: 'A' };
-    const b = { ...base, name: 'B' };
-    expect(compareIngestTwoLevel(a, b, 'name', '', 'asc')).toBeLessThan(0);
-  });
-
-  it('breaks ties with secondary field', () => {
-    const a = { ...base, name: 'Same', sourceType: 'html' as const };
-    const b = { ...base, name: 'Same', sourceType: 'json' as const };
-    expect(compareIngestTwoLevel(a, b, 'name', 'sourceType', 'asc')).toBeLessThan(0);
-    expect(compareIngestTwoLevel(a, b, 'name', 'sourceType', 'desc')).toBeGreaterThan(0);
-  });
-
-  it('returns 0 when primary and secondary are equal', () => {
-    const a = { ...base, name: 'Same', sourceType: 'json' as const };
-    const b = { ...base, name: 'Same', sourceType: 'json' as const };
-    expect(compareIngestTwoLevel(a, b, 'name', 'sourceType', 'asc')).toBe(0);
-  });
-
-  it('with date primary + secondary, reorders same-day items by secondary', () => {
-    const earlierInDay = {
-      ...base,
-      name: 'Zulu',
-      updatedAt: new Date(2026, 6, 10, 8, 0, 0).toISOString(),
-    };
-    const laterInDay = {
-      ...base,
-      name: 'Alpha',
-      updatedAt: new Date(2026, 6, 10, 18, 0, 0).toISOString(),
-    };
-    // Same calendar day + name asc → Alpha before Zulu
-    expect(
-      compareIngestTwoLevel(earlierInDay, laterInDay, 'updatedAt', 'name', 'asc'),
-    ).toBeGreaterThan(0);
-    expect(
-      compareIngestTwoLevel(laterInDay, earlierInDay, 'updatedAt', 'name', 'asc'),
-    ).toBeLessThan(0);
-  });
-
-  it('with date primary + secondary, different days still follow primary day order', () => {
-    const day1 = {
-      ...base,
-      name: 'Alpha',
-      updatedAt: new Date(2026, 6, 9, 23, 0, 0).toISOString(),
-    };
-    const day2 = {
-      ...base,
-      name: 'Zulu',
-      updatedAt: new Date(2026, 6, 10, 1, 0, 0).toISOString(),
-    };
-    expect(compareIngestTwoLevel(day1, day2, 'updatedAt', 'name', 'desc')).toBeGreaterThan(0);
   });
 });

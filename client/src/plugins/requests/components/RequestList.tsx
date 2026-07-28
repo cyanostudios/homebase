@@ -1,4 +1,5 @@
 import {
+  CheckSquare,
   ArrowDown,
   ArrowUp,
   Inbox,
@@ -10,7 +11,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,12 @@ import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { ListToolbar } from '@/core/ui/ListToolbar';
+import {
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +50,7 @@ import {
   buildRequestListStatusSavePayload,
 } from '../utils/requestListSave';
 import {
-  compareRequestsTwoLevel,
+  compareRequestsByField,
   isRequestStringSortField,
   type RequestSortField,
   type RequestSortOrder,
@@ -105,10 +112,8 @@ export function RequestList() {
     getInitialRequestColumnCount,
   );
   const [primarySort, setPrimarySort] = useState<SortField>('updated_at');
-  const [secondarySort, setSecondarySort] = useState<SortField | ''>('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [recentlyQuickAddedId, setRecentlyQuickAddedId] = useState<string | null>(null);
-  const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   const setColumnCount = useCallback((count: RequestColumnCount) => {
     setColumnCountState(count);
@@ -182,9 +187,9 @@ export function RequestList() {
 
   const sorted = useMemo(() => {
     const list = [...filtered];
-    list.sort((a, b) => compareRequestsTwoLevel(a, b, primarySort, secondarySort, sortOrder));
+    list.sort((a, b) => compareRequestsByField(a, b, primarySort, sortOrder));
     return list;
-  }, [filtered, primarySort, secondarySort, sortOrder]);
+  }, [filtered, primarySort, sortOrder]);
 
   const visibleIds = useMemo(() => sorted.map((r) => r.id), [sorted]);
 
@@ -196,37 +201,11 @@ export function RequestList() {
   const handlePrimarySortChange = (field: SortField) => {
     setPrimarySort(field);
     setSortOrder(isRequestStringSortField(field) ? 'asc' : 'desc');
-    setSecondarySort((prev) => (prev === field ? '' : prev));
-  };
-
-  const handleSecondarySortChange = (value: string) => {
-    if (value === '' || value === 'none') {
-      setSecondarySort('');
-      return;
-    }
-    const field = value as SortField;
-    if (field === primarySort) {
-      return;
-    }
-    setSecondarySort(field);
   };
 
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
-
-  const secondarySortOptions = useMemo(
-    () => SORT_FIELD_OPTIONS.filter((option) => option.value !== primarySort),
-    [primarySort],
-  );
-
-  const primarySortOptions = useMemo(
-    () =>
-      secondarySort
-        ? SORT_FIELD_OPTIONS.filter((option) => option.value !== secondarySort)
-        : SORT_FIELD_OPTIONS,
-    [secondarySort],
-  );
 
   const allVisibleSelected = sorted.length > 0 && sorted.every((request) => isSelected(request.id));
 
@@ -382,7 +361,7 @@ export function RequestList() {
         </div>
 
         {requestTypes.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
             {requestTypes.map((type) => {
               const isActive = typeFilter === type;
               return (
@@ -390,28 +369,14 @@ export function RequestList() {
                   key={type}
                   type="button"
                   variant="ghost"
+                  size="sm"
                   onClick={() => setTypeFilter(isActive ? 'all' : type)}
-                  className={cn(
-                    'group h-auto rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
-                    'flex items-center gap-1.5 sm:gap-2',
-                    isActive
-                      ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
-                      : 'border-transparent bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary',
-                  )}
+                  className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
                 >
-                  <Inbox className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <Inbox className="h-3.5 w-3.5" />
                   <span>
                     {getTypeLabel(type, t)}{' '}
-                    <span
-                      className={cn(
-                        'tabular-nums font-semibold',
-                        isActive
-                          ? 'text-primary'
-                          : 'text-muted-foreground group-hover:text-primary',
-                      )}
-                    >
-                      ({typeCounts[type] ?? 0})
-                    </span>
+                    <span className="tabular-nums font-semibold">({typeCounts[type] ?? 0})</span>
                   </span>
                 </Button>
               );
@@ -438,177 +403,151 @@ export function RequestList() {
         />
 
         <div className="flex flex-col gap-3">
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
-            <div className="relative w-full max-w-sm md:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('requests.searchPlaceholder', { count: requests.length })}
-                className="h-8 bg-background pl-9 text-xs"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {hasActiveFilters && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearAllFilters}
-                >
-                  {t('common.clearFilters')}
-                </Button>
-              )}
-              <div className="mr-1 flex items-center gap-1">
-                <Select
-                  value={primarySort}
-                  onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                >
-                  <SelectTrigger
-                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                    aria-label="Sort by"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent
-                    position="item-aligned"
-                    className="rounded-xl border-border/50 shadow-xl"
-                  >
-                    {primarySortOptions.map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        className="rounded-md text-xs"
-                      >
-                        {t(option.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={secondarySort || 'none'} onValueChange={handleSecondarySortChange}>
-                  <SelectTrigger
-                    className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                    aria-label="And sort by"
-                  >
-                    <SelectValue placeholder="And..." />
-                  </SelectTrigger>
-                  <SelectContent
-                    position="item-aligned"
-                    className="rounded-xl border-border/50 shadow-xl"
-                  >
-                    <SelectItem value="none" className="rounded-md text-xs">
-                      And...
-                    </SelectItem>
-                    {secondarySortOptions.map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        className="rounded-md text-xs"
-                      >
-                        {t(option.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 px-0 text-xs"
-                  onClick={toggleSortOrder}
-                  aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                >
-                  {sortOrder === 'asc' ? (
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  ) : (
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-              </div>
-              <div
-                className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5"
-                role="group"
-                aria-label={t('requests.columnsLabel')}
+          <ListToolbar
+            selectedCount={selectedCount}
+            showSelectAll={sorted.length > 0}
+            selectAll={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                icon={CheckSquare}
+                onClick={handleHeaderCheckboxChange}
               >
-                {COLUMN_OPTIONS.map((count) => (
-                  <Button
-                    key={count}
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-                      columnCount === count
-                        ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                    onClick={() => setColumnCount(count)}
-                    aria-label={t(`requests.columns${count}`)}
-                    aria-pressed={columnCount === count}
-                  >
-                    {count}
-                  </Button>
-                ))}
+                {t('common.selectAll')}
+              </Button>
+            }
+            search={
+              <div className="relative w-full max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('requests.searchPlaceholder', { count: requests.length })}
+                  className="h-8 bg-background pl-9 text-xs"
+                />
               </div>
-            </div>
-          </div>
-
-          {sorted.length > 0 ? (
-            <div className="flex min-h-[3.75rem] flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-slate-950">
-              {selectedCount === 0 ? (
-                <div className="flex h-9 min-w-0 items-center gap-2">
-                  <input
-                    ref={headerCheckboxRef}
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    onChange={handleHeaderCheckboxChange}
-                    className="h-4 w-4 cursor-pointer"
-                    aria-label={
-                      allVisibleSelected ? 'Deselect all requests' : 'Select all requests'
-                    }
-                  />
-                  <span className="text-xs text-muted-foreground">{t('common.selectAll')}</span>
-                </div>
-              ) : (
-                <>
+            }
+            trailing={
+              <>
+                {hasActiveFilters && (
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     icon={XCircle}
                     className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                    onClick={clearRequestSelection}
+                    onClick={clearAllFilters}
+                  >
+                    {t('common.clearFilters')}
+                  </Button>
+                )}
+                <div className="mr-1 flex items-center gap-1">
+                  <Select
+                    value={primarySort}
+                    onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                  >
+                    <SelectTrigger
+                      className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                      aria-label="Sort by"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="item-aligned"
+                      className="rounded-xl border-border/50 shadow-xl"
+                    >
+                      {SORT_FIELD_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          value={option.value}
+                          className="rounded-md text-xs"
+                        >
+                          {t(option.labelKey)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
                     type="button"
-                  >
-                    {t('common.clearSelection')}
-                  </Button>
-                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                    {t('bulk.selected', { count: selectedCount })}
-                  </span>
-                  <Button
                     variant="ghost"
                     size="sm"
-                    icon={SlidersHorizontal}
-                    onClick={() => setShowBulkStatusDialog(true)}
-                    className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                    className="h-7 w-7 px-0 text-xs"
+                    onClick={toggleSortOrder}
+                    aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                   >
-                    {t('requests.bulkStatusAction')}
+                    {sortOrder === 'asc' ? (
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    )}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={Trash2}
-                    onClick={() => setShowBulkDeleteModal(true)}
-                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  >
-                    {t('common.delete')}
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : null}
+                </div>
+                <div
+                  className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5"
+                  role="group"
+                  aria-label={t('requests.columnsLabel')}
+                >
+                  {COLUMN_OPTIONS.map((count) => (
+                    <Button
+                      key={count}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        'h-7 min-w-7 rounded-[6px] px-2 text-xs',
+                        columnCount === count
+                          ? 'bg-background text-foreground shadow-sm hover:bg-background'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                      onClick={() => setColumnCount(count)}
+                      aria-label={t(`requests.columns${count}`)}
+                      aria-pressed={columnCount === count}
+                    >
+                      {count}
+                    </Button>
+                  ))}
+                </div>
+              </>
+            }
+            bulkActions={
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={XCircle}
+                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  onClick={clearRequestSelection}
+                  type="button"
+                >
+                  {t('common.clearSelection')}
+                </Button>
+                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                  {t('bulk.selected', { count: selectedCount })}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={SlidersHorizontal}
+                  onClick={() => setShowBulkStatusDialog(true)}
+                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                >
+                  {t('requests.bulkStatusAction')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  onClick={() => setShowBulkDeleteModal(true)}
+                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                >
+                  {t('common.delete')}
+                </Button>
+              </>
+            }
+          />
 
           {sorted.length === 0 ? (
             <div className="rounded-xl bg-white px-4 py-10 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
@@ -669,9 +608,9 @@ export function RequestList() {
             <RequestQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
           ) : null}
 
-          <div className="rounded-xl bg-white px-4 py-3 text-xs text-muted-foreground shadow-sm dark:bg-slate-950">
-            {t('requests.showingCount', { shown: sorted.length, total: requests.length })}
-          </div>
+          <ListFooterBar
+            meta={t('requests.showingCount', { shown: sorted.length, total: requests.length })}
+          />
         </div>
       </div>
     </div>

@@ -1,5 +1,17 @@
 # Migrations
 
+## 112 – Tenant organization profile (jul 2026)
+
+- **`112-tenants-organization.sql`** — **`MAIN_DB_ONLY`**. Lägger till `tenants.organization` JSONB (namn, logo, adress, fakturauppgifter) för Settings → Profile.
+
+```bash
+npm run migrate:tenants-organization
+# local + prod when PROD_MAIN_DATABASE_URL is set:
+npm run migrate:tenants-organization -- --both
+```
+
+---
+
 ## 090–095 – Guides (jul 2026)
 
 ### Guides (090, 092, 093, 094, 095)

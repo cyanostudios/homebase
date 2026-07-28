@@ -12,6 +12,7 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection, type DetailSectionIconPlugin } from '@/core/ui/DetailSection';
 import {
+  DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_INFO_ROW_CLASS,
@@ -389,10 +390,10 @@ function RelatedItemsCard({
                 variant="ghost"
                 size="sm"
                 icon={ExternalLink}
-                className="h-7 w-7 shrink-0 p-0 hover:bg-accent"
+                className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, item.pluginClass)}
                 onClick={item.onOpen}
               >
-                <span className="sr-only">{t('matches.open')}</span>
+                {t('common.open')}
               </Button>
             </div>
           ))}

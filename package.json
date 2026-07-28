@@ -36,6 +36,7 @@
     "migrate:contact-time-entries": "node scripts/run-contact-time-entries-migration.js",
     "migrate:contacts-tags": "node scripts/run-contacts-tags-migration.js",
     "migrate:tenant-memberships": "node scripts/run-tenant-memberships-migration.js",
+    "migrate:tenants-organization": "node scripts/run-tenants-organization-migration.js",
     "migrate:matches": "node scripts/run-matches-migration.js",
     "migrate:requests": "node scripts/run-requests-migration.js",
     "migrate:schedule": "node scripts/run-schedule-migration.js",

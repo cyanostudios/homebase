@@ -56,12 +56,6 @@ function toSortTime(value: Date | string): number {
   return value instanceof Date ? value.getTime() : new Date(value).getTime();
 }
 
-/** Calendar day in local time — used so secondary sort can break same-day ties. */
-function toSortDay(value: Date | string): number {
-  const date = value instanceof Date ? value : new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-}
-
 function compareNullableTimes(
   aValue: Date | string | null | undefined,
   bValue: Date | string | null | undefined,
@@ -99,40 +93,4 @@ export function compareIngestByField(
   }
 
   return compareNullableTimes(aValue as Date | null, bValue as Date | null, order, toSortTime);
-}
-
-/**
- * Primary then optional secondary; shared order for both levels.
- * When primary is a date field and secondary is set, primary is compared by
- * calendar day first so secondary can reorder items updated/fetched the same day.
- */
-export function compareIngestTwoLevel(
-  a: IngestSortable,
-  b: IngestSortable,
-  primary: IngestSortField,
-  secondary: IngestSortField | '',
-  order: IngestSortOrder,
-): number {
-  if (secondary && isIngestDateSortField(primary)) {
-    const aPrimary = getIngestSortValue(a, primary) as Date | null;
-    const bPrimary = getIngestSortValue(b, primary) as Date | null;
-    const dayResult = compareNullableTimes(aPrimary, bPrimary, order, toSortDay);
-    if (dayResult !== 0) {
-      return dayResult;
-    }
-    const secondaryResult = compareIngestByField(a, b, secondary, order);
-    if (secondaryResult !== 0) {
-      return secondaryResult;
-    }
-    return compareNullableTimes(aPrimary, bPrimary, order, toSortTime);
-  }
-
-  const primaryResult = compareIngestByField(a, b, primary, order);
-  if (primaryResult !== 0) {
-    return primaryResult;
-  }
-  if (secondary) {
-    return compareIngestByField(a, b, secondary, order);
-  }
-  return 0;
 }

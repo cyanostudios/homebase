@@ -45,12 +45,6 @@ function toSortTime(value: Date | string): number {
   return value instanceof Date ? value.getTime() : new Date(value).getTime();
 }
 
-/** Calendar day in local time — day-bucket for two-level sort on date fields. */
-function toSortDay(value: Date | string): number {
-  const date = value instanceof Date ? value : new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-}
-
 function compareNullableTimes(
   aValue: string | null | undefined,
   bValue: string | null | undefined,
@@ -141,41 +135,4 @@ export function compareCupsByField(
 
   const cmp = aVal.localeCompare(bVal, undefined, { sensitivity: 'base' });
   return order === 'asc' ? cmp : -cmp;
-}
-
-/**
- * Primary then optional secondary sort; shared order for both levels.
- * When primary is a date field and secondary is set, primary is compared by
- * calendar day first so secondary can reorder same-day items.
- */
-export function compareCupsTwoLevel(
-  a: CupSortable,
-  b: CupSortable,
-  primary: CupSortField,
-  secondary: CupSortField | '',
-  order: CupSortOrder,
-  ingestTitle?: (id: string | null | undefined) => string,
-): number {
-  if (secondary && isCupDateSortField(primary)) {
-    const aPrimary = getCupDateValue(a, primary as 'start_date' | 'updatedAt');
-    const bPrimary = getCupDateValue(b, primary as 'start_date' | 'updatedAt');
-    const dayResult = compareNullableTimes(aPrimary, bPrimary, order, toSortDay);
-    if (dayResult !== 0) {
-      return dayResult;
-    }
-    const secondaryResult = compareCupsByField(a, b, secondary, order, ingestTitle);
-    if (secondaryResult !== 0) {
-      return secondaryResult;
-    }
-    return compareNullableTimes(aPrimary, bPrimary, order, toSortTime);
-  }
-
-  const primaryResult = compareCupsByField(a, b, primary, order, ingestTitle);
-  if (primaryResult !== 0) {
-    return primaryResult;
-  }
-  if (secondary) {
-    return compareCupsByField(a, b, secondary, order, ingestTitle);
-  }
-  return 0;
 }

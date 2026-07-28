@@ -115,7 +115,7 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-10 hidden h-screen w-[252px] flex-shrink-0 bg-workspace border-r border-border/50 md:flex">
+      <aside className="fixed left-0 top-0 z-10 hidden h-screen w-[252px] flex-shrink-0 bg-workspace md:flex">
         <div className="flex h-full flex-col pt-14">
           <SidebarNavContent {...navContentProps} />
         </div>

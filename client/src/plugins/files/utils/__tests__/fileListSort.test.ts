@@ -1,6 +1,5 @@
 import {
   compareFilesByField,
-  compareFilesTwoLevel,
   getFileSortValue,
   isFileStringSortField,
   isFileDateSortField,
@@ -93,64 +92,5 @@ describe('compareFilesByField', () => {
       updatedAt: '2026-07-20T00:00:00.000Z' as unknown as Date,
     };
     expect(compareFilesByField(earlier, later, 'updatedAt', 'asc')).toBeLessThan(0);
-  });
-});
-
-describe('compareFilesTwoLevel', () => {
-  it('uses primary only when secondary is empty', () => {
-    const a = { ...base, name: 'A.txt' };
-    const b = { ...base, name: 'B.txt' };
-    expect(compareFilesTwoLevel(a, b, 'name', '', 'asc')).toBeLessThan(0);
-  });
-
-  it('breaks ties with secondary field', () => {
-    const a = { ...base, name: 'same.txt', size: 100 };
-    const b = { ...base, name: 'same.txt', size: 9999 };
-    expect(compareFilesTwoLevel(a, b, 'name', 'size', 'asc')).toBeLessThan(0);
-    expect(compareFilesTwoLevel(a, b, 'name', 'size', 'desc')).toBeGreaterThan(0);
-  });
-
-  it('returns 0 when primary and secondary are equal', () => {
-    const a = { ...base, name: 'same.txt', size: 1024 };
-    const b = { ...base, name: 'same.txt', size: 1024 };
-    expect(compareFilesTwoLevel(a, b, 'name', 'size', 'asc')).toBe(0);
-  });
-
-  it('with date primary + secondary, reorders same-day items by secondary', () => {
-    const earlierInDay = {
-      ...base,
-      name: 'Zulu.txt',
-      updatedAt: new Date(2026, 6, 10, 8, 0, 0),
-    };
-    const laterInDay = {
-      ...base,
-      name: 'Alpha.txt',
-      updatedAt: new Date(2026, 6, 10, 18, 0, 0),
-    };
-    // Full timestamp alone would put laterInDay first in desc
-    expect(compareFilesTwoLevel(earlierInDay, laterInDay, 'updatedAt', '', 'desc')).toBeGreaterThan(
-      0,
-    );
-    // Same calendar day + name asc → Alpha before Zulu
-    expect(
-      compareFilesTwoLevel(earlierInDay, laterInDay, 'updatedAt', 'name', 'asc'),
-    ).toBeGreaterThan(0);
-    expect(compareFilesTwoLevel(laterInDay, earlierInDay, 'updatedAt', 'name', 'asc')).toBeLessThan(
-      0,
-    );
-  });
-
-  it('with date primary + secondary, different days still follow primary day order', () => {
-    const day1 = {
-      ...base,
-      name: 'Alpha.txt',
-      updatedAt: new Date(2026, 6, 9, 23, 0, 0),
-    };
-    const day2 = {
-      ...base,
-      name: 'Zulu.txt',
-      updatedAt: new Date(2026, 6, 10, 1, 0, 0),
-    };
-    expect(compareFilesTwoLevel(day1, day2, 'updatedAt', 'name', 'desc')).toBeGreaterThan(0);
   });
 });

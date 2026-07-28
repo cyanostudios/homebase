@@ -4,15 +4,22 @@ import { useTranslation } from 'react-i18next';
 import { ListQuickAdd } from '@/core/ui/ListQuickAdd';
 
 type ViewMode = 'grid' | 'list';
+type Layout = 'block' | 'footer' | 'toolbar';
 
 export function TaskQuickAdd({
   viewMode,
   onCreate,
   className,
+  layout = 'block',
+  open,
+  onOpenChange,
 }: {
   viewMode: ViewMode;
   onCreate: (title: string) => Promise<void>;
   className?: string;
+  layout?: Layout;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
 
@@ -21,6 +28,9 @@ export function TaskQuickAdd({
       viewMode={viewMode}
       onCreate={onCreate}
       className={className}
+      layout={layout}
+      open={open}
+      onOpenChange={onOpenChange}
       label={t('tasks.quickAdd')}
       titleLabel={t('tasks.title')}
       titlePlaceholder={t('tasks.titlePlaceholder')}

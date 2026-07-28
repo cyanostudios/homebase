@@ -1,9 +1,4 @@
-import {
-  compareTasksByField,
-  compareTasksTwoLevel,
-  getTaskSortValue,
-  isTaskStringSortField,
-} from '../taskListSort';
+import { compareTasksByField, getTaskSortValue, isTaskStringSortField } from '../taskListSort';
 
 const base = {
   title: 'Alpha',
@@ -63,64 +58,5 @@ describe('compareTasksByField', () => {
     const earlier = { ...base, updatedAt: '2026-07-01T00:00:00.000Z' as unknown as Date };
     const later = { ...base, updatedAt: '2026-07-20T00:00:00.000Z' as unknown as Date };
     expect(compareTasksByField(earlier, later, 'updatedAt', 'asc')).toBeLessThan(0);
-  });
-});
-
-describe('compareTasksTwoLevel', () => {
-  it('uses primary only when secondary is empty', () => {
-    const a = { ...base, title: 'A', priority: 'High' as const };
-    const b = { ...base, title: 'B', priority: 'Low' as const };
-    expect(compareTasksTwoLevel(a, b, 'title', '', 'asc')).toBeLessThan(0);
-  });
-
-  it('breaks ties with secondary field', () => {
-    const a = { ...base, title: 'Same', priority: 'Low' as const };
-    const b = { ...base, title: 'Same', priority: 'High' as const };
-    expect(compareTasksTwoLevel(a, b, 'title', 'priority', 'asc')).toBeLessThan(0);
-    expect(compareTasksTwoLevel(a, b, 'title', 'priority', 'desc')).toBeGreaterThan(0);
-  });
-
-  it('returns 0 when primary and secondary are equal', () => {
-    const a = { ...base, title: 'Same', priority: 'Medium' as const };
-    const b = { ...base, title: 'Same', priority: 'Medium' as const };
-    expect(compareTasksTwoLevel(a, b, 'title', 'priority', 'asc')).toBe(0);
-  });
-
-  it('with date primary + secondary, reorders same-day items by secondary', () => {
-    const earlierInDay = {
-      ...base,
-      title: 'Zulu',
-      updatedAt: new Date(2026, 6, 10, 8, 0, 0),
-    };
-    const laterInDay = {
-      ...base,
-      title: 'Alpha',
-      updatedAt: new Date(2026, 6, 10, 18, 0, 0),
-    };
-    // Full timestamp alone would put laterInDay first in desc
-    expect(compareTasksTwoLevel(earlierInDay, laterInDay, 'updatedAt', '', 'desc')).toBeGreaterThan(
-      0,
-    );
-    // Same calendar day + title asc → Alpha before Zulu
-    expect(
-      compareTasksTwoLevel(earlierInDay, laterInDay, 'updatedAt', 'title', 'asc'),
-    ).toBeGreaterThan(0);
-    expect(
-      compareTasksTwoLevel(laterInDay, earlierInDay, 'updatedAt', 'title', 'asc'),
-    ).toBeLessThan(0);
-  });
-
-  it('with date primary + secondary, different days still follow primary day order', () => {
-    const day1 = {
-      ...base,
-      title: 'Alpha',
-      updatedAt: new Date(2026, 6, 9, 23, 0, 0),
-    };
-    const day2 = {
-      ...base,
-      title: 'Zulu',
-      updatedAt: new Date(2026, 6, 10, 1, 0, 0),
-    };
-    expect(compareTasksTwoLevel(day1, day2, 'updatedAt', 'title', 'desc')).toBeGreaterThan(0);
   });
 });

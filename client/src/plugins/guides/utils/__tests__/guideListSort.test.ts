@@ -1,8 +1,4 @@
-import {
-  compareGuidesByField,
-  compareGuidesTwoLevel,
-  isGuideAscDefaultField,
-} from '../guideListSort';
+import { compareGuidesByField, isGuideAscDefaultField } from '../guideListSort';
 
 const base = {
   id: '10',
@@ -22,22 +18,6 @@ describe('guideListSort', () => {
 
   it('sorts by numeric id', () => {
     expect(compareGuidesByField(base, { ...base, id: '2' }, 'id', 'asc')).toBeGreaterThan(0);
-  });
-
-  it('with date primary + secondary, reorders same-day by secondary', () => {
-    const earlier = {
-      ...base,
-      displayName: 'Zulu',
-      updatedAt: new Date(2026, 6, 10, 8, 0, 0).toISOString(),
-    };
-    const later = {
-      ...base,
-      displayName: 'Alpha',
-      updatedAt: new Date(2026, 6, 10, 18, 0, 0).toISOString(),
-    };
-    expect(
-      compareGuidesTwoLevel(earlier, later, 'updatedAt', 'displayName', 'asc'),
-    ).toBeGreaterThan(0);
   });
 
   it('sorts by languages count and lifecycle', () => {

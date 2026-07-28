@@ -28,6 +28,7 @@ import {
   mergeContactTag,
   resolveContactDisplayTags,
 } from '../utils/contactTagsDraft';
+import { buildContactAssignableSavePayload } from '../utils/contactAssignableSave';
 import { normalizeContactType } from '../utils/normalizeContactType';
 
 import { ContactContext } from './ContactContext';
@@ -643,6 +644,38 @@ export function ContactProvider({
     [setContactTags],
   );
 
+  const setContactAssignable = useCallback(
+    async (contact: Contact, isAssignable: boolean): Promise<boolean> => {
+      if (Boolean(contact.isAssignable) === isAssignable) {
+        return true;
+      }
+
+      try {
+        const payload = buildContactAssignableSavePayload(contact, isAssignable);
+        const saved = await contactsApi.updateContact(String(contact.id), payload);
+        const normalized: Contact = {
+          ...saved,
+          isAssignable,
+          createdAt: new Date(saved.createdAt),
+          updatedAt: new Date(saved.updatedAt),
+        };
+        setContacts((prev) =>
+          prev.map((c) => (String(c.id) === String(contact.id) ? normalized : c)),
+        );
+        setCurrentContact((prev) =>
+          prev && String(prev.id) === String(contact.id)
+            ? { ...prev, isAssignable, updatedAt: normalized.updatedAt }
+            : prev,
+        );
+        return true;
+      } catch (error) {
+        console.error('Failed to update contact assignable:', error);
+        return false;
+      }
+    },
+    [],
+  );
+
   const getCloseHandler = useCallback(
     (defaultClose: () => void) => {
       return () => {
@@ -873,6 +906,7 @@ export function ContactProvider({
     onApplyTagsEdit,
     applyTagToContact,
     clearTagsFromContact,
+    setContactAssignable,
     showDiscardTagsDialog,
     setShowDiscardTagsDialog,
     getCloseHandler,

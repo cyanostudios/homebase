@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
+import { DETAIL_FIELD_LABEL_CLASS } from '@/core/ui/detailViewCardStyles';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useTheme } from '@/hooks/useTheme';
 import i18n from '@/i18n';
@@ -124,10 +125,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
       <div className="space-y-3">
         <div className="flex flex-wrap items-start gap-6">
           <div className="flex flex-col gap-1.5">
-            <Label
-              htmlFor="preferences-theme"
-              className="text-xs font-medium text-muted-foreground"
-            >
+            <Label htmlFor="preferences-theme" className={DETAIL_FIELD_LABEL_CLASS}>
               {t('preferences.theme')}
             </Label>
             <div className="flex items-center gap-2">
@@ -145,10 +143,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label
-              htmlFor="preferences-time-tracking"
-              className="text-xs font-medium text-muted-foreground"
-            >
+            <Label htmlFor="preferences-time-tracking" className={DETAIL_FIELD_LABEL_CLASS}>
               {t('preferences.timeTracking')}
             </Label>
             <div className="flex items-center gap-2">
@@ -166,10 +161,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label
-              htmlFor="preferences-pomodoro-clock"
-              className="text-xs font-medium text-muted-foreground"
-            >
+            <Label htmlFor="preferences-pomodoro-clock" className={DETAIL_FIELD_LABEL_CLASS}>
               {t('preferences.pomodoro')}
             </Label>
             <div className="flex items-center gap-2">
@@ -188,7 +180,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
           </div>
         </div>
         <div>
-          <Label htmlFor="preferences-timezone" className="mb-1">
+          <Label htmlFor="preferences-timezone" className={DETAIL_FIELD_LABEL_CLASS}>
             {t('preferences.timezone')}
           </Label>
           <NativeSelect
@@ -204,7 +196,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
           </NativeSelect>
         </div>
         <div>
-          <Label htmlFor="preferences-language" className="mb-1">
+          <Label htmlFor="preferences-language" className={DETAIL_FIELD_LABEL_CLASS}>
             {t('preferences.language')}
           </Label>
           <NativeSelect

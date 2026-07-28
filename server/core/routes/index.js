@@ -6,6 +6,7 @@ const adminRoutes = require('./admin');
 const cronRoutes = require('./cron');
 const healthRoutes = require('./health');
 const teamRoutes = require('./team');
+const organizationRoutes = require('./organization');
 
 /**
  * Setup all core routes
@@ -18,6 +19,7 @@ function setupCoreRoutes(app, dependencies) {
   authRoutes.setupAuthRoutes(pool, authLimiter, requireAuth, pluginLoader);
   adminRoutes.setupAdminRoutes(pool, requireAuth);
   teamRoutes.setupTeamRoutes(requireAuth, pool);
+  organizationRoutes.setupOrganizationRoutes(requireAuth, pool);
   healthRoutes.setPluginLoader(pluginLoader);
 
   app.use('/api', healthRoutes);
@@ -25,6 +27,7 @@ function setupCoreRoutes(app, dependencies) {
   app.use('/api/admin', adminRoutes);
   app.use('/api/cron', cronRoutes);
   app.use('/api/team', teamRoutes);
+  app.use('/api/organization', organizationRoutes);
 }
 
 module.exports = { setupCoreRoutes };

@@ -252,7 +252,7 @@ Avstämt med ADR:
 
 ## 6. Angränsande förbättringsmöjligheter
 
-- **GuideList:** visa aggregate status (t.ex. "3 väntar granskning") på `GuideCard`.
+- **GuideList:** visa aggregate status (t.ex. "3 väntar granskning") på listkortet (`GuideListItem`; äldre namn `GuideCard` avser samma listyta — komponenten `GuideCard` finns inte längre).
 - **Ingest plugin:** djup-länk "Öppna i Ingest" från `GuideSourceSection`.
 - **404 audio log:** sänk loggnivå när audio saknas (redan diskuterat, ej P2-scope).
 

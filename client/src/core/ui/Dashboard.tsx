@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import type { NavPage } from '@/core/navigation/navTypes';
+import { DASHBOARD_WIDGET_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +33,7 @@ export function Dashboard({ onPageChange }: DashboardProps) {
       <div className="min-h-full bg-background px-6 py-4">
         <div className="space-y-4">
           {pageHeader}
-          <Card className="rounded-xl border-0 bg-card p-6 text-center text-muted-foreground shadow-sm">
+          <Card className="rounded-md border-0 bg-white p-6 text-center text-muted-foreground shadow-none dark:bg-slate-950">
             <p>{t('dashboard.noWidgets')}</p>
           </Card>
         </div>
@@ -55,8 +56,8 @@ export function Dashboard({ onPageChange }: DashboardProps) {
               <Card
                 key={plugin.name}
                 className={cn(
-                  'relative flex min-h-[160px] cursor-pointer flex-col rounded-xl border-0 bg-card p-4 shadow-sm transition-shadow',
-                  'hover:shadow-md',
+                  DASHBOARD_WIDGET_CARD_CLASS,
+                  'group',
                   `plugin-${plugin.name} hover:plugin-${plugin.name}`,
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
@@ -71,12 +72,14 @@ export function Dashboard({ onPageChange }: DashboardProps) {
                   }
                 }}
               >
-                <div className="mb-2 flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
+                <div className="mb-2 flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 transition-colors group-hover:text-primary dark:text-slate-500">
                   <span
                     className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dotClassName)}
                     aria-hidden
                   />
-                  <span className="line-clamp-1">{label}</span>
+                  <span className="line-clamp-1 underline decoration-border group-hover:decoration-primary">
+                    {label}
+                  </span>
                 </div>
                 <div
                   className="flex min-h-0 flex-1 flex-col border-t border-border/50 pt-3"

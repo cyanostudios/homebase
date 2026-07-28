@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { teamApi, TeamMember } from '@/core/api/teamApi';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DETAIL_FIELD_LABEL_CLASS } from '@/core/ui/detailViewCardStyles';
 
 interface TeamSettingsFormProps {
   onCancel: () => void;
@@ -187,7 +188,9 @@ export function TeamSettingsForm({ onCancel: _onCancel }: TeamSettingsFormProps)
           <h4 className="text-sm font-semibold mb-3">Add member</h4>
           <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="team-add-email">Email</Label>
+              <Label htmlFor="team-add-email" className={DETAIL_FIELD_LABEL_CLASS}>
+                Email
+              </Label>
               <Input
                 id="team-add-email"
                 type="email"
@@ -199,7 +202,9 @@ export function TeamSettingsForm({ onCancel: _onCancel }: TeamSettingsFormProps)
               />
             </div>
             <div>
-              <Label htmlFor="team-add-password">Password (required for new users)</Label>
+              <Label htmlFor="team-add-password" className={DETAIL_FIELD_LABEL_CLASS}>
+                Password (required for new users)
+              </Label>
               <Input
                 id="team-add-password"
                 type="password"
@@ -210,7 +215,9 @@ export function TeamSettingsForm({ onCancel: _onCancel }: TeamSettingsFormProps)
               />
             </div>
             <div>
-              <Label htmlFor="team-add-role">Role</Label>
+              <Label htmlFor="team-add-role" className={DETAIL_FIELD_LABEL_CLASS}>
+                Role
+              </Label>
               <NativeSelect
                 id="team-add-role"
                 value={addRole}

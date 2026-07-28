@@ -4,10 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { DETAIL_QUICK_ACTION_ROW_CLASS } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'grid' | 'list';
+type Layout = 'block' | 'footer' | 'toolbar';
 
 export function ListQuickAdd({
   viewMode,
@@ -19,6 +19,9 @@ export function ListQuickAdd({
   saveLabel,
   cancelLabel,
   errorContext = 'item',
+  layout = 'block',
+  open: openControlled,
+  onOpenChange,
 }: {
   viewMode: ViewMode;
   onCreate: (title: string) => Promise<void>;
@@ -29,11 +32,29 @@ export function ListQuickAdd({
   saveLabel: string;
   cancelLabel: string;
   errorContext?: string;
+  /** `footer`: left-aligned trigger. `toolbar`: Select-style button; form for toolbar takeover. */
+  layout?: Layout;
+  /** Controlled open state (optional). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isOpen = openControlled ?? uncontrolledOpen;
+  const setIsOpen = useCallback(
+    (next: boolean) => {
+      if (openControlled === undefined) {
+        setUncontrolledOpen(next);
+      }
+      onOpenChange?.(next);
+    },
+    [onOpenChange, openControlled],
+  );
+
   const [title, setTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isFooter = layout === 'footer';
+  const isToolbar = layout === 'toolbar';
 
   useEffect(() => {
     if (isOpen) {
@@ -44,7 +65,7 @@ export function ListQuickAdd({
   const handleCancel = useCallback(() => {
     setTitle('');
     setIsOpen(false);
-  }, []);
+  }, [setIsOpen]);
 
   const handleSave = useCallback(async () => {
     const trimmed = title.trim();
@@ -61,7 +82,7 @@ export function ListQuickAdd({
     } finally {
       setIsSaving(false);
     }
-  }, [title, isSaving, onCreate, errorContext]);
+  }, [title, isSaving, onCreate, errorContext, setIsOpen]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -77,7 +98,28 @@ export function ListQuickAdd({
     [handleSave, handleCancel],
   );
 
+  const triggerButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      icon={Plus}
+      className={cn(
+        'h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary',
+        isFooter || isToolbar ? 'w-auto justify-start' : 'w-full justify-center',
+      )}
+      onClick={() => setIsOpen(true)}
+      aria-label={label}
+    >
+      {label}
+    </Button>
+  );
+
   if (!isOpen) {
+    if (isFooter || isToolbar) {
+      return <div className={cn('flex justify-start', className)}>{triggerButton}</div>;
+    }
+
     return (
       <div
         className={cn(
@@ -87,31 +129,21 @@ export function ListQuickAdd({
           className,
         )}
       >
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          icon={(props) => (
-            <Plus {...props} className={cn(props.className, 'text-blue-600 dark:text-blue-400')} />
-          )}
-          className={cn(
-            DETAIL_QUICK_ACTION_ROW_CLASS,
-            'w-full justify-center text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300',
-          )}
-          onClick={() => setIsOpen(true)}
-          aria-label={label}
-        >
-          {label}
-        </Button>
+        {triggerButton}
       </div>
     );
   }
+
+  const inputClassName = isToolbar
+    ? 'h-9 min-w-0 flex-1 bg-background text-xs'
+    : 'h-8 min-w-0 flex-1 bg-background text-xs';
+  const actionButtonClass = isToolbar ? 'h-9 px-3 text-xs' : 'h-8 px-3 text-xs';
 
   const form = (
     <div
       className={cn(
         'flex flex-col gap-2 sm:flex-row sm:items-center',
-        viewMode === 'grid' ? 'p-4' : 'px-4 py-3',
+        isFooter || isToolbar ? 'py-0' : viewMode === 'grid' ? 'p-4' : 'px-4 py-3',
       )}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
@@ -122,7 +154,7 @@ export function ListQuickAdd({
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={titlePlaceholder}
-        className="h-8 flex-1 bg-background text-xs"
+        className={inputClassName}
         aria-label={titleLabel}
         disabled={isSaving}
       />
@@ -131,7 +163,10 @@ export function ListQuickAdd({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700 hover:text-white"
+          className={cn(
+            'border-none bg-green-600 text-white hover:bg-green-700 hover:text-white',
+            actionButtonClass,
+          )}
           disabled={!title.trim() || isSaving}
           onClick={() => void handleSave()}
         >
@@ -141,7 +176,7 @@ export function ListQuickAdd({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 px-3 text-xs"
+          className={actionButtonClass}
           disabled={isSaving}
           onClick={handleCancel}
         >
@@ -150,6 +185,12 @@ export function ListQuickAdd({
       </div>
     </div>
   );
+
+  if (isFooter || isToolbar) {
+    return (
+      <div className={cn('min-w-0 w-full', isToolbar && 'sm:max-w-[50%]', className)}>{form}</div>
+    );
+  }
 
   if (viewMode === 'grid') {
     return (

@@ -35,11 +35,6 @@ function toSortTime(value: Date | string): number {
   return value instanceof Date ? value.getTime() : new Date(value).getTime();
 }
 
-function toSortDay(value: Date | string): number {
-  const date = value instanceof Date ? value : new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-}
-
 function compareNullableTimes(
   aValue: Date | string | null | undefined,
   bValue: Date | string | null | undefined,
@@ -83,35 +78,4 @@ export function compareNotesByField(
   }
 
   return compareNullableTimes(aValue as Date | null, bValue as Date | null, order, toSortTime);
-}
-
-export function compareNotesTwoLevel(
-  a: NoteSortable,
-  b: NoteSortable,
-  primary: NoteSortField,
-  secondary: NoteSortField | '',
-  order: NoteSortOrder,
-): number {
-  if (secondary && (primary === 'updatedAt' || primary === 'createdAt')) {
-    const aPrimary = getNoteSortValue(a, primary);
-    const bPrimary = getNoteSortValue(b, primary);
-    const dayResult = compareNullableTimes(aPrimary, bPrimary, order, toSortDay);
-    if (dayResult !== 0) {
-      return dayResult;
-    }
-    const secondaryResult = compareNotesByField(a, b, secondary, order);
-    if (secondaryResult !== 0) {
-      return secondaryResult;
-    }
-    return compareNullableTimes(aPrimary, bPrimary, order, toSortTime);
-  }
-
-  const primaryResult = compareNotesByField(a, b, primary, order);
-  if (primaryResult !== 0) {
-    return primaryResult;
-  }
-  if (secondary) {
-    return compareNotesByField(a, b, secondary, order);
-  }
-  return 0;
 }

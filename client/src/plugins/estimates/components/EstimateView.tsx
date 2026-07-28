@@ -1,4 +1,13 @@
-import { Copy, Download, Edit, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  Edit,
+  Info,
+  SlidersHorizontal,
+  StickyNote,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +19,7 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -427,15 +437,22 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             </DetailSection>
           </Card>
 
-          {estimate.notes && (
+          {estimate.notes?.trim() ? (
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection title={t('estimates.notes')} iconPlugin="estimates" className="p-6">
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                  {estimate.notes}
-                </p>
+              <DetailSection
+                title={t('estimates.notes')}
+                icon={StickyNote}
+                subtleTitle
+                className="p-6"
+              >
+                <div className={DETAIL_NOTE_CALLOUT_CLASS}>
+                  <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                    {estimate.notes}
+                  </p>
+                </div>
               </DetailSection>
             </Card>
-          )}
+          ) : null}
         </div>
       </DetailLayout>
 

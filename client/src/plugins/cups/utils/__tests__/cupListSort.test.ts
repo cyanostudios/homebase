@@ -1,4 +1,4 @@
-import { compareCupsByField, compareCupsTwoLevel, isCupAscDefaultField } from '../cupListSort';
+import { compareCupsByField, isCupAscDefaultField } from '../cupListSort';
 
 const base = {
   name: 'Alpha Cup',
@@ -14,26 +14,6 @@ const base = {
 describe('cupListSort', () => {
   it('sorts by name', () => {
     expect(compareCupsByField(base, { ...base, name: 'Beta Cup' }, 'name', 'asc')).toBeLessThan(0);
-  });
-
-  it('breaks ties with secondary', () => {
-    const a = { ...base, name: 'Same', location: 'A' };
-    const b = { ...base, name: 'Same', location: 'B' };
-    expect(compareCupsTwoLevel(a, b, 'name', 'location', 'asc')).toBeLessThan(0);
-  });
-
-  it('with date primary + secondary, reorders same-day by secondary', () => {
-    const earlier = {
-      ...base,
-      name: 'Zulu',
-      start_date: new Date(2026, 6, 10, 8, 0, 0).toISOString(),
-    };
-    const later = {
-      ...base,
-      name: 'Alpha',
-      start_date: new Date(2026, 6, 10, 18, 0, 0).toISOString(),
-    };
-    expect(compareCupsTwoLevel(earlier, later, 'start_date', 'name', 'asc')).toBeGreaterThan(0);
   });
 
   it('sorts featured, visible, ratings_count', () => {

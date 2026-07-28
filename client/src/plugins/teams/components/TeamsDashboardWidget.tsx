@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import React, { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { LIST_FILTER_CHIP_CLASS } from '@/core/ui/detailViewCardStyles';
 import type { DashboardWidgetProps } from '@/core/pluginRegistry';
 
 import { useTeams } from '../hooks/useTeams';
@@ -23,7 +24,7 @@ export function TeamsDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
       <Button
         variant="ghost"
         size="sm"
-        className="h-auto px-0 text-primary hover:bg-transparent hover:text-primary/90"
+        className={LIST_FILTER_CHIP_CLASS}
         onClick={(e) => {
           e.stopPropagation();
           onOpenPlugin();

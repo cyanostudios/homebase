@@ -1,6 +1,5 @@
 import {
   compareContactsByField,
-  compareContactsTwoLevel,
   getContactTimeRank,
   isContactAscDefaultField,
 } from '../contactListSort';
@@ -25,12 +24,6 @@ describe('contactListSort', () => {
     ).toBeLessThan(0);
   });
 
-  it('breaks ties with secondary', () => {
-    const a = { ...base, companyName: 'Same', email: 'a@x.com' };
-    const b = { ...base, id: '2', companyName: 'Same', email: 'b@x.com' };
-    expect(compareContactsTwoLevel(a, b, 'name', 'email', 'asc')).toBeLessThan(0);
-  });
-
   it('ranks time: active > logged > none', () => {
     const ctx = {
       activeTimeTrackingContactId: '1',
@@ -48,21 +41,6 @@ describe('contactListSort', () => {
         ctx,
       ),
     ).toBeLessThan(0);
-  });
-
-  it('with date primary + secondary, reorders same-day by secondary', () => {
-    const earlier = {
-      ...base,
-      companyName: 'Zulu',
-      updatedAt: new Date(2026, 6, 10, 8, 0, 0),
-    };
-    const later = {
-      ...base,
-      id: '2',
-      companyName: 'Alpha',
-      updatedAt: new Date(2026, 6, 10, 18, 0, 0),
-    };
-    expect(compareContactsTwoLevel(earlier, later, 'updatedAt', 'name', 'asc')).toBeGreaterThan(0);
   });
 
   it('sorts phone and assignable', () => {

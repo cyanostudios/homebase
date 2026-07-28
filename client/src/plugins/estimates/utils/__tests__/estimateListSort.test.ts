@@ -1,6 +1,5 @@
 import {
   compareEstimatesByField,
-  compareEstimatesTwoLevel,
   getEstimateSortValue,
   isEstimateStringSortField,
 } from '../estimateListSort';
@@ -72,62 +71,5 @@ describe('compareEstimatesByField', () => {
     };
     const later = { ...base, updatedAt: '2026-07-20T00:00:00.000Z' as unknown as Date };
     expect(compareEstimatesByField(earlier, later, 'updatedAt', 'asc')).toBeLessThan(0);
-  });
-});
-
-describe('compareEstimatesTwoLevel', () => {
-  it('uses primary only when secondary is empty', () => {
-    const a = { ...base, contactName: 'A Corp' };
-    const b = { ...base, contactName: 'B Corp' };
-    expect(compareEstimatesTwoLevel(a, b, 'contactName', '', 'asc')).toBeLessThan(0);
-  });
-
-  it('breaks ties with secondary field', () => {
-    const a = { ...base, contactName: 'Same', total: 100 };
-    const b = { ...base, contactName: 'Same', total: 200 };
-    expect(compareEstimatesTwoLevel(a, b, 'contactName', 'total', 'asc')).toBeLessThan(0);
-    expect(compareEstimatesTwoLevel(a, b, 'contactName', 'total', 'desc')).toBeGreaterThan(0);
-  });
-
-  it('returns 0 when primary and secondary are equal', () => {
-    const a = { ...base, contactName: 'Same', total: 100 };
-    const b = { ...base, contactName: 'Same', total: 100 };
-    expect(compareEstimatesTwoLevel(a, b, 'contactName', 'total', 'asc')).toBe(0);
-  });
-
-  it('with date primary + secondary, reorders same-day items by secondary', () => {
-    const earlierInDay = {
-      ...base,
-      contactName: 'Zulu',
-      createdAt: new Date(2026, 6, 10, 8, 0, 0),
-    };
-    const laterInDay = {
-      ...base,
-      contactName: 'Alpha',
-      createdAt: new Date(2026, 6, 10, 18, 0, 0),
-    };
-    // Same calendar day + contactName asc → Alpha before Zulu
-    expect(
-      compareEstimatesTwoLevel(earlierInDay, laterInDay, 'createdAt', 'contactName', 'asc'),
-    ).toBeGreaterThan(0);
-    expect(
-      compareEstimatesTwoLevel(laterInDay, earlierInDay, 'createdAt', 'contactName', 'asc'),
-    ).toBeLessThan(0);
-  });
-
-  it('with date primary + secondary, different days still follow primary day order', () => {
-    const day1 = {
-      ...base,
-      contactName: 'Alpha',
-      createdAt: new Date(2026, 6, 9, 23, 0, 0),
-    };
-    const day2 = {
-      ...base,
-      contactName: 'Zulu',
-      createdAt: new Date(2026, 6, 10, 1, 0, 0),
-    };
-    expect(
-      compareEstimatesTwoLevel(day1, day2, 'createdAt', 'contactName', 'desc'),
-    ).toBeGreaterThan(0);
   });
 });

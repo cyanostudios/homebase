@@ -1,8 +1,4 @@
-import {
-  compareRequestsByField,
-  compareRequestsTwoLevel,
-  isRequestStringSortField,
-} from '../requestListSort';
+import { compareRequestsByField, isRequestStringSortField } from '../requestListSort';
 
 const base = {
   title: 'Alpha',
@@ -24,28 +20,6 @@ describe('requestListSort', () => {
         'asc',
       ),
     ).toBeLessThan(0);
-  });
-
-  it('breaks ties with secondary', () => {
-    const a = { ...base, status: 'not started' as const, title: 'A' };
-    const b = { ...base, status: 'not started' as const, title: 'B' };
-    expect(compareRequestsTwoLevel(a, b, 'status', 'title', 'asc')).toBeLessThan(0);
-  });
-
-  it('with date primary + secondary, reorders same-day by secondary', () => {
-    const earlier = {
-      ...base,
-      title: 'Zulu',
-      updated_at: new Date(2026, 6, 10, 8, 0, 0).toISOString(),
-    };
-    const later = {
-      ...base,
-      title: 'Alpha',
-      updated_at: new Date(2026, 6, 10, 18, 0, 0).toISOString(),
-    };
-    expect(compareRequestsTwoLevel(earlier, later, 'updated_at', 'title', 'asc')).toBeGreaterThan(
-      0,
-    );
   });
 
   it('sorts by source', () => {

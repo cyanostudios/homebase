@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { MAIN_CONTENT_SHELL_CLASS } from '@/core/ui/ContentSurface';
 
 interface DetailPanelProps {
   isOpen: boolean;
@@ -143,7 +144,7 @@ export function DetailPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-0 bg-background">
+    <div className={MAIN_CONTENT_SHELL_CLASS}>
       {/* Fixed Header */}
       <div
         className={`flex flex-shrink-0 items-center justify-between px-6 ${showTitleBlock ? 'py-4' : 'py-2'}`}

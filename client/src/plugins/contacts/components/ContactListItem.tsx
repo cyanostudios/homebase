@@ -131,28 +131,38 @@ export function ContactListItem({
             ) : null}
             {metaOnTop ? metaRow : null}
           </div>
-          {(hasTimeLogged || timeTrackingActive) && (
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-              {timeTrackingActive ? (
-                <span
-                  className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"
-                  title={t('contacts.timeTrackingActive')}
-                >
-                  <Timer className="h-3.5 w-3.5" aria-hidden />
-                  <span className="sr-only">{t('contacts.timeTrackingActive')}</span>
-                </span>
-              ) : null}
-              {hasTimeLogged ? (
-                <Badge
-                  variant="outline"
-                  className="h-5 shrink-0 px-1.5 text-[10px] font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50"
-                >
-                  <Timer className="h-2.5 w-2.5" aria-hidden />
-                  {t('contacts.timeLoggedBadge')}
-                </Badge>
-              ) : null}
-            </div>
-          )}
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            <span
+              className={cn(
+                'h-2 w-2 shrink-0 rounded-full',
+                contact.isAssignable ? 'bg-emerald-500' : 'bg-red-500',
+              )}
+              title={
+                contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')
+              }
+              aria-label={
+                contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')
+              }
+            />
+            {timeTrackingActive ? (
+              <span
+                className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"
+                title={t('contacts.timeTrackingActive')}
+              >
+                <Timer className="h-3.5 w-3.5" aria-hidden />
+                <span className="sr-only">{t('contacts.timeTrackingActive')}</span>
+              </span>
+            ) : null}
+            {hasTimeLogged ? (
+              <Badge
+                variant="outline"
+                className="h-5 shrink-0 px-1.5 text-[10px] font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50"
+              >
+                <Timer className="h-2.5 w-2.5" aria-hidden />
+                {t('contacts.timeLoggedBadge')}
+              </Badge>
+            ) : null}
+          </div>
         </div>
 
         <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>{contact.companyName}</h3>

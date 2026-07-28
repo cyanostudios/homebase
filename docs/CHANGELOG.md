@@ -4,6 +4,90 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-28 – Tenant name in TopBar brand
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** `tenants.organization.name` (Settings → Profile → Account name) visas som varumärke i TopBar + breadcrumbs (fallback `Homebase`). `/api/auth/me` returnerar `organizationName` / `organizationLogoUrl`; AppContext `refreshOrganization` uppdaterar UI direkt efter Save. Logo används i TopBar-ikonen när den finns.
+
+---
+
+## 2026-07-28 – Settings Profile: account organization cards
+
+**Status:** Implementerat lokalt (main DB migration körd lokalt). **Ej prod-release.**
+
+**Sammanfattning:** Category-kort har åter korta beskrivningar. Profile visar flera kort: Personal, Account name (tenant), Logo, Address, Billing. Delad tenant-data i `tenants.organization` (JSONB) via `GET/PUT /api/organization` (read: alla roller; write: admin/editor). Logo via Files upload. `npm run migrate:tenants-organization` (`--both` för local+prod).
+
+**Docs:** `UI_AND_UX_STANDARDS_V3.md` §3.2; `server/migrations/README.md`.
+
+---
+
+## 2026-07-28 – Core Settings: Contacts-style page shell
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** General Settings matchar Contacts-listskalet: `contentFlush`, `bg-background px-6 py-4`, `space-y-4`, egen sidrubrik, kategori-kort i `ListFilterStatCard`-stil (`gap-3` grid), innehåll i `DETAIL_VIEW_CARD_CLASS` + `DETAIL_FIELD_LABEL_CLASS`. ContentHeader döljs (titel i sidan).
+
+**Docs:** `UI_AND_UX_STANDARDS_V3.md` §3.2.
+
+---
+
+## 2026-07-28 – List shell, Contacts assignable bulk, Open-stil (gate-komplettering)
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (commit/push/deploy ej genomförd i denna leverans).
+
+**Verifierat beteende (kod):**
+
+- **ListToolbar** på card-column-listor (Contacts, Tasks, Notes, Guides, Requests, Slots, Estimates, Matches, Files, Ingest, Cups, Teams): idle = Select all + search + sort + kolumn 1/2/3; selection = clear + count + bulk.
+- **ListFooterBar:** Showing X of Y alltid höger (`ml-auto`); Tasks/Notes med quick-add left; övriga meta-only (inkl. Guides + `guides.showingCount`).
+- **Sort:** enda sortfält + asc/desc (secondary/`And...` borttaget). Äldre CHANGELOG-poster 2026-07-24 som beskriver two-level sort är **historiska** och supersedade.
+- **Open-kontroller:** `DETAIL_ENTITY_LINK_TRIGGER_CLASS` = Select-stil (underline + primary hover).
+- **Contacts:** bulk **Assignable** (`ContactBulkAssignableDialog` → `setContactAssignable` / `PUT /contacts/:id`); listvy grön/röd prick för assignable / not assignable.
+- **Estimates list:** status endast via dropdown (ingen separat status-badge); 1-kolumn meta på en rad; orgnummer bredvid titel.
+- **Död kod bort:** `ContactCard`, `TaskCard`, `GuideCard`, `RequestCard`, `CupCard` (listor använder `*ListItem` / `TeamCard`).
+
+**Säkerhet (residual, låg — ej TPM-accepterad risk):** Bulk assignable skickar full contact-payload sekventiellt (samma klass som bulk tags). CSRF + `requirePlugin` + tenant `db.update`. Inga oacceptabla nya risker.
+
+**Docs:** `UI_AND_UX_STANDARDS_V3.md` §0.1; denna CHANGELOG.
+
+---
+
+## 2026-07-28 – QA-fix: GuideList footer, dead cards, secondary sort docs
+
+**Status:** Uppgått i gate-komplettering ovan (Frontend rework efter QA Rejected).
+
+- GuideList: `ListFooterBar` + `guides.showingCount` (i18n en/sv).
+- Borttagna oanvända listkort: `ContactCard`, `TaskCard`, `GuideCard`, `RequestCard`, `CupCard`.
+- Secondary/two-level (`And...`) sort borttaget (dokumenterat i gate-posten).
+
+---
+
+## 2026-07-28 – Contacts: bulk assignable + list dots
+
+**Status:** Uppgått i gate-komplettering ovan.
+
+- Bulk action **Assignable** via `ContactBulkAssignableDialog`.
+- Listvy: grön prick = assignable, röd = not assignable.
+
+---
+
+## 2026-07-28 – Detail Open-knappar: Select-stil
+
+**Status:** Uppgått i gate-komplettering ovan.
+
+- `DETAIL_ENTITY_LINK_TRIGGER_CLASS` matchar listans Select all.
+
+---
+
+## 2026-07-28 – Listor: unified ListToolbar (search + bulk)
+
+**Status:** Uppgått i gate-komplettering ovan.
+
+- Delad `ListToolbar`; utrullat till 12 card-column-listor.
+- Docs: `UI_AND_UX_STANDARDS_V3.md` §0.1.
+
+---
+
 ## 2026-07-28 – Contacts detail, Open chrome, list meta & hover
 
 **Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. **Ej prod-release** (commit/push/deploy ej genomförd i denna leverans).
@@ -223,7 +307,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-07-24 – Card-column list expansion (Estimates, Matches, Files, Ingest, Cups, Teams)
 
-**Status:** Implementerat. QA Approved; Security Approved; Docs Updated. **Ej prod-release** utan explicit beslut.
+**Status:** Implementerat. QA Approved; Security Approved; Docs Updated. **Ej prod-release** utan explicit beslut. **Obs:** two-level sort i sammanfattningen nedan är supersedad (2026-07-28 → single sort).
 
 **Sammanfattning (verifierat mot kod):**
 
@@ -239,9 +323,9 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-07-24 – Two-level list sort (Tasks, Contacts, Notes, Guides, Requests, Slots)
 
-**Status:** Implementerat. QA Approved; Security Approved; Docs Updated. **Ej prod-release** utan explicit beslut.
+**Status:** Implementerat (då). **Supersedad 2026-07-28** — secondary/`And...` borttaget; se gate-posten överst. Behålls som historik.
 
-**Sammanfattning (verifierat mot kod):**
+**Sammanfattning (verifierat mot kod vid införandet):**
 
 - **UI (alla sex listor):** Primär sort-dropdown + valfri sekundär (`And...` / internt `none`). Båda triggers `w-[140px]`, `position="item-aligned"`. Gemensam asc/desc-knapp. Primär och sekundär kan inte vara samma fält (mutual exclusion i options + clear vid krock).
 - **Beteende:** Sekundär bryter likor på primär. När primär är datumfält jämförs först **kalenderdag** (lokal tid) så sekundär syns för rader samma dag; annars är full tidsstämpel oftast unik.
@@ -597,7 +681,7 @@ Changelog §2026-06 beskrev `external_team_id` som ett fritt textfält. Det är 
 - **GuideProductionPanel** — _Generera källtext_ (`phases: text_derivation`) och _Generera översättningar_ (`phases: translation`, multi-välj målspråk; skapar presentation-shells vid behov).
 - **StartProductionDialog** — lägen `source` | `translation` med egna titlar och språkval.
 - **GuideLanguageBadges** — delad komponent för språk-badges (källspråk markerat).
-- **GuideList / GuideCard** — kolumn _Språk_ ersätter källspråk; visar bara språk med text.
+- **GuideList / GuideListItem** — kolumn _Språk_ ersätter källspråk; visar bara språk med text. (Historisk text nämnde `GuideCard`; den komponenten är borttagen.)
 - **Badge-färger** — `GUIDE_PUBLICATION_COLORS`, `GUIDE_APPROVAL_COLORS`, `GUIDE_STALENESS_COLORS` i presentationsvy.
 
 ### Backend
