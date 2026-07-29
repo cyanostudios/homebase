@@ -18,6 +18,7 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
@@ -64,8 +65,6 @@ import { SeriesTeamBadge } from './ResponsibleRow';
 import { SeriesTeamColorPicker } from './SeriesTeamColorPicker';
 import { SeriesTeamSelect } from './SeriesTeamSelect';
 import { TeamNotesSection } from './TeamNotesSection';
-
-const TEAM_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 interface TeamFormProps {
   currentTeam?: Team | null;
@@ -363,7 +362,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
     <>
       <DetailLayout>
         <div className="space-y-3">
-          <Card padding="none" className={TEAM_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('teams.form.detailsSection')} className="p-4">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="md:col-span-2">
@@ -546,7 +545,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
             </DetailSection>
           </Card>
 
-          <Card padding="none" className={TEAM_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('teams.form.seriesTeamsSection')} className="p-4">
               <div className="space-y-2">
                 {seriesTeams.map((seriesTeam, index) => (
@@ -609,7 +608,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
             </DetailSection>
           </Card>
 
-          <Card padding="none" className={TEAM_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('teams.form.trainingSection')} className="p-4">
               <div className="space-y-2">
                 {trainingTimes.map((training, index) => (
@@ -686,7 +685,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
             </DetailSection>
           </Card>
 
-          <Card padding="none" className={TEAM_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('teams.form.seasonBreaksSection')} className="p-4">
               <div className="space-y-2">
                 {seasonBreaks.map((seasonBreak, index) => (
@@ -745,7 +744,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
             </DetailSection>
           </Card>
 
-          <Card padding="none" className={TEAM_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('teams.form.responsiblesSection')} className="p-4">
               <div className="space-y-3">
                 {responsibles.length > 0 && (
@@ -894,7 +893,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
             </DetailSection>
           </Card>
 
-          <Card padding="none" className={TEAM_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('teams.form.notesSection')} className="p-4">
               <TeamNotesSection
                 notes={teamNotes}

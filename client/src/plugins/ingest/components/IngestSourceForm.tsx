@@ -16,17 +16,15 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
-import { cn } from '@/lib/utils';
 
 import { useIngest } from '../hooks/useIngest';
 import type { IngestFetchMethod, IngestSource, IngestSourceType } from '../types/ingest';
-
-const FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 const ALLOWED_SOURCE_TYPES: IngestSourceType[] = ['html', 'pdf', 'json', 'xml', 'other'];
 function normalizeSourceType(value: string | undefined): IngestSourceType {
@@ -172,7 +170,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
 
     const formSidebar = currentIngest ? (
       <div className="space-y-4">
-        <Card padding="none" className={FORM_CARD_CLASS}>
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection
             title={t('ingest.information')}
             icon={Info}
@@ -210,13 +208,8 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
 
     return (
       <>
-        <div
-          className={cn(
-            'plugin-ingest min-h-full rounded-xl bg-background px-4 py-5 sm:px-5 sm:py-6',
-            'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-          )}
-        >
-          <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+        <div className="plugin-ingest">
+          <DetailLayout sidebar={formSidebar}>
             <div className="space-y-6">
               {validationErrors
                 .filter((e) => e.field === 'general')
@@ -229,7 +222,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
                   </Card>
                 ))}
 
-              <Card padding="none" className={FORM_CARD_CLASS}>
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection
                   title={t('ingest.sectionDetails')}
                   icon={Info}

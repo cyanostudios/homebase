@@ -9,6 +9,7 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { filesApi } from '@/plugins/files/api/filesApi';
 
@@ -16,8 +17,6 @@ import { useCups } from '../hooks/useCups';
 import type { Cup } from '../types/cups';
 
 import { CupPropertiesFields } from './CupPropertiesFields';
-
-const CUP_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -142,7 +141,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
     <>
       <DetailLayout>
         <div className="space-y-3">
-          <Card padding="none" className={CUP_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title="Cup details" className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="md:col-span-2">
@@ -256,7 +255,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
             </DetailSection>
           </Card>
 
-          <Card padding="none" className={CUP_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <div className="space-y-2 p-6">
               <CupPropertiesFields
                 variant="form"

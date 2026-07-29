@@ -201,6 +201,8 @@ List views place toolbar actions inside the main list card (same shell as table/
 
 **Core Settings (Preferences / Profile / Team / Activity Log):** Same page shell as Contacts list — `contentFlush`, `min-h-full bg-background px-6 py-4`, `space-y-4`, in-page title (no ContentHeader). Category picker uses `ListFilterStatCard`-style cards in a `gap-3` grid with a short description under each label. Profile renders multiple `DETAIL_VIEW_CARD_CLASS` sections (Personal + shared Account name / Logo / Address / Billing). Shared org fields live on main DB `tenants.organization` (`GET/PUT /api/organization`). Field labels use `DETAIL_FIELD_LABEL_CLASS`.
 
+**Detail Form = Detail View chrome:** Plugin create/edit forms that use `DetailLayout` must match view mode: no extra outer padding / `md:-mx-6` bleed shell, no `PANEL_MAX_WIDTH` on the main column, cards use `DETAIL_VIEW_CARD_CLASS`. Content sits in DetailPanel’s `px-6 py-4` (same as view).
+
 ## 4. Typography Scale
 
 - **Headings:** `text-lg font-semibold` (Panel Titles)

@@ -14,12 +14,12 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { cn } from '@/lib/utils';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 
-import { useAIProviders } from '../hooks/useAIProviders';
 import { aiProvidersApi } from '../api/aiProvidersApi';
+import { useAIProviders } from '../hooks/useAIProviders';
 import type { ProviderSettings, ProviderVoice } from '../types/aiProviders';
 import {
   MASKED_SECRET,
@@ -27,8 +27,6 @@ import {
   draftFromProvider,
   type ProviderDraft,
 } from '../utils/providerFormHelpers';
-
-const FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 interface AIProvidersSettingsFormProps {
   currentAIProvider?: ProviderSettings | null;
@@ -244,7 +242,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
 
   const formSidebar = currentAIProvider ? (
     <div className="space-y-4">
-      <Card padding="none" className={FORM_CARD_CLASS}>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('aiProviders.information', { defaultValue: 'Information' })}
           icon={Info}
@@ -281,13 +279,8 @@ export const AIProvidersSettingsForm = React.forwardRef<
   ) : undefined;
 
   return (
-    <div
-      className={cn(
-        'plugin-ai-providers min-h-full rounded-xl bg-background px-4 py-5 sm:px-5 sm:py-6',
-        'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-      )}
-    >
-      <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+    <div className="plugin-ai-providers">
+      <DetailLayout sidebar={formSidebar}>
         <div className="space-y-6">
           {error ? (
             <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
@@ -296,7 +289,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
           ) : null}
 
           {panelMode === 'create' ? (
-            <Card padding="none" className={FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('aiProviders.providerType', { defaultValue: 'Provider type' })}
                 icon={Sparkles}
@@ -386,7 +379,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
 
           {activeProviderKey ? (
             <>
-              <Card padding="none" className={FORM_CARD_CLASS}>
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection
                   title={title}
                   icon={Sparkles}
@@ -536,7 +529,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
               </Card>
 
               {(docsUrl || docsLabel) && (
-                <Card padding="none" className={FORM_CARD_CLASS}>
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                   <DetailSection
                     title={t('aiProviders.credentials', { defaultValue: 'Credentials' })}
                     icon={Key}

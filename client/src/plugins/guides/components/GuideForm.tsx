@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -24,9 +25,8 @@ import {
   type GuidePayload,
   type PlaceResolved,
 } from '../types/guides';
-import { PlaceSearchField } from './PlaceSearchField';
 
-const FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
+import { PlaceSearchField } from './PlaceSearchField';
 
 interface GuideFormProps {
   currentItem?: {
@@ -165,7 +165,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
 
   const formSidebar = currentItem ? (
     <div className="space-y-4">
-      <Card padding="none" className={FORM_CARD_CLASS}>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('guides.information.title')}
           icon={Info}
@@ -187,13 +187,8 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
 
   return (
     <>
-      <div
-        className={cn(
-          'plugin-guides min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-        )}
-      >
-        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+      <div className="plugin-guides">
+        <DetailLayout sidebar={formSidebar}>
           <form
             className="space-y-4"
             onSubmit={(e) => {
@@ -214,7 +209,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
               </Card>
             )}
 
-            <Card padding="none" className={FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('guides.details')}
                 icon={MapPin}

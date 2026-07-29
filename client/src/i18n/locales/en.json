@@ -592,7 +592,10 @@
     "quickActions": "Quick actions",
     "exportOptions": "Export options",
     "activity": "Activity",
-    "noteContent": "Note Content"
+    "noteContent": "Note Content",
+    "focusMode": "Focus",
+    "exitFocusMode": "Exit focus",
+    "focusModeHint": "Dim everything except the editor. Press Esc or click outside to exit."
   },
   "invoices": {
     "listDescription": "Review drafts, payments, and overdue balances.",

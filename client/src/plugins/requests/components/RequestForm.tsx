@@ -20,6 +20,7 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -29,8 +30,6 @@ import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
 import { REQUEST_PRIORITIES, REQUEST_STATUSES, getTypeLabel } from '../types/requests';
-
-const FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 interface RequestFormProps {
   currentRequest?: Request | null;
@@ -198,7 +197,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           )}
 
           {/* Title + Type */}
-          <Card padding="none" className={FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('requests.form.details')} className="p-4">
               <div className="space-y-3">
                 <div className="space-y-1">
@@ -271,7 +270,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           </Card>
 
           {/* Status + Priority */}
-          <Card padding="none" className={FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('requests.form.properties')} className="p-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
@@ -316,7 +315,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           </Card>
 
           {/* Submitter */}
-          <Card padding="none" className={FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('requests.form.submitter')} className="p-4">
               <div className="space-y-3">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -417,7 +416,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           </Card>
 
           {/* Assignees */}
-          <Card padding="none" className={FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('requests.form.assignees')} className="p-4">
               <div className="space-y-2">
                 <Popover
@@ -502,7 +501,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           </Card>
 
           {/* Internal notes */}
-          <Card padding="none" className={FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('requests.form.internalNotes')} className="p-4">
               <Textarea
                 value={form.internalNotes}

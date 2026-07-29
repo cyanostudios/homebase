@@ -28,8 +28,9 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -41,7 +42,6 @@ import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { SlotsSettingsForm } from './SlotsSettingsForm';
 
-const SLOT_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 interface SlotFormState {
   name: string;
   slot_time: string;
@@ -458,7 +458,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
 
   const formSidebar = currentSlot ? (
     <div className="space-y-4">
-      <Card padding="none" className={SLOT_FORM_CARD_CLASS}>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('slots.information')}
           icon={Info}
@@ -497,13 +497,8 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
 
   return (
     <>
-      <div
-        className={cn(
-          'plugin-slots min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-        )}
-      >
-        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+      <div className="plugin-slots">
+        <DetailLayout sidebar={formSidebar}>
           <form
             className="space-y-4"
             onSubmit={(e) => {
@@ -610,7 +605,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
               </Card>
             )}
 
-            <Card padding="none" className={SLOT_FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('slots.sectionTitle')} iconPlugin="slots" className="p-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -737,7 +732,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
               </DetailSection>
             </Card>
 
-            <Card padding="none" className={SLOT_FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <div className="space-y-2 p-6">
                 <div className="mb-1 flex min-w-0 items-center gap-2">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
@@ -783,7 +778,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
               </div>
             </Card>
 
-            <Card padding="none" className={SLOT_FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <div className="space-y-2 p-6">
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <div className="flex min-w-0 items-center gap-2">

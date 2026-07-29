@@ -8,12 +8,12 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
-import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
@@ -24,8 +24,6 @@ import { TaskSettingsForm } from './TaskSettingsForm';
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
 );
-
-const TASK_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
 type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];
@@ -209,7 +207,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
 
   const formSidebar = currentTask ? (
     <div className="space-y-4">
-      <Card padding="none" className={TASK_FORM_CARD_CLASS}>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('tasks.information')}
           icon={Info}
@@ -243,13 +241,8 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
 
   return (
     <>
-      <div
-        className={cn(
-          'plugin-tasks min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-        )}
-      >
-        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+      <div className="plugin-tasks">
+        <DetailLayout sidebar={formSidebar}>
           <form
             className="space-y-6"
             onSubmit={(e) => {
@@ -270,7 +263,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
               </Card>
             )}
 
-            <Card padding="none" className={TASK_FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('tasks.taskContent')} iconPlugin="tasks" className="p-6">
                 <div className="space-y-4">
                   <div>
@@ -319,7 +312,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
               </DetailSection>
             </Card>
 
-            <Card padding="none" className={TASK_FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <div className="space-y-2 p-6">
                 <div className="mb-1 flex min-w-0 items-center gap-2">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">

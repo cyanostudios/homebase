@@ -583,7 +583,10 @@
     "quickActions": "Snabbåtgärder",
     "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
-    "noteContent": "Anteckningsinnehåll"
+    "noteContent": "Anteckningsinnehåll",
+    "focusMode": "Fokus",
+    "exitFocusMode": "Avsluta fokus",
+    "focusModeHint": "Döljer resten av vyn så du kan skriva ostört. Esc eller klick utanför avslutar."
   },
   "invoices": {
     "listDescription": "Granska utkast, betalningar och förfallna belopp.",

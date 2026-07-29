@@ -1,7 +1,8 @@
-import { Info } from 'lucide-react';
+import { Info, Maximize2, Minimize2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,8 +10,13 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  DETAIL_ENTITY_LINK_TRIGGER_CLASS,
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
 );
@@ -24,7 +30,6 @@ import { useNotes } from '../hooks/useNotes';
 
 import { NoteSettingsForm } from './NoteSettingsForm';
 
-const NOTE_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 function isEmptyRichText(html: string): boolean {
   return html.replace(/<[^>]*>/g, '').trim() === '';
 }
@@ -63,6 +68,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     useGlobalNavigationGuard();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [formData, setFormData] = useState<NoteFormState>({
     title: '',
     content: '',
@@ -79,6 +85,24 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
       unregisterUnsavedChangesChecker(formKey);
     };
   }, [isDirty, currentNote, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
+
+  useEffect(() => {
+    setFocusMode(false);
+  }, [currentNote?.id]);
+
+  useEffect(() => {
+    if (!focusMode) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setFocusMode(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [focusMode]);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -112,6 +136,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
       const success = await onSave(formData);
       if (success) {
         markClean();
+        setFocusMode(false);
         if (!currentNote) {
           resetForm();
         }
@@ -136,6 +161,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     if (!currentNote) {
       resetForm();
     }
+    setFocusMode(false);
     confirmDiscard();
     onCancel();
   }, [currentNote, confirmDiscard, onCancel, resetForm]);
@@ -171,29 +197,30 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
 
   const formSidebar = currentNote ? (
     <div className="space-y-4">
-      <Card padding="none" className={NOTE_FORM_CARD_CLASS}>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('notes.information')}
           icon={Info}
           iconPlugin="notes"
+          subtleTitle
           className="p-4"
         >
-          <div className="space-y-4 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">ID</span>
-              <span className="font-mono font-medium">
+          <div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">ID</span>
+              <span className="font-mono font-semibold text-foreground">
                 {formatDisplayNumber('notes', currentNote.id)}
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Created</span>
-              <span className="font-medium">
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">Created</span>
+              <span className="font-mono font-semibold text-foreground">
                 {currentNote.createdAt ? new Date(currentNote.createdAt).toLocaleDateString() : '—'}
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Updated</span>
-              <span className="font-medium">
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">Updated</span>
+              <span className="font-mono font-semibold text-foreground">
                 {currentNote.updatedAt ? new Date(currentNote.updatedAt).toLocaleDateString() : '—'}
               </span>
             </div>
@@ -206,13 +233,17 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
 
   return (
     <>
-      <div
-        className={cn(
-          'plugin-notes min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-        )}
-      >
-        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+      {focusMode ? (
+        <button
+          type="button"
+          aria-label={t('notes.exitFocusMode')}
+          className="fixed inset-0 z-40 cursor-default border-0 bg-slate-950/55 p-0"
+          onClick={() => setFocusMode(false)}
+        />
+      ) : null}
+
+      <div className="plugin-notes">
+        <DetailLayout sidebar={focusMode ? undefined : formSidebar}>
           <form
             className="space-y-4"
             onSubmit={(e) => {
@@ -233,9 +264,35 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
               </Card>
             )}
 
-            <Card padding="none" className={NOTE_FORM_CARD_CLASS}>
-              <DetailSection title={t('notes.noteContent')} iconPlugin="notes" className="p-6">
-                <div className="space-y-4">
+            <Card
+              padding="none"
+              className={cn(DETAIL_VIEW_CARD_CLASS, focusMode && 'relative z-50 shadow-lg')}
+            >
+              <DetailSection
+                title={t('notes.noteContent')}
+                iconPlugin="notes"
+                className="p-6"
+                action={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={focusMode ? Minimize2 : Maximize2}
+                    className={DETAIL_ENTITY_LINK_TRIGGER_CLASS}
+                    aria-pressed={focusMode}
+                    title={t('notes.focusModeHint')}
+                    onClick={() => setFocusMode((open) => !open)}
+                  >
+                    {focusMode ? t('notes.exitFocusMode') : t('notes.focusMode')}
+                  </Button>
+                }
+              >
+                <div
+                  className={cn(
+                    'space-y-4',
+                    focusMode && '[&_.rich-text-editor]:min-h-[min(70vh,560px)]',
+                  )}
+                >
                   <div>
                     <Label htmlFor="note-title" className="mb-1">
                       {t('notes.title')}
@@ -282,7 +339,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
               </DetailSection>
             </Card>
 
-            {hasFilesPlugin && currentNote ? (
+            {!focusMode && hasFilesPlugin && currentNote ? (
               <FileAttachmentsSection pluginName="notes" entityId={currentNote.id} />
             ) : null}
           </form>

@@ -23,8 +23,9 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DateTimePicker } from '@/core/ui/DateTimePicker';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -39,8 +40,6 @@ import {
   getMatchFormScoreFields,
 } from '../types/match';
 
-const MATCH_FORM_CARD_CLASS =
-  'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 interface MatchFormState {
   name: string;
   match_number: string;
@@ -322,7 +321,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
     'text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5';
   const formSidebar = currentMatch ? (
     <div className="space-y-4">
-      <Card padding="none" className={MATCH_FORM_CARD_CLASS}>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('matches.information')}
           icon={Info}
@@ -359,13 +358,8 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
   ) : undefined;
 
   return (
-    <div
-      className={cn(
-        'plugin-matches min-h-full rounded-xl bg-background px-4 py-5 sm:px-5 sm:py-6',
-        'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-      )}
-    >
-      <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+    <div className="plugin-matches">
+      <DetailLayout sidebar={formSidebar}>
         <form
           ref={formRef}
           className="space-y-6"
@@ -387,7 +381,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
             </Card>
           )}
 
-          <Card padding="none" className={MATCH_FORM_CARD_CLASS}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('matches.match')} iconPlugin="matches" className="p-6">
               <div className="space-y-4">
                 {/* Name (own row) */}

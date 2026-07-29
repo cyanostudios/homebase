@@ -20,8 +20,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -32,8 +33,6 @@ import { COMPANY_TYPE_OPTIONS } from '../types/contacts';
 
 import { ContactSettingsForm } from './ContactSettingsForm';
 
-const CONTACT_FORM_CARD_CLASS =
-  'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 interface ContactPerson {
   id: string;
   name: string;
@@ -358,7 +357,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
 
   const formSidebar = currentContact ? (
     <div className="space-y-4">
-      <Card padding="none" className={CONTACT_FORM_CARD_CLASS}>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
           title={t('contacts.information')}
           icon={Info}
@@ -396,13 +395,8 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
 
   return (
     <>
-      <div
-        className={cn(
-          'plugin-contacts min-h-full rounded-xl bg-background px-4 py-5 sm:px-5 sm:py-6',
-          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-        )}
-      >
-        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+      <div className="plugin-contacts">
+        <DetailLayout sidebar={formSidebar}>
           <form
             className="space-y-6"
             onSubmit={(e) => {
@@ -423,7 +417,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
               </Card>
             )}
 
-            <Card padding="none" className={CONTACT_FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('contacts.contactContent')}
                 iconPlugin="contacts"
@@ -660,7 +654,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
               </DetailSection>
             </Card>
 
-            <Card padding="none" className={CONTACT_FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <div className="space-y-2 p-6">
                 <div className="mb-1 flex min-w-0 items-center gap-2">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
@@ -837,7 +831,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
               </div>
             </Card>
 
-            <Card padding="none" className={CONTACT_FORM_CARD_CLASS}>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title="Addresses" className="p-6">
                 <div className="space-y-4">
                   <Button
@@ -979,7 +973,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
             </Card>
 
             {formData.contactType === 'company' && (
-              <Card padding="none" className={CONTACT_FORM_CARD_CLASS}>
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection title="Contact Persons" className="p-6">
                   <div className="space-y-4">
                     <Button

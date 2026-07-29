@@ -22,8 +22,9 @@ import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -38,8 +39,6 @@ interface EstimateFormProps {
   onCancel: () => void;
 }
 
-const ESTIMATE_FORM_CARD_CLASS =
-  'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>(
   function EstimateForm({ currentEstimate, onSave, onCancel }, ref) {
     const { t } = useTranslation();
@@ -298,7 +297,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
 
     const formSidebar = currentEstimate ? (
       <div className="space-y-6">
-        <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection
             title={t('estimates.information')}
             icon={Info}
@@ -350,13 +349,8 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
 
     return (
       <>
-        <div
-          className={cn(
-            'plugin-estimates min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
-            'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
-          )}
-        >
-          <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+        <div className="plugin-estimates">
+          <DetailLayout sidebar={formSidebar}>
             <form
               className="space-y-6"
               onSubmit={(e) => {
@@ -366,7 +360,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
             >
               {/* Validation Summary */}
               {hasBlockingErrors && (
-                <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                   <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
@@ -403,7 +397,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
               )}
 
               {/* Estimate properties: Contact → Currency → Valid to → Status (same order as view) */}
-              <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection
                   title={t('estimates.estimateProperties')}
                   icon={SlidersHorizontal}
@@ -493,7 +487,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
               </Card>
 
               {/* Line Items */}
-              <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection
                   title={t('estimates.lineItems')}
                   icon={ListOrdered}
@@ -670,7 +664,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
 
               {/* Estimate Discount - After line items, before totals */}
               {formData.lineItems.length > 0 && (
-                <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                   <DetailSection
                     title={t('estimates.discount')}
                     icon={Percent}
@@ -709,7 +703,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
 
               {/* Totals Summary */}
               {formData.lineItems.length > 0 && (
-                <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                   <DetailSection
                     title={t('estimates.summary')}
                     icon={Calculator}
@@ -779,7 +773,7 @@ export const EstimateForm = React.forwardRef<PanelFormHandle, EstimateFormProps>
               )}
 
               {/* Notes */}
-              <Card padding="none" className={ESTIMATE_FORM_CARD_CLASS}>
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection
                   title={t('estimates.notes')}
                   icon={StickyNote}
