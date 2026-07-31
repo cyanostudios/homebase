@@ -895,6 +895,7 @@ Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenant
 | Fil                                                           | Roll                                                           |
 | ------------------------------------------------------------- | -------------------------------------------------------------- |
 | `plugins/guides/production/WorkerService.js`                  | Tenant-loop, poll, heartbeat                                   |
+| `plugins/guides/production/listGuidesEnabledTenants.js`       | Endast tenants med guides enabled (`tenant_plugin_access`)     |
 | `plugins/guides/production/SupervisorService.js`              | Stuck-item release                                             |
 | `plugins/guides/production/workerContext.js`                  | `createWorkerReq` för tenant-scopad worker-session             |
 | `plugins/guides/production/ProductionOrchestrationService.js` | `startJob` enqueue, `runWorkerTick`, `_evaluateProcessingJobs` |

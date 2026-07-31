@@ -6,6 +6,7 @@ const SupervisorService = require('./SupervisorService');
 const ProductionSettingsModel = require('./ProductionSettingsModel');
 const { createWorkerReq } = require('./workerContext');
 const { getProductionSettingsBustAt } = require('./productionSettingsCache');
+const { listGuidesEnabledTenants } = require('./listGuidesEnabledTenants');
 
 const DEFAULT_POLL_MS = Number(process.env.GUIDES_PRODUCTION_WORKER_POLL_MS) || 5000;
 /** How long to trust cached tenant settings before re-reading from DB. */
@@ -152,34 +153,7 @@ class WorkerService {
 
   async _listTenants() {
     const mainPool = ServiceManager.getMainPool();
-    const tenantProvider = process.env.TENANT_PROVIDER || 'neon';
-    const isLocalProvider = tenantProvider === 'local';
-
-    if (isLocalProvider) {
-      const usersResult = await mainPool.query(`
-        SELECT id AS user_id, email
-        FROM users
-        ORDER BY id
-      `);
-      const mainConnectionString = process.env.DATABASE_URL;
-      return usersResult.rows.map((user) => ({
-        user_id: user.user_id,
-        email: user.email,
-        connection_string: `${mainConnectionString}?options=-csearch_path%3Dtenant_${user.user_id}`,
-      }));
-    }
-
-    const result = await mainPool.query(`
-      SELECT
-        t.user_id,
-        t.neon_connection_string AS connection_string,
-        u.email
-      FROM tenants t
-      INNER JOIN users u ON t.user_id = u.id
-      WHERE t.neon_connection_string IS NOT NULL
-      ORDER BY t.user_id
-    `);
-    return result.rows;
+    return listGuidesEnabledTenants(mainPool);
   }
 }
 

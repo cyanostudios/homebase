@@ -12,7 +12,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Migrate:** `npm run migrate:guides` (113 applicerad manuellt där 095 blockerar).
 
-**Obs:** Sätt på workern i Guides-settings innan du startar generate-jobb.
+**Obs:** Sätt på workern i Guides-settings innan du startar generate-jobb. Workern pollar endast tenants med **guides** enabled i `tenant_plugin_access` (legacy: `user_plugin_access` om ingen guides-rad finns).
 
 ---
 
