@@ -16,7 +16,6 @@ import {
   isProductionJobActive,
   summarizePhaseProgress,
 } from '../utils/productionJobHelpers';
-import { ContentSourcesSettings } from './ContentSourcesSettings';
 
 interface GuideProductionPanelProps {
   job: ProductionJob | null;
@@ -49,7 +48,6 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const [cancelOpen, setCancelOpen] = React.useState(false);
-  const [showSources, setShowSources] = React.useState(false);
   const elapsed = useProductionElapsed(job);
 
   const active = job && isProductionJobActive(job.status);
@@ -123,18 +121,6 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
               </p>
             )}
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full justify-start px-3 text-xs"
-              onClick={() => setShowSources((v) => !v)}
-            >
-              {showSources
-                ? t('guides.contentSources.hideLink')
-                : t('guides.contentSources.showLink')}
-            </Button>
-
             {active && job && (
               <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
@@ -199,12 +185,6 @@ export const GuideProductionPanel: React.FC<GuideProductionPanelProps> = ({
           </div>
         </DetailSection>
       </Card>
-
-      {showSources && (
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <ContentSourcesSettings />
-        </Card>
-      )}
 
       <ConfirmDialog
         isOpen={cancelOpen}

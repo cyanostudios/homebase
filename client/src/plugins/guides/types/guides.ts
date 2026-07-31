@@ -108,6 +108,12 @@ export interface ContentSourceSetting {
   enabled: boolean;
 }
 
+export interface ProductionWorkerSettings {
+  workerEnabled: boolean;
+  pollIntervalMs: number;
+  allowedPollIntervalMs: number[];
+}
+
 export type PublicationStatus = 'draft' | 'ready' | 'published';
 export type StalenessStatus = 'fresh' | 'stale';
 export type PresentationApprovalStatus = 'draft' | 'pending_review' | 'approved';

@@ -29,6 +29,7 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/107-guide-audio-presentations.sql'),
   path.join(__dirname, '../server/migrations/108-ai-provider-settings-options.sql'),
   path.join(__dirname, '../server/migrations/109-guide-audio-cost.sql'),
+  path.join(__dirname, '../server/migrations/113-guide-production-settings.sql'),
 ];
 const MAIN_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/091-grant-guides-plugin-access.sql'),

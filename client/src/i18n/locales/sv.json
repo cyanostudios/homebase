@@ -707,6 +707,13 @@
   "guides": {
     "title": "Guider",
     "listDescription": "Hantera platser för produktion av audioguider.",
+    "settingsTitle": "Guider – Inställningar",
+    "settings": {
+      "categories": {
+        "production": "Produktion",
+        "sources": "Researchkällor"
+      }
+    },
     "columns1": "1 kolumn",
     "columns2": "2 kolumner",
     "columns3": "3 kolumner",
@@ -992,6 +999,22 @@
       "hideLink": "Dölj researchkällor",
       "loadFailed": "Kunde inte ladda researchkällor.",
       "saveFailed": "Kunde inte uppdatera researchkälla."
+    },
+    "productionWorker": {
+      "title": "Produktionsworker",
+      "description": "När den är på kollar servern efter köade produktionsjobb med jämna mellanrum. Stäng av när du inte producerar för att undvika kontinuerlig databastrafik (t.ex. Neon). Sätt på innan du startar generering.",
+      "enabledLabel": "Worker",
+      "enabledHintOn": "Pollar jobbkön.",
+      "enabledHintOff": "Jobb ligger kvar i kön tills du sätter på den.",
+      "intervalLabel": "Kontrollintervall",
+      "interval5s": "Var 5:e sekund",
+      "interval15s": "Var 15:e sekund",
+      "interval30s": "Var 30:e sekund",
+      "interval1m": "Varje minut",
+      "interval5m": "Var 5:e minut",
+      "intervalCustom": "Var {{ms}} ms",
+      "loadFailed": "Kunde inte ladda worker-inställningar.",
+      "saveFailed": "Kunde inte uppdatera worker-inställningar."
     },
     "presentations": "Presentationer",
     "presentationsEmpty": "Ingen presentation ännu. Skapa guiden från platsen för att generera text.",

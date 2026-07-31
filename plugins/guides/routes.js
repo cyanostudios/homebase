@@ -46,6 +46,25 @@ function createGuidesRoutes(controller, context) {
     (req, res) => controller.updateContentSource(req, res),
   );
 
+  router.get('/production-settings', gate, (req, res) =>
+    controller.getProductionSettings(req, res),
+  );
+
+  router.put(
+    '/production-settings',
+    gate,
+    csrfProtection,
+    body('workerEnabled').optional().isBoolean().withMessage('workerEnabled must be a boolean'),
+    body('pollIntervalMs')
+      .optional()
+      .isInt()
+      .withMessage('pollIntervalMs must be an integer')
+      .custom((value) => [5000, 15000, 30000, 60000, 300000].includes(Number(value)))
+      .withMessage('pollIntervalMs must be one of 5000, 15000, 30000, 60000, 300000'),
+    validateRequest,
+    (req, res) => controller.updateProductionSettings(req, res),
+  );
+
   router.put(
     '/:id/ingest-source',
     gate,

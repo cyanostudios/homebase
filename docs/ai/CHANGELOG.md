@@ -883,10 +883,12 @@ Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenant
 | Variabel                              | Default                       | Beskrivning                               |
 | ------------------------------------- | ----------------------------- | ----------------------------------------- |
 | `GUIDES_PRODUCTION_WORKER_ENABLED`    | `true` (utom `NODE_ENV=test`) | Starta/stoppa in-process worker           |
-| `GUIDES_PRODUCTION_WORKER_POLL_MS`    | `5000`                        | Poll-intervall per tenant                 |
+| `GUIDES_PRODUCTION_WORKER_POLL_MS`    | `5000`                        | Bas-tick för in-process loop              |
 | `GUIDES_PRODUCTION_WORKER_BATCH_SIZE` | `5`                           | Max items per tick                        |
 | `GUIDES_PRODUCTION_ITEM_TIMEOUT_MIN`  | `10`                          | Supervisor timeout för stuck `processing` |
 | `GUIDES_PRODUCTION_MAX_RETRIES`       | `5`                           | Max retry innan item → `failed`           |
+
+**Per-tenant (UI, migration 113):** `GET/PUT /api/guides/production-settings` — `workerEnabled` (default **false**) + `pollIntervalMs` (5s/15s/30s/1m/5m). Process-env förblir nödstopp; tenant-settings styr om/hur ofta tenanten pollas.
 
 ### Implementation (huvudfiler)
 

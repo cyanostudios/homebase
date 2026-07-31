@@ -4,6 +4,18 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-07-31 – Guides production worker: on/off + poll interval settings
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Per-tenant settings för async production-workern (`guide_production_settings`, migration **113**). UI under **Guides → Settings** (samma shell som Tasks/Notes): kategorier **Produktion** (på/av + intervall) och **Researchkällor**. Default worker **av**. API: `GET/PUT /api/guides/production-settings`. Process-env `GUIDES_PRODUCTION_WORKER_ENABLED` förblir nödstopp. Manuell `scripts/run-production-worker-tick.js` ignorerar tenant-settings (E2E).
+
+**Migrate:** `npm run migrate:guides` (113 applicerad manuellt där 095 blockerar).
+
+**Obs:** Sätt på workern i Guides-settings innan du startar generate-jobb.
+
+---
+
 ## 2026-07-28 – Tenant name in TopBar brand
 
 **Status:** Implementerat lokalt. **Ej prod-release.**

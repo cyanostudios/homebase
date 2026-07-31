@@ -4,8 +4,10 @@ import {
   ArrowUp,
   Plus,
   Search,
+  Settings,
   SlidersHorizontal,
   Trash2,
+  X,
   XCircle,
 } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -43,6 +45,7 @@ import {
 
 import { BulkStatusDialog } from './BulkStatusDialog';
 import { GuideListItem } from './GuideListItem';
+import { GuideSettingsView, type GuideSettingsCategory } from './GuideSettingsView';
 
 type SortField = GuideSortField;
 type SortOrder = GuideSortOrder;
@@ -65,6 +68,9 @@ export const GuideList: React.FC = () => {
     selectedCount,
     isSelected,
     refreshGuides,
+    guidesContentView,
+    openGuideSettings,
+    closeGuideSettingsView,
   } = useGuides();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
@@ -76,6 +82,7 @@ export const GuideList: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [settingsCategory, setSettingsCategory] = useState<GuideSettingsCategory>('production');
 
   const setColumnCount = useCallback((count: GuideColumnCount) => {
     setColumnCountState(count);
@@ -191,6 +198,32 @@ export const GuideList: React.FC = () => {
     }
   };
 
+  if (guidesContentView === 'settings') {
+    return (
+      <div className="plugin-guides min-h-full bg-background">
+        <div className="px-6 py-4">
+          <GuideSettingsView
+            selectedCategory={settingsCategory}
+            onSelectedCategoryChange={setSettingsCategory}
+            renderCategoryButtonsInline
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeGuideSettingsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="plugin-guides min-h-full bg-background px-6 py-4">
       <div className="space-y-4">
@@ -200,6 +233,16 @@ export const GuideList: React.FC = () => {
             <p className="text-sm text-muted-foreground">{t('guides.listDescription')}</p>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Settings}
+              className="h-9 px-2.5 text-xs"
+              onClick={() => openGuideSettings()}
+              title={t('common.settings')}
+            >
+              {t('common.settings')}
+            </Button>
             <Button
               variant="primary"
               size="sm"

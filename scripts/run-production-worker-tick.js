@@ -20,7 +20,8 @@ async function main() {
   Bootstrap.initializeServices();
   const model = new GuidesModel();
   const orchestration = new ProductionOrchestrationService(model);
-  const worker = new WorkerService(orchestration);
+  // Bypass tenant on/off so E2E / manual pump still processes the queue.
+  const worker = new WorkerService(orchestration, undefined, { ignoreTenantSettings: true });
   await worker.tick();
 }
 

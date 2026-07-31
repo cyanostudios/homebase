@@ -39,6 +39,7 @@ export function GuidesProvider({
   const [isGuidePanelOpen, setIsGuidePanelOpen] = useState(false);
   const [currentGuide, setCurrentGuide] = useState<Guide | null>(null);
   const [panelMode, setPanelMode] = useState<GuidesContextType['panelMode']>('create');
+  const [guidesContentView, setGuidesContentView] = useState<'list' | 'settings'>('list');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<GuideValidationError>();
   const [guides, setGuides] = useState<Guide[]>([]);
@@ -110,6 +111,21 @@ export function GuidesProvider({
     navigateToBase();
   }, [clearValidationErrors, navigateToBase]);
 
+  const openGuideSettings = useCallback(() => {
+    clearGuideSelectionCore();
+    setIsGuidePanelOpen(false);
+    setCurrentGuide(null);
+    setPanelMode('create');
+    clearValidationErrors();
+    setGuidesContentView('settings');
+    onCloseOtherPanels();
+    navigateToBase();
+  }, [onCloseOtherPanels, clearGuideSelectionCore, clearValidationErrors, navigateToBase]);
+
+  const closeGuideSettingsView = useCallback(() => {
+    setGuidesContentView('list');
+  }, []);
+
   useEffect(() => {
     registerPanelCloseFunction('guides', closeGuidePanel);
     return () => unregisterPanelCloseFunction('guides');
@@ -117,6 +133,7 @@ export function GuidesProvider({
 
   const openGuidePanel = useCallback(
     (item: Guide | null) => {
+      setGuidesContentView('list');
       setCurrentGuide(item);
       setPanelMode(item ? 'edit' : 'create');
       setIsGuidePanelOpen(true);
@@ -131,6 +148,7 @@ export function GuidesProvider({
 
   const openGuideForEdit = useCallback(
     (item: Guide) => {
+      setGuidesContentView('list');
       setCurrentGuide(item);
       setPanelMode('edit');
       setIsGuidePanelOpen(true);
@@ -148,6 +166,7 @@ export function GuidesProvider({
         navigate(`/guides/${buildSlug(item, guides, 'displayName')}`);
         return;
       }
+      setGuidesContentView('list');
       setCurrentGuide(item);
       setPanelMode('view');
       setIsGuidePanelOpen(true);
@@ -419,6 +438,9 @@ export function GuidesProvider({
       openGuideForEdit,
       openGuideForView,
       closeGuidePanel,
+      openGuideSettings,
+      closeGuideSettingsView,
+      guidesContentView,
       saveGuide,
       deleteGuide,
       deleteGuides,
@@ -451,6 +473,9 @@ export function GuidesProvider({
       openGuideForEdit,
       openGuideForView,
       closeGuidePanel,
+      openGuideSettings,
+      closeGuideSettingsView,
+      guidesContentView,
       saveGuide,
       deleteGuide,
       deleteGuides,

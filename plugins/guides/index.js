@@ -7,6 +7,7 @@ const GuideIngestBridgeService = require('./ingest/GuideIngestBridgeService');
 const ProductionOrchestrationService = require('./production/ProductionOrchestrationService');
 const ContentSourceSettingsModel = require('./sources/ContentSourceSettingsModel');
 const { WorkerService } = require('./production/WorkerService');
+const ProductionSettingsModel = require('./production/ProductionSettingsModel');
 const { ensureTextProvidersRegistered } = require('./providers/text/registerDefaultProviders');
 const {
   ensureTranslationProvidersRegistered,
@@ -25,6 +26,7 @@ function initializeGuidesPlugin(context) {
   const model = new GuidesModel();
   const ingestBridge = new GuideIngestBridgeService(model);
   const contentSourceSettingsModel = new ContentSourceSettingsModel();
+  const productionSettingsModel = new ProductionSettingsModel();
   const productionOrchestration = new ProductionOrchestrationService(model, {
     contentSourceSettingsModel,
   });
@@ -35,10 +37,11 @@ function initializeGuidesPlugin(context) {
     productionOrchestration,
     contentSourceSettingsModel,
     audioOrchestration,
+    productionSettingsModel,
   );
   const router = createGuidesRoutes(controller, context);
 
-  guidesWorker = new WorkerService(productionOrchestration);
+  guidesWorker = new WorkerService(productionOrchestration, productionSettingsModel);
   guidesWorker.start();
 
   return {
@@ -50,6 +53,7 @@ function initializeGuidesPlugin(context) {
     productionOrchestration,
     audioOrchestration,
     productionWorker: guidesWorker,
+    productionSettingsModel,
   };
 }
 

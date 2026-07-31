@@ -27,6 +27,9 @@ export interface GuidesContextType {
   openGuideForEdit: (item: Guide) => void;
   openGuideForView: (item: Guide) => void;
   closeGuidePanel: () => void;
+  openGuideSettings: () => void;
+  closeGuideSettingsView: () => void;
+  guidesContentView: 'list' | 'settings';
   saveGuide: (data: GuidePayload, options?: GuideSaveOptions) => Promise<boolean>;
   deleteGuide: (id: string) => Promise<void>;
   deleteGuides: (ids: string[]) => Promise<void>;
@@ -71,6 +74,9 @@ export function GuideNullProvider({ children }: { children: React.ReactNode }) {
     openGuideForEdit: () => {},
     openGuideForView: () => {},
     closeGuidePanel: () => {},
+    openGuideSettings: () => {},
+    closeGuideSettingsView: () => {},
+    guidesContentView: 'list',
     saveGuide: async () => false,
     deleteGuide: async () => {},
     deleteGuides: async () => {},

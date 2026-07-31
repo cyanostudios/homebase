@@ -1,6 +1,7 @@
 // plugins/guides/controller.js
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const { bustProductionSettingsCache } = require('./production/productionSettingsCache');
 
 class GuidesController {
   /**
@@ -9,6 +10,7 @@ class GuidesController {
    * @param {import('./production/ProductionOrchestrationService')|null} [productionOrchestration]
    * @param {import('./sources/ContentSourceSettingsModel')|null} [contentSourceSettingsModel]
    * @param {import('./audio/AudioOrchestrationService')|null} [audioOrchestration]
+   * @param {import('./production/ProductionSettingsModel')|null} [productionSettingsModel]
    */
   constructor(
     model,
@@ -16,12 +18,14 @@ class GuidesController {
     productionOrchestration = null,
     contentSourceSettingsModel = null,
     audioOrchestration = null,
+    productionSettingsModel = null,
   ) {
     this.model = model;
     this.ingestBridge = ingestBridge;
     this.productionOrchestration = productionOrchestration;
     this.contentSourceSettingsModel = contentSourceSettingsModel;
     this.audioOrchestration = audioOrchestration;
+    this.productionSettingsModel = productionSettingsModel;
   }
 
   async getAll(req, res) {
@@ -508,6 +512,45 @@ class GuidesController {
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to update content source' });
+    }
+  }
+
+  async getProductionSettings(req, res) {
+    try {
+      if (!this.productionSettingsModel) {
+        return res.status(500).json({ error: 'Production settings not configured' });
+      }
+      const settings = await this.productionSettingsModel.get(req);
+      res.json({
+        ...settings,
+        allowedPollIntervalMs: this.productionSettingsModel.constructor.getAllowedPollIntervalsMs(),
+      });
+    } catch (error) {
+      Logger.error('Get production settings failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to load production settings' });
+    }
+  }
+
+  async updateProductionSettings(req, res) {
+    try {
+      if (!this.productionSettingsModel) {
+        return res.status(500).json({ error: 'Production settings not configured' });
+      }
+      const settings = await this.productionSettingsModel.upsert(req, {
+        workerEnabled: req.body.workerEnabled,
+        pollIntervalMs: req.body.pollIntervalMs,
+      });
+      const userId = Context.getTenantUserId(req);
+      if (userId) bustProductionSettingsCache(userId);
+      res.json({
+        ...settings,
+        allowedPollIntervalMs: this.productionSettingsModel.constructor.getAllowedPollIntervalsMs(),
+      });
+    } catch (error) {
+      Logger.error('Update production settings failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to update production settings' });
     }
   }
 

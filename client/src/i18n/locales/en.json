@@ -716,6 +716,13 @@
   "guides": {
     "title": "Guides",
     "listDescription": "Manage places for audioguide content production.",
+    "settingsTitle": "Guides – Settings",
+    "settings": {
+      "categories": {
+        "production": "Production",
+        "sources": "Research sources"
+      }
+    },
     "columns1": "1 column",
     "columns2": "2 columns",
     "columns3": "3 columns",
@@ -1001,6 +1008,22 @@
       "hideLink": "Hide research sources",
       "loadFailed": "Could not load research sources.",
       "saveFailed": "Could not update research source."
+    },
+    "productionWorker": {
+      "title": "Production worker",
+      "description": "When on, the server checks for queued production jobs on an interval. Turn off when idle to avoid continuous database traffic (e.g. Neon). Turn on before starting generate jobs.",
+      "enabledLabel": "Worker",
+      "enabledHintOn": "Polling the job queue.",
+      "enabledHintOff": "Jobs stay queued until you turn this on.",
+      "intervalLabel": "Check interval",
+      "interval5s": "Every 5 seconds",
+      "interval15s": "Every 15 seconds",
+      "interval30s": "Every 30 seconds",
+      "interval1m": "Every 1 minute",
+      "interval5m": "Every 5 minutes",
+      "intervalCustom": "Every {{ms}} ms",
+      "loadFailed": "Could not load worker settings.",
+      "saveFailed": "Could not update worker settings."
     },
     "presentations": "Presentations",
     "presentationsEmpty": "No presentation yet. Produce the guide from this place to generate text.",

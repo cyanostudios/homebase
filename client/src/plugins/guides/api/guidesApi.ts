@@ -9,6 +9,7 @@ import type {
   GuideValidationError,
   GuideAudio,
   ContentSourceSetting,
+  ProductionWorkerSettings,
   ProductionJobDetail,
   ProductionJobListResponse,
   StartProductionJobPayload,
@@ -199,6 +200,17 @@ class GuidesApi {
 
   updateContentSource(sourceKey: string, payload: { enabled: boolean }) {
     return apiRequest<ContentSourceSetting>(`/content-sources/${encodeURIComponent(sourceKey)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  getProductionSettings() {
+    return apiRequest<ProductionWorkerSettings>('/production-settings');
+  }
+
+  updateProductionSettings(payload: { workerEnabled?: boolean; pollIntervalMs?: number }) {
+    return apiRequest<ProductionWorkerSettings>('/production-settings', {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
