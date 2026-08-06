@@ -230,24 +230,17 @@ export function InstructionSettingsView({
     async (sourceId: string, targetId: string) => {
       if (sourceId === targetId) return;
 
-      let nextOrder: InstructionCategory[] | null = null;
-      let rollback: InstructionCategory[] | null = null;
+      const fromIndex = draftCategories.findIndex((c) => c.id === sourceId);
+      const toIndex = draftCategories.findIndex((c) => c.id === targetId);
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+        return;
+      }
 
-      setDraftCategories((prev) => {
-        const fromIndex = prev.findIndex((c) => c.id === sourceId);
-        const toIndex = prev.findIndex((c) => c.id === targetId);
-        if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
-          return prev;
-        }
-        const next = [...prev];
-        const [moved] = next.splice(fromIndex, 1);
-        next.splice(toIndex, 0, moved);
-        nextOrder = next;
-        rollback = prev;
-        return next;
-      });
-
-      if (!nextOrder || !rollback) return;
+      const rollback = draftCategories;
+      const nextOrder = [...draftCategories];
+      const [moved] = nextOrder.splice(fromIndex, 1);
+      nextOrder.splice(toIndex, 0, moved);
+      setDraftCategories(nextOrder);
 
       // Only persist immediately when no pending add/remove (all real ids)
       const canPersistNow =
@@ -274,7 +267,7 @@ export function InstructionSettingsView({
         setIsReordering(false);
       }
     },
-    [initialCategoryIds, refreshCategories, t],
+    [draftCategories, initialCategoryIds, refreshCategories, t],
   );
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
