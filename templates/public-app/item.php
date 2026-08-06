@@ -65,6 +65,27 @@ function parseItemPath(): ?string
     return null;
 }
 
+function slugifyCategory(string $value): string
+{
+    $v = mb_strtolower(trim($value), 'UTF-8');
+    $v = strtr($v, [
+        'å' => 'a',
+        'ä' => 'a',
+        'ö' => 'o',
+        'é' => 'e',
+        'è' => 'e',
+        'ü' => 'u',
+    ]);
+    $v = preg_replace('/[^a-z0-9]+/u', '-', $v) ?? '';
+
+    return trim($v, '-') ?: 'ovrigt';
+}
+
+function categoryListingPath(string $category): string
+{
+    return '/kategori/' . slugifyCategory($category) . '/';
+}
+
 /**
  * Optional JSON steps column: [{ "number": 1, "title": "...", "description": "...", "image": "..." }, ...]
  *
@@ -107,6 +128,7 @@ $slug = parseItemPath();
 $item = null;
 $notFound = false;
 $steps = [];
+$guideCategory = 'Övrigt';
 
 if ($slug === null || $slug === '') {
     $notFound = true;
@@ -120,6 +142,13 @@ if ($slug === null || $slug === '') {
         if ($row) {
             $item = $row;
             $steps = parseItemSteps($row);
+            $catRaw = trim((string) ($row['category'] ?? ''));
+            if ($catRaw === '') {
+                $guideCategory = 'Övrigt';
+            } else {
+                $first = trim(explode(',', $catRaw, 2)[0]);
+                $guideCategory = $first !== '' ? $first : 'Övrigt';
+            }
         } else {
             $notFound = true;
         }
@@ -158,7 +187,8 @@ $jsonLd = [
     ],
 ];
 
-$showAudio = $steps !== [];
+$totalSteps = count($steps);
+$showProgress = $steps !== [];
 ?>
 <!doctype html>
 <html lang="sv">
@@ -201,7 +231,7 @@ $showAudio = $steps !== [];
             Public App
             <span class="brand__dot" aria-hidden="true"></span>
           </a>
-          <a class="detail-back-btn shadow-soft" href="/" aria-label="Till startsidan">
+          <a class="detail-back-btn shadow-soft" href="/" id="detail-back-btn" aria-label="Tillbaka">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
               <path d="M15 18l-6-6 6-6" />
             </svg>
@@ -210,15 +240,34 @@ $showAudio = $steps !== [];
         </div>
       </header>
 
+<?php if ($showProgress && $item): ?>
+<?php
+    $guideTitle = (string) ($item['name'] ?? 'Guide');
+    $firstStepTitle = (string) ($steps[0]['title'] ?? 'Steg 1');
+?>
+      <div class="step-subheader" id="progress-pod" data-progress-pod>
+        <div class="step-subheader__inner">
+          <p class="step-subheader__guide" id="progress-guide"><?= h($guideTitle) ?></p>
+          <p class="step-subheader__step" id="progress-step" aria-live="polite"><?= h($firstStepTitle) ?></p>
+          <div class="step-subheader__meta">
+            <span class="step-subheader__count" id="progress-eyebrow">Steg 1 av <?= (int) $totalSteps ?></span>
+            <div class="step-subheader__bar" aria-hidden="true">
+              <span class="step-subheader__fill" id="progress-fill" style="width: <?= $totalSteps > 0 ? (100 / $totalSteps) : 0 ?>%"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+<?php endif; ?>
+
       <main id="main" class="app-main no-scrollbar">
 <?php if ($notFound || !$item): ?>
         <article class="detail-article">
           <h1>Sidan hittades inte</h1>
           <p>Objektet finns inte eller är inte publikt.</p>
-          <a class="detail-back" href="/">Till startsidan</a>
+          <a class="detail-back" href="/" id="detail-back-not-found">Till startsidan</a>
         </article>
 <?php elseif ($steps !== []): ?>
-        <div class="step-swipe no-scrollbar" id="step-swipe">
+        <div class="step-swipe no-scrollbar" id="step-swipe" data-step-total="<?= (int) $totalSteps ?>">
 <?php foreach ($steps as $step): ?>
 <?php
     $stepImg = absolutePublicUrl($baseUrl, (string) ($step['image'] ?? ''));
@@ -227,7 +276,7 @@ $showAudio = $steps !== [];
     }
     $num = (int) ($step['number'] ?? 1);
 ?>
-          <article class="step-slide scroll-snap-center">
+          <article class="step-slide scroll-snap-center" data-step-index="<?= $num ?>" data-step-title="<?= h((string) ($step['title'] ?? '')) ?>">
             <div class="step-slide__media">
 <?php if ($stepImg !== ''): ?>
               <img class="kenburns" src="<?= h($stepImg) ?>" alt="" />
@@ -254,29 +303,29 @@ $showAudio = $steps !== [];
 <?php if (!empty($item['description'])): ?>
           <p><?= h((string) $item['description']) ?></p>
 <?php endif; ?>
-          <a class="detail-back" href="/">← Tillbaka</a>
+          <a class="detail-back" href="/" id="detail-back-empty">← Tillbaka</a>
         </article>
 <?php endif; ?>
       </main>
 
-<?php if ($showAudio && $item): ?>
-      <div class="audio-pod" id="audio-pod">
-        <div class="audio-pod__inner glass shadow-float">
-<?php if ($ogImage !== ''): ?>
-          <img class="audio-pod__thumb" src="<?= h($ogImage) ?>" alt="" width="48" height="48" />
-<?php else: ?>
-          <div class="audio-pod__thumb" aria-hidden="true"></div>
-<?php endif; ?>
-          <div class="audio-pod__text">
-            <p class="audio-pod__eyebrow">Steg för steg</p>
-            <p class="audio-pod__title"><?= h((string) ($item['name'] ?? 'Ljudguide')) ?></p>
-          </div>
-          <button type="button" class="audio-pod__play shadow-soft" aria-label="Spela" disabled>
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-          </button>
-        </div>
+<?php if ($showProgress && $item): ?>
+      <div class="step-nav" id="step-nav" role="group" aria-label="Stegnavigering">
+        <button type="button" class="step-nav__btn step-nav__btn--prev" id="step-prev" aria-label="Föregående steg" disabled>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <button type="button" class="step-nav__btn step-nav__btn--next" id="step-next" aria-label="Nästa steg">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
       </div>
 <?php endif; ?>
+
+      <!-- Audio-pod opt-in: uncomment when the app has audio. Not default in the template.
+      <div class="audio-pod" id="audio-pod">…</div>
+      -->
 
       <nav class="bottom-bar" aria-label="Sidnavigering">
         <div class="bottom-bar__inner glass shadow-float">
@@ -287,7 +336,7 @@ $showAudio = $steps !== [];
             <span class="bottom-bar__label">Hem</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
-          <a class="bottom-bar__tab" href="/#all" data-tab="all">
+          <a class="bottom-bar__tab" href="/alla/" data-tab="all">
             <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7" rx="1.5" />
               <rect x="14" y="3" width="7" height="7" rx="1.5" />
@@ -297,14 +346,7 @@ $showAudio = $steps !== [];
             <span class="bottom-bar__label">Alla</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
-          <a class="bottom-bar__tab" href="/#favourites" data-tab="favourites">
-            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M12 21s-7-4.5-9.5-8.2C.7 10 2.2 6.5 5.5 6c1.7-.3 3.3.5 4.1 1.8C10.4 6.5 12 5.7 13.7 6c3.3.5 4.8 4 3 6.8C19 16.5 12 21 12 21z" />
-            </svg>
-            <span class="bottom-bar__label">Favoriter</span>
-            <span class="bottom-bar__dot" aria-hidden="true"></span>
-          </a>
-          <a class="bottom-bar__tab" href="/#info" data-tab="info">
+          <a class="bottom-bar__tab" href="/info/" data-tab="info">
             <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 10v6M12 7h.01" />
@@ -315,5 +357,143 @@ $showAudio = $steps !== [];
         </div>
       </nav>
     </div>
+<?php if ($showProgress && $item): ?>
+    <script>
+      (function () {
+        /** Prefer browser history so Tillbaka returns to previous listing (e.g. category). */
+        function bindBackNav(el) {
+          if (!el) return;
+          el.addEventListener('click', function (e) {
+            if (window.history.length > 1) {
+              e.preventDefault();
+              window.history.back();
+            }
+          });
+        }
+        bindBackNav(document.getElementById('detail-back-btn'));
+        bindBackNav(document.getElementById('detail-back-not-found'));
+        bindBackNav(document.getElementById('detail-back-empty'));
+
+        var guideCategory = <?= json_encode($guideCategory, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        var categoryPath = <?= json_encode(categoryListingPath($guideCategory), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+        function goToItemCategory() {
+          window.location.href = categoryPath || '/alla/';
+        }
+
+        var swipe = document.getElementById('step-swipe');
+        var stepLabel = document.getElementById('progress-step');
+        var countLabel = document.getElementById('progress-eyebrow');
+        var fill = document.getElementById('progress-fill');
+        var prevBtn = document.getElementById('step-prev');
+        var nextBtn = document.getElementById('step-next');
+        if (!swipe || !stepLabel) return;
+
+        var total = Math.max(1, Number(swipe.getAttribute('data-step-total') || 1));
+        var slides = Array.prototype.slice.call(swipe.querySelectorAll('.step-slide'));
+        var current = 1;
+        var scrollingProgrammatically = false;
+
+        function goTo(index) {
+          var i = Math.max(0, Math.min(slides.length - 1, index));
+          var slide = slides[i];
+          if (!slide) return;
+          scrollingProgrammatically = true;
+          slide.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          setCurrent(i + 1);
+          window.setTimeout(function () {
+            scrollingProgrammatically = false;
+          }, 400);
+        }
+
+        function setCurrent(n) {
+          current = n;
+          var slide = slides[current - 1];
+          var stepTitle = slide
+            ? (slide.getAttribute('data-step-title') || ('Steg ' + current))
+            : ('Steg ' + current);
+          stepLabel.textContent = stepTitle;
+          if (countLabel) {
+            countLabel.textContent = 'Steg ' + current + ' av ' + total;
+          }
+          if (fill) {
+            fill.style.width = Math.round((current / total) * 100) + '%';
+          }
+          if (prevBtn) {
+            prevBtn.disabled = current <= 1;
+          }
+          if (nextBtn) {
+            var isLast = current >= total;
+            nextBtn.innerHTML = isLast
+              ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>'
+              : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>';
+            nextBtn.classList.toggle('step-nav__btn--done', isLast);
+            nextBtn.setAttribute('aria-label', isLast ? 'Klart, tillbaka till kategorin' : 'Nästa steg');
+          }
+        }
+
+        function updateFromScroll() {
+          if (scrollingProgrammatically) return;
+          var center = swipe.scrollLeft + swipe.clientWidth / 2;
+          var best = 1;
+          var bestDist = Infinity;
+          slides.forEach(function (slide, i) {
+            var mid = slide.offsetLeft + slide.offsetWidth / 2;
+            var dist = Math.abs(mid - center);
+            if (dist < bestDist) {
+              bestDist = dist;
+              best = i + 1;
+            }
+          });
+          setCurrent(best);
+        }
+
+        if (prevBtn) {
+          prevBtn.addEventListener('click', function () {
+            if (current > 1) goTo(current - 2);
+          });
+        }
+        if (nextBtn) {
+          nextBtn.addEventListener('click', function () {
+            if (current >= total) {
+              goToItemCategory();
+              return;
+            }
+            goTo(current);
+          });
+        }
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (current < total) goTo(current);
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (current > 1) goTo(current - 2);
+          }
+        });
+
+        swipe.addEventListener('scroll', updateFromScroll, { passive: true });
+        setCurrent(1);
+      })();
+    </script>
+<?php else: ?>
+    <script>
+      (function () {
+        function bindBackNav(el) {
+          if (!el) return;
+          el.addEventListener('click', function (e) {
+            if (window.history.length > 1) {
+              e.preventDefault();
+              window.history.back();
+            }
+          });
+        }
+        bindBackNav(document.getElementById('detail-back-btn'));
+        bindBackNav(document.getElementById('detail-back-not-found'));
+        bindBackNav(document.getElementById('detail-back-empty'));
+      })();
+    </script>
+<?php endif; ?>
   </body>
 </html>

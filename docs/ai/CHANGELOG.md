@@ -2,6 +2,70 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Public app-mall — Pattern A sync (2026-08-06)
+
+Docs-sync efter port av listing/detail-mönster från `public-instructions/` till `templates/public-app/`. Mallkontrakt låst i [`PUBLIC_APP_TEMPLATE.md`](../PUBLIC_APP_TEMPLATE.md); design-delta i [`PUBLIC_APP_DESIGN.md`](../PUBLIC_APP_DESIGN.md). **Ej prod-release** av befintliga sajter.
+
+### Docs-sync
+
+- Path-listing, grid vs rows, step-subheader/Klart, optional `categoryOrder`, audio opt-in, `/item/` kvar.
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
+## Instructions — kategoriordning via settings (2026-08-06)
+
+Docs-sync efter QA Approved + Security Approved för managed `instruction_categories` (migration 117), settings-vy, Category-dropdown, public `categoryOrder`. Residual public read-only (inkl. `categoryOrder`) dokumenterad under samma TPM-accepterade Etapp 1-klass. **Ej prod-release.**
+
+**ADR:** [`docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](adr/INSTRUCTIONS_PLUGIN_ETAPP1.md) (beslut 10 + Security residual).
+
+### Docs-sync
+
+- Katalog + `sort_order` i tenant-DB; API under `/api/instructions/categories*`; PHP JOIN/`categoryOrder` med `user_id`-scoping.
+- Admin settings (View/Categories); form Select + settings-ikon med unsaved guard; list-chips och public följer katalogordning.
+- Begränsningar: orphan category strings efter catalog-delete; `categoryOrder` kan innehålla oanvända namn för published owners.
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+- Publik README: [`public-instructions/README.md`](../../public-instructions/README.md).
+
+---
+
+## Instructions — admin/public UX-delta (2026-08-06)
+
+Docs-sync efter QA DoD Reject (dokumentation saknade nya beteenden; README nämnde “progress pod”). Rework: Backend + Frontend tester; denna docs-sync. **Ej prod-release.**
+
+**ADR:** [`docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](adr/INSTRUCTIONS_PLUGIN_ETAPP1.md) (kompletterad).
+
+### Docs-sync
+
+- Titelunikhet (app-lager, case-insensitive; ingen DB unique på title), View reorder/copy steg, category badge, featured 300×300.
+- Publik UX: `step-subheader` (ersätter progress pod), `item-grid` 2 kolumner per kategori, ingen audio, Klart → `/`, `--step-media-h`, port 3010.
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+- Publik README: [`public-instructions/README.md`](../../public-instructions/README.md).
+
+---
+
+## Instructions plugin — Etapp 1 (2026-08-06)
+
+Docs-sync efter QA Approved + Security Approved; residuala säkerhetsrisker accepterade av TPM för Etapp 1. **Ej prod-release.**
+
+**ADR:** [`docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](adr/INSTRUCTIONS_PLUGIN_ETAPP1.md)
+
+### Docs-sync
+
+- Ny ADR: admin CRUD `/api/instructions` + FE `/instructions`; tabeller `instructions` / `instruction_steps`; publish kräver ≥1 steg.
+- Publik yta: `plugins/public-instructions/` (`/api/public/instructions`) + `public-instructions/` (PHP, `APP_DB_URL`).
+- Env: `PUBLIC_INSTRUCTIONS_USER_ID` / `_EMAIL` / `_URL` (Homebase); `APP_DB_URL` (publik sajt) — redan i `.env.example` / `railway.env.example`.
+- Enable: `npm run migrate:instructions` och/eller `set:tenant-plugins -- --enable=instructions`; logga ut/in.
+- **Utanför Etapp 1:** price list, messages, Swish, Guides HITL, prod deploy.
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+- Migrations README §114–115; checklist-pekare i [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](../NEW_PLUGIN_INTEGRATION_CHECKLIST.md).
+
+### Säkerhet
+
+Security Approved. Residuala risker för publik oautentiserad read-only yta (samma klass som public-cups/guides) **accepterade av TPM** för Etapp 1 — se ADR.
+
+---
+
 ## Generate source audio + safe regenerate (2026-07-22)
 
 Docs-sync efter QA Approved + TPM-accept av Security A1/A2; push `homebase-v3.8`.
@@ -884,11 +948,14 @@ Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenant
 | ------------------------------------- | ----------------------------- | ----------------------------------------- |
 | `GUIDES_PRODUCTION_WORKER_ENABLED`    | `true` (utom `NODE_ENV=test`) | Starta/stoppa in-process worker           |
 | `GUIDES_PRODUCTION_WORKER_POLL_MS`    | `5000`                        | Bas-tick för in-process loop              |
+| `GUIDES_PRODUCTION_SETTINGS_CACHE_MS` | `10000`                       | Cache-TTL för tenant production-settings  |
 | `GUIDES_PRODUCTION_WORKER_BATCH_SIZE` | `5`                           | Max items per tick                        |
 | `GUIDES_PRODUCTION_ITEM_TIMEOUT_MIN`  | `10`                          | Supervisor timeout för stuck `processing` |
 | `GUIDES_PRODUCTION_MAX_RETRIES`       | `5`                           | Max retry innan item → `failed`           |
 
 **Per-tenant (UI, migration 113):** `GET/PUT /api/guides/production-settings` — `workerEnabled` (default **false**) + `pollIntervalMs` (5s/15s/30s/1m/5m). Process-env förblir nödstopp; tenant-settings styr om/hur ofta tenanten pollas.
+
+**Tenant-filter:** Workern anropar `listGuidesEnabledTenants` — endast tenants med guides enabled (`tenant_plugin_access`; legacy `user_plugin_access` om ingen guides-rad). HTTP `requirePlugin('guides')` och bakgrundsworkern följer samma princip.
 
 ### Implementation (huvudfiler)
 
@@ -896,13 +963,14 @@ Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenant
 | ------------------------------------------------------------- | -------------------------------------------------------------- |
 | `plugins/guides/production/WorkerService.js`                  | Tenant-loop, poll, heartbeat                                   |
 | `plugins/guides/production/listGuidesEnabledTenants.js`       | Endast tenants med guides enabled (`tenant_plugin_access`)     |
+| `plugins/guides/production/ProductionSettingsModel.js`        | Tenant `guide_production_settings` get/upsert                  |
 | `plugins/guides/production/SupervisorService.js`              | Stuck-item release                                             |
 | `plugins/guides/production/workerContext.js`                  | `createWorkerReq` för tenant-scopad worker-session             |
 | `plugins/guides/production/ProductionOrchestrationService.js` | `startJob` enqueue, `runWorkerTick`, `_evaluateProcessingJobs` |
 | `plugins/guides/production/ProductionJobModel.js`             | Claim, cancel items, summarize, worker heartbeat               |
 | `plugins/guides/index.js`                                     | Worker boot + `shutdownGuidesProductionWorker`                 |
 | `server/index.ts`                                             | Graceful shutdown                                              |
-| `scripts/run-guides-migration.js`                             | Inkluderar migration 099                                       |
+| `scripts/run-guides-migration.js`                             | Inkluderar migration 099…109 + **113**                         |
 | `scripts/run-production-worker-tick.js`                       | Ett worker-tick (local dev / E2E-pump)                         |
 | `scripts/guides-production-e2e.js`                            | Automatiserad P-FRONTEND E2E-checklista                        |
 | `server/core/services/database/adapters/PostgreSQLAdapter.js` | `_getParamCount` — högsta `$N` (worker SQL-validering)         |

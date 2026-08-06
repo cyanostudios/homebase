@@ -1,5 +1,34 @@
 # Migrations
 
+## 114–117 – Instructions plugin (aug 2026)
+
+- **`114-instructions.sql`** — tenant-DB: `instructions` + `instruction_steps` (ordered steps, draft/published).
+- **`115-grant-instructions-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Lägger till `instructions` i `tenant_plugin_access` / `user_plugin_access`. Alternativt `npm run set:tenant-plugins -- --enable=instructions`.
+- **`116-instructions-sort-order.sql`** — tenant-DB: `instructions.sort_order` (manuell ordning inom kategori / okategoriserat).
+- **`117-instruction-categories.sql`** — tenant-DB: `instruction_categories` (katalog + `sort_order` för kategoriordning; backfill från distinct `instructions.category`). Används av admin settings och public `categoryOrder` / list-JOIN.
+
+```bash
+npm run migrate:instructions
+# or grant only:
+npm run set:tenant-plugins -- --enable=instructions
+```
+
+**Parity:** kör tenant-migration mot alla tenants lokalt (och prod endast vid explicit release). Logga ut/in efter plugin-access.
+
+**ADR:** [`docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](../../docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md).
+
+---
+
+## 113 – Guides production worker settings (jul 2026)
+
+- **`113-guide-production-settings.sql`** — tenant-DB: `guide_production_settings` (`worker_enabled` default false, `poll_interval_ms` ∈ 5s/15s/30s/1m/5m). Ingår i `npm run migrate:guides`.
+
+**UI:** Guides → Settings → Produktion. **API:** `GET/PUT /api/guides/production-settings`.
+
+**Parity:** kör mot alla Neon-tenants (local `DATABASE_URL` + `PROD_MAIN_DATABASE_URL` tenant-lista). Om `migrate:guides` stoppar på äldre 095-fel, applicera 113 manuellt per tenant.
+
+---
+
 ## 112 – Tenant organization profile (jul 2026)
 
 - **`112-tenants-organization.sql`** — **`MAIN_DB_ONLY`**. Lägger till `tenants.organization` JSONB (namn, logo, adress, fakturauppgifter) för Settings → Profile.

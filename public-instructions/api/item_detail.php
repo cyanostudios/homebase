@@ -1,0 +1,68 @@
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/pdo_env.php';
+require_once __DIR__ . '/db_helpers.php';
+require_once __DIR__ . '/security_headers.php';
+require_once __DIR__ . '/cors.php';
+
+/**
+ * Public single-item JSON (optional). SSR detail pages usually query DB in item.php instead.
+ * GET /api/item_detail.php?slug=my-slug
+ */
+
+applyPublicAppSecurityHeaders('json');
+header('Content-Type: application/json; charset=utf-8');
+
+function respondDetail(int $statusCode, array $payload): void
+{
+    http_response_code($statusCode);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+applyCors();
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    respondDetail(405, ['error' => 'Method not allowed']);
+}
+
+$slug = trim((string) ($_GET['slug'] ?? $_GET['id'] ?? ''));
+if ($slug === '') {
+    respondDetail(400, ['error' => 'Missing slug or id']);
+}
+
+try {
+    $pdo = getPdoFromEnv();
+    $q = publicAppItemBySlugSql($pdo, $slug);
+    $stmt = $pdo->prepare($q['sql']);
+    $stmt->execute($q['params']);
+    $row = $stmt->fetch();
+    if (!$row) {
+        respondDetail(404, ['error' => 'Not found']);
+    }
+
+    respondDetail(200, [
+        'item' => [
+            'id' => (string) ($row['id'] ?? ''),
+            'name' => $row['name'] ?? '',
+            'slug' => $row['slug'] ?? null,
+            'description' => $row['description'] ?? null,
+            'featured_image_url' => $row['featured_image_url'] ?? null,
+            'updated_at' => $row['updated_at'] ?? null,
+            'visible' => true,
+        ],
+    ]);
+} catch (Throwable $e) {
+    $debug = filter_var(getenv('APP_DEBUG_ERRORS') ?: '0', FILTER_VALIDATE_BOOLEAN);
+    if ($debug) {
+        respondDetail(500, ['error' => 'Failed to fetch item', 'details' => $e->getMessage()]);
+    }
+    respondDetail(500, ['error' => 'Failed to fetch item']);
+}

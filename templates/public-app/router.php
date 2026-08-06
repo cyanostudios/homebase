@@ -20,6 +20,17 @@ if ($uriPath === '/item' || str_starts_with($uriPath, '/item/')) {
     return true;
 }
 
+// SPA listing paths — serve index.html (real URLs, not hash).
+if (
+    preg_match('#^/(alla|info)/?$#', $uriPath) === 1
+    || preg_match('#^/kategori/[^/]+/?$#', $uriPath) === 1
+) {
+    require_once __DIR__ . '/api/security_headers.php';
+    applyPublicAppSecurityHeaders('html');
+    readfile(__DIR__ . '/index.html');
+    return true;
+}
+
 require_once __DIR__ . '/api/security_headers.php';
 applyPublicAppSecurityHeaders('html');
 readfile(__DIR__ . '/index.html');

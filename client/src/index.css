@@ -89,6 +89,8 @@
     --plugin-ingest: 24 95% 53%;
     /* Orange */
     --plugin-guides: 160 84% 39%;
+    --plugin-instructions: 16 100% 60%;
+    /* Warm coral / orange */
     --plugin-teams: 142 52% 40%;
     /* Emerald */
   }
@@ -145,6 +147,7 @@
     --plugin-slots: 250 60% 58%;
     --plugin-ingest: 24 95% 53%;
     --plugin-guides: 160 84% 39%;
+    --plugin-instructions: 16 100% 60%;
     --plugin-teams: 142 52% 40%;
   }
 
@@ -218,6 +221,10 @@
 
   .plugin-guides {
     --plugin-color: var(--plugin-guides);
+  }
+
+  .plugin-instructions {
+    --plugin-color: var(--plugin-instructions);
   }
 
   .plugin-teams {

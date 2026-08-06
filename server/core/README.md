@@ -140,13 +140,13 @@ Service configuration is in `config/services.js` and can be overridden via envir
 
 ### Security-related environment variables
 
-| Variable                                 | Purpose                                                                                                                  |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `SESSION_SECRET`                         | Signing session cookies. **Required** in production (server exits if missing or default).                                |
-| `ENABLE_CSRF`                            | Set to `true` to enforce CSRF on protected routes; client should use `apiFetch` (see `client/src/core/api/apiFetch.ts`). |
-| `FORCE_RATE_LIMIT`                       | Set to `1` or `true` to apply global and auth rate limits outside production (staging / local testing).                  |
-| `FRONTEND_URL`                           | Allowed CORS origin for the SPA in production.                                                                           |
-| `PUBLIC_BOOKING_URL` / `PUBLIC_CUPS_URL` | Optional extra CORS origins for public mini-apps.                                                                        |
+| Variable                                                             | Purpose                                                                                                                  |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `SESSION_SECRET`                                                     | Signing session cookies. **Required** in production (server exits if missing or default).                                |
+| `ENABLE_CSRF`                                                        | Set to `true` to enforce CSRF on protected routes; client should use `apiFetch` (see `client/src/core/api/apiFetch.ts`). |
+| `FORCE_RATE_LIMIT`                                                   | Set to `1` or `true` to apply global and auth rate limits outside production (staging / local testing).                  |
+| `FRONTEND_URL`                                                       | Allowed CORS origin for the SPA in production.                                                                           |
+| `PUBLIC_BOOKING_URL` / `PUBLIC_CUPS_URL` / `PUBLIC_INSTRUCTIONS_URL` | Optional extra CORS origins for public mini-apps.                                                                        |
 
 Public task/note share links resolve the tenant DB via the `public_share_routing` table on the main database (`npm run migrate:public-share-routing`).
 

@@ -473,22 +473,29 @@ In-process `ProviderRateLimiter` (token-bucket **per provider-nyckel**, t.ex. `o
 
 ### Komponenter
 
-| Komponent                        | Plats                                            | Ansvar                                                             |
-| -------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------ |
-| `WorkerService`                  | `plugins/guides/production/WorkerService.js`     | Claim, process, heartbeat                                          |
-| `SupervisorService`              | `plugins/guides/production/SupervisorService.js` | Stuck items, dead workers                                          |
-| `ProductionOrchestrationService` | befintlig, refaktorerad                          | Planering, fasövergångar, review                                   |
-| `AudioBatchHandler`              | `plugins/guides/production/AudioBatchHandler.js` | Audio-steg i batch (separerat från UI `AudioOrchestrationService`) |
+| Komponent                        | Plats                                                   | Ansvar                                                                 |
+| -------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `WorkerService`                  | `plugins/guides/production/WorkerService.js`            | Claim, process, heartbeat; respekterar tenant-settings + plugin-access |
+| `listGuidesEnabledTenants`       | `plugins/guides/production/listGuidesEnabledTenants.js` | Vilka tenants workern får polla                                        |
+| `ProductionSettingsModel`        | `plugins/guides/production/ProductionSettingsModel.js`  | Per-tenant on/off + poll_interval_ms                                   |
+| `SupervisorService`              | `plugins/guides/production/SupervisorService.js`        | Stuck items, dead workers                                              |
+| `ProductionOrchestrationService` | befintlig, refaktorerad                                 | Planering, fasövergångar, review                                       |
+| `AudioBatchHandler`              | `plugins/guides/production/AudioBatchHandler.js`        | Audio-steg i batch (separerat från UI `AudioOrchestrationService`)     |
 
 ### Worker-loop
 
 ```
-setInterval(WORKER_POLL_MS=5000):
-  1. heartbeat()
-  2. claimItems(FOR UPDATE SKIP LOCKED, batchSize=5)
-  3. per item: processItem() → provider → update status
-  4. om fas klar: evaluatePhaseTransition()
+setInterval(WORKER_POLL_MS=5000):  # process bas-tick; per-tenant throttle via settings
+  tenants = listGuidesEnabledTenants()  # endast guides enabled
+  per tenant:
+    1. load guide_production_settings (cached); skip om workerEnabled=false
+    2. skip om pollIntervalMs inte förflutit
+    3. releaseStuckItems + claimItems(FOR UPDATE SKIP LOCKED, batchSize=5)
+    4. per item: processItem() → provider → update status
+    5. om fas klar: evaluatePhaseTransition(); heartbeat
 ```
+
+**Uppdatering 2026-07-31 (verifierad kod):** Tenant-settings (migration 113) + plugin-access-filter. Process-env är nödstopp; default per tenant är worker **av**. Se `docs/CHANGELOG.md` § 2026-07-31 och `listGuidesEnabledTenants.js`.
 
 ### Supervisor-loop
 

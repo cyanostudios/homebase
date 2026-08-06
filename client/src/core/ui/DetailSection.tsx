@@ -16,6 +16,7 @@ export type DetailSectionIconPlugin =
   | 'matches'
   | 'ingest'
   | 'guides'
+  | 'instructions'
   | 'requests'
   | 'teams'
   | 'ai-providers';

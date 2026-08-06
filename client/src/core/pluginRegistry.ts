@@ -12,6 +12,7 @@ import {
   Download,
   CalendarDays,
   MapPin,
+  ListOrdered,
   Sparkles,
 } from 'lucide-react';
 import React from 'react';
@@ -128,6 +129,9 @@ import { useIngest } from '@/plugins/ingest/hooks/useIngest';
 // Guides
 import { GuideNullProvider } from '@/plugins/guides/context/GuidesContext';
 import { useGuides } from '@/plugins/guides/hooks/useGuides';
+// Instructions
+import { InstructionNullProvider } from '@/plugins/instructions/context/InstructionContext';
+import { useInstructions } from '@/plugins/instructions/hooks/useInstructions';
 // Invoices
 import { InvoicesNullProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
@@ -316,6 +320,23 @@ const GuideView = React.lazy(() =>
 const GuidesDashboardWidget = React.lazy(() =>
   import('@/plugins/guides/components/GuidesDashboardWidget').then((m) => ({
     default: m.GuidesDashboardWidget,
+  })),
+);
+
+// Instructions
+const InstructionList = React.lazy(() =>
+  import('@/plugins/instructions/components/InstructionList').then((m) => ({
+    default: m.InstructionList,
+  })),
+);
+const InstructionForm = React.lazy(() =>
+  import('@/plugins/instructions/components/InstructionForm').then((m) => ({
+    default: m.InstructionForm,
+  })),
+);
+const InstructionView = React.lazy(() =>
+  import('@/plugins/instructions/components/InstructionView').then((m) => ({
+    default: m.InstructionView,
   })),
 );
 
@@ -812,6 +833,32 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     displayPrefix: 'GDS',
     contentFlush: true,
     slugField: 'displayName',
+  },
+  {
+    name: 'instructions',
+    Provider: InstructionNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/instructions/context/InstructionProvider').then(
+        (m) => m.InstructionProvider,
+      ),
+    NullProvider: InstructionNullProvider,
+    hook: useInstructions,
+    panelKey: 'isInstructionPanelOpen',
+    components: {
+      List: InstructionList,
+      Form: InstructionForm,
+      View: InstructionView,
+    },
+    navigation: {
+      category: 'Content',
+      label: 'Instructions',
+      icon: ListOrdered,
+      order: 1,
+    },
+    displayPrefix: 'INS',
+    contentFlush: true,
+    slugField: 'slug',
+    noPrimaryAction: true,
   },
   {
     name: 'mail',

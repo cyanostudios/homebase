@@ -19,6 +19,7 @@ export type NavPage =
   | 'files'
   | 'ingest'
   | 'guides'
+  | 'instructions'
   | 'mail'
   | 'pulses'
   | 'ai-providers'

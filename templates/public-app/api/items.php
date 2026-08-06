@@ -45,6 +45,7 @@ function transformItem(array $row): array
         'slug' => $row['slug'] ?? null,
         'description' => $row['description'] ?? null,
         'featured_image_url' => $row['featured_image_url'] ?? null,
+        'category' => $row['category'] ?? null,
         'updated_at' => $row['updated_at'] ?? null,
         'visible' => true,
     ];
@@ -53,7 +54,7 @@ function transformItem(array $row): array
 try {
     $cacheTtl = (int) (getenv('APP_CACHE_TTL') ?: 0);
     $cacheEnabled = $cacheTtl > 0 && function_exists('apcu_fetch') && filter_var(ini_get('apc.enabled'), FILTER_VALIDATE_BOOLEAN);
-    $cacheKey = 'public_app_items_v1';
+    $cacheKey = 'public_app_items_v2';
 
     if ($cacheEnabled) {
         $cached = apcu_fetch($cacheKey, $ok);
@@ -71,7 +72,9 @@ try {
     $rows = $stmt->fetchAll();
     $items = array_map('transformItem', $rows);
 
-    $payload = ['items' => $items];
+    // categoryOrder is optional; stub returns [] until a catalog is wired (see publicAppCategoryOrder).
+    $categoryOrder = publicAppCategoryOrder($pdo);
+    $payload = ['items' => $items, 'categoryOrder' => $categoryOrder];
 
     if ($cacheEnabled) {
         apcu_store($cacheKey, $payload, $cacheTtl);

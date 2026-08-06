@@ -124,6 +124,16 @@ echo '    <changefreq>daily</changefreq>' . "\n";
 echo '    <priority>1.0</priority>' . "\n";
 echo '  </url>' . "\n";
 
+foreach (['/alla/', '/info/'] as $listingPath) {
+    echo '  <url>' . "\n";
+    echo '    <loc>' . xmlText($base . $listingPath) . '</loc>' . "\n";
+    echo '    <lastmod>' . xmlText($homeLastmod) . '</lastmod>' . "\n";
+    echo '    <changefreq>weekly</changefreq>' . "\n";
+    echo '    <priority>0.8</priority>' . "\n";
+    echo '  </url>' . "\n";
+}
+
+$categorySlugs = [];
 foreach ($rows as $row) {
     $id = (int) ($row['id'] ?? 0);
     if ($id < 1) {
@@ -134,12 +144,28 @@ foreach ($rows as $row) {
     if ($slug === '') {
         $slug = slugify((string) ($row['name'] ?? 'item'));
     }
+    $catRaw = trim((string) ($row['category'] ?? ''));
+    if ($catRaw !== '') {
+        $first = trim(explode(',', $catRaw, 2)[0]);
+        if ($first !== '') {
+            $categorySlugs[slugify($first)] = true;
+        }
+    }
     $loc = $base . '/item/' . $slug;
     echo '  <url>' . "\n";
     echo '    <loc>' . xmlText($loc) . '</loc>' . "\n";
     echo '    <lastmod>' . xmlText($lastmod) . '</lastmod>' . "\n";
     echo '    <changefreq>weekly</changefreq>' . "\n";
     echo '    <priority>0.7</priority>' . "\n";
+    echo '  </url>' . "\n";
+}
+
+foreach (array_keys($categorySlugs) as $catSlug) {
+    echo '  <url>' . "\n";
+    echo '    <loc>' . xmlText($base . '/kategori/' . $catSlug . '/') . '</loc>' . "\n";
+    echo '    <lastmod>' . xmlText($homeLastmod) . '</lastmod>' . "\n";
+    echo '    <changefreq>weekly</changefreq>' . "\n";
+    echo '    <priority>0.6</priority>' . "\n";
     echo '  </url>' . "\n";
 }
 echo '</urlset>';

@@ -1,0 +1,496 @@
+// plugins/instructions/__tests__/model.test.js
+jest.mock('@homebase/core', () => ({
+  Logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+  Database: {
+    get: jest.fn(),
+  },
+}));
+
+const InstructionModel = require('../model');
+const { AppError } = require('../../../server/core/errors/AppError');
+
+describe('InstructionModel', () => {
+  let model;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    model = new InstructionModel();
+  });
+
+  test('transformListRow maps camelCase DTO without steps', () => {
+    expect(
+      model.transformListRow({
+        id: 7,
+        title: 'How to brew',
+        slug: 'how-to-brew',
+        description: 'Intro',
+        featured_image_url: 'https://cdn.example/a.jpg',
+        category: 'Kitchen',
+        publication_status: 'published',
+        sort_order: 2,
+        step_count: 3,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-02T00:00:00.000Z',
+      }),
+    ).toEqual({
+      id: '7',
+      title: 'How to brew',
+      slug: 'how-to-brew',
+      description: 'Intro',
+      featuredImageUrl: 'https://cdn.example/a.jpg',
+      category: 'Kitchen',
+      publicationStatus: 'published',
+      sortOrder: 2,
+      stepCount: 3,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+    });
+  });
+
+  test('transformDetailRow includes ordered steps', () => {
+    const detail = model.transformDetailRow(
+      {
+        id: 1,
+        title: 'T',
+        slug: 't',
+        description: null,
+        featured_image_url: null,
+        category: null,
+        publication_status: 'draft',
+        created_at: 'a',
+        updated_at: 'b',
+      },
+      [
+        {
+          id: 10,
+          instruction_id: 1,
+          title: 'Step A',
+          description: 'Do A',
+          sequence_order: 1,
+          image_url: null,
+          created_at: 'a',
+          updated_at: 'b',
+        },
+      ],
+    );
+
+    expect(detail.stepCount).toBe(1);
+    expect(detail.steps).toEqual([
+      {
+        id: '10',
+        instructionId: '1',
+        title: 'Step A',
+        description: 'Do A',
+        sequenceOrder: 1,
+        imageUrl: null,
+        createdAt: 'a',
+        updatedAt: 'b',
+      },
+    ]);
+  });
+
+  test('normalizeSteps assigns sequenceOrder from index when omitted', () => {
+    const steps = model.normalizeSteps([{ title: 'One' }, { title: 'Two' }]);
+    expect(steps).toEqual([
+      { title: 'One', description: null, sequenceOrder: 1, imageUrl: null },
+      { title: 'Two', description: null, sequenceOrder: 2, imageUrl: null },
+    ]);
+  });
+
+  test('normalizeSteps rejects duplicate sequenceOrder', () => {
+    expect(() =>
+      model.normalizeSteps([
+        { title: 'A', sequenceOrder: 1 },
+        { title: 'B', sequenceOrder: 1 },
+      ]),
+    ).toThrow(/Duplicate sequenceOrder/);
+  });
+
+  test('normalizeSteps returns null when steps omitted', () => {
+    expect(model.normalizeSteps(undefined)).toBeNull();
+    expect(model.normalizeSteps(null)).toBeNull();
+  });
+
+  test('normalizeSteps allows empty array (zero steps)', () => {
+    expect(model.normalizeSteps([])).toEqual([]);
+  });
+
+  test('assertPublishedHasSteps rejects published with zero steps', () => {
+    expect(() => model.assertPublishedHasSteps('published', 0)).toThrow(AppError);
+    try {
+      model.assertPublishedHasSteps('published', 0);
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.statusCode).toBe(400);
+      expect(error.code).toBe(AppError.CODES.VALIDATION_ERROR);
+      expect(error.message).toMatch(/at least one step/i);
+      expect(error.details).toEqual([
+        { field: 'steps', message: 'Add at least one step before publishing.' },
+      ]);
+    }
+  });
+
+  test('assertPublishedHasSteps allows draft with zero steps', () => {
+    expect(() => model.assertPublishedHasSteps('draft', 0)).not.toThrow();
+  });
+
+  test('assertPublishedHasSteps allows published with at least one step', () => {
+    expect(() => model.assertPublishedHasSteps('published', 1)).not.toThrow();
+  });
+
+  test('create rejects published instruction with zero steps', async () => {
+    const { Database } = require('@homebase/core');
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      transaction: jest.fn(),
+    });
+
+    await expect(
+      model.create(
+        {},
+        {
+          title: 'Brew',
+          slug: 'brew',
+          publicationStatus: 'published',
+          steps: [],
+        },
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: AppError.CODES.VALIDATION_ERROR,
+      details: [{ field: 'steps', message: 'Add at least one step before publishing.' }],
+    });
+    expect(Database.get().transaction).not.toHaveBeenCalled();
+  });
+
+  test('create allows draft instruction with zero steps', async () => {
+    const { Database } = require('@homebase/core');
+    const txQuery = jest.fn(async (sql) => {
+      if (String(sql).includes('INSERT INTO instructions')) {
+        return [
+          {
+            id: 42,
+            title: 'Brew',
+            slug: 'brew',
+            description: null,
+            featured_image_url: null,
+            category: null,
+            publication_status: 'draft',
+            created_at: 'a',
+            updated_at: 'b',
+          },
+        ];
+      }
+      if (String(sql).includes('FROM instruction_steps')) {
+        return [];
+      }
+      return [];
+    });
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query: jest.fn(async () => []),
+      transaction: async (fn) => fn({ query: txQuery }),
+    });
+
+    const created = await model.create(
+      {},
+      {
+        title: 'Brew',
+        slug: 'brew',
+        publicationStatus: 'draft',
+        steps: [],
+      },
+    );
+    expect(created.publicationStatus).toBe('draft');
+    expect(created.steps).toEqual([]);
+    expect(created.stepCount).toBe(0);
+  });
+
+  test('create rejects duplicate title', async () => {
+    const { Database } = require('@homebase/core');
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query: jest.fn(async () => [{ id: 9 }]),
+      transaction: jest.fn(),
+    });
+
+    await expect(
+      model.create(
+        {},
+        {
+          title: 'Brew',
+          slug: 'brew-2',
+          publicationStatus: 'draft',
+          steps: [],
+        },
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: AppError.CODES.CONFLICT,
+      details: [{ field: 'title', message: 'An instruction with this title already exists' }],
+    });
+    expect(Database.get().transaction).not.toHaveBeenCalled();
+  });
+
+  test('update rejects when another instruction already has the title', async () => {
+    const { Database } = require('@homebase/core');
+    const query = jest.fn(async (sql, params) => {
+      if (String(sql).includes('SELECT * FROM instructions WHERE id')) {
+        return [
+          {
+            id: 7,
+            title: 'Brew',
+            slug: 'brew',
+            description: null,
+            featured_image_url: null,
+            category: null,
+            publication_status: 'draft',
+            created_at: 'a',
+            updated_at: 'b',
+          },
+        ];
+      }
+      if (String(sql).includes('FROM instruction_steps')) {
+        return [
+          {
+            id: 1,
+            instruction_id: 7,
+            title: 'S1',
+            description: null,
+            sequence_order: 1,
+            image_url: null,
+            created_at: 'a',
+            updated_at: 'b',
+          },
+        ];
+      }
+      // assertTitleUnique: another row owns the new title
+      if (String(sql).includes('lower(title)') && params?.[2] === 7) {
+        return [{ id: 9 }];
+      }
+      return [];
+    });
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query,
+      getPool: () => ({ query: jest.fn(async () => ({ rows: [] })) }),
+      transaction: jest.fn(),
+    });
+
+    await expect(
+      model.update({}, 7, {
+        title: 'Other Guide',
+        slug: 'brew',
+        publicationStatus: 'draft',
+        steps: [{ title: 'S1', sequenceOrder: 1 }],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: AppError.CODES.CONFLICT,
+      details: [{ field: 'title', message: 'An instruction with this title already exists' }],
+    });
+    expect(Database.get().transaction).not.toHaveBeenCalled();
+  });
+
+  test('update allows keeping the same title on the same instruction (excludeId)', async () => {
+    const { Database } = require('@homebase/core');
+    const parentRow = {
+      id: 7,
+      title: 'Brew',
+      slug: 'brew',
+      description: null,
+      featured_image_url: null,
+      category: null,
+      publication_status: 'draft',
+      created_at: 'a',
+      updated_at: 'b',
+    };
+    const stepRow = {
+      id: 1,
+      instruction_id: 7,
+      title: 'S1',
+      description: null,
+      sequence_order: 1,
+      image_url: null,
+      created_at: 'a',
+      updated_at: 'b',
+    };
+    const query = jest.fn(async (sql) => {
+      if (String(sql).includes('SELECT * FROM instructions WHERE id')) {
+        return [parentRow];
+      }
+      if (String(sql).includes('FROM instruction_steps')) {
+        return [stepRow];
+      }
+      // assertTitleUnique with excludeId — no other row
+      if (String(sql).includes('lower(title)')) {
+        return [];
+      }
+      return [];
+    });
+    const txQuery = jest.fn(async (sql) => {
+      if (String(sql).includes('UPDATE')) {
+        return [parentRow];
+      }
+      if (String(sql).includes('DELETE FROM')) {
+        return [];
+      }
+      if (String(sql).includes('INSERT INTO instruction_steps')) {
+        return [];
+      }
+      if (String(sql).includes('FROM instruction_steps')) {
+        return [stepRow];
+      }
+      return [];
+    });
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query,
+      getPool: () => ({
+        query: jest.fn(async () => ({ rows: [stepRow] })),
+      }),
+      transaction: async (fn) => fn({ query: txQuery }),
+    });
+
+    const updated = await model.update({}, 7, {
+      title: 'Brew',
+      slug: 'brew',
+      publicationStatus: 'draft',
+      steps: [{ title: 'S1', sequenceOrder: 1 }],
+    });
+    expect(updated.title).toBe('Brew');
+    expect(updated.id).toBe('7');
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('lower(title)'),
+      expect.arrayContaining([1, 'Brew', 7]),
+    );
+  });
+
+  test('update rejects publishing when existing steps are empty and steps omitted', async () => {
+    const { Database } = require('@homebase/core');
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query: jest.fn(async (sql) => {
+        if (String(sql).includes('SELECT * FROM instructions')) {
+          return [
+            {
+              id: 7,
+              title: 'Brew',
+              slug: 'brew',
+              description: null,
+              featured_image_url: null,
+              category: null,
+              publication_status: 'draft',
+              created_at: 'a',
+              updated_at: 'b',
+            },
+          ];
+        }
+        if (String(sql).includes('FROM instruction_steps')) {
+          return [];
+        }
+        return [];
+      }),
+      getPool: () => ({
+        query: jest.fn(async () => ({ rows: [] })),
+      }),
+      transaction: jest.fn(),
+    });
+
+    await expect(
+      model.update({}, 7, {
+        title: 'Brew',
+        slug: 'brew',
+        publicationStatus: 'published',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: AppError.CODES.VALIDATION_ERROR,
+      details: [{ field: 'steps', message: 'Add at least one step before publishing.' }],
+    });
+    expect(Database.get().transaction).not.toHaveBeenCalled();
+  });
+
+  test('transformCategoryRow maps camelCase DTO', () => {
+    expect(
+      model.transformCategoryRow({
+        id: 3,
+        name: 'Kitchen',
+        sort_order: 2,
+        created_at: 'a',
+        updated_at: 'b',
+      }),
+    ).toEqual({
+      id: '3',
+      name: 'Kitchen',
+      sortOrder: 2,
+      createdAt: 'a',
+      updatedAt: 'b',
+    });
+  });
+
+  test('createCategory rejects empty name', async () => {
+    const { Database } = require('@homebase/core');
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query: jest.fn(),
+    });
+
+    await expect(model.createCategory({}, { name: '  ' })).rejects.toMatchObject({
+      statusCode: 400,
+      code: AppError.CODES.VALIDATION_ERROR,
+      details: [{ field: 'name', message: 'Category name is required' }],
+    });
+  });
+
+  test('createCategory rejects duplicate name', async () => {
+    const { Database } = require('@homebase/core');
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query: jest.fn(async () => [{ id: 2 }]),
+    });
+
+    await expect(model.createCategory({}, { name: 'Kitchen' })).rejects.toMatchObject({
+      statusCode: 409,
+      code: AppError.CODES.CONFLICT,
+      details: [{ field: 'name', message: 'Category name already exists' }],
+    });
+  });
+
+  test('reorderCategories rejects incomplete orderedIds', async () => {
+    const { Database } = require('@homebase/core');
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query: jest.fn(async () => [{ id: 1 }, { id: 2 }]),
+      transaction: jest.fn(),
+    });
+
+    await expect(model.reorderCategories({}, ['1'])).rejects.toMatchObject({
+      statusCode: 400,
+      code: AppError.CODES.VALIDATION_ERROR,
+    });
+    expect(Database.get().transaction).not.toHaveBeenCalled();
+  });
+
+  test('deleteCategory deletes catalog row only with user_id scope', async () => {
+    const { Database } = require('@homebase/core');
+    const query = jest.fn(async (sql, params) => {
+      expect(String(sql)).toMatch(/DELETE FROM instruction_categories/);
+      expect(String(sql)).toMatch(/user_id/);
+      expect(String(sql)).not.toMatch(/UPDATE\s+instructions/i);
+      expect(params).toEqual([9, 1]);
+      return [{ id: 9 }];
+    });
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query,
+    });
+
+    await expect(model.deleteCategory({}, 9)).resolves.toEqual({ id: '9' });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+});

@@ -16,6 +16,7 @@ const ALLOWED_SETTINGS_CATEGORIES = new Set([
   'ingest',
   'schedule',
   'files',
+  'instructions',
 ]);
 
 /** Known keys per category (documentation; partial updates merge via JSONB ||). */

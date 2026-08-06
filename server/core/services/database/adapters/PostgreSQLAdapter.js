@@ -49,14 +49,42 @@ class PostgreSQLAdapter extends DatabaseService {
   }
 
   /**
+   * Find first top-level match of `regex` (must be anchored with ^).
+   * Used for trailing clauses where whitespace may be newlines (ORDER BY\n ...).
+   */
+  _findTopLevelRegexIndex(sql, regex) {
+    let depth = 0;
+
+    for (let i = 0; i < sql.length; i++) {
+      const ch = sql[i];
+      if (ch === '(') {
+        depth += 1;
+        continue;
+      }
+      if (ch === ')') {
+        depth = Math.max(0, depth - 1);
+        continue;
+      }
+      if (depth !== 0) continue;
+
+      const match = sql.slice(i).match(regex);
+      if (match && match.index === 0) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /**
    * Earliest top-level trailing clause (ORDER BY / GROUP BY / LIMIT / OFFSET).
+   * Accepts any whitespace around keywords so multiline ORDER BY / LIMIT still work.
    */
   _findTopLevelTrailingClauseIndex(sql) {
     const positions = [
-      this._findTopLevelIndex(sql, ' ORDER BY '),
-      this._findTopLevelIndex(sql, ' GROUP BY '),
-      this._findTopLevelIndex(sql, ' LIMIT '),
-      this._findTopLevelIndex(sql, ' OFFSET '),
+      this._findTopLevelRegexIndex(sql, /^\s+ORDER\s+BY\b/i),
+      this._findTopLevelRegexIndex(sql, /^\s+GROUP\s+BY\b/i),
+      this._findTopLevelRegexIndex(sql, /^\s+LIMIT\b/i),
+      this._findTopLevelRegexIndex(sql, /^\s+OFFSET\b/i),
     ].filter((p) => p !== -1);
     return positions.length > 0 ? Math.min(...positions) : -1;
   }

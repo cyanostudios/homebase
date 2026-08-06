@@ -1,0 +1,17 @@
+# Public App (template)
+
+Replace this file when copying the template to a real site.
+
+## Canonical site
+- Homepage: https://www.example.se/
+
+## URL patterns
+- Detail (SSR): `https://www.example.se/item/{slug}/`
+- Homepage listing loads interactive filters client-side; each visible item also has a dedicated detail URL in the sitemap.
+
+## Machine-readable metadata
+- Detail pages are server-rendered HTML with `rel=canonical`, Open Graph, and JSON-LD.
+- XML sitemap: https://www.example.se/sitemap.xml
+
+## Preferred short citation
+Public App — https://www.example.se/

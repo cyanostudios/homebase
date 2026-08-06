@@ -727,6 +727,43 @@ button {
   padding: 0 1.25rem 0.25rem;
 }
 
+/* --- Category page: all items as card grid --- */
+
+.item-grid-section {
+  margin-bottom: 1.5rem;
+}
+
+.item-grid-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem 0.75rem;
+}
+
+.item-grid-section__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.1875rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0 1.25rem 0.25rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.item-grid > .item-card {
+  width: 100%;
+  max-width: none;
+  flex-shrink: 1;
+}
+
 /* --- Item card (4:5) --- */
 
 .item-card {
@@ -879,7 +916,154 @@ button {
   opacity: 1;
 }
 
-/* --- Audio player pod --- */
+/* --- Step subheader (flush under top-bar, not floating) --- */
+
+.step-subheader {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 29;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.step-subheader__inner {
+  padding: 0.65rem var(--page-pad) 0.75rem;
+}
+
+.step-subheader__guide {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-subheader__step {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-heading);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-subheader__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.4rem;
+}
+
+.step-subheader__count {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.step-subheader__bar {
+  flex: 1;
+  height: 3px;
+  min-width: 0;
+  border-radius: var(--r-pill);
+  background: var(--border);
+  overflow: hidden;
+}
+
+.step-subheader__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+  transition: width 0.2s var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-subheader__fill {
+    transition: none;
+  }
+}
+
+/* --- Step prev / next (circle icon buttons) --- */
+
+.step-nav {
+  position: absolute;
+  bottom: calc(var(--bottom-offset) + var(--bottom-bar-h) + 0.5rem);
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  width: calc(100% - 2rem);
+  max-width: calc(var(--shell-max) - 2rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.step-nav__btn {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: 0 8px 24px rgba(26, 28, 30, 0.12);
+  transition:
+    transform 0.15s var(--ease),
+    opacity 0.15s var(--ease),
+    background 0.15s var(--ease);
+}
+
+.step-nav__btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.step-nav__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.step-nav__btn--prev {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.step-nav__btn--next {
+  background: var(--text);
+  color: #fff;
+}
+
+.step-nav__btn--done {
+  background: var(--brand);
+  color: #fff;
+}
+
+.step-nav__btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* --- Audio player pod (opt-in; not default in template HTML) --- */
 
 .audio-pod {
   position: absolute;

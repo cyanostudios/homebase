@@ -4,15 +4,97 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-06 – Public app-mall: Pattern A listing/detail sync
+
+**Status:** Implementerat i `templates/public-app/` + docs. QA Approved (malltester). Security: samma public read-only-klass som tidigare (ingen ny auth-yta). **Ej prod-release** av befintliga publika appar (mall-only).
+
+**Sammanfattning:** Port av generiska UX-/routing-/shell-mönster från `public-instructions/` till publik app-mall — utan instructions-schema eller coral/beige-branding.
+
+**Verifierat beteende (kod):**
+
+- Path-baserad listing: `/`, `/alla/`, `/info/`, `/kategori/{slug}/` via `lib/listingUrls.js` (`PublicAppListingUrls`).
+- Bottom bar Hem | Alla | Info (inga Favoriter som default); audio-pod opt-in.
+- Home/Alla = Netflix-rader; kategori = 2-kolumns grid; “Visa alla” → kategori-path.
+- Detalj: sticky `step-subheader` + cirkulär prev/next; Klart → kategori (fallback `/alla/`); detalj-URL förblir `/item/:slug`.
+- API stub: `{ items, categoryOrder }` (tom stub tills katalog kopplas); sitemap inkluderar listing-paths.
+- Docs: [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md) (mallkontrakt), [`PUBLIC_APP_DESIGN.md`](PUBLIC_APP_DESIGN.md).
+
+---
+
+## 2026-08-06 – Instructions: kategoriordning via settings
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved. Residual public read-only (inkl. `categoryOrder`) = samma klass som Etapp 1 (TPM-accepterad). **Ej prod-release.**
+
+**Sammanfattning:** Managed kategorikatalog med drag-sortering i instructions-settings. Instruktioner får Category-dropdown; public och list-chips följer katalogordning.
+
+**Verifierat beteende (kod):**
+
+- Tenant-tabell `instruction_categories` (migration **117**) + backfill från distinct `instructions.category`.
+- Admin API: `GET/POST /api/instructions/categories`, `PUT .../categories/reorder`, `DELETE .../categories/:id` (auth, plugin gate, CSRF på mutering).
+- Settings-vy (View + Categories): lägg till/ta bort + drag (Teams-mönster). Form: `Select` + settings-ikon (unsaved guard).
+- Public `/api/items.php` returnerar `categoryOrder`; JOIN scopa med `c.user_id = i.user_id`; quick-nav och Netflix-rader sorteras därefter.
+- `user_settings` allowlist inkluderar `instructions` (columnCount).
+- Catalog-delete rensar **inte** `instructions.category` (orphans tillåtna).
+
+**Kända begränsningar:** `categoryOrder` kan inkludera oanvända katalognamn för en ägare som har minst en published instruction; settings-save (add/remove) är inte atomär.
+
+**Docs:** ADR [`INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md) beslut 10 + residual; `server/migrations/README.md` §114–117; [`docs/ai/CHANGELOG.md`](ai/CHANGELOG.md); [`public-instructions/README.md`](../public-instructions/README.md).
+
+---
+
+## 2026-08-06 – Instructions: admin/public UX-delta (efter Etapp 1)
+
+**Status:** Implementerat lokalt (rework efter QA DoD Reject). Backend + Frontend tester uppdaterade. **Ej prod-release.**
+
+**Sammanfattning:** Kompletteringar ovanpå Etapp 1 — titelunikhet, stegordning/kopiering i admin, publik list-/steg-UX. Inga schemaändringar.
+
+**Verifierat beteende (kod):**
+
+- **Titelunikhet (per användare):** Backend `assertTitleUnique` vid create/update (case-insensitive; update exkluderar egen `id`) → HTTP 409. Frontend `hasDuplicateInstructionTitle` i validate. **Ingen** DB-unik index på `title` (endast slug: `idx_instructions_user_lower_slug` i migration 114).
+- **Admin detail (View):** flytta steg upp/ned och kopiera steg utan att öppna edit (`reorderInstructionSteps` / `copyInstructionStep`). Form har motsvarande lokala stegoperationer.
+- **Admin list/detail:** category-`Badge` på listkort; featured image-förhandsvisning 300×300 i detail.
+- **Public site:** list via same-origin `/api/items.php` (`APP_DB_URL`); guider i 2-kolumns `item-grid` per kategori; ingen audio; sticky `step-subheader` (guide + steg + “Steg X av Y”); cirkulära prev/next; sista steg “Klart” → `/`; stegmediahöjd `--step-media-h: 19rem`. Local: `npm run dev:public-instructions` → port **3010**.
+
+**Kända begränsningar (oförändrade / icke-blockerande i rework):** titelkonflikt endast i app-lager (race möjligt utan DB unique); duplicate-dialog och tangentbordsnav sista steg — se QA-noteringar om de kvarstår.
+
+**Docs:** ADR [`INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md); [`public-instructions/README.md`](../public-instructions/README.md); [`docs/ai/CHANGELOG.md`](ai/CHANGELOG.md).
+
+---
+
+## 2026-08-06 – Instructions plugin (Etapp 1)
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved; Docs Updated. Residuala säkerhetsrisker **accepterade av TPM** för Etapp 1. **Ej prod-release.**
+
+**Sammanfattning:** Admin-plugin **instructions** (CRUD + ordnade steg) och publik read-only yta (Node companion + PHP-sajt), samma klass som cups/guides public-app.
+
+**Verifierat beteende (kod):**
+
+- **Admin API:** `GET/POST/PUT/DELETE` (+ batch delete) under `/api/instructions` — `requirePlugin`, CSRF på muterande routes, validering.
+- **Admin FE:** registry `/instructions` (List / Form / View), plugin `instructions`.
+- **Schema:** migration **114** — `instructions` + `instruction_steps`; `publication_status` ∈ `draft` | `published`. Publicering kräver ≥1 steg.
+- **Access:** migration **115** (`MAIN_DB_ONLY`) och/eller `npm run set:tenant-plugins -- --enable=instructions`. Runner: `npm run migrate:instructions`. Logga ut/in efter enable.
+- **Public Node:** `plugins/public-instructions/` — `GET /api/public/instructions`, `GET /:slugOrId`; endast `published`; `PUBLIC_INSTRUCTIONS_USER_ID` / `_EMAIL`; rate limit; CORS via `PUBLIC_INSTRUCTIONS_URL`.
+- **Public site:** `public-instructions/` — PHP APIs med `APP_DB_URL` (tenant Neon, ej main `DATABASE_URL`).
+
+**Utanför Etapp 1:** price list, messages, Swish, Guides HITL, prod deploy.
+
+**Env:** `.env.example` innehåller redan `PUBLIC_INSTRUCTIONS_*`. Publik sajt: `public-instructions/railway.env.example` (`APP_DB_URL`).
+
+**Docs:** [`docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md); `server/migrations/README.md` §114–115; denna post; [`docs/ai/CHANGELOG.md`](ai/CHANGELOG.md).
+
+---
+
 ## 2026-07-31 – Guides production worker: on/off + poll interval settings
 
-**Status:** Implementerat lokalt. **Ej prod-release.**
+**Status:** På `main` / Railway (commit `1b2c65b5` + plugin-filter `946f8fe1`). Migration **113** körd på lokala + prod Neon-tenants.
 
-**Sammanfattning:** Per-tenant settings för async production-workern (`guide_production_settings`, migration **113**). UI under **Guides → Settings** (samma shell som Tasks/Notes): kategorier **Produktion** (på/av + intervall) och **Researchkällor**. Default worker **av**. API: `GET/PUT /api/guides/production-settings`. Process-env `GUIDES_PRODUCTION_WORKER_ENABLED` förblir nödstopp. Manuell `scripts/run-production-worker-tick.js` ignorerar tenant-settings (E2E).
+**Sammanfattning:** Per-tenant settings för async production-workern (`guide_production_settings`, migration **113**). UI under **Guides → Settings** (samma shell som Tasks/Notes): kategorier **Produktion** (på/av + intervall) och **Researchkällor**. Default worker **av**. API: `GET/PUT /api/guides/production-settings`. Process-env `GUIDES_PRODUCTION_WORKER_ENABLED` förblir nödstopp för hela processen. Manuell `scripts/run-production-worker-tick.js` ignorerar tenant-settings (E2E) men listar fortfarande bara tenants med guides enabled.
 
-**Migrate:** `npm run migrate:guides` (113 applicerad manuellt där 095 blockerar).
+**Worker tenant-filter:** `listGuidesEnabledTenants.js` — endast tenants med **guides** enabled i `tenant_plugin_access` (legacy: `user_plugin_access` om ingen guides-rad finns). Explicit `enabled = false` ⇒ ingen poll mot den tenanten.
 
-**Obs:** Sätt på workern i Guides-settings innan du startar generate-jobb. Workern pollar endast tenants med **guides** enabled i `tenant_plugin_access` (legacy: `user_plugin_access` om ingen guides-rad finns).
+**Migrate:** `npm run migrate:guides` inkluderar 113 (kan stoppa tidigt på äldre 095-fel i vissa schemas; 113 kan då appliceras manuellt).
+
+**Obs:** Sätt på workern i Guides → Settings → Produktion innan generate-jobb.
 
 ---
 

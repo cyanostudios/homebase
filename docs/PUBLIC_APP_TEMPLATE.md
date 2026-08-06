@@ -17,6 +17,24 @@
 
 ---
 
+## Mallkontrakt (låst)
+
+Generiska Pattern A-mönster från `public-instructions/` — **utan** instructions-schema, coral/beige-tokens eller `/instruction/`-path.
+
+| Yta              | Default i mallen                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Listing-URL:er   | `/`, `/alla/`, `/info/`, `/kategori/{slug}/` via `lib/listingUrls.js` → global `PublicAppListingUrls`                           |
+| Detalj-URL       | `/item/:slug` (behåll generiskt; byt endast vid kopiering om domänen kräver annat)                                              |
+| Bottom bar       | Hem \| Alla \| Info — **inga Favoriter** som default (opt-in dokumenteras i design-doc)                                         |
+| Home / Alla      | Netflix `.item-row` + “Visa alla” → `categoryPath`                                                                              |
+| Kategori-sida    | 2-kolumns `.item-grid` utan “Visa alla”                                                                                         |
+| Detalj med steps | Sticky `.step-subheader` + cirkulär prev/next; sista steg **Klart** → kategori (fallback `/alla/`)                              |
+| Audio-pod        | **Opt-in** (kommenterad / feature-flag), inte default                                                                           |
+| API              | `{ items, categoryOrder?: string[] }` — `categoryOrder` stub/tom tills katalog kopplas; ingen `instruction_categories` i mallen |
+| Hash-tabs        | Tas bort som default (`#all`, `#favourites`, …)                                                                                 |
+
+---
+
 ## Arkitektur (per app)
 
 | Del                | Var                                                      | Deploy                         |
@@ -42,10 +60,10 @@ flowchart LR
 
 1. `cp -R templates/public-app sites/<name>` (eller `public-<name>/`).
 2. Byt `APP_` → ditt prefix i PHP + `railway.env.example`.
-3. Uppdatera SQL i `api/db_helpers.php` (mall tabell: `items`).
-4. Justera detaljrutt i `docker/Caddyfile` + `router.php` om inte `/item/…`.
+3. Uppdatera SQL i `api/db_helpers.php` (mall tabell: `items`); koppla `publicAppCategoryOrder()` om du har katalog.
+4. Justera detaljrutt i `docker/Caddyfile` + `router.php` om inte `/item/…`. Listing-paths (`/alla/`, `/info/`, `/kategori/…`) ingår redan.
 5. Ersätt copy/branding i `index.html`, `item.php`, `robots.txt`, `llms.txt`.
-6. (Valfritt) Skapa `plugins/public-<name>/` efter `plugins/public-cups/`.
+6. (Valfritt) Skapa `plugins/public-<name>/` efter `plugins/public-cups/` — returnera gärna `categoryOrder` om katalog finns.
 7. Lägg `PUBLIC_<NAME>_URL` + `PUBLIC_<NAME>_USER_ID` i `.env.example` och CORS i `server/index.ts`.
 8. npm-script lokalt, t.ex.:
 
@@ -61,9 +79,10 @@ flowchart LR
     curl -sS https://www.example.se/api/health.php
     curl -sS https://www.example.se/api/items.php | head -c 200
     curl -sS -o /dev/null -w "%{content_type}\n" https://www.example.se/sitemap.xml
+    curl -sS -o /dev/null -w "%{http_code}\n" https://www.example.se/alla/
     ```
 
----
+## **SPA listing (ingår i mallen):** path-baserade URL:er, Hem|Alla|Info, Netflix-rader vs kategori-grid, optional `categoryOrder`, step-subheader/Klart, audio opt-in. Se [Mallkontrakt](#mallkontrakt-låst).
 
 ## Env-kontrakt
 

@@ -102,6 +102,7 @@
         <div id="rows-container"></div>
       </main>
 
+      <!-- Audio-pod is opt-in: uncomment to enable, or use ?audio=1 with the stub below.
       <div class="audio-pod" id="audio-pod" hidden>
         <div class="audio-pod__inner glass shadow-float">
           <img class="audio-pod__thumb" id="audio-thumb" src="" alt="" width="48" height="48" />
@@ -116,6 +117,7 @@
           </button>
         </div>
       </div>
+      -->
 
       <nav class="bottom-bar" aria-label="Sidnavigering">
         <div class="bottom-bar__inner glass shadow-float">
@@ -126,7 +128,7 @@
             <span class="bottom-bar__label">Hem</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
-          <a class="bottom-bar__tab" href="#all" data-tab="all">
+          <a class="bottom-bar__tab" href="/alla/" data-tab="all">
             <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7" rx="1.5" />
               <rect x="14" y="3" width="7" height="7" rx="1.5" />
@@ -136,14 +138,7 @@
             <span class="bottom-bar__label">Alla</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
-          <a class="bottom-bar__tab" href="#favourites" data-tab="favourites">
-            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M12 21s-7-4.5-9.5-8.2C.7 10 2.2 6.5 5.5 6c1.7-.3 3.3.5 4.1 1.8C10.4 6.5 12 5.7 13.7 6c3.3.5 4.8 4 3 6.8C19 16.5 12 21 12 21z" />
-            </svg>
-            <span class="bottom-bar__label">Favoriter</span>
-            <span class="bottom-bar__dot" aria-hidden="true"></span>
-          </a>
-          <a class="bottom-bar__tab" href="#info" data-tab="info">
+          <a class="bottom-bar__tab" href="/info/" data-tab="info">
             <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 10v6M12 7h.01" />
@@ -163,14 +158,14 @@
           </button>
           <ul class="menu-drawer__list">
             <li><a href="/">Hem</a></li>
-            <li><a href="#all">Alla</a></li>
-            <li><a href="#favourites">Favoriter</a></li>
-            <li><a href="#info">Info</a></li>
+            <li><a href="/alla/">Alla</a></li>
+            <li><a href="/info/">Info</a></li>
           </ul>
         </div>
       </div>
     </div>
 
+    <script src="/lib/listingUrls.js"></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

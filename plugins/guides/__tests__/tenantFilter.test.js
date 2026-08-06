@@ -21,6 +21,30 @@ describe('guides tenant filter compatibility', () => {
     expect(filtered).toContain('ORDER BY p.updated_at DESC');
   });
 
+  test('LIST query with multiline ORDER BY inserts WHERE before ORDER BY', () => {
+    const sql = `
+          SELECT
+            i.id,
+            i.title,
+            i.sort_order
+          FROM instructions i
+          LEFT JOIN (
+            SELECT instruction_id, COUNT(*)::int AS cnt
+            FROM instruction_steps
+            GROUP BY instruction_id
+          ) s ON s.instruction_id = i.id
+          ORDER BY
+            COALESCE(NULLIF(btrim(i.category), ''), '') ASC,
+            i.sort_order ASC NULLS LAST,
+            lower(i.title) ASC,
+            i.id ASC
+        `;
+    const filtered = adapter._addTenantFilter(sql, userId);
+    expect(filtered).toMatch(/WHERE user_id = \$1\s+ORDER BY/);
+    expect(filtered).not.toMatch(/ORDER BY[\s\S]*WHERE user_id/);
+    expect(filtered).toContain('GROUP BY instruction_id');
+  });
+
   test('GET by id query receives user_id filter', () => {
     const sql = `
           SELECT

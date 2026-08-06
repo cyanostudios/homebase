@@ -7,11 +7,12 @@ function read(rel) {
   return fs.readFileSync(path.join(root, rel), 'utf8');
 }
 
-describe('public-app AppShell patterns (ported from Cupappen)', () => {
+describe('public-app AppShell patterns (ported from Cupappen + instructions)', () => {
   const css = read('styles.css');
   const html = read('index.html');
   const js = read('app.js');
   const item = read('item.php');
+  const router = read('router.php');
 
   test('header uses fixed --header-h and independent --header-logo-h', () => {
     expect(css).toMatch(/--header-h:\s*4rem/);
@@ -37,21 +38,95 @@ describe('public-app AppShell patterns (ported from Cupappen)', () => {
     expect(js).toMatch(/syncHeroVisibility/);
   });
 
-  test('info panel + display font tokens exist', () => {
+  test('info panel + display font tokens exist; favourites tab removed by default', () => {
     expect(css).toMatch(/--font-display/);
     expect(css).toMatch(/\.info-panel__title/);
     expect(js).toMatch(/renderInfoPanel/);
+    expect(html).not.toMatch(/data-tab="favourites"/);
+    expect(html).toMatch(/data-tab="info"/);
   });
 
-  test('item detail header shares AppShell back-btn pattern', () => {
+  test('item detail uses step-swipe, subheader, and prev/next; audio is opt-in', () => {
     expect(item).toMatch(/class="top-bar"/);
-    expect(item).toMatch(/detail-back-btn/);
+    expect(item).toMatch(/goToItemCategory/);
+    expect(item).toMatch(/categoryPath/);
+    expect(item).toMatch(/\/kategori\//);
+    expect(item).toMatch(/Klart, tillbaka till kategorin/);
+    expect(item).toMatch(/history\.back/);
+    expect(item).toMatch(/step-swipe/);
+    expect(item).toMatch(/class="step-subheader"/);
+    expect(item).toMatch(/step-subheader__guide/);
+    expect(item).toMatch(/step-subheader__step/);
+    expect(item).toMatch(/Steg 1 av/);
+    expect(item).toMatch(/id="step-prev"/);
+    expect(item).toMatch(/id="step-next"/);
+    expect(item).toMatch(/aria-label="Föregående steg"/);
+    expect(item).toMatch(/aria-label="Nästa steg"/);
+    expect(item).toMatch(/goTo/);
+    expect(item).toMatch(/data-step-title/);
+    expect(item).toMatch(/Audio-pod opt-in/);
+    expect(html).toMatch(/Audio-pod is opt-in/);
     expect(css).toMatch(/\.detail-back-btn/);
+    expect(css).toMatch(/\.step-subheader/);
+    expect(css).toMatch(/\.step-subheader\s*\{[\s\S]*?position:\s*sticky/);
+    expect(css).toMatch(/\.step-subheader__bar/);
+    expect(css).toMatch(/\.step-nav__btn--next/);
+    expect(css).toMatch(/border-radius:\s*50%/);
+  });
+
+  test('list keeps dual-path API and generic /item/ detail', () => {
+    expect(js).toMatch(/\/api\/items\.php/);
+    expect(js).toMatch(/\/item\//);
+    expect(js).not.toMatch(/\/instruction\//);
+  });
+
+  test('uses real listing URLs instead of hash routes', () => {
+    expect(html).toMatch(/href="\/alla\/"/);
+    expect(html).toMatch(/href="\/info\/"/);
+    expect(html).not.toMatch(/href="#all"/);
+    expect(html).not.toMatch(/href="#info"/);
+    expect(html).toMatch(/listingUrls\.js/);
+    expect(js).toMatch(/pathForListing/);
+    expect(js).toMatch(/\/kategori\//);
+    expect(js).toMatch(/history\.pushState|history\.replaceState/);
+    expect(router).toMatch(/kategori/);
+    expect(router).toMatch(/alla/);
+    expect(item).toMatch(/href="\/alla\/"/);
+    expect(item).toMatch(/href="\/info\/"/);
+  });
+
+  test('frontpage uses horizontal rows; category page uses card grid without Visa alla', () => {
+    expect(js).toMatch(/groupByCategory/);
+    expect(js).toMatch(/item-row__scroller/);
+    expect(js).toMatch(/scroll-snap-x/);
+    expect(js).toMatch(/class="item-grid"/);
+    expect(js).toMatch(/item-grid-section/);
+    expect(css).toMatch(/\.item-row__scroller\s*\{[\s\S]*?overflow-x:\s*auto/);
+    expect(css).toMatch(/\.item-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2/);
+    const categoryBranch = js.match(/if \(filter !== 'Alla'\) \{[\s\S]*?\} else \{/);
+    expect(categoryBranch?.[0] ?? '').toMatch(/item-grid/);
+    expect(categoryBranch?.[0] ?? '').not.toMatch(/Visa alla/);
+    expect(categoryBranch?.[0] ?? '').not.toMatch(/item-row__scroller/);
+  });
+
+  test('quick-nav and Visa alla use category paths', () => {
+    expect(js).toMatch(/Urls\.categoryPath/);
+    expect(js).toMatch(/tab: 'category'/);
+    expect(js).toMatch(/filter === 'Alla'[\s\S]*?tab: 'all'/);
   });
 
   test('does not port Cupappen district listing specifics', () => {
     expect(html).not.toMatch(/district-hero/);
     expect(js).not.toMatch(/district-hero/);
     expect(css).not.toMatch(/district-page__/);
+  });
+
+  test('API stub documents optional categoryOrder without instruction_categories', () => {
+    const itemsApi = read('api/items.php');
+    const helpers = read('api/db_helpers.php');
+    expect(itemsApi).toMatch(/categoryOrder/);
+    expect(helpers).toMatch(/publicAppCategoryOrder/);
+    expect(helpers).not.toMatch(/FROM\s+instruction_categories/i);
+    expect(itemsApi).not.toMatch(/FROM\s+instruction_categories/i);
   });
 });

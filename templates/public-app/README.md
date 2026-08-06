@@ -7,7 +7,7 @@ Reference implementation in production: [`public-cups/`](../../public-cups/) (Cu
 Full ops checklist: [`docs/PUBLIC_APP_TEMPLATE.md`](../../docs/PUBLIC_APP_TEMPLATE.md).  
 Design system (AppShell, tokens, components): [`docs/PUBLIC_APP_DESIGN.md`](../../docs/PUBLIC_APP_DESIGN.md).
 
-**Shell chrome (från Cupappen-designpass):** `.app-atmosphere` bakom UI; frosted `.top-bar` med fast `--header-h` (logo via `--header-logo-h` kan överhänga); `.hero-band` som en komposition (hero-copy + valfri `#shared-filter` + quick-nav); info-panel med samma padding-/display-rytm. Brand via `:root` tokens — kopiera inte Cupappen-färger.
+**Shell chrome:** `.app-atmosphere` bakom UI; frosted `.top-bar`; `.hero-band` (hero + valfri `#shared-filter` + quick-nav). Path-listing (`/`, `/alla/`, `/info/`, `/kategori/…`) via `lib/listingUrls.js`. Hem|Alla|Info (inga Favoriter default). Kategori = `.item-grid`; hem = `.item-row`. Detalj med steps: `.step-subheader` + Klart → kategori. Audio opt-in. Brand via `:root` tokens — kopiera inte Cupappen- eller instructions-färger.
 
 ## Quick start
 
@@ -45,7 +45,8 @@ Local listing JS defaults to Homebase Node `http://localhost:3002/api/public/app
 
 | Path                                   | Role                                 |
 | -------------------------------------- | ------------------------------------ |
-| `index.html` + `app.js` + `styles.css` | Listing shell + client filters       |
+| `index.html` + `app.js` + `styles.css` | Listing shell + path routing         |
+| `lib/listingUrls.js`                   | Pure helpers for listing paths       |
 | `item.php`                             | SSR detail (title, OG, JSON-LD, 404) |
 | `api/items.php`                        | Whitelisted JSON list                |
 | `api/item_detail.php`                  | Optional JSON by slug                |

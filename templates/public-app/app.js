@@ -2,6 +2,8 @@
  * Public app listing client (template) — AppShell design system.
  * Local: Homebase Node public plugin when available.
  * Prod: same-origin PHP /api/items.php
+ * Listing URLs: `/`, `/alla/`, `/info/`, `/kategori/:slug/`.
+ * Detail: `/item/:slug`.
  */
 
 function resolvePublicAppApiOrigin() {
@@ -24,6 +26,12 @@ const ITEMS_API_URL =
   (IS_LOCAL
     ? `${window.PUBLIC_APP_API_BASE || 'http://localhost:3002'}/api/public/appname`
     : `${API_BASE}/api/items.php`);
+
+const Urls = window.PublicAppListingUrls;
+
+if (!Urls) {
+  throw new Error('PublicAppListingUrls saknas — ladda /lib/listingUrls.js före app.js');
+}
 
 const heroBandEl = document.getElementById('hero-band');
 const homeHeroEl = document.getElementById('home-hero');
@@ -85,6 +93,27 @@ function updateHeroCount(total) {
   heroCountLineEl.textContent = n === 1 ? '1 objekt' : `${formatted} objekt`;
 }
 
+function syncBottomBar(tab) {
+  const activeKey = tab === 'category' ? 'all' : tab;
+  document.querySelectorAll('.bottom-bar__tab').forEach((t) => {
+    t.classList.toggle('is-active', t.getAttribute('data-tab') === activeKey);
+  });
+}
+
+function syncUrl(tab, filter, { replace = false } = {}) {
+  const path = Urls.pathForListing(tab, filter);
+  const url = new URL(window.location.href);
+  url.pathname = path;
+  url.hash = '';
+  url.search = '';
+  const state = { tab, filter: filter || 'Alla' };
+  if (replace) {
+    window.history.replaceState(state, '', url);
+  } else {
+    window.history.pushState(state, '', url);
+  }
+}
+
 /**
  * Hero band: home copy on home; optional shared-filter when apps mount UI;
  * quick-nav on listing tabs. Hidden on info.
@@ -92,10 +121,10 @@ function updateHeroCount(total) {
 function syncHeroVisibility() {
   const tab = getActiveTab();
   const showHomeHero = tab === 'home';
-  const showQuickNav = tab === 'home' || tab === 'all' || tab === 'favourites';
+  const showQuickNav = tab === 'home' || tab === 'all' || tab === 'category';
   const showHeroBand = showHomeHero || showQuickNav;
   const hasFilterUi = Boolean(sharedFilterEl) && sharedFilterEl.childElementCount > 0;
-  const showSharedFilter = hasFilterUi && (tab === 'home' || tab === 'all');
+  const showSharedFilter = hasFilterUi && showQuickNav;
 
   if (heroBandEl) heroBandEl.hidden = !showHeroBand;
   if (homeHeroEl) homeHeroEl.hidden = !showHomeHero;
@@ -124,10 +153,59 @@ function renderItemCard(item) {
   </a>`;
 }
 
+function orderedCategoryNames(items, catalog) {
+  const present = new Set();
+  items.forEach((it) => present.add(itemCategory(it)));
+  const ordered = [];
+  const used = new Set();
+  (Array.isArray(catalog) ? catalog : []).forEach((name) => {
+    const needle = String(name || '')
+      .trim()
+      .toLowerCase();
+    if (!needle) return;
+    for (const label of present) {
+      if (label.toLowerCase() === needle && !used.has(label.toLowerCase())) {
+        ordered.push(label);
+        used.add(label.toLowerCase());
+        break;
+      }
+    }
+  });
+  const orphans = Array.from(present)
+    .filter((label) => label !== 'Övrigt' && !used.has(label.toLowerCase()))
+    .sort((a, b) => a.localeCompare(b, 'sv'));
+  ordered.push(...orphans);
+  if (present.has('Övrigt')) ordered.push('Övrigt');
+  return ordered;
+}
+
 function collectCategories(items) {
-  const set = new Set();
-  items.forEach((it) => set.add(itemCategory(it)));
-  return ['Alla', ...Array.from(set).sort((a, b) => a.localeCompare(b, 'sv'))];
+  return ['Alla', ...orderedCategoryNames(items, window.__PUBLIC_APP_CATEGORY_ORDER__ || [])];
+}
+
+function navigateListing(tab, filter, { replace = false, scroll = false } = {}) {
+  setActiveTab(tab);
+  window.__PUBLIC_APP_FILTER__ = filter || 'Alla';
+  syncBottomBar(tab);
+  syncUrl(tab, filter, { replace });
+  applyFilter();
+  if (scroll) {
+    document.getElementById('quick-nav')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function isModifiedClick(e) {
+  return e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+}
+
+function bindSpaLink(el, resolve) {
+  if (!el) return;
+  el.addEventListener('click', (e) => {
+    if (isModifiedClick(e)) return;
+    e.preventDefault();
+    const next = resolve();
+    navigateListing(next.tab, next.filter, { scroll: Boolean(next.scroll) });
+  });
 }
 
 function renderQuickNav(items, activeLabel) {
@@ -138,26 +216,35 @@ function renderQuickNav(items, activeLabel) {
   nav.innerHTML = labels
     .map((label) => {
       const isActive = label === active;
-      return `<button type="button" class="quick-nav__badge shadow-card${isActive ? ' is-active' : ''}" data-filter="${escapeHtml(label)}" aria-pressed="${isActive}">${escapeHtml(label)}</button>`;
+      const href = label === 'Alla' ? '/alla/' : Urls.categoryPath(label);
+      return `<a class="quick-nav__badge shadow-card${isActive ? ' is-active' : ''}" href="${escapeHtml(href)}" data-filter="${escapeHtml(label)}" aria-current="${isActive ? 'page' : 'false'}">${escapeHtml(label)}</a>`;
     })
     .join('');
 
   nav.querySelectorAll('[data-filter]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    bindSpaLink(btn, () => {
       const filter = btn.getAttribute('data-filter') || 'Alla';
-      window.__PUBLIC_APP_FILTER__ = filter;
-      applyFilter();
+      if (filter === 'Alla') {
+        return { tab: 'all', filter: 'Alla', scroll: true };
+      }
+      return { tab: 'category', filter, scroll: true };
     });
   });
 }
 
 function groupByCategory(items) {
   const map = new Map();
+  orderedCategoryNames(items, window.__PUBLIC_APP_CATEGORY_ORDER__ || []).forEach((cat) => {
+    map.set(cat, []);
+  });
   items.forEach((it) => {
     const cat = itemCategory(it);
     if (!map.has(cat)) map.set(cat, []);
     map.get(cat).push(it);
   });
+  for (const [cat, groupItems] of [...map.entries()]) {
+    if (!groupItems.length) map.delete(cat);
+  }
   return map;
 }
 
@@ -170,28 +257,27 @@ function renderRows(items) {
     return;
   }
 
-  const groups = groupByCategory(items);
   const sections = [];
+  const filter = window.__PUBLIC_APP_FILTER__ || 'Alla';
 
-  // Featured-style first row: all matching items when filter is Alla / flat list
-  if (window.__PUBLIC_APP_FILTER__ && window.__PUBLIC_APP_FILTER__ !== 'Alla') {
-    const title = escapeHtml(window.__PUBLIC_APP_FILTER__);
-    sections.push(`<section class="item-row">
-      <div class="item-row__header">
-        <h2 class="item-row__title">${title}</h2>
-        <a class="item-row__more" href="#all">Visa alla</a>
+  if (filter !== 'Alla') {
+    const title = escapeHtml(filter);
+    sections.push(`<section class="item-grid-section">
+      <div class="item-grid-section__header">
+        <h2 class="item-grid-section__title">${title}</h2>
       </div>
-      <div class="item-row__scroller no-scrollbar scroll-snap-x">
+      <div class="item-grid">
         ${items.map(renderItemCard).join('')}
       </div>
     </section>`);
   } else {
-    groups.forEach((groupItems, cat) => {
+    groupByCategory(items).forEach((groupItems, cat) => {
       const title = escapeHtml(cat);
+      const moreHref = escapeHtml(Urls.categoryPath(cat));
       sections.push(`<section class="item-row">
         <div class="item-row__header">
           <h2 class="item-row__title">${title}</h2>
-          <button type="button" class="item-row__more" data-filter-more="${title}">Visa alla</button>
+          <a class="item-row__more" href="${moreHref}" data-filter-more="${title}">Visa alla</a>
         </div>
         <div class="item-row__scroller no-scrollbar scroll-snap-x">
           ${groupItems.map(renderItemCard).join('')}
@@ -203,14 +289,11 @@ function renderRows(items) {
   container.innerHTML = sections.join('');
 
   container.querySelectorAll('[data-filter-more]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const filter = btn.getAttribute('data-filter-more') || 'Alla';
-      window.__PUBLIC_APP_FILTER__ = filter;
-      applyFilter();
-      document
-        .getElementById('quick-nav')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
+    bindSpaLink(btn, () => ({
+      tab: 'category',
+      filter: btn.getAttribute('data-filter-more') || 'Alla',
+      scroll: true,
+    }));
   });
 }
 
@@ -251,26 +334,40 @@ function applyFilter() {
       ? items
       : items.filter((it) => itemCategory(it).toLowerCase() === filter.toLowerCase());
 
-  if (tab === 'favourites') {
-    filtered = [];
-    setStatus('Inga favoriter ännu.');
-    renderQuickNav(items, filter);
+  renderQuickNav(items, filter);
+  if (filtered.length === 0) {
+    setStatus('');
     const container = document.getElementById('rows-container');
     if (container) {
-      container.innerHTML = `<div class="empty-state">Favoriter är en placeholder i mallen — koppla lagring per app.</div>`;
+      container.innerHTML = `<div class="empty-state">${
+        items.length === 0 ? 'Inga objekt ännu.' : 'Inga träffar.'
+      }</div>`;
     }
     return;
   }
-
-  renderQuickNav(items, filter);
-  setStatus(
-    filtered.length === 0
-      ? items.length === 0
-        ? 'Inga objekt ännu.'
-        : 'Inga träffar.'
-      : `${filtered.length} objekt`,
-  );
+  setStatus(`${filtered.length} objekt`);
   renderRows(filtered);
+}
+
+function applyRouteFromLocation({ replaceUrl = false } = {}) {
+  const parsed = Urls.parseListingPath(window.location.pathname);
+  const items = Array.isArray(window.__PUBLIC_APP_ITEMS__) ? window.__PUBLIC_APP_ITEMS__ : [];
+
+  if (parsed.tab === 'category' && parsed.categorySlug) {
+    const names = collectCategories(items).filter((c) => c !== 'Alla');
+    const resolved =
+      Urls.resolveCategoryFromSlug(parsed.categorySlug, names) ||
+      parsed.categorySlug.replace(/-/g, ' ');
+    setActiveTab('category');
+    window.__PUBLIC_APP_FILTER__ = resolved;
+  } else {
+    setActiveTab(parsed.tab);
+    window.__PUBLIC_APP_FILTER__ = parsed.filter || 'Alla';
+  }
+  syncBottomBar(getActiveTab());
+  if (replaceUrl) {
+    syncUrl(getActiveTab(), window.__PUBLIC_APP_FILTER__, { replace: true });
+  }
 }
 
 async function loadItems() {
@@ -284,7 +381,10 @@ async function loadItems() {
         ? data.cups
         : [];
     window.__PUBLIC_APP_ITEMS__ = items;
-    window.__PUBLIC_APP_FILTER__ = 'Alla';
+    window.__PUBLIC_APP_CATEGORY_ORDER__ = Array.isArray(data.categoryOrder)
+      ? data.categoryOrder
+      : [];
+    applyRouteFromLocation({ replaceUrl: true });
     updateHeroCount(items.length);
     applyFilter();
   } catch (err) {
@@ -300,30 +400,12 @@ async function loadItems() {
 }
 
 function initBottomBar() {
-  const tabs = document.querySelectorAll('.bottom-bar__tab');
-  const hash = (window.location.hash || '').replace(/^#/, '') || 'home';
-  const path = window.location.pathname;
-
-  const initialTab =
-    path === '/' || path === '/index.html'
-      ? hash === 'home' || !window.location.hash
-        ? 'home'
-        : hash
-      : 'home';
-  setActiveTab(['home', 'all', 'favourites', 'info'].includes(initialTab) ? initialTab : 'home');
-
-  tabs.forEach((tab) => {
+  document.querySelectorAll('.bottom-bar__tab').forEach((tab) => {
     const key = tab.getAttribute('data-tab') || '';
-    tab.classList.toggle('is-active', key === getActiveTab());
-
-    tab.addEventListener('click', () => {
-      tabs.forEach((t) => t.classList.remove('is-active'));
-      tab.classList.add('is-active');
-      setActiveTab(key);
-      if (key === 'all' || key === 'home') {
-        window.__PUBLIC_APP_FILTER__ = 'Alla';
-      }
-      applyFilter();
+    bindSpaLink(tab, () => {
+      if (key === 'info') return { tab: 'info', filter: 'Alla' };
+      if (key === 'all') return { tab: 'all', filter: 'Alla' };
+      return { tab: 'home', filter: 'Alla' };
     });
   });
 }
@@ -349,26 +431,27 @@ function initMenuDrawer() {
     if (e.target === drawer) close();
   });
   drawer.querySelectorAll('a').forEach((a) => {
-    a.addEventListener('click', () => {
-      const href = a.getAttribute('href') || '';
-      const hash = href.startsWith('#') ? href.slice(1) : href === '/' ? 'home' : '';
-      if (hash && ['home', 'all', 'favourites', 'info'].includes(hash)) {
-        setActiveTab(hash);
-        document.querySelectorAll('.bottom-bar__tab').forEach((t) => {
-          t.classList.toggle('is-active', t.getAttribute('data-tab') === hash);
-        });
-        if (hash === 'all' || hash === 'home') {
-          window.__PUBLIC_APP_FILTER__ = 'Alla';
-        }
-        applyFilter();
-      }
+    bindSpaLink(a, () => {
+      const href = a.getAttribute('href') || '/';
+      const parsed = Urls.parseListingPath(href);
       close();
+      if (parsed.tab === 'category') {
+        return { tab: 'category', filter: parsed.categorySlug || 'Alla' };
+      }
+      return { tab: parsed.tab, filter: parsed.filter || 'Alla' };
     });
   });
 }
 
+function initPopState() {
+  window.addEventListener('popstate', () => {
+    applyRouteFromLocation();
+    applyFilter();
+  });
+}
+
 /**
- * Optional demo: show audio pod when ?audio=1 (apps wire real player later).
+ * Audio-pod is opt-in. Uncomment markup in index.html and call this, or pass ?audio=1 for a demo.
  */
 function initAudioPodDemo() {
   const pod = document.getElementById('audio-pod');
@@ -380,8 +463,11 @@ function initAudioPodDemo() {
   if (title) title.textContent = 'Exempel · Ljudguide';
 }
 
+applyRouteFromLocation({ replaceUrl: true });
+syncBottomBar(getActiveTab());
 initBottomBar();
 initMenuDrawer();
+initPopState();
 initAudioPodDemo();
 syncHeroVisibility();
 loadItems();
