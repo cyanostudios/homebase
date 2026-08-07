@@ -29,6 +29,7 @@ describe('buildTaskListStatusSavePayload', () => {
     dueDate: new Date('2026-08-01T00:00:00.000Z'),
     assignedToIds: ['c1'],
     assignedTo: null,
+    teamId: '7',
   };
 
   it('applies new status and keeps list task fields when no draft', () => {
@@ -40,6 +41,7 @@ describe('buildTaskListStatusSavePayload', () => {
       priority: 'High',
       dueDate: baseTask.dueDate,
       assignedToIds: ['c1'],
+      teamId: '7',
     });
   });
 
@@ -48,6 +50,7 @@ describe('buildTaskListStatusSavePayload', () => {
       priority: 'Low',
       dueDate: null as Date | null,
       assignedToIds: ['c2', 'c3'],
+      teamId: null as string | null,
     };
     expect(buildTaskListStatusSavePayload(baseTask, 'completed', draft)).toEqual({
       title: 'Ship list redesign',
@@ -57,6 +60,7 @@ describe('buildTaskListStatusSavePayload', () => {
       priority: 'Low',
       dueDate: null,
       assignedToIds: ['c2', 'c3'],
+      teamId: null,
     });
   });
 

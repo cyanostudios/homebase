@@ -67,6 +67,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     priority: string;
     dueDate: Date | null;
     assignedToIds: string[];
+    teamId: string | null;
   }> | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
 
@@ -362,7 +363,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const setQuickEditField = useCallback(
     (
-      field: 'status' | 'priority' | 'dueDate' | 'assignedToIds',
+      field: 'status' | 'priority' | 'dueDate' | 'assignedToIds' | 'teamId',
       value: string | Date | null | string[],
     ) => {
       setQuickEditDraft((prev) => ({
@@ -388,6 +389,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
               ? quickEditDraft.assignedToIds
               : (currentTask.assignedToIds ??
                 (currentTask.assignedTo ? [String(currentTask.assignedTo)] : [])),
+          teamId:
+            quickEditDraft.teamId !== undefined
+              ? quickEditDraft.teamId
+              : (currentTask.teamId ?? null),
         };
         const sameStatus = merged.status === currentTask.status;
         const samePriority = merged.priority === currentTask.priority;
@@ -403,7 +408,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         const sameAssignee =
           JSON.stringify((merged.assignedToIds ?? []).map(String).sort()) ===
           JSON.stringify(currentAssignedToIds.map(String).sort());
-        return !sameStatus || !samePriority || !sameDue || !sameAssignee;
+        const sameTeam = String(merged.teamId ?? '') === String(currentTask.teamId ?? '');
+        return !sameStatus || !samePriority || !sameDue || !sameAssignee || !sameTeam;
       })(),
   );
 
@@ -423,6 +429,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           ? quickEditDraft.assignedToIds
           : (currentTask.assignedToIds ??
             (currentTask.assignedTo ? [String(currentTask.assignedTo)] : [])),
+      teamId:
+        quickEditDraft.teamId !== undefined ? quickEditDraft.teamId : (currentTask.teamId ?? null),
     };
     const success = await saveTask(merged, currentTask.id);
     if (success) {
@@ -466,6 +474,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             dueDate: null,
             assignedTo: null,
             assignedToIds: [],
+            teamId: null,
             createdFromNote: note.id,
           };
 
@@ -533,6 +542,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       dueDate?: Date | null;
       assignedTo?: string | null;
       assignedToIds?: string[];
+      teamId?: string | null;
       mentions?: any[];
     }): Promise<Task> => {
       const newTask = await tasksApi.createTask(taskData);
@@ -559,6 +569,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         dueDate: item.dueDate ?? null,
         assignedTo: item.assignedTo ?? null,
         assignedToIds: item.assignedToIds ?? (item.assignedTo ? [String(item.assignedTo)] : []),
+        teamId: item.teamId ?? null,
         mentions: item.mentions ?? [],
       });
     },

@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, Circle, Users } from 'lucide-react';
+import { CalendarDays, ChevronRight, Circle, Trophy, Users } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,12 +8,14 @@ import {
   DETAIL_LIST_ITEM_TITLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
+import { formatMatchDateTime, type Match } from '@/plugins/matches/types/match';
 
 import type { Team, TrainingTime } from '../types/teams';
 import type { TeamColumnCount } from '../utils/teamColumnCount';
 import {
   TEAM_COLOR_GRADIENTS,
   TEAM_STATUS_BADGES,
+  getDaysUntilTrainingAfterBreak,
   isTeamOnBreak,
   teamColorGradientTextClass,
   WEEK_DAYS,
@@ -42,6 +44,10 @@ function getNextTraining(team: Team): TrainingTime | null {
   return best ?? trainings[0];
 }
 
+function formatMatchTeamsLine(match: Match): string {
+  return `${match.home_team} – ${match.away_team}`;
+}
+
 export function TeamCard({
   team,
   selected,
@@ -49,6 +55,7 @@ export function TeamCard({
   onClick,
   checkbox,
   columnCount = 1,
+  nextMatch = null,
 }: {
   team: Team;
   selected?: boolean;
@@ -57,14 +64,58 @@ export function TeamCard({
   checkbox?: React.ReactNode;
   /** When 1, stats and next training sit near the top; 2/3 keep them below. */
   columnCount?: TeamColumnCount;
+  nextMatch?: Match | null;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const nextTraining = getNextTraining(team);
   const genderLabel = team.gender ? t(`teams.gender.${team.gender}`) : null;
   const onSeasonBreak = isTeamOnBreak(team);
+  const daysUntilTrainingAfterBreak = getDaysUntilTrainingAfterBreak(team);
+  const breakTrainingUrgent =
+    daysUntilTrainingAfterBreak !== null && daysUntilTrainingAfterBreak < 7;
   const metaLine =
     [team.age_group, genderLabel, team.playing_format].filter(Boolean).join(' · ') || '—';
   const metaOnTop = columnCount === 1;
+
+  const breakTrainingMeta =
+    daysUntilTrainingAfterBreak !== null ? (
+      <span
+        className={cn(
+          'inline-flex min-w-0 items-center gap-1.5',
+          breakTrainingUrgent ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground',
+        )}
+      >
+        <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
+        <span className="truncate">
+          {t('teams.trainingAfterBreak', { count: daysUntilTrainingAfterBreak })}
+        </span>
+      </span>
+    ) : null;
+
+  const nextMatchMeta = nextMatch ? (
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground">
+      <Trophy className="h-3.5 w-3.5 flex-shrink-0" />
+      <span className="truncate">
+        {t('teams.nextMatchMeta', {
+          when: formatMatchDateTime(nextMatch.start_time, i18n.language),
+          teams: formatMatchTeamsLine(nextMatch),
+        })}
+      </span>
+    </span>
+  ) : null;
+
+  const nextTrainingMeta = nextTraining ? (
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground">
+      <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
+      <span className="truncate">
+        {t('teams.nextTraining', {
+          day: t(`teams.daysShort.${nextTraining.day}`),
+          time: nextTraining.startTime,
+        })}
+        {nextTraining.location ? ` · ${nextTraining.location}` : ''}
+      </span>
+    </span>
+  ) : null;
 
   const metaRow = (
     <div
@@ -81,18 +132,9 @@ export function TeamCard({
         <Circle className="h-3 w-3" />
         {t('teams.seriesTeamCount', { count: team.series_team_count })}
       </span>
-      {nextTraining ? (
-        <span className="inline-flex min-w-0 items-center gap-1.5">
-          <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
-          <span className="truncate">
-            {t('teams.nextTraining', {
-              day: t(`teams.daysShort.${nextTraining.day}`),
-              time: nextTraining.startTime,
-            })}
-            {nextTraining.location ? ` · ${nextTraining.location}` : ''}
-          </span>
-        </span>
-      ) : null}
+      {breakTrainingMeta}
+      {nextMatchMeta}
+      {!breakTrainingMeta ? nextTrainingMeta : null}
     </div>
   );
 
@@ -148,7 +190,7 @@ export function TeamCard({
 
         {!metaOnTop ? (
           <>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" />
                 {t('teams.playerCount', { count: team.player_count })}
@@ -159,18 +201,13 @@ export function TeamCard({
               </span>
             </div>
 
-            {nextTraining ? (
-              <div className="mt-auto border-t border-border/60 pt-2.5">
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  {t('teams.nextTraining', {
-                    day: t(`teams.daysShort.${nextTraining.day}`),
-                    time: nextTraining.startTime,
-                  })}
-                  {nextTraining.location ? ` · ${nextTraining.location}` : ''}
-                </span>
+            {(breakTrainingMeta || nextMatchMeta || (!breakTrainingMeta && nextTrainingMeta)) && (
+              <div className="mt-auto flex flex-col gap-1.5 border-t border-border/60 pt-2.5 text-xs">
+                {breakTrainingMeta}
+                {nextMatchMeta}
+                {!breakTrainingMeta ? nextTrainingMeta : null}
               </div>
-            ) : null}
+            )}
           </>
         ) : null}
       </div>

@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useRequests } from '@/plugins/requests/hooks/useRequests';
 
 import type { ResponsibleRole } from '../types/teams';
-import { isTeamOnBreak } from '../types/teams';
+import { getDisplaySeriesTeams, isTeamOnBreak } from '../types/teams';
 import type { TeamStatsData } from '../types/teamStats';
 
 import { useTeams } from './useTeams';
@@ -49,11 +49,14 @@ export function useTeamStats(includeRequests: boolean): TeamStatsData {
       totalPlayers += team.player_count ?? 0;
 
       const ageKey = team.age_group?.trim() || '';
-      if (ageKey) {
-        ageGroupMap.set(ageKey, (ageGroupMap.get(ageKey) ?? 0) + 1);
+      const seriesCount = getDisplaySeriesTeams(
+        team.series_teams ?? [],
+        team.series_team_count,
+      ).length;
+      if (ageKey && seriesCount > 0) {
+        ageGroupMap.set(ageKey, (ageGroupMap.get(ageKey) ?? 0) + seriesCount);
       }
 
-      const seriesCount = team.series_teams?.length ?? team.series_team_count ?? 0;
       totalSeriesTeams += seriesCount;
       if (seriesCount > 0) {
         withSeriesTeams += 1;

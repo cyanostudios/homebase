@@ -8,6 +8,8 @@ export interface Task {
   dueDate: Date | null;
   assignedTo: string | null; // Legacy single contact ID (kept for compatibility)
   assignedToIds: string[]; // Multi-assignee contact IDs
+  /** Assigned team when teams plugin is used; null if none. */
+  teamId: string | null;
   createdFromNote: string | null; // Note ID
   createdAt: Date;
   updatedAt: Date;

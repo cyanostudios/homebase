@@ -396,6 +396,41 @@ export function isTeamOnBreak(team: {
   return getOngoingSeasonBreaks(team.season_breaks ?? []).length > 0;
 }
 
+/**
+ * Whole calendar days remaining until the nearest ongoing season break ends
+ * (today on endDate → 0). Null when there is no ongoing calendar break.
+ * Status-only `break` without dates does not produce a countdown.
+ */
+export function getDaysUntilTrainingAfterBreak(team: {
+  season_breaks?: SeasonBreak[];
+}): number | null {
+  const ongoing = getOngoingSeasonBreaks(team.season_breaks ?? []);
+  if (ongoing.length === 0) {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let soonestDays: number | null = null;
+  for (const seasonBreak of ongoing) {
+    const end = parseDateOnly(seasonBreak.endDate);
+    if (!end) {
+      continue;
+    }
+    const endDay = new Date(end);
+    endDay.setHours(0, 0, 0, 0);
+    const days = Math.round((endDay.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+    if (days < 0) {
+      continue;
+    }
+    if (soonestDays === null || days < soonestDays) {
+      soonestDays = days;
+    }
+  }
+  return soonestDays;
+}
+
 /** Row styles for season breaks by timing. */
 export const SEASON_BREAK_TIMING_STYLES: Record<SeasonBreakTiming, string> = {
   ongoing:

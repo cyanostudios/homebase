@@ -1,4 +1,4 @@
-import { CalendarDays, Users } from 'lucide-react';
+import { CalendarDays, User, Users } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -71,6 +71,7 @@ export function TaskListItem({
   onClick,
   checkbox,
   assignedNames = [],
+  assignedTeamName = null,
   onStatusChange,
   columnCount = 1,
 }: {
@@ -80,6 +81,8 @@ export function TaskListItem({
   onClick: () => void;
   checkbox?: React.ReactNode;
   assignedNames?: string[];
+  /** Resolved team label when task has teamId; null if none. */
+  assignedTeamName?: string | null;
   onStatusChange: (status: string) => void;
   /** When 1, meta sits on the top row; 2/3 keep meta below title/excerpt. */
   columnCount?: TaskColumnCount;
@@ -90,7 +93,7 @@ export function TaskListItem({
   const excerpt = task.content ? truncateContent(task.content) : '';
   const updatedLabel = task.updatedAt ? new Date(task.updatedAt).toLocaleDateString() : null;
   const metaOnTop = columnCount === 1;
-  const hasMeta = Boolean(dueDate || assignedNames.length > 0 || updatedLabel);
+  const hasMeta = Boolean(dueDate || assignedNames.length > 0 || assignedTeamName || updatedLabel);
 
   const openOnKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -114,8 +117,14 @@ export function TaskListItem({
       ) : null}
       {assignedNames.length > 0 ? (
         <span className="inline-flex min-w-0 items-center gap-1.5">
-          <Users className="h-3.5 w-3.5 flex-shrink-0" />
+          <User className="h-3.5 w-3.5 flex-shrink-0" />
           <span className="truncate">{assignedNames.join(', ')}</span>
+        </span>
+      ) : null}
+      {assignedTeamName ? (
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <Users className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">{assignedTeamName}</span>
         </span>
       ) : null}
       {updatedLabel ? (

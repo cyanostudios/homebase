@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  Circle,
   Copy,
   Edit,
   Inbox,
@@ -68,15 +69,24 @@ import {
 import { ResponsibleContactDialog } from './ResponsibleContactDialog';
 import { ResponsibleRow, SeriesTeamBadge } from './ResponsibleRow';
 import { SeasonCalendar } from './SeasonCalendar';
+import { SeriesTeamsSection } from './SeriesTeamsSection';
 import { TeamMatchesSection } from './TeamMatchesSection';
 import { TeamNotesSection } from './TeamNotesSection';
 import { TrainingSchedule } from './TrainingSchedule';
 
-type TeamViewTab = 'overview' | 'schedule' | 'responsibles' | 'notes' | 'requests' | 'matches';
+type TeamViewTab =
+  | 'overview'
+  | 'schedule'
+  | 'seriesTeams'
+  | 'responsibles'
+  | 'notes'
+  | 'requests'
+  | 'matches';
 
 const TEAM_VIEW_TABS: TeamViewTab[] = [
   'overview',
   'schedule',
+  'seriesTeams',
   'responsibles',
   'notes',
   'requests',
@@ -346,11 +356,18 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
   );
 
   const notesCount = team?.team_notes?.length ?? 0;
+  const seriesTeamsCount = headerSeriesTeams.length;
 
   const tabs = useMemo(
     (): { id: TeamViewTab; label: string; icon: LucideIcon; count?: number }[] => [
       { id: 'overview', label: t('teams.tabs.overview'), icon: LayoutGrid },
       { id: 'schedule', label: t('teams.tabs.schedule'), icon: CalendarDays },
+      {
+        id: 'seriesTeams',
+        label: t('teams.tabs.seriesTeams'),
+        icon: Circle,
+        count: seriesTeamsCount,
+      },
       { id: 'responsibles', label: t('teams.tabs.responsibles'), icon: Users },
       { id: 'notes', label: t('teams.tabs.notes'), icon: StickyNote, count: notesCount },
       { id: 'requests', label: t('teams.tabs.requests'), icon: Inbox, count: requestsCount },
@@ -365,7 +382,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
           ]
         : []),
     ],
-    [hasMatchesPlugin, notesCount, requestsCount, t, upcomingMatchCount],
+    [hasMatchesPlugin, notesCount, requestsCount, seriesTeamsCount, t, upcomingMatchCount],
   );
 
   if (!team) {
@@ -449,6 +466,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                 teamColor={team.color}
                 variant="overview"
               />
+            </DetailSection>
+          </Card>
+        );
+      case 'seriesTeams':
+        return (
+          <Card key={cardId} padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection title={t('teams.tabs.seriesTeams')} className="p-4">
+              <SeriesTeamsSection team={team} />
             </DetailSection>
           </Card>
         );
@@ -772,6 +797,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                 </DetailSection>
               </Card>
             </div>
+          )}
+
+          {activeTab === 'seriesTeams' && (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.tabs.seriesTeams')} className="p-4">
+                <SeriesTeamsSection team={team} />
+              </DetailSection>
+            </Card>
           )}
 
           {activeTab === 'responsibles' && (

@@ -26,6 +26,7 @@ export interface TaskContextType {
     dueDate?: Date | null;
     assignedTo?: string | null;
     assignedToIds?: string[];
+    teamId?: string | null;
     mentions?: any[];
   }) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
@@ -57,9 +58,10 @@ export interface TaskContextType {
     priority: string;
     dueDate: Date | null;
     assignedToIds: string[];
+    teamId: string | null;
   }> | null;
   setQuickEditField: (
-    field: 'status' | 'priority' | 'dueDate' | 'assignedToIds',
+    field: 'status' | 'priority' | 'dueDate' | 'assignedToIds' | 'teamId',
     value: string | Date | null | string[],
   ) => void;
   hasQuickEditChanges: boolean;

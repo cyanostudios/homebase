@@ -1,5 +1,6 @@
 export type OverviewCardId =
   | 'schedule'
+  | 'seriesTeams'
   | 'seasonBreaks'
   | 'responsibles'
   | 'notes'
@@ -8,6 +9,7 @@ export type OverviewCardId =
 
 export const DEFAULT_OVERVIEW_CARD_ORDER: OverviewCardId[] = [
   'schedule',
+  'seriesTeams',
   'seasonBreaks',
   'responsibles',
   'notes',

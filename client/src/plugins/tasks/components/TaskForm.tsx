@@ -14,10 +14,12 @@ import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 
+import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskSettingsForm } from './TaskSettingsForm';
 
@@ -36,6 +38,7 @@ interface TaskFormState {
   priority: TaskPriority;
   dueDate: Date | null;
   assignedToIds: string[];
+  teamId: string | null;
 }
 
 interface TaskFormProps {
@@ -51,6 +54,8 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
 ) {
   const { t } = useTranslation();
   const { validationErrors, clearValidationErrors, panelMode } = useTasks();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeamsPlugin = enabledPlugins.has('teams');
   const {
     isDirty,
     showWarning,
@@ -72,6 +77,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
     priority: 'Medium',
     dueDate: null,
     assignedToIds: [],
+    teamId: null,
   });
 
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
@@ -94,6 +100,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
       priority: 'Medium',
       dueDate: null,
       assignedToIds: [],
+      teamId: null,
     });
     markClean();
   }, [markClean]);
@@ -112,6 +119,12 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
           : currentTask.assignedTo
             ? [String(currentTask.assignedTo)]
             : [],
+        teamId:
+          currentTask.teamId !== null &&
+          currentTask.teamId !== undefined &&
+          currentTask.teamId !== ''
+            ? String(currentTask.teamId)
+            : null,
       });
       markClean();
     } else {
@@ -378,6 +391,12 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
               task={{ assignedToIds: formData.assignedToIds }}
               onAssigneeChange={(ids) => updateField('assignedToIds', ids)}
             />
+            {hasTeamsPlugin ? (
+              <TaskAssignedTeamSelect
+                task={{ teamId: formData.teamId }}
+                onTeamChange={(teamId) => updateField('teamId', teamId)}
+              />
+            ) : null}
           </form>
         </DetailLayout>
       </div>

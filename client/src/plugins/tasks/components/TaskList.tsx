@@ -34,7 +34,10 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useTasks } from '../hooks/useTasks';
 import { type Task } from '../types/tasks';
@@ -100,6 +103,9 @@ export function TaskList() {
   } = useTasks();
   const { contacts, getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeamsPlugin = enabledPlugins.has('teams');
+  const { teams } = useTeams();
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
@@ -164,6 +170,20 @@ export function TaskList() {
     [contacts],
   );
 
+  const getAssignedTeamName = useCallback(
+    (task: Task): string | null => {
+      if (!hasTeamsPlugin || !task.teamId) {
+        return null;
+      }
+      const team = teams.find((item) => String(item.id) === String(task.teamId));
+      if (team) {
+        return formatTeamLabel(team) || team.name || null;
+      }
+      return t('tasks.assignedTeamOrphan', { id: task.teamId });
+    },
+    [hasTeamsPlugin, t, teams],
+  );
+
   const sortedTasks = useMemo(() => {
     const now = Date.now();
     const byFilter = tasks.filter((task) => {
@@ -204,11 +224,28 @@ export function TaskList() {
         }
       }
 
+      if (hasTeamsPlugin) {
+        const teamLabel = getAssignedTeamName(task);
+        if (teamLabel && teamLabel.toLowerCase().includes(q)) {
+          return true;
+        }
+      }
+
       return matchesSearch;
     });
 
     return [...filtered].sort((a, b) => compareTasksByField(a, b, primarySort, sortOrder));
-  }, [tasks, searchTerm, primarySort, sortOrder, contacts, getAssignedContacts, activeFilter]);
+  }, [
+    tasks,
+    searchTerm,
+    primarySort,
+    sortOrder,
+    contacts,
+    getAssignedContacts,
+    getAssignedTeamName,
+    hasTeamsPlugin,
+    activeFilter,
+  ]);
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
   const stats = useMemo(
@@ -635,6 +672,7 @@ export function TaskList() {
                     highlighted={recentlyDuplicatedTaskId === String(task.id)}
                     onClick={() => handleOpenForView(task)}
                     assignedNames={assignedContacts.map((c) => c.companyName)}
+                    assignedTeamName={getAssignedTeamName(task)}
                     onStatusChange={(status) => handleListStatusChange(task, status)}
                     columnCount={columnCount}
                     checkbox={

@@ -4,6 +4,24 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-07 – Teams: serie-lag-flik/kort, listmeta, age-group-stats
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved (inga medium+ fynd). **Ej prod-release.**
+
+**Sammanfattning:** Serie-lag som overview-kort + egen detaljflik; listkort visar break-återstart och nästa match; statistik under åldersgrupper summerar serie-lag.
+
+**Verifierat beteende (kod):**
+
+- `OverviewCardId` + defaultordning inkluderar `seriesTeams` ([`teamOverviewCards.ts`](../client/src/plugins/teams/types/teamOverviewCards.ts)); reorder i `TeamsSettingsView`.
+- `TeamView`-flik `seriesTeams` + overview-case; read-only [`SeriesTeamsSection`](../client/src/plugins/teams/components/SeriesTeamsSection.tsx) via `getDisplaySeriesTeams` (edit kvar i TeamForm).
+- `TeamCard`: `getDaysUntilTrainingAfterBreak` — countdown för pågående calendar-break; röd text när dagar kvar &lt; 7; status-only `break` utan datum ger ingen countdown. Nästa match-meta från `MatchProvider` när matches-plugin är enabled (ingen N+1).
+- `useTeamStats` age groups: summerar `getDisplaySeriesTeams(...).length` per `age_group` (sektionsrubrik “Serielag per åldersgrupp”).
+- Tester: [`getDaysUntilTrainingAfterBreak.test.ts`](../client/src/plugins/teams/types/__tests__/getDaysUntilTrainingAfterBreak.test.ts).
+
+**Kända begränsningar:** När break-countdown visas döljs next-training-meta på kortet. `trainingAfterBreak`-i18n saknar singularform. Ingen backend-/API-ändring.
+
+---
+
 ## 2026-08-06 – Public app-mall: Pattern A listing/detail sync
 
 **Status:** Implementerat i `templates/public-app/` + docs. QA Approved (malltester). Security: samma public read-only-klass som tidigare (ingen ny auth-yta). **Ej prod-release** av befintliga publika appar (mall-only).
@@ -1388,7 +1406,7 @@ Blockerade E2E tills åtgärdade (P-ASYNC/P-CHAIN-berörda):
 ### Teams (`109d832`, `af46680`, `4f415c1`, cleanup)
 
 - **Datamodell:** `teams` med `training_times`, `series_teams`, `season_breaks`, `responsibles`, `team_notes`, `color`, `external_team_id` (088).
-- **Vyer:** list/grid (`TeamList`, `TeamCard`), detail med flikar (overview, schedule, responsibles, notes, requests, matches), statistikvy (`TeamsStatisticsView`), reorderable overview cards (`TeamsSettingsView`).
+- **Vyer:** list/grid (`TeamList`, `TeamCard`), detail med flikar (overview, schedule, seriesTeams, responsibles, notes, requests, matches — `seriesTeams` tillagd 2026-08-07), statistikvy (`TeamsStatisticsView`), reorderable overview cards (`TeamsSettingsView`).
 - **Settings:** full-page `TeamsSettingsView` (active season, overview card order). Panel-`TeamSettingsForm` borttagen (död kod).
 - **Cross-plugin:** `TeamMatchesSection`, `TeamRequestsSection`; klick öppnar match/team via URL (se cross-plugin nedan).
 - **Import:** per-team FOGIS-matchimport när `external_team_id` är satt (`4f415c1`). Kopplingen sätts numera via lagväljare i TeamForm (se §2026-07-23); fritt textfält borttaget från UI.

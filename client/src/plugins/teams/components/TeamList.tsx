@@ -37,7 +37,10 @@ import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
+import { useMatches } from '@/plugins/matches/hooks/useMatches';
+import type { Match } from '@/plugins/matches/types/match';
 
 import { useTeams } from '../hooks/useTeams';
 import { isTeamOnBreak, TEAM_GENDERS, type TeamGender, type TeamStatus } from '../types/teams';
@@ -102,6 +105,9 @@ export function TeamList() {
   } = useTeams();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const enabledPlugins = useEnabledPlugins();
+  const hasMatchesPlugin = enabledPlugins.has('matches');
+  const { matches } = useMatches();
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -205,6 +211,29 @@ export function TeamList() {
     }
     return counts;
   }, [teams]);
+
+  const nextMatchByTeamId = useMemo(() => {
+    const map = new Map<string, Match>();
+    if (!hasMatchesPlugin) {
+      return map;
+    }
+    const now = Date.now();
+    for (const match of matches) {
+      if (!match.team_id || match.is_canceled) {
+        continue;
+      }
+      const start = new Date(match.start_time).getTime();
+      if (Number.isNaN(start) || start < now) {
+        continue;
+      }
+      const teamId = String(match.team_id);
+      const existing = map.get(teamId);
+      if (!existing || match.start_time.localeCompare(existing.start_time) < 0) {
+        map.set(teamId, match);
+      }
+    }
+    return map;
+  }, [hasMatchesPlugin, matches]);
 
   const visibleIds = useMemo(() => filteredAndSorted.map((team) => team.id), [filteredAndSorted]);
 
@@ -569,6 +598,7 @@ export function TeamList() {
                   highlighted={recentlyDuplicatedTeamId === String(team.id)}
                   onClick={() => attemptNavigation(() => openTeamForView(team))}
                   columnCount={columnCount}
+                  nextMatch={nextMatchByTeamId.get(String(team.id)) ?? null}
                   checkbox={
                     <input
                       type="checkbox"

@@ -5,6 +5,7 @@ export type TaskQuickEditDraft = Partial<{
   priority: string;
   dueDate: Date | null;
   assignedToIds: string[];
+  teamId: string | null;
 }>;
 
 /**
@@ -25,7 +26,14 @@ export function shouldApplyOpenTaskSaveEffects(
 export function buildTaskListStatusSavePayload(
   task: Pick<
     Task,
-    'title' | 'content' | 'mentions' | 'priority' | 'dueDate' | 'assignedToIds' | 'assignedTo'
+    | 'title'
+    | 'content'
+    | 'mentions'
+    | 'priority'
+    | 'dueDate'
+    | 'assignedToIds'
+    | 'assignedTo'
+    | 'teamId'
   >,
   newStatus: string,
   draft: TaskQuickEditDraft | null | undefined,
@@ -37,6 +45,7 @@ export function buildTaskListStatusSavePayload(
   priority: string;
   dueDate: Date | null | undefined;
   assignedToIds: string[];
+  teamId: string | null;
 } {
   return {
     title: task.title,
@@ -49,5 +58,6 @@ export function buildTaskListStatusSavePayload(
       draft?.assignedToIds !== undefined
         ? draft.assignedToIds
         : (task.assignedToIds ?? (task.assignedTo ? [String(task.assignedTo)] : [])),
+    teamId: draft?.teamId !== undefined ? draft.teamId : (task.teamId ?? null),
   };
 }

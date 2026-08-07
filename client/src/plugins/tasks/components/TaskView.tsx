@@ -32,12 +32,14 @@ import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 import { useTasks } from '../hooks/useTasks';
 
+import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskDueDatePicker } from './TaskDueDatePicker';
 import { TaskPrioritySelect } from './TaskPrioritySelect';
@@ -254,6 +256,8 @@ export function TaskView({ task }: TaskViewProps) {
   } = useTasks();
   const { openNoteForView } = useNotes();
   const { refreshData } = useApp();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeamsPlugin = enabledPlugins.has('teams');
 
   const [mentionContactsData, setMentionContactsData] = useState<{ [key: string]: any }>({});
   const [sourceNote, setSourceNote] = useState<any>(null);
@@ -378,6 +382,10 @@ export function TaskView({ task }: TaskViewProps) {
 
   const handleAssigneeChange = (newAssigneeIds: string[]) => {
     setQuickEditField('assignedToIds', newAssigneeIds);
+  };
+
+  const handleAssignedTeamChange = (teamId: string | null) => {
+    setQuickEditField('teamId', teamId);
   };
 
   if (!task) {
@@ -570,6 +578,13 @@ export function TaskView({ task }: TaskViewProps) {
           </Card>
 
           <TaskAssigneeSelect task={displayTask ?? task} onAssigneeChange={handleAssigneeChange} />
+
+          {hasTeamsPlugin ? (
+            <TaskAssignedTeamSelect
+              task={displayTask ?? task}
+              onTeamChange={handleAssignedTeamChange}
+            />
+          ) : null}
 
           <TaskShareBlock task={task} />
         </div>

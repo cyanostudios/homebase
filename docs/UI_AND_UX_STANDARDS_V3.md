@@ -47,7 +47,7 @@ All plugin list views should match this shell. **Settings** is excluded (not a d
 
 **Additional reference implementations (2026-06):**
 
-- **Grid cards:** `TeamCard` (`client/src/plugins/teams/components/TeamCard.tsx`) — age/color avatar, status badge, next training (no colored top stripe).
+- **Grid cards:** `TeamCard` (`client/src/plugins/teams/components/TeamCard.tsx`) — age/color avatar, status badge, player/series counts; next training and/or next match meta; optional break-return countdown (red when &lt; 7 days to ongoing season-break `endDate`). No colored top stripe.
 - **Time grid:** `ScheduleTimeGrid` (`client/src/plugins/schedule/components/ScheduleTimeGrid.tsx`) — week grid with drag/drop training slots.
 
 ## 1. List Views (Tables)

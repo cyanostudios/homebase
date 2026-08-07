@@ -19,6 +19,16 @@ npm run set:tenant-plugins -- --enable=instructions
 
 ---
 
+## 118 – Tasks assigned team (aug 2026)
+
+- **`118-tasks-add-team-id.sql`** — optional `team_id` on `tasks` (FK → `teams`, ON DELETE SET NULL).
+
+```bash
+npm run migrate:tasks-team-id
+```
+
+---
+
 ## 113 – Guides production worker settings (jul 2026)
 
 - **`113-guide-production-settings.sql`** — tenant-DB: `guide_production_settings` (`worker_enabled` default false, `poll_interval_ms` ∈ 5s/15s/30s/1m/5m). Ingår i `npm run migrate:guides`.

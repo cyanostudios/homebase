@@ -13,6 +13,37 @@ class TasksApi {
     return [];
   }
 
+  private normalizeTeamId(task: any): string | null {
+    if (task?.team_id !== null && task?.team_id !== undefined && task?.team_id !== '') {
+      return String(task.team_id);
+    }
+    if (task?.teamId !== null && task?.teamId !== undefined && task?.teamId !== '') {
+      return String(task.teamId);
+    }
+    return null;
+  }
+
+  private mapTask(task: any): Task {
+    return {
+      ...task,
+      assignedTo: task.assigned_to,
+      assignedToIds: this.normalizeAssignedToIds(task),
+      teamId: this.normalizeTeamId(task),
+      createdFromNote: task.created_from_note,
+      dueDate: task.due_date ? new Date(task.due_date) : null,
+      createdAt: new Date(task.created_at),
+      updatedAt: new Date(task.updated_at),
+    };
+  }
+
+  private normalizeTeamIdForRequest(teamId: unknown): number | null {
+    if (teamId === null || teamId === undefined || teamId === '') {
+      return null;
+    }
+    const parsed = Number.parseInt(String(teamId), 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
   private _request = createApiClient('/tasks');
 
   private async request(path: string, options: RequestInit = {}) {
@@ -29,28 +60,12 @@ class TasksApi {
 
   async getTasks(): Promise<Task[]> {
     const tasks = await this.request('');
-    return tasks.map((task: any) => ({
-      ...task,
-      assignedTo: task.assigned_to,
-      assignedToIds: this.normalizeAssignedToIds(task),
-      createdFromNote: task.created_from_note,
-      dueDate: task.due_date ? new Date(task.due_date) : null,
-      createdAt: new Date(task.created_at),
-      updatedAt: new Date(task.updated_at),
-    }));
+    return tasks.map((task: any) => this.mapTask(task));
   }
 
   async getTask(id: string): Promise<Task> {
     const task = await this.request(`/${id}`);
-    return {
-      ...task,
-      assignedTo: task.assigned_to,
-      assignedToIds: this.normalizeAssignedToIds(task),
-      createdFromNote: task.created_from_note,
-      dueDate: task.due_date ? new Date(task.due_date) : null,
-      createdAt: new Date(task.created_at),
-      updatedAt: new Date(task.updated_at),
-    };
+    return this.mapTask(task);
   }
 
   async createTask(taskData: any): Promise<Task> {
@@ -58,10 +73,12 @@ class TasksApi {
       dueDate,
       assignedTo,
       assignedToIds,
+      teamId,
       createdFromNote,
       due_date,
       assigned_to,
       assigned_to_ids,
+      team_id,
       created_from_note,
       ...rest
     } = taskData;
@@ -78,6 +95,7 @@ class TasksApi {
       mentions: mentions,
       status: status,
       priority: priority,
+      team_id: this.normalizeTeamIdForRequest(teamId ?? team_id),
     };
 
     if (dueDate instanceof Date) {
@@ -100,19 +118,12 @@ class TasksApi {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
-    return {
-      ...task,
-      assignedTo: task.assigned_to,
-      assignedToIds: this.normalizeAssignedToIds(task),
-      createdFromNote: task.created_from_note,
-      dueDate: task.due_date ? new Date(task.due_date) : null,
-      createdAt: new Date(task.created_at),
-      updatedAt: new Date(task.updated_at),
-    };
+    return this.mapTask(task);
   }
 
   async updateTask(id: string, taskData: any): Promise<Task> {
-    const { dueDate, assignedTo, assignedToIds, createdFromNote, ...rest } = taskData;
+    const { dueDate, assignedTo, assignedToIds, teamId, createdFromNote, team_id, ...rest } =
+      taskData;
     const normalizedAssignedToIds = Array.isArray(assignedToIds)
       ? assignedToIds.map((id: any) => String(id))
       : assignedTo
@@ -125,18 +136,11 @@ class TasksApi {
         due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : dueDate || null,
         assigned_to: normalizedAssignedToIds[0] || null,
         assigned_to_ids: normalizedAssignedToIds,
+        team_id: this.normalizeTeamIdForRequest(teamId !== undefined ? teamId : team_id),
         created_from_note: createdFromNote || null,
       }),
     });
-    return {
-      ...task,
-      assignedTo: task.assigned_to,
-      assignedToIds: this.normalizeAssignedToIds(task),
-      createdFromNote: task.created_from_note,
-      dueDate: task.due_date ? new Date(task.due_date) : null,
-      createdAt: new Date(task.created_at),
-      updatedAt: new Date(task.updated_at),
-    };
+    return this.mapTask(task);
   }
 
   async deleteTask(id: string): Promise<void> {
@@ -180,14 +184,9 @@ class TasksApi {
   async getPublicTask(token: string): Promise<PublicTask> {
     const task = await this.request(`/public/${token}`);
     return {
-      ...task,
-      assignedTo: task.assigned_to,
-      assignedToIds: this.normalizeAssignedToIds(task),
-      createdFromNote: task.created_from_note,
-      dueDate: task.due_date ? new Date(task.due_date) : null,
-      createdAt: new Date(task.created_at),
-      updatedAt: new Date(task.updated_at),
+      ...this.mapTask(task),
       shareValidUntil: new Date(task.shareValidUntil),
+      accessedCount: task.accessedCount ?? task.accessed_count ?? 0,
     };
   }
 }

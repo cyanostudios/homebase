@@ -61,6 +61,7 @@ function createTaskRoutes(controller, context) {
     commonRules.enum('priority', ['Low', 'Medium', 'High']).optional(),
     commonRules.date('due_date').optional(),
     commonRules.array('assigned_to_ids', 50),
+    commonRules.optionalInteger('team_id', 1),
     validateRequest,
     (req, res) => {
       controller.create(req, res);
@@ -80,6 +81,7 @@ function createTaskRoutes(controller, context) {
     commonRules.enum('priority', ['Low', 'Medium', 'High']).optional(),
     commonRules.date('due_date').optional(),
     commonRules.array('assigned_to_ids', 50),
+    commonRules.optionalInteger('team_id', 1),
     validateRequest,
     (req, res) => {
       controller.update(req, res);

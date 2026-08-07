@@ -92,12 +92,19 @@ class TaskModel {
         assigned_to,
         created_from_note,
         assigned_to_ids,
+        team_id,
       } = taskData;
       const normalizedAssignedToIds = Array.isArray(assigned_to_ids)
         ? assigned_to_ids.map((id) => String(id))
         : assigned_to
           ? [String(assigned_to)]
           : [];
+      const normalizedTeamId =
+        team_id === null || team_id === undefined || team_id === ''
+          ? null
+          : Number.parseInt(String(team_id), 10);
+      const teamIdValue =
+        normalizedTeamId !== null && !Number.isNaN(normalizedTeamId) ? normalizedTeamId : null;
 
       const basePayload = {
         title: title || '',
@@ -108,6 +115,7 @@ class TaskModel {
         due_date: due_date || null,
         assigned_to: normalizedAssignedToIds[0] || assigned_to || null,
         created_from_note: created_from_note || null,
+        team_id: teamIdValue,
       };
 
       let result;
@@ -161,13 +169,28 @@ class TaskModel {
         throw new AppError('Task not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      const { title, content, mentions, status, priority, due_date, assigned_to, assigned_to_ids } =
-        taskData;
+      const {
+        title,
+        content,
+        mentions,
+        status,
+        priority,
+        due_date,
+        assigned_to,
+        assigned_to_ids,
+        team_id,
+      } = taskData;
       const normalizedAssignedToIds = Array.isArray(assigned_to_ids)
         ? assigned_to_ids.map((id) => String(id))
         : assigned_to
           ? [String(assigned_to)]
           : [];
+      const normalizedTeamId =
+        team_id === null || team_id === undefined || team_id === ''
+          ? null
+          : Number.parseInt(String(team_id), 10);
+      const teamIdValue =
+        normalizedTeamId !== null && !Number.isNaN(normalizedTeamId) ? normalizedTeamId : null;
 
       const basePayload = {
         title: title || '',
@@ -177,6 +200,7 @@ class TaskModel {
         priority: priority ?? 'Medium',
         due_date: due_date || null,
         assigned_to: normalizedAssignedToIds[0] || assigned_to || null,
+        team_id: teamIdValue,
       };
 
       let result;
@@ -539,6 +563,7 @@ class TaskModel {
       due_date: row.due_date,
       assigned_to: row.assigned_to,
       assigned_to_ids: assignedToIds,
+      team_id: row.team_id != null ? String(row.team_id) : null,
       created_from_note: row.created_from_note,
       created_at: row.created_at,
       updated_at: row.updated_at,
