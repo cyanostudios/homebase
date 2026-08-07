@@ -2,6 +2,34 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Matches list/edit UX — docs-sync (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för Matches listfilter, status/past-due badges, `openMatchForEdit`, editable status på external, Contacts taggfilter + shared contacts sync. **Ej prod-release.**
+
+### Docs-sync
+
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-08-07 Matches.
+- Residual dokumenterad: FOGIS-reimport kan skriva över manuell status.
+- Ingen ny ADR (UI-/konventionsfix inom befintlig matches-plugin).
+
+---
+
+## Clubdesk plugin — Etapp 1 docs-sync (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för backoffice Clubdesk (Guides + Price list). **Ej prod-release.** Ingen publik companion.
+
+**ADR:** [`docs/ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](adr/CLUBDESK_PLUGIN_ETAPP1.md).
+
+### Docs-sync
+
+- Navigation: sidebar submenu + in-page SubNav; reserved slug `price-list`; dual-domain panel.
+- Price-list categories: `sort_order` + reorder API; item order follows catalog (public-ready later).
+- Layout: `contentFlush`, hidden ContentHeader on submenu, MainLayout flush scrollpath.
+- Security residualer (TPM-accepted): freeform image URLs; tx utan auto `user_id` + ownership mitigering; ops-notis migration `121`.
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Public app-mall — Pattern A sync (2026-08-06)
 
 Docs-sync efter port av listing/detail-mönster från `public-instructions/` till `templates/public-app/`. Mallkontrakt låst i [`PUBLIC_APP_TEMPLATE.md`](../PUBLIC_APP_TEMPLATE.md); design-delta i [`PUBLIC_APP_DESIGN.md`](../PUBLIC_APP_DESIGN.md). **Ej prod-release** av befintliga sajter.

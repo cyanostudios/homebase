@@ -4,6 +4,46 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-07 – Matches: list-UX, edit-fix, status & contacts
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (inga medium+; residual: FOGIS-reimport kan skriva över manuell status). **Ej prod-release.**
+
+**Sammanfattning:** Matches-listan och detalj/edit förbättrade: tidfilter, statusbadges inkl. past due, kontaktbadge/taggfilter, titeldimning, samt `openMatchForEdit` så panelens Edit fungerar. Status (inställd/uppskjuten/spelad) redigerbar även för FOGIS/`is_external`-matcher. Contacts synkas till AppContext vid varje contacts-stateändring.
+
+**Verifierat beteende (kod):**
+
+- **Listfilter:** Alla / Kommande / Kommande 7 dagar / Kommande 14 dagar via [`matchListFilter.ts`](../client/src/plugins/matches/utils/matchListFilter.ts) + [`MatchList.tsx`](../client/src/plugins/matches/components/MatchList.tsx) (`ListFilterStatCard`). Ersätter tidigare Futsal / With Location-filter.
+- **Listkort:** Endast titel (ingen vs-rad); badges (status, resultat, lag, kontakt) ovanför titel; titel italic + utgråad när spelad, inställd, uppskjuten eller starttid passerat — badges oförändrade ([`MatchListItem.tsx`](../client/src/plugins/matches/components/MatchListItem.tsx)).
+- **Statusbadges:** [`MatchStatusBadges.tsx`](../client/src/plugins/matches/components/MatchStatusBadges.tsx) — **Past due** / **Datum passerat** när starttid passerat och matchen inte är spelad/inställd/uppskjuten; Past due och Canceled i röd badge-stil.
+- **Edit:** [`openMatchForEdit`](../client/src/plugins/matches/context/MatchProvider.tsx) enligt `PLUGIN_RUNTIME_CONVENTIONS` (`open{Singular}ForEdit`); panel Edit öppnar formulär.
+- **Status i form:** checkboxar alltid synliga (även `is_external`) — [`MatchForm.tsx`](../client/src/plugins/matches/components/MatchForm.tsx). API-yta oförändrad (`PUT` med boolean-status).
+- **Contacts-kort:** taggfilter före add-contact ([`MatchView.tsx`](../client/src/plugins/matches/components/MatchView.tsx) + `contactMatchesTagFilter`); läser `useContacts()`.
+- **Contacts sync:** [`ContactProvider`](../client/src/plugins/contacts/context/ContactProvider.tsx) `useEffect` → `syncSharedContacts(contacts)` (slots-paritet).
+
+**Kända begränsningar / residualer:**
+
+- FOGIS-reimport (`POST /api/matches/import`) kan skriva över manuell status på external-matcher (produkt/integritet; Security residual, ej accepterad sårbarhet).
+- MatchForm saknar taggfilter (endast MatchView Contacts-kort).
+- CHANGELOG/docs för äldre FOGIS-import oförändrad; detta är UI-/edit-delta.
+
+---
+
+## 2026-08-07 – Clubdesk plugin (Etapp 1)
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (residualer: freeform image URLs; tx utan auto `user_id` mitigerad via ownership-checks). **Ej prod-release.** Publik companion ingår inte.
+
+**Sammanfattning:** Nytt plugin **Clubdesk** (föreningskiosk): sidebar + in-page SubNav med **Guides** (klon av Instructions) och **Price list** (generell del + kategoriserade, ordningsbara items/kategorier med pris, valuta SEK).
+
+**Verifierat beteende (kod):**
+
+- Backend: [`plugins/clubdesk/`](../plugins/clubdesk/) — guides + `/price-lists*`; kategori-reorder `PUT .../categories/reorder`; migrationer `119`–`121`; `npm run migrate:clubdesk`
+- Frontend: [`client/src/plugins/clubdesk/`](../client/src/plugins/clubdesk/); [`ClubdeskSubNav`](../client/src/plugins/clubdesk/components/ClubdeskSubNav.tsx); dual-domain panel; kategoriordning i form/vy
+- Layout: `contentFlush` + dold ContentHeader för submenu ([`AppContent.tsx`](../client/src/core/app/AppContent.tsx)); flush-scrollpath i [`MainLayout.tsx`](../client/src/core/ui/MainLayout.tsx)
+- ADR: [`ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md)
+- Efter enable: **logga ut/in**. Instruktioner-pluginet orört. Migration `121` grantar befintliga tenants vid migrate — medveten scope vid prod.
+
+---
+
 ## 2026-08-07 – Plugin settings: streamlined category icons
 
 **Status:** Implementerat lokalt. **Ej prod-release.**

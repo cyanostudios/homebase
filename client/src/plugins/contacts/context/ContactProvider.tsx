@@ -225,6 +225,10 @@ export function ContactProvider({
     };
   }, [isAuthenticated, syncSharedContacts]);
 
+  useEffect(() => {
+    syncSharedContacts(contacts);
+  }, [contacts, syncSharedContacts]);
+
   const loadContacts = useCallback(async () => {
     const contactsData = await contactsApi.getContacts();
     const transformedContacts: Contact[] = contactsData.map((contact: any) => ({

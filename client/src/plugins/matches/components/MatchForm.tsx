@@ -661,37 +661,35 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                       />
                     </div>
                   </div>
-                  {!currentMatch?.is_external ? (
-                    <div className="sm:col-span-3 flex flex-wrap gap-4">
-                      <label className="inline-flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={formData.is_canceled}
-                          onChange={(e) => updateField('is_canceled', e.target.checked)}
-                          className="h-4 w-4 rounded border-border"
-                        />
-                        {t('matches.statusCanceled')}
-                      </label>
-                      <label className="inline-flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={formData.is_postponed}
-                          onChange={(e) => updateField('is_postponed', e.target.checked)}
-                          className="h-4 w-4 rounded border-border"
-                        />
-                        {t('matches.statusPostponed')}
-                      </label>
-                      <label className="inline-flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={formData.is_finished}
-                          onChange={(e) => updateField('is_finished', e.target.checked)}
-                          className="h-4 w-4 rounded border-border"
-                        />
-                        {t('matches.statusFinished')}
-                      </label>
-                    </div>
-                  ) : null}
+                  <div className="sm:col-span-3 flex flex-wrap gap-4">
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_canceled}
+                        onChange={(e) => updateField('is_canceled', e.target.checked)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      {t('matches.statusCanceled')}
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_postponed}
+                        onChange={(e) => updateField('is_postponed', e.target.checked)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      {t('matches.statusPostponed')}
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_finished}
+                        onChange={(e) => updateField('is_finished', e.target.checked)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      {t('matches.statusFinished')}
+                    </label>
+                  </div>
                 </div>
 
                 {/* Contacts (last row) */}

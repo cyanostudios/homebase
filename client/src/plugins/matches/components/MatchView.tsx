@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
@@ -25,6 +32,10 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import type { AppIcon } from '@/types/icons';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import {
+  collectContactTags,
+  contactMatchesTagFilter,
+} from '@/plugins/contacts/utils/contactListFilter';
 import { useSlotsContext } from '@/plugins/slots/context/SlotsContext';
 
 import { useMatchContext } from '../context/MatchContext';
@@ -64,6 +75,7 @@ type AssignableContact = {
   phone?: string;
   phone2?: string;
   isAssignable?: boolean;
+  tags?: string[];
 };
 
 type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
@@ -407,8 +419,8 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   const { t } = useTranslation();
   const match = matchProp ?? item ?? null;
   const { contacts, openContactForView } = useContacts();
-  const { contacts: appContacts, user, openSlotForView } = useApp();
-  const allContacts = (appContacts ?? contacts) as AssignableContact[];
+  const { user, openSlotForView } = useApp();
+  const allContacts = contacts as AssignableContact[];
   const assignableContacts = useMemo(
     () => allContacts.filter((c) => c.isAssignable !== false),
     [allContacts],
@@ -446,6 +458,7 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   } = useMatchContext();
 
   const [contactSearch, setContactSearch] = useState('');
+  const [contactTagFilter, setContactTagFilter] = useState('all');
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
@@ -453,12 +466,22 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
   const [pendingRemoveContactName, setPendingRemoveContactName] = useState<string>('');
   const { slots: allSlots } = useSlotsContext();
 
-  const addableContacts = useMemo(
+  const availableContactTags = useMemo(
+    () => collectContactTags(assignableContacts),
+    [assignableContacts],
+  );
+
+  const unattachedContacts = useMemo(
     () =>
       assignableContacts.filter(
         (c) => !displayMentions?.some((m) => String(m.contactId) === String(c.id)),
       ),
     [assignableContacts, displayMentions],
+  );
+
+  const addableContacts = useMemo(
+    () => unattachedContacts.filter((c) => contactMatchesTagFilter(c, contactTagFilter)),
+    [unattachedContacts, contactTagFilter],
   );
 
   const filteredContactSuggestions = useMemo(() => {
@@ -572,73 +595,101 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
                     {t('matches.contacts')}
                   </span>
                 </div>
-                <Popover
-                  open={showContactSuggestions && addableContacts.length > 0}
-                  onOpenChange={setShowContactSuggestions}
-                >
-                  <PopoverAnchor asChild>
-                    <div className="relative w-full min-w-0 sm:max-w-[260px] sm:shrink-0">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={contactSearch}
-                        onChange={(event) => {
-                          setContactSearch(event.target.value);
-                          setShowContactSuggestions(true);
-                        }}
-                        onFocus={() => setShowContactSuggestions(true)}
-                        placeholder={
-                          addableContacts.length === 0
-                            ? t('matches.noMoreToAdd')
-                            : t('matches.addContact')
-                        }
-                        className="h-9 bg-background pl-9 text-xs"
-                        disabled={addableContacts.length === 0}
-                      />
-                    </div>
-                  </PopoverAnchor>
-                  <PopoverContent
-                    align="end"
-                    side="bottom"
-                    sideOffset={6}
-                    className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-64 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
+                <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+                  {availableContactTags.length > 0 ? (
+                    <Select
+                      value={contactTagFilter}
+                      onValueChange={(value) => {
+                        setContactTagFilter(value);
+                        setShowContactSuggestions(false);
+                      }}
+                    >
+                      <SelectTrigger
+                        className="h-9 w-full bg-background text-xs sm:w-[160px] sm:shrink-0"
+                        aria-label={t('matches.filterContactsByTag')}
+                      >
+                        <SelectValue placeholder={t('matches.filterContactsByTag')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('matches.allContactTags')}</SelectItem>
+                        {availableContactTags.map((tag) => (
+                          <SelectItem key={tag} value={tag}>
+                            {tag}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : null}
+                  <Popover
+                    open={showContactSuggestions && unattachedContacts.length > 0}
+                    onOpenChange={setShowContactSuggestions}
                   >
-                    {filteredContactSuggestions.length > 0 ? (
-                      filteredContactSuggestions.map((contact) => {
-                        const contactName = contact.companyName ?? `Contact ${contact.id}`;
-                        const contactMeta = [contact.email, contact.phone]
-                          .filter(Boolean)
-                          .join(' · ');
-                        return (
-                          <button
-                            key={String(contact.id)}
-                            type="button"
-                            className="flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-accent"
-                            onClick={() => {
-                              addContactToDraft(contact);
-                              setContactSearch('');
-                              setShowContactSuggestions(false);
-                            }}
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate text-xs font-medium">
-                                {contactName}
-                              </span>
-                              {contactMeta ? (
-                                <span className="block truncate text-[11px] text-muted-foreground">
-                                  {contactMeta}
-                                </span>
-                              ) : null}
-                            </span>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
-                        {contactSearch.trim() ? t('matches.noResults') : t('matches.addContact')}
+                    <PopoverAnchor asChild>
+                      <div className="relative w-full min-w-0 sm:max-w-[260px] sm:shrink-0">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={contactSearch}
+                          onChange={(event) => {
+                            setContactSearch(event.target.value);
+                            setShowContactSuggestions(true);
+                          }}
+                          onFocus={() => setShowContactSuggestions(true)}
+                          placeholder={
+                            unattachedContacts.length === 0
+                              ? t('matches.noMoreToAdd')
+                              : t('matches.addContact')
+                          }
+                          className="h-9 bg-background pl-9 text-xs"
+                          disabled={unattachedContacts.length === 0}
+                        />
                       </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
+                    </PopoverAnchor>
+                    <PopoverContent
+                      align="end"
+                      side="bottom"
+                      sideOffset={6}
+                      className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-64 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
+                    >
+                      {filteredContactSuggestions.length > 0 ? (
+                        filteredContactSuggestions.map((contact) => {
+                          const contactName = contact.companyName ?? `Contact ${contact.id}`;
+                          const contactMeta = [contact.email, contact.phone]
+                            .filter(Boolean)
+                            .join(' · ');
+                          return (
+                            <button
+                              key={String(contact.id)}
+                              type="button"
+                              className="flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-accent"
+                              onClick={() => {
+                                addContactToDraft(contact);
+                                setContactSearch('');
+                                setShowContactSuggestions(false);
+                              }}
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-xs font-medium">
+                                  {contactName}
+                                </span>
+                                {contactMeta ? (
+                                  <span className="block truncate text-[11px] text-muted-foreground">
+                                    {contactMeta}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
+                          {contactSearch.trim() || contactTagFilter !== 'all'
+                            ? t('matches.noResults')
+                            : t('matches.addContact')}
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
 
               {displayMentions && displayMentions.length > 0 && (

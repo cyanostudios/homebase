@@ -1,7 +1,8 @@
-import { CalendarDays, MapPin, Trophy } from 'lucide-react';
+import { CalendarDays, MapPin, Trophy, User } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
   DETAIL_VIEW_CARD_CLASS,
@@ -10,11 +11,13 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
-import { formatMatchDateTime, formatMatchScore, type Match } from '../types/match';
+import { formatMatchDateTime, formatMatchScore, isMatchStarted, type Match } from '../types/match';
 import type { MatchColumnCount } from '../utils/matchColumnCount';
 
 import { MatchStatusBadges } from './MatchStatusBadges';
 import { MatchTeamBadge } from './MatchTeamBadge';
+
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
 
 function MatchScoreBadge({ match }: { match: Match }) {
   const score = formatMatchScore(match);
@@ -26,6 +29,35 @@ function MatchScoreBadge({ match }: { match: Match }) {
       <Trophy className="h-3 w-3 flex-shrink-0" />
       {score}
     </span>
+  );
+}
+
+function MatchContactBadge({ match }: { match: Match }) {
+  const { t } = useTranslation();
+  const mentions = Array.isArray(match.mentions) ? match.mentions : [];
+  if (mentions.length === 0 && !match.contact_id) {
+    return null;
+  }
+
+  const first = mentions[0];
+  const label =
+    first?.companyName?.trim() || first?.contactName?.trim() || t('matches.contactAssigned');
+  const extraCount = mentions.length > 1 ? mentions.length - 1 : 0;
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        BADGE_CLASS,
+        'inline-flex max-w-[180px] items-center gap-1 bg-muted text-muted-foreground',
+      )}
+    >
+      <User className="h-3 w-3 flex-shrink-0" aria-hidden />
+      <span className="truncate">
+        {label}
+        {extraCount > 0 ? ` +${extraCount}` : ''}
+      </span>
+    </Badge>
   );
 }
 
@@ -42,7 +74,7 @@ export function MatchListItem({
   highlighted?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
-  /** When 1, meta sits on the top row; 2/3 keep meta below title/excerpt. */
+  /** When 1, meta sits on the top row; 2/3 keep meta below title. */
   columnCount?: MatchColumnCount;
 }) {
   const { i18n } = useTranslation();
@@ -53,8 +85,9 @@ export function MatchListItem({
     : null;
 
   const matchLabel = match.name?.trim() || `${match.home_team} \u2013 ${match.away_team}`;
+  const isDimmedTitle =
+    match.is_finished || match.is_canceled || match.is_postponed || isMatchStarted(match);
 
-  const vsLine = match.name?.trim() ? `${match.home_team} \u2013 ${match.away_team}` : null;
   const metaOnTop = columnCount === 1;
   const hasMeta = Boolean(dateLabel || match.location || match.competition_name);
 
@@ -119,6 +152,8 @@ export function MatchListItem({
             {checkbox}
             <MatchStatusBadges match={match} />
             <MatchScoreBadge match={match} />
+            {match.team_id ? <MatchTeamBadge teamId={match.team_id} /> : null}
+            <MatchContactBadge match={match} />
             {metaOnTop ? metaRow : null}
           </div>
           {match.sport_type || match.format ? (
@@ -129,15 +164,15 @@ export function MatchListItem({
           ) : null}
         </div>
 
-        <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>{matchLabel}</h3>
-
-        {vsLine ? <p className="line-clamp-1 text-xs text-muted-foreground">{vsLine}</p> : null}
-
-        {match.team_id ? (
-          <div>
-            <MatchTeamBadge teamId={match.team_id} />
-          </div>
-        ) : null}
+        <h3
+          className={cn(
+            'line-clamp-2',
+            DETAIL_LIST_ITEM_TITLE_CLASS,
+            isDimmedTitle && 'italic text-muted-foreground/40',
+          )}
+        >
+          {matchLabel}
+        </h3>
 
         {!metaOnTop ? metaRow : null}
       </div>

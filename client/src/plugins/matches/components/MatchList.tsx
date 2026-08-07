@@ -46,13 +46,13 @@ import {
   type MatchSortField,
   type MatchSortOrder,
 } from '../utils/matchListSort';
+import { matchMatchesListFilter, type MatchListFilter } from '../utils/matchListFilter';
 
 import { MatchListItem } from './MatchListItem';
 import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
 
 type SortField = MatchSortField;
 type SortOrder = MatchSortOrder;
-type MatchFilter = 'all' | 'upcoming' | 'futsal' | 'withLocation';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'start_time', label: 'Time' },
@@ -95,7 +95,7 @@ export function MatchList() {
   const [primarySort, setPrimarySort] = useState<SortField>('start_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [columnCount, setColumnCountState] = useState<MatchColumnCount>(getInitialMatchColumnCount);
-  const [activeFilter, setActiveFilter] = useState<MatchFilter>('all');
+  const [activeFilter, setActiveFilter] = useState<MatchListFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('view');
 
   useEffect(() => {
@@ -138,18 +138,8 @@ export function MatchList() {
   };
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = matches.filter((m) => {
-      if (activeFilter === 'upcoming') {
-        return new Date(m.start_time).getTime() > Date.now();
-      }
-      if (activeFilter === 'futsal') {
-        return (m.format || '').toLowerCase() === 'futsal';
-      }
-      if (activeFilter === 'withLocation') {
-        return Boolean(m.location?.trim());
-      }
-      return true;
-    });
+    const nowMs = Date.now();
+    const byFilter = matches.filter((m) => matchMatchesListFilter(m, activeFilter, nowMs));
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((m) => {
@@ -180,15 +170,15 @@ export function MatchList() {
     [filteredAndSorted],
   );
 
-  const stats = useMemo(
-    () => ({
+  const stats = useMemo(() => {
+    const nowMs = Date.now();
+    return {
       total: matches.length,
-      upcoming: matches.filter((m) => new Date(m.start_time).getTime() > Date.now()).length,
-      futsal: matches.filter((m) => (m.format || '').toLowerCase() === 'futsal').length,
-      withLocation: matches.filter((m) => Boolean(m.location?.trim())).length,
-    }),
-    [matches],
-  );
+      upcoming: matches.filter((m) => matchMatchesListFilter(m, 'upcoming', nowMs)).length,
+      upcoming7: matches.filter((m) => matchMatchesListFilter(m, 'upcoming7', nowMs)).length,
+      upcoming14: matches.filter((m) => matchMatchesListFilter(m, 'upcoming14', nowMs)).length,
+    };
+  }, [matches]);
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -287,32 +277,32 @@ export function MatchList() {
 
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <ListFilterStatCard
-            label="Total"
+            label={t('matches.filterAll')}
             value={stats.total}
             dotClassName="bg-blue-500"
             active={activeFilter === 'all'}
             onClick={() => setActiveFilter('all')}
           />
           <ListFilterStatCard
-            label="Upcoming"
+            label={t('matches.filterUpcoming')}
             value={stats.upcoming}
             dotClassName="bg-emerald-500"
             active={activeFilter === 'upcoming'}
             onClick={() => setActiveFilter('upcoming')}
           />
           <ListFilterStatCard
-            label="Futsal"
-            value={stats.futsal}
+            label={t('matches.filterUpcoming7')}
+            value={stats.upcoming7}
             dotClassName="bg-indigo-500"
-            active={activeFilter === 'futsal'}
-            onClick={() => setActiveFilter('futsal')}
+            active={activeFilter === 'upcoming7'}
+            onClick={() => setActiveFilter('upcoming7')}
           />
           <ListFilterStatCard
-            label="With Location"
-            value={stats.withLocation}
+            label={t('matches.filterUpcoming14')}
+            value={stats.upcoming14}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'withLocation'}
-            onClick={() => setActiveFilter('withLocation')}
+            active={activeFilter === 'upcoming14'}
+            onClick={() => setActiveFilter('upcoming14')}
           />
         </div>
 

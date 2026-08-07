@@ -167,6 +167,21 @@ export function MatchProvider({
     [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches, setValidationErrors],
   );
 
+  const openMatchForEdit = useCallback(
+    (match: Match) => {
+      clearMatchSelectionCore();
+      setRecentlyDuplicatedMatchId(null);
+      setCurrentMatch(match);
+      setMentionsDraft(null);
+      setPanelMode('edit');
+      setIsMatchPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+      navigateToItem(match, matches, matchSlugNameField);
+    },
+    [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches, setValidationErrors],
+  );
+
   const openMatchForView = useCallback(
     (match: Match) => {
       if (!window.location.pathname.startsWith('/matches')) {
@@ -535,6 +550,7 @@ export function MatchProvider({
       matches,
       openMatchPanel,
       openMatchForView,
+      openMatchForEdit,
       openMatchSettings,
       closeMatchSettingsView,
       closeMatchPanel,
@@ -585,6 +601,7 @@ export function MatchProvider({
       matches,
       openMatchPanel,
       openMatchForView,
+      openMatchForEdit,
       openMatchSettings,
       closeMatchSettingsView,
       closeMatchPanel,

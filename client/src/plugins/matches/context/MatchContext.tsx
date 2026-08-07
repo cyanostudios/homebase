@@ -12,6 +12,7 @@ export interface MatchContextType {
 
   openMatchPanel: (match: Match | null) => void;
   openMatchForView: (match: Match) => void;
+  openMatchForEdit: (match: Match) => void;
   openMatchSettings: () => void;
   closeMatchSettingsView: () => void;
   closeMatchPanel: () => void;
@@ -91,6 +92,7 @@ const EMPTY_MATCH_CONTEXT: MatchContextType = {
   matches: [],
   openMatchPanel: () => {},
   openMatchForView: () => {},
+  openMatchForEdit: () => {},
   openMatchSettings: () => {},
   closeMatchSettingsView: () => {},
   closeMatchPanel: () => {},
