@@ -29,6 +29,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -528,9 +529,13 @@ export const NoteList: React.FC = () => {
           />
 
           {sortedNotes.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm ? t('notes.noMatch') : t('notes.noYet')}
-            </div>
+            <ListEmptyState
+              message={searchTerm ? t('notes.noMatch') : t('notes.noYet')}
+              createLabel={!searchTerm ? t('notes.addNote') : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openNotePanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

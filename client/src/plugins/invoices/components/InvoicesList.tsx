@@ -10,9 +10,9 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { GroupedList } from '@/core/ui/GroupedList';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
@@ -426,6 +426,10 @@ export function InvoicesList() {
             items={sortedInvoices}
             groupConfig={null}
             emptyMessage={searchTerm ? t('invoices.noMatch') : t('invoices.noYet')}
+            emptyCreateLabel={!searchTerm ? t('invoices.addInvoice') : undefined}
+            onEmptyCreate={
+              !searchTerm ? () => attemptNavigation(() => openInvoicesPanel(null)) : undefined
+            }
             renderItem={(invoice, idx) => {
               const invoiceIsSelected = isSelected(invoice.id);
               return (

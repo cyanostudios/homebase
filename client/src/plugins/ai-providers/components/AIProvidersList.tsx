@@ -15,8 +15,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
-import { formatDate } from '@/core/utils/dateFormat';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { formatDate } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -313,11 +314,15 @@ export const AIProvidersList: React.FC = () => {
               </div>
             </Card>
           ) : filteredAndSorted.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                {searchTerm.trim() ? t('aiProviders.noMatch') : t('aiProviders.noYet')}
-              </div>
-            </Card>
+            <ListEmptyState
+              message={searchTerm.trim() ? t('aiProviders.noMatch') : t('aiProviders.noYet')}
+              createLabel={!searchTerm.trim() ? t('aiProviders.addProvider') : undefined}
+              onCreate={
+                !searchTerm.trim()
+                  ? () => attemptNavigation(() => openAIProviderPanel(null))
+                  : undefined
+              }
+            />
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 gap-4 px-1 pb-1 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredAndSorted.map((provider) => {

@@ -25,10 +25,11 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -519,9 +520,13 @@ export function EstimateList() {
           />
 
           {sortedEstimates.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm ? t('estimates.noMatch') : t('estimates.noYet')}
-            </div>
+            <ListEmptyState
+              message={searchTerm ? t('estimates.noMatch') : t('estimates.noYet')}
+              createLabel={!searchTerm ? t('estimates.addEstimate') : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openEstimatePanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

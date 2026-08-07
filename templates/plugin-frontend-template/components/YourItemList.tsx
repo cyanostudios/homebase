@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { formatDate } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -254,9 +255,16 @@ export const YourItemList: React.FC = () => {
           {viewMode === 'grid' ? (
             <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredAndSorted.length === 0 ? (
-                <p className="col-span-full p-4 text-center text-sm text-muted-foreground">
-                  {searchTerm ? 'No items match your search.' : 'No items yet.'}
-                </p>
+                <ListEmptyState
+                  className="col-span-full"
+                  message={searchTerm ? 'No items match your search.' : 'No items yet.'}
+                  createLabel={!searchTerm ? 'Add item' : undefined}
+                  onCreate={
+                    !searchTerm
+                      ? () => attemptNavigation(() => openYourItemsPanel(null))
+                      : undefined
+                  }
+                />
               ) : (
                 filteredAndSorted.map((item) => (
                   <Card
@@ -299,10 +307,19 @@ export const YourItemList: React.FC = () => {
               <TableBody>
                 {filteredAndSorted.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={2} className="p-6 text-center text-muted-foreground">
-                      {searchTerm
-                        ? 'No items match your search.'
-                        : 'No items yet. Click "Add item" to get started.'}
+                    <TableCell colSpan={2} className="p-0">
+                      <ListEmptyState
+                        className="rounded-none shadow-none"
+                        message={
+                          searchTerm ? 'No items match your search.' : 'No items yet.'
+                        }
+                        createLabel={!searchTerm ? 'Add item' : undefined}
+                        onCreate={
+                          !searchTerm
+                            ? () => attemptNavigation(() => openYourItemsPanel(null))
+                            : undefined
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (

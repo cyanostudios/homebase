@@ -32,6 +32,7 @@ import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDia
 import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { exportItems } from '@/core/utils/exportUtils';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -632,9 +633,13 @@ export function SlotsList() {
           />
 
           {filteredAndSorted.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
-            </div>
+            <ListEmptyState
+              message={searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
+              createLabel={!searchTerm ? t('slots.addSlot') : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openSlotPanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

@@ -662,6 +662,7 @@ Gå igenom denna lista i ordning. **Inget "troligen OK" accepteras** – verifie
 
 - [ ] Alla nycklar finns i `en.json`
 - [ ] Alla nycklar finns i `sv.json`
+- [ ] List empty: kort `*.noYet` + `ListEmptyState` Create när listan är tom; ingen Create vid `*.noMatch`
 - [ ] Inga hårdkodade engelska strängar
 
 ### Lint

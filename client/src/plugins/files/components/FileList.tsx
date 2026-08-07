@@ -25,6 +25,7 @@ import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -447,9 +448,13 @@ export const FileList: React.FC = () => {
           />
 
           {filteredAndSorted.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm ? t('files.noMatch') : t('files.noYet')}
-            </div>
+            <ListEmptyState
+              message={searchTerm ? t('files.noMatch') : t('files.noYet')}
+              createLabel={!searchTerm ? t('files.addFile') : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openFilePanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

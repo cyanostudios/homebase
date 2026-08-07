@@ -14,6 +14,7 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
@@ -389,9 +390,15 @@ export const IngestSourceList: React.FC = () => {
           />
 
           {filteredAndSorted.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm.trim() ? t('ingest.noMatch') : t('ingest.noYet')}
-            </div>
+            <ListEmptyState
+              message={searchTerm.trim() ? t('ingest.noMatch') : t('ingest.noYet')}
+              createLabel={!searchTerm.trim() ? t('ingest.addSource') : undefined}
+              onCreate={
+                !searchTerm.trim()
+                  ? () => attemptNavigation(() => openIngestPanel(null))
+                  : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

@@ -17,6 +17,7 @@ Start here when adding a new Homebase plugin or a Cupappen-class public site.
 - **URL navigation:** `useItemUrl('/<plugin>')` + `navigateToBase()` on panel close; deep-link via `resolveSlug` + pathname ref in Provider.
 - **Forms:** `React.forwardRef<PanelFormHandle>` + **inline Save/Cancel** in the form body (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12). No `window.submit*Form` globals.
 - **List shell v3.6:** in-card toolbar (search, grid/list toggle) — see `UI_AND_UX_STANDARDS_V3.md` §0.1 and `YourItemList.tsx`. Do **not** use `ContentToolbar` in `setHeaderTrailing` for list views.
+- **List empty state:** `ListEmptyState` with short “No items yet” + Create CTA when truly empty (same `openYourItemsPanel(null)` as header Add). No Create on search “no match”.
 - **Settings:** full-page `*SettingsView` opened from the list (not panel-settings). See `YourItemsSettingsView.tsx`.
 - **Dates:** `formatDate` / `formatDateTime` from `@/core/utils/dateFormat` (sv-SE).
 - **API:** `createApiClient('/your-items')` — path must match `routeBase` in `plugin.config.js`.

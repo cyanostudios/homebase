@@ -27,6 +27,7 @@ import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -679,9 +680,13 @@ export function CupsList() {
           />
 
           {filteredAndSorted.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {search.trim() ? t('cups.noMatch') : t('cups.noYet')}
-            </div>
+            <ListEmptyState
+              message={search.trim() ? t('cups.noMatch') : t('cups.noYet')}
+              createLabel={!search.trim() ? t('cups.addCup') : undefined}
+              onCreate={
+                !search.trim() ? () => attemptNavigation(() => openCupPanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

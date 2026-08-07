@@ -60,6 +60,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 
 - Add keys under `client/src/i18n/locales/en.json` and `client/src/i18n/locales/sv.json`.
 - Prefer shared primitives: `DetailLayout`, `DetailSection`, `ConfirmDialog`, shared `Button`, `Input`, `Textarea`, `NativeSelect`.
+- **List empty state:** use `ListEmptyState` (`@/core/ui/ListEmptyState`). Add short `*.noYet` (`No X yet` / `Inga X ännu`) and `*.noMatch`; when the list is truly empty, pass `createLabel` + `onCreate` (same open-create handler as header Add). Do not put “Click Add…” prose in `noYet`. See `UI_AND_UX_STANDARDS_V3.md` §0.1 and `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §6.
 
 ---
 
@@ -77,6 +78,8 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - `npm run build` passes.
 - Manual smoke test:
   - list loads
+  - empty list shows short `No X yet` + Create button that opens create
+  - search/filter with no results shows match copy **without** Create
   - create works
   - edit works
   - view shows correct details

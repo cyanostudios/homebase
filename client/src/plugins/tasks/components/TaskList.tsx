@@ -30,6 +30,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -607,9 +608,13 @@ export function TaskList() {
           />
 
           {sortedTasks.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
-            </div>
+            <ListEmptyState
+              message={searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
+              createLabel={!searchTerm ? t('tasks.addTask') : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openTaskPanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

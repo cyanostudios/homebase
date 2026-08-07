@@ -17,7 +17,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -29,13 +28,14 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
-import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -545,15 +545,13 @@ export function TeamList() {
           />
 
           {filteredAndSorted.length === 0 ? (
-            <Card className="shadow-none">
-              <div className="flex flex-col items-center gap-2 p-10 text-center">
-                <Users className="h-10 w-10 text-muted-foreground/40" />
-                <p className="text-sm font-medium">{t('teams.noMatchTitle')}</p>
-                <p className="text-xs text-muted-foreground">
-                  {teams.length === 0 ? t('teams.noYet') : t('teams.noMatch')}
-                </p>
-              </div>
-            </Card>
+            <ListEmptyState
+              message={teams.length === 0 ? t('teams.noYet') : t('teams.noMatch')}
+              createLabel={teams.length === 0 ? t('teams.addTeam') : undefined}
+              onCreate={
+                teams.length === 0 ? () => attemptNavigation(() => openTeamPanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 
 export interface GroupConfig<T> {
   // Function to get the group key for an item
@@ -19,6 +20,9 @@ interface GroupedListProps<T> {
   groupConfig: GroupConfig<T> | null; // null = no grouping
   renderItem: (item: T, idx: number) => React.ReactNode;
   emptyMessage?: string;
+  /** Create CTA on truly-empty lists (same handler as header Add). */
+  emptyCreateLabel?: string;
+  onEmptyCreate?: () => void;
   className?: string;
 }
 
@@ -27,6 +31,8 @@ export function GroupedList<T>({
   groupConfig,
   renderItem,
   emptyMessage = 'No items found.',
+  emptyCreateLabel,
+  onEmptyCreate,
   className = '',
 }: GroupedListProps<T>) {
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
@@ -82,7 +88,12 @@ export function GroupedList<T>({
 
   if (items.length === 0) {
     return (
-      <div className={`p-6 text-center text-muted-foreground ${className}`}>{emptyMessage}</div>
+      <ListEmptyState
+        message={emptyMessage}
+        createLabel={emptyCreateLabel}
+        onCreate={onEmptyCreate}
+        className={className}
+      />
     );
   }
 

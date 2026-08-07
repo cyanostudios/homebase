@@ -32,17 +32,17 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
-import { exportItems } from '@/core/utils/exportUtils';
-import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { exportItems } from '@/core/utils/exportUtils';
+import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
-import { contactExportConfig } from '../utils/contactExportConfig';
 import {
   getInitialContactColumnCount,
   resolveContactColumnCount,
@@ -50,6 +50,7 @@ import {
   CONTACTS_SETTINGS_KEY,
   type ContactColumnCount,
 } from '../utils/contactColumnCount';
+import { contactExportConfig } from '../utils/contactExportConfig';
 import {
   compareContactsByField,
   isContactAscDefaultField,
@@ -670,9 +671,13 @@ export const ContactList: React.FC = () => {
           />
 
           {sortedContacts.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
-            </div>
+            <ListEmptyState
+              message={searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
+              createLabel={!searchTerm ? t('contacts.addContact') : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openContactPanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

@@ -25,6 +25,7 @@ import {
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -440,9 +441,17 @@ export const GuideList: React.FC = () => {
           />
 
           {filteredAndSorted.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm || activeFilter !== 'all' ? t('guides.noMatch') : t('guides.noYet')}
-            </div>
+            <ListEmptyState
+              message={
+                searchTerm || activeFilter !== 'all' ? t('guides.noMatch') : t('guides.noYet')
+              }
+              createLabel={!searchTerm && activeFilter === 'all' ? t('guides.addPlace') : undefined}
+              onCreate={
+                !searchTerm && activeFilter === 'all'
+                  ? () => attemptNavigation(() => openGuidePanel(null))
+                  : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

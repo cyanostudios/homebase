@@ -25,6 +25,7 @@ import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -447,11 +448,13 @@ export function MatchList() {
           />
 
           {filteredAndSorted.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm
-                ? t('matches.noMatch', 'No matches found matching your search.')
-                : t('matches.noYet', 'No matches yet. Click "Add match" to add one.')}
-            </div>
+            <ListEmptyState
+              message={searchTerm ? t('matches.noMatch') : t('matches.noYet')}
+              createLabel={!searchTerm ? t('matches.addMatch') : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openMatchPanel(null)) : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

@@ -30,6 +30,7 @@ import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
@@ -45,13 +46,13 @@ import {
   resolveInstructionColumnCount,
   type InstructionColumnCount,
 } from '../utils/instructionColumnCount';
-import { getInstructionListStatusErrorMessage } from '../utils/instructionListStatusError';
 import {
   compareInstructionsByField,
   isInstructionStringSortField,
   type InstructionSortField,
   type InstructionSortOrder,
 } from '../utils/instructionListSort';
+import { getInstructionListStatusErrorMessage } from '../utils/instructionListStatusError';
 import { sortCategoryNames } from '../utils/sortCategoryNames';
 
 import { InstructionListItem } from './InstructionListItem';
@@ -190,7 +191,9 @@ export const InstructionList: React.FC = () => {
       return [...filtered].sort((a, b) => {
         const ao = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
         const bo = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
-        if (ao !== bo) return ao - bo;
+        if (ao !== bo) {
+          return ao - bo;
+        }
         return (a.title || '').localeCompare(b.title || '', 'sv');
       });
     }
@@ -285,9 +288,13 @@ export const InstructionList: React.FC = () => {
 
   const handleMoveInCategory = useCallback(
     async (index: number, direction: -1 | 1) => {
-      if (!canReorderCategory) return;
+      if (!canReorderCategory) {
+        return;
+      }
       const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= sortedInstructions.length) return;
+      if (nextIndex < 0 || nextIndex >= sortedInstructions.length) {
+        return;
+      }
       const orderedIds = sortedInstructions.map((row) => String(row.id));
       const tmp = orderedIds[index];
       orderedIds[index] = orderedIds[nextIndex];
@@ -566,24 +573,23 @@ export const InstructionList: React.FC = () => {
           />
 
           {sortedInstructions.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-6 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              {searchTerm || activeFilter !== 'all' || categoryFilter !== 'all'
-                ? t('instructions.noMatch')
-                : t('instructions.noYet')}
-              {!searchTerm && activeFilter === 'all' && categoryFilter === 'all' ? (
-                <div className="mt-3">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon={Plus}
-                    className="h-9 px-3 text-xs"
-                    onClick={() => attemptNavigation(() => openInstructionPanel(null))}
-                  >
-                    {t('instructions.addInstruction')}
-                  </Button>
-                </div>
-              ) : null}
-            </div>
+            <ListEmptyState
+              message={
+                searchTerm || activeFilter !== 'all' || categoryFilter !== 'all'
+                  ? t('instructions.noMatch')
+                  : t('instructions.noYet')
+              }
+              createLabel={
+                !searchTerm && activeFilter === 'all' && categoryFilter === 'all'
+                  ? t('instructions.addInstruction')
+                  : undefined
+              }
+              onCreate={
+                !searchTerm && activeFilter === 'all' && categoryFilter === 'all'
+                  ? () => attemptNavigation(() => openInstructionPanel(null))
+                  : undefined
+              }
+            />
           ) : (
             <div
               className={cn(

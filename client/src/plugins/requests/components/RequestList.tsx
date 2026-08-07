@@ -26,18 +26,19 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
-import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
-import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useRequests } from '../hooks/useRequests';
+import { useRequestTeams } from '../hooks/useRequestTeams';
 import { getTypeLabel } from '../types/requests';
 import type { Request, RequestPriority, RequestStatus } from '../types/requests';
 import {
@@ -149,13 +150,21 @@ export function RequestList() {
     const q = search.trim().toLowerCase();
     return requests.filter((req) => {
       if (statusFilter === 'active') {
-        if (req.status !== 'not started' && req.status !== 'in progress') return false;
+        if (req.status !== 'not started' && req.status !== 'in progress') {
+          return false;
+        }
       } else if (statusFilter !== 'all' && req.status !== statusFilter) {
         return false;
       }
-      if (typeFilter !== 'all' && req.requestType !== typeFilter) return false;
-      if (teamFilter === 'unlinked' && req.teamId != null) return false;
-      if (!q) return true;
+      if (typeFilter !== 'all' && req.requestType !== typeFilter) {
+        return false;
+      }
+      if (teamFilter === 'unlinked' && req.teamId != null) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
       const teamName = req.teamId ? teamById.get(req.teamId) || '' : '';
       return [req.title, req.description, req.submitterName, teamName]
         .filter(Boolean)
@@ -550,13 +559,15 @@ export function RequestList() {
           />
 
           {sorted.length === 0 ? (
-            <div className="rounded-xl bg-white px-4 py-10 text-center text-muted-foreground shadow-sm dark:bg-slate-950">
-              <Inbox className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm font-medium">
-                {requests.length === 0 ? t('requests.noYet') : t('requests.noMatchTitle')}
-              </p>
-              {requests.length > 0 && <p className="mt-1 text-xs">{t('requests.noMatch')}</p>}
-            </div>
+            <ListEmptyState
+              message={requests.length === 0 ? t('requests.noYet') : t('requests.noMatchTitle')}
+              createLabel={requests.length === 0 ? t('requests.addRequest') : undefined}
+              onCreate={
+                requests.length === 0
+                  ? () => attemptNavigation(() => openRequestPanel(null))
+                  : undefined
+              }
+            />
           ) : (
             <div
               className={cn(
