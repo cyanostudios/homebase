@@ -23,6 +23,7 @@ export type NavPage =
   | 'clubdesk'
   | 'clubdesk-guides'
   | 'clubdesk-price-list'
+  | 'clubdesk-info'
   | 'mail'
   | 'pulses'
   | 'ai-providers'

@@ -9,6 +9,7 @@ module.exports = {
     '<rootDir>/tools/workflow-runner',
     '<rootDir>/public-cups',
     '<rootDir>/public-instructions',
+    '<rootDir>/public-clubdesk',
     '<rootDir>/templates/public-app',
     '<rootDir>/client/src/core',
     '<rootDir>/client/src/plugins/guides',

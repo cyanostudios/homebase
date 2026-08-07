@@ -186,11 +186,8 @@ class PriceListModel {
           : String(data.description);
     }
 
-    if (!partial || data.featuredImageUrl !== undefined || data.featured_image_url !== undefined) {
-      const raw =
-        data.featuredImageUrl !== undefined ? data.featuredImageUrl : data.featured_image_url;
-      out.featuredImageUrl = raw === undefined || raw === null || raw === '' ? null : String(raw);
-    }
+    // Featured image removed for price lists — always store null.
+    out.featuredImageUrl = null;
 
     if (!partial || data.publicationStatus !== undefined || data.publication_status !== undefined) {
       const raw =
@@ -247,7 +244,7 @@ class PriceListModel {
       title: row.title ?? '',
       slug: row.slug ?? '',
       description: row.description ?? null,
-      featuredImageUrl: row.featured_image_url ?? null,
+      featuredImageUrl: null,
       publicationStatus: row.publication_status ?? 'draft',
       currency: row.currency ?? DEFAULT_CURRENCY,
       sortOrder:

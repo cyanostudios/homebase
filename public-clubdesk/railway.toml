@@ -1,0 +1,11 @@
+# Public app Railway service — separate from Homebase API.
+# In Railway UI: Root Directory = this folder (e.g. sites/appname or public-appname).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health.php"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"

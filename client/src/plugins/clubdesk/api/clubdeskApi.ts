@@ -11,6 +11,12 @@ import type {
   ClubdeskPriceListItemCategory,
   ClubdeskPriceListPayload,
 } from '../types/priceList';
+import type {
+  ClubdeskSiteCardKey,
+  ClubdeskSiteContentCard,
+  ClubdeskSiteContentMap,
+} from '../types/siteContent';
+import type { ClubdeskSwishProfile, ClubdeskSwishProfilePayload } from '../types/swishProfile';
 
 const request = createApiClient('/clubdesk');
 
@@ -264,6 +270,86 @@ class ClubdeskApi {
       body: JSON.stringify({ category, orderedIds }),
     }).then(normalizePriceList);
   }
+
+  async getSiteContent(): Promise<ClubdeskSiteContentMap> {
+    const rows = await apiRequest<ClubdeskSiteContentMap>('/site-content');
+    return normalizeSiteContentMap(rows);
+  }
+
+  saveSiteContent(
+    cards: Array<{ cardKey: ClubdeskSiteCardKey; content: string; meta?: Record<string, unknown> }>,
+  ): Promise<ClubdeskSiteContentMap> {
+    return apiRequest<ClubdeskSiteContentMap>('/site-content', {
+      method: 'PUT',
+      body: JSON.stringify({ cards }),
+    }).then(normalizeSiteContentMap);
+  }
+
+  async getSwishProfiles(): Promise<ClubdeskSwishProfile[]> {
+    const rows = await apiRequest<ClubdeskSwishProfile[]>('/swish-profiles');
+    return (rows || []).map(normalizeSwishProfile);
+  }
+
+  async getSwishProfile(id: string): Promise<ClubdeskSwishProfile> {
+    const row = await apiRequest<ClubdeskSwishProfile>(`/swish-profiles/${id}`);
+    return normalizeSwishProfile(row);
+  }
+
+  createSwishProfile(payload: ClubdeskSwishProfilePayload) {
+    return apiRequest<ClubdeskSwishProfile>('/swish-profiles', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(normalizeSwishProfile);
+  }
+
+  updateSwishProfile(id: string, payload: Partial<ClubdeskSwishProfilePayload>) {
+    return apiRequest<ClubdeskSwishProfile>(`/swish-profiles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }).then(normalizeSwishProfile);
+  }
+
+  deleteSwishProfile(id: string) {
+    return apiRequest<{ id: string }>(`/swish-profiles/${id}`, { method: 'DELETE' });
+  }
+}
+
+function emptySiteCard(cardKey: ClubdeskSiteCardKey): ClubdeskSiteContentCard {
+  return { cardKey, content: '', meta: {}, updatedAt: null };
+}
+
+function normalizeSiteCard(
+  cardKey: ClubdeskSiteCardKey,
+  row?: Partial<ClubdeskSiteContentCard> | null,
+): ClubdeskSiteContentCard {
+  return {
+    cardKey,
+    content: row?.content ?? '',
+    meta: row?.meta && typeof row.meta === 'object' && !Array.isArray(row.meta) ? row.meta : {},
+    updatedAt: row?.updatedAt ?? null,
+  };
+}
+
+function normalizeSiteContentMap(
+  rows?: Partial<ClubdeskSiteContentMap> | null,
+): ClubdeskSiteContentMap {
+  return {
+    home: normalizeSiteCard('home', rows?.home),
+    info: normalizeSiteCard('info', rows?.info),
+    swish: normalizeSiteCard('swish', rows?.swish ?? emptySiteCard('swish')),
+  };
+}
+
+function normalizeSwishProfile(row: ClubdeskSwishProfile): ClubdeskSwishProfile {
+  return {
+    id: String(row.id),
+    payee: row.payee ?? '',
+    message: row.message ?? '',
+    sortOrder: Number(row.sortOrder) || 1,
+    priceListIds: Array.isArray(row.priceListIds) ? row.priceListIds.map((id) => String(id)) : [],
+    createdAt: row.createdAt ?? null,
+    updatedAt: row.updatedAt ?? null,
+  };
 }
 
 export const clubdeskApi = new ClubdeskApi();

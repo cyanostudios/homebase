@@ -4,6 +4,90 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-07 – Clubdesk Swish-profiler ↔ prislistor
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. Residual **SP-1** dokumenterad — **väntar TPM medvetet godkännande**. **Ej prod-release.**
+
+**Sammanfattning:** Flera Swish-profiler (nummer + märkning, aldrig belopp) under Clubdesk Info → Swish. Varje profil knyts till en eller fler prislistor (max en profil per lista). QR via `@/core/qr` med belopp olåst i Swish-appen. Publik cart-QR ej med.
+
+**Verifierat beteende (kod):**
+
+- Migration [`123-clubdesk-swish-profiles.sql`](../server/migrations/123-clubdesk-swish-profiles.sql); ingår i `npm run migrate:clubdesk`.
+- API: `GET/POST/PUT/DELETE /api/clubdesk/swish-profiles`.
+- UI: [`ClubdeskSwishProfilesPanel.tsx`](../client/src/plugins/clubdesk/components/ClubdeskSwishProfilesPanel.tsx).
+- ADR: [`docs/ai/adr/CLUBDESK_SWISH_PROFILES.md`](ai/adr/CLUBDESK_SWISH_PROFILES.md).
+
+**Begränsningar / residualer:**
+
+- Ingen publik QR; ingen Type D; amount sparas inte.
+- **SP-1:** payee/message i tenant-tabeller — admin-only; väntar TPM-acceptans.
+
+---
+
+## 2026-08-07 – Clubdesk Info Swish QR
+
+**Status:** Implementerat lokalt (tidig singleton). **Superseded for storage** by Swish profiles (migration 123) same day. Historisk residual **SW-1** (meta) ersatt av **SP-1** (tabeller).
+
+**Sammanfattning (historik):** Första inkopplingen sparade Type C i `swish.meta`. Data migreras till profiler; `swish.meta` forceras tomt.
+
+**ADR:** [`CLUBDESK_SWISH_PROFILES.md`](ai/adr/CLUBDESK_SWISH_PROFILES.md), [`CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md).
+
+---
+
+## 2026-08-07 – Shared QR capability (core)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. Residualrisker AR-1–AR-3 dokumenterade — **väntar TPM medvetet godkännande**. **Ej prod-release.**
+
+**Sammanfattning:** Plattformskapabilitet `client/src/core/qr/` — generisk QR (PNG data URL) + Swish Type C-payload (`C{payee};{amount};{message};{lock_mask}`). Andra plugins importerar `@/core/qr`. Ingen HTTP-yta i core.
+
+**Verifierat beteende (kod):**
+
+- `parseSwishNumber` / `buildSwishTypeCPayload` / `generateQrDataUrl` / `<QrCode />`
+- npm `qrcode`; enhetstester under `client/src/core/qr/__tests__/` (27 gröna)
+- ADR: [`docs/ai/adr/SHARED_QR_CAPABILITY.md`](ai/adr/SHARED_QR_CAPABILITY.md)
+
+**Begränsningar:** Ingen commerce/token-QR; SVG-sträng får inte HTML-injiceras utan ny Security-granskning. Clubdesk Info-konsument: se separat changelog-post samma dag.
+
+---
+
+## 2026-08-07 – Clubdesk Info (innehållskort)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. Residual HTML/XSS-risker dokumenterade — **väntar TPM medvetet godkännande**. **Ej prod-release.**
+
+**Sammanfattning:** Ny Clubdesk-avdelning **Info** (`/clubdesk/info`) med fasta kort: Hem + Info (TipTap) och Swish/QR (nu Type C-generator — se Swish QR-post ovan). Publika appen hämtar hem-/info-HTML via `site_content`.
+
+**Verifierat beteende (kod):**
+
+- Migration [`122-clubdesk-site-content.sql`](../server/migrations/122-clubdesk-site-content.sql); ingår i `npm run migrate:clubdesk`.
+- Admin API: `GET/PUT /api/clubdesk/site-content`; UI [`ClubdeskInfoView.tsx`](../client/src/plugins/clubdesk/components/ClubdeskInfoView.tsx).
+- Public: `GET /api/site_content.php` + Node `GET /api/public/clubdesk/site-content` (sanitized home/info only).
+- Guide-slug `info` reserverad.
+
+**Begränsningar:** Ingen prod-migration/deploy.
+
+**ADR:** [`docs/ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md), [`CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
+
+---
+
+## 2026-08-07 – Publik Clubdesk-app (guides + price lists)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Ny publik sajt `public-clubdesk/` (Clubdesk-brand) läser publicerade clubdesk-guider och prislistor. Hem = 2-kolumns hub (Guides, Price list); bottenflikar Hem | Guides | Price list | Info. Node companion `/api/public/clubdesk`.
+
+**Verifierat beteende (kod):**
+
+- Site: [`public-clubdesk/`](../public-clubdesk/) — `npm run dev:public-clubdesk` → port **3011**; PHP `APP_DB_URL`.
+- Node: [`plugins/public-clubdesk/`](../plugins/public-clubdesk/) — guides + price-lists list/get; `PUBLIC_CLUBDESK_USER_ID` / `_EMAIL`; CORS `PUBLIC_CLUBDESK_URL`.
+- ADR: [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
+
+**Kända begränsningar:**
+
+- Ingen prod-deploy i denna leverans.
+- `public-instructions/` oförändrad (separat plugin).
+
+---
+
 ## 2026-08-07 – Form-ägda kategorier (Clubdesk Guides + Instructions + Price list delete)
 
 **Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (residualer oförändrade: freeform image URLs m.m.). **Ej prod-release.**
@@ -22,7 +106,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 - Freeform image URLs (Clubdesk) — TPM-accepterad residual.
 - `moveToCategory` behöver inte finnas i katalogen (fri sträng ≤100 / `null`).
-- Ingen publik Clubdesk-companion; ingen prod-release.
+- Publik Clubdesk-companion: se separat changelog-post samma dag; ingen prod-release.
 
 ---
 

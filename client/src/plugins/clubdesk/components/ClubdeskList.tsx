@@ -58,6 +58,7 @@ import { getClubdeskListStatusErrorMessage } from '../utils/clubdeskListStatusEr
 import { sortCategoryNames } from '../utils/sortCategoryNames';
 
 import { ClubdeskListItem } from './ClubdeskListItem';
+import { ClubdeskInfoView } from './ClubdeskInfoView';
 import { ClubdeskSettingsView } from './ClubdeskSettingsView';
 import { PriceListList } from './PriceListList';
 
@@ -82,8 +83,12 @@ const COLUMN_OPTIONS: ClubdeskColumnCount[] = [1, 2, 3];
 
 export const ClubdeskList: React.FC = () => {
   const location = useLocation();
-  if (pathToNavPage(location.pathname) === 'clubdesk-price-list') {
+  const page = pathToNavPage(location.pathname);
+  if (page === 'clubdesk-price-list') {
     return <PriceListList />;
+  }
+  if (page === 'clubdesk-info') {
+    return <ClubdeskInfoView />;
   }
   return <ClubdeskGuidesList />;
 };

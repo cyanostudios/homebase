@@ -128,15 +128,14 @@ class ClubdeskModel {
   }
 
   /**
-   * Frontend route `/clubdesk/price-list` must not collide with a guide slug.
+   * Frontend routes `/clubdesk/price-list` and `/clubdesk/info` must not collide with guide slugs.
    */
   assertSlugNotReserved(slug) {
-    if (
-      String(slug ?? '')
-        .trim()
-        .toLowerCase() === 'price-list'
-    ) {
-      const message = 'slug "price-list" is reserved';
+    const normalized = String(slug ?? '')
+      .trim()
+      .toLowerCase();
+    if (normalized === 'price-list' || normalized === 'info') {
+      const message = `slug "${normalized}" is reserved`;
       throw new AppError(message, 400, AppError.CODES.VALIDATION_ERROR, [
         { field: 'slug', message },
       ]);

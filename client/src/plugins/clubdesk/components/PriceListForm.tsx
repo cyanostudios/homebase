@@ -606,17 +606,6 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                     />
                   </div>
                   <div>
-                    <Label htmlFor="price-list-featured">
-                      {t('clubdesk.priceList.featuredImageUrl')}
-                    </Label>
-                    <Input
-                      id="price-list-featured"
-                      value={formData.featuredImageUrl ?? ''}
-                      onChange={(e) => updateField('featuredImageUrl', e.target.value)}
-                      placeholder="https://"
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="price-list-currency">{t('clubdesk.priceList.currency')}</Label>
                     <Input
                       id="price-list-currency"

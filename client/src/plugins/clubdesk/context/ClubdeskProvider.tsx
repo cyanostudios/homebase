@@ -770,7 +770,7 @@ export function ClubdeskProvider({
         title: raw.title.trim(),
         slug,
         description: raw.description?.trim() ? raw.description.trim() : null,
-        featuredImageUrl: raw.featuredImageUrl?.trim() ? raw.featuredImageUrl.trim() : null,
+        featuredImageUrl: null,
         publicationStatus: raw.publicationStatus === 'published' ? 'published' : 'draft',
         currency: (raw.currency || 'SEK').trim() || 'SEK',
         items: renumberWithinCategories(

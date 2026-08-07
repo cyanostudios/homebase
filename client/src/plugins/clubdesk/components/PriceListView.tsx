@@ -216,16 +216,6 @@ export const PriceListView: React.FC = () => {
                 </div>
               ) : null}
 
-              {viewItem.featuredImageUrl ? (
-                <img
-                  src={viewItem.featuredImageUrl}
-                  alt=""
-                  width={300}
-                  height={300}
-                  className="mb-4 h-[300px] w-[300px] max-w-full rounded-lg object-cover"
-                />
-              ) : null}
-
               {viewItem.description ? (
                 <div className="text-sm text-foreground">
                   <RichTextContent content={viewItem.description} />
@@ -260,51 +250,51 @@ export const PriceListView: React.FC = () => {
                         {group.items.map((item, index) => (
                           <li
                             key={item.id ?? `${group.category}-${index}`}
-                            className="flex gap-3 rounded-lg border border-border/50 p-3"
+                            className="rounded-lg border border-border/50 p-3"
                           >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <div className="text-sm font-medium">{item.title}</div>
-                                <div className="font-mono text-sm font-semibold tabular-nums">
-                                  {formatPriceListPrice(
-                                    item.price,
-                                    viewItem.currency || 'SEK',
-                                    i18n.language,
-                                  )}
-                                </div>
+                            <div className="flex items-center gap-3">
+                              <div className="min-w-0 flex-1 truncate text-sm font-medium">
+                                {item.title}
                               </div>
-                              {item.description ? (
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                  <RichTextContent content={item.description} />
-                                </div>
-                              ) : null}
+                              <div className="flex-shrink-0 font-mono text-sm font-semibold tabular-nums">
+                                {formatPriceListPrice(
+                                  item.price,
+                                  viewItem.currency || 'SEK',
+                                  i18n.language,
+                                )}
+                              </div>
+                              <div className="flex flex-shrink-0 flex-row items-center gap-0.5">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={ArrowUp}
+                                  className="h-8 w-8 px-0"
+                                  disabled={isSaving || index === 0}
+                                  aria-label={t('clubdesk.priceList.moveItemUp')}
+                                  onClick={() =>
+                                    void reorderPriceListItems(viewItem, group.category, index, -1)
+                                  }
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={ArrowDown}
+                                  className="h-8 w-8 px-0"
+                                  disabled={isSaving || index === group.items.length - 1}
+                                  aria-label={t('clubdesk.priceList.moveItemDown')}
+                                  onClick={() =>
+                                    void reorderPriceListItems(viewItem, group.category, index, 1)
+                                  }
+                                />
+                              </div>
                             </div>
-                            <div className="flex flex-shrink-0 flex-col gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={ArrowUp}
-                                className="h-8 w-8 px-0"
-                                disabled={isSaving || index === 0}
-                                aria-label={t('clubdesk.priceList.moveItemUp')}
-                                onClick={() =>
-                                  void reorderPriceListItems(viewItem, group.category, index, -1)
-                                }
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={ArrowDown}
-                                className="h-8 w-8 px-0"
-                                disabled={isSaving || index === group.items.length - 1}
-                                aria-label={t('clubdesk.priceList.moveItemDown')}
-                                onClick={() =>
-                                  void reorderPriceListItems(viewItem, group.category, index, 1)
-                                }
-                              />
-                            </div>
+                            {item.description ? (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                <RichTextContent content={item.description} />
+                              </div>
+                            ) : null}
                           </li>
                         ))}
                       </ul>

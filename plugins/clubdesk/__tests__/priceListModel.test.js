@@ -41,7 +41,7 @@ describe('PriceListModel', () => {
       title: 'Bar menu',
       slug: 'bar-menu',
       description: 'Drinks',
-      featuredImageUrl: 'https://cdn.example/a.jpg',
+      featuredImageUrl: null,
       publicationStatus: 'published',
       currency: 'SEK',
       sortOrder: 2,

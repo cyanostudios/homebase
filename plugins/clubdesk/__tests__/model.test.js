@@ -262,6 +262,32 @@ describe('ClubdeskModel', () => {
     expect(Database.get().transaction).not.toHaveBeenCalled();
   });
 
+  test('create rejects reserved slug info', async () => {
+    const { Database } = require('@homebase/core');
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query: jest.fn(),
+      transaction: jest.fn(),
+    });
+
+    await expect(
+      model.create(
+        {},
+        {
+          title: 'About',
+          slug: 'Info',
+          publicationStatus: 'draft',
+          steps: [],
+        },
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: AppError.CODES.VALIDATION_ERROR,
+      details: [{ field: 'slug', message: 'slug "info" is reserved' }],
+    });
+    expect(Database.get().transaction).not.toHaveBeenCalled();
+  });
+
   test('update rejects when another clubdesk already has the title', async () => {
     const { Database } = require('@homebase/core');
     const query = jest.fn(async (sql, params) => {

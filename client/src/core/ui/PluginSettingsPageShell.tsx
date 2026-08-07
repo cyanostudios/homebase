@@ -91,7 +91,7 @@ export function PluginSettingsPageShell({
   return (
     <div className={cn('space-y-4', className)}>
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-1">
           <h2 className="truncate text-xl font-semibold tracking-tight">{title}</h2>
           {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
         </div>

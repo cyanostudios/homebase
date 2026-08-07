@@ -103,6 +103,9 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.PUBLIC_INSTRUCTIONS_URL) {
     allowedOrigins.push(process.env.PUBLIC_INSTRUCTIONS_URL);
   }
+  if (process.env.PUBLIC_CLUBDESK_URL) {
+    allowedOrigins.push(process.env.PUBLIC_CLUBDESK_URL);
+  }
 } else {
   const devUi = process.env.FRONTEND_URL || 'http://localhost:3001';
   allowedOrigins.push(devUi);
@@ -119,6 +122,9 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.PUBLIC_INSTRUCTIONS_URL) {
     allowedOrigins.push(process.env.PUBLIC_INSTRUCTIONS_URL);
   }
+  if (process.env.PUBLIC_CLUBDESK_URL) {
+    allowedOrigins.push(process.env.PUBLIC_CLUBDESK_URL);
+  }
   // Public cups static app local dev defaults (works even without .env override)
   allowedOrigins.push('http://localhost:3004');
   allowedOrigins.push('http://127.0.0.1:3004');
@@ -128,6 +134,8 @@ if (process.env.NODE_ENV === 'production') {
   allowedOrigins.push('http://127.0.0.1:3002');
   allowedOrigins.push('http://localhost:3006');
   allowedOrigins.push('http://127.0.0.1:3006');
+  allowedOrigins.push('http://localhost:3011');
+  allowedOrigins.push('http://127.0.0.1:3011');
 }
 
 app.use(
@@ -434,6 +442,16 @@ async function gracefulShutdown(signal: string) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('Shutdown: public-instructions pool', msg);
+    }
+
+    try {
+      const publicClubdeskPlugin = require('../plugins/public-clubdesk/index.js');
+      if (typeof publicClubdeskPlugin.shutdownPublicClubdeskPool === 'function') {
+        await publicClubdeskPlugin.shutdownPublicClubdeskPool();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('Shutdown: public-clubdesk pool', msg);
     }
 
     // New public-* plugin template (docs/PUBLIC_APP_TEMPLATE.md):

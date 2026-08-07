@@ -1,0 +1,9 @@
+# Clubdesk
+
+Public Clubdesk app: guides and price lists for staff.
+
+- Home: hub tiles for Guides and Price list
+- Guides: step-by-step published guides
+- Price list: published price lists with line items
+
+Local: http://localhost:3011 (`npm run dev:public-clubdesk`)

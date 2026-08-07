@@ -2,6 +2,46 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Clubdesk Swish-profiler ↔ prislistor (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för multi-profil Swish + prislistkoppling (migration 123). Residual **SP-1** dokumenterad — **väntar TPM-acceptans**. Publik cart-QR out of scope. **Local-first; ej prod-release.**
+
+**ADR:** [`docs/ai/adr/CLUBDESK_SWISH_PROFILES.md`](adr/CLUBDESK_SWISH_PROFILES.md); Etapp 1 beslut 12 + Security SP-1; Shared QR / Public companion synkade.
+
+---
+
+## Clubdesk Info Swish QR (2026-08-07)
+
+Historisk docs-sync för tidig singleton `swish.meta`-wiring. **Superseded** av Swish-profiler samma dag (SP-1 ersätter SW-1 för lagring).
+
+**ADR:** [`CLUBDESK_SWISH_PROFILES.md`](adr/CLUBDESK_SWISH_PROFILES.md), [`CLUBDESK_PLUGIN_ETAPP1.md`](adr/CLUBDESK_PLUGIN_ETAPP1.md).
+
+---
+
+## Shared QR capability (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för delad QR i client core (generisk + Swish Type C). Residualrisker AR-1–AR-3 dokumenterade — **väntar TPM-acceptans**. **Local-first; ej prod-release.** Clubdesk Info är första admin-konsument (separat post).
+
+**ADR:** [`docs/ai/adr/SHARED_QR_CAPABILITY.md`](adr/SHARED_QR_CAPABILITY.md).
+
+---
+
+## Clubdesk Info innehållskort (2026-08-07)
+
+ADR-uppdatering: Info-sida med kort `home` | `info` | `swish`. Swish är nu Type C-generator (se Swish QR-post). Public site-content API. **QA Approved** + **Security Approved**; HTML/XSS-residualer dokumenterade — **väntar TPM-acceptans**. **Local-first; ej prod-release.**
+
+**ADR:** [`docs/ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](adr/CLUBDESK_PLUGIN_ETAPP1.md), [`CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md).
+
+---
+
+## Clubdesk public companion (2026-08-07)
+
+ADR + docs för publik Clubdesk-sajt (`public-clubdesk/`, port 3011) och Node companion `/api/public/clubdesk`. Hem-hub 2 kolumner; flikar Hem | Guides | Price list | Info. **Local-first; ej prod-release.**
+
+**ADR:** [`docs/ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md); Etapp 1 ADR pekar dit.
+
+---
+
 ## Form-ägda kategorier — Clubdesk + Instructions docs-sync (2026-08-07)
 
 Docs-sync efter **QA Approved** + **Security Approved** för form-ägda guide/instruction-kategorier, category delete med `moveToCategory` / 409-guard, click-to-assign, Settings View-only. Price list delete-integritet samma FE-mönster. **Ej prod-release.**

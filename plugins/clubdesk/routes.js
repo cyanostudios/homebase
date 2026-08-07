@@ -5,10 +5,155 @@ const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { body, commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
-function createClubdeskRoutes(controller, context, priceListController) {
+function createClubdeskRoutes(
+  controller,
+  context,
+  priceListController,
+  siteContentController,
+  swishProfileController,
+) {
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name);
+
+  // --- Site content (Info page cards): BEFORE /:id ---
+  if (siteContentController) {
+    router.get('/site-content', gate, (req, res) => {
+      siteContentController.getAll(req, res);
+    });
+
+    router.put(
+      '/site-content',
+      gate,
+      csrfProtection,
+      body('cards')
+        .isArray({ min: 1, max: 3 })
+        .withMessage('cards must be an array with 1-3 items'),
+      body('cards.*.cardKey')
+        .isString()
+        .isIn(['home', 'info', 'swish'])
+        .withMessage('cardKey must be home, info, or swish'),
+      body('cards.*.content')
+        .optional({ values: 'null' })
+        .isString()
+        .isLength({ max: 100000 })
+        .withMessage('content must not exceed 100000 characters'),
+      body('cards.*.meta')
+        .optional({ nullable: true })
+        .isObject()
+        .withMessage('meta must be an object'),
+      body('cards.*.meta.title')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 255 })
+        .withMessage('meta.title must not exceed 255 characters'),
+      validateRequest,
+      (req, res) => {
+        siteContentController.putBatch(req, res);
+      },
+    );
+
+    router.put(
+      '/site-content/:cardKey',
+      gate,
+      csrfProtection,
+      body('content')
+        .optional({ values: 'null' })
+        .isString()
+        .isLength({ max: 100000 })
+        .withMessage('content must not exceed 100000 characters'),
+      body('meta').optional({ nullable: true }).isObject().withMessage('meta must be an object'),
+      body('meta.title')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 255 })
+        .withMessage('meta.title must not exceed 255 characters'),
+      validateRequest,
+      (req, res) => {
+        siteContentController.putOne(req, res);
+      },
+    );
+  }
+
+  // --- Swish profiles (BEFORE /:id) ---
+  if (swishProfileController) {
+    router.get('/swish-profiles', gate, (req, res) => {
+      swishProfileController.getAll(req, res);
+    });
+
+    router.post(
+      '/swish-profiles',
+      gate,
+      csrfProtection,
+      body('payee')
+        .isString()
+        .trim()
+        .isLength({ min: 1, max: 32 })
+        .withMessage('payee is required'),
+      body('message')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 50 })
+        .withMessage('message must not exceed 50 characters'),
+      body('priceListIds')
+        .optional({ values: 'null' })
+        .isArray({ max: 500 })
+        .withMessage('priceListIds must be an array'),
+      body('priceListIds.*')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('each priceListId must be a positive integer'),
+      validateRequest,
+      (req, res) => {
+        swishProfileController.create(req, res);
+      },
+    );
+
+    router.get('/swish-profiles/:id', gate, commonRules.id('id'), validateRequest, (req, res) => {
+      swishProfileController.getById(req, res);
+    });
+
+    router.put(
+      '/swish-profiles/:id',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      body('payee')
+        .optional()
+        .isString()
+        .trim()
+        .isLength({ min: 1, max: 32 })
+        .withMessage('payee must be 1-32 characters'),
+      body('message')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 50 })
+        .withMessage('message must not exceed 50 characters'),
+      body('priceListIds')
+        .optional({ values: 'null' })
+        .isArray({ max: 500 })
+        .withMessage('priceListIds must be an array'),
+      body('priceListIds.*')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('each priceListId must be a positive integer'),
+      validateRequest,
+      (req, res) => {
+        swishProfileController.update(req, res);
+      },
+    );
+
+    router.delete(
+      '/swish-profiles/:id',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      validateRequest,
+      (req, res) => {
+        swishProfileController.remove(req, res);
+      },
+    );
+  }
 
   const parentValidators = [
     commonRules.plainString('title', 1, 255),
@@ -59,11 +204,6 @@ function createClubdeskRoutes(controller, context, priceListController) {
       .isString()
       .isLength({ max: 50000 })
       .withMessage('description must not exceed 50000 characters'),
-    body('featuredImageUrl')
-      .optional({ values: 'falsy' })
-      .isString()
-      .isLength({ max: 2000 })
-      .withMessage('featuredImageUrl must not exceed 2000 characters'),
     commonRules.optionalEnum('publicationStatus', ['draft', 'published']),
     body('currency')
       .optional({ values: 'falsy' })

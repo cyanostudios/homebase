@@ -2,7 +2,7 @@
 
 Use when creating a plugin from `templates/plugin-frontend-template` and `templates/plugin-backend-template`. Canonical naming for panels and hooks: **`PLUGIN_RUNTIME_CONVENTIONS.md`**. Design rules (inline Save/Cancel, settings footer): **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`**, **`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`**.
 
-**Related (not this checklist):** Cupappen-class public SEO sites use [`templates/public-app/`](../templates/public-app/) + [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md). Optional companion Node API: `plugins/public-<name>/` (copy `plugins/public-cups/`). **Concrete Etapp 1 examples:** `plugins/instructions` + public companion — see [`ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md); backoffice-only dual-tab clone — `plugins/clubdesk` — see [`ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md).
+**Related (not this checklist):** Cupappen-class public SEO sites use [`templates/public-app/`](../templates/public-app/) + [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md). Optional companion Node API: `plugins/public-<name>/` (copy `plugins/public-cups/`). **Concrete Etapp 1 examples:** `plugins/instructions` + public companion — see [`ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md); Clubdesk admin + public companion — [`ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md) + [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
 
 ---
 

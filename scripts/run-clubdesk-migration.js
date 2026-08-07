@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/run-clubdesk-migration.js
-// Run clubdesk migrations: 119 + 120 (tenant) + 121 grant (main)
+// Run clubdesk migrations: 119 + 120 + 122 + 123 (tenant) + 121 grant (main)
 
 const { Pool } = require('pg');
 const fs = require('fs');
@@ -13,6 +13,8 @@ dotenv.config({ path: '.env' });
 const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/119-clubdesk-guides.sql'),
   path.join(__dirname, '../server/migrations/120-clubdesk-price-lists.sql'),
+  path.join(__dirname, '../server/migrations/122-clubdesk-site-content.sql'),
+  path.join(__dirname, '../server/migrations/123-clubdesk-swish-profiles.sql'),
 ];
 const MAIN_MIGRATION = path.join(
   __dirname,

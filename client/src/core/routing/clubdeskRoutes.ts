@@ -1,5 +1,5 @@
 /** Named clubdesk sub-route URL segments (not guide item slugs). */
-export const CLUBDESK_SUBPAGES = ['price-list'] as const;
+export const CLUBDESK_SUBPAGES = ['price-list', 'info'] as const;
 
 export type ClubdeskSubpage = (typeof CLUBDESK_SUBPAGES)[number];
 

@@ -25,6 +25,8 @@ npm run set:tenant-plugins -- --enable=instructions
 - **`119-clubdesk-guides.sql`** — tenant-DB: Clubdesk guides + steps + guide categories (`clubdesk_guides`, `clubdesk_guide_steps`, `clubdesk_guide_categories`).
 - **`120-clubdesk-price-lists.sql`** — tenant-DB: price lists + items + per-list item categories.
 - **`121-grant-clubdesk-plugin-access.sql`** — **MAIN_DB_ONLY**: grant plugin `clubdesk`. Runner: `npm run migrate:clubdesk`.
+- **`122-clubdesk-site-content.sql`** — tenant-DB: Info page content cards (`clubdesk_site_content`, keys `home` | `info` | `swish`). Admin `/clubdesk/info`; public home/info via site-content APIs.
+- **`123-clubdesk-swish-profiles.sql`** — tenant-DB: `clubdesk_swish_profiles` + `clubdesk_swish_profile_price_lists` (M:N; unique `price_list_id`). Migrates singleton `swish.meta` payee/message into first profile and clears card meta.
 
 ```bash
 npm run migrate:tasks-team-id
