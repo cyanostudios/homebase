@@ -1,12 +1,17 @@
-import { Check, Download, LayoutGrid, List, RefreshCw } from 'lucide-react';
+import { Download, LayoutGrid, List, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/core/api/AppContext';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  PluginSettingsPageShell,
+  SettingsHeaderSaveButton,
+  type PluginSettingsCategory,
+} from '@/core/ui/PluginSettingsPageShell';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 import { useCups } from '@/plugins/cups/hooks/useCups';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
@@ -21,25 +26,20 @@ const CUPS_SETTINGS_KEY = 'cups';
 type CupsViewMode = 'grid' | 'list';
 export type CupsSettingsCategory = 'view' | 'import';
 
-const categories = [
-  { id: 'view' as const, label: 'View', icon: LayoutGrid },
-  { id: 'import' as const, label: 'Import', icon: Download },
-];
-
 export function CupsSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  renderCategoryButtonsInline = false,
   inlineTrailing,
 }: {
   selectedCategory?: CupsSettingsCategory;
   onSelectedCategoryChange?: (category: CupsSettingsCategory) => void;
+  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
   inlineTrailing?: React.ReactNode;
 } = {}) {
+  const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
   const { importFromIngestSource } = useCups();
-  const { setHeaderTrailing } = useContentLayout();
   const [internalCategory, setInternalCategory] = useState<CupsSettingsCategory>('view');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
@@ -69,6 +69,26 @@ export function CupsSettingsView({
     skipped: number;
     errors: string[];
   } | null>(null);
+
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'view',
+        label: t('cups.settingsCategories.view'),
+        description: t('cups.settingsCategories.viewDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.view,
+        dotClassName: 'bg-blue-500',
+      },
+      {
+        id: 'import',
+        label: t('cups.settingsCategories.import'),
+        description: t('cups.settingsCategories.importDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.import,
+        dotClassName: 'bg-emerald-500',
+      },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -209,66 +229,25 @@ export function CupsSettingsView({
     }
   }, [allowedIngestSourceIds, importFromIngestSource]);
 
-  const categoryButtons = useMemo(
-    () => (
-      <div className="flex items-center gap-1">
-        {categories.map((category) => {
-          const Icon = category.icon;
-          const isActive = activeCategory === category.id;
-          return (
-            <Button
-              key={category.id}
-              variant="ghost"
-              onClick={() => !isActive && setActiveCategory(category.id)}
-              className={cn(
-                'h-9 text-xs px-3 rounded-lg font-medium transition-colors flex items-center gap-1.5',
-                isActive
-                  ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>{category.label}</span>
-            </Button>
-          );
-        })}
-      </div>
-    ),
-    [activeCategory, setActiveCategory],
-  );
-
-  useEffect(() => {
-    if (renderCategoryButtonsInline) {
-      setHeaderTrailing(null);
-      return;
-    }
-    setHeaderTrailing(categoryButtons);
-    return () => setHeaderTrailing(null);
-  }, [categoryButtons, renderCategoryButtonsInline, setHeaderTrailing]);
-
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Loading settings...</div>;
   }
 
   return (
-    <div className="space-y-4">
-      {renderCategoryButtonsInline ? (
-        <div className="flex flex-shrink-0 items-center justify-between">
-          <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-            <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-              Cups settings
-            </h2>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
-            {categoryButtons}
-            {inlineTrailing}
-          </div>
-        </div>
-      ) : (
-        <h2 className="text-lg font-semibold tracking-tight">Cups settings</h2>
-      )}
-
-      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+    <>
+      <PluginSettingsPageShell
+        title={t('cups.settingsCups', { defaultValue: 'Cups settings' })}
+        subtitle={t('cups.settingsSubtitle')}
+        categories={categories}
+        activeCategory={activeCategory}
+        onCategoryChange={(id) => setActiveCategory(id as CupsSettingsCategory)}
+        trailing={inlineTrailing}
+        saveAction={
+          isDirty ? (
+            <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />
+          ) : null
+        }
+      >
         {activeCategory === 'view' && (
           <DetailSection title="Default view" className="pt-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -403,23 +382,7 @@ export function CupsSettingsView({
             </div>
           </DetailSection>
         )}
-      </Card>
-
-      {isDirty && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={handleSave}
-            variant="primary"
-            size="sm"
-            icon={Check}
-            disabled={isSaving}
-            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-          >
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      )}
+      </PluginSettingsPageShell>
 
       {importResult && (
         <CupIngestImportResultDialog
@@ -437,6 +400,6 @@ export function CupsSettingsView({
           errors={importResult.errors}
         />
       )}
-    </div>
+    </>
   );
 }

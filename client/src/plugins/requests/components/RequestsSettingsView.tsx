@@ -3,9 +3,9 @@ import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
 import { cn } from '@/lib/utils';
 
 import { useRequests } from '../hooks/useRequests';
@@ -111,137 +111,127 @@ export function RequestsSettingsView({ inlineTrailing }: RequestsSettingsViewPro
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-shrink-0 items-center justify-between">
-        <div className="mr-4 flex min-w-0 flex-1 items-center gap-4">
-          <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
-            {t('requests.settings.title')}
-          </h2>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-1">{inlineTrailing}</div>
-      </div>
+    <PluginSettingsPageShell
+      title={t('requests.settings.title')}
+      subtitle={t('requests.settingsSubtitle')}
+      trailing={inlineTrailing}
+    >
+      <DetailSection
+        title={t('requests.settings.typesSection')}
+        icon={Settings2}
+        iconPlugin="requests"
+        className="pt-0"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">{t('requests.settings.typesHint')}</p>
 
-      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
-        <DetailSection
-          title={
-            <div className="flex items-center gap-2">
-              <Settings2 className="h-3.5 w-3.5" />
-              <span>{t('requests.settings.typesSection')}</span>
-            </div>
-          }
-          className="pt-0"
-        >
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">{t('requests.settings.typesHint')}</p>
+          <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
+            {requestTypes.length === 0 && (
+              <li className="px-4 py-3 text-sm text-muted-foreground">
+                {t('requests.settings.noTypes')}
+              </li>
+            )}
+            {requestTypes.map((type) => {
+              const isBuiltin = BUILTIN_REQUEST_TYPE_KEYS.includes(type);
+              const label = getTypeLabel(type, t);
+              const isConfirming = confirmDeleteKey === type;
 
-            <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
-              {requestTypes.length === 0 && (
-                <li className="px-4 py-3 text-sm text-muted-foreground">
-                  {t('requests.settings.noTypes')}
-                </li>
-              )}
-              {requestTypes.map((type) => {
-                const isBuiltin = BUILTIN_REQUEST_TYPE_KEYS.includes(type);
-                const label = getTypeLabel(type, t);
-                const isConfirming = confirmDeleteKey === type;
-
-                return (
-                  <li
-                    key={type}
-                    draggable={!isSaving}
-                    onDragStart={(e) => handleDragStart(e, type)}
-                    onDragOver={(e) => handleDragOver(e, type)}
-                    onDrop={(e) => void handleDrop(e, type)}
-                    onDragEnd={handleDragEnd}
-                    onDragLeave={() => {
-                      if (dragOverType === type) setDragOverType(null);
-                    }}
-                    className={cn(
-                      'flex items-center justify-between gap-3 px-4 py-2.5 transition-colors',
-                      draggingType === type && 'opacity-50',
-                      dragOverType === type && 'bg-muted/60',
+              return (
+                <li
+                  key={type}
+                  draggable={!isSaving}
+                  onDragStart={(e) => handleDragStart(e, type)}
+                  onDragOver={(e) => handleDragOver(e, type)}
+                  onDrop={(e) => void handleDrop(e, type)}
+                  onDragEnd={handleDragEnd}
+                  onDragLeave={() => {
+                    if (dragOverType === type) setDragOverType(null);
+                  }}
+                  className={cn(
+                    'flex items-center justify-between gap-3 px-4 py-2.5 transition-colors',
+                    draggingType === type && 'opacity-50',
+                    dragOverType === type && 'bg-muted/60',
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Grip
+                      className="h-3.5 w-3.5 flex-shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
+                      aria-hidden
+                    />
+                    <span className="text-sm font-medium">{label}</span>
+                    {isBuiltin && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {t('requests.settings.builtIn')}
+                      </span>
                     )}
-                  >
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <Grip
-                        className="h-3.5 w-3.5 flex-shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
-                        aria-hidden
-                      />
-                      <span className="text-sm font-medium">{label}</span>
-                      {isBuiltin && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          {t('requests.settings.builtIn')}
-                        </span>
-                      )}
-                    </div>
+                  </div>
 
-                    {isConfirming ? (
-                      <div className="flex items-center gap-1">
-                        <span className="mr-1 text-xs text-muted-foreground">
-                          {t('requests.settings.confirmRemove')}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          icon={Check}
-                          className="h-7 px-2 text-xs"
-                          disabled={isSaving}
-                          onClick={() => handleRemove(type)}
-                        >
-                          {t('common.yes')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          icon={X}
-                          className="h-7 px-2 text-xs"
-                          onClick={() => setConfirmDeleteKey(null)}
-                        >
-                          {t('common.cancel')}
-                        </Button>
-                      </div>
-                    ) : (
+                  {isConfirming ? (
+                    <div className="flex items-center gap-1">
+                      <span className="mr-1 text-xs text-muted-foreground">
+                        {t('requests.settings.confirmRemove')}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        icon={Check}
+                        className="h-7 px-2 text-xs"
+                        disabled={isSaving}
+                        onClick={() => handleRemove(type)}
+                      >
+                        {t('common.yes')}
+                      </Button>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        icon={Trash2}
-                        className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                        onClick={() => setConfirmDeleteKey(type)}
-                        title={t('common.remove')}
-                      />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+                        icon={X}
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setConfirmDeleteKey(null)}
+                      >
+                        {t('common.cancel')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      icon={Trash2}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() => setConfirmDeleteKey(type)}
+                      title={t('common.remove')}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
 
-            <div className="flex items-center gap-2 pt-1">
-              <Input
-                ref={inputRef}
-                value={newTypeLabel}
-                onChange={(e) => setNewTypeLabel(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={t('requests.settings.addTypePlaceholder')}
-                className="h-8 max-w-xs text-xs"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={Plus}
-                className="h-8 px-2.5 text-xs"
-                disabled={!newTypeLabel.trim() || isSaving}
-                onClick={handleAdd}
-              >
-                {t('requests.settings.addType')}
-              </Button>
-            </div>
+          <div className="flex items-center gap-2 pt-1">
+            <Input
+              ref={inputRef}
+              value={newTypeLabel}
+              onChange={(e) => setNewTypeLabel(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t('requests.settings.addTypePlaceholder')}
+              className="h-8 max-w-xs text-xs"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={Plus}
+              className="h-8 px-2.5 text-xs"
+              disabled={!newTypeLabel.trim() || isSaving}
+              onClick={handleAdd}
+            >
+              {t('requests.settings.addType')}
+            </Button>
           </div>
-        </DetailSection>
-      </Card>
-    </div>
+        </div>
+      </DetailSection>
+    </PluginSettingsPageShell>
   );
 }

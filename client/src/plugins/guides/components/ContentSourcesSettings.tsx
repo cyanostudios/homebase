@@ -1,4 +1,4 @@
-import { BookOpen, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -52,12 +52,7 @@ export const ContentSourcesSettings: React.FC<ContentSourcesSettingsProps> = ({ 
   };
 
   return (
-    <DetailSection
-      title={t('guides.contentSources.title')}
-      icon={BookOpen}
-      iconPlugin="guides"
-      className={cn('p-4', className)}
-    >
+    <DetailSection title={t('guides.contentSources.title')} className={cn('pt-0', className)}>
       <div className="space-y-3 text-xs">
         <p className="text-muted-foreground">{t('guides.contentSources.description')}</p>
         {loading && (

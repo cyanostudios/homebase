@@ -196,7 +196,7 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
     const isSmtpConfigured = settings?.configured?.smtp === true;
 
     return (
-      <div className="plugin-mail space-y-6 p-4">
+      <div className="plugin-mail space-y-6">
         {/* Provider Section */}
         <DetailSection title={t('mail.provider')} icon={Mail}>
           <p className="text-sm text-muted-foreground mb-4">{t('mail.settingsDescription')}</p>

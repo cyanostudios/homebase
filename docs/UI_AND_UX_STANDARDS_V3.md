@@ -192,15 +192,22 @@ List views place toolbar actions inside the main list card (same shell as table/
 
 ### 3.2 Plugin settings
 
-**Full-page settings (teams, matches, requests, schedule):** Settings open on the list route via `*ContentView === 'settings'` and dedicated `*SettingsView` components with inline Save/Cancel. No `panelMode === 'settings'` in the detail `Form`.
+**Full-page settings (all plugins with `*SettingsView`):** Settings open on the list route via `*ContentView === 'settings'`. Use shared `PluginSettingsPageShell` (`client/src/core/ui/PluginSettingsPageShell.tsx`) so layout matches Core Settings:
 
-**Panel settings (legacy — Files, Mail, etc.):** When a plugin opens settings in the detail panel:
+- **Header:** Title (`text-xl font-semibold tracking-tight`) + subtitle (`text-sm text-muted-foreground`). Trailing: green header **Save** when dirty (`SettingsHeaderSaveButton`), then **Close** alone (passed as `trailing` / `inlineTrailing`). Do not place category tab buttons next to Close.
+- **Category picker (≥2 categories):** `SettingsCategoryCard` grid (`grid-cols-2`, `md:grid-cols-N` up to 4) — same surface language as Core Settings / `ListFilterStatCard` (dot + uppercase label + icon + short description). Active: `ring-1 ring-border/70`. Use canonical icons from `SETTINGS_CATEGORY_ICONS` (`client/src/core/ui/settingsCategoryIcons.ts`): `view`→LayoutGrid, `import`→Upload, `tags`/`categories`→Tag, `api`→Settings2, `production`→Timer, `sources`→BookOpen. Category card glyph size: `h-5 w-5`.
+- **Body:** Default wrap in `DETAIL_VIEW_CARD_CLASS` + `p-4` + `DetailSection`. Multi-card bodies (e.g. Teams, Schedule) set `wrapContentInCard={false}` and apply `DETAIL_VIEW_CARD_CLASS` per card.
+- **Icons:** When category cards are present, DetailSection titles are **text-only** (no `icon` prop — avoid duplicating the category metaphor). Single-pane settings (Mail, Pulses, Files, Teams, Requests, Schedule, Estimates) may use DetailSection `icon=` (boxed `h-7` / glyph `h-3.5`) for distinct sections — never inline Lucide glyphs inside the title node. Action buttons keep semantic icons (Check, Plus, Download, Upload, etc.) via Button `icon` prop (`h-4 w-4`).
+- No bottom dirty-Save footer for plugins that use dirty-state Save; that Save lives in the header like Core Settings. No `panelMode === 'settings'` in the detail `Form` for plugins that use full-page settings.
+- **Save variants (verified):** Dirty header Save — tasks, notes, contacts, slots, matches, cups, instructions, teams (season), estimates. Per-section / immediate save in children — guides, requests, schedule, files (cloud credentials). **Known gap:** mail and pulses full-page settings expose save via `PanelFormHandle` but do not currently surface a header or inline Save control.
+
+**Panel settings (legacy):** When a plugin still opens settings in the detail panel:
 
 - **Content:** Use `DetailSection` to group settings (e.g. "Cloud storage", "Email provider").
-- **Header/Footer actions:** In form modes (create/edit/settings), the panel uses Close + Save/Update actions with shared behavior. Actions may be rendered in header and/or footer, but the close/save handlers must be the same to keep unsaved-changes behavior consistent.
+- **Header/Footer actions:** `PanelFooter` for non-core plugins in `settings` mode shows **Close only**; the settings form is expected to save inline (or via its own controls). Core `settings` plugin footer shows Close + Save. See `PanelFooter.tsx` and `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §7.
 - **Core behaviour:** If the plugin’s Form component returns early when `panelMode === 'settings'` (and therefore does not register submit/cancel event listeners), core panel handlers must close the panel for that plugin when in `settings` mode by calling the context’s close function directly. See `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §7 (Plugin settings page).
 
-**Core Settings (Preferences / Profile / Team / Activity Log):** Same page shell as Contacts list — `contentFlush`, `min-h-full bg-background px-6 py-4`, `space-y-4`, in-page title (no ContentHeader). Category picker uses `ListFilterStatCard`-style cards in a `gap-3` grid with a short description under each label. Profile renders multiple `DETAIL_VIEW_CARD_CLASS` sections (Personal + shared Account name / Logo / Address / Billing). Shared org fields live on main DB `tenants.organization` (`GET/PUT /api/organization`). Field labels use `DETAIL_FIELD_LABEL_CLASS`.
+**Core Settings (Preferences / Profile / Team / Activity Log):** Same page shell as Contacts list — `contentFlush`, `min-h-full bg-background px-6 py-4`, `space-y-4`, in-page title (no ContentHeader). Category picker uses `SettingsCategoryCard` (same component as plugin settings) in a `gap-3` grid with a short description under each label. Profile renders multiple `DETAIL_VIEW_CARD_CLASS` sections (Personal + shared Account name / Logo / Address / Billing). Shared org fields live on main DB `tenants.organization` (`GET/PUT /api/organization`). Field labels use `DETAIL_FIELD_LABEL_CLASS`.
 
 **Detail Form = Detail View chrome:** Plugin create/edit forms that use `DetailLayout` must match view mode: no extra outer padding / `md:-mx-6` bleed shell, no `PANEL_MAX_WIDTH` on the main column, cards use `DETAIL_VIEW_CARD_CLASS`. Content sits in DetailPanel’s `px-6 py-4` (same as view).
 

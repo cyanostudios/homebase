@@ -27,7 +27,7 @@ Plugins with full-page settings or extra views use a separate `*ContentView` sta
 | `schedule` | `scheduleContentView` | `'list' \| 'settings'`                           |
 | `matches`  | `matchesContentView`  | `'list' \| 'settings'`                           |
 
-Settings UI lives in `*SettingsView` components on the list route — **not** in the detail panel form. Teams **bulk create** uses the same content-view pattern (`TeamsBulkCreateView` when `teamsContentView === 'bulk'`).
+Settings UI lives in `*SettingsView` components on the list route — **not** in the detail panel form. Prefer `PluginSettingsPageShell` + optional `SettingsCategoryCard` so layout matches Core Settings (`UI_AND_UX_STANDARDS_V3.md` §3.2). Teams **bulk create** uses the same content-view pattern (`TeamsBulkCreateView` when `teamsContentView === 'bulk'`).
 
 ---
 
@@ -55,7 +55,7 @@ The hook returned by `plugin.hook()` should expose (as applicable):
 
 **Create / edit (`panelMode` create | edit):** use **inline Save/Cancel** in the form body. Do **not** register `window.submit*Form` / `window.cancel*Form` for these modes (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12).
 
-**Full-page settings (`*ContentView === 'settings'`):** settings forms live on the list route (`TeamsSettingsView`, `MatchSettingsView`, etc.) with their own Save/Cancel — not inside the detail panel `Form` component.
+**Full-page settings (`*ContentView === 'settings'`):** settings views live on the list route (`TeamsSettingsView`, `TaskSettingsView`, `MatchSettingsView`, etc.) inside `PluginSettingsPageShell` — not inside the detail panel `Form` component. Dirty Save belongs in the shell header (`saveAction`); Close via `trailing` / `inlineTrailing`.
 
 **Legacy settings footer (`window.submit*`):** some older plugins still register globals for shell footer integration. New plugins should use `PanelFormHandle` + inline Save/Cancel for CRUD forms; see `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` §3.
 

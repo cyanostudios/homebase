@@ -192,15 +192,16 @@ Use the same UI components and styling as other plugins so list views and toolba
 
 ## 7. Plugin settings page (when the plugin has a settings screen)
 
-> **Jun 2026:** Teams, Matches, Requests, and Schedule use **full-page** `*SettingsView` on the list route (`*ContentView === 'settings'`). The panel-settings pattern below still applies to plugins like Files and Mail.
+> **Aug 2026:** Full-page plugin settings use `PluginSettingsPageShell` + `SettingsCategoryCard` so layout matches Core Settings (title/subtitle, category cards, header Save when dirty, Close in trailing). See `UI_AND_UX_STANDARDS_V3.md` §3.2. Legacy panel settings still apply where noted below.
 
 If the plugin exposes a settings screen (e.g. cloud storage, SMTP, preferences), implement one of:
 
-- **Context:** Extend `panelMode` to include `'settings'` (e.g. `'create' | 'edit' | 'view' | 'settings'`). Expose `openMyPluginSettings` (or `openMyPluginPanel` with a dedicated entry point) that sets `panelMode` to `'settings'` and opens the panel. Expose `closeMyPluginPanel` so the panel can be closed from shared panel actions (header/footer).
+- **Full-page (preferred):** `*SettingsView` on the list route via `*ContentView === 'settings'`. Wrap content in `PluginSettingsPageShell` (`@/core/ui/PluginSettingsPageShell`). Pass Close as `trailing` / `inlineTrailing`. Use category cards (`SettingsCategoryCard`) when there are ≥2 categories; put dirty Save in `saveAction` (header), not a bottom footer. See `UI_AND_UX_STANDARDS_V3.md` §3.2 for save variants (dirty header vs per-section).
+- **Panel (legacy):** Extend `panelMode` to include `'settings'` (e.g. `'create' | 'edit' | 'view' | 'settings'`). Expose `openMyPluginSettings` (or `openMyPluginPanel` with a dedicated entry point) that sets `panelMode` to `'settings'` and opens the panel. Expose `closeMyPluginPanel` so the panel can be closed from shared panel actions (header/footer).
 - **List toolbar:** Add a Settings button in the list toolbar that calls the open-settings function (same button style as in section 6).
-- **Form component:** When `panelMode === 'settings'`, render the settings UI (e.g. a dedicated `MyPluginSettingsForm`) and pass `onCancel` so the panel can be closed. The `*SettingsForm` must register `window.submitMyPluginsForm` / `window.cancelMyPluginsForm` so that `PanelFooter`'s Save/Cancel buttons work in settings mode.
+- **Panel Form component (legacy):** When `panelMode === 'settings'`, render the settings UI (e.g. a dedicated `MyPluginSettingsForm`) and pass `onCancel` so the panel can be closed. Prefer inline Save in the form. Some older forms still expose `PanelFormHandle.submit` / `window.submit*` for shell integration — do not assume `PanelFooter` provides Save for non-core plugins.
 - **Create/Edit forms:** Do **NOT** register window globals for form submission. Add inline Save/Cancel buttons at the bottom of the `*Form.tsx` (see `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12). `PanelFooter` returns `null` for create/edit/view modes — the form is self-contained.
-- **Panel actions in settings mode:** `PanelFooter` renders Close + Save buttons only for `currentPlugin.name === 'settings'` or `currentMode === 'settings'`. It calls `handleSaveClick`/`handleCancelClick` from `panelHandlers.ts` which dispatch window globals registered by `*SettingsForm`.
+- **Panel actions in settings mode:** For `currentPlugin.name === 'settings'`, `PanelFooter` shows Close + Save. For other plugins with `currentMode === 'settings'`, `PanelFooter` shows **Close only** (form is expected to save inline). See `client/src/core/ui/PanelFooter.tsx`.
 - **Settings content:** Use `DetailSection` from `@/core/ui/DetailSection` for the settings form layout and group related fields under clear section titles.
 
 ## 8. Refactoring Existing Plugins (mandatory contract)

@@ -1,15 +1,19 @@
-// Notes settings: same embedding pattern as SlotsSettingsView (inline header row + card).
+// Notes settings as full-page content matching Core Settings layout.
 
-import { Check, Download, LayoutGrid, Upload } from 'lucide-react';
+import { Download, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
+import {
+  PluginSettingsPageShell,
+  SettingsHeaderSaveButton,
+  type PluginSettingsCategory,
+} from '@/core/ui/PluginSettingsPageShell';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import type { ImportSchema } from '@/core/utils/importUtils';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 import { cn } from '@/lib/utils';
@@ -31,22 +35,12 @@ const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
 
 export type NotesSettingsCategory = 'view' | 'import';
 
-interface NotesSettingsCategoryDef {
-  id: NotesSettingsCategory;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const notesSettingsCategories: NotesSettingsCategoryDef[] = [
-  { id: 'view', label: 'View', icon: LayoutGrid },
-  { id: 'import', label: 'Import', icon: Upload },
-];
-
 const COLUMN_OPTIONS: NoteColumnCount[] = [1, 2, 3];
 
 interface NotesSettingsViewProps {
   selectedCategory?: NotesSettingsCategory;
   onSelectedCategoryChange?: (category: NotesSettingsCategory) => void;
+  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
   inlineTrailing?: React.ReactNode;
 }
@@ -54,11 +48,9 @@ interface NotesSettingsViewProps {
 export function NotesSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  renderCategoryButtonsInline = false,
   inlineTrailing,
 }: NotesSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { setHeaderTrailing } = useContentLayout();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { importNotes } = useNotes();
 
@@ -72,43 +64,25 @@ export function NotesSettingsView({
   const [isSaving, setIsSaving] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
-  const categoryButtons = useMemo(
-    () => (
-      <div className="flex items-center gap-1">
-        {notesSettingsCategories.map((category) => {
-          const Icon = category.icon;
-          const isActive = activeCategory === category.id;
-          return (
-            <Button
-              key={category.id}
-              variant="ghost"
-              onClick={() => !isActive && setActiveCategory(category.id)}
-              className={cn(
-                'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
-                'flex items-center gap-1.5 sm:gap-2',
-                isActive
-                  ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>{category.label}</span>
-            </Button>
-          );
-        })}
-      </div>
-    ),
-    [activeCategory, setActiveCategory],
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'view',
+        label: t('notes.settingsCategories.view'),
+        description: t('notes.settingsCategories.viewDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.view,
+        dotClassName: 'bg-blue-500',
+      },
+      {
+        id: 'import',
+        label: t('common.import'),
+        description: t('notes.settingsCategories.importDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.import,
+        dotClassName: 'bg-emerald-500',
+      },
+    ],
+    [t],
   );
-
-  useEffect(() => {
-    if (renderCategoryButtonsInline) {
-      setHeaderTrailing(null);
-      return;
-    }
-    setHeaderTrailing(categoryButtons);
-    return () => setHeaderTrailing(null);
-  }, [setHeaderTrailing, renderCategoryButtonsInline, categoryButtons]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,24 +128,20 @@ export function NotesSettingsView({
   }
 
   return (
-    <div className="space-y-4">
-      {renderCategoryButtonsInline ? (
-        <div className="flex flex-shrink-0 items-center justify-between">
-          <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-            <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-              {t('notes.settingsNotes')}
-            </h2>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
-            {categoryButtons}
-            {inlineTrailing}
-          </div>
-        </div>
-      ) : (
-        <h2 className="text-lg font-semibold tracking-tight">{t('notes.settingsNotes')}</h2>
-      )}
-
-      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+    <>
+      <PluginSettingsPageShell
+        title={t('notes.settingsNotes')}
+        subtitle={t('notes.settingsSubtitle')}
+        categories={categories}
+        activeCategory={activeCategory}
+        onCategoryChange={(id) => setActiveCategory(id as NotesSettingsCategory)}
+        trailing={inlineTrailing}
+        saveAction={
+          isDirty ? (
+            <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />
+          ) : null
+        }
+      >
         {activeCategory === 'view' && (
           <DetailSection title={t('notes.defaultColumns')} className="pt-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -233,7 +203,7 @@ export function NotesSettingsView({
             </div>
           </DetailSection>
         )}
-      </Card>
+      </PluginSettingsPageShell>
 
       <ImportWizard
         isOpen={isImportWizardOpen}
@@ -242,22 +212,6 @@ export function NotesSettingsView({
         schema={getNoteImportSchema(t)}
         title={t('notes.importTitle') || t('common.import')}
       />
-
-      {isDirty && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={handleSave}
-            variant="primary"
-            size="sm"
-            icon={Check}
-            disabled={isSaving}
-            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-          >
-            {isSaving ? t('common.saving') : t('common.save')}
-          </Button>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

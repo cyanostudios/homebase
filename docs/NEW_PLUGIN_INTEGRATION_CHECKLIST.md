@@ -49,7 +49,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 
 - **Multi-tab detail view:** `TeamView` — overview cards; tabs: overview, schedule, seriesTeams, responsibles, notes, requests, matches (matches only when plugin enabled). Overview card order includes `seriesTeams` (see `teamOverviewCards.ts`).
 - **Team relations:** `Requests` (`team_id`, `TeamRequestsSection`), `Matches` (`team_id`, `TeamMatchesSection`).
-- **Full-page settings:** `TeamsSettingsView`, `MatchSettingsView`, `ScheduleSettingsView` via `*ContentView === 'settings'` (not panel `Form`).
+- **Full-page settings:** Use `PluginSettingsPageShell` + optional `SettingsCategoryCard` (see `UI_AND_UX_STANDARDS_V3.md` §3.2). Examples: `TeamsSettingsView`, `TaskSettingsView`, `MatchSettingsView` via `*ContentView === 'settings'` (not panel `Form`).
 - **Cross-plugin links:** `ScheduleList` → teams via URL; see `MENTIONS_AND_CROSS_PLUGIN_UI.md`.
 - **Teams list meta (`TeamCard`):** next training; optional next match (matches plugin + `MatchProvider`); optional days-until-training-after-break countdown when an ongoing `season_breaks` entry exists (red when &lt; 7 days). Stats age-group section sums series teams via `getDisplaySeriesTeams`.
 
@@ -60,6 +60,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 ## 4) i18n and UX parity
 
 - Add keys under `client/src/i18n/locales/en.json` and `client/src/i18n/locales/sv.json`.
+- Full-page settings: include `settingsSubtitle` and, when using category cards, short `settingsCategories.*Description` (or equivalent) keys — see Core Settings / `PluginSettingsPageShell` pattern.
 - Prefer shared primitives: `DetailLayout`, `DetailSection`, `ConfirmDialog`, shared `Button`, `Input`, `Textarea`, `NativeSelect`.
 - **List empty state:** use `ListEmptyState` (`@/core/ui/ListEmptyState`). Add short `*.noYet` (`No X yet` / `Inga X ännu`) and `*.noMatch`; when the list is truly empty, pass `createLabel` + `onCreate` (same open-create handler as header Add). Do not put “Click Add…” prose in `noYet`. See `UI_AND_UX_STANDARDS_V3.md` §0.1 and `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §6.
 

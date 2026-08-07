@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { SettingsCategory as SettingsCategoryType } from '@/core/settings/types';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { cn } from '@/lib/utils';
+import { SettingsCategoryCard } from '@/core/ui/SettingsCategoryCard';
 
 import { useSettingsContext } from '../context/SettingsContext';
 
@@ -94,44 +94,18 @@ export function SettingsList() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {settingsCategories.map((category) => {
-            const Icon = category.icon;
-            const isActive = selectedCategory === category.id;
-            return (
-              <Card
-                key={category.id}
-                className={cn(
-                  'group rounded-xl border-0 bg-card px-6 py-4 shadow-sm transition-colors',
-                  'cursor-pointer hover:bg-primary/10 hover:text-primary',
-                  isActive && 'ring-1 ring-border/70',
-                )}
-                role="button"
-                tabIndex={0}
-                aria-pressed={isActive}
-                onClick={() => !isActive && setSelectedCategory(category.id)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    if (!isActive) {
-                      setSelectedCategory(category.id);
-                    }
-                  }
-                }}
-              >
-                <div className="flex items-center justify-between gap-5">
-                  <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400 transition-colors group-hover:text-primary dark:text-slate-500">
-                    <span
-                      className={cn('h-2 w-2 shrink-0 rounded-full', category.dotClassName)}
-                      aria-hidden
-                    />
-                    <span className="truncate">{category.label}</span>
-                  </div>
-                  <Icon className="h-5 w-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">{category.description}</p>
-              </Card>
-            );
-          })}
+          {settingsCategories.map((category) => (
+            <SettingsCategoryCard
+              key={category.id}
+              id={category.id}
+              label={category.label}
+              description={category.description}
+              icon={category.icon}
+              dotClassName={category.dotClassName}
+              active={selectedCategory === category.id}
+              onSelect={() => setSelectedCategory(category.id)}
+            />
+          ))}
         </div>
 
         {selectedCategory === 'profile' ? (

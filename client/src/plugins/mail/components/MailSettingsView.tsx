@@ -1,19 +1,29 @@
-// Mail settings — card body (shell: title + close in MailList, like Slots).
+// Mail settings as full-page content matching Core Settings layout.
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/card';
+import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
 
 import { useMail } from '../hooks/useMail';
 
 import { MailSettingsForm } from './MailSettingsForm';
 
-export function MailSettingsView() {
+interface MailSettingsViewProps {
+  inlineTrailing?: React.ReactNode;
+}
+
+export function MailSettingsView({ inlineTrailing }: MailSettingsViewProps = {}) {
+  const { t } = useTranslation();
   const { closeMailSettingsView } = useMail();
 
   return (
-    <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+    <PluginSettingsPageShell
+      title={t('mail.settingsTitle')}
+      subtitle={t('mail.settingsSubtitle')}
+      trailing={inlineTrailing}
+    >
       <MailSettingsForm onCancel={closeMailSettingsView} onSaveSuccess={closeMailSettingsView} />
-    </Card>
+    </PluginSettingsPageShell>
   );
 }

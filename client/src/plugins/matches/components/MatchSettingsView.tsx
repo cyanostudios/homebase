@@ -1,17 +1,22 @@
-// Matches settings as full-page content (like Core Settings): tab row + card + footer.
+// Matches settings as full-page content matching Core Settings layout.
 
-import { Check, CloudDownload, LayoutGrid, List, Settings2 } from 'lucide-react';
+import { CloudDownload, LayoutGrid, List } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import {
+  PluginSettingsPageShell,
+  SettingsHeaderSaveButton,
+  type PluginSettingsCategory,
+} from '@/core/ui/PluginSettingsPageShell';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
+
 import { matchesApi } from '../api/matchesApi';
 
 const MATCHES_SETTINGS_KEY = 'matches';
@@ -22,14 +27,10 @@ type MatchViewMode = 'grid' | 'list';
 
 export type MatchSettingsCategory = 'view' | 'api';
 
-const matchSettingsCategories = [
-  { id: 'view' as const, label: 'View', icon: LayoutGrid },
-  { id: 'api' as const, label: 'API', icon: Settings2 },
-];
-
 interface MatchSettingsViewProps {
   selectedCategory?: MatchSettingsCategory;
   onSelectedCategoryChange?: (category: MatchSettingsCategory) => void;
+  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
   inlineTrailing?: React.ReactNode;
 }
@@ -37,11 +38,9 @@ interface MatchSettingsViewProps {
 export function MatchSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  renderCategoryButtonsInline = false,
   inlineTrailing,
 }: MatchSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { setHeaderTrailing } = useContentLayout();
   const { getSettings, updateSettings } = useApp();
 
   const [internalCategory, setInternalCategory] = useState<MatchSettingsCategory>('view');
@@ -60,43 +59,25 @@ export function MatchSettingsView({
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
-  const categoryButtons = useMemo(
-    () => (
-      <div className="flex items-center gap-1">
-        {matchSettingsCategories.map((category) => {
-          const Icon = category.icon;
-          const isActive = activeCategory === category.id;
-          return (
-            <Button
-              key={category.id}
-              variant="ghost"
-              onClick={() => !isActive && setActiveCategory(category.id)}
-              className={cn(
-                'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
-                'flex items-center gap-1.5 sm:gap-2',
-                isActive
-                  ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>{category.id === 'api' ? t('matches.apiSettings') : category.label}</span>
-            </Button>
-          );
-        })}
-      </div>
-    ),
-    [activeCategory, setActiveCategory, t],
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'view',
+        label: t('matches.settingsCategories.view'),
+        description: t('matches.settingsCategories.viewDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.view,
+        dotClassName: 'bg-blue-500',
+      },
+      {
+        id: 'api',
+        label: t('matches.apiSettings'),
+        description: t('matches.settingsCategories.apiDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.api,
+        dotClassName: 'bg-violet-500',
+      },
+    ],
+    [t],
   );
-
-  useEffect(() => {
-    if (renderCategoryButtonsInline) {
-      setHeaderTrailing(null);
-      return;
-    }
-    setHeaderTrailing(categoryButtons);
-    return () => setHeaderTrailing(null);
-  }, [setHeaderTrailing, renderCategoryButtonsInline, categoryButtons]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,114 +180,97 @@ export function MatchSettingsView({
   ];
 
   return (
-    <div className="space-y-4">
-      {renderCategoryButtonsInline ? (
-        <div className="flex flex-shrink-0 items-center justify-between">
-          <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-            <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-              {t('matches.settingsMatches')}
-            </h2>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
-            {categoryButtons}
-            {inlineTrailing}
-          </div>
-        </div>
-      ) : (
-        <h2 className="text-lg font-semibold tracking-tight">{t('matches.settingsMatches')}</h2>
-      )}
-
-      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
-        {activeCategory === 'view' && (
-          <DetailSection title="Default view" className="pt-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {viewModes.map((mode) => {
-                const ModeIcon = mode.icon;
-                const isActive = viewMode === mode.id;
-                return (
-                  <Button
-                    key={mode.id}
-                    variant="ghost"
-                    onClick={() => setViewMode(mode.id)}
-                    className={cn(
-                      'h-9 text-xs px-3 rounded-lg font-medium',
-                      'flex items-center gap-1.5',
-                      isActive
-                        ? 'bg-primary/10 text-primary border border-primary'
-                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                    )}
-                  >
-                    <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>{mode.label}</span>
-                  </Button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Matches will be displayed in the selected layout by default.
-            </p>
-          </DetailSection>
-        )}
-
-        {activeCategory === 'api' && (
-          <DetailSection title={t('matches.apiSettings')} className="pt-0">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="matches-api-base-url">{t('matches.apiBaseUrl')}</Label>
-                <Input
-                  id="matches-api-base-url"
-                  value={apiBaseUrl}
-                  onChange={(e) => setApiBaseUrl(e.target.value)}
-                  placeholder={DEFAULT_API_BASE_URL}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="matches-api-key">{t('matches.apiKey')}</Label>
-                <Input
-                  id="matches-api-key"
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={hasStoredApiKey ? MASKED_API_KEY : t('matches.apiKeyPlaceholder')}
-                />
-                <p className="text-xs text-muted-foreground">{t('matches.apiKeyHint')}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
+    <PluginSettingsPageShell
+      title={t('matches.settingsMatches')}
+      subtitle={t('matches.settingsSubtitle')}
+      categories={categories}
+      activeCategory={activeCategory}
+      onCategoryChange={(id) => setActiveCategory(id as MatchSettingsCategory)}
+      trailing={inlineTrailing}
+      saveAction={
+        isDirty ? (
+          <SettingsHeaderSaveButton
+            onClick={() => void handleSave()}
+            isSaving={isSaving}
+            label={t('matches.save')}
+            savingLabel={t('matches.saving')}
+          />
+        ) : null
+      }
+    >
+      {activeCategory === 'view' && (
+        <DetailSection title="Default view" className="pt-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {viewModes.map((mode) => {
+              const ModeIcon = mode.icon;
+              const isActive = viewMode === mode.id;
+              return (
                 <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  icon={CloudDownload}
-                  disabled={isImporting || !hasStoredApiKey}
-                  onClick={() => void handleImport()}
+                  key={mode.id}
+                  variant="ghost"
+                  onClick={() => setViewMode(mode.id)}
+                  className={cn(
+                    'h-9 text-xs px-3 rounded-lg font-medium',
+                    'flex items-center gap-1.5',
+                    isActive
+                      ? 'bg-primary/10 text-primary border border-primary'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                  )}
                 >
-                  {isImporting ? t('matches.importing') : t('matches.importNow')}
+                  <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>{mode.label}</span>
                 </Button>
-              </div>
-              {importMessage ? (
-                <p className="text-sm text-emerald-700 dark:text-emerald-400">{importMessage}</p>
-              ) : null}
-              {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
-            </div>
-          </DetailSection>
-        )}
-      </Card>
-
-      {isDirty && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={handleSave}
-            variant="primary"
-            size="sm"
-            icon={Check}
-            disabled={isSaving}
-            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-          >
-            {isSaving ? t('matches.saving') : t('matches.save')}
-          </Button>
-        </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Matches will be displayed in the selected layout by default.
+          </p>
+        </DetailSection>
       )}
-    </div>
+
+      {activeCategory === 'api' && (
+        <DetailSection title={t('matches.apiSettings')} className="pt-0">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="matches-api-base-url">{t('matches.apiBaseUrl')}</Label>
+              <Input
+                id="matches-api-base-url"
+                value={apiBaseUrl}
+                onChange={(e) => setApiBaseUrl(e.target.value)}
+                placeholder={DEFAULT_API_BASE_URL}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="matches-api-key">{t('matches.apiKey')}</Label>
+              <Input
+                id="matches-api-key"
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={hasStoredApiKey ? MASKED_API_KEY : t('matches.apiKeyPlaceholder')}
+              />
+              <p className="text-xs text-muted-foreground">{t('matches.apiKeyHint')}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={CloudDownload}
+                disabled={isImporting || !hasStoredApiKey}
+                onClick={() => void handleImport()}
+              >
+                {isImporting ? t('matches.importing') : t('matches.importNow')}
+              </Button>
+            </div>
+            {importMessage ? (
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">{importMessage}</p>
+            ) : null}
+            {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
+          </div>
+        </DetailSection>
+      )}
+    </PluginSettingsPageShell>
   );
 }

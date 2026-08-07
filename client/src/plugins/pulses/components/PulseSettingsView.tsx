@@ -1,19 +1,29 @@
-// Pulse settings — card body (shell: title + close in PulseList, like Slots).
+// Pulse settings as full-page content matching Core Settings layout.
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/card';
+import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
 
 import { usePulses } from '../hooks/usePulses';
 
 import { PulseSettingsForm } from './PulseSettingsForm';
 
-export function PulseSettingsView() {
+interface PulseSettingsViewProps {
+  inlineTrailing?: React.ReactNode;
+}
+
+export function PulseSettingsView({ inlineTrailing }: PulseSettingsViewProps = {}) {
+  const { t } = useTranslation();
   const { closePulseSettingsView } = usePulses();
 
   return (
-    <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+    <PluginSettingsPageShell
+      title={t('pulses.settingsTitle')}
+      subtitle={t('pulses.settingsSubtitle')}
+      trailing={inlineTrailing}
+    >
       <PulseSettingsForm onCancel={closePulseSettingsView} onSaveSuccess={closePulseSettingsView} />
-    </Card>
+    </PluginSettingsPageShell>
   );
 }

@@ -205,7 +205,11 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
 
   // Settings: render settings form (after all hooks so rules-of-hooks are satisfied)
   if (panelMode === 'settings') {
-    return <FileSettingsForm onCancel={onCancel} />;
+    return (
+      <div className="p-4">
+        <FileSettingsForm onCancel={onCancel} />
+      </div>
+    );
   }
 
   // ---------------- render ----------------

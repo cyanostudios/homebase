@@ -1,4 +1,4 @@
-import { Loader2, Timer } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -78,12 +78,7 @@ export const ProductionWorkerSettingsPanel: React.FC<ProductionWorkerSettingsPan
     : [...FALLBACK_INTERVALS];
 
   return (
-    <DetailSection
-      title={t('guides.productionWorker.title')}
-      icon={Timer}
-      iconPlugin="guides"
-      className={cn('p-4', className)}
-    >
+    <DetailSection title={t('guides.productionWorker.title')} className={cn('pt-0', className)}>
       <div className="space-y-3 text-xs">
         <p className="text-muted-foreground">{t('guides.productionWorker.description')}</p>
         {loading && (

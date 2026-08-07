@@ -231,23 +231,21 @@ export const FileList: React.FC = () => {
   if (filesContentView === 'settings') {
     return (
       <div className="plugin-files min-h-full bg-background">
-        <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-          <h2 className="truncate text-lg font-semibold tracking-tight">
-            {t('files.settingsTitle')}
-          </h2>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            icon={X}
-            className="h-9 px-3 text-xs"
-            onClick={closeFileSettingsView}
-          >
-            {t('common.close')}
-          </Button>
-        </div>
-        <div className="px-6 pb-6">
-          <FileSettingsView />
+        <div className="px-6 py-4">
+          <FileSettingsView
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeFileSettingsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
         </div>
       </div>
     );

@@ -8,6 +8,7 @@ import {
   Search,
   Settings,
   Trash2,
+  X,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -74,6 +75,7 @@ export function EstimateList() {
     estimates,
     estimatesContentView,
     openEstimateSettings,
+    closeEstimateSettingsView,
     openEstimatePanel,
     openEstimateForView,
     deleteEstimates,
@@ -305,7 +307,26 @@ export function EstimateList() {
   );
 
   if (estimatesContentView === 'settings') {
-    return <EstimateSettingsView />;
+    return (
+      <div className="plugin-estimates min-h-full bg-background">
+        <div className="px-6 py-4">
+          <EstimateSettingsView
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeEstimateSettingsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
   }
 
   return (

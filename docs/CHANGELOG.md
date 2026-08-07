@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-07 – Plugin settings: streamlined category icons
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Gemensam `SETTINGS_CATEGORY_ICONS`-kanon för kategori-kort; Contacts/Cups alignerade; DetailSection utan duplicerade kategori-ikoner; Teams/Requests/Schedule använder `icon`-prop.
+
+**Verifierat beteende (kod):** [`settingsCategoryIcons.ts`](../client/src/core/ui/settingsCategoryIcons.ts); docs `UI_AND_UX_STANDARDS_V3.md` §3.2.
+
+---
+
 ## 2026-08-07 – Requests: Quick request i ListToolbar (Tasks-parity)
 
 **Status:** Implementerat lokalt. QA Approved; Security Approved (ingen ny attackyta). **Ej prod-release.**
@@ -18,6 +28,29 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - Docs: `UI_AND_UX_STANDARDS_V3.md` §0.1 list toolbar/footer — Requests tillagd bland toolbar quick-add-plugins.
 
 **Kända begränsningar:** Ingen ny automatiserad komponenttest för toolbar-wiring (samma gap som Tasks/Notes). Inga accepterade säkerhetsrisker.
+
+---
+
+## 2026-08-07 – Plugin settings: Core Settings-layout
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved (chrome-only; ingen ny attackyta). **Ej prod-release.**
+
+**Sammanfattning:** Alla full-page `*SettingsView` använder samma layout som Core Settings — kategori-kort, title/subtitle, Save i header när dirty, Close ensam i trailing.
+
+**Verifierat beteende (kod):**
+
+- Delad shell: [`PluginSettingsPageShell`](../client/src/core/ui/PluginSettingsPageShell.tsx) + [`SettingsCategoryCard`](../client/src/core/ui/SettingsCategoryCard.tsx); Core Settings återanvänder category-card.
+- Tabbar bredvid Close borttagna; Save flyttad från botten-footer till header där dirty-state fanns.
+- Migrerade plugins: tasks, notes, contacts, slots, matches, cups, guides, instructions, teams, requests, schedule, mail, pulses, files, estimates + plugin-template.
+- Docs: `UI_AND_UX_STANDARDS_V3.md` §3.2; `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §7; `PLUGIN_RUNTIME_CONVENTIONS.md`; `NEW_PLUGIN_INTEGRATION_CHECKLIST.md`.
+
+**Kända begränsningar:**
+
+- **Mail / Pulse:** full-page settings har save-logik via `PanelFormHandle` men ingen synlig Save i shell-headern (pre-existing gap; utanför chrome-scope).
+- **Guides / Requests / Files:** sparar per sektion eller omedelbart i barnpaneler — ingen global dirty header-Save.
+- **Schedule:** sparar per schemakort/sektion (inline), inte via shell `saveAction`.
+- **Cups title i18n:** `cups.settingsCups` saknas i en/sv (UI använder `defaultValue: 'Cups settings'`).
+- Inga accepterade säkerhetsrisker från denna förändring.
 
 ---
 

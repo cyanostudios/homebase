@@ -166,11 +166,8 @@ export const MailList: React.FC = () => {
     return (
       <div className="plugin-mail min-h-full bg-background">
         <div className="px-6 py-4">
-          <div className="space-y-4">
-            <div className="flex flex-shrink-0 items-center justify-between">
-              <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-                {t('mail.settingsTitle')}
-              </h2>
+          <MailSettingsView
+            inlineTrailing={
               <Button
                 type="button"
                 variant="secondary"
@@ -181,9 +178,8 @@ export const MailList: React.FC = () => {
               >
                 {t('common.close')}
               </Button>
-            </div>
-            <MailSettingsView />
-          </div>
+            }
+          />
         </div>
       </div>
     );

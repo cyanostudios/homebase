@@ -1,15 +1,19 @@
-import { Check, Download, Eye, Plus, Tag, Upload, X } from 'lucide-react';
+import { Download, Plus, Upload, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/core/api/AppContext';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ImportWizard } from '@/core/ui/ImportWizard';
+import {
+  PluginSettingsPageShell,
+  SettingsHeaderSaveButton,
+  type PluginSettingsCategory,
+} from '@/core/ui/PluginSettingsPageShell';
+import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import type { ImportSchema } from '@/core/utils/importUtils';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
 import { cn } from '@/lib/utils';
@@ -42,22 +46,12 @@ const CONTACT_IMPORT_EXAMPLE_ROW: Record<string, string> = {
 
 export type ContactSettingsCategory = 'view' | 'tags' | 'import';
 
-interface ContactSettingsCategoryDef {
-  id: ContactSettingsCategory;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const getContactSettingsCategories = (t: (key: string) => string): ContactSettingsCategoryDef[] => [
-  { id: 'view', label: 'View', icon: Eye },
-  { id: 'tags', label: 'Tags', icon: Tag },
-  { id: 'import', label: t('contacts.import'), icon: Upload },
-];
-
 const COLUMN_OPTIONS: ContactColumnCount[] = [1, 2, 3];
+
 interface ContactSettingsViewProps {
   selectedCategory?: ContactSettingsCategory;
   onSelectedCategoryChange?: (category: ContactSettingsCategory) => void;
+  /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
   inlineTrailing?: React.ReactNode;
 }
@@ -65,11 +59,9 @@ interface ContactSettingsViewProps {
 export function ContactSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  renderCategoryButtonsInline = false,
   inlineTrailing,
 }: ContactSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { setHeaderTrailing } = useContentLayout();
   const { getSettings, updateSettings } = useApp();
   const { importContacts } = useContacts();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
@@ -86,43 +78,32 @@ export function ContactSettingsView({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const categoryButtons = useMemo(
-    () => (
-      <div className="flex items-center gap-1">
-        {getContactSettingsCategories(t).map((category) => {
-          const Icon = category.icon;
-          const isActive = activeCategory === category.id;
-          return (
-            <Button
-              key={category.id}
-              variant="ghost"
-              onClick={() => !isActive && setActiveCategory(category.id)}
-              className={cn(
-                'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
-                'flex items-center gap-1.5 sm:gap-2',
-                isActive
-                  ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>{category.label}</span>
-            </Button>
-          );
-        })}
-      </div>
-    ),
-    [activeCategory, setActiveCategory, t],
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'view',
+        label: t('contacts.settingsCategories.view'),
+        description: t('contacts.settingsCategories.viewDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.view,
+        dotClassName: 'bg-blue-500',
+      },
+      {
+        id: 'tags',
+        label: t('contacts.settingsCategories.tags'),
+        description: t('contacts.settingsCategories.tagsDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.tags,
+        dotClassName: 'bg-amber-500',
+      },
+      {
+        id: 'import',
+        label: t('contacts.settingsCategories.import'),
+        description: t('contacts.settingsCategories.importDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.import,
+        dotClassName: 'bg-emerald-500',
+      },
+    ],
+    [t],
   );
-
-  useEffect(() => {
-    if (renderCategoryButtonsInline) {
-      setHeaderTrailing(null);
-      return;
-    }
-    setHeaderTrailing(categoryButtons);
-    return () => setHeaderTrailing(null);
-  }, [setHeaderTrailing, renderCategoryButtonsInline, categoryButtons]);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,27 +177,26 @@ export function ContactSettingsView({
     return <div className="text-sm text-muted-foreground">{t('contacts.loading')}</div>;
   }
 
-  const settingsTitle = t('contacts.settingsContacts');
-
   return (
-    <div className="space-y-4">
-      {renderCategoryButtonsInline ? (
-        <div className="flex flex-shrink-0 items-center justify-between">
-          <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
-            <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
-              {settingsTitle}
-            </h2>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
-            {categoryButtons}
-            {inlineTrailing}
-          </div>
-        </div>
-      ) : (
-        <h2 className="text-lg font-semibold tracking-tight">{settingsTitle}</h2>
-      )}
-
-      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+    <>
+      <PluginSettingsPageShell
+        title={t('contacts.settingsContacts')}
+        subtitle={t('contacts.settingsSubtitle')}
+        categories={categories}
+        activeCategory={activeCategory}
+        onCategoryChange={(id) => setActiveCategory(id as ContactSettingsCategory)}
+        trailing={inlineTrailing}
+        saveAction={
+          isDirty ? (
+            <SettingsHeaderSaveButton
+              onClick={() => void handleSave()}
+              isSaving={isSaving}
+              label={t('contacts.save')}
+              savingLabel={t('contacts.saving')}
+            />
+          ) : null
+        }
+      >
         {activeCategory === 'view' && (
           <DetailSection title={t('contacts.defaultColumns')} className="pt-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -332,7 +312,7 @@ export function ContactSettingsView({
             </div>
           </DetailSection>
         )}
-      </Card>
+      </PluginSettingsPageShell>
 
       <ImportWizard
         isOpen={isImportWizardOpen}
@@ -341,22 +321,6 @@ export function ContactSettingsView({
         schema={getContactImportSchema()}
         title={t('contacts.import')}
       />
-
-      {isDirty && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={handleSave}
-            variant="primary"
-            size="sm"
-            icon={Check}
-            disabled={isSaving}
-            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-          >
-            {isSaving ? t('contacts.saving') : t('contacts.save')}
-          </Button>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

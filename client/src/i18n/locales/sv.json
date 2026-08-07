@@ -233,7 +233,14 @@
     "dateTimeEnd": "Slut",
     "dateTimePlaceholder": "Datum och tid",
     "dateTimeClear": "Rensa datum och tid",
-    "dateTimePickerTime": "Tid"
+    "dateTimePickerTime": "Tid",
+    "settingsSubtitle": "Hantera listvy och kategorier.",
+    "settingsCategories": {
+      "view": "Vy",
+      "viewDescription": "Standardkolumner för platskort.",
+      "categories": "Kategorier",
+      "categoriesDescription": "Kategorier som kan tilldelas platser."
+    }
   },
   "matches": {
     "listDescription": "Schemalägg matcher, platser och format.",
@@ -326,7 +333,13 @@
     "importDone": "{{imported}} importerade, {{updated}} uppdaterade.",
     "importError": "Kunde inte importera matcher. Kontrollera API-nyckel och lag-ID.",
     "noYet": "Inga matcher ännu",
-    "noMatch": "Inga matcher matchar sökningen."
+    "noMatch": "Inga matcher matchar sökningen.",
+    "settingsSubtitle": "Hantera listvy och API-anslutning.",
+    "settingsCategories": {
+      "view": "Vy",
+      "viewDescription": "Standardlista eller rutnät för matcher.",
+      "apiDescription": "Fogis API-bas-URL och nyckel."
+    }
   },
   "bulk": {
     "selected": "{{count}} valda",
@@ -491,6 +504,15 @@
       "openContact": "Öppna kontakt",
       "copyToClipboard": "Kopiera till urklipp",
       "copiedToClipboard": "Kopierat till urklipp"
+    },
+    "settingsSubtitle": "Hantera vy, taggar och import.",
+    "settingsCategories": {
+      "view": "Vy",
+      "viewDescription": "Standardkolumner för kontaktkort.",
+      "tags": "Taggar",
+      "tagsDescription": "Taggar som kan tilldelas kontakter.",
+      "import": "Import",
+      "importDescription": "Importera kontakter från CSV eller Excel."
     }
   },
   "tasks": {
@@ -552,7 +574,13 @@
     "bulkStatusApplying": "Uppdaterar {{current}} av {{total}}…",
     "bulkStatusApplyingShort": "Uppdaterar…",
     "bulkStatusDone": "Klart",
-    "bulkStatusResult": "{{updated}} uppdaterade, {{failed}} misslyckades"
+    "bulkStatusResult": "{{updated}} uppdaterade, {{failed}} misslyckades",
+    "settingsSubtitle": "Hantera listvy och import.",
+    "settingsCategories": {
+      "view": "Vy",
+      "viewDescription": "Standardkolumner för uppgiftskort.",
+      "importDescription": "Importera uppgifter från CSV eller Excel."
+    }
   },
   "notes": {
     "listDescription": "Samla idéer med omnämnanden och sammanhang.",
@@ -596,7 +624,13 @@
     "noteContent": "Anteckningsinnehåll",
     "focusMode": "Fokus",
     "exitFocusMode": "Avsluta fokus",
-    "focusModeHint": "Döljer resten av vyn så du kan skriva ostört. Esc eller klick utanför avslutar."
+    "focusModeHint": "Döljer resten av vyn så du kan skriva ostört. Esc eller klick utanför avslutar.",
+    "settingsSubtitle": "Hantera listvy och import.",
+    "settingsCategories": {
+      "view": "Vy",
+      "viewDescription": "Standardkolumner för anteckningskort.",
+      "importDescription": "Importera anteckningar från CSV eller Excel."
+    }
   },
   "invoices": {
     "listDescription": "Granska utkast, betalningar och förfallna belopp.",
@@ -618,6 +652,8 @@
   },
   "estimates": {
     "listDescription": "Skapa, skicka och följ offerter till godkännande.",
+    "settingsTitle": "Offerter – Inställningar",
+    "settingsSubtitle": "Välj hur offerter visas i listan.",
     "searchPlaceholder": "Sök offerter...",
     "noMatch": "Inga offerter matchar sökningen.",
     "noYet": "Inga offerter ännu",
@@ -791,7 +827,9 @@
       "title": "Instruktioner – Inställningar",
       "tabs": {
         "view": "Vy",
-        "categories": "Kategorier"
+        "categories": "Kategorier",
+        "viewDescription": "Standardkolumner för instruktionskort.",
+        "categoriesDescription": "Kategorier som visas i listan och den publika appen."
       },
       "defaultColumns": "Standardkolumner",
       "columnsHelp": "Standardantal kolumner i instruktionslistan.",
@@ -803,7 +841,8 @@
       "removeCategory": "Ta bort kategori {{name}}",
       "loadFailed": "Kunde inte ladda inställningar.",
       "saveFailed": "Kunde inte spara inställningar."
-    }
+    },
+    "settingsSubtitle": "Hantera listvy och kategorier."
   },
   "guides": {
     "title": "Guider",
@@ -812,7 +851,9 @@
     "settings": {
       "categories": {
         "production": "Produktion",
-        "sources": "Researchkällor"
+        "sources": "Researchkällor",
+        "productionDescription": "Konfigurera produktionsworker och kadens.",
+        "sourcesDescription": "Hantera research-innehållskällor."
       }
     },
     "columns1": "1 kolumn",
@@ -1171,7 +1212,8 @@
         "failed": "Ljud misslyckades",
         "stale": "Ljud föråldrat"
       }
-    }
+    },
+    "settingsSubtitle": "Produktionsworker och researchkällor."
   },
   "files": {
     "listDescription": "Bläddra bland uppladdningar, förhandsvisningar och metadata.",
@@ -1181,6 +1223,7 @@
     "addFile": "Lägg till fil",
     "deleteTitle": "Ta bort fil",
     "settingsTitle": "Filinställningar",
+    "settingsSubtitle": "Anslut molnlagringsleverantörer.",
     "gridView": "Rutnätsvy",
     "listView": "Listvy",
     "bulkDeleteWarning": "Detta tar även bort de fysiska filerna.",
@@ -1272,6 +1315,7 @@
     "subject": "Ämne",
     "source": "Källa",
     "settingsTitle": "E-postinställningar",
+    "settingsSubtitle": "Konfigurera e-postleverans för plugins.",
     "settingsDescription": "Välj leverantör och konfigurera för att skicka e-post från plugins (t.ex. Besiktningar). Resend rekommenderas – enklare med API-nyckel.",
     "provider": "Leverantör",
     "active": "Aktiv",
@@ -1318,6 +1362,7 @@
     "status": "Status",
     "source": "Källa",
     "settingsTitle": "SMS-inställningar",
+    "settingsSubtitle": "Konfigurera SMS-leverans för plugins.",
     "settingsDescription": "Konfigurera Twilio för att skicka SMS från andra plugins. Använd Mock vid utveckling utan att skicka riktiga meddelanden.",
     "appleMessages": "Apple Messages",
     "appleMessagesDescription": "Skickar SMS via din iPhones operatör med hjälp av Meddelanden-appen på Mac. Kräver att din iPhone är inloggad på samma Apple-ID som denna Mac och att Vidarebefordran av textmeddelanden är aktiverat (iPhone-inställningar → Meddelanden → Vidarebefordra textmeddelanden). Meddelanden skickas som vanliga SMS till vilket telefonnummer som helst — inte som iMessage.",
@@ -1525,10 +1570,18 @@
     "heroImageNone": "Ingen bild uppladdad — Cupappen använder standardfoto på utvalda kort.",
     "columns1": "1 kolumn",
     "columns2": "2 kolumner",
-    "columns3": "3 kolumner"
+    "columns3": "3 kolumner",
+    "settingsSubtitle": "Hantera vy och import.",
+    "settingsCategories": {
+      "view": "Vy",
+      "viewDescription": "Standardlistvy för cuper.",
+      "import": "Import",
+      "importDescription": "Importera cuper från ingest-källor."
+    }
   },
   "teams": {
     "listDescription": "{{count}} lag registrerade · Säsong {{season}}",
+    "settingsSubtitle": "Säsong och ordning på översiktskort.",
     "addTeam": "Lägg till lag",
     "bulkCreate": "Lägg till flera",
     "bulkCreateTitle": "Lägg till flera lag",
@@ -1816,6 +1869,7 @@
   },
   "requests": {
     "listDescription": "{{count}} ärenden",
+    "settingsSubtitle": "Hantera ärendetyper och deras ordning.",
     "addRequest": "Lägg till ärende",
     "createRequest": "Skapa ärende",
     "newRequest": "Nytt ärende",
@@ -1933,6 +1987,7 @@
   "schedule": {
     "title": "Schema",
     "listDescription": "Överblick över alla lags träningstider i verksamheten.",
+    "settingsSubtitle": "Hantera scheman, visade tider och lås.",
     "addCalendar": "Lägg till kalender",
     "editCalendar": "Redigera kalender",
     "searchPlaceholder": "Sök kalendrar ({{count}})",

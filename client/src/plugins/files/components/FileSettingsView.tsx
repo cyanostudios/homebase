@@ -1,15 +1,26 @@
-// Files settings — card body (shell: title + close in FileList, like Mail).
+// Files settings as full-page content matching Core Settings layout.
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/card';
+import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
 
 import { FileSettingsForm } from './FileSettingsForm';
 
-export function FileSettingsView() {
+interface FileSettingsViewProps {
+  inlineTrailing?: React.ReactNode;
+}
+
+export function FileSettingsView({ inlineTrailing }: FileSettingsViewProps = {}) {
+  const { t } = useTranslation();
+
   return (
-    <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+    <PluginSettingsPageShell
+      title={t('files.settingsTitle')}
+      subtitle={t('files.settingsSubtitle')}
+      trailing={inlineTrailing}
+    >
       <FileSettingsForm />
-    </Card>
+    </PluginSettingsPageShell>
   );
 }

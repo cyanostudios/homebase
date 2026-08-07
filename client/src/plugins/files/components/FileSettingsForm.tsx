@@ -8,7 +8,7 @@ interface FileSettingsFormProps {
 
 export const FileSettingsForm: React.FC<FileSettingsFormProps> = ({ onCancel: _onCancel }) => {
   return (
-    <div className="plugin-files space-y-6 p-4">
+    <div className="plugin-files space-y-6">
       <CloudStorageSettings />
     </div>
   );

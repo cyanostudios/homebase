@@ -158,7 +158,7 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
     ];
 
     return (
-      <div className="plugin-pulses space-y-6 p-4">
+      <div className="plugin-pulses space-y-6">
         {/* Provider Section */}
         <DetailSection title={t('pulses.provider')} icon={Smartphone}>
           <p className="text-sm text-muted-foreground mb-4">{t('pulses.settingsDescription')}</p>

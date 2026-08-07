@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 
 import { scheduleApi } from '../api/scheduleApi';
@@ -518,196 +520,74 @@ export function ScheduleSettingsView({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="space-y-4">
-        <div className="flex flex-shrink-0 items-center justify-between">
-          <div className="mr-4 flex min-w-0 flex-1 items-center gap-4">
-            <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
-              {t('schedule.settings.title')}
-            </h2>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1">{inlineTrailing}</div>
-        </div>
-
-        <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
-          <DetailSection
-            title={
-              <ScheduleTitleWithLockStatus
-                name={t('schedule.defaultScheduleName')}
-                locked={defaultLocked}
-              />
-            }
-            className="pt-0"
-          >
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{t('schedule.defaultScheduleInfo')}</p>
+      <>
+        <PluginSettingsPageShell
+          title={t('schedule.settings.title')}
+          subtitle={t('schedule.settingsSubtitle')}
+          trailing={inlineTrailing}
+          wrapContentInCard={false}
+        >
+          <div className="space-y-4">
+            <Card padding="md" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>{t('schedule.settings.gridHoursSection')}</span>
-                  </div>
+                  <ScheduleTitleWithLockStatus
+                    name={t('schedule.defaultScheduleName')}
+                    locked={defaultLocked}
+                  />
                 }
                 className="pt-0"
               >
-                <ScheduleGridHoursFields
-                  scheduleId={DEFAULT_SCHEDULE_ID}
-                  gridSettings={defaultGridSettings}
-                  isSaving={isSaving}
-                  isLocked={defaultLocked}
-                  onSave={setGridSettingsForSchedule}
-                />
-              </DetailSection>
-              <DetailSection title={t('schedule.availableHours')} className="pt-0">
-                <ScheduleAvailableHoursFields
-                  scheduleId={DEFAULT_SCHEDULE_ID}
-                  availableHours={getAvailableHours(DEFAULT_SCHEDULE_ID)}
-                  isSaving={isSaving}
-                  isLocked={defaultLocked}
-                  onSave={setAvailableHours}
-                />
-              </DetailSection>
-              <div className="flex flex-wrap items-center gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      icon={Copy}
-                      className="h-9 px-3 text-xs"
-                      disabled={isDuplicating}
-                      onClick={() => setDefaultToDuplicate(true)}
-                    >
-                      {isDuplicating && defaultToDuplicate
-                        ? t('common.loading')
-                        : t('schedule.duplicateSchedule')}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    {t('schedule.duplicateDefaultScheduleHint')}
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    {defaultLocked ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        icon={Unlock}
-                        className={UNLOCK_BUTTON_CLASS}
-                        disabled={isTogglingLock}
-                        onClick={() => void setLockedForSchedule(DEFAULT_SCHEDULE_ID, false)}
-                      >
-                        {isTogglingLock ? t('common.saving') : t('schedule.settings.unlock')}
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        icon={Lock}
-                        className={LOCK_BUTTON_CLASS}
-                        disabled={isTogglingLock}
-                        onClick={() => void setLockedForSchedule(DEFAULT_SCHEDULE_ID, true)}
-                      >
-                        {isTogglingLock ? t('common.saving') : t('schedule.settings.lock')}
-                      </Button>
-                    )}
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    {defaultLocked
-                      ? t('schedule.settings.lockHintLocked')
-                      : t('schedule.settings.lockHintUnlocked')}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              {importMessage?.planId === DEFAULT_SCHEDULE_ID ? (
-                <p
-                  className={
-                    importMessage.type === 'error'
-                      ? 'text-xs text-destructive'
-                      : 'text-xs text-muted-foreground'
-                  }
-                >
-                  {importMessage.text}
-                </p>
-              ) : null}
-            </div>
-          </DetailSection>
-        </Card>
-
-        {plans.map((plan) => {
-          const planLocked = isLockedForSchedule(plan.id);
-          const draftName = renameDrafts[plan.id] ?? plan.name;
-          const planGridSettings = getGridSettingsForSchedule(plan.id);
-          return (
-            <Card
-              key={plan.id}
-              padding="md"
-              className="overflow-hidden border border-border/70 bg-card shadow-sm"
-            >
-              <DetailSection
-                title={<ScheduleTitleWithLockStatus name={draftName} locked={planLocked} />}
-                className="pt-0"
-              >
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs">{t('schedule.scheduleName')}</Label>
-                    <div className="flex max-w-md gap-2">
-                      <Input
-                        value={draftName}
-                        onChange={(event) =>
-                          setRenameDrafts((prev) => ({ ...prev, [plan.id]: event.target.value }))
-                        }
-                        className="h-9"
-                        placeholder={t('schedule.namePlaceholder')}
-                        disabled={planLocked}
-                      />
-                      {!planLocked ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          className="h-9 shrink-0 px-3 text-xs"
-                          disabled={renamingId === plan.id || !draftName.trim()}
-                          onClick={() => void handleRename(plan.id)}
-                        >
-                          {renamingId === plan.id ? t('common.saving') : t('common.save')}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {t('schedule.defaultScheduleInfo')}
+                  </p>
                   <DetailSection
-                    title={
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>{t('schedule.settings.gridHoursSection')}</span>
-                      </div>
-                    }
+                    title={t('schedule.settings.gridHoursSection')}
+                    icon={Clock}
                     className="pt-0"
                   >
                     <ScheduleGridHoursFields
-                      scheduleId={plan.id}
-                      gridSettings={planGridSettings}
+                      scheduleId={DEFAULT_SCHEDULE_ID}
+                      gridSettings={defaultGridSettings}
                       isSaving={isSaving}
-                      isLocked={planLocked}
+                      isLocked={defaultLocked}
                       onSave={setGridSettingsForSchedule}
                     />
                   </DetailSection>
                   <DetailSection title={t('schedule.availableHours')} className="pt-0">
                     <ScheduleAvailableHoursFields
-                      scheduleId={plan.id}
-                      availableHours={getAvailableHours(plan.id)}
+                      scheduleId={DEFAULT_SCHEDULE_ID}
+                      availableHours={getAvailableHours(DEFAULT_SCHEDULE_ID)}
                       isSaving={isSaving}
-                      isLocked={planLocked}
+                      isLocked={defaultLocked}
                       onSave={setAvailableHours}
                     />
                   </DetailSection>
                   <div className="flex flex-wrap items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        {planLocked ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          icon={Copy}
+                          className="h-9 px-3 text-xs"
+                          disabled={isDuplicating}
+                          onClick={() => setDefaultToDuplicate(true)}
+                        >
+                          {isDuplicating && defaultToDuplicate
+                            ? t('common.loading')
+                            : t('schedule.duplicateSchedule')}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        {t('schedule.duplicateDefaultScheduleHint')}
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {defaultLocked ? (
                           <Button
                             type="button"
                             variant="secondary"
@@ -715,7 +595,7 @@ export function ScheduleSettingsView({
                             icon={Unlock}
                             className={UNLOCK_BUTTON_CLASS}
                             disabled={isTogglingLock}
-                            onClick={() => void setLockedForSchedule(plan.id, false)}
+                            onClick={() => void setLockedForSchedule(DEFAULT_SCHEDULE_ID, false)}
                           >
                             {isTogglingLock ? t('common.saving') : t('schedule.settings.unlock')}
                           </Button>
@@ -727,117 +607,20 @@ export function ScheduleSettingsView({
                             icon={Lock}
                             className={LOCK_BUTTON_CLASS}
                             disabled={isTogglingLock}
-                            onClick={() => void setLockedForSchedule(plan.id, true)}
+                            onClick={() => void setLockedForSchedule(DEFAULT_SCHEDULE_ID, true)}
                           >
                             {isTogglingLock ? t('common.saving') : t('schedule.settings.lock')}
                           </Button>
                         )}
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        {planLocked
+                        {defaultLocked
                           ? t('schedule.settings.lockHintLocked')
                           : t('schedule.settings.lockHintUnlocked')}
                       </TooltipContent>
                     </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          icon={Copy}
-                          className="h-9 px-3 text-xs"
-                          disabled={isDuplicating}
-                          onClick={() => setPlanToDuplicate({ id: plan.id, name: plan.name })}
-                        >
-                          {isDuplicating && planToDuplicate?.id === plan.id
-                            ? t('common.loading')
-                            : t('schedule.duplicateSchedule')}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        {t('schedule.duplicateScheduleHint')}
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          icon={ArrowUpToLine}
-                          className="h-9 px-3 text-xs"
-                          disabled={transferringPlanId === plan.id}
-                          onClick={() => setPlanToTransfer({ id: plan.id, name: plan.name })}
-                        >
-                          {transferringPlanId === plan.id
-                            ? t('common.loading')
-                            : t('schedule.transferToDefault')}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        {t('schedule.transferToDefaultHint')}
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          icon={Download}
-                          className="h-9 px-3 text-xs"
-                          disabled={importingPlanId === plan.id}
-                          onClick={() => void handleImportFromTeams(plan.id)}
-                        >
-                          {importingPlanId === plan.id
-                            ? t('common.loading')
-                            : t('schedule.importFromTeams')}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        {t('schedule.importFromTeamsHint')}
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          icon={Eraser}
-                          className="h-9 px-3 text-xs"
-                          disabled={clearingPlanId === plan.id}
-                          onClick={() => setPlanToClear({ id: plan.id, name: plan.name })}
-                        >
-                          {clearingPlanId === plan.id
-                            ? t('common.loading')
-                            : t('schedule.clearAllEvents')}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        {t('schedule.clearAllEventsHint')}
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          icon={Trash2}
-                          className="h-9 px-3 text-xs text-destructive hover:text-destructive"
-                          onClick={() => setPlanToDelete({ id: plan.id, name: plan.name })}
-                        >
-                          {t('schedule.deleteSchedule')}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        {t('schedule.deleteScheduleConfirm', { name: plan.name })}
-                      </TooltipContent>
-                    </Tooltip>
                   </div>
-                  {importMessage?.planId === plan.id ? (
+                  {importMessage?.planId === DEFAULT_SCHEDULE_ID ? (
                     <p
                       className={
                         importMessage.type === 'error'
@@ -851,8 +634,222 @@ export function ScheduleSettingsView({
                 </div>
               </DetailSection>
             </Card>
-          );
-        })}
+
+            {plans.map((plan) => {
+              const planLocked = isLockedForSchedule(plan.id);
+              const draftName = renameDrafts[plan.id] ?? plan.name;
+              const planGridSettings = getGridSettingsForSchedule(plan.id);
+              return (
+                <Card key={plan.id} padding="md" className={DETAIL_VIEW_CARD_CLASS}>
+                  <DetailSection
+                    title={<ScheduleTitleWithLockStatus name={draftName} locked={planLocked} />}
+                    className="pt-0"
+                  >
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs">{t('schedule.scheduleName')}</Label>
+                        <div className="flex max-w-md gap-2">
+                          <Input
+                            value={draftName}
+                            onChange={(event) =>
+                              setRenameDrafts((prev) => ({
+                                ...prev,
+                                [plan.id]: event.target.value,
+                              }))
+                            }
+                            className="h-9"
+                            placeholder={t('schedule.namePlaceholder')}
+                            disabled={planLocked}
+                          />
+                          {!planLocked ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="h-9 shrink-0 px-3 text-xs"
+                              disabled={renamingId === plan.id || !draftName.trim()}
+                              onClick={() => void handleRename(plan.id)}
+                            >
+                              {renamingId === plan.id ? t('common.saving') : t('common.save')}
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <DetailSection
+                        title={t('schedule.settings.gridHoursSection')}
+                        icon={Clock}
+                        className="pt-0"
+                      >
+                        <ScheduleGridHoursFields
+                          scheduleId={plan.id}
+                          gridSettings={planGridSettings}
+                          isSaving={isSaving}
+                          isLocked={planLocked}
+                          onSave={setGridSettingsForSchedule}
+                        />
+                      </DetailSection>
+                      <DetailSection title={t('schedule.availableHours')} className="pt-0">
+                        <ScheduleAvailableHoursFields
+                          scheduleId={plan.id}
+                          availableHours={getAvailableHours(plan.id)}
+                          isSaving={isSaving}
+                          isLocked={planLocked}
+                          onSave={setAvailableHours}
+                        />
+                      </DetailSection>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {planLocked ? (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                icon={Unlock}
+                                className={UNLOCK_BUTTON_CLASS}
+                                disabled={isTogglingLock}
+                                onClick={() => void setLockedForSchedule(plan.id, false)}
+                              >
+                                {isTogglingLock
+                                  ? t('common.saving')
+                                  : t('schedule.settings.unlock')}
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                icon={Lock}
+                                className={LOCK_BUTTON_CLASS}
+                                disabled={isTogglingLock}
+                                onClick={() => void setLockedForSchedule(plan.id, true)}
+                              >
+                                {isTogglingLock ? t('common.saving') : t('schedule.settings.lock')}
+                              </Button>
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {planLocked
+                              ? t('schedule.settings.lockHintLocked')
+                              : t('schedule.settings.lockHintUnlocked')}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              icon={Copy}
+                              className="h-9 px-3 text-xs"
+                              disabled={isDuplicating}
+                              onClick={() => setPlanToDuplicate({ id: plan.id, name: plan.name })}
+                            >
+                              {isDuplicating && planToDuplicate?.id === plan.id
+                                ? t('common.loading')
+                                : t('schedule.duplicateSchedule')}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {t('schedule.duplicateScheduleHint')}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              icon={ArrowUpToLine}
+                              className="h-9 px-3 text-xs"
+                              disabled={transferringPlanId === plan.id}
+                              onClick={() => setPlanToTransfer({ id: plan.id, name: plan.name })}
+                            >
+                              {transferringPlanId === plan.id
+                                ? t('common.loading')
+                                : t('schedule.transferToDefault')}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {t('schedule.transferToDefaultHint')}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              icon={Download}
+                              className="h-9 px-3 text-xs"
+                              disabled={importingPlanId === plan.id}
+                              onClick={() => void handleImportFromTeams(plan.id)}
+                            >
+                              {importingPlanId === plan.id
+                                ? t('common.loading')
+                                : t('schedule.importFromTeams')}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {t('schedule.importFromTeamsHint')}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              icon={Eraser}
+                              className="h-9 px-3 text-xs"
+                              disabled={clearingPlanId === plan.id}
+                              onClick={() => setPlanToClear({ id: plan.id, name: plan.name })}
+                            >
+                              {clearingPlanId === plan.id
+                                ? t('common.loading')
+                                : t('schedule.clearAllEvents')}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {t('schedule.clearAllEventsHint')}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              icon={Trash2}
+                              className="h-9 px-3 text-xs text-destructive hover:text-destructive"
+                              onClick={() => setPlanToDelete({ id: plan.id, name: plan.name })}
+                            >
+                              {t('schedule.deleteSchedule')}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {t('schedule.deleteScheduleConfirm', { name: plan.name })}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      {importMessage?.planId === plan.id ? (
+                        <p
+                          className={
+                            importMessage.type === 'error'
+                              ? 'text-xs text-destructive'
+                              : 'text-xs text-muted-foreground'
+                          }
+                        >
+                          {importMessage.text}
+                        </p>
+                      ) : null}
+                    </div>
+                  </DetailSection>
+                </Card>
+              );
+            })}
+          </div>
+        </PluginSettingsPageShell>
 
         <DuplicateDialog
           isOpen={Boolean(planToDuplicate)}
@@ -919,7 +916,7 @@ export function ScheduleSettingsView({
           variant="danger"
           confirmDisabled={isDeleting}
         />
-      </div>
+      </>
     </TooltipProvider>
   );
 }

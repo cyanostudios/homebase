@@ -233,7 +233,14 @@
     "dateTimeEnd": "End",
     "dateTimePlaceholder": "Date & time",
     "dateTimeClear": "Clear date & time",
-    "dateTimePickerTime": "Time"
+    "dateTimePickerTime": "Time",
+    "settingsSubtitle": "Manage view layout and categories.",
+    "settingsCategories": {
+      "view": "View",
+      "viewDescription": "Default column layout for slot cards.",
+      "categories": "Categories",
+      "categoriesDescription": "Categories you can assign on slots."
+    }
   },
   "matches": {
     "listDescription": "Schedule games, venues, and match formats.",
@@ -332,7 +339,13 @@
     "importNow": "Import now",
     "importing": "Importing...",
     "importDone": "{{imported}} imported, {{updated}} updated.",
-    "importError": "Could not import matches. Check API key and team IDs."
+    "importError": "Could not import matches. Check API key and team IDs.",
+    "settingsSubtitle": "Manage list view and API connection.",
+    "settingsCategories": {
+      "view": "View",
+      "viewDescription": "Default list or grid for matches.",
+      "apiDescription": "Fogis API base URL and key."
+    }
   },
   "bulk": {
     "selected": "{{count}} selected",
@@ -497,6 +510,15 @@
       "openContact": "Open contact",
       "copyToClipboard": "Copy to clipboard",
       "copiedToClipboard": "Copied to clipboard"
+    },
+    "settingsSubtitle": "Manage view, tags, and import.",
+    "settingsCategories": {
+      "view": "View",
+      "viewDescription": "Default column layout for contact cards.",
+      "tags": "Tags",
+      "tagsDescription": "Tags you can assign on contacts.",
+      "import": "Import",
+      "importDescription": "Import contacts from CSV or Excel."
     }
   },
   "tasks": {
@@ -558,7 +580,13 @@
     "bulkStatusApplying": "Updating {{current}} of {{total}}…",
     "bulkStatusApplyingShort": "Updating…",
     "bulkStatusDone": "Done",
-    "bulkStatusResult": "{{updated}} updated, {{failed}} failed"
+    "bulkStatusResult": "{{updated}} updated, {{failed}} failed",
+    "settingsSubtitle": "Manage view layout and import.",
+    "settingsCategories": {
+      "view": "View",
+      "viewDescription": "Default column layout for task cards.",
+      "importDescription": "Import tasks from CSV or Excel."
+    }
   },
   "notes": {
     "listDescription": "Capture ideas with mentions and rich context.",
@@ -602,7 +630,13 @@
     "noteContent": "Note Content",
     "focusMode": "Focus",
     "exitFocusMode": "Exit focus",
-    "focusModeHint": "Dim everything except the editor. Press Esc or click outside to exit."
+    "focusModeHint": "Dim everything except the editor. Press Esc or click outside to exit.",
+    "settingsSubtitle": "Manage view layout and import.",
+    "settingsCategories": {
+      "view": "View",
+      "viewDescription": "Default column layout for note cards.",
+      "importDescription": "Import notes from CSV or Excel."
+    }
   },
   "invoices": {
     "listDescription": "Review drafts, payments, and overdue balances.",
@@ -624,6 +658,8 @@
   },
   "estimates": {
     "listDescription": "Draft, send, and track quotes through acceptance.",
+    "settingsTitle": "Estimates – Settings",
+    "settingsSubtitle": "Choose how estimates appear in the list.",
     "searchPlaceholder": "Search estimates...",
     "noMatch": "No estimates found matching your search.",
     "noYet": "No estimates yet",
@@ -797,7 +833,9 @@
       "title": "Instructions – Settings",
       "tabs": {
         "view": "View",
-        "categories": "Categories"
+        "categories": "Categories",
+        "viewDescription": "Default column layout for instruction cards.",
+        "categoriesDescription": "Categories shown in the list and public app."
       },
       "defaultColumns": "Default columns",
       "columnsHelp": "Default number of columns in the instruction list.",
@@ -809,7 +847,8 @@
       "removeCategory": "Remove category {{name}}",
       "loadFailed": "Failed to load settings.",
       "saveFailed": "Failed to save settings."
-    }
+    },
+    "settingsSubtitle": "Manage view layout and categories."
   },
   "guides": {
     "title": "Guides",
@@ -818,7 +857,9 @@
     "settings": {
       "categories": {
         "production": "Production",
-        "sources": "Research sources"
+        "sources": "Research sources",
+        "productionDescription": "Configure the production worker and cadence.",
+        "sourcesDescription": "Manage research content sources."
       }
     },
     "columns1": "1 column",
@@ -1177,7 +1218,8 @@
         "failed": "Audio failed",
         "stale": "Audio stale"
       }
-    }
+    },
+    "settingsSubtitle": "Production worker and research sources."
   },
   "files": {
     "listDescription": "Browse uploads, previews, and file metadata.",
@@ -1187,6 +1229,7 @@
     "addFile": "Add File",
     "deleteTitle": "Delete File",
     "settingsTitle": "Files settings",
+    "settingsSubtitle": "Connect cloud storage providers.",
     "gridView": "Grid view",
     "listView": "List view",
     "bulkDeleteWarning": "This will also remove the physical files.",
@@ -1278,6 +1321,7 @@
     "subject": "Subject",
     "source": "Source",
     "settingsTitle": "Email settings",
+    "settingsSubtitle": "Configure email delivery for plugins.",
     "settingsDescription": "Choose provider and configure to send email from plugins (e.g. Inspections). Resend is recommended – simpler with an API key.",
     "provider": "Provider",
     "active": "Active",
@@ -1324,6 +1368,7 @@
     "status": "Status",
     "source": "Source",
     "settingsTitle": "SMS settings",
+    "settingsSubtitle": "Configure SMS delivery for plugins.",
     "settingsDescription": "Configure Twilio to send SMS from other plugins. Use Mock for development without sending real messages.",
     "appleMessages": "Apple Messages",
     "appleMessagesDescription": "Sends SMS via your iPhone's carrier using the Mac's Messages app. Requires your iPhone to be on the same Apple ID as this Mac with Text Message Forwarding enabled (iPhone Settings → Messages → Text Message Forwarding). Messages are sent as regular SMS to any phone number — not as iMessage.",
@@ -1531,10 +1576,18 @@
     "heroImageNone": "No image uploaded — Cupappen uses a default photo for featured cards.",
     "columns1": "1 column",
     "columns2": "2 columns",
-    "columns3": "3 columns"
+    "columns3": "3 columns",
+    "settingsSubtitle": "Manage view and import.",
+    "settingsCategories": {
+      "view": "View",
+      "viewDescription": "Default list view for cups.",
+      "import": "Import",
+      "importDescription": "Import cups from ingest sources."
+    }
   },
   "teams": {
     "listDescription": "{{count}} teams registered · Season {{season}}",
+    "settingsSubtitle": "Season and overview card order.",
     "addTeam": "Add team",
     "bulkCreate": "Add multiple",
     "bulkCreateTitle": "Add multiple teams",
@@ -1822,6 +1875,7 @@
   },
   "requests": {
     "listDescription": "{{count}} requests",
+    "settingsSubtitle": "Manage request types and their order.",
     "addRequest": "Add request",
     "createRequest": "Create request",
     "newRequest": "New request",
@@ -1939,6 +1993,7 @@
   "schedule": {
     "title": "Schedule",
     "listDescription": "Overview of all team training times across the organization.",
+    "settingsSubtitle": "Manage schedules, visible hours, and locks.",
     "addCalendar": "Add calendar",
     "editCalendar": "Edit calendar",
     "searchPlaceholder": "Search calendars ({{count}})",
