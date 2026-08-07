@@ -205,7 +205,11 @@ class InstructionController {
 
   async deleteCategory(req, res) {
     try {
-      const result = await this.model.deleteCategory(req, req.params.id);
+      const body = req.body || {};
+      const options = Object.prototype.hasOwnProperty.call(body, 'moveToCategory')
+        ? { moveToCategory: body.moveToCategory }
+        : {};
+      const result = await this.model.deleteCategory(req, req.params.id, options);
       res.json({ message: 'Category deleted successfully', ...result });
     } catch (error) {
       Logger.error('Delete instruction category failed', error, {

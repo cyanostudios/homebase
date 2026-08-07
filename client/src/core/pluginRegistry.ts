@@ -132,6 +132,10 @@ import { useGuides } from '@/plugins/guides/hooks/useGuides';
 // Instructions
 import { InstructionNullProvider } from '@/plugins/instructions/context/InstructionContext';
 import { useInstructions } from '@/plugins/instructions/hooks/useInstructions';
+// Clubdesk
+import { ClubdeskNullProvider } from '@/plugins/clubdesk/context/ClubdeskContext';
+import { useClubdesk } from '@/plugins/clubdesk/hooks/useClubdesk';
+import { clubdeskNavigation } from '@/plugins/clubdesk/navigation';
 // Invoices
 import { InvoicesNullProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
@@ -337,6 +341,23 @@ const InstructionForm = React.lazy(() =>
 const InstructionView = React.lazy(() =>
   import('@/plugins/instructions/components/InstructionView').then((m) => ({
     default: m.InstructionView,
+  })),
+);
+
+// Clubdesk
+const ClubdeskList = React.lazy(() =>
+  import('@/plugins/clubdesk/components/ClubdeskList').then((m) => ({
+    default: m.ClubdeskList,
+  })),
+);
+const ClubdeskForm = React.lazy(() =>
+  import('@/plugins/clubdesk/components/ClubdeskForm').then((m) => ({
+    default: m.ClubdeskForm,
+  })),
+);
+const ClubdeskView = React.lazy(() =>
+  import('@/plugins/clubdesk/components/ClubdeskView').then((m) => ({
+    default: m.ClubdeskView,
   })),
 );
 
@@ -856,6 +877,25 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 1,
     },
     displayPrefix: 'INS',
+    contentFlush: true,
+    slugField: 'slug',
+    noPrimaryAction: true,
+  },
+  {
+    name: 'clubdesk',
+    Provider: ClubdeskNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/clubdesk/context/ClubdeskProvider').then((m) => m.ClubdeskProvider),
+    NullProvider: ClubdeskNullProvider,
+    hook: useClubdesk,
+    panelKey: 'isClubdeskPanelOpen',
+    components: {
+      List: ClubdeskList,
+      Form: ClubdeskForm,
+      View: ClubdeskView,
+    },
+    navigation: clubdeskNavigation,
+    displayPrefix: 'CDK',
     contentFlush: true,
     slugField: 'slug',
     noPrimaryAction: true,

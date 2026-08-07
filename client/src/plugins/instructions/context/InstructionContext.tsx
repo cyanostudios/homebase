@@ -10,7 +10,7 @@ import type {
 
 export type InstructionPanelMode = 'create' | 'edit' | 'view';
 export type InstructionContentView = 'list' | 'settings';
-export type InstructionSettingsTab = 'view' | 'categories';
+export type InstructionSettingsTab = 'view';
 
 export interface InstructionContextType {
   isInstructionPanelOpen: boolean;
@@ -20,6 +20,12 @@ export interface InstructionContextType {
   instructions: Instruction[];
   categories: InstructionCategory[];
   refreshCategories: () => Promise<void>;
+  createInstructionCategory: (name: string) => Promise<void>;
+  reorderInstructionCategories: (orderedIds: string[]) => Promise<void>;
+  deleteInstructionCategory: (
+    categoryId: string,
+    options?: { moveToCategory: string | null },
+  ) => Promise<void>;
   isSaving: boolean;
   instructionsContentView: InstructionContentView;
   instructionsSettingsTab: InstructionSettingsTab;
@@ -87,6 +93,9 @@ const EMPTY_INSTRUCTION_CONTEXT: InstructionContextType = {
   instructions: [],
   categories: [],
   refreshCategories: async () => {},
+  createInstructionCategory: async () => {},
+  reorderInstructionCategories: async () => {},
+  deleteInstructionCategory: async () => {},
   isSaving: false,
   instructionsContentView: 'list',
   instructionsSettingsTab: 'view',

@@ -149,6 +149,67 @@ export function InstructionProvider({
     setCategories(categoryRows);
   }, []);
 
+  const createInstructionCategory = useCallback(async (name: string) => {
+    const created = await instructionsApi.createCategory(name);
+    setCategories((prev) => {
+      if (prev.some((c) => c.name.toLowerCase() === created.name.toLowerCase())) {
+        return prev;
+      }
+      return [...prev, created].sort(
+        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name, 'sv'),
+      );
+    });
+  }, []);
+
+  const reorderInstructionCategories = useCallback(
+    async (orderedIds: string[]) => {
+      setCategories((prev) => {
+        const byId = new Map(prev.map((c) => [String(c.id), c]));
+        const next = orderedIds
+          .map((id, index) => {
+            const row = byId.get(String(id));
+            return row ? { ...row, sortOrder: index + 1 } : null;
+          })
+          .filter((row): row is NonNullable<typeof row> => Boolean(row));
+        const used = new Set(next.map((c) => String(c.id)));
+        const leftovers = prev.filter((c) => !used.has(String(c.id)));
+        return [...next, ...leftovers];
+      });
+      try {
+        const rows = await instructionsApi.reorderCategories(orderedIds);
+        setCategories(rows);
+      } catch (error) {
+        try {
+          await refreshCategories();
+        } catch {
+          /* keep optimistic order */
+        }
+        throw error;
+      }
+    },
+    [refreshCategories],
+  );
+
+  const deleteInstructionCategory = useCallback(
+    async (categoryId: string, options?: { moveToCategory: string | null }) => {
+      const removed = categories.find((c) => String(c.id) === String(categoryId));
+      const removedKey = (removed?.name || '').trim().toLowerCase();
+      await instructionsApi.deleteCategory(categoryId, options);
+      setCategories((prev) => prev.filter((c) => String(c.id) !== String(categoryId)));
+      if (removedKey && Object.prototype.hasOwnProperty.call(options || {}, 'moveToCategory')) {
+        const moveTo = options?.moveToCategory ?? null;
+        setInstructions((prev) =>
+          prev.map((row) =>
+            (row.category || '').trim().toLowerCase() === removedKey
+              ? { ...row, category: moveTo }
+              : row,
+          ),
+        );
+      }
+    },
+    [categories],
+  );
+
   const openInstructionSettings = useCallback(
     (options?: { tab?: InstructionSettingsTab }) => {
       clearInstructionSelectionCore();
@@ -671,6 +732,9 @@ export function InstructionProvider({
       instructions,
       categories,
       refreshCategories,
+      createInstructionCategory,
+      reorderInstructionCategories,
+      deleteInstructionCategory,
       isSaving,
       instructionsContentView,
       instructionsSettingsTab,
@@ -715,6 +779,9 @@ export function InstructionProvider({
       instructions,
       categories,
       refreshCategories,
+      createInstructionCategory,
+      reorderInstructionCategories,
+      deleteInstructionCategory,
       isSaving,
       instructionsContentView,
       instructionsSettingsTab,

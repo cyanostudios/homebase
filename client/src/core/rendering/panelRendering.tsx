@@ -87,7 +87,11 @@ export const createPanelRenderers = (
   };
 
   const renderCurrentPage = (currentPage: string, PLUGIN_REGISTRY: any[]) => {
-    const plugin = PLUGIN_REGISTRY.find((p) => p.name === currentPage);
+    const plugin = PLUGIN_REGISTRY.find(
+      (p) =>
+        p.name === currentPage ||
+        p.navigation?.submenu?.some((item: { page: string }) => item.page === currentPage),
+    );
     if (!plugin) {
       return <div>Plugin not found</div>;
     }

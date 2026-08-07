@@ -1,4 +1,5 @@
 import type { NavPage } from '@/core/navigation/navTypes';
+import { CLUBDESK_SUBPAGE_SET } from '@/core/routing/clubdeskRoutes';
 import { INVOICES_SUBPAGE_SET } from '@/core/routing/invoicesRoutes';
 
 /**
@@ -26,6 +27,9 @@ export const navPageToPath: Record<NavPage, string> = {
   ingest: '/ingest',
   guides: '/guides',
   instructions: '/instructions',
+  clubdesk: '/clubdesk',
+  'clubdesk-guides': '/clubdesk',
+  'clubdesk-price-list': '/clubdesk/price-list',
   mail: '/mail',
   pulses: '/pulses',
   'ai-providers': '/ai-providers',
@@ -34,7 +38,7 @@ export const navPageToPath: Record<NavPage, string> = {
 
 /**
  * Derives the active NavPage from a URL pathname.
- * Handles invoices sub-routes and tolerates trailing slashes.
+ * Handles invoices / clubdesk sub-routes and tolerates trailing slashes.
  */
 export function pathToNavPage(pathname: string): NavPage {
   const clean = pathname.replace(/\/+$/, '') || '/';
@@ -51,6 +55,14 @@ export function pathToNavPage(pathname: string): NavPage {
 
   if (plugin === 'invoices' && sub && INVOICES_SUBPAGE_SET.has(sub)) {
     return `invoices-${sub}` as NavPage;
+  }
+
+  if (plugin === 'clubdesk') {
+    if (sub && CLUBDESK_SUBPAGE_SET.has(sub)) {
+      return `clubdesk-${sub}` as NavPage;
+    }
+    // Bare /clubdesk and /clubdesk/:guideSlug both belong to the Guides tab.
+    return 'clubdesk-guides';
   }
 
   return plugin || 'dashboard';

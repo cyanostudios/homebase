@@ -22,6 +22,9 @@ npm run set:tenant-plugins -- --enable=instructions
 ## 118 – Tasks assigned team (aug 2026)
 
 - **`118-tasks-add-team-id.sql`** — optional `team_id` on `tasks` (FK → `teams`, ON DELETE SET NULL).
+- **`119-clubdesk-guides.sql`** — tenant-DB: Clubdesk guides + steps + guide categories (`clubdesk_guides`, `clubdesk_guide_steps`, `clubdesk_guide_categories`).
+- **`120-clubdesk-price-lists.sql`** — tenant-DB: price lists + items + per-list item categories.
+- **`121-grant-clubdesk-plugin-access.sql`** — **MAIN_DB_ONLY**: grant plugin `clubdesk`. Runner: `npm run migrate:clubdesk`.
 
 ```bash
 npm run migrate:tasks-team-id

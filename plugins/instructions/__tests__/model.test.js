@@ -476,21 +476,92 @@ describe('InstructionModel', () => {
     expect(Database.get().transaction).not.toHaveBeenCalled();
   });
 
-  test('deleteCategory deletes catalog row only with user_id scope', async () => {
+  test('deleteCategory deletes catalog row only when no instructions match', async () => {
     const { Database } = require('@homebase/core');
+    const queries = [];
     const query = jest.fn(async (sql, params) => {
-      expect(String(sql)).toMatch(/DELETE FROM instruction_categories/);
-      expect(String(sql)).toMatch(/user_id/);
-      expect(String(sql)).not.toMatch(/UPDATE\s+instructions/i);
-      expect(params).toEqual([9, 1]);
-      return [{ id: 9 }];
+      queries.push({ sql: String(sql), params });
+      if (/SELECT id, name/i.test(sql)) {
+        return [{ id: 9, name: 'Ops' }];
+      }
+      if (/COUNT\(\*\)/i.test(sql)) {
+        return [{ cnt: 0 }];
+      }
+      if (/DELETE FROM instruction_categories/i.test(sql)) {
+        expect(String(sql)).toMatch(/user_id/);
+        return [{ id: 9 }];
+      }
+      return [];
     });
     Database.get.mockReturnValue({
       getUserId: () => 1,
       query,
+      transaction: async (fn) => fn({ query }),
     });
 
-    await expect(model.deleteCategory({}, 9)).resolves.toEqual({ id: '9' });
-    expect(query).toHaveBeenCalledTimes(1);
+    await expect(model.deleteCategory({}, 9)).resolves.toEqual({
+      id: '9',
+      movedItemCount: 0,
+      moveToCategory: null,
+    });
+    expect(queries.some((q) => /DELETE FROM instruction_categories/i.test(q.sql))).toBe(true);
+  });
+
+  test('deleteCategory with instructions requires moveToCategory', async () => {
+    const { Database } = require('@homebase/core');
+    const query = jest.fn(async (sql) => {
+      if (/SELECT id, name/i.test(sql)) {
+        return [{ id: 9, name: 'Ops' }];
+      }
+      if (/COUNT\(\*\)/i.test(sql)) {
+        return [{ cnt: 2 }];
+      }
+      return [];
+    });
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query,
+      transaction: jest.fn(),
+    });
+
+    await expect(model.deleteCategory({}, 9)).rejects.toMatchObject({
+      statusCode: 409,
+      code: AppError.CODES.CONFLICT,
+    });
+    expect(Database.get().transaction).not.toHaveBeenCalled();
+  });
+
+  test('deleteCategory reassigns instructions then deletes catalog', async () => {
+    const { Database } = require('@homebase/core');
+    const queries = [];
+    const query = jest.fn(async (sql, params) => {
+      queries.push({ sql: String(sql), params });
+      if (/SELECT id, name/i.test(sql)) {
+        return [{ id: 9, name: 'Ops' }];
+      }
+      if (/COUNT\(\*\)/i.test(sql)) {
+        return [{ cnt: 2 }];
+      }
+      if (/UPDATE\s+instructions/i.test(sql)) {
+        return [];
+      }
+      if (/DELETE FROM instruction_categories/i.test(sql)) {
+        return [{ id: 9 }];
+      }
+      return [];
+    });
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query,
+      transaction: async (fn) => fn({ query }),
+    });
+
+    await expect(model.deleteCategory({}, 9, { moveToCategory: 'Kitchen' })).resolves.toEqual({
+      id: '9',
+      movedItemCount: 2,
+      moveToCategory: 'Kitchen',
+    });
+    expect(queries.some((q) => /UPDATE\s+instructions/i.test(q.sql))).toBe(true);
+    expect(queries.some((q) => /DELETE FROM instruction_categories/i.test(q.sql))).toBe(true);
   });
 });

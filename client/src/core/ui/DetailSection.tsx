@@ -17,6 +17,7 @@ export type DetailSectionIconPlugin =
   | 'ingest'
   | 'guides'
   | 'instructions'
+  | 'clubdesk'
   | 'requests'
   | 'teams'
   | 'ai-providers';

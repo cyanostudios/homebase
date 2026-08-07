@@ -17,6 +17,7 @@ module.exports = {
     '<rootDir>/client/src/plugins/tasks',
     '<rootDir>/client/src/plugins/notes',
     '<rootDir>/client/src/plugins/instructions',
+    '<rootDir>/client/src/plugins/clubdesk',
     '<rootDir>/client/src/plugins/slots',
     '<rootDir>/client/src/plugins/requests',
     '<rootDir>/client/src/plugins/contacts',

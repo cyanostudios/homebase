@@ -121,9 +121,19 @@ class InstructionsApi {
     }).then((rows) => (rows || []).map(normalizeCategory));
   }
 
-  deleteCategory(id: string) {
-    return apiRequest<{ message: string; id: string }>(`/categories/${id}`, {
+  deleteCategory(id: string, options?: { moveToCategory: string | null }) {
+    const body =
+      options && Object.prototype.hasOwnProperty.call(options, 'moveToCategory')
+        ? JSON.stringify({ moveToCategory: options.moveToCategory })
+        : undefined;
+    return apiRequest<{
+      message: string;
+      id: string;
+      movedItemCount?: number;
+      moveToCategory?: string | null;
+    }>(`/categories/${id}`, {
       method: 'DELETE',
+      ...(body ? { body } : {}),
     });
   }
 }

@@ -91,6 +91,8 @@
     --plugin-guides: 160 84% 39%;
     --plugin-instructions: 16 100% 60%;
     /* Warm coral / orange */
+    --plugin-clubdesk: 191 91% 42%;
+    /* Cyan */
     --plugin-teams: 142 52% 40%;
     /* Emerald */
   }
@@ -148,6 +150,7 @@
     --plugin-ingest: 24 95% 53%;
     --plugin-guides: 160 84% 39%;
     --plugin-instructions: 16 100% 60%;
+    --plugin-clubdesk: 191 91% 42%;
     --plugin-teams: 142 52% 40%;
   }
 
@@ -225,6 +228,10 @@
 
   .plugin-instructions {
     --plugin-color: var(--plugin-instructions);
+  }
+
+  .plugin-clubdesk {
+    --plugin-color: var(--plugin-clubdesk);
   }
 
   .plugin-teams {

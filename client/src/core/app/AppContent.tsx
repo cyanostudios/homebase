@@ -23,6 +23,7 @@ import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
+import { isClubdeskSubRoute } from '@/core/routing/clubdeskRoutes';
 import { isInvoicesSubRoute } from '@/core/routing/invoicesRoutes';
 import { navPageToPath, pathToNavPage } from '@/core/routing/routeMap';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
@@ -278,9 +279,19 @@ export function AppContent() {
     const itemSlug = parts[1];
 
     const isInvoicesSubRouteMatch = isInvoicesSubRoute(pluginName, itemSlug);
+    const isClubdeskSubRouteMatch = isClubdeskSubRoute(pluginName, itemSlug);
+    const isNamedPluginSubRoute = isInvoicesSubRouteMatch || isClubdeskSubRouteMatch;
+    // Price list item URLs: /clubdesk/price-list/:slug — provider-owned deep link, panel must stay open
+    const isClubdeskPriceListItemPath =
+      pluginName === 'clubdesk' && itemSlug === 'price-list' && parts.length >= 3;
 
     const panelBelongsToUrl = (plugin: { name: string }) =>
-      Boolean(pluginName && plugin.name === pluginName && itemSlug && !isInvoicesSubRouteMatch);
+      Boolean(
+        pluginName &&
+          plugin.name === pluginName &&
+          itemSlug &&
+          (!isNamedPluginSubRoute || (plugin.name === 'clubdesk' && isClubdeskPriceListItemPath)),
+      );
 
     // Close panels that no longer match the URL (e.g. browser back from /teams/foo → /schedule).
     pluginContextsRef.current.forEach(({ plugin, context }) => {
@@ -295,11 +306,11 @@ export function AppContent() {
       }
     });
 
-    // Skip non-plugin pages and invoices sub-routes (recurring/payments/reports)
+    // Skip non-plugin pages and named plugin sub-routes (invoices, clubdesk price-list)
     if (!pluginName || ['dashboard', 'settings'].includes(pluginName)) {
       return;
     }
-    if (isInvoicesSubRouteMatch) {
+    if (isNamedPluginSubRoute) {
       return;
     }
 
@@ -370,6 +381,12 @@ export function AppContent() {
       return '';
     }
 
+    // contentFlush plugins own their in-page header (e.g. Instructions / Clubdesk).
+    // Hide ContentHeader for submenu pages too so it does not duplicate the list title.
+    if (currentPagePlugin.contentFlush) {
+      return '';
+    }
+
     if (currentPagePlugin.name === currentPage) {
       return '';
     }
@@ -386,6 +403,10 @@ export function AppContent() {
       return undefined;
     }
     if (!currentPagePlugin?.navigation) {
+      return undefined;
+    }
+
+    if (currentPagePlugin.contentFlush) {
       return undefined;
     }
 

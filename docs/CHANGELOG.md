@@ -4,6 +4,28 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-07 – Form-ägda kategorier (Clubdesk Guides + Instructions + Price list delete)
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (residualer oförändrade: freeform image URLs m.m.). **Ej prod-release.**
+
+**Sammanfattning:** Kategorikatalog för guider/instruktioner ägs av edit-formulärets kategorikort (inte Settings). Category delete kräver bekräftad `moveToCategory` när entiteter finns (409 annars). Informationskortet har ingen category-select; tilldelning via klick på kategorinamn.
+
+**Verifierat beteende (kod):**
+
+- **Clubdesk Guides:** [`ClubdeskForm.tsx`](../client/src/plugins/clubdesk/components/ClubdeskForm.tsx) — Guide category-kort (lägg till / ordna / radera / klicka för tilldela). Settings View-only ([`ClubdeskContext.tsx`](../client/src/plugins/clubdesk/context/ClubdeskContext.tsx) `ClubdeskSettingsTab = 'view'`).
+- **Instructions:** speglad UX i [`InstructionForm.tsx`](../client/src/plugins/instructions/components/InstructionForm.tsx); Settings View-only.
+- **Delete API:** optional body `{ moveToCategory }` — [`plugins/clubdesk/model.js`](../plugins/clubdesk/model.js), [`priceListModel.js`](../plugins/clubdesk/priceListModel.js), [`plugins/instructions/model.js`](../plugins/instructions/model.js). FE skickar options **endast** efter dialog (`withReassignment`); annars DELETE utan body.
+- **Price list:** samma delete-integritet i [`PriceListForm.tsx`](../client/src/plugins/clubdesk/components/PriceListForm.tsx).
+- ADR: [`ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md) (beslut 9–10), [`ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md) (beslut 10–11).
+
+**Kända begränsningar / residualer:**
+
+- Freeform image URLs (Clubdesk) — TPM-accepterad residual.
+- `moveToCategory` behöver inte finnas i katalogen (fri sträng ≤100 / `null`).
+- Ingen publik Clubdesk-companion; ingen prod-release.
+
+---
+
 ## 2026-08-07 – Matches: list-UX, edit-fix, status & contacts
 
 **Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (inga medium+; residual: FOGIS-reimport kan skriva över manuell status). **Ej prod-release.**
@@ -40,7 +62,8 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - Frontend: [`client/src/plugins/clubdesk/`](../client/src/plugins/clubdesk/); [`ClubdeskSubNav`](../client/src/plugins/clubdesk/components/ClubdeskSubNav.tsx); dual-domain panel; kategoriordning i form/vy
 - Layout: `contentFlush` + dold ContentHeader för submenu ([`AppContent.tsx`](../client/src/core/app/AppContent.tsx)); flush-scrollpath i [`MainLayout.tsx`](../client/src/core/ui/MainLayout.tsx)
 - ADR: [`ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md)
-- Efter enable: **logga ut/in**. Instruktioner-pluginet orört. Migration `121` grantar befintliga tenants vid migrate — medveten scope vid prod.
+- Efter enable: **logga ut/in**. Migration `121` grantar befintliga tenants vid migrate — medveten scope vid prod.
+- **Senare delta samma dag:** form-ägda kategorier / delete-reassignment — se § _Form-ägda kategorier_ ovan (Instructions speglad separat).
 
 ---
 

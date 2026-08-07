@@ -6,7 +6,7 @@ import {
   Info,
   ListOrdered,
   Plus,
-  Settings,
+  Tags,
   Trash2,
   X,
 } from 'lucide-react';
@@ -17,6 +17,16 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -89,7 +99,10 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
       panelMode,
       isSaving,
       categories,
-      openInstructionSettings,
+      instructions,
+      createInstructionCategory,
+      reorderInstructionCategories,
+      deleteInstructionCategory,
     } = useInstructions();
     const {
       isDirty,
@@ -105,6 +118,13 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [slugTouched, setSlugTouched] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [categoryPendingDelete, setCategoryPendingDelete] = useState<string | null>(null);
+    const [moveToCategory, setMoveToCategory] = useState<string>('__uncategorized__');
+    const [categoryDeleteError, setCategoryDeleteError] = useState<string | null>(null);
+    const [deletingCategory, setDeletingCategory] = useState(false);
+    const [reorderingCategory, setReorderingCategory] = useState(false);
+    const [categoryOrderNames, setCategoryOrderNames] = useState<string[] | null>(null);
     const [formData, setFormData] = useState<InstructionPayload>({
       title: '',
       slug: '',
@@ -117,14 +137,48 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
 
     const isCurrentlySubmitting = externalIsSubmitting || isSaving || isSubmitting;
 
-    const categoryOptions = useMemo(() => {
-      const names = categories.map((c) => c.name);
-      const current = (formData.category || '').trim();
-      if (current && !names.some((n) => n.toLowerCase() === current.toLowerCase())) {
-        return [current, ...names];
+    const categoryNameKey = (name: string | null | undefined) => (name || '').trim().toLowerCase();
+
+    const orderedCategoryEntries = useMemo(() => {
+      const serverSorted = [...categories].sort(
+        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name, 'sv'),
+      );
+      const seen = new Set(serverSorted.map((c) => c.name.trim().toLowerCase()));
+      const entries: Array<{ name: string; id: string | null }> = serverSorted.map((c) => ({
+        name: c.name,
+        id: c.id,
+      }));
+      const orphan = (formData.category || '').trim();
+      if (orphan && !seen.has(orphan.toLowerCase())) {
+        seen.add(orphan.toLowerCase());
+        entries.push({ name: orphan, id: null });
       }
-      return names;
-    }, [categories, formData.category]);
+
+      if (!categoryOrderNames || categoryOrderNames.length === 0) {
+        return entries;
+      }
+
+      const byKey = new Map(entries.map((entry) => [entry.name.trim().toLowerCase(), entry]));
+      const ordered: Array<{ name: string; id: string | null }> = [];
+      for (const name of categoryOrderNames) {
+        const key = name.trim().toLowerCase();
+        const entry = byKey.get(key);
+        if (!entry) {
+          continue;
+        }
+        ordered.push(entry);
+        byKey.delete(key);
+      }
+      for (const entry of byKey.values()) {
+        ordered.push(entry);
+      }
+      return ordered;
+    }, [categories, formData.category, categoryOrderNames]);
+
+    const categoryOptions = useMemo(
+      () => orderedCategoryEntries.map((entry) => entry.name),
+      [orderedCategoryEntries],
+    );
 
     useEffect(() => {
       const formKey = `instruction-form-${instruction?.id || 'new'}`;
@@ -190,10 +244,6 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
     const handleCancel = useCallback(() => {
       attemptAction(() => onCancel());
     }, [attemptAction, onCancel]);
-
-    const handleOpenCategorySettings = useCallback(() => {
-      attemptAction(() => openInstructionSettings({ tab: 'categories' }));
-    }, [attemptAction, openInstructionSettings]);
 
     useImperativeHandle(
       ref,
@@ -283,6 +333,145 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
       });
       markDirty();
       clearValidationErrors();
+    };
+
+    const handleAddCategory = async () => {
+      const name = newCategoryName.trim();
+      if (!name) {
+        return;
+      }
+      try {
+        await createInstructionCategory(name);
+        setNewCategoryName('');
+        setCategoryOrderNames((prev) => (prev ? [...prev, name] : null));
+      } catch (err) {
+        console.error('Failed to create category:', err);
+      }
+    };
+
+    const countInstructionsInCategory = useCallback(
+      (name: string) => {
+        const key = categoryNameKey(name);
+        const fromList = instructions.filter((g) => categoryNameKey(g.category) === key).length;
+        const currentId = instruction?.id;
+        if (currentId) {
+          const listRow = instructions.find((g) => g.id === currentId);
+          const listHad = listRow ? categoryNameKey(listRow.category) === key : false;
+          const formHas = categoryNameKey(formData.category) === key;
+          if (listHad && !formHas) {
+            return Math.max(0, fromList - 1);
+          }
+          if (!listHad && formHas) {
+            return fromList + 1;
+          }
+          return fromList;
+        }
+        return fromList + (categoryNameKey(formData.category) === key ? 1 : 0);
+      },
+      [instructions, instruction?.id, formData.category],
+    );
+
+    const reassignmentTargets = useMemo(() => {
+      if (!categoryPendingDelete) {
+        return [];
+      }
+      const pendingKey = categoryNameKey(categoryPendingDelete);
+      return categoryOptions.filter((name) => categoryNameKey(name) !== pendingKey);
+    }, [categoryOptions, categoryPendingDelete]);
+
+    const completeCategoryDelete = useCallback(
+      async (name: string, moveTo: string | null, withReassignment: boolean) => {
+        const key = categoryNameKey(name);
+        const serverCat = categories.find((c) => categoryNameKey(c.name) === key);
+        if (!serverCat) {
+          setCategoryOrderNames((prev) =>
+            prev ? prev.filter((n) => categoryNameKey(n) !== key) : null,
+          );
+          setFormData((prev) =>
+            categoryNameKey(prev.category) === key ? { ...prev, category: moveTo } : prev,
+          );
+          setCategoryPendingDelete(null);
+          setMoveToCategory('__uncategorized__');
+          setCategoryDeleteError(null);
+          return;
+        }
+        setDeletingCategory(true);
+        setCategoryDeleteError(null);
+        try {
+          if (withReassignment) {
+            await deleteInstructionCategory(serverCat.id, { moveToCategory: moveTo });
+          } else {
+            await deleteInstructionCategory(serverCat.id);
+          }
+          setCategoryOrderNames((prev) =>
+            prev ? prev.filter((n) => categoryNameKey(n) !== key) : null,
+          );
+          setFormData((prev) =>
+            categoryNameKey(prev.category) === key ? { ...prev, category: moveTo } : prev,
+          );
+          setCategoryPendingDelete(null);
+          setMoveToCategory('__uncategorized__');
+          setCategoryDeleteError(null);
+        } catch (err) {
+          const apiErr = err as { status?: number; message?: string };
+          const message = apiErr?.message || t('instructions.deleteInstructionCategoryFailed');
+          setCategoryDeleteError(message);
+          if (apiErr?.status === 409) {
+            const others = categoryOptions.filter((n) => categoryNameKey(n) !== key);
+            setMoveToCategory(others[0] || '__uncategorized__');
+            setCategoryPendingDelete(name);
+          }
+          console.error('Failed to delete category:', err);
+        } finally {
+          setDeletingCategory(false);
+        }
+      },
+      [categories, categoryOptions, deleteInstructionCategory, t],
+    );
+
+    const handleRequestDeleteCategory = (name: string) => {
+      setCategoryDeleteError(null);
+      const instructionCount = countInstructionsInCategory(name);
+      if (instructionCount === 0) {
+        void completeCategoryDelete(name, null, false);
+        return;
+      }
+      const others = categoryOptions.filter((n) => categoryNameKey(n) !== categoryNameKey(name));
+      setMoveToCategory(others[0] || '__uncategorized__');
+      setCategoryPendingDelete(name);
+    };
+
+    const handleConfirmDeleteCategory = () => {
+      if (!categoryPendingDelete) {
+        return;
+      }
+      const moveTo = moveToCategory === '__uncategorized__' ? null : moveToCategory.trim() || null;
+      void completeCategoryDelete(categoryPendingDelete, moveTo, true);
+    };
+
+    const handleMoveCategory = async (index: number, direction: -1 | 1) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= orderedCategoryEntries.length) {
+        return;
+      }
+      const next = [...orderedCategoryEntries];
+      const tmp = next[index];
+      next[index] = next[nextIndex];
+      next[nextIndex] = tmp;
+
+      setCategoryOrderNames(next.map((entry) => entry.name));
+
+      const orderedIds = next.filter((entry) => entry.id).map((entry) => String(entry.id));
+      if (orderedIds.length > 0) {
+        setReorderingCategory(true);
+        try {
+          await reorderInstructionCategories(orderedIds);
+        } catch (err) {
+          console.error('Failed to reorder categories:', err);
+        } finally {
+          setReorderingCategory(false);
+        }
+      }
     };
 
     const formSidebar = instruction ? (
@@ -428,39 +617,6 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                       ) : null}
                     </div>
                     <div>
-                      <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <Label htmlFor="instruction-category">{t('instructions.category')}</Label>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          icon={Settings}
-                          className="h-7 px-2 text-xs text-muted-foreground"
-                          onClick={handleOpenCategorySettings}
-                          title={t('instructions.manageCategories')}
-                          aria-label={t('instructions.manageCategories')}
-                        />
-                      </div>
-                      <Select
-                        value={formData.category?.trim() ? formData.category : '__none__'}
-                        onValueChange={(value) =>
-                          updateField('category', value === '__none__' ? null : String(value))
-                        }
-                      >
-                        <SelectTrigger id="instruction-category" className="h-9 text-xs">
-                          <SelectValue placeholder={t('instructions.categoryPlaceholder')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">{t('instructions.categoryNone')}</SelectItem>
-                          {categoryOptions.map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                              {cat}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
                       <Label htmlFor="instruction-status">
                         {t('instructions.publicationStatus')}
                       </Label>
@@ -481,6 +637,127 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                </DetailSection>
+              </Card>
+
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('instructions.instructionCategoriesCard')}
+                  icon={Tags}
+                  iconPlugin="instructions"
+                  className="p-6"
+                >
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    {t('instructions.instructionCategoriesOrderHint')}
+                  </p>
+                  {categoryDeleteError && !categoryPendingDelete ? (
+                    <p className="mb-3 text-xs text-destructive" role="alert">
+                      {categoryDeleteError}
+                    </p>
+                  ) : null}
+                  <div className="mb-3 space-y-2">
+                    {orderedCategoryEntries.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {t('instructions.noInstructionCategories')}
+                      </p>
+                    ) : (
+                      orderedCategoryEntries.map((entry, index) => {
+                        const isSelected =
+                          categoryNameKey(formData.category) === categoryNameKey(entry.name);
+                        return (
+                          <div
+                            key={`${entry.id ?? 'orphan'}-${entry.name}`}
+                            className={cn(
+                              'flex items-center gap-2 rounded-md border px-2 py-1.5',
+                              isSelected
+                                ? 'border-primary/40 bg-primary/5'
+                                : 'border-border/50 bg-muted/20',
+                            )}
+                          >
+                            <button
+                              type="button"
+                              className="min-w-0 flex-1 truncate text-left text-xs font-medium hover:underline"
+                              aria-pressed={isSelected}
+                              aria-label={t('instructions.assignInstructionCategory', {
+                                name: entry.name,
+                              })}
+                              onClick={() =>
+                                updateField('category', isSelected ? null : entry.name)
+                              }
+                            >
+                              {entry.name}
+                            </button>
+                            <div className="flex flex-shrink-0 items-center gap-0.5">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                icon={ArrowUp}
+                                className="h-7 w-7 px-0"
+                                disabled={reorderingCategory || deletingCategory || index === 0}
+                                aria-label={t('instructions.moveInstructionCategoryUp', {
+                                  name: entry.name,
+                                })}
+                                onClick={() => void handleMoveCategory(index, -1)}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                icon={ArrowDown}
+                                className="h-7 w-7 px-0"
+                                disabled={
+                                  reorderingCategory ||
+                                  deletingCategory ||
+                                  index === orderedCategoryEntries.length - 1
+                                }
+                                aria-label={t('instructions.moveInstructionCategoryDown', {
+                                  name: entry.name,
+                                })}
+                                onClick={() => void handleMoveCategory(index, 1)}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                icon={Trash2}
+                                className="h-7 w-7 px-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                aria-label={t('instructions.removeInstructionCategory', {
+                                  name: entry.name,
+                                })}
+                                onClick={() => handleRequestDeleteCategory(entry.name)}
+                                disabled={deletingCategory || reorderingCategory || !entry.id}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder={t('instructions.addInstructionCategoryPlaceholder')}
+                      className="h-9 text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleAddCategory();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      icon={Plus}
+                      className="h-9 px-3 text-xs"
+                      onClick={() => void handleAddCategory()}
+                    >
+                      {t('instructions.addInstructionCategory')}
+                    </Button>
                   </div>
                 </DetailSection>
               </Card>
@@ -667,6 +944,79 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
           onCancel={cancelDiscard}
           variant="warning"
         />
+
+        <AlertDialog
+          open={Boolean(categoryPendingDelete)}
+          onOpenChange={(open) => {
+            if (!open && !deletingCategory) {
+              setCategoryPendingDelete(null);
+              setMoveToCategory('__uncategorized__');
+              setCategoryDeleteError(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t('instructions.deleteInstructionCategoryTitle')}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('instructions.deleteInstructionCategoryMessage', {
+                  name: categoryPendingDelete || '',
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {categoryDeleteError ? (
+              <p className="text-xs text-destructive" role="alert">
+                {categoryDeleteError}
+              </p>
+            ) : null}
+            <div className="py-2">
+              <Label htmlFor="instruction-move-category" className="text-xs">
+                {t('instructions.reassignInstructionCategory')}
+              </Label>
+              <Select value={moveToCategory} onValueChange={setMoveToCategory}>
+                <SelectTrigger id="instruction-move-category" className="mt-1 h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__uncategorized__">
+                    {t('instructions.uncategorized')}
+                  </SelectItem>
+                  {reassignmentTargets.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel asChild>
+                <Button
+                  variant="secondary"
+                  disabled={deletingCategory}
+                  onClick={() => {
+                    setCategoryPendingDelete(null);
+                    setMoveToCategory('__uncategorized__');
+                    setCategoryDeleteError(null);
+                  }}
+                >
+                  {t('common.cancel')}
+                </Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button
+                  variant="destructive"
+                  disabled={deletingCategory}
+                  onClick={handleConfirmDeleteCategory}
+                >
+                  {deletingCategory ? t('common.saving') : t('common.delete')}
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </>
     );
   },

@@ -81,6 +81,11 @@ class InstructionModel {
     return trimmed === '' ? null : trimmed;
   }
 
+  categoryKey(category) {
+    const normalized = this.normalizeCategoryValue(category);
+    return normalized ? normalized.toLowerCase() : '';
+  }
+
   async nextSortOrder(dbOrTx, userId, category) {
     const normalized = this.normalizeCategoryValue(category);
     const rows = await dbOrTx.query(
@@ -356,7 +361,7 @@ class InstructionModel {
     }
   }
 
-  async deleteCategory(req, categoryId) {
+  async deleteCategory(req, categoryId, options = {}) {
     try {
       const db = Database.get(req);
       const userId = db.getUserId();
@@ -368,19 +373,110 @@ class InstructionModel {
         throw new AppError('Category not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      const rows = await db.query(
+      const catRows = await db.query(
         `
-          DELETE FROM ${this.categoriesTable}
+          SELECT id, name
+          FROM ${this.categoriesTable}
           WHERE id = $1 AND user_id = $2
-          RETURNING id
         `,
         [id, userId],
       );
-      if (!rows.length) {
+      if (!catRows.length) {
         throw new AppError('Category not found', 404, AppError.CODES.NOT_FOUND);
       }
-      Logger.info('Instruction category deleted', { categoryId: id });
-      return { id: String(id) };
+      const categoryName = String(catRows[0].name || '').trim();
+
+      const instructionCountRows = await db.query(
+        `
+          SELECT COUNT(*)::int AS cnt
+          FROM ${this.table}
+          WHERE user_id = $1
+            AND category IS NOT NULL
+            AND btrim(category) <> ''
+            AND lower(btrim(category)) = lower($2::text)
+        `,
+        [userId, categoryName],
+      );
+      const instructionCount = Number(instructionCountRows[0]?.cnt ?? 0);
+
+      const hasMoveOption = Object.prototype.hasOwnProperty.call(options || {}, 'moveToCategory');
+      if (instructionCount > 0 && !hasMoveOption) {
+        throw new AppError(
+          'Category has instructions; choose another category to move them to',
+          409,
+          AppError.CODES.CONFLICT,
+          [
+            {
+              field: 'moveToCategory',
+              message: 'Category has instructions; choose another category to move them to',
+              itemCount: instructionCount,
+              categoryName,
+              needsReassignment: true,
+            },
+          ],
+        );
+      }
+
+      let moveTo = null;
+      if (hasMoveOption) {
+        moveTo = this.normalizeCategoryValue(options.moveToCategory);
+        if (moveTo && moveTo.length > 100) {
+          throw new AppError(
+            'moveToCategory must not exceed 100 characters',
+            400,
+            AppError.CODES.VALIDATION_ERROR,
+            [{ field: 'moveToCategory', message: 'moveToCategory must not exceed 100 characters' }],
+          );
+        }
+        if (moveTo && this.categoryKey(moveTo) === this.categoryKey(categoryName)) {
+          throw new AppError(
+            'moveToCategory must be a different category',
+            400,
+            AppError.CODES.VALIDATION_ERROR,
+            [{ field: 'moveToCategory', message: 'moveToCategory must be a different category' }],
+          );
+        }
+      }
+
+      await db.transaction(async (tx) => {
+        if (instructionCount > 0) {
+          await tx.query(
+            `
+              UPDATE ${this.table}
+              SET category = $3,
+                  updated_at = NOW()
+              WHERE user_id = $1
+                AND category IS NOT NULL
+                AND btrim(category) <> ''
+                AND lower(btrim(category)) = lower($2::text)
+            `,
+            [userId, categoryName, moveTo],
+          );
+        }
+
+        const deleted = await tx.query(
+          `
+            DELETE FROM ${this.categoriesTable}
+            WHERE id = $1 AND user_id = $2
+            RETURNING id
+          `,
+          [id, userId],
+        );
+        if (!deleted.length) {
+          throw new AppError('Category not found', 404, AppError.CODES.NOT_FOUND);
+        }
+      });
+
+      Logger.info('Instruction category deleted', {
+        categoryId: id,
+        movedInstructions: instructionCount,
+        moveToCategory: moveTo,
+      });
+      return {
+        id: String(id),
+        movedItemCount: instructionCount,
+        moveToCategory: moveTo,
+      };
     } catch (error) {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to delete instruction category', error, { categoryId });

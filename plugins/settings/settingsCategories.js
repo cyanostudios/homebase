@@ -17,6 +17,7 @@ const ALLOWED_SETTINGS_CATEGORIES = new Set([
   'schedule',
   'files',
   'instructions',
+  'clubdesk',
 ]);
 
 /** Known keys per category (documentation; partial updates merge via JSONB ||). */

@@ -113,23 +113,27 @@ export function MainLayout({
                     onTrailingChange={setHeaderTrailing}
                     onTitleSuffixChange={setHeaderTitleSuffix}
                   >
-                    <div className="flex h-full flex-col gap-4">
-                      {shouldShowContentHeader && (
-                        <ContentHeader
-                          title={contentTitle}
-                          icon={contentIcon}
-                          titleSuffix={headerTitleSuffix}
-                          actionLabel={contentActionLabel}
-                          actionIcon={contentActionIcon}
-                          actionVariant={contentActionVariant}
-                          onAction={onContentAction}
-                          trailing={headerTrailing}
-                        />
-                      )}
-                      <div className="flex flex-1 flex-col overflow-hidden">
-                        <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                    {contentFlush && !shouldShowContentHeader ? (
+                      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+                    ) : (
+                      <div className="flex h-full flex-col gap-4">
+                        {shouldShowContentHeader && (
+                          <ContentHeader
+                            title={contentTitle}
+                            icon={contentIcon}
+                            titleSuffix={headerTitleSuffix}
+                            actionLabel={contentActionLabel}
+                            actionIcon={contentActionIcon}
+                            actionVariant={contentActionVariant}
+                            onAction={onContentAction}
+                            trailing={headerTrailing}
+                          />
+                        )}
+                        <div className="flex flex-1 flex-col overflow-hidden">
+                          <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </ContentLayoutProvider>
                 </div>
               </ContentSurface>
@@ -173,23 +177,27 @@ export function MainLayout({
                     onTrailingChange={setHeaderTrailing}
                     onTitleSuffixChange={setHeaderTitleSuffix}
                   >
-                    <div className="flex h-full flex-col gap-4">
-                      {shouldShowContentHeader && (
-                        <ContentHeader
-                          title={contentTitle}
-                          icon={contentIcon}
-                          titleSuffix={headerTitleSuffix}
-                          actionLabel={contentActionLabel}
-                          actionIcon={contentActionIcon}
-                          actionVariant={contentActionVariant}
-                          onAction={onContentAction}
-                          trailing={headerTrailing}
-                        />
-                      )}
-                      <div className="flex flex-1 flex-col overflow-hidden">
-                        <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                    {contentFlush && !shouldShowContentHeader ? (
+                      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+                    ) : (
+                      <div className="flex h-full flex-col gap-4">
+                        {shouldShowContentHeader && (
+                          <ContentHeader
+                            title={contentTitle}
+                            icon={contentIcon}
+                            titleSuffix={headerTitleSuffix}
+                            actionLabel={contentActionLabel}
+                            actionIcon={contentActionIcon}
+                            actionVariant={contentActionVariant}
+                            onAction={onContentAction}
+                            trailing={headerTrailing}
+                          />
+                        )}
+                        <div className="flex flex-1 flex-col overflow-hidden">
+                          <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </ContentLayoutProvider>
                 </div>
               </ContentSurface>

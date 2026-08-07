@@ -21,6 +21,16 @@ describe('pathToNavPage', () => {
     expect(pathToNavPage('/invoices/42')).toBe('invoices');
   });
 
+  it('maps clubdesk sub-routes without colliding with guide slugs', () => {
+    expect(pathToNavPage('/clubdesk/price-list')).toBe('clubdesk-price-list');
+    expect(pathToNavPage('/clubdesk/price-list/beer')).toBe('clubdesk-price-list');
+  });
+
+  it('maps clubdesk list and guide slug to Guides tab', () => {
+    expect(pathToNavPage('/clubdesk')).toBe('clubdesk-guides');
+    expect(pathToNavPage('/clubdesk/opening-checklist')).toBe('clubdesk-guides');
+  });
+
   it('maps settings', () => {
     expect(pathToNavPage('/settings')).toBe('settings');
   });

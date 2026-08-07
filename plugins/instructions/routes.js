@@ -88,6 +88,10 @@ function createInstructionRoutes(controller, context) {
     gate,
     csrfProtection,
     commonRules.id('id'),
+    body('moveToCategory')
+      .optional({ nullable: true })
+      .custom((value) => value === null || value === undefined || typeof value === 'string')
+      .withMessage('moveToCategory must be a string or null'),
     validateRequest,
     (req, res) => {
       controller.deleteCategory(req, res);

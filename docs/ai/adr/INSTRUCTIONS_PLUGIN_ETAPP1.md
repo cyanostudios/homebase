@@ -1,8 +1,8 @@
 # ADR: Instructions plugin — Etapp 1
 
-**Status:** Accepted (Etapp 1) + post-etapp UX delta + category catalog (2026-08-06)  
-**Date:** 2026-08-06  
-**Context:** Admin CRUD for ordered instruction steps plus a public read-only surface, following the cups/guides public-app pattern. QA Approved + Security Approved for Etapp 1 baseline; residual security risks for Etapp 1 accepted by TPM. Post-etapp UX delta and **category catalog / sort order** (migration 117) documented after QA Approved + Security Approved for that delta. **Ej prod-release** in this etapp.
+**Status:** Accepted (Etapp 1) + post-etapp UX delta + category catalog (2026-08-06) + form-owned categories (2026-08-07)  
+**Date:** 2026-08-07  
+**Context:** Admin CRUD for ordered instruction steps plus a public read-only surface, following the cups/guides public-app pattern. QA Approved + Security Approved for Etapp 1 baseline; residual security risks for Etapp 1 accepted by TPM. Post-etapp UX delta and **category catalog / sort order** (migration 117) documented after QA Approved + Security Approved for that delta. **Form-owned category catalog** (Settings View-only; delete with optional `moveToCategory`; click-to-assign on form) documented after QA Approved + Security Approved 2026-08-07. **Ej prod-release** in this etapp.
 
 ## Decision
 
@@ -15,7 +15,8 @@
 7. **Title uniqueness (app-layer)** — Create/update reject duplicate titles for the same user (case-insensitive). Backend: `assertTitleUnique` (update passes `excludeId`). Frontend: `hasDuplicateInstructionTitle` in validate. Conflict → HTTP 409 / field `title`. No unique index on `title`.
 8. **Admin step ops beyond form edit** — Detail view can reorder steps (up/down) and copy a step via `reorderInstructionSteps` / `copyInstructionStep` (persisted update). Form uses the same pure helpers (`reorderSteps` / `copyStepAt`) for local edits. List cards show category badge; detail featured image preview is 300×300.
 9. **Public UX (verified)** — No audio. Home list: instructions as two-column `item-grid` cards / Netflix rows grouped by category. Detail: sticky `step-subheader` (title, step title, “Steg X av Y” + bar); circular prev/next; last step control labeled “Klart” navigates to category listing; step media height `--step-media-h: 19rem`.
-10. **Category catalog (tenant DB, migration 117)** — Table `instruction_categories` (`name`, `sort_order`) per `user_id`. Admin settings (View + Categories): add/remove + drag reorder; form Category `Select` + settings icon (unsaved guard via `attemptAction`). List chips and public quick-nav/rows follow catalog order; orphan category strings after catalog; uncategorized/`Övrigt` last. Deleting a catalog row does **not** clear `instructions.category`. Public list JOIN matches categories with `c.user_id = i.user_id`; `categoryOrder` is scoped to catalog owners that have published instructions.
+10. **Category catalog (tenant DB, migration 117)** — Table `instruction_categories` (`name`, `sort_order`) per `user_id`. **Form-owned catalog:** Instruction edit form card **Instruction category** (add / reorder / delete). Settings is **View only** (`InstructionSettingsTab = 'view'`) — no Categories settings tab. Assign this instruction’s `category` by clicking a category name on that card (click again → uncategorized); Information card has no category `Select`. List chips and public quick-nav/rows follow catalog order; orphan category strings after catalog; uncategorized/`Övrigt` last. Public list JOIN matches categories with `c.user_id = i.user_id`; `categoryOrder` is scoped to catalog owners that have published instructions.
+11. **Category delete + reassignment** — `DELETE /api/instructions/categories/:id` accepts optional JSON `{ moveToCategory: string | null }`. If matching instructions exist and the key is **absent**, API returns **409**. Presence of `moveToCategory` (including `null`) reassigns then deletes the catalog row. Frontend sends options only after dialog confirm; empty category delete uses no body (same pattern as Clubdesk / price list).
 
 ## Out of scope (Etapp 1)
 
@@ -41,7 +42,7 @@ Documented in [`.env.example`](../../../.env.example) and [`public-instructions/
 
 Public surfaces are **unauthenticated read-only**, filtered to published rows for a single configured owner (Node) or published rows in the tenant DB wired by `APP_DB_URL` (PHP). List payloads may include **`categoryOrder`** (catalog name strings for ordering UI) in addition to per-item `category`. Same residual class as `public-cups` / `public-guides`. TPM accepted residual risks for Etapp 1; the category-catalog delta does not introduce a new residual class (Security Approved 2026-08-06). **Ej prod-release** in this etapp.
 
-Admin category mutations (`/api/instructions/categories*`) remain behind auth, plugin gate, CSRF, and validation. Catalog delete does not rewrite `instructions.category` (orphans allowed by design).
+Admin category mutations (`/api/instructions/categories*`) remain behind auth, plugin gate, CSRF, and validation. Catalog delete with matching instructions requires intentional `moveToCategory` (409 otherwise). FE omits the key unless reassignment is confirmed (Security Approved 2026-08-07). `moveToCategory` may be any normalized string ≤100 chars or `null` (orphan / uncategorized allowed).
 
 Title uniqueness is application-enforced only (race possible under concurrent writes without a DB unique index).
 
@@ -51,7 +52,7 @@ Title uniqueness is application-enforced only (race possible under concurrent wr
 - Public Node API is inactive until `PUBLIC_INSTRUCTIONS_USER_ID` or `PUBLIC_INSTRUCTIONS_USER_EMAIL` is set.
 - Public PHP site needs `APP_DB_URL` pointing at the tenant that holds instruction rows.
 - Duplicate titles are blocked in normal admin flows; concurrent double-create can still race until a DB constraint is added in a later etapp (if desired).
-- Category order is controlled in Instructions → Settings → Categories; public and list chips consume that order via `categoryOrder` / join on `instruction_categories`.
+- Category order and catalog CRUD are controlled on the Instruction form (**Instruction category** card); Settings only configures list View columns. Public and list chips consume catalog order via `categoryOrder` / join on `instruction_categories`.
 - Further product work (commerce, messaging, Swish, Guides HITL, prod) requires a later etapp / explicit release decision.
 
 ## References

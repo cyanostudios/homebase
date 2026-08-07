@@ -2,6 +2,19 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Form-ägda kategorier — Clubdesk + Instructions docs-sync (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för form-ägda guide/instruction-kategorier, category delete med `moveToCategory` / 409-guard, click-to-assign, Settings View-only. Price list delete-integritet samma FE-mönster. **Ej prod-release.**
+
+### Docs-sync
+
+- ADR Clubdesk: [`docs/ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](adr/CLUBDESK_PLUGIN_ETAPP1.md) — beslut 9–10; borttaget “Instructions untouched” / settings Categories.
+- ADR Instructions: [`docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](adr/INSTRUCTIONS_PLUGIN_ETAPP1.md) — beslut 10–11 + Security/Consequences uppdaterade (delete rewrites category när `moveToCategory` anges).
+- Produktchangelog: [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-08-07 Form-ägda kategorier.
+- Residualer oförändrade (freeform image URLs TPM-accepted).
+
+---
+
 ## Matches list/edit UX — docs-sync (2026-08-07)
 
 Docs-sync efter **QA Approved** + **Security Approved** för Matches listfilter, status/past-due badges, `openMatchForEdit`, editable status på external, Contacts taggfilter + shared contacts sync. **Ej prod-release.**
@@ -45,7 +58,9 @@ Docs-sync efter port av listing/detail-mönster från `public-instructions/` til
 
 Docs-sync efter QA Approved + Security Approved för managed `instruction_categories` (migration 117), settings-vy, Category-dropdown, public `categoryOrder`. Residual public read-only (inkl. `categoryOrder`) dokumenterad under samma TPM-accepterade Etapp 1-klass. **Ej prod-release.**
 
-**ADR:** [`docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](adr/INSTRUCTIONS_PLUGIN_ETAPP1.md) (beslut 10 + Security residual).
+> **Superseded (2026-08-07):** Settings Categories + form Category-dropdown ersatta av form-ägt Instruction category-kort + delete/`moveToCategory` — se § _Form-ägda kategorier_ i [`docs/ai/CHANGELOG.md`](CHANGELOG.md) och ADR beslut 10–11.
+
+**ADR:** [`docs/ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](adr/INSTRUCTIONS_PLUGIN_ETAPP1.md) (beslut 10–11 + Security residual).
 
 ### Docs-sync
 
