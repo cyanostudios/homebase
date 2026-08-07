@@ -4,6 +4,23 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-07 – Requests: Quick request i ListToolbar (Tasks-parity)
+
+**Status:** Implementerat lokalt. QA Approved; Security Approved (ingen ny attackyta). **Ej prod-release.**
+
+**Sammanfattning:** Quick request använder samma toolbar-takeover som Quick task/note — kompakt trigger bredvid Select all; öppen form ersätter toolbarraden. Block/dashed quick-add under listgrid och empty state borttaget.
+
+**Verifierat beteende (kod):**
+
+- [`RequestQuickAdd`](../client/src/plugins/requests/components/RequestQuickAdd.tsx): `layout` / `open` / `onOpenChange` vidarebefordras till `ListQuickAdd` (samma API som `TaskQuickAdd`).
+- [`RequestList`](../client/src/plugins/requests/components/RequestList.tsx): `quickAddOpen` + `ListToolbar` `quickAddExpanded` / `leadingActions` med `layout="toolbar"`.
+- Create-väg oförändrad: `createRequest({ title })` via befintlig `handleQuickCreate`.
+- Docs: `UI_AND_UX_STANDARDS_V3.md` §0.1 list toolbar/footer — Requests tillagd bland toolbar quick-add-plugins.
+
+**Kända begränsningar:** Ingen ny automatiserad komponenttest för toolbar-wiring (samma gap som Tasks/Notes). Inga accepterade säkerhetsrisker.
+
+---
+
 ## 2026-08-07 – Teams: serie-lag-flik/kort, listmeta, age-group-stats
 
 **Status:** Implementerat lokalt. QA Approved; Security Approved (inga medium+ fynd). **Ej prod-release.**

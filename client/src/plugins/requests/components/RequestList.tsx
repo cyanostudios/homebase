@@ -109,6 +109,7 @@ export function RequestList() {
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [columnCount, setColumnCountState] = useState<RequestColumnCount>(
     getInitialRequestColumnCount,
   );
@@ -415,6 +416,18 @@ export function RequestList() {
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={sorted.length > 0}
+            quickAddOpen={quickAddOpen}
+            quickAddExpanded={
+              quickAddOpen ? (
+                <RequestQuickAdd
+                  viewMode="grid"
+                  layout="toolbar"
+                  open={quickAddOpen}
+                  onOpenChange={setQuickAddOpen}
+                  onCreate={handleQuickCreate}
+                />
+              ) : null
+            }
             selectAll={
               <Button
                 type="button"
@@ -426,6 +439,17 @@ export function RequestList() {
               >
                 {t('common.selectAll')}
               </Button>
+            }
+            leadingActions={
+              quickAddOpen ? null : (
+                <RequestQuickAdd
+                  viewMode="grid"
+                  layout="toolbar"
+                  open={quickAddOpen}
+                  onOpenChange={setQuickAddOpen}
+                  onCreate={handleQuickCreate}
+                />
+              )
             }
             search={
               <div className="relative w-full max-w-md">
@@ -607,17 +631,8 @@ export function RequestList() {
                   />
                 );
               })}
-              <RequestQuickAdd
-                viewMode="grid"
-                onCreate={handleQuickCreate}
-                className="col-span-full"
-              />
             </div>
           )}
-
-          {sorted.length === 0 ? (
-            <RequestQuickAdd viewMode="grid" onCreate={handleQuickCreate} />
-          ) : null}
 
           <ListFooterBar
             meta={t('requests.showingCount', { shown: sorted.length, total: requests.length })}
