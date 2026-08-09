@@ -43,7 +43,8 @@ import { useScheduleSettings } from '../hooks/useScheduleSettings';
 import {
   buildTeamSlots,
   DEFAULT_SCHEDULE_ID,
-  isSlotVisibleInGrid,
+  getPreferredTeamIdFromFilter,
+  toggleScheduleTeamFilter,
   type ScheduleSlot,
   type ScheduleTrainingDialogState,
 } from '../types/schedule';
@@ -95,7 +96,7 @@ export function ScheduleList() {
   } = useSchedulePendingChanges(teams);
   const { attemptNavigation, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
-  const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [teamFilter, setTeamFilter] = useState<string[]>([]);
   const [dialogState, setDialogState] = useState<ScheduleTrainingDialogState>(null);
   const [detailSlot, setDetailSlot] = useState<ScheduleSlot | null>(null);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -139,12 +140,11 @@ export function ScheduleList() {
   }, [activeScheduleId, isDefaultSchedule, isPlansLoading, plans, setActiveScheduleId]);
 
   const weekSlots = useMemo(() => {
-    const slots = buildTeamSlots(displayTeams, teamFilter);
-    return slots.filter((slot) => isSlotVisibleInGrid(slot, defaultGridSettings));
-  }, [displayTeams, defaultGridSettings, teamFilter]);
+    return buildTeamSlots(displayTeams, teamFilter);
+  }, [displayTeams, teamFilter]);
 
-  /** Full-schedule slots for capacity footer (ignore team filter + grid visibility). */
-  const capacitySlots = useMemo(() => buildTeamSlots(displayTeams, 'all'), [displayTeams]);
+  /** Full-schedule slots for capacity footer (ignore team filter). */
+  const capacitySlots = useMemo(() => buildTeamSlots(displayTeams, []), [displayTeams]);
 
   const handleSelectSchedule = useCallback(
     (scheduleId: string) => {
@@ -302,7 +302,7 @@ export function ScheduleList() {
     }
   }, [commit, setSaveError, t]);
 
-  const preferredTeamId = teamFilter !== 'all' ? teamFilter : undefined;
+  const preferredTeamId = getPreferredTeamIdFromFilter(teamFilter);
 
   if (scheduleContentView === 'settings') {
     return (
@@ -422,9 +422,9 @@ export function ScheduleList() {
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setTeamFilter('all')}
+            onClick={() => setTeamFilter([])}
             className={cn(
-              teamFilter === 'all' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+              teamFilter.length === 0 ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
             )}
           >
             <Users className="h-3.5 w-3.5" />
@@ -434,14 +434,16 @@ export function ScheduleList() {
             </span>
           </Button>
           {teams.map((team) => {
-            const isActive = teamFilter === String(team.id);
+            const teamId = String(team.id);
+            const isActive = teamFilter.includes(teamId);
             return (
               <Button
                 key={team.id}
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setTeamFilter(isActive ? 'all' : String(team.id))}
+                aria-pressed={isActive}
+                onClick={() => setTeamFilter((prev) => toggleScheduleTeamFilter(prev, teamId))}
                 className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
               >
                 <Users className="h-3.5 w-3.5" />

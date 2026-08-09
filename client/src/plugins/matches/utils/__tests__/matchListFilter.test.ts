@@ -49,9 +49,18 @@ describe('matchMatchesListFilter', () => {
     expect(matchMatchesListFilter(far, 'upcoming14', NOW)).toBe(false);
   });
 
-  it('filters by default home team with trim and case-insensitive equality', () => {
+  it('filters by default home team with trim, case-insensitive prefix match', () => {
     expect(matchMatchesListFilter(match, 'homeTeam', NOW, 'aik p16')).toBe(true);
     expect(matchMatchesListFilter(match, 'homeTeam', NOW, '  AIK P16  ')).toBe(true);
+    expect(matchMatchesListFilter(match, 'homeTeam', NOW, 'AIK')).toBe(true);
+    expect(
+      matchMatchesListFilter(
+        { start_time: match.start_time, home_team: 'Sorgenfri FF svart' },
+        'homeTeam',
+        NOW,
+        'Sorgenfri FF',
+      ),
+    ).toBe(true);
     expect(matchMatchesListFilter(match, 'homeTeam', NOW, 'Other')).toBe(false);
     expect(matchMatchesListFilter(match, 'homeTeam', NOW, '')).toBe(false);
   });

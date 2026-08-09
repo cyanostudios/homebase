@@ -11,18 +11,22 @@ import {
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Loader2, Copy, MapPin, Pencil, Plus } from 'lucide-react';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { SERIES_TEAM_ROW_STYLES, WEEK_DAYS } from '@/plugins/teams/types/teams';
 
+import type { ScheduleSlotHighlight } from '../hooks/useSchedulePendingChanges';
 import {
   computeDayLayout,
+  FULL_DAY_GRID_SETTINGS,
   getDropCellId,
   getGridEndMinutes,
   getGridHeightPx,
   getGridStartMinutes,
+  getPreferredScrollTopPx,
+  getPreferredViewportHeightPx,
   getSlotDragId,
   getSlotDurationMinutes,
   getSlotHeightPx,
@@ -36,7 +40,6 @@ import {
   type ScheduleSlot,
   type SlotLayout,
 } from '../types/schedule';
-import type { ScheduleSlotHighlight } from '../hooks/useSchedulePendingChanges';
 
 function getSlotDropId(slot: ScheduleSlot): string {
   return `slot-drop-${getSlotDragId(slot)}`;
@@ -112,13 +115,15 @@ function ScheduleSlotContent({ slot, compact = false }: { slot: ScheduleSlot; co
 function DroppableCell({
   day,
   startMinutes,
-  gridSettings,
+  renderSettings,
+  outsidePreferred,
   onAddSlot,
   suppressClickRef,
 }: {
   day: string;
   startMinutes: number;
-  gridSettings: ScheduleGridSettings;
+  renderSettings: ScheduleGridSettings;
+  outsidePreferred: boolean;
   onAddSlot?: (day: string, startMinutes: number) => void;
   suppressClickRef: React.MutableRefObject<boolean>;
 }) {
@@ -135,12 +140,13 @@ function DroppableCell({
       aria-label={`${day} ${minutesToTime(startMinutes)}`}
       className={cn(
         'group/cell absolute left-0 right-0 border-b border-border/30 transition-colors',
+        outsidePreferred && 'bg-muted/25',
         isOver && 'bg-primary/10',
         onAddSlot && 'cursor-pointer hover:bg-muted/40',
       )}
       style={{
         top:
-          ((startMinutes - getGridStartMinutes(gridSettings)) / GRID_SLOT_MINUTES) *
+          ((startMinutes - getGridStartMinutes(renderSettings)) / GRID_SLOT_MINUTES) *
           GRID_ROW_HEIGHT_PX,
         height: GRID_ROW_HEIGHT_PX,
       }}
@@ -328,7 +334,8 @@ function DraggableSlot({
 function DayColumn({
   day,
   slots,
-  gridSettings,
+  renderSettings,
+  preferredSettings,
   dayColumnOrder,
   savingSlotId,
   getSlotHighlight,
@@ -341,7 +348,8 @@ function DayColumn({
 }: {
   day: string;
   slots: ScheduleSlot[];
-  gridSettings: ScheduleGridSettings;
+  renderSettings: ScheduleGridSettings;
+  preferredSettings: ScheduleGridSettings;
   dayColumnOrder?: string[];
   savingSlotId: string | null;
   getSlotHighlight?: (slot: ScheduleSlot) => ScheduleSlotHighlight;
@@ -352,17 +360,20 @@ function DayColumn({
   onAddSlot?: (day: string, startMinutes: number) => void;
   suppressClickRef: React.MutableRefObject<boolean>;
 }) {
+  const preferredStart = getGridStartMinutes(preferredSettings);
+  const preferredEnd = getGridEndMinutes(preferredSettings);
+
   const dropCells = useMemo(() => {
     const cells: number[] = [];
     for (
-      let minutes = getGridStartMinutes(gridSettings);
-      minutes < getGridEndMinutes(gridSettings);
+      let minutes = getGridStartMinutes(renderSettings);
+      minutes < getGridEndMinutes(renderSettings);
       minutes += GRID_SLOT_MINUTES
     ) {
       cells.push(minutes);
     }
     return cells;
-  }, [gridSettings]);
+  }, [renderSettings]);
 
   const dayLayouts = useMemo(() => {
     const daySlots = slots.filter((slot) => slot.day === day);
@@ -372,14 +383,15 @@ function DayColumn({
   return (
     <div
       className="relative border-l border-border/50 bg-background/40"
-      style={{ height: getGridHeightPx(gridSettings) }}
+      style={{ height: getGridHeightPx(renderSettings) }}
     >
       {dropCells.map((startMinutes) => (
         <DroppableCell
           key={`${day}-${startMinutes}`}
           day={day}
           startMinutes={startMinutes}
-          gridSettings={gridSettings}
+          renderSettings={renderSettings}
+          outsidePreferred={startMinutes < preferredStart || startMinutes >= preferredEnd}
           onAddSlot={onAddSlot}
           suppressClickRef={suppressClickRef}
         />
@@ -388,7 +400,7 @@ function DayColumn({
         <DraggableSlot
           key={getSlotDragId(layout.slot)}
           layout={layout}
-          gridSettings={gridSettings}
+          gridSettings={renderSettings}
           savingSlotId={savingSlotId}
           getSlotHighlight={getSlotHighlight}
           readOnly={readOnly}
@@ -416,6 +428,7 @@ export function ScheduleTimeGrid({
   onSlotMove,
 }: {
   slots: ScheduleSlot[];
+  /** Preferred Visade tider — controls viewport height and initial scroll, not rendered extent. */
   gridSettings: ScheduleGridSettings;
   savingSlotId: string | null;
   getSlotHighlight?: (slot: ScheduleSlot) => ScheduleSlotHighlight;
@@ -437,6 +450,11 @@ export function ScheduleTimeGrid({
   const { t } = useTranslation();
   const [activeSlot, setActiveSlot] = useState<ScheduleSlot | null>(null);
   const suppressCellClickRef = useRef(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const renderSettings = FULL_DAY_GRID_SETTINGS;
+  const viewportHeightPx = getPreferredViewportHeightPx(gridSettings);
+  const preferredStartMinutes = getGridStartMinutes(gridSettings);
+  const preferredEndMinutes = getGridEndMinutes(gridSettings);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -447,8 +465,8 @@ export function ScheduleTimeGrid({
   const timeLabels = useMemo(() => {
     const labels: { minutes: number; label: string }[] = [];
     for (
-      let minutes = getGridStartMinutes(gridSettings);
-      minutes < getGridEndMinutes(gridSettings);
+      let minutes = getGridStartMinutes(renderSettings);
+      minutes < getGridEndMinutes(renderSettings);
       minutes += GRID_SLOT_MINUTES
     ) {
       const showLabel = minutes % 60 === 0;
@@ -458,7 +476,20 @@ export function ScheduleTimeGrid({
       });
     }
     return labels;
-  }, [gridSettings]);
+  }, [renderSettings]);
+
+  // Value deps only: parents pass a new gridSettings object each render from
+  // getGridSettingsForSchedule — object identity must not reset user scroll.
+  useLayoutEffect(() => {
+    const node = scrollContainerRef.current;
+    if (!node) {
+      return;
+    }
+    node.scrollTop = getPreferredScrollTopPx({
+      startHour: gridSettings.startHour,
+      endHour: gridSettings.endHour,
+    });
+  }, [gridSettings.startHour, gridSettings.endHour]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const slot = event.active.data.current?.slot as ScheduleSlot | undefined;
@@ -501,7 +532,7 @@ export function ScheduleTimeGrid({
 
     const duration = getSlotDurationMinutes(slot);
     const newStartMinutes = overData.startMinutes;
-    const newEndMinutes = Math.min(newStartMinutes + duration, getGridEndMinutes(gridSettings));
+    const newEndMinutes = Math.min(newStartMinutes + duration, getGridEndMinutes(renderSettings));
 
     if (
       slot.day === overData.day &&
@@ -551,44 +582,58 @@ export function ScheduleTimeGrid({
               ))}
             </div>
 
-            <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
-              <div
-                className="relative bg-muted/20"
-                style={{ height: getGridHeightPx(gridSettings) }}
-              >
-                {timeLabels.map(({ minutes, label }) => (
-                  <div
-                    key={minutes}
-                    className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground"
-                    style={{
-                      top:
-                        ((minutes - getGridStartMinutes(gridSettings)) / GRID_SLOT_MINUTES) *
-                          GRID_ROW_HEIGHT_PX +
-                        GRID_ROW_HEIGHT_PX / 2,
-                    }}
-                  >
-                    {label}
-                  </div>
+            <div
+              ref={scrollContainerRef}
+              className="overflow-y-auto"
+              style={{ maxHeight: viewportHeightPx }}
+            >
+              <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
+                <div
+                  className="relative bg-muted/20"
+                  style={{ height: getGridHeightPx(renderSettings) }}
+                >
+                  {timeLabels.map(({ minutes, label }) => {
+                    const outsidePreferred =
+                      minutes < preferredStartMinutes || minutes >= preferredEndMinutes;
+                    return (
+                      <div
+                        key={minutes}
+                        className={cn(
+                          'absolute right-1 -translate-y-1/2 text-[10px] tabular-nums',
+                          outsidePreferred ? 'text-muted-foreground/50' : 'text-muted-foreground',
+                        )}
+                        style={{
+                          top:
+                            ((minutes - getGridStartMinutes(renderSettings)) / GRID_SLOT_MINUTES) *
+                              GRID_ROW_HEIGHT_PX +
+                            GRID_ROW_HEIGHT_PX / 2,
+                        }}
+                      >
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {WEEK_DAYS.map((day) => (
+                  <DayColumn
+                    key={day}
+                    day={day}
+                    slots={slots}
+                    renderSettings={renderSettings}
+                    preferredSettings={gridSettings}
+                    dayColumnOrder={columnOrdersByDay?.[day]}
+                    savingSlotId={savingSlotId}
+                    getSlotHighlight={getSlotHighlight}
+                    readOnly={readOnly}
+                    onSlotClick={onSlotClick}
+                    onEditSlot={readOnly ? undefined : onEditSlot}
+                    onCopySlot={readOnly ? undefined : onCopySlot}
+                    onAddSlot={readOnly ? undefined : onAddSlot}
+                    suppressClickRef={suppressCellClickRef}
+                  />
                 ))}
               </div>
-
-              {WEEK_DAYS.map((day) => (
-                <DayColumn
-                  key={day}
-                  day={day}
-                  slots={slots}
-                  gridSettings={gridSettings}
-                  dayColumnOrder={columnOrdersByDay?.[day]}
-                  savingSlotId={savingSlotId}
-                  getSlotHighlight={getSlotHighlight}
-                  readOnly={readOnly}
-                  onSlotClick={onSlotClick}
-                  onEditSlot={readOnly ? undefined : onEditSlot}
-                  onCopySlot={readOnly ? undefined : onCopySlot}
-                  onAddSlot={readOnly ? undefined : onAddSlot}
-                  suppressClickRef={suppressCellClickRef}
-                />
-              ))}
             </div>
           </div>
         </div>

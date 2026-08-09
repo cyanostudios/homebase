@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Schedule kalender/filter + Matches home-team prefix (2026-08-10)
+
+Docs-sync efter **QA Approved** + **Security Approved** för (1) Schedule full-day kalender med scroll till Visade tider, (2) Schedule lag-snabbfilter flerval, (3) Matches `defaultHomeTeam` prefixmatch. Produkt-changelog status/begränsningar uppdaterade; UI-standard Filter stats + `MENTIONS_AND_CROSS_PLUGIN_UI.md` synkade. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – poster “kalender 0–24”, “flerval i lag-snabbfilter”, “default home team som prefix”.
+
+---
+
 ## Matches default home team (2026-08-09)
 
 Docs-sync efter **QA Approved** + **Security N/A** för Matches **default home team** (settings `defaultHomeTeam` + listfilter + Teams matchflik hemma/borta + kommande-efter-datum) och Matches-tabell Team-kolumn. UI-standard Filter stats uppdaterad; korshänvisning i äldre Matches listfilter-post och `MENTIONS_AND_CROSS_PLUGIN_UI.md`. **Local-first; ej prod-release.**

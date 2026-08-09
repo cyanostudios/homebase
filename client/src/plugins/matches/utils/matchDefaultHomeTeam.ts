@@ -19,6 +19,11 @@ export function resolveMatchDefaultHomeTeam(
   return settings.defaultHomeTeam.trim();
 }
 
+/**
+ * True when home_team equals default, or continues after it with a space
+ * (e.g. default "Sorgenfri FF" matches "Sorgenfri FF svart").
+ * Comparison is trim + case-insensitive.
+ */
 export function matchHomeTeamEqualsDefault(
   homeTeam: string | null | undefined,
   defaultHomeTeam: string,
@@ -27,5 +32,9 @@ export function matchHomeTeamEqualsDefault(
   if (!expected) {
     return false;
   }
-  return normalizeMatchHomeTeamName(homeTeam) === expected;
+  const actual = normalizeMatchHomeTeamName(homeTeam);
+  if (!actual) {
+    return false;
+  }
+  return actual === expected || actual.startsWith(`${expected} `);
 }

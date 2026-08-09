@@ -4,11 +4,78 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-10 – Pulse + Mail: settings Save + standards-alignment
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Dirty header-**Save** i Pulse- och Mail-settings (parity med övriga plugins). Mail `sendService` fail-closed utan död `ServiceManager.get('email')`-fallback. Widget-/API-copy i18n; Inspections-referenser borttagna.
+
+**Verifierat beteende (kod):** `SettingsHeaderSaveButton` via `PluginSettingsPageShell.saveAction` i Pulse/Mail settings; `docs/UI_AND_UX_STANDARDS_V3.md` Save-lista uppdaterad.
+
+---
+
+## 2026-08-10 – Pulse: Apple Messages-provider borttagen
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Pulse stödjer endast **Twilio** och **Mock**. Apple Messages (macOS Messages.app + iPhone Text Message Forwarding) är borttagen. Sparad `active_provider = apple-messages` normaliseras till `mock` vid läsning/skrivning.
+
+**Verifierat beteende (kod):** Adaptern `AppleMessagesAdapter.js` borttagen; provider-validering `twilio` \| `mock` i routes; settings/UI/i18n rensade.
+
+---
+
+## 2026-08-10 – Matches: default home team som prefix
+
+**Status:** Implementerat lokalt. **QA Approved**. **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** `defaultHomeTeam` matchar hemmalag exakt **eller** namn som fortsätter efter värdet med mellanslag (t.ex. `Sorgenfri FF` → `Sorgenfri FF svart` / `… orange`). Gäller listfilter och Teams matchflik hemma/borta. Ersätter tidigare exact-equality-tolkning av samma settings-nyckel.
+
+**Verifierat beteende (kod):** [`matchDefaultHomeTeam.ts`](../client/src/plugins/matches/utils/matchDefaultHomeTeam.ts) (`actual === expected || actual.startsWith(expected + ' ')`); tester i `matchDefaultHomeTeam.test.ts`, `matchListFilter.test.ts`, `teamMatchSide.test.ts`; i18n-hjälptext uppdaterad (sv/en).
+
+**Begränsningar:** Ingen match utan mellanslag efter prefix (t.ex. `Sorgenfri FFX` matchar inte). Kortare prefix (t.ex. `AIK`) kan träffa fler lag avsiktligt.
+
+---
+
+## 2026-08-10 – Schedule: flerval i lag-snabbfilter
+
+**Status:** Implementerat lokalt. **QA Approved**. **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** Snabbfilterchips för lag i schedule är flerval — flera lag kan vara aktiva samtidigt. Tomt urval / **Alla** visar alla lag. Prefill vid nytt pass endast när exakt ett lag är valt. Kapacitetsfooter ignorerar fortfarande lagfilter (`buildTeamSlots(..., [])`).
+
+**Verifierat beteende (kod):**
+
+- [`schedule.ts`](../client/src/plugins/schedule/types/schedule.ts): `ScheduleTeamFilter`, `toggleScheduleTeamFilter`, `getPreferredTeamIdFromFilter`; `buildTeamSlots` / `buildPlanSlots` filtrerar på flera id:n
+- [`ScheduleList.tsx`](../client/src/plugins/schedule/components/ScheduleList.tsx): toggle-chips med `aria-pressed`
+- [`PlanView.tsx`](../client/src/plugins/schedule/components/PlanView.tsx): tar emot `ScheduleTeamFilter`
+- Tester: `scheduleTeamFilter.test.ts`
+
+**Begränsningar:** Urval persistas inte mellan sessioner.
+
+---
+
+## 2026-08-09 – Schedule: kalender 0–24 med scroll till Visade tider
+
+**Status:** Implementerat lokalt. **QA Approved**. **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** Veckokalendern renderar alltid hela dygnet (00–24). **Visade tider** styr viewport-höjd och initial scroll (t.ex. öppna på 16–22); användaren kan scrolla till övriga tider. Pass utanför spannet filtreras inte bort.
+
+**Verifierat beteende (kod):**
+
+- [`schedule.ts`](../client/src/plugins/schedule/types/schedule.ts): `FULL_DAY_GRID_SETTINGS`, `getPreferredViewportHeightPx`, `getPreferredScrollTopPx`
+- [`ScheduleTimeGrid.tsx`](../client/src/plugins/schedule/components/ScheduleTimeGrid.tsx): vertikal `overflow-y-auto`, dag-header utanför scroll, muted band utanför preferred; initial `scrollTop` beror på `startHour`/`endHour` (inte objektreferens)
+- [`ScheduleList.tsx`](../client/src/plugins/schedule/components/ScheduleList.tsx) / [`PlanView.tsx`](../client/src/plugins/schedule/components/PlanView.tsx): ingen `isSlotVisibleInGrid`-filter för week slots
+- i18n hint/preview för Visade tider uppdaterad (sv/en)
+- Tester: `gridViewport.test.ts`, `scheduleTimeGridScrollDeps.test.js`
+
+**Begränsningar:** Mobil `ScheduleWeekView` oförändrad (lista utan tidsaxel). Full-day grid ökar antal droppceller (känd UX/prestandaavvägning).
+
+---
+
 ## 2026-08-09 – Matches: default home team + listfilter
 
 **Status:** Implementerat lokalt. **QA Approved**. **Security N/A** (användarägt fritextfält i befintlig settings-API; ingen ny yta). **Ej prod-release.**
 
-**Sammanfattning:** Matches settings (View) har fritext **Default home team**. När värdet är satt visas ett femte filterkort i listans stora filter; klick filtrerar matcher där `home_team` matchar namnet (trim, case-insensitive). Datumfiltren oförändrade; home-team-filtret är inte aktivt som standard. Samma setting styr **Teams** matchflikens hemma/borta-uppdelning.
+**Sammanfattning:** Matches settings (View) har fritext **Default home team**. När värdet är satt visas ett femte filterkort i listans stora filter; klick filtrerar matcher där `home_team` matchar namnet. _(Matchningsregel utökad 2026-08-10 till prefix + mellanslag — se post “Matches: default home team som prefix”.)_ Datumfiltren oförändrade; home-team-filtret är inte aktivt som standard. Samma setting styr **Teams** matchflikens hemma/borta-uppdelning.
 
 **Verifierat beteende (kod):**
 
@@ -598,7 +665,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 **Sammanfattning (verifierat mot kod):**
 
 - **Footer:** `ScheduleFooter` under varje schema visar bokad tid via `computeScheduleStats` (endast pass med `countsTowardCapacity !== false`).
-- **Kapacitetsunderlag:** footern använder `capacitySlots` = alla pass på schemat (`teamFilter: 'all'`, **utan** `isSlotVisibleInGrid`). Team-filter och synliga grid-timmar påverkar bara kalendervyn, inte summering/överbokning.
+- **Kapacitetsunderlag:** footern använder `capacitySlots` = alla pass på schemat (**utan** `isSlotVisibleInGrid`). _(Sedan 2026-08-10: tom `ScheduleTeamFilter` `[]` = alla lag; tidigare strängen `'all'`. Kalendern är full-day med scroll — se poster 2026-08-09/10.)_ Team-filter påverkar bara kalendervyn, inte summering/överbokning.
 - **Tillgängliga timmar:** per-schema i Schema → Inställningar (`availableHours` i app settings `schedule`); grön/röd indikator + kvar/för mycket.
 - **Copy tid:** copy-ikon bredvid pencil i desktop-`ScheduleTimeGrid`; dialog (`mode: 'copy'`) med dagval → `onCreate`. Mobile `ScheduleWeekView` har ingen copy-ikon.
 - **Opt-out:** switch "Räkna till bokad tid" (default på) i create/edit/copy. Lagkalender: `TrainingTime.countsTowardCapacity` i `training_times` JSON (`sanitizeTrainingTimes`). Egna scheman: `schedule_events.counts_toward_capacity` (`111-schedule-counts-toward-capacity.sql` + `npm run migrate:schedule-counts-toward-capacity`; kolumn även i `083-schedule.sql` för nya tenants).

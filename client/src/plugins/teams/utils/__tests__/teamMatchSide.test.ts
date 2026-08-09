@@ -45,12 +45,18 @@ describe('isUpcomingMatch', () => {
 });
 
 describe('isTeamHomeMatch / isTeamAwayMatch', () => {
-  it('classifies by Matches defaultHomeTeam (trim, case-insensitive)', () => {
+  it('classifies by Matches defaultHomeTeam (trim, case-insensitive prefix)', () => {
     const match = { home_team: '  AIK P16  ', away_team: 'Other FC' };
     expect(isTeamHomeMatch(match, 'aik p16')).toBe(true);
     expect(isTeamAwayMatch(match, 'aik p16')).toBe(false);
     expect(isTeamHomeMatch(match, 'Other FC')).toBe(false);
     expect(isTeamAwayMatch(match, 'Other FC')).toBe(true);
+  });
+
+  it('treats color/suffix variants as home when default is the club prefix', () => {
+    const match = { home_team: 'Sorgenfri FF svart', away_team: 'Other FC' };
+    expect(isTeamHomeMatch(match, 'Sorgenfri FF')).toBe(true);
+    expect(isTeamAwayMatch(match, 'Sorgenfri FF')).toBe(false);
   });
 
   it('treats empty default as away for all matches', () => {

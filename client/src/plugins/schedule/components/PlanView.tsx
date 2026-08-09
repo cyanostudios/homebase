@@ -15,11 +15,12 @@ import type { SchedulePlansState } from '../hooks/useSchedulePlans';
 import {
   buildPlanSlots,
   buildScheduleEventPayload,
+  getPreferredTeamIdFromFilter,
   getSlotDragId,
-  isSlotVisibleInGrid,
   type PlanEvent,
   type SchedulePlanWithEvents,
   type ScheduleSlot,
+  type ScheduleTeamFilter,
   type ScheduleTrainingDialogState,
 } from '../types/schedule';
 
@@ -37,7 +38,7 @@ export function PlanView({
 }: {
   scheduleId: string;
   scheduleName: string;
-  teamFilter: string;
+  teamFilter: ScheduleTeamFilter;
   schedulePlans: SchedulePlansState;
 }) {
   const { t } = useTranslation();
@@ -86,16 +87,15 @@ export function PlanView({
     if (!planData) {
       return [];
     }
-    const slots = buildPlanSlots(planData.events, teams, teamFilter);
-    return slots.filter((slot) => isSlotVisibleInGrid(slot, gridSettings));
-  }, [gridSettings, planData, teamFilter, teams]);
+    return buildPlanSlots(planData.events, teams, teamFilter);
+  }, [planData, teamFilter, teams]);
 
-  /** Full-schedule slots for capacity footer (ignore team filter + grid visibility). */
+  /** Full-schedule slots for capacity footer (ignore team filter). */
   const capacitySlots = useMemo(() => {
     if (!planData) {
       return [];
     }
-    return buildPlanSlots(planData.events, teams, 'all');
+    return buildPlanSlots(planData.events, teams, []);
   }, [planData, teams]);
 
   const handleSlotClick = useCallback((slot: ScheduleSlot) => {
@@ -289,7 +289,7 @@ export function PlanView({
     [adjustPlanEventCount, removeLocalEvent, scheduleId, t],
   );
 
-  const preferredTeamId = teamFilter !== 'all' ? teamFilter : undefined;
+  const preferredTeamId = getPreferredTeamIdFromFilter(teamFilter);
 
   return (
     <>

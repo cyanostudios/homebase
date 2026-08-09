@@ -71,25 +71,33 @@ export function planEventToSlot(event: PlanEvent, teams: Team[]): ScheduleSlot {
   };
 }
 
+/** Selected team ids for schedule quick filter. Empty = show all teams. */
+export type ScheduleTeamFilter = readonly string[];
+
 export function buildPlanSlots(
   events: PlanEvent[],
   teams: Team[],
-  teamFilter: string,
+  teamFilter: ScheduleTeamFilter,
 ): ScheduleSlot[] {
   const slots = events
     .filter((event) => event.event_type === 'recurring' && event.day)
     .map((event) => planEventToSlot(event, teams));
 
-  if (teamFilter === 'all') {
+  if (teamFilter.length === 0) {
     return slots;
   }
 
-  return slots.filter((slot) => String(slot.teamId) === teamFilter);
+  const selected = new Set(teamFilter.map(String));
+  return slots.filter(
+    (slot) =>
+      slot.teamId !== undefined && slot.teamId !== null && selected.has(String(slot.teamId)),
+  );
 }
 
-export function buildTeamSlots(teams: Team[], teamFilter: string): ScheduleSlot[] {
+export function buildTeamSlots(teams: Team[], teamFilter: ScheduleTeamFilter): ScheduleSlot[] {
+  const selected = new Set(teamFilter.map(String));
   const filteredTeams =
-    teamFilter === 'all' ? teams : teams.filter((team) => String(team.id) === teamFilter);
+    teamFilter.length === 0 ? teams : teams.filter((team) => selected.has(String(team.id)));
 
   return filteredTeams.flatMap((team) =>
     (team.training_times || [])
@@ -107,6 +115,19 @@ export function buildTeamSlots(teams: Team[], teamFilter: string): ScheduleSlot[
         countsTowardCapacity: training.countsTowardCapacity === false ? false : true,
       })),
   );
+}
+
+/** Prefill team when adding a slot: only when exactly one team is selected. */
+export function getPreferredTeamIdFromFilter(teamFilter: ScheduleTeamFilter): string | undefined {
+  return teamFilter.length === 1 ? teamFilter[0] : undefined;
+}
+
+export function toggleScheduleTeamFilter(teamFilter: ScheduleTeamFilter, teamId: string): string[] {
+  const id = String(teamId);
+  if (teamFilter.includes(id)) {
+    return teamFilter.filter((item) => item !== id);
+  }
+  return [...teamFilter, id];
 }
 
 export const GRID_SLOT_MINUTES = 30;
@@ -134,6 +155,12 @@ export interface ScheduleAppSettings extends ScheduleGridSettings {
 export const DEFAULT_SCHEDULE_GRID_SETTINGS: ScheduleGridSettings = {
   startHour: 6,
   endHour: 22,
+};
+
+/** Rendered week-grid extent: always a full day; Visade tider only control the viewport. */
+export const FULL_DAY_GRID_SETTINGS: ScheduleGridSettings = {
+  startHour: 0,
+  endHour: 24,
 };
 
 export const DEFAULT_SCHEDULE_APP_SETTINGS: ScheduleAppSettings = {
@@ -247,6 +274,18 @@ export function getGridSlotCount(settings: ScheduleGridSettings): number {
 
 export function getGridHeightPx(settings: ScheduleGridSettings): number {
   return getGridSlotCount(settings) * GRID_ROW_HEIGHT_PX;
+}
+
+/** Viewport height for preferred Visade tider (e.g. 16–22) within a full-day grid. */
+export function getPreferredViewportHeightPx(preferred: ScheduleGridSettings): number {
+  return getGridHeightPx(preferred);
+}
+
+/** scrollTop so the preferred startHour is at the top of the viewport. */
+export function getPreferredScrollTopPx(preferred: ScheduleGridSettings): number {
+  const offsetMinutes =
+    getGridStartMinutes(preferred) - getGridStartMinutes(FULL_DAY_GRID_SETTINGS);
+  return (offsetMinutes / GRID_SLOT_MINUTES) * GRID_ROW_HEIGHT_PX;
 }
 
 export function getSlotDurationMinutes(slot: ScheduleSlot): number {

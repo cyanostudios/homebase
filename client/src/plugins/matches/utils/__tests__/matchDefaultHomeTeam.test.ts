@@ -33,8 +33,16 @@ describe('matchHomeTeamEqualsDefault', () => {
     expect(matchHomeTeamEqualsDefault('  aik p16 ', 'AIK P16')).toBe(true);
   });
 
-  it('rejects non-equal or empty default', () => {
+  it('matches names that continue after the default with a space', () => {
+    expect(matchHomeTeamEqualsDefault('Sorgenfri FF svart', 'Sorgenfri FF')).toBe(true);
+    expect(matchHomeTeamEqualsDefault('Sorgenfri FF orange', 'sorgenfri ff')).toBe(true);
+    expect(matchHomeTeamEqualsDefault('Sorgenfri FF', 'Sorgenfri FF')).toBe(true);
+  });
+
+  it('rejects non-prefix, glued suffix, or empty default', () => {
     expect(matchHomeTeamEqualsDefault('AIK P16', 'Other')).toBe(false);
+    expect(matchHomeTeamEqualsDefault('Sorgenfri FFX', 'Sorgenfri FF')).toBe(false);
+    expect(matchHomeTeamEqualsDefault('Other Sorgenfri FF', 'Sorgenfri FF')).toBe(false);
     expect(matchHomeTeamEqualsDefault('AIK P16', '')).toBe(false);
     expect(matchHomeTeamEqualsDefault('AIK P16', '   ')).toBe(false);
   });

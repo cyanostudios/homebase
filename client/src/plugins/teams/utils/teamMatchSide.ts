@@ -11,8 +11,9 @@ export type TeamMatchSideGroups<T extends Pick<Match, 'start_time' | 'home_team'
 };
 
 /**
- * Home when match.home_team equals Matches settings defaultHomeTeam
- * (trim + case-insensitive). Empty default → never home.
+ * Home when match.home_team equals or continues after Matches settings
+ * defaultHomeTeam (trim + case-insensitive prefix, space-separated).
+ * Empty default → never home.
  */
 export function isTeamHomeMatch(match: Pick<Match, 'home_team'>, defaultHomeTeam: string): boolean {
   return matchHomeTeamEqualsDefault(match.home_team, defaultHomeTeam);
