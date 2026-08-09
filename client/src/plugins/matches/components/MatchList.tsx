@@ -22,8 +22,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { nextListTableSort } from '@/core/list/listViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
@@ -47,8 +49,15 @@ import {
   type MatchSortOrder,
 } from '../utils/matchListSort';
 import { matchMatchesListFilter, type MatchListFilter } from '../utils/matchListFilter';
+import {
+  getInitialMatchListViewMode,
+  persistMatchListViewModeSession,
+  resolveMatchListViewMode,
+  type MatchListViewMode,
+} from '../utils/matchListViewMode';
 
 import { MatchListItem } from './MatchListItem';
+import { MatchListTable } from './MatchListTable';
 import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
 
 type SortField = MatchSortField;
@@ -63,8 +72,6 @@ const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'updated_at', label: 'Updated' },
   { value: 'created_at', label: 'Created' },
 ];
-
-const COLUMN_OPTIONS: MatchColumnCount[] = [1, 2, 3];
 
 export function MatchList() {
   const { t } = useTranslation();
@@ -95,6 +102,9 @@ export function MatchList() {
   const [primarySort, setPrimarySort] = useState<SortField>('start_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [columnCount, setColumnCountState] = useState<MatchColumnCount>(getInitialMatchColumnCount);
+  const [listViewMode, setListViewModeState] = useState<MatchListViewMode>(
+    getInitialMatchListViewMode,
+  );
   const [activeFilter, setActiveFilter] = useState<MatchListFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('view');
 
@@ -110,6 +120,9 @@ export function MatchList() {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(MATCHES_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
+        const nextView = resolveMatchListViewMode(settings);
+        setListViewModeState(nextView);
+        persistMatchListViewModeSession(nextView);
       })
       .catch(() => {});
     return () => {
@@ -120,10 +133,23 @@ export function MatchList() {
   const setColumnCount = useCallback(
     (count: MatchColumnCount) => {
       setColumnCountState(count);
+      setListViewModeState('cards');
+      persistMatchListViewModeSession('cards');
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(MATCHES_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(MATCHES_SETTINGS_KEY, { columnCount: count }).catch(() => {});
+      updateSettings(MATCHES_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+        () => {},
+      );
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: MatchListViewMode) => {
+      setListViewModeState(mode);
+      persistMatchListViewModeSession(mode);
+      updateSettings(MATCHES_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
     },
     [updateSettings],
   );
@@ -136,6 +162,17 @@ export function MatchList() {
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
+
+  const handleTableSort = useCallback(
+    (field: SortField) => {
+      const next = nextListTableSort(primarySort, sortOrder, field, isMatchStringSortField);
+      setPrimarySort(next.field);
+      setSortOrder(next.order);
+    },
+    [primarySort, sortOrder],
+  );
+
+  const isTableView = listViewMode === 'table';
 
   const filteredAndSorted = useMemo(() => {
     const nowMs = Date.now();
@@ -344,69 +381,58 @@ export function MatchList() {
             }
             trailing={
               <>
-                <div className="mr-1 flex items-center gap-1">
-                  <Select
-                    value={primarySort}
-                    onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                  >
-                    <SelectTrigger
-                      className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                      aria-label="Sort by"
+                {!isTableView ? (
+                  <div className="mr-1 flex items-center gap-1">
+                    <Select
+                      value={primarySort}
+                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="item-aligned"
-                      className="rounded-xl border-border/50 shadow-xl"
-                    >
-                      {SORT_FIELD_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={option.value}
-                          className="rounded-md text-xs"
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 px-0 text-xs"
-                    onClick={toggleSortOrder}
-                    aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                  >
-                    {sortOrder === 'asc' ? (
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-                <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                  {COLUMN_OPTIONS.map((count) => (
+                      <SelectTrigger
+                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                        aria-label="Sort by"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="item-aligned"
+                        className="rounded-xl border-border/50 shadow-xl"
+                      >
+                        {SORT_FIELD_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-md text-xs"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
-                      key={count}
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className={cn(
-                        'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-                        columnCount === count
-                          ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={() => setColumnCount(count)}
-                      aria-label={t(`matches.columns${count}`)}
-                      aria-pressed={columnCount === count}
+                      className="h-7 w-7 px-0 text-xs"
+                      onClick={toggleSortOrder}
+                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                     >
-                      {count}
+                      {sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
                     </Button>
-                  ))}
-                </div>
+                  </div>
+                ) : null}
+                <ListColumnLayoutToggle
+                  columnCount={columnCount}
+                  listViewMode={listViewMode}
+                  onSelectColumns={setColumnCount}
+                  onSelectTable={() => setListViewMode('table')}
+                  columnAriaLabel={(count) => t(`matches.columns${count}`)}
+                  tableAriaLabel={t('common.tableView')}
+                />
               </>
             }
             bulkActions={
@@ -444,6 +470,20 @@ export function MatchList() {
               onCreate={
                 !searchTerm ? () => attemptNavigation(() => openMatchPanel(null)) : undefined
               }
+            />
+          ) : isTableView ? (
+            <MatchListTable
+              matches={filteredAndSorted}
+              primarySort={primarySort}
+              sortOrder={sortOrder}
+              onSort={handleTableSort}
+              isSelected={isSelected}
+              onRowClick={handleOpenForView}
+              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+              onCheckboxChange={onVisibleRowCheckboxChange}
+              allVisibleSelected={allVisibleSelected}
+              onHeaderCheckboxChange={handleHeaderCheckboxChange}
+              recentlyDuplicatedMatchId={recentlyDuplicatedMatchId}
             />
           ) : (
             <div

@@ -18,8 +18,10 @@ import { cn } from '@/lib/utils';
 
 import { useSlotSettings } from '../hooks/useSlotSettings';
 import type { SlotColumnCount } from '../utils/slotColumnCount';
+import type { SlotListViewMode } from '../utils/slotListViewMode';
 
 const COLUMN_OPTIONS: SlotColumnCount[] = [1, 2, 3];
+const VIEW_MODE_OPTIONS: SlotListViewMode[] = ['cards', 'table'];
 
 type SlotsSettingsCategory = 'view' | 'categories';
 
@@ -37,8 +39,18 @@ export function SlotsSettingsView({
   inlineTrailing,
 }: SlotsSettingsViewProps = {}) {
   const { t } = useTranslation();
-  const { columnCount, setColumnCount, tags, setTags, isDirty, isLoading, isSaving, save } =
-    useSlotSettings();
+  const {
+    columnCount,
+    setColumnCount,
+    listViewMode,
+    setListViewMode,
+    tags,
+    setTags,
+    isDirty,
+    isLoading,
+    isSaving,
+    save,
+  } = useSlotSettings();
   const [internalSelectedCategory, setInternalSelectedCategory] =
     useState<SlotsSettingsCategory>('view');
   const [newTag, setNewTag] = useState('');
@@ -105,32 +117,62 @@ export function SlotsSettingsView({
       }
     >
       {activeCategory === 'view' && (
-        <DetailSection title={t('slots.defaultColumns')} className="pt-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            {COLUMN_OPTIONS.map((count) => {
-              const isActive = columnCount === count;
-              return (
-                <Button
-                  key={count}
-                  variant="ghost"
-                  onClick={() => setColumnCount(count)}
-                  className={cn(
-                    'h-9 text-xs px-3 rounded-lg font-medium',
-                    'flex items-center gap-1.5',
-                    isActive
-                      ? 'bg-primary/10 text-primary border border-primary'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                  )}
-                  aria-label={t(`slots.columns${count}`)}
-                  aria-pressed={isActive}
-                >
-                  <span>{count}</span>
-                </Button>
-              );
-            })}
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">{t('slots.columnsHelp')}</p>
-        </DetailSection>
+        <>
+          <DetailSection title={t('common.defaultListView')} className="pt-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {VIEW_MODE_OPTIONS.map((mode) => {
+                const isActive = listViewMode === mode;
+                return (
+                  <Button
+                    key={mode}
+                    variant="ghost"
+                    onClick={() => setListViewMode(mode)}
+                    className={cn(
+                      'h-9 text-xs px-3 rounded-lg font-medium',
+                      'flex items-center gap-1.5',
+                      isActive
+                        ? 'bg-primary/10 text-primary border border-primary'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                    )}
+                    aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                    aria-pressed={isActive}
+                  >
+                    <span>{mode === 'cards' ? t('common.cardsView') : t('common.tableView')}</span>
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">{t('common.listViewHelp')}</p>
+          </DetailSection>
+          {listViewMode === 'cards' ? (
+            <DetailSection title={t('slots.defaultColumns')}>
+              <div className="flex items-center gap-2 flex-wrap">
+                {COLUMN_OPTIONS.map((count) => {
+                  const isActive = columnCount === count;
+                  return (
+                    <Button
+                      key={count}
+                      variant="ghost"
+                      onClick={() => setColumnCount(count)}
+                      className={cn(
+                        'h-9 text-xs px-3 rounded-lg font-medium',
+                        'flex items-center gap-1.5',
+                        isActive
+                          ? 'bg-primary/10 text-primary border border-primary'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                      )}
+                      aria-label={t(`slots.columns${count}`)}
+                      aria-pressed={isActive}
+                    >
+                      <span>{count}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">{t('slots.columnsHelp')}</p>
+            </DetailSection>
+          ) : null}
+        </>
       )}
 
       {activeCategory === 'categories' && (

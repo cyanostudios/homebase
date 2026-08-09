@@ -226,6 +226,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
           icon={Info}
           iconPlugin="tasks"
           className="p-4"
+          collapsible
         >
           <div className="space-y-4 text-xs">
             <div className="flex justify-between items-center">

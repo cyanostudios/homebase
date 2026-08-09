@@ -464,6 +464,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
           icon={Info}
           iconPlugin="slots"
           className="p-4"
+          collapsible
         >
           <div className="space-y-4 text-xs">
             <div className="flex justify-between items-center">

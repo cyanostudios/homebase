@@ -1,3 +1,5 @@
+import { nextListTableSort } from '@/core/list/listViewMode';
+
 import type { Slot } from '../types/slots';
 
 export type SlotSortField =
@@ -13,6 +15,15 @@ export type SlotSortOrder = 'asc' | 'desc';
 /** Default asc for name/location/slot_time/category/visible/booked; desc for updatedAt. */
 export function isSlotAscDefaultField(field: SlotSortField): boolean {
   return field !== 'updatedAt';
+}
+
+/** Header-click sort: toggle order on same field, else switch field with default order. */
+export function nextSlotTableSort(
+  currentField: SlotSortField,
+  currentOrder: SlotSortOrder,
+  nextField: SlotSortField,
+): { field: SlotSortField; order: SlotSortOrder } {
+  return nextListTableSort(currentField, currentOrder, nextField, isSlotAscDefaultField);
 }
 
 type SlotSortable = Pick<

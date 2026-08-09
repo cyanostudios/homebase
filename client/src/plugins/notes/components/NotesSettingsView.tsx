@@ -25,6 +25,12 @@ import {
   resolveNoteColumnCount,
   type NoteColumnCount,
 } from '../utils/noteColumnCount';
+import {
+  NOTES_LIST_VIEW_MODE_STORAGE_KEY,
+  persistNoteListViewModeSession,
+  resolveNoteListViewMode,
+  type NoteListViewMode,
+} from '../utils/noteListViewMode';
 
 const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
   fields: [
@@ -36,6 +42,7 @@ const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
 export type NotesSettingsCategory = 'view' | 'import';
 
 const COLUMN_OPTIONS: NoteColumnCount[] = [1, 2, 3];
+const VIEW_MODE_OPTIONS: NoteListViewMode[] = ['cards', 'table'];
 
 interface NotesSettingsViewProps {
   selectedCategory?: NotesSettingsCategory;
@@ -60,6 +67,8 @@ export function NotesSettingsView({
 
   const [columnCount, setColumnCount] = useState<NoteColumnCount>(1);
   const [initialColumnCount, setInitialColumnCount] = useState<NoteColumnCount>(1);
+  const [listViewMode, setListViewMode] = useState<NoteListViewMode>('cards');
+  const [initialListViewMode, setInitialListViewMode] = useState<NoteListViewMode>('cards');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
@@ -94,6 +103,9 @@ export function NotesSettingsView({
         const loaded = resolveNoteColumnCount(settings);
         setColumnCount(loaded);
         setInitialColumnCount(loaded);
+        const loadedView = resolveNoteListViewMode(settings);
+        setListViewMode(loadedView);
+        setInitialListViewMode(loadedView);
       })
       .catch(() => {})
       .finally(() => {
@@ -106,22 +118,25 @@ export function NotesSettingsView({
     };
   }, [getSettings, settingsVersion]);
 
-  const isDirty = columnCount !== initialColumnCount;
+  const isDirty = columnCount !== initialColumnCount || listViewMode !== initialListViewMode;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings(NOTES_SETTINGS_KEY, { columnCount });
+      await updateSettings(NOTES_SETTINGS_KEY, { columnCount, listViewMode });
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(NOTES_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+        window.sessionStorage.setItem(NOTES_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
       }
+      persistNoteListViewModeSession(listViewMode);
       setInitialColumnCount(columnCount);
+      setInitialListViewMode(listViewMode);
     } catch (error) {
       console.error('Failed to save notes settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [columnCount, updateSettings]);
+  }, [columnCount, listViewMode, updateSettings]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
@@ -143,30 +158,62 @@ export function NotesSettingsView({
         }
       >
         {activeCategory === 'view' && (
-          <DetailSection title={t('notes.defaultColumns')} className="pt-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {COLUMN_OPTIONS.map((count) => {
-                const isActive = columnCount === count;
-                return (
-                  <Button
-                    key={count}
-                    variant="ghost"
-                    onClick={() => setColumnCount(count)}
-                    className={cn(
-                      'h-9 text-xs px-3 rounded-lg font-medium',
-                      'flex items-center gap-1.5',
-                      isActive
-                        ? 'bg-primary/10 text-primary border border-primary'
-                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                    )}
-                  >
-                    <span>{t(`notes.columns${count}`)}</span>
-                  </Button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">{t('notes.columnsHelp')}</p>
-          </DetailSection>
+          <>
+            <DetailSection title={t('common.defaultListView')} className="pt-0">
+              <div className="flex flex-wrap items-center gap-2">
+                {VIEW_MODE_OPTIONS.map((mode) => {
+                  const isActive = listViewMode === mode;
+                  return (
+                    <Button
+                      key={mode}
+                      variant="ghost"
+                      onClick={() => setListViewMode(mode)}
+                      className={cn(
+                        'h-9 text-xs px-3 rounded-lg font-medium',
+                        'flex items-center gap-1.5',
+                        isActive
+                          ? 'bg-primary/10 text-primary border border-primary'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                      )}
+                      aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                      aria-pressed={isActive}
+                    >
+                      <span>
+                        {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
+            </DetailSection>
+            {listViewMode === 'cards' ? (
+              <DetailSection title={t('notes.defaultColumns')}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {COLUMN_OPTIONS.map((count) => {
+                    const isActive = columnCount === count;
+                    return (
+                      <Button
+                        key={count}
+                        variant="ghost"
+                        onClick={() => setColumnCount(count)}
+                        className={cn(
+                          'h-9 text-xs px-3 rounded-lg font-medium',
+                          'flex items-center gap-1.5',
+                          isActive
+                            ? 'bg-primary/10 text-primary border border-primary'
+                            : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                        )}
+                      >
+                        <span>{t(`notes.columns${count}`)}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{t('notes.columnsHelp')}</p>
+              </DetailSection>
+            ) : null}
+          </>
         )}
 
         {activeCategory === 'import' && (

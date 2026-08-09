@@ -25,6 +25,12 @@ import {
   TASKS_SETTINGS_KEY,
   type TaskColumnCount,
 } from '../utils/taskColumnCount';
+import {
+  persistTaskListViewModeSession,
+  resolveTaskListViewMode,
+  TASKS_LIST_VIEW_MODE_STORAGE_KEY,
+  type TaskListViewMode,
+} from '../utils/taskListViewMode';
 
 const getTaskImportSchema = (): ImportSchema => ({
   fields: [
@@ -45,6 +51,7 @@ const TASK_IMPORT_EXAMPLE_ROW: Record<string, string> = {
 export type TaskSettingsCategory = 'view' | 'import';
 
 const COLUMN_OPTIONS: TaskColumnCount[] = [1, 2, 3];
+const VIEW_MODE_OPTIONS: TaskListViewMode[] = ['cards', 'table'];
 
 interface TaskSettingsViewProps {
   selectedCategory?: TaskSettingsCategory;
@@ -70,6 +77,8 @@ export function TaskSettingsView({
 
   const [columnCount, setColumnCount] = useState<TaskColumnCount>(1);
   const [initialColumnCount, setInitialColumnCount] = useState<TaskColumnCount>(1);
+  const [listViewMode, setListViewMode] = useState<TaskListViewMode>('cards');
+  const [initialListViewMode, setInitialListViewMode] = useState<TaskListViewMode>('cards');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -103,6 +112,9 @@ export function TaskSettingsView({
         const loaded = resolveTaskColumnCount(settings);
         setColumnCount(loaded);
         setInitialColumnCount(loaded);
+        const loadedView = resolveTaskListViewMode(settings);
+        setListViewMode(loadedView);
+        setInitialListViewMode(loadedView);
       })
       .catch(() => {})
       .finally(() => {
@@ -115,22 +127,25 @@ export function TaskSettingsView({
     };
   }, [getSettings]);
 
-  const isDirty = columnCount !== initialColumnCount;
+  const isDirty = columnCount !== initialColumnCount || listViewMode !== initialListViewMode;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings(TASKS_SETTINGS_KEY, { columnCount });
+      await updateSettings(TASKS_SETTINGS_KEY, { columnCount, listViewMode });
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(TASKS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+        window.sessionStorage.setItem(TASKS_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
       }
+      persistTaskListViewModeSession(listViewMode);
       setInitialColumnCount(columnCount);
+      setInitialListViewMode(listViewMode);
     } catch (error) {
       console.error('Failed to save tasks settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [columnCount, updateSettings]);
+  }, [columnCount, listViewMode, updateSettings]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
@@ -152,30 +167,62 @@ export function TaskSettingsView({
         }
       >
         {activeCategory === 'view' && (
-          <DetailSection title={t('tasks.defaultColumns')} className="pt-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {COLUMN_OPTIONS.map((count) => {
-                const isActive = columnCount === count;
-                return (
-                  <Button
-                    key={count}
-                    variant="ghost"
-                    onClick={() => setColumnCount(count)}
-                    className={cn(
-                      'h-9 text-xs px-3 rounded-lg font-medium',
-                      'flex items-center gap-1.5',
-                      isActive
-                        ? 'bg-primary/10 text-primary border border-primary'
-                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                    )}
-                  >
-                    <span>{t(`tasks.columns${count}`)}</span>
-                  </Button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">{t('tasks.columnsHelp')}</p>
-          </DetailSection>
+          <>
+            <DetailSection title={t('common.defaultListView')} className="pt-0">
+              <div className="flex flex-wrap items-center gap-2">
+                {VIEW_MODE_OPTIONS.map((mode) => {
+                  const isActive = listViewMode === mode;
+                  return (
+                    <Button
+                      key={mode}
+                      variant="ghost"
+                      onClick={() => setListViewMode(mode)}
+                      className={cn(
+                        'h-9 text-xs px-3 rounded-lg font-medium',
+                        'flex items-center gap-1.5',
+                        isActive
+                          ? 'bg-primary/10 text-primary border border-primary'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                      )}
+                      aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                      aria-pressed={isActive}
+                    >
+                      <span>
+                        {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
+            </DetailSection>
+            {listViewMode === 'cards' ? (
+              <DetailSection title={t('tasks.defaultColumns')}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {COLUMN_OPTIONS.map((count) => {
+                    const isActive = columnCount === count;
+                    return (
+                      <Button
+                        key={count}
+                        variant="ghost"
+                        onClick={() => setColumnCount(count)}
+                        className={cn(
+                          'h-9 text-xs px-3 rounded-lg font-medium',
+                          'flex items-center gap-1.5',
+                          isActive
+                            ? 'bg-primary/10 text-primary border border-primary'
+                            : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                        )}
+                      >
+                        <span>{t(`tasks.columns${count}`)}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{t('tasks.columnsHelp')}</p>
+              </DetailSection>
+            ) : null}
+          </>
         )}
         {activeCategory === 'import' && (
           <DetailSection title={t('common.import')} className="pt-0">

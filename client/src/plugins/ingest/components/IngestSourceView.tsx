@@ -197,6 +197,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                 iconPlugin="ingest"
                 subtleTitle
                 className="p-4"
+                collapsible
               >
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>

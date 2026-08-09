@@ -686,6 +686,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                 icon={Info}
                 subtleTitle
                 className="p-4"
+                collapsible
               >
                 <div>
                   <div className={INFO_ROW_CLASS}>

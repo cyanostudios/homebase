@@ -253,7 +253,12 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             />
             <EstimateExportOptionsCard estimate={estimate} actions={detailFooterActions} />
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection title={t('estimates.information')} icon={Info} className="p-4">
+              <DetailSection
+                title={t('estimates.information')}
+                icon={Info}
+                className="p-4"
+                collapsible
+              >
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">ID</span>

@@ -21,8 +21,16 @@ import {
   resolveInstructionColumnCount,
   type InstructionColumnCount,
 } from '../utils/instructionColumnCount';
+import {
+  getInitialInstructionListViewMode,
+  INSTRUCTIONS_LIST_VIEW_MODE_STORAGE_KEY,
+  persistInstructionListViewModeSession,
+  resolveInstructionListViewMode,
+  type InstructionListViewMode,
+} from '../utils/instructionListViewMode';
 
 const COLUMN_OPTIONS: InstructionColumnCount[] = [1, 2, 3];
+const VIEW_MODE_OPTIONS: InstructionListViewMode[] = ['cards', 'table'];
 
 interface InstructionSettingsViewProps {
   selectedTab?: InstructionSettingsTab;
@@ -50,6 +58,12 @@ export function InstructionSettingsView({
   );
   const [initialColumnCount, setInitialColumnCount] = useState<InstructionColumnCount>(
     getInitialInstructionColumnCount,
+  );
+  const [listViewMode, setListViewMode] = useState<InstructionListViewMode>(
+    getInitialInstructionListViewMode,
+  );
+  const [initialListViewMode, setInitialListViewMode] = useState<InstructionListViewMode>(
+    getInitialInstructionListViewMode,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -81,6 +95,9 @@ export function InstructionSettingsView({
         const next = resolveInstructionColumnCount(settings);
         setColumnCount(next);
         setInitialColumnCount(next);
+        const nextView = resolveInstructionListViewMode(settings);
+        setListViewMode(nextView);
+        setInitialListViewMode(nextView);
       })
       .catch(() => {
         if (!cancelled) {
@@ -95,26 +112,27 @@ export function InstructionSettingsView({
     };
   }, [getSettings, t]);
 
-  const isDirty = columnCount !== initialColumnCount;
+  const isDirty = columnCount !== initialColumnCount || listViewMode !== initialListViewMode;
 
   const save = useCallback(async () => {
     setIsSaving(true);
     setErrorMessage(null);
     try {
-      if (columnCount !== initialColumnCount) {
-        await updateSettings(INSTRUCTIONS_SETTINGS_KEY, { columnCount });
-        setInitialColumnCount(columnCount);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(INSTRUCTIONS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
-        }
+      await updateSettings(INSTRUCTIONS_SETTINGS_KEY, { columnCount, listViewMode });
+      setInitialColumnCount(columnCount);
+      setInitialListViewMode(listViewMode);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(INSTRUCTIONS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+        window.sessionStorage.setItem(INSTRUCTIONS_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
       }
+      persistInstructionListViewModeSession(listViewMode);
     } catch (error: unknown) {
       const err = error as { message?: string; error?: string };
       setErrorMessage(err?.message || err?.error || t('instructions.settings.saveFailed'));
     } finally {
       setIsSaving(false);
     }
-  }, [columnCount, initialColumnCount, t, updateSettings]);
+  }, [columnCount, listViewMode, t, updateSettings]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
@@ -137,34 +155,63 @@ export function InstructionSettingsView({
       {errorMessage ? <p className="mb-4 text-sm text-destructive">{errorMessage}</p> : null}
 
       {activeTab === 'view' && (
-        <DetailSection title={t('instructions.settings.defaultColumns')} className="pt-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {COLUMN_OPTIONS.map((count) => {
-              const isActive = columnCount === count;
-              return (
-                <Button
-                  key={count}
-                  variant="ghost"
-                  onClick={() => setColumnCount(count)}
-                  className={cn(
-                    'h-9 text-xs px-3 rounded-lg font-medium',
-                    'flex items-center gap-1.5',
-                    isActive
-                      ? 'bg-primary/10 text-primary border border-primary'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                  )}
-                  aria-label={t(`instructions.columns${count}`)}
-                  aria-pressed={isActive}
-                >
-                  <span>{count}</span>
-                </Button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t('instructions.settings.columnsHelp')}
-          </p>
-        </DetailSection>
+        <>
+          <DetailSection title={t('common.defaultListView')} className="pt-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {VIEW_MODE_OPTIONS.map((mode) => {
+                const isActive = listViewMode === mode;
+                return (
+                  <Button
+                    key={mode}
+                    variant="ghost"
+                    onClick={() => setListViewMode(mode)}
+                    className={cn(
+                      'h-9 text-xs px-3 rounded-lg font-medium',
+                      isActive
+                        ? 'bg-primary/10 text-primary border border-primary'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                    )}
+                    aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                    aria-pressed={isActive}
+                  >
+                    {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
+          </DetailSection>
+          {listViewMode === 'cards' ? (
+            <DetailSection title={t('instructions.settings.defaultColumns')}>
+              <div className="flex flex-wrap items-center gap-2">
+                {COLUMN_OPTIONS.map((count) => {
+                  const isActive = columnCount === count;
+                  return (
+                    <Button
+                      key={count}
+                      variant="ghost"
+                      onClick={() => setColumnCount(count)}
+                      className={cn(
+                        'h-9 text-xs px-3 rounded-lg font-medium',
+                        'flex items-center gap-1.5',
+                        isActive
+                          ? 'bg-primary/10 text-primary border border-primary'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                      )}
+                      aria-label={t(`instructions.columns${count}`)}
+                      aria-pressed={isActive}
+                    >
+                      <span>{count}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t('instructions.settings.columnsHelp')}
+              </p>
+            </DetailSection>
+          ) : null}
+        </>
       )}
     </PluginSettingsPageShell>
   );

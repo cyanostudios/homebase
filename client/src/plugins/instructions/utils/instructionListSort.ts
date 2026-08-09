@@ -7,6 +7,11 @@ export function isInstructionStringSortField(field: InstructionSortField): boole
   return field === 'title' || field === 'publicationStatus';
 }
 
+/** String fields default to ascending when switching table sort column. */
+export function isInstructionAscDefaultField(field: InstructionSortField): boolean {
+  return isInstructionStringSortField(field);
+}
+
 export function compareInstructionsByField(
   a: Instruction,
   b: Instruction,

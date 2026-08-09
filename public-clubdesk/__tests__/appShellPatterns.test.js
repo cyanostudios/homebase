@@ -25,6 +25,13 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(css).toMatch(/--bg-page:\s*#f7f1ea/i);
   });
 
+  test('display font uses Plus Jakarta Sans (not Fraunces)', () => {
+    expect(css).toMatch(
+      /--font-display:\s*'Plus Jakarta Sans',\s*ui-sans-serif,\s*system-ui,\s*sans-serif/,
+    );
+    expect(css).not.toMatch(/Fraunces/);
+  });
+
   test('home hub uses 2-column tiles without quick-nav', () => {
     expect(html).toMatch(/Clubdesk/);
     expect(html).not.toMatch(/id="home-hero"/);
@@ -56,7 +63,7 @@ describe('public-clubdesk AppShell patterns', () => {
       /\.item-grid-section__title[\s\S]*?\.price-list-section__title\s*\{[\s\S]*?font-family:\s*var\(--font-display\)/,
     );
     expect(css).toMatch(
-      /\.item-grid-section__title[\s\S]*?\.price-list-section__title\s*\{[\s\S]*?font-size:\s*clamp\(0\.925rem,\s*3\.5vw,\s*2\.375rem\)/,
+      /\.item-grid-section__title[\s\S]*?\.price-list-section__title\s*\{[\s\S]*?font-size:\s*clamp\(0\.875rem,\s*2\.6vw,\s*1\.25rem\)/,
     );
   });
 
@@ -86,12 +93,15 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(priceList).toMatch(/step-subheader__guide/);
     expect(priceList).toMatch(/step-subheader__step/);
     expect(priceList).toMatch(/step-subheader__inner--cart/);
+    expect(priceList).toMatch(/step-subheader__cart-actions/);
     expect(priceList).toMatch(/data-cart-add/);
     expect(priceList).toMatch(/cart-toggle-btn/);
     expect(priceList).toMatch(/step-nav__btn/);
     expect(priceList).toMatch(/aria-label="Visa varukorg"/);
     expect(priceList).not.toMatch(/step-subheader__bar/);
     expect(priceList).toMatch(/id="cart-view"/);
+    expect(priceList).toMatch(/id="cart-clear-btn"/);
+    expect(priceList).toMatch(/aria-label="Nollställ varukorg"/);
     expect(priceList).toMatch(/Att betala/);
     expect(priceList).toMatch(/id="cart-swish"/);
     expect(priceList).toMatch(/id="cart-swish-number"/);
@@ -109,8 +119,23 @@ describe('public-clubdesk AppShell patterns', () => {
     expect(css).toMatch(/\.price-list-row__price/);
     expect(css).toMatch(/\.price-list-qty-btn/);
     expect(css).toMatch(/\.cart-total/);
+    expect(css).toMatch(/\.step-subheader__cart-actions/);
+    expect(css).toMatch(/\.step-subheader\s+\.cart-clear-btn/);
+    expect(priceList).toMatch(/cart-clear-btn__icon/);
+    expect(priceList).toMatch(/step-nav__btn--prev cart-clear-btn/);
     expect(js).toMatch(/price-list-card/);
     expect(js).not.toMatch(/renderPriceListCard[\s\S]*?itemImageUrl/);
+  });
+
+  test('cart app wires clearCart in subheader mini cart', () => {
+    const cartApp = read('price-list-cart-app.js');
+    const cartLib = read('lib/priceListCart.js');
+    expect(cartLib).toMatch(/function clearCart/);
+    expect(cartLib).toMatch(/clearCart,/);
+    expect(cartApp).toMatch(/cart-clear-btn/);
+    expect(cartApp).toMatch(/Cart\.clearCart\(slug\)/);
+    expect(cartApp).toMatch(/cartClearBtn\.hidden\s*=\s*Cart\.uniqueCount\(cart\)\s*===\s*0/);
+    expect(cartApp).toMatch(/setView\('list'\)/);
   });
 
   test('list uses same-origin PHP APIs for guides and price lists', () => {

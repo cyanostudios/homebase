@@ -18,12 +18,19 @@ import {
   CONTACTS_SETTINGS_KEY,
   type ContactColumnCount,
 } from '../utils/contactColumnCount';
+import {
+  CONTACTS_LIST_VIEW_MODE_STORAGE_KEY,
+  persistContactListViewModeSession,
+  resolveContactListViewMode,
+  type ContactListViewMode,
+} from '../utils/contactListViewMode';
 
 export interface ContactSettingsFormProps {
   onCancel: () => void;
 }
 
 const COLUMN_OPTIONS: ContactColumnCount[] = [1, 2, 3];
+const VIEW_MODE_OPTIONS: ContactListViewMode[] = ['cards', 'table'];
 
 export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSettingsFormProps>(
   function ContactSettingsForm({ onCancel }, ref) {
@@ -31,6 +38,8 @@ export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSett
     const { getSettings, updateSettings } = useApp();
     const [columnCount, setColumnCount] = useState<ContactColumnCount>(1);
     const [initialColumnCount, setInitialColumnCount] = useState<ContactColumnCount>(1);
+    const [listViewMode, setListViewMode] = useState<ContactListViewMode>('cards');
+    const [initialListViewMode, setInitialListViewMode] = useState<ContactListViewMode>('cards');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [tags, setTags] = useState<string[]>([]);
@@ -45,6 +54,9 @@ export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSett
           const loaded = resolveContactColumnCount(settings);
           setColumnCount(loaded);
           setInitialColumnCount(loaded);
+          const loadedView = resolveContactListViewMode(settings);
+          setListViewMode(loadedView);
+          setInitialListViewMode(loadedView);
           const loadedTags = Array.isArray(settings?.tags)
             ? settings.tags
                 .filter((tag: any) => typeof tag === 'string')
@@ -64,16 +76,20 @@ export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSett
 
     const tagsEqual =
       tags.length === initialTags.length && tags.every((tag, i) => tag === initialTags[i]);
-    const isDirty = columnCount !== initialColumnCount || !tagsEqual;
+    const isDirty =
+      columnCount !== initialColumnCount || listViewMode !== initialListViewMode || !tagsEqual;
 
     const handleSave = useCallback(async () => {
       setIsSaving(true);
       try {
-        await updateSettings(CONTACTS_SETTINGS_KEY, { columnCount, tags });
+        await updateSettings(CONTACTS_SETTINGS_KEY, { columnCount, listViewMode, tags });
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+          window.sessionStorage.setItem(CONTACTS_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
         }
+        persistContactListViewModeSession(listViewMode);
         setInitialColumnCount(columnCount);
+        setInitialListViewMode(listViewMode);
         setInitialTags([...tags]);
         onCancel();
       } catch (error) {
@@ -81,7 +97,7 @@ export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSett
       } finally {
         setIsSaving(false);
       }
-    }, [columnCount, tags, updateSettings, onCancel]);
+    }, [columnCount, listViewMode, tags, updateSettings, onCancel]);
 
     const addTag = () => {
       const next = newTag.trim();
@@ -120,35 +136,63 @@ export const ContactSettingsForm = React.forwardRef<PanelFormHandle, ContactSett
           title={
             <div className="flex items-center gap-2">
               <Eye className="w-3.5 h-3.5" />
-              <span>{t('contacts.defaultColumns')}</span>
+              <span>{t('contacts.defaultListView')}</span>
             </div>
           }
         >
           <DetailCard className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-0.5">
-                <Label className="text-sm font-semibold">{t('contacts.columnsLabel')}</Label>
-                <p className="text-[11px] text-gray-500">{t('contacts.columnsHelp')}</p>
+                <Label className="text-sm font-semibold">{t('contacts.listViewLabel')}</Label>
+                <p className="text-[11px] text-gray-500">{t('contacts.listViewHelp')}</p>
               </div>
               <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-100 dark:border-gray-700">
-                {COLUMN_OPTIONS.map((count) => (
+                {VIEW_MODE_OPTIONS.map((mode) => (
                   <Button
-                    key={count}
-                    variant={columnCount === count ? 'default' : 'ghost'}
+                    key={mode}
+                    variant={listViewMode === mode ? 'default' : 'ghost'}
                     size="sm"
                     className={cn(
-                      'h-8 min-w-8 px-3 text-[10px] font-bold tracking-tight',
-                      columnCount !== count &&
+                      'h-8 px-3 text-[10px] font-bold tracking-tight',
+                      listViewMode !== mode &&
                         'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200',
                     )}
-                    onClick={() => setColumnCount(count)}
-                    aria-label={t(`contacts.columns${count}`)}
+                    onClick={() => setListViewMode(mode)}
+                    aria-label={
+                      mode === 'cards' ? t('contacts.cardsView') : t('contacts.tableView')
+                    }
                   >
-                    {count}
+                    {mode === 'cards' ? t('contacts.cardsView') : t('contacts.tableView')}
                   </Button>
                 ))}
               </div>
             </div>
+            {listViewMode === 'cards' ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">{t('contacts.columnsLabel')}</Label>
+                  <p className="text-[11px] text-gray-500">{t('contacts.columnsHelp')}</p>
+                </div>
+                <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-100 dark:border-gray-700">
+                  {COLUMN_OPTIONS.map((count) => (
+                    <Button
+                      key={count}
+                      variant={columnCount === count ? 'default' : 'ghost'}
+                      size="sm"
+                      className={cn(
+                        'h-8 min-w-8 px-3 text-[10px] font-bold tracking-tight',
+                        columnCount !== count &&
+                          'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200',
+                      )}
+                      onClick={() => setColumnCount(count)}
+                      aria-label={t(`contacts.columns${count}`)}
+                    >
+                      {count}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </DetailCard>
         </DetailSection>
 

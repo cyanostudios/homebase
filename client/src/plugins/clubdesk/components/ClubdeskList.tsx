@@ -26,12 +26,14 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { nextListTableSort } from '@/core/list/listViewMode';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
@@ -50,14 +52,22 @@ import {
 } from '../utils/clubdeskColumnCount';
 import {
   compareClubdesksByField,
+  isClubdeskAscDefaultField,
   isClubdeskStringSortField,
   type ClubdeskSortField,
   type ClubdeskSortOrder,
 } from '../utils/clubdeskListSort';
+import {
+  getInitialClubdeskListViewMode,
+  persistClubdeskListViewModeSession,
+  resolveClubdeskListViewMode,
+  type ClubdeskListViewMode,
+} from '../utils/clubdeskListViewMode';
 import { getClubdeskListStatusErrorMessage } from '../utils/clubdeskListStatusError';
 import { sortCategoryNames } from '../utils/sortCategoryNames';
 
 import { ClubdeskListItem } from './ClubdeskListItem';
+import { ClubdeskListTable } from './ClubdeskListTable';
 import { ClubdeskInfoView } from './ClubdeskInfoView';
 import { ClubdeskSettingsView } from './ClubdeskSettingsView';
 import { PriceListList } from './PriceListList';
@@ -78,8 +88,6 @@ const SORT_FIELD_OPTIONS: { value: ClubdeskSortField; labelKey: string }[] = [
   { value: 'createdAt', labelKey: 'clubdesk.sort.created' },
   { value: 'publicationStatus', labelKey: 'clubdesk.sort.status' },
 ];
-
-const COLUMN_OPTIONS: ClubdeskColumnCount[] = [1, 2, 3];
 
 export const ClubdeskList: React.FC = () => {
   const location = useLocation();
@@ -130,6 +138,9 @@ const ClubdeskGuidesList: React.FC = () => {
   const [columnCount, setColumnCountState] = useState<ClubdeskColumnCount>(
     getInitialClubdeskColumnCount,
   );
+  const [listViewMode, setListViewModeState] = useState<ClubdeskListViewMode>(
+    getInitialClubdeskListViewMode,
+  );
   const [activeFilter, setActiveFilter] = useState<ClubdeskFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
@@ -149,6 +160,9 @@ const ClubdeskGuidesList: React.FC = () => {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
+        const nextView = resolveClubdeskListViewMode(settings);
+        setListViewModeState(nextView);
+        persistClubdeskListViewModeSession(nextView);
       })
       .catch(() => {});
     return () => {
@@ -159,10 +173,23 @@ const ClubdeskGuidesList: React.FC = () => {
   const setColumnCount = useCallback(
     (count: ClubdeskColumnCount) => {
       setColumnCountState(count);
+      setListViewModeState('cards');
+      persistClubdeskListViewModeSession('cards');
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount: count }).catch(() => {});
+      updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+        () => {},
+      );
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: ClubdeskListViewMode) => {
+      setListViewModeState(mode);
+      persistClubdeskListViewModeSession(mode);
+      updateSettings(CLUBDESK_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
     },
     [updateSettings],
   );
@@ -175,6 +202,17 @@ const ClubdeskGuidesList: React.FC = () => {
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
+
+  const handleTableSort = useCallback(
+    (field: ClubdeskSortField) => {
+      const next = nextListTableSort(primarySort, sortOrder, field, isClubdeskAscDefaultField);
+      setPrimarySort(next.field);
+      setSortOrder(next.order);
+    },
+    [primarySort, sortOrder],
+  );
+
+  const isTableView = listViewMode === 'table';
 
   const catalogOrder = useMemo(() => categories.map((c) => c.name), [categories]);
 
@@ -203,7 +241,7 @@ const ClubdeskGuidesList: React.FC = () => {
         (item.slug || '').toLowerCase().includes(q),
     );
 
-    if (categoryFilter !== 'all') {
+    if (categoryFilter !== 'all' && !isTableView) {
       return [...filtered].sort((a, b) => {
         const ao = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
         const bo = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
@@ -215,10 +253,10 @@ const ClubdeskGuidesList: React.FC = () => {
     }
 
     return [...filtered].sort((a, b) => compareClubdesksByField(a, b, primarySort, sortOrder));
-  }, [clubdesk, searchTerm, primarySort, sortOrder, activeFilter, categoryFilter]);
+  }, [clubdesk, searchTerm, primarySort, sortOrder, activeFilter, categoryFilter, isTableView]);
 
   const canReorderCategory =
-    categoryFilter !== 'all' && searchTerm.trim() === '' && activeFilter === 'all';
+    !isTableView && categoryFilter !== 'all' && searchTerm.trim() === '' && activeFilter === 'all';
 
   const categoryOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -490,70 +528,59 @@ const ClubdeskGuidesList: React.FC = () => {
             }
             trailing={
               <>
-                <div className="mr-1 flex items-center gap-1">
-                  <Select
-                    value={primarySort}
-                    onValueChange={(value) => handlePrimarySortChange(value as ClubdeskSortField)}
-                  >
-                    <SelectTrigger
-                      className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                      aria-label={t('clubdesk.sortBy')}
+                {!isTableView ? (
+                  <div className="mr-1 flex items-center gap-1">
+                    <Select
+                      value={primarySort}
+                      onValueChange={(value) => handlePrimarySortChange(value as ClubdeskSortField)}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="item-aligned"
-                      className="rounded-xl border-border/50 shadow-xl"
-                    >
-                      {SORT_FIELD_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={option.value}
-                          className="rounded-md text-xs"
-                        >
-                          {t(option.labelKey)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 px-0 text-xs"
-                    onClick={toggleSortOrder}
-                    aria-label={
-                      sortOrder === 'asc' ? t('clubdesk.sortDesc') : t('clubdesk.sortAsc')
-                    }
-                  >
-                    {sortOrder === 'asc' ? (
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-                <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                  {COLUMN_OPTIONS.map((count) => (
+                      <SelectTrigger
+                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                        aria-label={t('clubdesk.sortBy')}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="item-aligned"
+                        className="rounded-xl border-border/50 shadow-xl"
+                      >
+                        {SORT_FIELD_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-md text-xs"
+                          >
+                            {t(option.labelKey)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
-                      key={count}
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className={cn(
-                        'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-                        columnCount === count
-                          ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={() => setColumnCount(count)}
-                      aria-label={t(`clubdesk.columns${count}`)}
-                      aria-pressed={columnCount === count}
+                      className="h-7 w-7 px-0 text-xs"
+                      onClick={toggleSortOrder}
+                      aria-label={
+                        sortOrder === 'asc' ? t('clubdesk.sortDesc') : t('clubdesk.sortAsc')
+                      }
                     >
-                      {count}
+                      {sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
                     </Button>
-                  ))}
-                </div>
+                  </div>
+                ) : null}
+                <ListColumnLayoutToggle
+                  columnCount={columnCount}
+                  listViewMode={listViewMode}
+                  onSelectColumns={setColumnCount}
+                  onSelectTable={() => setListViewMode('table')}
+                  columnAriaLabel={(count) => t(`clubdesk.columns${count}`)}
+                  tableAriaLabel={t('common.tableView')}
+                />
               </>
             }
             bulkActions={
@@ -601,6 +628,20 @@ const ClubdeskGuidesList: React.FC = () => {
                   ? () => attemptNavigation(() => openClubdeskPanel(null))
                   : undefined
               }
+            />
+          ) : isTableView ? (
+            <ClubdeskListTable
+              clubdesks={sortedClubdesks}
+              primarySort={primarySort}
+              sortOrder={sortOrder}
+              onSort={handleTableSort}
+              isSelected={isSelected}
+              onRowClick={handleOpenForView}
+              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+              onCheckboxChange={onVisibleRowCheckboxChange}
+              allVisibleSelected={allVisibleSelected}
+              onHeaderCheckboxChange={onToggleAllVisible}
+              recentlyDuplicatedClubdeskId={recentlyDuplicatedClubdeskId}
             />
           ) : (
             <div

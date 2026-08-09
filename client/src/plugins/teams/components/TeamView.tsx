@@ -604,6 +604,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                 icon={Info}
                 subtleTitle
                 className="p-4"
+                collapsible
               >
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>

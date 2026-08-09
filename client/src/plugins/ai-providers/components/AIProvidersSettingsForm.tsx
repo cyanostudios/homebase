@@ -248,6 +248,7 @@ export const AIProvidersSettingsForm = React.forwardRef<
           icon={Info}
           iconPlugin="ai-providers"
           className="p-4"
+          collapsible
         >
           <div className="space-y-4 text-xs">
             <div className="flex items-center justify-between">

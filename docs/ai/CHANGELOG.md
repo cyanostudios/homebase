@@ -2,6 +2,54 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## List tabellvy – utrullning (2026-08-09)
+
+Docs-sync för **tabellvy** på alla card-column-plugins (delad `ListColumnLayoutToggle` / `SortableListTable` / `listViewMode`). UI-standard uppdaterad från Contacts-pilot till generellt listmönster. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – post “List tabellvy”.
+
+---
+
+## Contacts tabellvy – pilot (2026-08-09)
+
+Docs-sync efter **QA Approved** + **Security Approved** för Contacts listläge **Tabell** (`listViewMode` + `ContactListTable`, sorterbara kolumnrubriker). Ingen ny ADR; standardnotis i [`UI_AND_UX_STANDARDS_V3.md`](../UI_AND_UX_STANDARDS_V3.md) (Contacts pilot). Residual risk (Låg): `data-list-item` PII — dokumenterad i produkt-changelog. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – samma datumpost.
+
+---
+
+## Publik Clubdesk – nollställ varukorg (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för **Nollställ varukorg** i publik prislist-cart (`clearCart` + `#cart-clear-btn`). Ingen ADR. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – samma datumpost (+ separat font-notis Jakarta).
+
+---
+
+## Collapsible informationskort (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för kollapsbara informationskort via `DetailSection` (`collapsible`, default ihopfällt) i plugins. Ingen ADR (UI-state i core). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – samma datumpost.
+
+---
+
+## Collapsible Activity-kort (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för kollapsbart Activity-kort i delad `DetailActivityLog` (default ihopfällt; gäller alla plugins som använder komponenten). Ingen ADR (UI-state i core-komponent). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – samma datumpost.
+
+---
+
+## Listitem reorder-pilar – Instructions / Clubdesk / Pricelist (2026-08-07)
+
+Docs-sync efter **QA Approved** + **Security Approved** för horisontella reorder-pilar längst till höger på listkort (lägre item-höjd). Ingen ADR (layout-only). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – samma datumpost.
+
+---
+
 ## Clubdesk Swish-profiler ↔ prislistor (2026-08-07)
 
 Docs-sync efter **QA Approved** + **Security Approved** för multi-profil Swish + prislistkoppling (migration 123). Residual **SP-1** dokumenterad — **väntar TPM-acceptans**. Publik cart-QR out of scope. **Local-first; ej prod-release.**

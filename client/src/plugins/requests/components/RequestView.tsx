@@ -210,6 +210,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                 icon={Info}
                 subtleTitle
                 className="p-4"
+                collapsible
               >
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>

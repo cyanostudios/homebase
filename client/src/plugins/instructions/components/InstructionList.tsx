@@ -25,11 +25,13 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
@@ -48,14 +50,22 @@ import {
 } from '../utils/instructionColumnCount';
 import {
   compareInstructionsByField,
+  isInstructionAscDefaultField,
   isInstructionStringSortField,
   type InstructionSortField,
   type InstructionSortOrder,
 } from '../utils/instructionListSort';
+import {
+  getInitialInstructionListViewMode,
+  persistInstructionListViewModeSession,
+  resolveInstructionListViewMode,
+  type InstructionListViewMode,
+} from '../utils/instructionListViewMode';
 import { getInstructionListStatusErrorMessage } from '../utils/instructionListStatusError';
 import { sortCategoryNames } from '../utils/sortCategoryNames';
 
 import { InstructionListItem } from './InstructionListItem';
+import { InstructionListTable } from './InstructionListTable';
 import { InstructionSettingsView } from './InstructionSettingsView';
 
 type InstructionFilter = 'all' | 'draft' | 'published';
@@ -74,8 +84,6 @@ const SORT_FIELD_OPTIONS: { value: InstructionSortField; labelKey: string }[] = 
   { value: 'createdAt', labelKey: 'instructions.sort.created' },
   { value: 'publicationStatus', labelKey: 'instructions.sort.status' },
 ];
-
-const COLUMN_OPTIONS: InstructionColumnCount[] = [1, 2, 3];
 
 export const InstructionList: React.FC = () => {
   const { t } = useTranslation();
@@ -114,6 +122,9 @@ export const InstructionList: React.FC = () => {
   const [columnCount, setColumnCountState] = useState<InstructionColumnCount>(
     getInitialInstructionColumnCount,
   );
+  const [listViewMode, setListViewModeState] = useState<InstructionListViewMode>(
+    getInitialInstructionListViewMode,
+  );
   const [activeFilter, setActiveFilter] = useState<InstructionFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
@@ -133,6 +144,9 @@ export const InstructionList: React.FC = () => {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(INSTRUCTIONS_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
+        const nextView = resolveInstructionListViewMode(settings);
+        setListViewModeState(nextView);
+        persistInstructionListViewModeSession(nextView);
       })
       .catch(() => {});
     return () => {
@@ -143,10 +157,24 @@ export const InstructionList: React.FC = () => {
   const setColumnCount = useCallback(
     (count: InstructionColumnCount) => {
       setColumnCountState(count);
+      setListViewModeState('cards');
+      persistInstructionListViewModeSession('cards');
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(INSTRUCTIONS_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(INSTRUCTIONS_SETTINGS_KEY, { columnCount: count }).catch(() => {});
+      updateSettings(INSTRUCTIONS_SETTINGS_KEY, {
+        columnCount: count,
+        listViewMode: 'cards',
+      }).catch(() => {});
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: InstructionListViewMode) => {
+      setListViewModeState(mode);
+      persistInstructionListViewModeSession(mode);
+      updateSettings(INSTRUCTIONS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
     },
     [updateSettings],
   );
@@ -159,6 +187,17 @@ export const InstructionList: React.FC = () => {
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
+
+  const handleTableSort = useCallback(
+    (field: InstructionSortField) => {
+      const next = nextListTableSort(primarySort, sortOrder, field, isInstructionAscDefaultField);
+      setPrimarySort(next.field);
+      setSortOrder(next.order);
+    },
+    [primarySort, sortOrder],
+  );
+
+  const isTableView = listViewMode === 'table';
 
   const catalogOrder = useMemo(() => categories.map((c) => c.name), [categories]);
 
@@ -187,7 +226,7 @@ export const InstructionList: React.FC = () => {
         (item.slug || '').toLowerCase().includes(q),
     );
 
-    if (categoryFilter !== 'all') {
+    if (categoryFilter !== 'all' && !isTableView) {
       return [...filtered].sort((a, b) => {
         const ao = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
         const bo = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
@@ -199,10 +238,10 @@ export const InstructionList: React.FC = () => {
     }
 
     return [...filtered].sort((a, b) => compareInstructionsByField(a, b, primarySort, sortOrder));
-  }, [instructions, searchTerm, primarySort, sortOrder, activeFilter, categoryFilter]);
+  }, [instructions, searchTerm, primarySort, sortOrder, activeFilter, categoryFilter, isTableView]);
 
   const canReorderCategory =
-    categoryFilter !== 'all' && searchTerm.trim() === '' && activeFilter === 'all';
+    !isTableView && categoryFilter !== 'all' && searchTerm.trim() === '' && activeFilter === 'all';
 
   const categoryOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -476,72 +515,61 @@ export const InstructionList: React.FC = () => {
             }
             trailing={
               <>
-                <div className="mr-1 flex items-center gap-1">
-                  <Select
-                    value={primarySort}
-                    onValueChange={(value) =>
-                      handlePrimarySortChange(value as InstructionSortField)
-                    }
-                  >
-                    <SelectTrigger
-                      className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                      aria-label={t('instructions.sortBy')}
+                {!isTableView ? (
+                  <div className="mr-1 flex items-center gap-1">
+                    <Select
+                      value={primarySort}
+                      onValueChange={(value) =>
+                        handlePrimarySortChange(value as InstructionSortField)
+                      }
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="item-aligned"
-                      className="rounded-xl border-border/50 shadow-xl"
-                    >
-                      {SORT_FIELD_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={option.value}
-                          className="rounded-md text-xs"
-                        >
-                          {t(option.labelKey)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 px-0 text-xs"
-                    onClick={toggleSortOrder}
-                    aria-label={
-                      sortOrder === 'asc' ? t('instructions.sortDesc') : t('instructions.sortAsc')
-                    }
-                  >
-                    {sortOrder === 'asc' ? (
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-                <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                  {COLUMN_OPTIONS.map((count) => (
+                      <SelectTrigger
+                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                        aria-label={t('instructions.sortBy')}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="item-aligned"
+                        className="rounded-xl border-border/50 shadow-xl"
+                      >
+                        {SORT_FIELD_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-md text-xs"
+                          >
+                            {t(option.labelKey)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
-                      key={count}
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className={cn(
-                        'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-                        columnCount === count
-                          ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={() => setColumnCount(count)}
-                      aria-label={t(`instructions.columns${count}`)}
-                      aria-pressed={columnCount === count}
+                      className="h-7 w-7 px-0 text-xs"
+                      onClick={toggleSortOrder}
+                      aria-label={
+                        sortOrder === 'asc' ? t('instructions.sortDesc') : t('instructions.sortAsc')
+                      }
                     >
-                      {count}
+                      {sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
                     </Button>
-                  ))}
-                </div>
+                  </div>
+                ) : null}
+                <ListColumnLayoutToggle
+                  columnCount={columnCount}
+                  listViewMode={listViewMode}
+                  onSelectColumns={setColumnCount}
+                  onSelectTable={() => setListViewMode('table')}
+                  columnAriaLabel={(count) => t(`instructions.columns${count}`)}
+                  tableAriaLabel={t('common.tableView')}
+                />
               </>
             }
             bulkActions={
@@ -589,6 +617,20 @@ export const InstructionList: React.FC = () => {
                   ? () => attemptNavigation(() => openInstructionPanel(null))
                   : undefined
               }
+            />
+          ) : isTableView ? (
+            <InstructionListTable
+              instructions={sortedInstructions}
+              primarySort={primarySort}
+              sortOrder={sortOrder}
+              onSort={handleTableSort}
+              isSelected={isSelected}
+              onRowClick={handleOpenForView}
+              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+              onCheckboxChange={onVisibleRowCheckboxChange}
+              allVisibleSelected={allVisibleSelected}
+              onHeaderCheckboxChange={onToggleAllVisible}
+              recentlyDuplicatedInstructionId={recentlyDuplicatedInstructionId}
             />
           ) : (
             <div

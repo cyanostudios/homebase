@@ -7,6 +7,11 @@ export function isClubdeskStringSortField(field: ClubdeskSortField): boolean {
   return field === 'title' || field === 'publicationStatus';
 }
 
+/** String fields default to ascending when switching table sort column. */
+export function isClubdeskAscDefaultField(field: ClubdeskSortField): boolean {
+  return isClubdeskStringSortField(field);
+}
+
 export function compareClubdesksByField(
   a: Clubdesk,
   b: Clubdesk,

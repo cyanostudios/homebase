@@ -4,6 +4,114 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-09 – List tabellvy (alla card-column plugins)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Excel-lik **tabellvy** med sorterbara kolumnrubriker rullades ut till alla card-column-listor (Tasks, Contacts, Notes, Slots, Estimates, Requests, Matches, Cups, Files, Ingest, Teams, Guides, Instructions, Clubdesk + prislistor). Toolbar: **1 | 2 | 3 | tabell**. Delade core-primitiver: `listViewMode`, `ListColumnLayoutToggle`, `SortableListTable`.
+
+**Verifierat beteende (kod):**
+
+- Core: [`listViewMode.ts`](../client/src/core/list/listViewMode.ts), [`ListColumnLayoutToggle.tsx`](../client/src/core/ui/ListColumnLayoutToggle.tsx), [`SortableListTable.tsx`](../client/src/core/ui/SortableListTable.tsx)
+- Per plugin: `*ListTable.tsx` + `*ListViewMode.ts` + list/settings-wiring
+- Standard: [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)
+
+**Begränsningar:** Ingen kolumn-resize/inline-edit; sort persistas inte; legacy grid/list-plugins (ai-providers, invoices, …) oförändrade.
+
+**Security residual (oförändrad):** `data-list-item` JSON på rader (samma mönster som kort).
+
+---
+
+## 2026-08-09 – Contacts: tabellvy (pilot)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** Contacts-listan har en fjärde vy **Tabell** bredvid kortkolumner **1 / 2 / 3**. Tabellen liknar ett kalkylark med klickbara kolumnrubriker för sortering. Sort-dropdown döljs i tabelläge; samma sort behålls vid växling till kort. Persistens via `listViewMode` (`cards` \| `table`) i settings `contacts` + session `contacts:listViewMode` (legacy `viewMode` orörd).
+
+**Verifierat beteende (kod):**
+
+- [`ContactList.tsx`](../client/src/plugins/contacts/components/ContactList.tsx) / [`ContactListTable.tsx`](../client/src/plugins/contacts/components/ContactListTable.tsx)
+- [`contactListViewMode.ts`](../client/src/plugins/contacts/utils/contactListViewMode.ts)
+- Settings: [`ContactSettingsView.tsx`](../client/src/plugins/contacts/components/ContactSettingsView.tsx), [`ContactSettingsForm.tsx`](../client/src/plugins/contacts/components/ContactSettingsForm.tsx)
+- Standard: [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) (Contacts pilot)
+- Tester: `contactListViewMode.test.ts`, `contactListTableSort.test.ts`, `contactListTableView.test.js` (+ befintliga column/sort-tester)
+
+**Begränsningar:** Endast Contacts; ingen kolumn-resize/inline-edit; sort persistas inte.
+
+**Security:** Ingen ny API-yta. Residual **Låg:** kontakt-JSON i `data-list-item` på tabellrader (samma mönster som kortvy) — accepterad för piloten som paritet; eventuell informationsminimering är plattformsärende.
+
+---
+
+## 2026-08-07 – Publik Clubdesk: nollställ varukorg
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** I prislistans **lilla varukorg** (subheader) finns en rund **bin**-knapp (aria: Nollställ varukorg), bredvid cart-ikonen. Den tömmer carten för aktuell lista (`sessionStorage` nyckel `clubdesk-cart:{slug}`) och återgår till listvyn. Knappen är dold när varukorgen är tom.
+
+**Verifierat beteende (kod):**
+
+- [`lib/priceListCart.js`](../public-clubdesk/lib/priceListCart.js) — `clearCart(slug)`
+- [`price-list.php`](../public-clubdesk/price-list.php) / [`price-list-cart-app.js`](../public-clubdesk/price-list-cart-app.js) — `#cart-clear-btn`
+- Tester: `public-clubdesk/__tests__/priceListCart.test.js`, `appShellPatterns.test.js`
+
+**Begränsningar:** Client-only; ingen bekräftelsedialog; ingen server-state. Security: inga identifierade risker.
+
+---
+
+## 2026-08-07 – Publik Clubdesk: display-font → Plus Jakarta Sans
+
+**Status:** Implementerat lokalt (samma public-clubdesk-yta). **Ej separat Security-grind**; font-token only. **Ej prod-release.**
+
+**Sammanfattning:** `--font-display` i [`public-clubdesk/styles.css`](../public-clubdesk/styles.css) använder Plus Jakarta Sans (Fraunces borttagen från `@import`). Mall-/designsystem-default i [`docs/PUBLIC_APP_DESIGN.md`](PUBLIC_APP_DESIGN.md) är oförändrat (Fraunces).
+
+---
+
+## 2026-08-07 – Collapsible informationskort (alla plugins)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** Informationskort (metadata ID/skapad/uppdaterad m.m.) är kollapsbara via `DetailSection` med `collapsible` — samma mönster som Activity (`default` ihopfällt, chevron + titel som trigger). Aktiverat på ca 30 information-call sites i plugins.
+
+**Verifierat beteende (kod):**
+
+- [`DetailSection.tsx`](../client/src/core/ui/DetailSection.tsx) — valfria props `collapsible` / `defaultOpen` (default collapsed).
+- i18n: `common.expandSection` / `common.collapseSection` (en + sv).
+
+**Begränsningar:** Endast informationskort (explicit `collapsible`); övriga `DetailSection` oförändrade. Ingen persistens. Security: inga identifierade risker.
+
+---
+
+## 2026-08-07 – Collapsible Activity-kort (alla plugins)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** Activity-kortet (`DetailActivityLog`) är kollapsbart i alla plugins som använder komponenten. **Default: ihopfällt.** Header (chevron + titel) växlar expand/collapse; Reset ligger kvar i headern utanför trigger.
+
+**Verifierat beteende (kod):**
+
+- [`DetailActivityLog.tsx`](../client/src/core/ui/DetailActivityLog.tsx) — `Collapsible` från designsystemet; lokal `open`-state (ingen persistens).
+- i18n: `activityLog.expand` / `activityLog.collapse` (en + sv).
+
+**Begränsningar:** Layout/UI-state only; fetch oförändrad vid mount; Settings globala Activity Log oförändrad. Security: inga identifierade risker.
+
+---
+
+## 2026-08-07 – Listitem reorder-pilar (Instructions / Clubdesk / Pricelist)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** På listkort för Instructions, Clubdesk-guides och prislistor ligger upp/ner-pilarna **horisontellt** och **längst till höger** (efter status-select), så raden blir lägre. Reorder-beteende oförändrat.
+
+**Verifierat beteende (kod):**
+
+- [`InstructionListItem.tsx`](../client/src/plugins/instructions/components/InstructionListItem.tsx)
+- [`ClubdeskListItem.tsx`](../client/src/plugins/clubdesk/components/ClubdeskListItem.tsx)
+- [`PriceListListItem.tsx`](../client/src/plugins/clubdesk/components/PriceListListItem.tsx)
+
+**Begränsningar:** Layout-only; ingen API-/auth-ändring. Security: inga identifierade risker.
+
+---
+
 ## 2026-08-07 – Clubdesk Swish-profiler ↔ prislistor
 
 **Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. Residual **SP-1** dokumenterad — **väntar TPM medvetet godkännande**. **Ej prod-release.**

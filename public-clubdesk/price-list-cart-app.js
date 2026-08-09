@@ -26,6 +26,7 @@
   const cartSwishEl = document.getElementById('cart-swish');
   const cartSwishQrEl = document.getElementById('cart-swish-qr');
   const cartSwishNumberEl = document.getElementById('cart-swish-number');
+  const cartClearBtn = document.getElementById('cart-clear-btn');
   const subTotalEl = document.getElementById('price-list-subheader-info');
   const toggleBtn = document.getElementById('cart-toggle-btn');
 
@@ -141,6 +142,9 @@
     if (subTotalEl) {
       subTotalEl.textContent = money(sum);
       subTotalEl.classList.add('step-subheader__total');
+    }
+    if (cartClearBtn) {
+      cartClearBtn.hidden = Cart.uniqueCount(cart) === 0;
     }
     syncToggle(cart);
   }
@@ -258,6 +262,14 @@
       } else {
         setView('list');
       }
+    });
+  }
+
+  if (cartClearBtn) {
+    cartClearBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      Cart.clearCart(slug);
+      setView('list');
     });
   }
 

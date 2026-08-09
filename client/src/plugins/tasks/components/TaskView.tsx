@@ -466,6 +466,7 @@ export function TaskView({ task }: TaskViewProps) {
                 iconPlugin="tasks"
                 subtleTitle
                 className="p-4"
+                collapsible
               >
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>

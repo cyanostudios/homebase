@@ -21,8 +21,16 @@ import {
   resolveClubdeskColumnCount,
   type ClubdeskColumnCount,
 } from '../utils/clubdeskColumnCount';
+import {
+  getInitialClubdeskListViewMode,
+  CLUBDESK_LIST_VIEW_MODE_STORAGE_KEY,
+  persistClubdeskListViewModeSession,
+  resolveClubdeskListViewMode,
+  type ClubdeskListViewMode,
+} from '../utils/clubdeskListViewMode';
 
 const COLUMN_OPTIONS: ClubdeskColumnCount[] = [1, 2, 3];
+const VIEW_MODE_OPTIONS: ClubdeskListViewMode[] = ['cards', 'table'];
 
 interface ClubdeskSettingsViewProps {
   selectedTab?: ClubdeskSettingsTab;
@@ -50,6 +58,12 @@ export function ClubdeskSettingsView({
   );
   const [initialColumnCount, setInitialColumnCount] = useState<ClubdeskColumnCount>(
     getInitialClubdeskColumnCount,
+  );
+  const [listViewMode, setListViewMode] = useState<ClubdeskListViewMode>(
+    getInitialClubdeskListViewMode,
+  );
+  const [initialListViewMode, setInitialListViewMode] = useState<ClubdeskListViewMode>(
+    getInitialClubdeskListViewMode,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -81,6 +95,9 @@ export function ClubdeskSettingsView({
         const next = resolveClubdeskColumnCount(settings);
         setColumnCount(next);
         setInitialColumnCount(next);
+        const nextView = resolveClubdeskListViewMode(settings);
+        setListViewMode(nextView);
+        setInitialListViewMode(nextView);
       })
       .catch(() => {
         if (!cancelled) {
@@ -95,26 +112,27 @@ export function ClubdeskSettingsView({
     };
   }, [getSettings, t]);
 
-  const isDirty = columnCount !== initialColumnCount;
+  const isDirty = columnCount !== initialColumnCount || listViewMode !== initialListViewMode;
 
   const save = useCallback(async () => {
     setIsSaving(true);
     setErrorMessage(null);
     try {
-      if (columnCount !== initialColumnCount) {
-        await updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount });
-        setInitialColumnCount(columnCount);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
-        }
+      await updateSettings(CLUBDESK_SETTINGS_KEY, { columnCount, listViewMode });
+      setInitialColumnCount(columnCount);
+      setInitialListViewMode(listViewMode);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(CLUBDESK_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+        window.sessionStorage.setItem(CLUBDESK_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
       }
+      persistClubdeskListViewModeSession(listViewMode);
     } catch (error: unknown) {
       const err = error as { message?: string; error?: string };
       setErrorMessage(err?.message || err?.error || t('clubdesk.settings.saveFailed'));
     } finally {
       setIsSaving(false);
     }
-  }, [columnCount, initialColumnCount, t, updateSettings]);
+  }, [columnCount, listViewMode, t, updateSettings]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
@@ -137,32 +155,63 @@ export function ClubdeskSettingsView({
       {errorMessage ? <p className="mb-4 text-sm text-destructive">{errorMessage}</p> : null}
 
       {activeTab === 'view' && (
-        <DetailSection title={t('clubdesk.settings.defaultColumns')} className="pt-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {COLUMN_OPTIONS.map((count) => {
-              const isActive = columnCount === count;
-              return (
-                <Button
-                  key={count}
-                  variant="ghost"
-                  onClick={() => setColumnCount(count)}
-                  className={cn(
-                    'h-9 text-xs px-3 rounded-lg font-medium',
-                    'flex items-center gap-1.5',
-                    isActive
-                      ? 'bg-primary/10 text-primary border border-primary'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                  )}
-                  aria-label={t(`clubdesk.columns${count}`)}
-                  aria-pressed={isActive}
-                >
-                  <span>{count}</span>
-                </Button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">{t('clubdesk.settings.columnsHelp')}</p>
-        </DetailSection>
+        <>
+          <DetailSection title={t('common.defaultListView')} className="pt-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {VIEW_MODE_OPTIONS.map((mode) => {
+                const isActive = listViewMode === mode;
+                return (
+                  <Button
+                    key={mode}
+                    variant="ghost"
+                    onClick={() => setListViewMode(mode)}
+                    className={cn(
+                      'h-9 text-xs px-3 rounded-lg font-medium',
+                      isActive
+                        ? 'bg-primary/10 text-primary border border-primary'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                    )}
+                    aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                    aria-pressed={isActive}
+                  >
+                    {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
+          </DetailSection>
+          {listViewMode === 'cards' ? (
+            <DetailSection title={t('clubdesk.settings.defaultColumns')}>
+              <div className="flex flex-wrap items-center gap-2">
+                {COLUMN_OPTIONS.map((count) => {
+                  const isActive = columnCount === count;
+                  return (
+                    <Button
+                      key={count}
+                      variant="ghost"
+                      onClick={() => setColumnCount(count)}
+                      className={cn(
+                        'h-9 text-xs px-3 rounded-lg font-medium',
+                        'flex items-center gap-1.5',
+                        isActive
+                          ? 'bg-primary/10 text-primary border border-primary'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                      )}
+                      aria-label={t(`clubdesk.columns${count}`)}
+                      aria-pressed={isActive}
+                    >
+                      <span>{count}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t('clubdesk.settings.columnsHelp')}
+              </p>
+            </DetailSection>
+          ) : null}
+        </>
       )}
     </PluginSettingsPageShell>
   );

@@ -1,6 +1,7 @@
 const {
   addItem,
   decrementItem,
+  clearCart,
   getCart,
   setCart,
   total,
@@ -56,6 +57,16 @@ describe('ClubdeskPriceListCart', () => {
     addItem(slug, line, store);
     const cart = decrementItem(slug, 'a', store);
     expect(cart).toEqual([expect.objectContaining({ id: 'a', qty: 1, price: 45 })]);
+  });
+
+  test('clearCart empties storage for slug', () => {
+    const line = { id: 'a', title: 'Beer', price: 45, category: 'Drinks' };
+    addItem(slug, line, store);
+    addItem(slug, line, store);
+    expect(getCart(slug, store)).toHaveLength(1);
+    const cart = clearCart(slug, store);
+    expect(cart).toEqual([]);
+    expect(getCart(slug, store)).toEqual([]);
   });
 
   test('total sums price times qty', () => {

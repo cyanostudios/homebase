@@ -133,34 +133,6 @@ export function PriceListListItem({
             {metaOnTop ? metaRow : null}
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
-            {canReorder ? (
-              <div
-                className="flex flex-col gap-0.5"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={ArrowUp}
-                  className="h-7 w-7 px-0"
-                  disabled={reorderDisabled || isFirst}
-                  aria-label={t('clubdesk.priceList.moveUp')}
-                  onClick={() => onMoveUp?.()}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={ArrowDown}
-                  className="h-7 w-7 px-0"
-                  disabled={reorderDisabled || isLast}
-                  aria-label={t('clubdesk.priceList.moveDown')}
-                  onClick={() => onMoveDown?.()}
-                />
-              </div>
-            ) : null}
             {onStatusChange ? (
               <div
                 className="flex-shrink-0"
@@ -186,6 +158,34 @@ export function PriceListListItem({
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            ) : null}
+            {canReorder ? (
+              <div
+                className="flex flex-row items-center gap-0.5"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={ArrowUp}
+                  className="h-7 w-7 px-0"
+                  disabled={reorderDisabled || isFirst}
+                  aria-label={t('clubdesk.priceList.moveUp')}
+                  onClick={() => onMoveUp?.()}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={ArrowDown}
+                  className="h-7 w-7 px-0"
+                  disabled={reorderDisabled || isLast}
+                  aria-label={t('clubdesk.priceList.moveDown')}
+                  onClick={() => onMoveDown?.()}
+                />
               </div>
             ) : null}
           </div>

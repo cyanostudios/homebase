@@ -1,7 +1,23 @@
+import { nextListTableSort } from '@/core/list/listViewMode';
+
 import type { Task } from '../types/tasks';
 
 export type TaskSortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 export type TaskSortOrder = 'asc' | 'desc';
+
+/** Asc default for string fields; desc for date fields. */
+export function isTaskAscDefaultField(field: TaskSortField): boolean {
+  return isTaskStringSortField(field);
+}
+
+/** Header-click sort: toggle order on same field, else switch field with default order. */
+export function nextTaskTableSort(
+  currentField: TaskSortField,
+  currentOrder: TaskSortOrder,
+  nextField: TaskSortField,
+): { field: TaskSortField; order: TaskSortOrder } {
+  return nextListTableSort(currentField, currentOrder, nextField, isTaskAscDefaultField);
+}
 
 const STRING_SORT_FIELDS: TaskSortField[] = ['title', 'status', 'priority'];
 const DATE_SORT_FIELDS: TaskSortField[] = ['dueDate', 'createdAt', 'updatedAt'];

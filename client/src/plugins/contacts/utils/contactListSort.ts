@@ -109,6 +109,21 @@ function getContactFirstTag(contact: Pick<Contact, 'tags'>): string {
   return (tags[0] ?? '').toLowerCase();
 }
 
+/** @deprecated Prefer nextListTableSort from @/core/list/listViewMode */
+export function nextContactTableSort(
+  currentField: ContactSortField,
+  currentOrder: ContactSortOrder,
+  nextField: ContactSortField,
+): { field: ContactSortField; order: ContactSortOrder } {
+  if (currentField === nextField) {
+    return { field: currentField, order: currentOrder === 'asc' ? 'desc' : 'asc' };
+  }
+  return {
+    field: nextField,
+    order: isContactAscDefaultField(nextField) ? 'asc' : 'desc',
+  };
+}
+
 export function compareContactsByField(
   a: ContactSortable,
   b: ContactSortable,

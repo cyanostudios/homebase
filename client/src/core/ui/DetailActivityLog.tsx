@@ -1,12 +1,13 @@
-import { History, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronRight, History, RotateCcw } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { activityLogApi, ActivityLogEntry } from '@/core/api/activityLogApi';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailSection } from '@/core/ui/DetailSection';
+import { Heading } from '@/core/ui/Typography';
 import { getActivityActorLabel, getActivityDetailLines } from '@/core/utils/activityLogDisplay';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,7 @@ export function DetailActivityLog({
   const [loading, setLoading] = useState(true);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const fetchLogs = useCallback(() => {
     setLoading(true);
@@ -80,75 +82,112 @@ export function DetailActivityLog({
     return translated !== key ? translated : action.replace(/_/g, ' ');
   };
 
+  const sectionTitle = title ?? t('activityLog.title', 'Activity');
+
   return (
     <>
       <Card padding="none" className={cn('rounded-xl border-0 shadow-sm', className)}>
-        <DetailSection
-          title={title ?? t('activityLog.title', 'Activity')}
-          icon={History}
-          subtleTitle
-          className="p-5"
-          action={
-            showClearButton ? (
+        <Collapsible open={open} onOpenChange={setOpen} className="space-y-3 p-5">
+          <div className="flex items-center justify-between gap-2">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-expanded={open}
+                aria-label={
+                  open
+                    ? t('activityLog.collapse', 'Collapse activity')
+                    : t('activityLog.expand', 'Expand activity')
+                }
+              >
+                {open ? (
+                  <ChevronDown
+                    className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+                    aria-hidden
+                  />
+                ) : (
+                  <ChevronRight
+                    className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+                    aria-hidden
+                  />
+                )}
+                <History
+                  className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+                  aria-hidden
+                />
+                <Heading
+                  level={3}
+                  size="xs"
+                  className="truncate uppercase tracking-[0.1em] font-bold text-slate-500 dark:text-slate-400"
+                >
+                  {sectionTitle}
+                </Heading>
+              </button>
+            </CollapsibleTrigger>
+            {showClearButton ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20"
-                onClick={() => setShowResetConfirm(true)}
+                className="h-7 shrink-0 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowResetConfirm(true);
+                }}
                 disabled={loading || logs.length === 0}
               >
                 <RotateCcw className="h-3 w-3 mr-1" />
                 {t('activityLog.reset', 'Reset')}
               </Button>
-            ) : undefined
-          }
-        >
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading', 'Loading...')}</p>
-          ) : logs.length === 0 ? (
-            <div className="mt-1 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
-              <History className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {t('activityLog.noActivity', 'No activity yet')}
-              </p>
-            </div>
-          ) : (
-            <ul className="space-y-3 text-xs">
-              {logs.map((entry) => {
-                const actor =
-                  getActivityActorLabel(entry) ?? t('activityLog.unknownUser', 'Unknown user');
-                const details = getActivityDetailLines(entry, t, { hideEntityName: true });
-                return (
-                  <li key={entry.id} className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={cn(
-                          'inline-flex px-1.5 py-0.5 rounded font-medium capitalize',
-                          ACTION_COLORS[entry.action] ?? 'bg-muted text-muted-foreground',
-                        )}
-                      >
-                        {actionLabel(entry.action)}
-                      </span>
-                      <span className="text-muted-foreground shrink-0">
-                        {formatDateTimeShort(entry.createdAt)}
-                      </span>
-                    </div>
-                    <span className="text-foreground/80 font-medium truncate block">{actor}</span>
-                    {details.map((line, index) => (
-                      <span
-                        key={`${entry.id}-detail-${index}`}
-                        className="text-muted-foreground block"
-                      >
-                        {line}
-                      </span>
-                    ))}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </DetailSection>
+            ) : null}
+          </div>
+          <CollapsibleContent>
+            {loading ? (
+              <p className="text-sm text-muted-foreground">{t('common.loading', 'Loading...')}</p>
+            ) : logs.length === 0 ? (
+              <div className="mt-1 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
+                <History className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('activityLog.noActivity', 'No activity yet')}
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-3 text-xs">
+                {logs.map((entry) => {
+                  const actor =
+                    getActivityActorLabel(entry) ?? t('activityLog.unknownUser', 'Unknown user');
+                  const details = getActivityDetailLines(entry, t, { hideEntityName: true });
+                  return (
+                    <li key={entry.id} className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className={cn(
+                            'inline-flex px-1.5 py-0.5 rounded font-medium capitalize',
+                            ACTION_COLORS[entry.action] ?? 'bg-muted text-muted-foreground',
+                          )}
+                        >
+                          {actionLabel(entry.action)}
+                        </span>
+                        <span className="text-muted-foreground shrink-0">
+                          {formatDateTimeShort(entry.createdAt)}
+                        </span>
+                      </div>
+                      <span className="text-foreground/80 font-medium truncate block">{actor}</span>
+                      {details.map((line, index) => (
+                        <span
+                          key={`${entry.id}-detail-${index}`}
+                          className="text-muted-foreground block"
+                        >
+                          {line}
+                        </span>
+                      ))}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
       <ConfirmDialog
         isOpen={showResetConfirm}

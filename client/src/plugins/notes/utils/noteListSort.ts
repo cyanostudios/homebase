@@ -1,7 +1,23 @@
+import { nextListTableSort } from '@/core/list/listViewMode';
+
 import type { Note } from '../types/notes';
 
 export type NoteSortField = 'title' | 'createdAt' | 'updatedAt' | 'mentions';
 export type NoteSortOrder = 'asc' | 'desc';
+
+/** Asc default for title/mentions; desc for dates. */
+export function isNoteAscDefaultField(field: NoteSortField): boolean {
+  return isNoteStringSortField(field) || field === 'mentions';
+}
+
+/** Header-click sort: toggle order on same field, else switch field with default order. */
+export function nextNoteTableSort(
+  currentField: NoteSortField,
+  currentOrder: NoteSortOrder,
+  nextField: NoteSortField,
+): { field: NoteSortField; order: NoteSortOrder } {
+  return nextListTableSort(currentField, currentOrder, nextField, isNoteAscDefaultField);
+}
 
 const STRING_SORT_FIELDS: NoteSortField[] = ['title'];
 const DATE_SORT_FIELDS: NoteSortField[] = ['createdAt', 'updatedAt'];

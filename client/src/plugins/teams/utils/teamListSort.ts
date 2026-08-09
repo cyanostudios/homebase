@@ -22,6 +22,11 @@ export function isTeamDateSortField(field: TeamSortField): boolean {
   return DATE_SORT_FIELDS.includes(field);
 }
 
+/** Default asc for strings and player_count; desc for dates. */
+export function isTeamAscDefaultField(field: TeamSortField): boolean {
+  return isTeamStringSortField(field) || field === 'player_count';
+}
+
 type TeamSortable = Pick<
   Team,
   'name' | 'age_group' | 'gender' | 'status' | 'player_count' | 'updated_at' | 'created_at'

@@ -242,6 +242,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
                 icon={Info}
                 iconPlugin="guides"
                 className="p-4"
+                collapsible
               >
                 <div className="space-y-3 text-xs">
                   <div className="flex items-center justify-between">

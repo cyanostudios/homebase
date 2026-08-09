@@ -1,6 +1,6 @@
 // Matches settings as full-page content matching Core Settings layout.
 
-import { CloudDownload, LayoutGrid, List } from 'lucide-react';
+import { CloudDownload } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -18,12 +18,24 @@ import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import { cn } from '@/lib/utils';
 
 import { matchesApi } from '../api/matchesApi';
+import {
+  MATCHES_COLUMN_COUNT_STORAGE_KEY,
+  MATCHES_SETTINGS_KEY,
+  resolveMatchColumnCount,
+  type MatchColumnCount,
+} from '../utils/matchColumnCount';
+import {
+  MATCHES_LIST_VIEW_MODE_STORAGE_KEY,
+  persistMatchListViewModeSession,
+  resolveMatchListViewMode,
+  type MatchListViewMode,
+} from '../utils/matchListViewMode';
 
-const MATCHES_SETTINGS_KEY = 'matches';
 const DEFAULT_API_BASE_URL = 'https://forening-api.svenskfotboll.se';
 const MASKED_API_KEY = '••••••••';
 
-type MatchViewMode = 'grid' | 'list';
+const COLUMN_OPTIONS: MatchColumnCount[] = [1, 2, 3];
+const VIEW_MODE_OPTIONS: MatchListViewMode[] = ['cards', 'table'];
 
 export type MatchSettingsCategory = 'view' | 'api';
 
@@ -47,8 +59,10 @@ export function MatchSettingsView({
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [viewMode, setViewMode] = useState<MatchViewMode>('list');
-  const [initialViewMode, setInitialViewMode] = useState<MatchViewMode>('list');
+  const [columnCount, setColumnCount] = useState<MatchColumnCount>(1);
+  const [initialColumnCount, setInitialColumnCount] = useState<MatchColumnCount>(1);
+  const [listViewMode, setListViewMode] = useState<MatchListViewMode>('cards');
+  const [initialListViewMode, setInitialListViewMode] = useState<MatchListViewMode>('cards');
   const [apiBaseUrl, setApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
   const [initialApiBaseUrl, setInitialApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
   const [apiKey, setApiKey] = useState('');
@@ -86,14 +100,17 @@ export function MatchSettingsView({
         if (cancelled) {
           return;
         }
-        const loadedView = settings?.viewMode === 'list' ? 'list' : 'grid';
+        const loadedColumns = resolveMatchColumnCount(settings);
+        const loadedView = resolveMatchListViewMode(settings);
         const loadedBaseUrl =
           typeof settings?.apiBaseUrl === 'string' && settings.apiBaseUrl.trim()
             ? settings.apiBaseUrl.trim()
             : DEFAULT_API_BASE_URL;
         const storedKey = typeof settings?.apiKey === 'string' && settings.apiKey.trim();
-        setViewMode(loadedView);
-        setInitialViewMode(loadedView);
+        setColumnCount(loadedColumns);
+        setInitialColumnCount(loadedColumns);
+        setListViewMode(loadedView);
+        setInitialListViewMode(loadedView);
         setApiBaseUrl(loadedBaseUrl);
         setInitialApiBaseUrl(loadedBaseUrl);
         setHasStoredApiKey(Boolean(storedKey));
@@ -110,7 +127,7 @@ export function MatchSettingsView({
     };
   }, [getSettings]);
 
-  const isViewDirty = viewMode !== initialViewMode;
+  const isViewDirty = columnCount !== initialColumnCount || listViewMode !== initialListViewMode;
   const isApiDirty =
     apiBaseUrl.trim() !== initialApiBaseUrl.trim() ||
     (apiKey.trim() !== '' && !apiKey.startsWith('••••'));
@@ -121,8 +138,14 @@ export function MatchSettingsView({
     setImportError(null);
     try {
       if (activeCategory === 'view') {
-        await updateSettings(MATCHES_SETTINGS_KEY, { viewMode });
-        setInitialViewMode(viewMode);
+        await updateSettings(MATCHES_SETTINGS_KEY, { columnCount, listViewMode });
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(MATCHES_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+          window.sessionStorage.setItem(MATCHES_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
+        }
+        persistMatchListViewModeSession(listViewMode);
+        setInitialColumnCount(columnCount);
+        setInitialListViewMode(listViewMode);
       } else {
         const payload: Record<string, string> = {
           apiBaseUrl: apiBaseUrl.trim() || DEFAULT_API_BASE_URL,
@@ -142,7 +165,7 @@ export function MatchSettingsView({
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, apiBaseUrl, apiKey, updateSettings, viewMode]);
+  }, [activeCategory, apiBaseUrl, apiKey, columnCount, listViewMode, updateSettings]);
 
   const handleImport = useCallback(async () => {
     setIsImporting(true);
@@ -170,15 +193,6 @@ export function MatchSettingsView({
     return <div className="text-sm text-muted-foreground">{t('matches.loading')}</div>;
   }
 
-  const viewModes: {
-    id: MatchViewMode;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }[] = [
-    { id: 'grid', label: 'Grid', icon: LayoutGrid },
-    { id: 'list', label: 'List', icon: List },
-  ];
-
   return (
     <PluginSettingsPageShell
       title={t('matches.settingsMatches')}
@@ -199,34 +213,60 @@ export function MatchSettingsView({
       }
     >
       {activeCategory === 'view' && (
-        <DetailSection title="Default view" className="pt-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {viewModes.map((mode) => {
-              const ModeIcon = mode.icon;
-              const isActive = viewMode === mode.id;
-              return (
-                <Button
-                  key={mode.id}
-                  variant="ghost"
-                  onClick={() => setViewMode(mode.id)}
-                  className={cn(
-                    'h-9 text-xs px-3 rounded-lg font-medium',
-                    'flex items-center gap-1.5',
-                    isActive
-                      ? 'bg-primary/10 text-primary border border-primary'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                  )}
-                >
-                  <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span>{mode.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Matches will be displayed in the selected layout by default.
-          </p>
-        </DetailSection>
+        <>
+          <DetailSection title={t('common.defaultListView')} className="pt-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {VIEW_MODE_OPTIONS.map((mode) => {
+                const isActive = listViewMode === mode;
+                return (
+                  <Button
+                    key={mode}
+                    variant="ghost"
+                    onClick={() => setListViewMode(mode)}
+                    className={cn(
+                      'h-9 text-xs px-3 rounded-lg font-medium',
+                      isActive
+                        ? 'bg-primary/10 text-primary border border-primary'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                    )}
+                    aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                    aria-pressed={isActive}
+                  >
+                    {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
+          </DetailSection>
+          {listViewMode === 'cards' ? (
+            <DetailSection title={t('matches.defaultColumns')}>
+              <div className="flex flex-wrap items-center gap-2">
+                {COLUMN_OPTIONS.map((count) => {
+                  const isActive = columnCount === count;
+                  return (
+                    <Button
+                      key={count}
+                      variant="ghost"
+                      onClick={() => setColumnCount(count)}
+                      className={cn(
+                        'h-9 min-w-9 text-xs px-3 rounded-lg font-medium',
+                        isActive
+                          ? 'bg-primary/10 text-primary border border-primary'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                      )}
+                      aria-label={t(`matches.columns${count}`)}
+                      aria-pressed={isActive}
+                    >
+                      {count}
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{t('matches.columnsHelp')}</p>
+            </DetailSection>
+          ) : null}
+        </>
       )}
 
       {activeCategory === 'api' && (

@@ -32,15 +32,15 @@ Requires `APP_DB_URL` (tenant Postgres). See `railway.env.example`. Edit content
 
 ## Routes
 
-| Path                | Surface                                                               |
-| ------------------- | --------------------------------------------------------------------- |
-| `/`                 | Home hub (optional CMS intro + 2-col tiles: Guides, Price list)       |
-| `/guides/`          | Guides listing (Netflix rows by category)                             |
-| `/kategori/:slug/`  | Guides category grid                                                  |
-| `/guide/:slug`      | Guide step detail                                                     |
-| `/price-lists/`     | Price list cards                                                      |
-| `/price-list/:slug` | Price list rows + cart; Swish QR under Att betala when profile linked |
-| `/info/`            | Info tab (CMS from Info card; static fallback if empty)               |
+| Path                | Surface                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| `/`                 | Home hub (optional CMS intro + 2-col tiles: Guides, Price list)                               |
+| `/guides/`          | Guides listing (Netflix rows by category)                                                     |
+| `/kategori/:slug/`  | Guides category grid                                                                          |
+| `/guide/:slug`      | Guide step detail                                                                             |
+| `/price-lists/`     | Price list cards                                                                              |
+| `/price-list/:slug` | Price list rows + cart; **Nollställ varukorg**; Swish QR under Att betala when profile linked |
+| `/info/`            | Info tab (CMS from Info card; static fallback if empty)                                       |
 
 Bottom tabs: **Hem | Guides | Price list | Info**.
 
@@ -48,5 +48,6 @@ Bottom tabs: **Hem | Guides | Price list | Info**.
 
 - Only `publication_status = 'published'` rows are exposed for guides/price lists.
 - Site-content HTML is allowlist-sanitized on read; empty cards keep hub tiles / Info fallback copy.
-- Visual design reuses the coral/beige AppShell from public-instructions.
+- Visual design reuses the coral/beige AppShell from public-instructions; **display + heading** fonts are Plus Jakarta Sans (not Fraunces).
+- Cart is per-list `sessionStorage` (`clubdesk-cart:{slug}`); round **bin** button in the subheader mini-cart clears the current list and returns to the price-list view.
 - `public-instructions/` remains for the Instructions plugin; this site is Clubdesk-only.

@@ -176,6 +176,7 @@ export const IngestSourceForm = React.forwardRef<PanelFormHandle, IngestSourceFo
             icon={Info}
             iconPlugin="ingest"
             className="p-4"
+            collapsible
           >
             <div className="space-y-4 text-xs">
               <div className="flex items-center justify-between">

@@ -19,6 +19,11 @@ export function isFileNumericSortField(field: FileSortField): boolean {
   return NUMERIC_SORT_FIELDS.includes(field);
 }
 
+/** Default asc for string fields; desc for size and dates. */
+export function isFileAscDefaultField(field: FileSortField): boolean {
+  return isFileStringSortField(field);
+}
+
 export function getFileSortValue(
   file: Pick<FileItem, 'name' | 'mimeType' | 'size' | 'updatedAt' | 'createdAt' | 'id'>,
   field: FileSortField,

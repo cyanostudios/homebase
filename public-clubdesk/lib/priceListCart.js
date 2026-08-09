@@ -94,6 +94,10 @@
     return setCart(slug, next, storage);
   }
 
+  function clearCart(slug, storage) {
+    return setCart(slug, [], storage);
+  }
+
   function total(items) {
     return (Array.isArray(items) ? items : []).reduce((sum, item) => {
       const price = Number(item.price) || 0;
@@ -179,6 +183,7 @@
     setCart,
     addItem,
     decrementItem,
+    clearCart,
     total,
     uniqueCount,
     groupCartByCategoryOrder,

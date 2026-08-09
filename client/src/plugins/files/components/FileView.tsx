@@ -63,6 +63,7 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
               iconPlugin="files"
               subtleTitle
               className="p-4"
+              collapsible
             >
               <div className="space-y-4 text-xs">
                 <div className="group flex items-center justify-between">

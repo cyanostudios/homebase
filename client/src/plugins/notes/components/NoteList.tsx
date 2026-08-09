@@ -26,6 +26,7 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
@@ -46,12 +47,20 @@ import {
 import {
   compareNotesByField,
   isNoteStringSortField,
+  nextNoteTableSort,
   type NoteSortField,
   type NoteSortOrder,
 } from '../utils/noteListSort';
+import {
+  getInitialNoteListViewMode,
+  persistNoteListViewModeSession,
+  resolveNoteListViewMode,
+  type NoteListViewMode,
+} from '../utils/noteListViewMode';
 import { notesExportConfig } from '../utils/noteExportConfig';
 
 import { NoteListItem } from './NoteListItem';
+import { NoteListTable } from './NoteListTable';
 import { NoteQuickAdd } from './NoteQuickAdd';
 import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsView';
 
@@ -65,8 +74,6 @@ const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'createdAt', label: 'Created' },
   { value: 'mentions', label: 'Mentions' },
 ];
-
-const COLUMN_OPTIONS: NoteColumnCount[] = [1, 2, 3];
 
 export const NoteList: React.FC = () => {
   const { t } = useTranslation();
@@ -99,6 +106,9 @@ export const NoteList: React.FC = () => {
   const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [columnCount, setColumnCountState] = useState<NoteColumnCount>(getInitialNoteColumnCount);
+  const [listViewMode, setListViewModeState] = useState<NoteListViewMode>(
+    getInitialNoteListViewMode,
+  );
   const [activeFilter, setActiveFilter] = useState<NoteFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('view');
 
@@ -114,6 +124,9 @@ export const NoteList: React.FC = () => {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(NOTES_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
+        const nextView = resolveNoteListViewMode(settings);
+        setListViewModeState(nextView);
+        persistNoteListViewModeSession(nextView);
       })
       .catch(() => {});
     return () => {
@@ -124,10 +137,23 @@ export const NoteList: React.FC = () => {
   const setColumnCount = useCallback(
     (count: NoteColumnCount) => {
       setColumnCountState(count);
+      setListViewModeState('cards');
+      persistNoteListViewModeSession('cards');
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(NOTES_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(NOTES_SETTINGS_KEY, { columnCount: count }).catch(() => {});
+      updateSettings(NOTES_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+        () => {},
+      );
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: NoteListViewMode) => {
+      setListViewModeState(mode);
+      persistNoteListViewModeSession(mode);
+      updateSettings(NOTES_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
     },
     [updateSettings],
   );
@@ -140,6 +166,17 @@ export const NoteList: React.FC = () => {
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
+
+  const handleTableSort = useCallback(
+    (field: SortField) => {
+      const next = nextNoteTableSort(primarySort, sortOrder, field);
+      setPrimarySort(next.field);
+      setSortOrder(next.order);
+    },
+    [primarySort, sortOrder],
+  );
+
+  const isTableView = listViewMode === 'table';
 
   const sortedNotes = useMemo(() => {
     const byFilter = notes.filter((note) => {
@@ -417,69 +454,58 @@ export const NoteList: React.FC = () => {
             }
             trailing={
               <>
-                <div className="mr-1 flex items-center gap-1">
-                  <Select
-                    value={primarySort}
-                    onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                  >
-                    <SelectTrigger
-                      className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                      aria-label="Sort by"
+                {!isTableView ? (
+                  <div className="mr-1 flex items-center gap-1">
+                    <Select
+                      value={primarySort}
+                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="item-aligned"
-                      className="rounded-xl border-border/50 shadow-xl"
-                    >
-                      {SORT_FIELD_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={option.value}
-                          className="rounded-md text-xs"
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 px-0 text-xs"
-                    onClick={toggleSortOrder}
-                    aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                  >
-                    {sortOrder === 'asc' ? (
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-                <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                  {COLUMN_OPTIONS.map((count) => (
+                      <SelectTrigger
+                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                        aria-label="Sort by"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="item-aligned"
+                        className="rounded-xl border-border/50 shadow-xl"
+                      >
+                        {SORT_FIELD_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-md text-xs"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
-                      key={count}
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className={cn(
-                        'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-                        columnCount === count
-                          ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={() => setColumnCount(count)}
-                      aria-label={t(`notes.columns${count}`)}
-                      aria-pressed={columnCount === count}
+                      className="h-7 w-7 px-0 text-xs"
+                      onClick={toggleSortOrder}
+                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                     >
-                      {count}
+                      {sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
                     </Button>
-                  ))}
-                </div>
+                  </div>
+                ) : null}
+                <ListColumnLayoutToggle
+                  columnCount={columnCount}
+                  listViewMode={listViewMode}
+                  onSelectColumns={setColumnCount}
+                  onSelectTable={() => setListViewMode('table')}
+                  columnAriaLabel={(count) => t(`notes.columns${count}`)}
+                  tableAriaLabel={t('common.tableView')}
+                />
               </>
             }
             bulkActions={
@@ -535,6 +561,20 @@ export const NoteList: React.FC = () => {
               onCreate={
                 !searchTerm ? () => attemptNavigation(() => openNotePanel(null)) : undefined
               }
+            />
+          ) : isTableView ? (
+            <NoteListTable
+              notes={sortedNotes}
+              primarySort={primarySort}
+              sortOrder={sortOrder}
+              onSort={handleTableSort}
+              isSelected={isSelected}
+              onRowClick={handleOpenForView}
+              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+              onCheckboxChange={onVisibleRowCheckboxChange}
+              allVisibleSelected={allVisibleSelected}
+              onHeaderCheckboxChange={onToggleAllVisible}
+              recentlyDuplicatedNoteId={recentlyDuplicatedNoteId}
             />
           ) : (
             <div

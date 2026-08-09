@@ -29,9 +29,11 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
@@ -57,17 +59,22 @@ import {
   type ContactSortField,
   type ContactSortOrder,
 } from '../utils/contactListSort';
+import {
+  getInitialContactListViewMode,
+  persistContactListViewModeSession,
+  resolveContactListViewMode,
+  type ContactListViewMode,
+} from '../utils/contactListViewMode';
 
 import { ContactBulkAssignableDialog } from './ContactBulkAssignableDialog';
 import { ContactBulkTagsDialog } from './ContactBulkTagsDialog';
 import { ContactListItem } from './ContactListItem';
+import { ContactListTable } from './ContactListTable';
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
 
 type SortField = ContactSortField;
 type SortOrder = ContactSortOrder;
 type ContactFilter = 'all' | 'company' | 'private' | 'withTags' | 'timeLogged';
-
-const COLUMN_OPTIONS: ContactColumnCount[] = [1, 2, 3];
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'name', label: 'Name' },
@@ -125,6 +132,9 @@ export const ContactList: React.FC = () => {
   const [columnCount, setColumnCountState] = useState<ContactColumnCount>(
     getInitialContactColumnCount,
   );
+  const [listViewMode, setListViewModeState] = useState<ContactListViewMode>(
+    getInitialContactListViewMode,
+  );
   const [activeFilter, setActiveFilter] = useState<ContactFilter>('all');
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('view');
 
@@ -140,6 +150,9 @@ export const ContactList: React.FC = () => {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
+        const nextView = resolveContactListViewMode(settings);
+        setListViewModeState(nextView);
+        persistContactListViewModeSession(nextView);
         const tags = Array.isArray(settings?.tags)
           ? settings.tags.filter(
               (tag: unknown): tag is string => typeof tag === 'string' && tag.trim().length > 0,
@@ -156,10 +169,23 @@ export const ContactList: React.FC = () => {
   const setColumnCount = useCallback(
     (count: ContactColumnCount) => {
       setColumnCountState(count);
+      setListViewModeState('cards');
+      persistContactListViewModeSession('cards');
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(CONTACTS_SETTINGS_KEY, { columnCount: count }).catch(() => {});
+      updateSettings(CONTACTS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+        () => {},
+      );
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: ContactListViewMode) => {
+      setListViewModeState(mode);
+      persistContactListViewModeSession(mode);
+      updateSettings(CONTACTS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
     },
     [updateSettings],
   );
@@ -172,6 +198,17 @@ export const ContactList: React.FC = () => {
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
+
+  const handleTableSort = useCallback(
+    (field: SortField) => {
+      const next = nextListTableSort(primarySort, sortOrder, field, isContactAscDefaultField);
+      setPrimarySort(next.field);
+      setSortOrder(next.order);
+    },
+    [primarySort, sortOrder],
+  );
+
+  const isTableView = listViewMode === 'table';
 
   const sortedContacts = useMemo(() => {
     const timeCtx = {
@@ -519,69 +556,58 @@ export const ContactList: React.FC = () => {
             }
             trailing={
               <>
-                <div className="mr-1 flex items-center gap-1">
-                  <Select
-                    value={primarySort}
-                    onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                  >
-                    <SelectTrigger
-                      className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                      aria-label="Sort by"
+                {!isTableView ? (
+                  <div className="mr-1 flex items-center gap-1">
+                    <Select
+                      value={primarySort}
+                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="item-aligned"
-                      className="rounded-xl border-border/50 shadow-xl"
-                    >
-                      {SORT_FIELD_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={option.value}
-                          className="rounded-md text-xs"
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 px-0 text-xs"
-                    onClick={toggleSortOrder}
-                    aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                  >
-                    {sortOrder === 'asc' ? (
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-                <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                  {COLUMN_OPTIONS.map((count) => (
+                      <SelectTrigger
+                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                        aria-label="Sort by"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="item-aligned"
+                        className="rounded-xl border-border/50 shadow-xl"
+                      >
+                        {SORT_FIELD_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-md text-xs"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
-                      key={count}
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className={cn(
-                        'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-                        columnCount === count
-                          ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={() => setColumnCount(count)}
-                      aria-label={t(`contacts.columns${count}`)}
-                      aria-pressed={columnCount === count}
+                      className="h-7 w-7 px-0 text-xs"
+                      onClick={toggleSortOrder}
+                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                     >
-                      {count}
+                      {sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
                     </Button>
-                  ))}
-                </div>
+                  </div>
+                ) : null}
+                <ListColumnLayoutToggle
+                  columnCount={columnCount}
+                  listViewMode={listViewMode}
+                  onSelectColumns={setColumnCount}
+                  onSelectTable={() => setListViewMode('table')}
+                  columnAriaLabel={(count) => t(`contacts.columns${count}`)}
+                  tableAriaLabel={t('common.tableView')}
+                />
               </>
             }
             bulkActions={
@@ -677,6 +703,22 @@ export const ContactList: React.FC = () => {
               onCreate={
                 !searchTerm ? () => attemptNavigation(() => openContactPanel(null)) : undefined
               }
+            />
+          ) : isTableView ? (
+            <ContactListTable
+              contacts={sortedContacts}
+              primarySort={primarySort}
+              sortOrder={sortOrder}
+              onSort={handleTableSort}
+              isSelected={isSelected}
+              onRowClick={handleOpenForView}
+              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+              onCheckboxChange={onVisibleRowCheckboxChange}
+              allVisibleSelected={allVisibleSelected}
+              onHeaderCheckboxChange={handleHeaderCheckboxChange}
+              activeTimeTrackingContactId={activeTimeTrackingContactId}
+              contactIdsWithTimeEntries={contactIdsWithTimeEntries}
+              recentlyDuplicatedContactId={recentlyDuplicatedContactId}
             />
           ) : (
             <div

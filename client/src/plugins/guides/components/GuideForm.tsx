@@ -171,6 +171,7 @@ export const GuideForm = React.forwardRef<PanelFormHandle, GuideFormProps>(funct
           icon={Info}
           iconPlugin="guides"
           className="p-4"
+          collapsible
         >
           <div className="space-y-4 text-xs">
             <div className="flex items-center justify-between">

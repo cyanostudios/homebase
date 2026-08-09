@@ -235,21 +235,37 @@ foreach ($lines as $line) {
             <p class="step-subheader__guide" id="price-list-subheader-label"><?= h($listTitle) ?></p>
             <p class="step-subheader__step step-subheader__total" id="price-list-subheader-info" aria-live="polite"><?= h(formatPriceAmount(0, $currency)) ?></p>
           </div>
-          <button
-            type="button"
-            class="step-nav__btn step-nav__btn--next cart-toggle-btn is-disabled"
-            id="cart-toggle-btn"
-            disabled
-            aria-disabled="true"
-            aria-label="Visa varukorg"
-          >
-            <svg class="cart-toggle-btn__icon" data-icon="cart" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M6 6h15l-1.5 9H7.5L6 6z" />
-              <path d="M6 6 5 3H2" />
-              <circle cx="9" cy="20" r="1.25" fill="currentColor" stroke="none" />
-              <circle cx="18" cy="20" r="1.25" fill="currentColor" stroke="none" />
-            </svg>
-          </button>
+          <div class="step-subheader__cart-actions">
+            <button
+              type="button"
+              class="step-nav__btn step-nav__btn--prev cart-clear-btn"
+              id="cart-clear-btn"
+              hidden
+              aria-label="Nollställ varukorg"
+            >
+              <svg class="cart-clear-btn__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6M14 11v6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="step-nav__btn step-nav__btn--next cart-toggle-btn is-disabled"
+              id="cart-toggle-btn"
+              disabled
+              aria-disabled="true"
+              aria-label="Visa varukorg"
+            >
+              <svg class="cart-toggle-btn__icon" data-icon="cart" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 6h15l-1.5 9H7.5L6 6z" />
+                <path d="M6 6 5 3H2" />
+                <circle cx="9" cy="20" r="1.25" fill="currentColor" stroke="none" />
+                <circle cx="18" cy="20" r="1.25" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 <?php endif; ?>

@@ -30,6 +30,7 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
@@ -60,19 +61,25 @@ import {
 import {
   compareSlotsByField,
   isSlotAscDefaultField,
+  nextSlotTableSort,
   type SlotSortField,
   type SlotSortOrder,
 } from '../utils/slotListSort';
+import {
+  getInitialSlotListViewMode,
+  persistSlotListViewModeSession,
+  resolveSlotListViewMode,
+  type SlotListViewMode,
+} from '../utils/slotListViewMode';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import { SlotListItem } from './SlotListItem';
+import { SlotListTable } from './SlotListTable';
 import { SlotsSettingsView } from './SlotsSettingsView';
 
 type SortField = SlotSortField;
 type SortOrder = SlotSortOrder;
 type SlotFilter = 'all' | 'visible' | 'upcoming' | 'withCategory';
-
-const COLUMN_OPTIONS: SlotColumnCount[] = [1, 2, 3];
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'slot_time', label: 'Time' },
@@ -116,6 +123,9 @@ export function SlotsList() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [activeFilter, setActiveFilter] = useState<SlotFilter>('all');
   const [columnCount, setColumnCountState] = useState<SlotColumnCount>(getInitialSlotColumnCount);
+  const [listViewMode, setListViewModeState] = useState<SlotListViewMode>(
+    getInitialSlotListViewMode,
+  );
   const [settingsCategory, setSettingsCategory] = useState<'view' | 'categories'>('view');
 
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -144,6 +154,9 @@ export function SlotsList() {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(next));
         }
+        const nextView = resolveSlotListViewMode(settings);
+        setListViewModeState(nextView);
+        persistSlotListViewModeSession(nextView);
       })
       .catch(() => {});
     return () => {
@@ -154,10 +167,23 @@ export function SlotsList() {
   const setColumnCount = useCallback(
     (count: SlotColumnCount) => {
       setColumnCountState(count);
+      setListViewModeState('cards');
+      persistSlotListViewModeSession('cards');
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem(SLOTS_COLUMN_COUNT_STORAGE_KEY, String(count));
       }
-      updateSettings(SLOTS_SETTINGS_KEY, { columnCount: count }).catch(() => {});
+      updateSettings(SLOTS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+        () => {},
+      );
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: SlotListViewMode) => {
+      setListViewModeState(mode);
+      persistSlotListViewModeSession(mode);
+      updateSettings(SLOTS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
     },
     [updateSettings],
   );
@@ -240,6 +266,17 @@ export function SlotsList() {
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
+
+  const handleTableSort = useCallback(
+    (field: SortField) => {
+      const next = nextSlotTableSort(primarySort, sortOrder, field);
+      setPrimarySort(next.field);
+      setSortOrder(next.order);
+    },
+    [primarySort, sortOrder],
+  );
+
+  const isTableView = listViewMode === 'table';
 
   const handleOpenForView = (slot: Slot) => attemptNavigation(() => openSlotForView(slot));
 
@@ -499,69 +536,58 @@ export function SlotsList() {
             }
             trailing={
               <>
-                <div className="mr-1 flex items-center gap-1">
-                  <Select
-                    value={primarySort}
-                    onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                  >
-                    <SelectTrigger
-                      className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                      aria-label="Sort by"
+                {!isTableView ? (
+                  <div className="mr-1 flex items-center gap-1">
+                    <Select
+                      value={primarySort}
+                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="item-aligned"
-                      className="rounded-xl border-border/50 shadow-xl"
-                    >
-                      {SORT_FIELD_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={option.value}
-                          className="rounded-md text-xs"
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 px-0 text-xs"
-                    onClick={toggleSortOrder}
-                    aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                  >
-                    {sortOrder === 'asc' ? (
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-                <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-                  {COLUMN_OPTIONS.map((count) => (
+                      <SelectTrigger
+                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                        aria-label="Sort by"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="item-aligned"
+                        className="rounded-xl border-border/50 shadow-xl"
+                      >
+                        {SORT_FIELD_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-md text-xs"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
-                      key={count}
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className={cn(
-                        'h-7 min-w-7 rounded-[6px] px-2 text-xs',
-                        columnCount === count
-                          ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={() => setColumnCount(count)}
-                      aria-label={t(`slots.columns${count}`)}
-                      aria-pressed={columnCount === count}
+                      className="h-7 w-7 px-0 text-xs"
+                      onClick={toggleSortOrder}
+                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                     >
-                      {count}
+                      {sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
                     </Button>
-                  ))}
-                </div>
+                  </div>
+                ) : null}
+                <ListColumnLayoutToggle
+                  columnCount={columnCount}
+                  listViewMode={listViewMode}
+                  onSelectColumns={setColumnCount}
+                  onSelectTable={() => setListViewMode('table')}
+                  columnAriaLabel={(count) => t(`slots.columns${count}`)}
+                  tableAriaLabel={t('common.tableView')}
+                />
               </>
             }
             bulkActions={
@@ -639,6 +665,20 @@ export function SlotsList() {
               onCreate={
                 !searchTerm ? () => attemptNavigation(() => openSlotPanel(null)) : undefined
               }
+            />
+          ) : isTableView ? (
+            <SlotListTable
+              slots={filteredAndSorted}
+              primarySort={primarySort}
+              sortOrder={sortOrder}
+              onSort={handleTableSort}
+              isSelected={isSelected}
+              onRowClick={handleOpenForView}
+              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+              onCheckboxChange={onVisibleRowCheckboxChange}
+              allVisibleSelected={allVisibleSelected}
+              onHeaderCheckboxChange={onToggleAllVisible}
+              recentlyDuplicatedSlotId={recentlyDuplicatedSlotId}
             />
           ) : (
             <div

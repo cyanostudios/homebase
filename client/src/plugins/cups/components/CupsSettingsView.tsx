@@ -1,4 +1,4 @@
-import { Download, LayoutGrid, List, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -18,12 +18,25 @@ import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
 
 import {
+  CUPS_COLUMN_COUNT_STORAGE_KEY,
+  CUPS_SETTINGS_KEY,
+  resolveCupColumnCount,
+  type CupColumnCount,
+} from '../utils/cupColumnCount';
+import {
+  CUPS_LIST_VIEW_MODE_STORAGE_KEY,
+  persistCupListViewModeSession,
+  resolveCupListViewMode,
+  type CupListViewMode,
+} from '../utils/cupListViewMode';
+
+import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
 } from './CupIngestImportResultDialog';
 
-const CUPS_SETTINGS_KEY = 'cups';
-type CupsViewMode = 'grid' | 'list';
+const COLUMN_OPTIONS: CupColumnCount[] = [1, 2, 3];
+const VIEW_MODE_OPTIONS: CupListViewMode[] = ['cards', 'table'];
 export type CupsSettingsCategory = 'view' | 'import';
 
 export function CupsSettingsView({
@@ -44,14 +57,16 @@ export function CupsSettingsView({
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [viewMode, setViewMode] = useState<CupsViewMode>('list');
+  const [columnCount, setColumnCount] = useState<CupColumnCount>(1);
+  const [listViewMode, setListViewMode] = useState<CupListViewMode>('cards');
   const [defaultIngestSourceId, setDefaultIngestSourceId] = useState('');
   const [allowedIngestSourceIds, setAllowedIngestSourceIds] = useState<string[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [ingestSources, setIngestSources] = useState<IngestSource[]>([]);
   const [ingestLoading, setIngestLoading] = useState(true);
   const [initialState, setInitialState] = useState({
-    viewMode: 'list' as CupsViewMode,
+    columnCount: 1 as CupColumnCount,
+    listViewMode: 'cards' as CupListViewMode,
     defaultIngestSourceId: '',
     allowedIngestSourceIds: [] as string[],
     autoRefresh: false,
@@ -97,7 +112,8 @@ export function CupsSettingsView({
         if (cancelled) {
           return;
         }
-        const loadedView = settings?.viewMode === 'grid' ? 'grid' : 'list';
+        const loadedColumns = resolveCupColumnCount(settings);
+        const loadedView = resolveCupListViewMode(settings);
         const loadedDefault = settings?.defaultIngestSourceId
           ? String(settings.defaultIngestSourceId)
           : '';
@@ -105,12 +121,14 @@ export function CupsSettingsView({
           ? settings.allowedIngestSourceIds.map(String)
           : [];
         const loadedAutoRefresh = settings?.autoRefresh === true;
-        setViewMode(loadedView);
+        setColumnCount(loadedColumns);
+        setListViewMode(loadedView);
         setDefaultIngestSourceId(loadedDefault);
         setAllowedIngestSourceIds(loadedAllowed);
         setAutoRefresh(loadedAutoRefresh);
         setInitialState({
-          viewMode: loadedView,
+          columnCount: loadedColumns,
+          listViewMode: loadedView,
           defaultIngestSourceId: loadedDefault,
           allowedIngestSourceIds: loadedAllowed,
           autoRefresh: loadedAutoRefresh,
@@ -148,7 +166,8 @@ export function CupsSettingsView({
   }, []);
 
   const isDirty =
-    viewMode !== initialState.viewMode ||
+    columnCount !== initialState.columnCount ||
+    listViewMode !== initialState.listViewMode ||
     defaultIngestSourceId !== initialState.defaultIngestSourceId ||
     JSON.stringify([...allowedIngestSourceIds].sort()) !==
       JSON.stringify([...initialState.allowedIngestSourceIds].sort()) ||
@@ -158,14 +177,21 @@ export function CupsSettingsView({
     setIsSaving(true);
     try {
       const payload = {
-        viewMode,
+        columnCount,
+        listViewMode,
         defaultIngestSourceId: defaultIngestSourceId.trim() || '',
         allowedIngestSourceIds,
         autoRefresh,
       };
       await updateSettings(CUPS_SETTINGS_KEY, payload);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(CUPS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+        window.sessionStorage.setItem(CUPS_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
+      }
+      persistCupListViewModeSession(listViewMode);
       setInitialState({
-        viewMode,
+        columnCount,
+        listViewMode,
         defaultIngestSourceId: defaultIngestSourceId.trim() || '',
         allowedIngestSourceIds,
         autoRefresh,
@@ -173,7 +199,14 @@ export function CupsSettingsView({
     } finally {
       setIsSaving(false);
     }
-  }, [allowedIngestSourceIds, autoRefresh, defaultIngestSourceId, updateSettings, viewMode]);
+  }, [
+    allowedIngestSourceIds,
+    autoRefresh,
+    columnCount,
+    defaultIngestSourceId,
+    listViewMode,
+    updateSettings,
+  ]);
 
   const toggleAllowedSource = useCallback((sourceId: string) => {
     setAllowedIngestSourceIds((prev) =>
@@ -249,36 +282,60 @@ export function CupsSettingsView({
         }
       >
         {activeCategory === 'view' && (
-          <DetailSection title="Default view" className="pt-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              {[
-                { id: 'grid' as const, label: 'Grid', icon: LayoutGrid },
-                { id: 'list' as const, label: 'List', icon: List },
-              ].map((mode) => {
-                const Icon = mode.icon;
-                const isActive = viewMode === mode.id;
-                return (
-                  <Button
-                    key={mode.id}
-                    variant="ghost"
-                    onClick={() => setViewMode(mode.id)}
-                    className={cn(
-                      'h-9 text-xs px-3 rounded-lg font-medium flex items-center gap-1.5',
-                      isActive
-                        ? 'bg-primary/10 text-primary border border-primary'
-                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    <span>{mode.label}</span>
-                  </Button>
-                );
-              })}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Controls the default layout for Cups list.
-            </p>
-          </DetailSection>
+          <>
+            <DetailSection title={t('common.defaultListView')} className="pt-0">
+              <div className="flex flex-wrap items-center gap-2">
+                {VIEW_MODE_OPTIONS.map((mode) => {
+                  const isActive = listViewMode === mode;
+                  return (
+                    <Button
+                      key={mode}
+                      variant="ghost"
+                      onClick={() => setListViewMode(mode)}
+                      className={cn(
+                        'h-9 text-xs px-3 rounded-lg font-medium',
+                        isActive
+                          ? 'bg-primary/10 text-primary border border-primary'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                      )}
+                      aria-label={mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                      aria-pressed={isActive}
+                    >
+                      {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
+            </DetailSection>
+            {listViewMode === 'cards' ? (
+              <DetailSection title={t('cups.defaultColumns')}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {COLUMN_OPTIONS.map((count) => {
+                    const isActive = columnCount === count;
+                    return (
+                      <Button
+                        key={count}
+                        variant="ghost"
+                        onClick={() => setColumnCount(count)}
+                        className={cn(
+                          'h-9 min-w-9 text-xs px-3 rounded-lg font-medium',
+                          isActive
+                            ? 'bg-primary/10 text-primary border border-primary'
+                            : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                        )}
+                        aria-label={t(`cups.columns${count}`)}
+                        aria-pressed={isActive}
+                      >
+                        {count}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{t('cups.columnsHelp')}</p>
+              </DetailSection>
+            ) : null}
+          </>
         )}
 
         {activeCategory === 'import' && (

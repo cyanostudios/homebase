@@ -132,6 +132,7 @@ export const InstructionView: React.FC<InstructionViewProps> = ({ instruction, i
                 iconPlugin="instructions"
                 subtleTitle
                 className="p-4"
+                collapsible
               >
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>

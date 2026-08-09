@@ -100,6 +100,7 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                 icon={Info}
                 subtleTitle
                 className="p-4"
+                collapsible
               >
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
@@ -200,7 +201,13 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
           </Card>
         )}
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection title="Cup information" icon={Trophy} subtleTitle className="p-6">
+          <DetailSection
+            title="Cup information"
+            icon={Trophy}
+            subtleTitle
+            className="p-6"
+            collapsible
+          >
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-3 gap-3">
                 <span className="text-muted-foreground">Name</span>
