@@ -127,7 +127,7 @@ export function PulseProvider({
   const testSettings = async (data: {
     testTo: string;
     useSaved?: boolean;
-    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
+    activeProvider?: 'twilio' | 'mock';
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;
@@ -139,7 +139,7 @@ export function PulseProvider({
   };
 
   const saveSettings = async (data: {
-    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
+    activeProvider?: 'twilio' | 'mock';
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;

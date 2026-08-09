@@ -40,9 +40,9 @@ function createMailRoutes(context) {
       body('testTo')
         .trim()
         .notEmpty()
-        .withMessage('E-postadress krävs')
+        .withMessage('Email address is required')
         .isEmail()
-        .withMessage('Ogiltig e-postadress'),
+        .withMessage('Invalid email address'),
       body('provider').optional().isIn(['smtp', 'resend']),
       body('host').optional().trim(),
       body('port').optional().isInt({ min: 1, max: 65535 }),

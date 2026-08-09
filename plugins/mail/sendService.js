@@ -1,11 +1,11 @@
 /**
  * Shared send logic using per-user mail settings (Resend or SMTP).
- * Use this from other plugins (e.g. inspection) instead of ServiceManager.get('email').
+ * Use this from other plugins instead of a platform email fallback.
  */
-const ServiceManager = require('../../server/core/ServiceManager');
 const model = require('./model');
 const SmtpAdapter = require('../../server/core/services/email/adapters/SmtpAdapter');
 const ResendAdapter = require('../../server/core/services/email/adapters/ResendAdapter');
+const { AppError } = require('../../server/core/errors/AppError');
 
 /**
  * Get the email service for the current user (Resend or SMTP based on saved settings).
@@ -14,14 +14,25 @@ const ResendAdapter = require('../../server/core/services/email/adapters/ResendA
  */
 async function getEmailServiceForUser(req) {
   const userSettings = await model.getSettings(req, { needsPassword: true });
-  if (userSettings?.provider === 'resend' && userSettings?.resendApiKeyRaw) {
-    return new ResendAdapter({
-      resend: {
-        apiKey: userSettings.resendApiKeyRaw,
-        from: userSettings.resendFromAddress || userSettings.fromAddress || 'onboarding@resend.dev',
-      },
-    });
+  const provider = userSettings?.provider === 'resend' ? 'resend' : 'smtp';
+
+  if (provider === 'resend') {
+    if (userSettings?.resendApiKeyRaw) {
+      return new ResendAdapter({
+        resend: {
+          apiKey: userSettings.resendApiKeyRaw,
+          from:
+            userSettings.resendFromAddress || userSettings.fromAddress || 'onboarding@resend.dev',
+        },
+      });
+    }
+    throw new AppError(
+      'Resend settings are incomplete. Open Mail settings and save API key and From address (or switch to SMTP).',
+      400,
+      AppError.CODES.BAD_REQUEST,
+    );
   }
+
   if (userSettings?.host) {
     return new SmtpAdapter({
       smtp: {
@@ -36,7 +47,12 @@ async function getEmailServiceForUser(req) {
       },
     });
   }
-  return ServiceManager.get('email');
+
+  throw new AppError(
+    'SMTP settings are incomplete. Open Mail settings and save host and From address (or switch to Resend).',
+    400,
+    AppError.CODES.BAD_REQUEST,
+  );
 }
 
 /**

@@ -1,5 +1,5 @@
 import { Check, Key, Mail, Send } from 'lucide-react';
-import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ interface MailSettingsFormProps {
   onCancel?: () => void;
   /** When provided (e.g. from full-page settings), called after successful save instead of closeMailPanel */
   onSaveSuccess?: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+  onSavingChange?: (isSaving: boolean) => void;
 }
 
 type Provider = 'smtp' | 'resend';
@@ -33,11 +35,11 @@ const smtpDefaults: SmtpSettings = {
 };
 
 export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFormProps>(
-  function MailSettingsForm({ onCancel, onSaveSuccess }, ref) {
+  function MailSettingsForm({ onCancel, onSaveSuccess, onDirtyChange, onSavingChange }, ref) {
     const { t } = useTranslation();
     const { settings, loadSettings, saveSettings, testSettings, closeMailPanel } = useMail();
     const [provider, setProvider] = useState<Provider>('smtp');
-    const [, setSaving] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [testSuccess, setTestSuccess] = useState<string | null>(null);
     const [testTo, setTestTo] = useState('');
@@ -80,6 +82,61 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
       setAuthPass('');
     }, [settings]);
 
+    const savedProvider: Provider =
+      settings?.provider === 'resend' ? 'resend' : settings ? 'smtp' : 'smtp';
+    const savedSmtp = settings?.smtp;
+    const savedResend = settings?.resend;
+
+    const isDirty = useMemo(() => {
+      if (!settings) {
+        return false;
+      }
+      if (provider !== savedProvider) {
+        return true;
+      }
+      if (provider === 'resend') {
+        const keyChanged = Boolean(resendApiKey && !resendApiKey.startsWith('••••'));
+        return (
+          keyChanged || (resendFromAddress || '').trim() !== (savedResend?.fromAddress || '').trim()
+        );
+      }
+      const passChanged = Boolean(authPass.trim());
+      return (
+        passChanged ||
+        (host || '').trim() !== (savedSmtp?.host || smtpDefaults.host).trim() ||
+        (port || 587) !== (savedSmtp?.port ?? smtpDefaults.port) ||
+        secure !== (savedSmtp?.secure ?? smtpDefaults.secure) ||
+        (authUser || '').trim() !== (savedSmtp?.authUser || '').trim() ||
+        (fromAddress || '').trim() !== (savedSmtp?.fromAddress || smtpDefaults.fromAddress).trim()
+      );
+    }, [
+      settings,
+      provider,
+      savedProvider,
+      resendApiKey,
+      resendFromAddress,
+      savedResend?.fromAddress,
+      authPass,
+      host,
+      port,
+      secure,
+      authUser,
+      fromAddress,
+      savedSmtp?.host,
+      savedSmtp?.port,
+      savedSmtp?.secure,
+      savedSmtp?.authUser,
+      savedSmtp?.fromAddress,
+    ]);
+
+    useEffect(() => {
+      onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+
+    useEffect(() => {
+      onSavingChange?.(saving);
+    }, [saving, onSavingChange]);
+
     const handleSave = useCallback(async () => {
       setError(null);
       setTestSuccess(null);
@@ -100,7 +157,7 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
         });
         if (onSaveSuccess) {
           onSaveSuccess();
-        } else {
+        } else if (!onDirtyChange) {
           closeMailPanel();
         }
       } catch (err: any) {
@@ -121,6 +178,7 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
       saveSettings,
       closeMailPanel,
       onSaveSuccess,
+      onDirtyChange,
       t,
     ]);
 
@@ -313,7 +371,7 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
                   type="text"
                   value={authUser}
                   onChange={(e) => setAuthUser(e.target.value)}
-                  placeholder="din@email.com"
+                  placeholder="you@example.com"
                 />
               </div>
               <div>
@@ -358,7 +416,7 @@ export const MailSettingsForm = React.forwardRef<PanelFormHandle, MailSettingsFo
                 type="email"
                 value={testTo}
                 onChange={(e) => setTestTo(e.target.value)}
-                placeholder="din@email.com"
+                placeholder="you@example.com"
                 className="mt-1"
               />
             </div>

@@ -1,6 +1,6 @@
 import React, { createContext } from 'react';
 
-import type { PulseLogEntry, PulseSettings } from '../types/pulse';
+import type { PulseLogEntry, PulseProvider, PulseSettings } from '../types/pulse';
 
 export interface PulseContextType {
   isPulsesPanelOpen: boolean;
@@ -26,7 +26,7 @@ export interface PulseContextType {
   testSettings: (data: {
     testTo: string;
     useSaved?: boolean;
-    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
+    activeProvider?: PulseProvider;
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;
@@ -35,7 +35,7 @@ export interface PulseContextType {
   getPanelSubtitle: (mode?: string, _item?: unknown) => string;
   getDeleteMessage: (_item?: unknown) => string;
   saveSettings: (data: {
-    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
+    activeProvider?: PulseProvider;
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;

@@ -55,13 +55,11 @@ class PulseController {
           settings.hasTwilioAuthToken &&
           (settings.twilioFromNumber || '').trim()
         );
-        const appleMessagesConfigured = process.platform === 'darwin';
         return res.json({
           activeProvider: settings.activeProvider,
           configured: {
             twilio: twilioConfigured,
             mock: true,
-            appleMessages: appleMessagesConfigured,
           },
           twilio: {
             hasAccountSid: settings.hasTwilioAccountSid,
@@ -72,7 +70,7 @@ class PulseController {
       }
       res.json({
         activeProvider: 'mock',
-        configured: { twilio: false, mock: true, appleMessages: process.platform === 'darwin' },
+        configured: { twilio: false, mock: true },
         twilio: { hasAccountSid: false, hasAuthToken: false, fromNumber: '' },
       });
     } catch (error) {
@@ -97,68 +95,35 @@ class PulseController {
       }
       let adapter;
       let provider;
-      // When testing Apple Messages, always use its adapter (no saved credentials).
-      if (activeProvider === 'apple-messages') {
-        if (process.platform !== 'darwin') {
-          return res.status(400).json({
-            error: 'Apple Messages is only available on macOS.',
-          });
-        }
-        const AppleMessagesAdapter = require('./adapters/AppleMessagesAdapter');
-        adapter = new AppleMessagesAdapter();
-        provider = 'apple-messages';
-      }
-      const useTwilioFromBody =
-        activeProvider !== 'mock' &&
-        activeProvider !== 'apple-messages' &&
-        twilioAccountSid &&
-        String(twilioAccountSid).trim() &&
-        !String(twilioAccountSid).trim().startsWith('••••') &&
-        twilioAuthToken &&
-        String(twilioAuthToken).trim() &&
-        twilioFromNumber &&
-        String(twilioFromNumber).trim();
 
-      if (!adapter && (useSaved || !useTwilioFromBody)) {
-        const pair = await getSmsAdapterForUser(req);
-        adapter = pair.adapter;
-        provider = pair.provider;
-        if (activeProvider === 'twilio' && provider === 'mock') {
-          return res.status(400).json({
-            error:
-              'Saved Twilio settings are incomplete. Enter Account SID, Auth Token and From number and save, then try again.',
-          });
-        }
-      }
-      if (!adapter) {
-        const prov =
-          activeProvider === 'mock'
-            ? 'mock'
-            : activeProvider === 'apple-messages'
-              ? 'apple-messages'
-              : 'twilio';
-        if (prov === 'mock') {
-          const MockAdapter = require('./adapters/MockAdapter');
-          adapter = new MockAdapter();
-          provider = 'mock';
-        } else if (prov === 'apple-messages') {
-          if (process.platform !== 'darwin') {
+      if (activeProvider === 'mock') {
+        const MockAdapter = require('./adapters/MockAdapter');
+        adapter = new MockAdapter();
+        provider = 'mock';
+      } else {
+        const useTwilioFromBody =
+          twilioAccountSid &&
+          String(twilioAccountSid).trim() &&
+          !String(twilioAccountSid).trim().startsWith('••••') &&
+          twilioAuthToken &&
+          String(twilioAuthToken).trim() &&
+          twilioFromNumber &&
+          String(twilioFromNumber).trim();
+
+        if (useSaved || !useTwilioFromBody) {
+          const pair = await getSmsAdapterForUser(req);
+          adapter = pair.adapter;
+          provider = pair.provider;
+          if (provider === 'mock') {
             return res.status(400).json({
-              error: 'Apple Messages is only available on macOS.',
+              error:
+                'Saved Twilio settings are incomplete. Enter Account SID, Auth Token and From number and save, then try again.',
             });
           }
-          const AppleMessagesAdapterReq = require('./adapters/AppleMessagesAdapter');
-          adapter = new AppleMessagesAdapterReq();
-          provider = 'apple-messages';
         } else {
-          const sid = twilioAccountSid ? String(twilioAccountSid).trim() : '';
-          const token = twilioAuthToken ? String(twilioAuthToken).trim() : '';
-          const from = twilioFromNumber ? String(twilioFromNumber).trim() : '';
-          if (!sid || !token || !from) {
-            return res.status(400).json({
-              error: 'Account SID, Auth Token and From number are required to test Twilio',
-            });
-          }
+          const sid = String(twilioAccountSid).trim();
+          const token = String(twilioAuthToken).trim();
+          const from = String(twilioFromNumber).trim();
           const TwilioAdapter = require('./adapters/TwilioAdapter');
           adapter = new TwilioAdapter({ accountSid: sid, authToken: token, fromNumber: from });
           provider = 'twilio';
@@ -181,12 +146,7 @@ class PulseController {
   async saveSettings(req, res) {
     try {
       const { activeProvider, twilioAccountSid, twilioAuthToken, twilioFromNumber } = req.body;
-      const normalizedProvider =
-        activeProvider === 'mock'
-          ? 'mock'
-          : activeProvider === 'apple-messages'
-            ? 'apple-messages'
-            : 'twilio';
+      const normalizedProvider = activeProvider === 'mock' ? 'mock' : 'twilio';
       await model.saveSettings(req, {
         activeProvider: normalizedProvider,
         twilioAccountSid: twilioAccountSid ?? '',

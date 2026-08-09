@@ -20,8 +20,10 @@ export interface PulseTwilioSettings {
   fromNumber: string;
 }
 
+export type PulseProvider = 'twilio' | 'mock';
+
 export interface PulseSettings {
-  activeProvider: 'twilio' | 'mock' | 'apple-messages';
-  configured: { twilio: boolean; mock: boolean; appleMessages: boolean };
+  activeProvider: PulseProvider;
+  configured: { twilio: boolean; mock: boolean };
   twilio: PulseTwilioSettings | null;
 }

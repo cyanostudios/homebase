@@ -6,11 +6,18 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-08-10 – Pulse + Mail: settings Save + standards-alignment
 
-**Status:** Implementerat lokalt. **Ej prod-release.**
+**Status:** Implementerat lokalt. **QA Approved**. Grind 5 (Security) N/A per TPM-scope. **Ej prod-release.**
 
 **Sammanfattning:** Dirty header-**Save** i Pulse- och Mail-settings (parity med övriga plugins). Mail `sendService` fail-closed utan död `ServiceManager.get('email')`-fallback. Widget-/API-copy i18n; Inspections-referenser borttagna.
 
-**Verifierat beteende (kod):** `SettingsHeaderSaveButton` via `PluginSettingsPageShell.saveAction` i Pulse/Mail settings; `docs/UI_AND_UX_STANDARDS_V3.md` Save-lista uppdaterad.
+**Verifierat beteende (kod):**
+
+- [`PulseSettingsView.tsx`](../client/src/plugins/pulses/components/PulseSettingsView.tsx) / [`MailSettingsView.tsx`](../client/src/plugins/mail/components/MailSettingsView.tsx): `SettingsHeaderSaveButton` via `PluginSettingsPageShell.saveAction` när formuläret är dirty
+- [`plugins/mail/sendService.js`](../plugins/mail/sendService.js): `AppError` 400 om Resend/SMTP saknas; ingen `ServiceManager.get('email')`
+- i18n: `mail.sentCount` / `mail.openMail`, `pulses.sentCount` / `pulses.openPulse`; empty/settings-copy utan Inspections
+- Docs: `UI_AND_UX_STANDARDS_V3.md` §3.2 Save-lista inkluderar mail och pulses
+
+**Begränsningar (medvetet utanför denna leverans):** Legacy table-list shell för mail/pulses; ingen Mock-provider för Mail; ingen rate-limit på send; inga dedikerade plugin-tester.
 
 ---
 
@@ -388,7 +395,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Kända begränsningar:**
 
-- **Mail / Pulse:** full-page settings har save-logik via `PanelFormHandle` men ingen synlig Save i shell-headern (pre-existing gap; utanför chrome-scope).
+- **Mail / Pulse (löst 2026-08-10):** saknad synlig header-Save — åtgärdat i posten _Pulse + Mail: settings Save + standards-alignment_.
 - **Guides / Requests / Files:** sparar per sektion eller omedelbart i barnpaneler — ingen global dirty header-Save.
 - **Schedule:** sparar per schemakort/sektion (inline), inte via shell `saveAction`.
 - **Cups title i18n:** `cups.settingsCups` saknas i en/sv (UI använder `defaultValue: 'Cups settings'`).

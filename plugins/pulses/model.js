@@ -151,9 +151,13 @@ class PulseModel {
       const rows = await db.query(sql, params);
       const row = rows[0];
       if (!row) return null;
+      // Legacy apple-messages provider maps to mock (adapter removed).
+      const rawActive = row.active_provider || 'twilio';
+      const activeProvider =
+        rawActive === 'mock' || rawActive === 'apple-messages' ? 'mock' : 'twilio';
       const out = {
         id: row.id,
-        activeProvider: row.active_provider || 'twilio',
+        activeProvider,
         twilioAccountSid: row.twilio_account_sid ? '••••••••' : '',
         hasTwilioAccountSid: !!row.twilio_account_sid,
         hasTwilioAuthToken: !!row.twilio_auth_token,
@@ -182,12 +186,9 @@ class PulseModel {
         throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
       }
       const rawProvider = data.activeProvider || 'twilio';
+      // Legacy apple-messages provider maps to mock (adapter removed).
       const activeProvider =
-        rawProvider === 'mock'
-          ? 'mock'
-          : rawProvider === 'apple-messages'
-            ? 'apple-messages'
-            : 'twilio';
+        rawProvider === 'mock' || rawProvider === 'apple-messages' ? 'mock' : 'twilio';
       const twilioAccountSid =
         data.twilioAccountSid != null ? String(data.twilioAccountSid).trim() : null;
       const twilioAuthToken =

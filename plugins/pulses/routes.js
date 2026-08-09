@@ -36,7 +36,7 @@ function createPulseRoutes(context) {
     [
       body('testTo').trim().notEmpty().withMessage('Phone number is required'),
       body('useSaved').optional().isBoolean(),
-      body('activeProvider').optional().isIn(['twilio', 'mock', 'apple-messages']),
+      body('activeProvider').optional().isIn(['twilio', 'mock']),
       body('twilioAccountSid').optional().trim(),
       body('twilioAuthToken').optional(),
       body('twilioFromNumber').optional().trim(),
@@ -50,7 +50,7 @@ function createPulseRoutes(context) {
     gate,
     csrfProtection,
     [
-      body('activeProvider').optional().isIn(['twilio', 'mock', 'apple-messages']),
+      body('activeProvider').optional().isIn(['twilio', 'mock']),
       body('twilioAccountSid').optional().trim(),
       body('twilioAuthToken').optional(),
       body('twilioFromNumber').optional().trim(),

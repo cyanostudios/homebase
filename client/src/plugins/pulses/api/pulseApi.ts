@@ -1,7 +1,7 @@
 // Pulse API
 import { createApiClient } from '@/core/api/createApiClient';
 
-import type { PulseHistoryResponse, PulseSettings } from '../types/pulse';
+import type { PulseHistoryResponse, PulseProvider, PulseSettings } from '../types/pulse';
 
 class PulseApi {
   private request = createApiClient('/pulses');
@@ -32,7 +32,7 @@ class PulseApi {
   async testSettings(data: {
     testTo: string;
     useSaved?: boolean;
-    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
+    activeProvider?: PulseProvider;
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;
@@ -44,7 +44,7 @@ class PulseApi {
   }
 
   async saveSettings(data: {
-    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
+    activeProvider?: PulseProvider;
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;

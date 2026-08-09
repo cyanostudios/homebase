@@ -1,5 +1,5 @@
 /**
- * Pulse plugin – SMS notifications via Twilio (and optional providers)
+ * Pulse plugin – SMS notifications via Twilio (or Mock for development)
  * Per-user settings, shared send service for other plugins
  */
 module.exports = {

@@ -65,13 +65,13 @@ class MailController {
       let msg = 'Failed to send email';
       if (error?.code === 'EAUTH' || /535|Incorrect authentication/i.test(error?.message || '')) {
         msg =
-          'Felaktiga SMTP-inloggningsuppgifter. Kontrollera användarnamn och lösenord i Mail-inställningar. För Gmail: använd app-lösenord.';
+          'Invalid SMTP credentials. Check username and password in Mail settings. For Gmail, use an app password.';
       } else if (
         error?.code === 'EENVELOPE' ||
         /530|Authentication Required/i.test(error?.message || '')
       ) {
         msg =
-          'Gmail kräver inloggning. Fyll i användarnamn och app-lösenord i Mail-inställningar, eller byt till Resend.';
+          'SMTP authentication required. Enter username and app password in Mail settings, or switch to Resend.';
       }
       res.status(500).json({ error: msg });
     }
@@ -156,7 +156,7 @@ class MailController {
       if (!to || !to.includes('@')) {
         return res
           .status(400)
-          .json({ error: 'Ange en giltig e-postadress att skicka testmail till' });
+          .json({ error: 'Enter a valid email address to send a test email to' });
       }
 
       const requestedProvider = (provider || 'smtp') === 'resend' ? 'resend' : 'smtp';
@@ -166,7 +166,7 @@ class MailController {
         if (!userSettings) {
           return res
             .status(400)
-            .json({ error: 'Inga sparade inställningar. Spara först eller fyll i formuläret.' });
+            .json({ error: 'No saved settings. Save first or fill in the form.' });
         }
         // Only use saved when it matches the tab (requestedProvider) – avoids SMTP when user is on Resend tab
         if (
@@ -198,12 +198,14 @@ class MailController {
             },
           });
         } else {
-          return res.status(400).json({ error: 'Inga sparade inställningar. Spara först.' });
+          return res
+            .status(400)
+            .json({ error: 'No saved settings for this provider. Save first.' });
         }
       } else if ((provider || 'smtp') === 'resend') {
         const key = resendApiKey ? String(resendApiKey).trim() : '';
         if (!key || key.startsWith('••••')) {
-          return res.status(400).json({ error: 'Ange Resend API-nyckel för att testa.' });
+          return res.status(400).json({ error: 'Enter a Resend API key to test.' });
         }
         emailService = new ResendAdapter({
           resend: {
@@ -234,33 +236,33 @@ class MailController {
       if (!emailService && requestedProvider === 'resend') {
         return res.status(400).json({
           error:
-            'Ange Resend API-nyckel (re_...) i fältet ovan. Kontrollera att du är på Resend-fliken.',
+            'Enter a Resend API key (re_...) in the field above. Make sure the Resend provider is selected.',
         });
       }
 
       await emailService.send({
         to: [to],
-        subject: 'Testmail från Homebase',
-        text: 'Detta är ett testmail. Om du fick detta fungerar SMTP-inställningarna.',
-        html: '<p>Detta är ett testmail. Om du fick detta fungerar SMTP-inställningarna.</p>',
+        subject: 'Test email from Homebase',
+        text: 'This is a test email. If you received it, your mail settings work.',
+        html: '<p>This is a test email. If you received it, your mail settings work.</p>',
       });
 
-      res.json({ ok: true, message: 'Testmail skickat' });
+      res.json({ ok: true, message: 'Test email sent' });
     } catch (error) {
       Logger.error('Test mail failed', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      let msg = 'Kunde inte skicka testmail';
+      let msg = 'Could not send test email';
       if (error?.code === 'EAUTH' || /535|Incorrect authentication/i.test(error?.message || '')) {
         msg =
-          'Felaktiga inloggningsuppgifter. För Gmail: använd ett app-lösenord (myaccount.google.com/apppasswords) om du har tvåstegsverifiering.';
+          'Invalid credentials. For Gmail, use an app password (myaccount.google.com/apppasswords) if you have 2FA enabled.';
       } else if (
         error?.code === 'EENVELOPE' ||
         /530|Authentication Required/i.test(error?.message || '')
       ) {
         msg =
-          'Gmail kräver inloggning. Fyll i användarnamn och app-lösenord, eller byt till Resend för enklare konfiguration.';
+          'SMTP authentication required. Enter username and app password, or switch to Resend for simpler setup.';
       }
       res.status(500).json({ error: msg });
     }

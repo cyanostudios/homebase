@@ -18,8 +18,8 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
 - Panel modes for **detail panel:** `'create' | 'edit' | 'view'`. Plugin-specific settings screens use `*ContentView === 'settings'` on the list route (see `PLUGIN_RUNTIME_CONVENTIONS.md`).
 - **Create/edit:** The `*Form` component owns **inline Save/Cancel** buttons. `PanelFooter` does not render form actions for those modes.
 - **Settings (two patterns):**
-  - **Full-page (preferred for data plugins):** `TeamsSettingsView`, `MatchSettingsView`, etc. on list route via `openXSettings()` + `*ContentView`.
-  - **Panel settings (legacy, e.g. Files/Mail):** `*SettingsForm` in panel + `window.submit*` globals for `PanelFooter`.
+  - **Full-page (preferred):** `*SettingsView` on list route via `openXSettings()` + `*ContentView` + `PluginSettingsPageShell` (dirty header Save where applicable — e.g. tasks, mail, pulses; see `UI_AND_UX_STANDARDS_V3.md` §3.2).
+  - **Panel settings (legacy):** `*SettingsForm` in the detail panel + `window.submit*` globals for `PanelFooter` — do not use for new plugins.
 - Each plugin must expose `Form` in `components` inside `client/src/core/pluginRegistry.ts`.
 - Detail view must follow shared shell patterns:
   - `DetailLayout` main + sidebar

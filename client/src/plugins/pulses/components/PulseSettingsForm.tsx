@@ -11,23 +11,23 @@ import { DetailSection } from '@/core/ui/DetailSection';
 import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
-
-type Provider = 'twilio' | 'mock' | 'apple-messages';
+import type { PulseProvider } from '../types/pulse';
 
 interface PulseSettingsFormProps {
   onCancel?: () => void;
   /** When provided (e.g. from full-page settings), called after successful save instead of closePulsePanel */
   onSaveSuccess?: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+  onSavingChange?: (isSaving: boolean) => void;
 }
 
 export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettingsFormProps>(
-  function PulseSettingsForm({ onCancel, onSaveSuccess }, ref) {
+  function PulseSettingsForm({ onCancel, onSaveSuccess, onDirtyChange, onSavingChange }, ref) {
     const { t } = useTranslation();
     const { settings, loadSettings, saveSettings, testSettings, closePulsePanel, pulseHistory } =
       usePulses();
-    const [provider, setProvider] = useState<Provider>('twilio');
-    const isAppleMessagesConfigured = settings?.configured?.appleMessages === true;
-    const [, setSaving] = useState(false);
+    const [provider, setProvider] = useState<PulseProvider>('twilio');
+    const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [testSuccess, setTestSuccess] = useState<string | null>(null);
     const [testTo, setTestTo] = useState('');
@@ -51,7 +51,7 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
 
     useEffect(() => {
       if (settings) {
-        setProvider((settings.activeProvider as Provider) || 'twilio');
+        setProvider(settings.activeProvider === 'mock' ? 'mock' : 'twilio');
         if (settings.twilio) {
           const tw = settings.twilio;
           setTwilioFromNumber(tw.fromNumber || '');
@@ -60,6 +60,40 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
         }
       }
     }, [settings]);
+
+    const savedProvider: PulseProvider =
+      settings?.activeProvider === 'mock' ? 'mock' : settings ? 'twilio' : 'twilio';
+    const savedFrom = settings?.twilio?.fromNumber || '';
+
+    const isDirty = useMemo(() => {
+      if (!settings) {
+        return false;
+      }
+      const sidChanged = Boolean(twilioAccountSid && !twilioAccountSid.startsWith('••••'));
+      const tokenChanged = Boolean(twilioAuthToken && !twilioAuthToken.startsWith('••••'));
+      return (
+        provider !== savedProvider ||
+        (twilioFromNumber || '').trim() !== savedFrom.trim() ||
+        sidChanged ||
+        tokenChanged
+      );
+    }, [
+      settings,
+      provider,
+      savedProvider,
+      twilioFromNumber,
+      savedFrom,
+      twilioAccountSid,
+      twilioAuthToken,
+    ]);
+
+    useEffect(() => {
+      onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+
+    useEffect(() => {
+      onSavingChange?.(saving);
+    }, [saving, onSavingChange]);
 
     const handleSave = useCallback(async () => {
       setError(null);
@@ -78,7 +112,8 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
         });
         if (onSaveSuccess) {
           onSaveSuccess();
-        } else {
+        } else if (!onDirtyChange) {
+          // Panel mode (no header Save wiring): close panel after save.
           closePulsePanel();
         }
       } catch (err: unknown) {
@@ -94,6 +129,7 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
       saveSettings,
       closePulsePanel,
       onSaveSuccess,
+      onDirtyChange,
       t,
     ]);
 
@@ -118,10 +154,10 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
       try {
         const twilioConfigured = settings?.configured?.twilio === true;
         const useSavedCredentials =
-          twilioConfigured ||
-          provider === 'apple-messages' ||
-          (provider === 'twilio' &&
-            (twilioAccountSid.startsWith('••••') || twilioAuthToken.startsWith('••••')));
+          provider === 'twilio' &&
+          (twilioConfigured ||
+            twilioAccountSid.startsWith('••••') ||
+            twilioAuthToken.startsWith('••••'));
         const payload: Record<string, unknown> = {
           testTo: to,
           activeProvider: provider,
@@ -147,13 +183,8 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
 
     const isTwilioConfigured = settings?.configured?.twilio === true;
 
-    const providerButtons: { id: Provider; label: string; isConfigured: boolean }[] = [
+    const providerButtons: { id: PulseProvider; label: string; isConfigured: boolean }[] = [
       { id: 'twilio', label: 'Twilio', isConfigured: isTwilioConfigured },
-      {
-        id: 'apple-messages',
-        label: t('pulses.appleMessages'),
-        isConfigured: isAppleMessagesConfigured,
-      },
       { id: 'mock', label: 'Mock', isConfigured: true },
     ];
 
@@ -244,13 +275,6 @@ export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettings
               </div>
             </div>
           </DetailSection>
-        )}
-
-        {/* Apple Messages description */}
-        {provider === 'apple-messages' && (
-          <div className="border-t border-border pt-6">
-            <p className="text-sm text-muted-foreground">{t('pulses.appleMessagesDescription')}</p>
-          </div>
         )}
 
         {/* Mock description */}
