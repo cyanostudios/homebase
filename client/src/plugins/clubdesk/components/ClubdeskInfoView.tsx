@@ -10,7 +10,6 @@ import {
   SettingsHeaderSaveButton,
   type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
 import { clubdeskApi } from '../api/clubdeskApi';
@@ -98,8 +97,6 @@ export function ClubdeskInfoView() {
     homeContent !== initialHome ||
     infoContent !== initialInfo ||
     infoTitle !== initialInfoTitle;
-
-  useUnsavedChanges(isDirty);
 
   const shellCategories: PluginSettingsCategory[] = useMemo(
     () => [
