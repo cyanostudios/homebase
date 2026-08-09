@@ -15,8 +15,10 @@ export interface MatchContextType {
   openMatchForEdit: (match: Match) => void;
   openMatchSettings: () => void;
   closeMatchSettingsView: () => void;
+  openMatchStatistics: () => void;
+  closeMatchStatisticsView: () => void;
   closeMatchPanel: () => void;
-  matchesContentView: 'list' | 'settings';
+  matchesContentView: 'list' | 'settings' | 'statistics';
   saveMatch: (data: any, matchId?: string) => Promise<boolean>;
   deleteMatch: (id: string) => Promise<void>;
   deleteMatches: (ids: string[]) => Promise<void>;
@@ -95,6 +97,8 @@ const EMPTY_MATCH_CONTEXT: MatchContextType = {
   openMatchForEdit: () => {},
   openMatchSettings: () => {},
   closeMatchSettingsView: () => {},
+  openMatchStatistics: () => {},
+  closeMatchStatisticsView: () => {},
   closeMatchPanel: () => {},
   matchesContentView: 'list',
   saveMatch: async () => false,

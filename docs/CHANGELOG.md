@@ -4,6 +4,42 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-10 – Teams: whole-team-ansvariga syns på Series teams-flik
+
+**Status:** Implementerat lokalt. **QA Approved**. **Security Approved** (display-only of existing `team.responsibles`; no new API). **Ej prod-release.**
+
+**Sammanfattning:** På lagdetaljens flik **Serielag** (och overview-kortet som använder samma sektion) visas kontakter som är tilldelade **hela laget** (`seriesTeam` null/tom) som badges på varje serielagsrad, märkta med `teams.form.seriesTeamAll` (“Hela laget” / whole team). Tidigare hoppades de över när `seriesTeam` saknades.
+
+**Verifierat beteende (kod):** [`SeriesTeamsSection.tsx`](../client/src/plugins/teams/components/SeriesTeamsSection.tsx) (`wholeTeamResponsibles`); wiring-test `seriesTeamsWholeTeamBadge.test.js`.
+
+**Begränsningar:** Serielagsspecifika ansvariga oförändrade; whole-team-badges upprepas på varje rad (avsiktligt).
+
+---
+
+## 2026-08-10 – Teams: matchstatistik-flik på lagdetalj
+
+**Status:** Implementerat lokalt. **QA Approved**. **Security Approved** (befintlig `GET /api/matches/by-team/:id` + client aggregation; no new API). **Ej prod-release.**
+
+**Sammanfattning:** Lagdetalj får fliken **Statistik** (efter Matches) när Matches-pluginet är enabled. Visar det lagets W/D/L, spelade, mål, vinst % och poäng — totalt/hemma/borta och per år — via `getMatchesByTeam` + `computeMatchStats`. Kräver `defaultHomeTeam` (fail-closed). Ingen overview-kort. Matches list-statistik och Teams roster-statistik oförändrade.
+
+**Verifierat beteende (kod):** [`TeamMatchStatsSection.tsx`](../client/src/plugins/teams/components/TeamMatchStatsSection.tsx), flik `statistics` i [`TeamView.tsx`](../client/src/plugins/teams/components/TeamView.tsx); tester i `teamMatchStatsTab.test.js`.
+
+**Begränsningar:** Samma räkneregler som Matches statistik-sida; fliken dold utan Matches-plugin.
+
+---
+
+## 2026-08-10 – Matches: statistik-sida (W/D/L per år och hemma/borta)
+
+**Status:** Implementerat lokalt. **QA Approved**. **Security Approved** (client-only over existing auth’d matches; no new API). **Ej prod-release.**
+
+**Sammanfattning:** Matches har en statistik-content view (samma navigationsmönster som Teams): listan → **Statistik** → **Stäng**. Visar vunna/oavgjorda/förlorade, spelade, mål framåt/bakåt/målskillnad, vinstprocent och poäng (3/1/0), uppdelat per kalenderår (`start_time`) samt totalt/hemma/borta. **Klubb:** matcher där `home_team` eller `away_team` matchar settings `defaultHomeTeam` (prefix + mellanslag). **Per lag:** matcher med `team_id`, samma hemma/borta-regel. Endast matcher med tolkbart resultat räknas; inställda/uppskjutna exkluderas. Client-side aggregering — inget nytt API.
+
+**Verifierat beteende (kod):** [`matchStats.ts`](../client/src/plugins/matches/utils/matchStats.ts) (`computeMatchStats`; fail-closed utan `defaultHomeTeam`), [`MatchesStatisticsView.tsx`](../client/src/plugins/matches/components/MatchesStatisticsView.tsx) / [`MatchStats.tsx`](../client/src/plugins/matches/components/stats/MatchStats.tsx), `matchesContentView: 'statistics'` i MatchProvider + knappen i [`MatchList.tsx`](../client/src/plugins/matches/components/MatchList.tsx); tester i `matchStats.test.ts` + `matchStatisticsView.test.js`.
+
+**Begränsningar:** Klubb- **och** per-lag-resultatsiffror kräver satt `defaultHomeTeam` (utan default visas inga W/D/L — undviker spegelvända utfall). Per-lag hemma/borta använder fritextregeln, inte Teams-lagnamn. År = lokal kalenderår från `start_time`. Inga poäng/vinst% utanför räknade matcher. Ingen dashboard-länk i denna leverans.
+
+---
+
 ## 2026-08-10 – Pulse + Mail: settings Save + standards-alignment
 
 **Status:** Implementerat lokalt. **QA Approved**. Grind 5 (Security) N/A per TPM-scope. **Ej prod-release.**
@@ -86,7 +122,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Verifierat beteende (kod):**
 
-- Settings-nyckel `defaultHomeTeam` under category `matches` via [`MatchSettingsView.tsx`](../client/src/plugins/matches/components/MatchSettingsView.tsx) (hjälptext täcker listfilter + Teams-flik)
+- Settings-nyckel `defaultHomeTeam` under category `matches` via [`MatchSettingsView.tsx`](../client/src/plugins/matches/components/MatchSettingsView.tsx) (hjälptext täcker listfilter + Teams-flik; statistik-sidan använder samma nyckel — se post “Matches: statistik-sida”)
 - Filter `'homeTeam'` i [`matchListFilter.ts`](../client/src/plugins/matches/utils/matchListFilter.ts) + [`matchDefaultHomeTeam.ts`](../client/src/plugins/matches/utils/matchDefaultHomeTeam.ts)
 - Listkort: [`MatchList.tsx`](../client/src/plugins/matches/components/MatchList.tsx) (visas endast när default är satt; grid `md:grid-cols-5`)
 - Tabellvy: Team-kolumn (`MatchTeamBadge` via `team_id`), `updated_at` borttagen; Team sorterbar (lagnamn); kortvy-sort inkluderar Team

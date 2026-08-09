@@ -37,18 +37,21 @@ export function SeriesTeamsSection({ team }: { team: Team }) {
     [team.series_team_count, team.series_teams],
   );
 
-  const responsiblesBySeriesKey = useMemo(() => {
+  const { responsiblesBySeriesKey, wholeTeamResponsibles } = useMemo(() => {
     const map = new Map<string, Responsible[]>();
+    const wholeTeam: Responsible[] = [];
     for (const responsible of team.responsibles ?? []) {
       const key = responsible.seriesTeam?.trim();
       if (!key) {
+        // null / empty seriesTeam = whole team — show on every series-team row
+        wholeTeam.push(responsible);
         continue;
       }
       const list = map.get(key) ?? [];
       list.push(responsible);
       map.set(key, list);
     }
-    return map;
+    return { responsiblesBySeriesKey: map, wholeTeamResponsibles: wholeTeam };
   }, [team.responsibles]);
 
   if (seriesTeams.length === 0) {
@@ -61,6 +64,7 @@ export function SeriesTeamsSection({ team }: { team: Team }) {
         const key = getSeriesTeamKey(seriesTeam);
         const badgeLabel = formatSeriesTeamLabel(seriesTeam) || t('teams.form.seriesTeamLabel');
         const seriesResponsibles = key ? (responsiblesBySeriesKey.get(key) ?? []) : [];
+        const rowResponsibles = [...wholeTeamResponsibles, ...seriesResponsibles];
 
         return (
           <li
@@ -68,19 +72,27 @@ export function SeriesTeamsSection({ team }: { team: Team }) {
             className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-3 py-2.5"
           >
             <SeriesTeamBadge label={badgeLabel} color={getSeriesTeamColorForName(team, key)} />
-            {seriesResponsibles.map((responsible) => {
+            {rowResponsibles.map((responsible) => {
               const contact = contactById.get(String(responsible.contactId));
               const contactName = contact?.companyName || `Contact ${responsible.contactId}`;
               const roleKey = roleBadgeKey(String(responsible.role || 'other'));
+              const isWholeTeam = !responsible.seriesTeam?.trim();
+              const scopeLabel = isWholeTeam ? t('teams.form.seriesTeamAll') : badgeLabel;
               return (
                 <span
                   key={responsibleKey(responsible)}
                   className="inline-flex max-w-full items-center truncate rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-                  title={`${contactName} · ${t(`teams.roles.${roleKey}`)}`}
+                  title={`${contactName} · ${t(`teams.roles.${roleKey}`)} · ${scopeLabel}`}
                 >
                   {contactName}
                   <span className="mx-1 opacity-60">·</span>
                   {t(`teams.roles.${roleKey}`)}
+                  {isWholeTeam ? (
+                    <>
+                      <span className="mx-1 opacity-60">·</span>
+                      {t('teams.form.seriesTeamAll')}
+                    </>
+                  ) : null}
                 </span>
               );
             })}

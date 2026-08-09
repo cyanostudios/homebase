@@ -53,7 +53,9 @@ export function MatchProvider({
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<ValidationError>();
   const [matches, setMatches] = useState<Match[]>([]);
-  const [matchesContentView, setMatchesContentView] = useState<'list' | 'settings'>('list');
+  const [matchesContentView, setMatchesContentView] = useState<'list' | 'settings' | 'statistics'>(
+    'list',
+  );
   const [recentlyDuplicatedMatchId, setRecentlyDuplicatedMatchId] = useState<string | null>(null);
   const [mentionsDraft, setMentionsDraft] = useState<MatchMention[] | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
@@ -284,6 +286,17 @@ export function MatchProvider({
   }, [onCloseOtherPanels, clearMatchSelectionCore]);
 
   const closeMatchSettingsView = useCallback(() => {
+    setMatchesContentView('list');
+  }, []);
+
+  const openMatchStatistics = useCallback(() => {
+    clearMatchSelectionCore();
+    setRecentlyDuplicatedMatchId(null);
+    setMatchesContentView('statistics');
+    onCloseOtherPanels();
+  }, [onCloseOtherPanels, clearMatchSelectionCore]);
+
+  const closeMatchStatisticsView = useCallback(() => {
     setMatchesContentView('list');
   }, []);
 
@@ -553,6 +566,8 @@ export function MatchProvider({
       openMatchForEdit,
       openMatchSettings,
       closeMatchSettingsView,
+      openMatchStatistics,
+      closeMatchStatisticsView,
       closeMatchPanel,
       matchesContentView,
       saveMatch,
@@ -604,6 +619,8 @@ export function MatchProvider({
       openMatchForEdit,
       openMatchSettings,
       closeMatchSettingsView,
+      openMatchStatistics,
+      closeMatchStatisticsView,
       closeMatchPanel,
       matchesContentView,
       saveMatch,

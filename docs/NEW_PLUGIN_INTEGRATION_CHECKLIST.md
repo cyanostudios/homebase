@@ -48,10 +48,12 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 **Reference plugins (2026-06):**
 
 - **Multi-tab detail view:** `TeamView` — overview cards; tabs: overview, schedule, seriesTeams, responsibles, notes, requests, matches (matches only when plugin enabled). Overview card order includes `seriesTeams` (see `teamOverviewCards.ts`).
-- **Team relations:** `Requests` (`team_id`, `TeamRequestsSection`), `Matches` (`team_id`, `TeamMatchesSection`).
+- **Team relations:** `Requests` (`team_id`, `TeamRequestsSection`), `Matches` (`team_id`, `TeamMatchesSection`), match record stats tab (`statistics` → `TeamMatchStatsSection` when matches plugin enabled).
+- **Series teams tab:** `SeriesTeamsSection` — responsibles with empty/`null` `seriesTeam` (whole team) appear as badges on every series-team row (labeled via `teams.form.seriesTeamAll`).
 - **Full-page settings:** Use `PluginSettingsPageShell` + optional `SettingsCategoryCard` (see `UI_AND_UX_STANDARDS_V3.md` §3.2). Examples: `TeamsSettingsView`, `TaskSettingsView`, `MatchSettingsView` via `*ContentView === 'settings'` (not panel `Form`).
 - **Cross-plugin links:** `ScheduleList` → teams via URL; see `MENTIONS_AND_CROSS_PLUGIN_UI.md`.
 - **Teams list meta (`TeamCard`):** next training; optional next match (matches plugin + `MatchProvider`); optional days-until-training-after-break countdown when an ongoing `season_breaks` entry exists (red when &lt; 7 days). Stats age-group section sums series teams via `getDisplaySeriesTeams`.
+- **Matches statistics:** `MatchesStatisticsView` when `matchesContentView === 'statistics'` — club + per-team record stats (year × home/away) via client aggregation (`matchStats.ts`); requires settings `defaultHomeTeam` for both club and per-team result stats (no silent W/D/L without it).
 
 > **Note:** `PLUGIN_RUNTIME_CONVENTIONS.md` still documents `window.submit*` / `window.cancel*` for historical shell integration. For **new** CRUD plugins, treat **§12 of the design alignment checklist** as the source of truth for create/edit forms unless product explicitly needs header/footer-driven submit.
 

@@ -1,4 +1,5 @@
 import {
+  BarChart2,
   CheckSquare,
   ArrowDown,
   ArrowUp,
@@ -61,6 +62,7 @@ import {
 import { MatchListItem } from './MatchListItem';
 import { MatchListTable } from './MatchListTable';
 import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
+import { MatchesStatisticsView } from './MatchesStatisticsView';
 
 type SortField = MatchSortField;
 type SortOrder = MatchSortOrder;
@@ -85,6 +87,8 @@ export function MatchList() {
     openMatchForView,
     openMatchSettings,
     closeMatchSettingsView,
+    openMatchStatistics,
+    closeMatchStatisticsView,
     deleteMatches,
     selectedMatchIds,
     toggleMatchSelected,
@@ -308,6 +312,29 @@ export function MatchList() {
     );
   }
 
+  if (matchesContentView === 'statistics') {
+    return (
+      <div className="plugin-matches min-h-full bg-background">
+        <div className="px-6 py-4">
+          <MatchesStatisticsView
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeMatchStatisticsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="plugin-matches min-h-full bg-background px-6 py-4">
       <div className="space-y-3">
@@ -326,6 +353,16 @@ export function MatchList() {
               title={t('matches.settings')}
             >
               {t('matches.settings')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={BarChart2}
+              className="h-9 px-2.5 text-xs"
+              onClick={() => openMatchStatistics()}
+              title={t('common.statistics')}
+            >
+              {t('common.statistics')}
             </Button>
             <Button
               variant="primary"

@@ -1,4 +1,5 @@
 import {
+  BarChart2,
   CalendarDays,
   Circle,
   Copy,
@@ -71,6 +72,7 @@ import { ResponsibleRow, SeriesTeamBadge } from './ResponsibleRow';
 import { SeasonCalendar } from './SeasonCalendar';
 import { SeriesTeamsSection } from './SeriesTeamsSection';
 import { TeamMatchesSection } from './TeamMatchesSection';
+import { TeamMatchStatsSection } from './TeamMatchStatsSection';
 import { TeamNotesSection } from './TeamNotesSection';
 import { TrainingSchedule } from './TrainingSchedule';
 
@@ -81,7 +83,8 @@ type TeamViewTab =
   | 'responsibles'
   | 'notes'
   | 'requests'
-  | 'matches';
+  | 'matches'
+  | 'statistics';
 
 const TEAM_VIEW_TABS: TeamViewTab[] = [
   'overview',
@@ -91,6 +94,7 @@ const TEAM_VIEW_TABS: TeamViewTab[] = [
   'notes',
   'requests',
   'matches',
+  'statistics',
 ];
 
 function parseTeamViewTab(value: string | null): TeamViewTab {
@@ -378,6 +382,11 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
               label: t('teams.tabs.matches'),
               icon: Trophy,
               count: upcomingMatchCount,
+            },
+            {
+              id: 'statistics' as const,
+              label: t('teams.tabs.statistics'),
+              icon: BarChart2,
             },
           ]
         : []),
@@ -836,6 +845,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('teams.tabs.matches')} className="p-4">
                 <TeamMatchesSection teamId={team.id} onOpenMatch={openMatchForView} />
+              </DetailSection>
+            </Card>
+          )}
+
+          {hasMatchesPlugin && activeTab === 'statistics' && (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.tabs.statistics')} className="p-4">
+                <TeamMatchStatsSection teamId={team.id} teamName={team.name} />
               </DetailSection>
             </Card>
           )}

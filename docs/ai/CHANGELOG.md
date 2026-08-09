@@ -2,6 +2,28 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Teams matchstatistik-flik + whole-team Series badges (2026-08-10)
+
+Docs-sync efter **QA Approved** + **Security Approved** för (1) Teams lagdetalj-flik **Statistik** (match W/D/L), (2) whole-team-ansvariga som badges på **Serielag**-flik/`SeriesTeamsSection`. Produkt-changelog status/begränsningar uppdaterade; checklist/MENTIONS synkade. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – poster “matchstatistik-flik”, “whole-team-ansvariga”.
+
+---
+
+## Teams matchstatistik-flik (2026-08-10)
+
+Docs-sync (initial) för Teams lagdetalj-flik **Statistik**. Superseded/kompletterad av posten ovan efter full QA + Security.
+
+---
+
+## Matches statistik-sida (2026-08-10)
+
+Docs-sync efter **QA Approved** + **Security Approved** för Matches statistik-content view (W/D/L, mål, poäng; år × hemma/borta; klubb + per lag; client-only). Produkt-changelog, `PLUGIN_RUNTIME_CONVENTIONS.md`, `MENTIONS_AND_CROSS_PLUGIN_UI.md`, `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` synkade mot fail-closed utan `defaultHomeTeam`. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – post “Matches: statistik-sida”.
+
+---
+
 ## Schedule kalender/filter + Matches home-team prefix (2026-08-10)
 
 Docs-sync efter **QA Approved** + **Security Approved** för (1) Schedule full-day kalender med scroll till Visade tider, (2) Schedule lag-snabbfilter flerval, (3) Matches `defaultHomeTeam` prefixmatch. Produkt-changelog status/begränsningar uppdaterade; UI-standard Filter stats + `MENTIONS_AND_CROSS_PLUGIN_UI.md` synkade. **Local-first; ej prod-release.**

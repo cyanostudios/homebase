@@ -25,9 +25,9 @@ Plugins with full-page settings or extra views use a separate `*ContentView` sta
 | `teams`    | `teamsContentView`    | `'list' \| 'settings' \| 'statistics' \| 'bulk'` |
 | `requests` | `requestsContentView` | `'list' \| 'settings'`                           |
 | `schedule` | `scheduleContentView` | `'list' \| 'settings'`                           |
-| `matches`  | `matchesContentView`  | `'list' \| 'settings'`                           |
+| `matches`  | `matchesContentView`  | `'list' \| 'settings' \| 'statistics'`           |
 
-Settings UI lives in `*SettingsView` components on the list route — **not** in the detail panel form. Prefer `PluginSettingsPageShell` + optional `SettingsCategoryCard` so layout matches Core Settings (`UI_AND_UX_STANDARDS_V3.md` §3.2). Teams **bulk create** uses the same content-view pattern (`TeamsBulkCreateView` when `teamsContentView === 'bulk'`).
+Settings UI lives in `*SettingsView` components on the list route — **not** in the detail panel form. Prefer `PluginSettingsPageShell` + optional `SettingsCategoryCard` so layout matches Core Settings (`UI_AND_UX_STANDARDS_V3.md` §3.2). Teams **bulk create** uses the same content-view pattern (`TeamsBulkCreateView` when `teamsContentView === 'bulk'`). Matches **statistics** uses `MatchesStatisticsView` when `matchesContentView === 'statistics'` (client-side record stats; see product changelog 2026-08-10).
 
 ---
 
