@@ -33,7 +33,7 @@ describe('matchIsWithinUpcomingDays', () => {
 });
 
 describe('matchMatchesListFilter', () => {
-  const match = { start_time: '2026-08-12T15:00:00.000Z' };
+  const match = { start_time: '2026-08-12T15:00:00.000Z', home_team: 'AIK P16' };
 
   it('matches all filters for a match 5 days out', () => {
     expect(matchMatchesListFilter(match, 'all', NOW)).toBe(true);
@@ -43,9 +43,16 @@ describe('matchMatchesListFilter', () => {
   });
 
   it('excludes far-future matches from 7-day filter', () => {
-    const far = { start_time: '2026-09-01T15:00:00.000Z' };
+    const far = { start_time: '2026-09-01T15:00:00.000Z', home_team: 'AIK P16' };
     expect(matchMatchesListFilter(far, 'upcoming', NOW)).toBe(true);
     expect(matchMatchesListFilter(far, 'upcoming7', NOW)).toBe(false);
     expect(matchMatchesListFilter(far, 'upcoming14', NOW)).toBe(false);
+  });
+
+  it('filters by default home team with trim and case-insensitive equality', () => {
+    expect(matchMatchesListFilter(match, 'homeTeam', NOW, 'aik p16')).toBe(true);
+    expect(matchMatchesListFilter(match, 'homeTeam', NOW, '  AIK P16  ')).toBe(true);
+    expect(matchMatchesListFilter(match, 'homeTeam', NOW, 'Other')).toBe(false);
+    expect(matchMatchesListFilter(match, 'homeTeam', NOW, '')).toBe(false);
   });
 });

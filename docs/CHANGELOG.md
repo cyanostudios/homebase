@@ -4,6 +4,26 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-09 – Matches: default home team + listfilter
+
+**Status:** Implementerat lokalt. **QA Approved**. **Security N/A** (användarägt fritextfält i befintlig settings-API; ingen ny yta). **Ej prod-release.**
+
+**Sammanfattning:** Matches settings (View) har fritext **Default home team**. När värdet är satt visas ett femte filterkort i listans stora filter; klick filtrerar matcher där `home_team` matchar namnet (trim, case-insensitive). Datumfiltren oförändrade; home-team-filtret är inte aktivt som standard. Samma setting styr **Teams** matchflikens hemma/borta-uppdelning.
+
+**Verifierat beteende (kod):**
+
+- Settings-nyckel `defaultHomeTeam` under category `matches` via [`MatchSettingsView.tsx`](../client/src/plugins/matches/components/MatchSettingsView.tsx) (hjälptext täcker listfilter + Teams-flik)
+- Filter `'homeTeam'` i [`matchListFilter.ts`](../client/src/plugins/matches/utils/matchListFilter.ts) + [`matchDefaultHomeTeam.ts`](../client/src/plugins/matches/utils/matchDefaultHomeTeam.ts)
+- Listkort: [`MatchList.tsx`](../client/src/plugins/matches/components/MatchList.tsx) (visas endast när default är satt; grid `md:grid-cols-5`)
+- Tabellvy: Team-kolumn (`MatchTeamBadge` via `team_id`), `updated_at` borttagen; Team sorterbar (lagnamn); kortvy-sort inkluderar Team
+- Teams flik Matches: [`TeamMatchesSection.tsx`](../client/src/plugins/teams/components/TeamMatchesSection.tsx) — chips **Hemma / borta** (fyra sektioner via `groupTeamMatchesBySide`) och **Kommande efter datum** (`listUpcomingMatchesByDate`); klassning via `defaultHomeTeam` ([`teamMatchSide.ts`](../client/src/plugins/teams/utils/teamMatchSide.ts))
+- Tester: `matchDefaultHomeTeam.test.ts`, `matchListFilter.test.ts`, `matchDefaultHomeTeamFilter.test.js`, `matchListTableView.test.js`, `matchListSort.test.ts`, `teamMatchSide.test.ts`, `teamMatchesSectionViewMode.test.js`
+- Standard: [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) (Filter stats / Teams Matches chips)
+
+**Begränsningar:** Ingen `team_id`-baserad hemma/borta-klassning (endast fritext `defaultHomeTeam`); ingen prefill i MatchForm; aktivt filterkort/viewMode persistas inte. Tom default → alla Teams-flikmatcher i bortasektioner. Teams “kommande” använder `start_time >= now`; Matches listfilter “upcoming” använder `start_time > now` (känd inkonsistens, ej blockerande).
+
+---
+
 ## 2026-08-09 – List tabellvy (alla card-column plugins)
 
 **Status:** Implementerat lokalt. **Ej prod-release.**
@@ -226,7 +246,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Verifierat beteende (kod):**
 
-- **Listfilter:** Alla / Kommande / Kommande 7 dagar / Kommande 14 dagar via [`matchListFilter.ts`](../client/src/plugins/matches/utils/matchListFilter.ts) + [`MatchList.tsx`](../client/src/plugins/matches/components/MatchList.tsx) (`ListFilterStatCard`). Ersätter tidigare Futsal / With Location-filter.
+- **Listfilter:** Alla / Kommande / Kommande 7 dagar / Kommande 14 dagar via [`matchListFilter.ts`](../client/src/plugins/matches/utils/matchListFilter.ts) + [`MatchList.tsx`](../client/src/plugins/matches/components/MatchList.tsx) (`ListFilterStatCard`). Ersätter tidigare Futsal / With Location-filter. _(Senare utökning 2026-08-09: valfritt femte kort via settings `defaultHomeTeam` — se post “Matches: default home team + listfilter”.)_
 - **Listkort:** Endast titel (ingen vs-rad); badges (status, resultat, lag, kontakt) ovanför titel; titel italic + utgråad när spelad, inställd, uppskjuten eller starttid passerat — badges oförändrade ([`MatchListItem.tsx`](../client/src/plugins/matches/components/MatchListItem.tsx)).
 - **Statusbadges:** [`MatchStatusBadges.tsx`](../client/src/plugins/matches/components/MatchStatusBadges.tsx) — **Past due** / **Datum passerat** när starttid passerat och matchen inte är spelad/inställd/uppskjuten; Past due och Canceled i röd badge-stil.
 - **Edit:** [`openMatchForEdit`](../client/src/plugins/matches/context/MatchProvider.tsx) enligt `PLUGIN_RUNTIME_CONVENTIONS` (`open{Singular}ForEdit`); panel Edit öppnar formulär.

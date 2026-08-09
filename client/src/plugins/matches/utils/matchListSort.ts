@@ -6,6 +6,7 @@ export type MatchSortField =
   | 'away_team'
   | 'location'
   | 'competition_name'
+  | 'team_id'
   | 'created_at'
   | 'updated_at';
 
@@ -16,6 +17,7 @@ const STRING_SORT_FIELDS: MatchSortField[] = [
   'away_team',
   'location',
   'competition_name',
+  'team_id',
 ];
 const DATE_SORT_FIELDS: MatchSortField[] = ['start_time', 'created_at', 'updated_at'];
 
@@ -33,14 +35,30 @@ type MatchSortable = Pick<
   | 'away_team'
   | 'location'
   | 'competition_name'
+  | 'team_id'
   | 'start_time'
   | 'created_at'
   | 'updated_at'
 >;
 
+function resolveTeamSortName(
+  teamNameById: ReadonlyMap<string, string> | Record<string, string> | undefined,
+  teamId: string,
+): string {
+  if (!teamNameById) {
+    return '';
+  }
+  if (teamNameById instanceof Map) {
+    return teamNameById.get(teamId) ?? '';
+  }
+  const asRecord = teamNameById as Record<string, string>;
+  return asRecord[teamId] ?? '';
+}
+
 export function getMatchSortValue(
   match: MatchSortable,
   field: MatchSortField,
+  teamNameById?: ReadonlyMap<string, string> | Record<string, string>,
 ): string | Date | null {
   if (field === 'home_team') {
     return match.home_team.toLowerCase();
@@ -53,6 +71,14 @@ export function getMatchSortValue(
   }
   if (field === 'competition_name') {
     return (match.competition_name ?? '').toLowerCase();
+  }
+  if (field === 'team_id') {
+    const id = match.team_id != null ? String(match.team_id) : '';
+    if (!id) {
+      return '';
+    }
+    const name = resolveTeamSortName(teamNameById, id);
+    return (name || id).toLowerCase();
   }
   if (field === 'start_time') {
     return match.start_time ? new Date(match.start_time) : null;
@@ -94,9 +120,10 @@ export function compareMatchesByField(
   b: MatchSortable,
   field: MatchSortField,
   order: MatchSortOrder,
+  teamNameById?: ReadonlyMap<string, string> | Record<string, string>,
 ): number {
-  const aValue = getMatchSortValue(a, field);
-  const bValue = getMatchSortValue(b, field);
+  const aValue = getMatchSortValue(a, field, teamNameById);
+  const bValue = getMatchSortValue(b, field, teamNameById);
 
   if (isMatchStringSortField(field)) {
     if (order === 'asc') {

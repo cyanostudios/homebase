@@ -32,6 +32,7 @@ import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
 
 import { useMatches } from '../hooks/useMatches';
 import { type Match } from '../types/match';
@@ -42,6 +43,7 @@ import {
   MATCHES_SETTINGS_KEY,
   type MatchColumnCount,
 } from '../utils/matchColumnCount';
+import { resolveMatchDefaultHomeTeam } from '../utils/matchDefaultHomeTeam';
 import {
   compareMatchesByField,
   isMatchStringSortField,
@@ -67,6 +69,7 @@ const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'start_time', label: 'Time' },
   { value: 'home_team', label: 'Home team' },
   { value: 'away_team', label: 'Away team' },
+  { value: 'team_id', label: 'Team' },
   { value: 'location', label: 'Location' },
   { value: 'competition_name', label: 'Competition' },
   { value: 'updated_at', label: 'Updated' },
@@ -92,6 +95,7 @@ export function MatchList() {
     isSelected,
     recentlyDuplicatedMatchId,
   } = useMatches();
+  const { teams } = useTeams();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
@@ -106,6 +110,7 @@ export function MatchList() {
     getInitialMatchListViewMode,
   );
   const [activeFilter, setActiveFilter] = useState<MatchListFilter>('all');
+  const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
   const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('view');
 
   useEffect(() => {
@@ -123,6 +128,11 @@ export function MatchList() {
         const nextView = resolveMatchListViewMode(settings);
         setListViewModeState(nextView);
         persistMatchListViewModeSession(nextView);
+        const nextDefaultHomeTeam = resolveMatchDefaultHomeTeam(settings);
+        setDefaultHomeTeam(nextDefaultHomeTeam);
+        if (!nextDefaultHomeTeam) {
+          setActiveFilter((prev) => (prev === 'homeTeam' ? 'all' : prev));
+        }
       })
       .catch(() => {});
     return () => {
@@ -173,10 +183,21 @@ export function MatchList() {
   );
 
   const isTableView = listViewMode === 'table';
+  const showHomeTeamFilter = defaultHomeTeam.length > 0;
+
+  const teamNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const team of teams) {
+      map.set(String(team.id), team.name ?? '');
+    }
+    return map;
+  }, [teams]);
 
   const filteredAndSorted = useMemo(() => {
     const nowMs = Date.now();
-    const byFilter = matches.filter((m) => matchMatchesListFilter(m, activeFilter, nowMs));
+    const byFilter = matches.filter((m) =>
+      matchMatchesListFilter(m, activeFilter, nowMs, defaultHomeTeam),
+    );
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((m) => {
@@ -199,8 +220,10 @@ export function MatchList() {
       );
     });
 
-    return [...filtered].sort((a, b) => compareMatchesByField(a, b, primarySort, sortOrder));
-  }, [matches, searchTerm, primarySort, sortOrder, activeFilter]);
+    return [...filtered].sort((a, b) =>
+      compareMatchesByField(a, b, primarySort, sortOrder, teamNameById),
+    );
+  }, [matches, searchTerm, primarySort, sortOrder, activeFilter, defaultHomeTeam, teamNameById]);
 
   const visibleMatchIds = useMemo(
     () => filteredAndSorted.map((m) => String(m.id)),
@@ -214,8 +237,12 @@ export function MatchList() {
       upcoming: matches.filter((m) => matchMatchesListFilter(m, 'upcoming', nowMs)).length,
       upcoming7: matches.filter((m) => matchMatchesListFilter(m, 'upcoming7', nowMs)).length,
       upcoming14: matches.filter((m) => matchMatchesListFilter(m, 'upcoming14', nowMs)).length,
+      homeTeam: showHomeTeamFilter
+        ? matches.filter((m) => matchMatchesListFilter(m, 'homeTeam', nowMs, defaultHomeTeam))
+            .length
+        : 0,
     };
-  }, [matches]);
+  }, [matches, defaultHomeTeam, showHomeTeamFilter]);
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -312,7 +339,12 @@ export function MatchList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div
+          className={cn(
+            'grid grid-cols-2 gap-2',
+            showHomeTeamFilter ? 'md:grid-cols-5' : 'md:grid-cols-4',
+          )}
+        >
           <ListFilterStatCard
             label={t('matches.filterAll')}
             value={stats.total}
@@ -341,6 +373,15 @@ export function MatchList() {
             active={activeFilter === 'upcoming14'}
             onClick={() => setActiveFilter('upcoming14')}
           />
+          {showHomeTeamFilter ? (
+            <ListFilterStatCard
+              label={defaultHomeTeam}
+              value={stats.homeTeam}
+              dotClassName="bg-rose-500"
+              active={activeFilter === 'homeTeam'}
+              onClick={() => setActiveFilter('homeTeam')}
+            />
+          ) : null}
         </div>
 
         <BulkDeleteModal

@@ -24,6 +24,7 @@ import {
   resolveMatchColumnCount,
   type MatchColumnCount,
 } from '../utils/matchColumnCount';
+import { resolveMatchDefaultHomeTeam } from '../utils/matchDefaultHomeTeam';
 import {
   MATCHES_LIST_VIEW_MODE_STORAGE_KEY,
   persistMatchListViewModeSession,
@@ -63,6 +64,8 @@ export function MatchSettingsView({
   const [initialColumnCount, setInitialColumnCount] = useState<MatchColumnCount>(1);
   const [listViewMode, setListViewMode] = useState<MatchListViewMode>('cards');
   const [initialListViewMode, setInitialListViewMode] = useState<MatchListViewMode>('cards');
+  const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
+  const [initialDefaultHomeTeam, setInitialDefaultHomeTeam] = useState('');
   const [apiBaseUrl, setApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
   const [initialApiBaseUrl, setInitialApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
   const [apiKey, setApiKey] = useState('');
@@ -102,6 +105,7 @@ export function MatchSettingsView({
         }
         const loadedColumns = resolveMatchColumnCount(settings);
         const loadedView = resolveMatchListViewMode(settings);
+        const loadedDefaultHomeTeam = resolveMatchDefaultHomeTeam(settings);
         const loadedBaseUrl =
           typeof settings?.apiBaseUrl === 'string' && settings.apiBaseUrl.trim()
             ? settings.apiBaseUrl.trim()
@@ -111,6 +115,8 @@ export function MatchSettingsView({
         setInitialColumnCount(loadedColumns);
         setListViewMode(loadedView);
         setInitialListViewMode(loadedView);
+        setDefaultHomeTeam(loadedDefaultHomeTeam);
+        setInitialDefaultHomeTeam(loadedDefaultHomeTeam);
         setApiBaseUrl(loadedBaseUrl);
         setInitialApiBaseUrl(loadedBaseUrl);
         setHasStoredApiKey(Boolean(storedKey));
@@ -127,7 +133,10 @@ export function MatchSettingsView({
     };
   }, [getSettings]);
 
-  const isViewDirty = columnCount !== initialColumnCount || listViewMode !== initialListViewMode;
+  const isViewDirty =
+    columnCount !== initialColumnCount ||
+    listViewMode !== initialListViewMode ||
+    defaultHomeTeam.trim() !== initialDefaultHomeTeam.trim();
   const isApiDirty =
     apiBaseUrl.trim() !== initialApiBaseUrl.trim() ||
     (apiKey.trim() !== '' && !apiKey.startsWith('••••'));
@@ -138,7 +147,12 @@ export function MatchSettingsView({
     setImportError(null);
     try {
       if (activeCategory === 'view') {
-        await updateSettings(MATCHES_SETTINGS_KEY, { columnCount, listViewMode });
+        const trimmedDefaultHomeTeam = defaultHomeTeam.trim();
+        await updateSettings(MATCHES_SETTINGS_KEY, {
+          columnCount,
+          listViewMode,
+          defaultHomeTeam: trimmedDefaultHomeTeam,
+        });
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem(MATCHES_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
           window.sessionStorage.setItem(MATCHES_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
@@ -146,6 +160,8 @@ export function MatchSettingsView({
         persistMatchListViewModeSession(listViewMode);
         setInitialColumnCount(columnCount);
         setInitialListViewMode(listViewMode);
+        setDefaultHomeTeam(trimmedDefaultHomeTeam);
+        setInitialDefaultHomeTeam(trimmedDefaultHomeTeam);
       } else {
         const payload: Record<string, string> = {
           apiBaseUrl: apiBaseUrl.trim() || DEFAULT_API_BASE_URL,
@@ -165,7 +181,15 @@ export function MatchSettingsView({
     } finally {
       setIsSaving(false);
     }
-  }, [activeCategory, apiBaseUrl, apiKey, columnCount, listViewMode, updateSettings]);
+  }, [
+    activeCategory,
+    apiBaseUrl,
+    apiKey,
+    columnCount,
+    defaultHomeTeam,
+    listViewMode,
+    updateSettings,
+  ]);
 
   const handleImport = useCallback(async () => {
     setIsImporting(true);
@@ -266,6 +290,19 @@ export function MatchSettingsView({
               <p className="mt-2 text-sm text-muted-foreground">{t('matches.columnsHelp')}</p>
             </DetailSection>
           ) : null}
+          <DetailSection title={t('matches.defaultHomeTeam')}>
+            <div className="space-y-2">
+              <Label htmlFor="matches-default-home-team">{t('matches.defaultHomeTeamLabel')}</Label>
+              <Input
+                id="matches-default-home-team"
+                value={defaultHomeTeam}
+                onChange={(e) => setDefaultHomeTeam(e.target.value)}
+                placeholder={t('matches.defaultHomeTeamPlaceholder')}
+                maxLength={255}
+              />
+              <p className="text-sm text-muted-foreground">{t('matches.defaultHomeTeamHelp')}</p>
+            </div>
+          </DetailSection>
         </>
       )}
 

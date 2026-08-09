@@ -6,6 +6,8 @@ import { SortableListTable, type SortableListTableColumn } from '@/core/ui/Sorta
 import type { Match } from '../types/match';
 import type { MatchSortField, MatchSortOrder } from '../utils/matchListSort';
 
+import { MatchTeamBadge } from './MatchTeamBadge';
+
 export type MatchListTableProps = {
   matches: Match[];
   primarySort: MatchSortField;
@@ -25,13 +27,6 @@ function formatStart(value: string | null | undefined): string {
     return '—';
   }
   return new Date(value).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return '—';
-  }
-  return new Date(value).toLocaleDateString();
 }
 
 export function MatchListTable({
@@ -73,6 +68,17 @@ export function MatchListTable({
         cell: (match) => <span className="text-foreground">{match.away_team || '—'}</span>,
       },
       {
+        field: 'team_id',
+        header: t('matches.team'),
+        className: 'hidden sm:table-cell',
+        cell: (match) =>
+          match.team_id ? (
+            <MatchTeamBadge teamId={match.team_id} />
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          ),
+      },
+      {
         field: 'location',
         header: t('matches.locationLabel'),
         className: 'hidden sm:table-cell',
@@ -86,14 +92,6 @@ export function MatchListTable({
         className: 'hidden md:table-cell',
         cell: (match) => (
           <span className="text-xs text-muted-foreground">{match.competition_name || '—'}</span>
-        ),
-      },
-      {
-        field: 'updated_at',
-        header: t('common.updated'),
-        className: 'hidden lg:table-cell',
-        cell: (match) => (
-          <span className="text-xs text-muted-foreground">{formatDate(match.updated_at)}</span>
         ),
       },
     ],

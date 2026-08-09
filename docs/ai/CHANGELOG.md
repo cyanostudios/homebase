@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Matches default home team (2026-08-09)
+
+Docs-sync efter **QA Approved** + **Security N/A** för Matches **default home team** (settings `defaultHomeTeam` + listfilter + Teams matchflik hemma/borta + kommande-efter-datum) och Matches-tabell Team-kolumn. UI-standard Filter stats uppdaterad; korshänvisning i äldre Matches listfilter-post och `MENTIONS_AND_CROSS_PLUGIN_UI.md`. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – post “Matches: default home team”.
+
+---
+
 ## List tabellvy – utrullning (2026-08-09)
 
 Docs-sync för **tabellvy** på alla card-column-plugins (delad `ListColumnLayoutToggle` / `SortableListTable` / `listViewMode`). UI-standard uppdaterad från Contacts-pilot till generellt listmönster. **Local-first; ej prod-release.**

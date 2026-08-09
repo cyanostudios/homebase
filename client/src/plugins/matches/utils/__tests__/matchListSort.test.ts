@@ -5,17 +5,19 @@ const base = {
   away_team: 'Team Beta',
   location: 'Stadium A',
   competition_name: 'League Cup',
+  team_id: '12',
   start_time: '2026-08-10T15:00:00.000Z',
   created_at: '2026-07-01T00:00:00.000Z',
   updated_at: '2026-07-10T00:00:00.000Z',
 };
 
 describe('isMatchStringSortField', () => {
-  it('treats home_team, away_team, location, competition_name as string fields', () => {
+  it('treats home_team, away_team, location, competition_name, team_id as string fields', () => {
     expect(isMatchStringSortField('home_team')).toBe(true);
     expect(isMatchStringSortField('away_team')).toBe(true);
     expect(isMatchStringSortField('location')).toBe(true);
     expect(isMatchStringSortField('competition_name')).toBe(true);
+    expect(isMatchStringSortField('team_id')).toBe(true);
     expect(isMatchStringSortField('start_time')).toBe(false);
     expect(isMatchStringSortField('updated_at')).toBe(false);
   });
@@ -27,6 +29,9 @@ describe('getMatchSortValue', () => {
     expect(getMatchSortValue({ ...base, away_team: 'Team Beta' }, 'away_team')).toBe('team beta');
     expect(getMatchSortValue({ ...base, location: null }, 'location')).toBe('');
     expect(getMatchSortValue({ ...base, competition_name: null }, 'competition_name')).toBe('');
+    expect(getMatchSortValue({ ...base, team_id: '12' }, 'team_id', { '12': 'U16 Blue' })).toBe(
+      'u16 blue',
+    );
   });
 
   it('returns Date for date fields', () => {

@@ -19,7 +19,9 @@ describe('MatchList table view wiring', () => {
     expect(tableSrc).toMatch(/home_team/);
     expect(tableSrc).toMatch(/away_team/);
     expect(tableSrc).toMatch(/competition_name/);
-    expect(tableSrc).toMatch(/updated_at/);
+    expect(tableSrc).toMatch(/team_id/);
+    expect(tableSrc).toMatch(/MatchTeamBadge/);
+    expect(tableSrc).not.toMatch(/updated_at/);
   });
 
   test('settings persist listViewMode and columnCount, not legacy grid/list for table', () => {

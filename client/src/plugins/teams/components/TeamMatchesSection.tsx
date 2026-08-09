@@ -2,16 +2,23 @@ import { ChevronRight, Trophy } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useApp } from '@/core/api/AppContext';
+import {
+  LIST_FILTER_CHIP_ACTIVE_CLASS,
+  LIST_FILTER_CHIP_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
 import { MatchQuickInfoDialog } from '@/plugins/matches/components/MatchQuickInfoDialog';
 import { formatMatchDateTime, formatMatchScore, type Match } from '@/plugins/matches/types/match';
+import { MATCHES_SETTINGS_KEY } from '@/plugins/matches/utils/matchColumnCount';
+import { resolveMatchDefaultHomeTeam } from '@/plugins/matches/utils/matchDefaultHomeTeam';
 
-function isUpcomingMatch(match: Match): boolean {
-  const date = new Date(match.start_time);
-  if (Number.isNaN(date.getTime())) return false;
-  return date.getTime() >= Date.now();
-}
+import {
+  groupTeamMatchesBySide,
+  listUpcomingMatchesByDate,
+  type TeamMatchesViewMode,
+} from '../utils/teamMatchSide';
 
 function formatMatchTeamsLine(match: Match): string {
   const score = formatMatchScore(match);
@@ -31,7 +38,10 @@ export function TeamMatchesSection({
   onOpenMatch,
 }: TeamMatchesSectionProps) {
   const { t, i18n } = useTranslation();
+  const { getSettings, settingsVersion } = useApp();
   const [matches, setMatches] = useState<Match[]>([]);
+  const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
+  const [viewMode, setViewMode] = useState<TeamMatchesViewMode>('bySide');
   const [isLoading, setIsLoading] = useState(true);
   const [viewingMatch, setViewingMatch] = useState<Match | null>(null);
 
@@ -54,17 +64,38 @@ export function TeamMatchesSection({
     };
   }, [teamId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getSettings(MATCHES_SETTINGS_KEY)
+      .then((settings) => {
+        if (!cancelled) {
+          setDefaultHomeTeam(resolveMatchDefaultHomeTeam(settings));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDefaultHomeTeam('');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const groups = useMemo(
+    () => groupTeamMatchesBySide(matches, defaultHomeTeam),
+    [matches, defaultHomeTeam],
+  );
+
   const upcomingMatches = useMemo(
-    () => matches.filter(isUpcomingMatch).sort((a, b) => a.start_time.localeCompare(b.start_time)),
-    [matches],
-  );
-  const pastMatches = useMemo(
     () =>
-      matches
-        .filter((match) => !isUpcomingMatch(match))
-        .sort((a, b) => b.start_time.localeCompare(a.start_time)),
-    [matches],
+      [...groups.upcomingHome, ...groups.upcomingAway].sort((a, b) =>
+        a.start_time.localeCompare(b.start_time),
+      ),
+    [groups],
   );
+
+  const matchesByDate = useMemo(() => listUpcomingMatchesByDate(matches), [matches]);
 
   const handleOpenMatchPreview = (match: Match) => {
     if (!onOpenMatch) return;
@@ -163,25 +194,65 @@ export function TeamMatchesSection({
     </div>
   );
 
+  const renderGroup = (titleKey: string, groupMatches: Match[]) => {
+    if (groupMatches.length === 0) {
+      return null;
+    }
+    return (
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t(titleKey)}
+        </p>
+        {groupMatches.map(renderMatchRow)}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="space-y-4">
-        {upcomingMatches.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={cn(
+              viewMode === 'bySide' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+            aria-pressed={viewMode === 'bySide'}
+            onClick={() => setViewMode('bySide')}
+          >
+            {t('teams.matchViewBySide')}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              viewMode === 'byDate' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+            aria-pressed={viewMode === 'byDate'}
+            onClick={() => setViewMode('byDate')}
+          >
+            {t('teams.matchViewByDate')}
+          </button>
+        </div>
+
+        {viewMode === 'byDate' ? (
           <div className="space-y-1.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('teams.upcomingMatches')}
+              {t('teams.upcomingMatchesByDate')}
             </p>
-            {upcomingMatches.map(renderMatchRow)}
+            {matchesByDate.length > 0 ? (
+              matchesByDate.map(renderMatchRow)
+            ) : (
+              <p className="text-sm text-muted-foreground">{t('teams.noUpcomingMatches')}</p>
+            )}
           </div>
-        ) : null}
-        {pastMatches.length > 0 ? (
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('teams.pastMatches')}
-            </p>
-            {pastMatches.map(renderMatchRow)}
-          </div>
-        ) : null}
+        ) : (
+          <>
+            {renderGroup('teams.upcomingHomeMatches', groups.upcomingHome)}
+            {renderGroup('teams.upcomingAwayMatches', groups.upcomingAway)}
+            {renderGroup('teams.pastHomeMatches', groups.pastHome)}
+            {renderGroup('teams.pastAwayMatches', groups.pastAway)}
+          </>
+        )}
       </div>
       <MatchQuickInfoDialog
         isOpen={viewingMatch !== null}

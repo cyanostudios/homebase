@@ -21,7 +21,14 @@ const ALLOWED_SETTINGS_CATEGORIES = new Set([
 ]);
 
 /** Known keys per category (documentation; partial updates merge via JSONB ||). */
-const MATCHES_SETTINGS_KEYS = new Set(['viewMode', 'apiKey', 'apiBaseUrl']);
+const MATCHES_SETTINGS_KEYS = new Set([
+  'viewMode',
+  'columnCount',
+  'listViewMode',
+  'defaultHomeTeam',
+  'apiKey',
+  'apiBaseUrl',
+]);
 
 function isAllowedSettingsCategory(category) {
   return typeof category === 'string' && ALLOWED_SETTINGS_CATEGORIES.has(category.trim());
