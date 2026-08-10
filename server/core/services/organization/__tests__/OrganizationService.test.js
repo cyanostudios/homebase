@@ -11,6 +11,8 @@ describe('normalizeOrganization', () => {
       normalizeOrganization({
         name: '  Acme  ',
         logoUrl: ' https://example.com/logo.png ',
+        website: ' https://acme.example ',
+        email: ' hello@acme.example ',
         address: { line1: ' Storgatan 1 ', city: ' Stockholm ', extra: 'drop' },
         billing: { organizationNumber: ' 556677-8899 ', bankgiro: '123' },
         unknown: true,
@@ -18,6 +20,8 @@ describe('normalizeOrganization', () => {
     ).toEqual({
       name: 'Acme',
       logoUrl: 'https://example.com/logo.png',
+      website: 'https://acme.example',
+      email: 'hello@acme.example',
       address: {
         line1: 'Storgatan 1',
         line2: '',
@@ -36,5 +40,12 @@ describe('normalizeOrganization', () => {
         phone: '',
       },
     });
+  });
+
+  test('truncates website and email to 255 characters', () => {
+    const long = `https://example.com/${'x'.repeat(300)}`;
+    const normalized = normalizeOrganization({ website: long, email: `${'a'.repeat(300)}@x.com` });
+    expect(normalized.website).toHaveLength(255);
+    expect(normalized.email).toHaveLength(255);
   });
 });

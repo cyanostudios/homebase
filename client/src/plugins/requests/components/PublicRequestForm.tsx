@@ -1,23 +1,92 @@
-import { CheckCircle, Inbox, Loader2 } from 'lucide-react';
+import {
+  Check,
+  CheckCircle,
+  ChevronLeft,
+  Inbox,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  MoreHorizontal,
+  Shirt,
+  Tag,
+  UserPlus,
+  type LucideIcon,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { requestsApi } from '../api/requestsApi';
 import type { PublicTeam } from '../types/requests';
-import { REQUEST_TYPES } from '../types/requests';
+import { DEFAULT_REQUEST_TYPES } from '../types/requests';
+import { resolvePublicRequestTypes, resolvePublicWebsiteHref } from '../utils/publicBranding';
 
-const REQUEST_TYPE_LABELS: Record<string, string> = {
-  general: 'General inquiry',
-  pitch_booking: 'Book a pitch',
-  person_registration: 'Register a person',
-  other: 'Other',
+type Step = 1 | 2 | 3;
+
+type TypeMeta = {
+  icon: LucideIcon;
+  labelEn: string;
+  labelSv: string;
+  descEn: string;
+  descSv: string;
 };
 
-const REQUEST_TYPE_LABELS_SV: Record<string, string> = {
-  general: 'Allmän fråga',
-  pitch_booking: 'Boka plan',
-  person_registration: 'Registrera person',
-  other: 'Övrigt',
+const BUILTIN_TYPE_META: Record<string, TypeMeta> = {
+  general: {
+    icon: MessageCircle,
+    labelEn: 'General inquiry',
+    labelSv: 'Allmän fråga',
+    descEn: 'Questions, feedback, or something that does not fit the other options.',
+    descSv: 'Frågor, synpunkter eller något som inte passar de andra alternativen.',
+  },
+  pitch_booking: {
+    icon: MapPin,
+    labelEn: 'Book a pitch',
+    labelSv: 'Boka plan',
+    descEn: 'Request a training or match slot on a pitch.',
+    descSv: 'Begär träningstid eller matchtid på en plan.',
+  },
+  person_registration: {
+    icon: UserPlus,
+    labelEn: 'Register a person',
+    labelSv: 'Registrera person',
+    descEn: 'Sign someone up as a player, coach, or contact.',
+    descSv: 'Anmäl spelare, tränare eller kontaktperson.',
+  },
+  Registration: {
+    icon: UserPlus,
+    labelEn: 'Registration',
+    labelSv: 'Registration',
+    descEn: 'Sign someone up as a player, coach, or contact.',
+    descSv: 'Anmäl spelare, tränare eller kontaktperson.',
+  },
+  Kläder: {
+    icon: Shirt,
+    labelEn: 'Clothes',
+    labelSv: 'Kläder',
+    descEn: 'Order or inquire about team clothing and kit.',
+    descSv: 'Beställ eller fråga om lagkläder och utrustning.',
+  },
+  other: {
+    icon: MoreHorizontal,
+    labelEn: 'Other',
+    labelSv: 'Övrigt',
+    descEn: 'Anything else you need help with.',
+    descSv: 'Allt annat du behöver hjälp med.',
+  },
 };
+
+function resolveTypeMeta(type: string): TypeMeta {
+  if (BUILTIN_TYPE_META[type]) return BUILTIN_TYPE_META[type];
+  return {
+    icon: Tag,
+    labelEn: type,
+    labelSv: type,
+    descEn: 'Submit a request of this type.',
+    descSv: 'Skicka in ett ärende av den här typen.',
+  };
+}
+
+const fieldClassName =
+  'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500';
 
 interface PublicRequestFormProps {
   lang?: 'en' | 'sv';
@@ -25,12 +94,18 @@ interface PublicRequestFormProps {
 }
 
 export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormProps) {
-  const labels = lang === 'sv' ? REQUEST_TYPE_LABELS_SV : REQUEST_TYPE_LABELS;
   const t = (key: string): string => {
     const sv: Record<string, string> = {
-      title: 'Skicka in en förfrågan',
-      subtitle: 'Fyll i formuläret nedan så återkommer vi till dig.',
-      requestType: 'Typ av ärende',
+      pageTitle: 'Skicka in en förfrågan',
+      pageSubtitle: 'Svara på några korta frågor så återkommer vi till dig.',
+      back: 'Tillbaka',
+      continue: 'Fortsätt',
+      step1Title: 'Hej, hur kan vi hjälpa dig?',
+      step1Subtitle: 'Välj det alternativ som bäst beskriver ditt ärende.',
+      step2Title: 'Berätta mer',
+      step2Subtitle: 'En kort rubrik räcker — beskrivningen är valfri.',
+      step3Title: 'Hur når vi dig?',
+      step3Subtitle: 'Valfritt, men underlättar om vi behöver kontakta dig.',
       team: 'Gäller lag (valfritt)',
       teamPlaceholder: 'Välj lag eller lämna tomt för allmän fråga',
       subject: 'Ämne / rubrik',
@@ -47,11 +122,21 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
       successText: 'Vi har tagit emot ditt ärende och återkommer till dig så snart vi kan.',
       errorGeneral: 'Något gick fel. Försök igen.',
       requiredTitle: 'Rubrik är obligatorisk.',
+      requiredType: 'Välj ett alternativ för att fortsätta.',
+      toWebsite: 'To website',
+      contactEmail: 'Email',
     };
     const en: Record<string, string> = {
-      title: 'Submit a request',
-      subtitle: 'Fill in the form below and we will get back to you.',
-      requestType: 'Request type',
+      pageTitle: 'Submit a request',
+      pageSubtitle: 'Answer a few short questions and we will get back to you.',
+      back: 'Back',
+      continue: 'Continue',
+      step1Title: 'Hi, how can we help?',
+      step1Subtitle: 'Pick the option that best describes your request.',
+      step2Title: 'Tell us more',
+      step2Subtitle: 'A short title is enough — description is optional.',
+      step3Title: 'How can we reach you?',
+      step3Subtitle: 'Optional, but helpful if we need to contact you.',
       team: 'Related team (optional)',
       teamPlaceholder: 'Select a team or leave empty for general inquiry',
       subject: 'Subject / title',
@@ -68,13 +153,29 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
       successText: 'We have received your inquiry and will get back to you as soon as possible.',
       errorGeneral: 'Something went wrong. Please try again.',
       requiredTitle: 'Title is required.',
+      requiredType: 'Select an option to continue.',
+      toWebsite: 'To website',
+      contactEmail: 'Email',
     };
     return (lang === 'sv' ? sv : en)[key] || key;
   };
 
+  const [step, setStep] = useState<Step>(1);
   const [teams, setTeams] = useState<PublicTeam[]>([]);
+  const [requestTypes, setRequestTypes] = useState<string[]>(DEFAULT_REQUEST_TYPES);
+  const [branding, setBranding] = useState<{
+    name: string;
+    logoUrl: string;
+    website: string;
+    email: string;
+  }>({
+    name: '',
+    logoUrl: '',
+    website: '',
+    email: '',
+  });
   const [form, setForm] = useState({
-    requestType: 'general',
+    requestType: '',
     teamId: '',
     title: '',
     description: '',
@@ -87,18 +188,75 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
   const [error, setError] = useState('');
 
   useEffect(() => {
-    requestsApi
-      .publicGetTeams()
-      .then((list) => setTeams(list))
-      .catch(() => setTeams([]))
-      .finally(() => setIsLoading(false));
+    let cancelled = false;
+    Promise.all([
+      requestsApi.publicGetTeams().catch(() => [] as PublicTeam[]),
+      requestsApi.publicGetBranding().catch(() => ({
+        name: '',
+        logoUrl: '',
+        website: '',
+        email: '',
+        requestTypes: [] as string[],
+      })),
+    ])
+      .then(([list, brand]) => {
+        if (cancelled) return;
+        setTeams(list);
+        setBranding({
+          name: brand.name,
+          logoUrl: brand.logoUrl,
+          website: brand.website,
+          email: brand.email,
+        });
+        setRequestTypes(resolvePublicRequestTypes(brand.requestTypes));
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const canProceedStep1 = Boolean(form.requestType);
+  const canProceedStep2 = Boolean(form.title.trim());
+
+  const goBack = () => {
+    setError('');
+    if (step === 2) setStep(1);
+    else if (step === 3) setStep(2);
+  };
+
+  const goNext = () => {
+    setError('');
+    if (step === 1) {
+      if (!canProceedStep1) {
+        setError(t('requiredType'));
+        return;
+      }
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      if (!canProceedStep2) {
+        setError(t('requiredTitle'));
+        return;
+      }
+      setStep(3);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!form.requestType) {
+      setError(t('requiredType'));
+      setStep(1);
+      return;
+    }
     if (!form.title.trim()) {
       setError(t('requiredTitle'));
+      setStep(2);
       return;
     }
     setIsSubmitting(true);
@@ -120,128 +278,286 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
     }
   };
 
-  if (submitted) {
-    return (
-      <div className="flex min-h-[300px] flex-col items-center justify-center gap-4 text-center">
-        <CheckCircle className="h-12 w-12 text-emerald-500" />
-        <div>
-          <h2 className="text-lg font-semibold">{t('successTitle')}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t('successText')}</p>
-        </div>
-      </div>
-    );
-  }
+  const stepTitle = step === 1 ? t('step1Title') : step === 2 ? t('step2Title') : t('step3Title');
+  const stepSubtitle =
+    step === 1 ? t('step1Subtitle') : step === 2 ? t('step2Subtitle') : t('step3Subtitle');
+  const websiteHref = resolvePublicWebsiteHref(branding.website);
+  const showContactMeta = Boolean(websiteHref || branding.email.trim());
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30">
-          <Inbox className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-        </div>
-        <div>
-          <h1 className="text-lg font-semibold">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">{t('requestType')}</label>
-          <select
-            value={form.requestType}
-            onChange={(e) => setForm((p) => ({ ...p, requestType: e.target.value }))}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-          >
-            {REQUEST_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {labels[type]}
-              </option>
-            ))}
-          </select>
+    <div className="min-h-screen bg-gray-50 font-poppins">
+      <div className="mx-auto max-w-lg px-4 py-8 sm:px-6">
+        <div className="mb-5 flex items-center gap-3 px-1">
+          {branding.logoUrl ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.name || ''}
+              className="h-10 w-10 shrink-0 rounded-xl object-contain bg-white ring-1 ring-border"
+            />
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
+              <Inbox className="h-5 w-5 text-violet-600" aria-hidden />
+            </div>
+          )}
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">
+              {branding.name || t('pageTitle')}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {branding.name ? t('pageTitle') : t('pageSubtitle')}
+            </p>
+          </div>
         </div>
 
-        {!isLoading && teams.length > 0 && (
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">{t('team')}</label>
-            <select
-              value={form.teamId}
-              onChange={(e) => setForm((p) => ({ ...p, teamId: e.target.value }))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          {submitted ? (
+            <div className="flex min-h-[220px] flex-col items-center justify-center gap-4 text-center">
+              <CheckCircle className="h-12 w-12 text-emerald-500" aria-hidden />
+              <div>
+                <h2 className="text-lg font-semibold">{t('successTitle')}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t('successText')}</p>
+              </div>
+            </div>
+          ) : (
+            <form
+              onSubmit={step === 3 ? handleSubmit : (e) => e.preventDefault()}
+              className="space-y-5"
             >
-              <option value="">{t('teamPlaceholder')}</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                  {team.age_group ? ` (${team.age_group})` : ''}
-                </option>
-              ))}
-            </select>
+              <div className="flex items-center justify-between gap-3">
+                {step > 1 ? (
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="inline-flex items-center gap-0.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                    {t('back')}
+                  </button>
+                ) : (
+                  <span className="w-16" aria-hidden />
+                )}
+                <div className="flex items-center gap-1.5" aria-label={`Step ${step} of 3`}>
+                  {([1, 2, 3] as const).map((n) => (
+                    <span
+                      key={n}
+                      className={`h-1.5 w-8 rounded-full ${
+                        n <= step ? 'bg-violet-600' : 'bg-muted'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1 border-b border-border pb-4">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                  {stepTitle}
+                </h2>
+                <p className="text-sm text-muted-foreground">{stepSubtitle}</p>
+              </div>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                >
+                  {error}
+                </div>
+              )}
+
+              {step === 1 && (
+                <div className="space-y-2.5" role="radiogroup" aria-label={t('step1Title')}>
+                  {requestTypes.map((type) => {
+                    const meta = resolveTypeMeta(type);
+                    const Icon = meta.icon;
+                    const selected = form.requestType === type;
+                    const label = lang === 'sv' ? meta.labelSv : meta.labelEn;
+                    const desc = lang === 'sv' ? meta.descSv : meta.descEn;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => {
+                          setError('');
+                          setForm((p) => ({ ...p, requestType: type }));
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors ${
+                          selected
+                            ? 'border-violet-600 bg-violet-50 ring-2 ring-violet-600'
+                            : 'border-border bg-white hover:bg-muted/40'
+                        }`}
+                      >
+                        <span
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                            selected ? 'bg-violet-100 text-violet-700' : 'bg-muted text-foreground'
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className={`block text-sm font-semibold ${
+                              selected ? 'text-violet-800' : 'text-foreground'
+                            }`}
+                          >
+                            {label}
+                          </span>
+                          <span
+                            className={`mt-0.5 block text-xs ${
+                              selected ? 'text-violet-700/80' : 'text-muted-foreground'
+                            }`}
+                          >
+                            {desc}
+                          </span>
+                        </span>
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                            selected
+                              ? 'border-violet-600 bg-violet-600 text-white'
+                              : 'border-muted-foreground/40 bg-white'
+                          }`}
+                          aria-hidden
+                        >
+                          {selected && <Check className="h-3 w-3" strokeWidth={3} />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-4">
+                  {!isLoading && teams.length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground">
+                        {t('team')}
+                      </label>
+                      <select
+                        value={form.teamId}
+                        onChange={(e) => setForm((p) => ({ ...p, teamId: e.target.value }))}
+                        autoFocus
+                        className={fieldClassName}
+                      >
+                        <option value="">{t('teamPlaceholder')}</option>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name}
+                            {team.age_group ? ` (${team.age_group})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      {t('subject')} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.title}
+                      onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                      placeholder={t('subjectPlaceholder')}
+                      required
+                      autoFocus={isLoading || teams.length === 0}
+                      className={fieldClassName}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      {t('description')}
+                    </label>
+                    <textarea
+                      value={form.description}
+                      onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                      placeholder={t('descriptionPlaceholder')}
+                      rows={4}
+                      className={fieldClassName}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      {t('name')}
+                    </label>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                      placeholder={t('namePlaceholder')}
+                      autoFocus
+                      className={fieldClassName}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      {t('email')}
+                    </label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                      placeholder={t('emailPlaceholder')}
+                      className={fieldClassName}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {step < 3 ? (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  disabled={step === 1 ? !canProceedStep1 : !canProceedStep2}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:opacity-60"
+                >
+                  {t('continue')}
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:opacity-60"
+                >
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                  {isSubmitting ? t('submitting') : t('submit')}
+                </button>
+              )}
+            </form>
+          )}
+        </div>
+
+        {showContactMeta && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-1 text-xs text-muted-foreground">
+            {websiteHref ? (
+              <a
+                href={websiteHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground hover:underline"
+              >
+                {t('toWebsite')}
+              </a>
+            ) : null}
+            {websiteHref && branding.email.trim() ? <span aria-hidden>·</span> : null}
+            {branding.email.trim() ? (
+              <a
+                href={`mailto:${branding.email.trim()}`}
+                className="hover:text-foreground hover:underline"
+              >
+                {t('contactEmail')}
+              </a>
+            ) : null}
           </div>
         )}
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">
-            {t('subject')} <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            placeholder={t('subjectPlaceholder')}
-            required
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">{t('description')}</label>
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-            placeholder={t('descriptionPlaceholder')}
-            rows={4}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">{t('name')}</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder={t('namePlaceholder')}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">{t('email')}</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              placeholder={t('emailPlaceholder')}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:opacity-60"
-        >
-          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isSubmitting ? t('submitting') : t('submit')}
-        </button>
-      </form>
+      </div>
     </div>
   );
 }

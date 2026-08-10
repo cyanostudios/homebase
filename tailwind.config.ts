@@ -7,6 +7,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['"Noto Sans"', 'system-ui', 'sans-serif'],
+        poppins: ['Poppins', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         xs: '11px',

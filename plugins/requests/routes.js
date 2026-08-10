@@ -19,6 +19,9 @@ function createRequestRoutes(controller, context) {
   router.get('/public/teams', publicEndpointLimiter, (req, res) =>
     controller.publicGetTeams(req, res),
   );
+  router.get('/public/branding', publicEndpointLimiter, (req, res) =>
+    controller.publicGetBranding(req, res),
+  );
   router.post('/public/submit', publicEndpointLimiter, (req, res) =>
     controller.publicSubmit(req, res),
   );

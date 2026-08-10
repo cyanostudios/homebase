@@ -1,6 +1,9 @@
 import { createApiClient } from '@/core/api/createApiClient';
 
 import type { PublicTeam, Request } from '../types/requests';
+import { normalizePublicBranding, type PublicBranding } from '../utils/publicBranding';
+
+export type { PublicBranding };
 
 function rowToRequest(row: Record<string, unknown>): Request {
   let assignedToIds: string[] = [];
@@ -103,6 +106,11 @@ class RequestsApi {
   async publicGetTeams(): Promise<PublicTeam[]> {
     const rows = await this.request('/public/teams');
     return rows || [];
+  }
+
+  async publicGetBranding(): Promise<PublicBranding> {
+    const row = await this.request('/public/branding');
+    return normalizePublicBranding(row);
   }
 
   async publicSubmit(data: PublicRequestPayload): Promise<{ success: boolean; request: Request }> {

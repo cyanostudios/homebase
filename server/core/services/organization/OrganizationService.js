@@ -3,6 +3,8 @@
 const EMPTY_ORGANIZATION = Object.freeze({
   name: '',
   logoUrl: '',
+  website: '',
+  email: '',
   address: Object.freeze({
     line1: '',
     line2: '',
@@ -22,8 +24,15 @@ const EMPTY_ORGANIZATION = Object.freeze({
   }),
 });
 
+const MAX_CONTACT_STRING = 255;
+
 function asString(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function asContactString(value) {
+  const trimmed = asString(value);
+  return trimmed.length > MAX_CONTACT_STRING ? trimmed.slice(0, MAX_CONTACT_STRING) : trimmed;
 }
 
 function normalizeOrganization(raw) {
@@ -40,6 +49,8 @@ function normalizeOrganization(raw) {
   return {
     name: asString(source.name),
     logoUrl: asString(source.logoUrl),
+    website: asContactString(source.website),
+    email: asContactString(source.email),
     address: {
       line1: asString(address.line1),
       line2: asString(address.line2),

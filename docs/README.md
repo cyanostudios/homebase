@@ -69,6 +69,7 @@ Cursor-baserat utvecklingsteam med roller, beslutsgrindar och Output Contract. *
 | ESLint                             | `eslint.config.cjs` (flat config)                                                                                                                                 |
 | Prod build + SPA                   | `npm run build` → `dist/public/`                                                                                                                                  |
 | Plugin routes                      | `client/src/core/routing/routeMap.ts` (`/teams`, `/requests`, `/schedule`, …)                                                                                     |
+| Public request form                | SPA `/public/request` → `PublicRequestForm`; API `/api/requests/public/{teams,branding,submit}` + env `PUBLIC_REQUESTS_USER_ID`                                   |
 | Railway                            | `railway.toml`, `nixpacks.toml`                                                                                                                                   |
 
 ## Dokumentationspolicy

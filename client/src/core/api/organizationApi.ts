@@ -24,6 +24,8 @@ export interface OrganizationBilling {
 export interface OrganizationProfile {
   name: string;
   logoUrl: string;
+  website: string;
+  email: string;
   address: OrganizationAddress;
   billing: OrganizationBilling;
 }
@@ -31,6 +33,8 @@ export interface OrganizationProfile {
 export const EMPTY_ORGANIZATION: OrganizationProfile = {
   name: '',
   logoUrl: '',
+  website: '',
+  email: '',
   address: {
     line1: '',
     line2: '',

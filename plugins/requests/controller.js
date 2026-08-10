@@ -124,6 +124,61 @@ class RequestController {
     }
   }
 
+  async publicGetBranding(req, res) {
+    try {
+      const userIdRaw = process.env.PUBLIC_REQUESTS_USER_ID;
+      if (!userIdRaw) {
+        return res.status(503).json({ error: 'Public requests not configured' });
+      }
+      const userId = parseInt(userIdRaw, 10);
+      if (!Number.isFinite(userId)) {
+        return res.status(503).json({ error: 'Public requests not configured' });
+      }
+
+      const ServiceManager = require('../../server/core/ServiceManager');
+      const TenantContextService = require('../../server/core/services/tenant/TenantContextService');
+      const {
+        OrganizationService,
+      } = require('../../server/core/services/organization/OrganizationService');
+      const SettingsModel = require('../settings/model');
+
+      const mainPool = ServiceManager.getMainPool();
+      const tenantContext = await new TenantContextService().getTenantContextByUserId(userId);
+
+      let name = '';
+      let logoUrl = '';
+      let website = '';
+      let email = '';
+      if (tenantContext?.tenantId) {
+        const organizationService = new OrganizationService(mainPool);
+        const organization = await organizationService.getOrganization(tenantContext.tenantId);
+        name = organization.name || '';
+        logoUrl = organization.logoUrl || '';
+        website = organization.website || '';
+        email = organization.email || '';
+      }
+
+      const settingsModel = new SettingsModel(mainPool);
+      const requestsSettings = await settingsModel.getCategory(userId, 'requests');
+      const requestTypes = Array.isArray(requestsSettings?.requestTypes)
+        ? requestsSettings.requestTypes
+            .map((t) => (typeof t === 'string' ? t.trim() : ''))
+            .filter(Boolean)
+        : [];
+
+      res.json({
+        name,
+        logoUrl,
+        website,
+        email,
+        requestTypes,
+      });
+    } catch (error) {
+      Logger.error('Public get branding failed', error);
+      res.status(500).json({ error: 'Failed to fetch branding' });
+    }
+  }
+
   async publicSubmit(req, res) {
     try {
       const pool = req.publicRequestsPool;

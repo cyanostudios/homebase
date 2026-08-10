@@ -14,6 +14,7 @@ import {
 } from '@/core/api/organizationApi';
 import { DETAIL_FIELD_LABEL_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { filesApi } from '@/plugins/files/api/filesApi';
 import { useSettingsContext } from '@/plugins/settings/context/SettingsContext';
 
@@ -25,6 +26,8 @@ function cloneOrganization(value: OrganizationProfile): OrganizationProfile {
   return {
     name: value.name,
     logoUrl: value.logoUrl,
+    website: value.website,
+    email: value.email,
     address: { ...value.address },
     billing: { ...value.billing },
   };
@@ -37,6 +40,8 @@ function organizationsEqual(a: OrganizationProfile, b: OrganizationProfile): boo
 export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
   const { user, getSettings, updateSettings, refreshOrganization } = useApp();
   const { registerSaveHandler, setIsSaving, setHasChanges } = useSettingsContext();
+  const enabledPlugins = useEnabledPlugins();
+  const canUploadLogo = enabledPlugins.has('files');
   const [isLoading, setIsLoading] = useState(true);
   const [canEditOrganization, setCanEditOrganization] = useState(true);
   const [logoUploadBusy, setLogoUploadBusy] = useState(false);
@@ -251,6 +256,42 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
       </Card>
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection title="Contact" className="p-4">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Public website and contact email for this account (shared with your team).
+          </p>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="org-website" className={DETAIL_FIELD_LABEL_CLASS}>
+                Website
+              </Label>
+              <Input
+                id="org-website"
+                type="url"
+                value={organization.website}
+                disabled={readOnlyOrg}
+                onChange={(e) => setOrganization({ ...organization, website: e.target.value })}
+                placeholder="https://example.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="org-email" className={DETAIL_FIELD_LABEL_CLASS}>
+                Email
+              </Label>
+              <Input
+                id="org-email"
+                type="email"
+                value={organization.email}
+                disabled={readOnlyOrg}
+                onChange={(e) => setOrganization({ ...organization, email: e.target.value })}
+                placeholder="hello@example.com"
+              />
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection title="Logo" className="p-4">
           <p className="mb-3 text-sm text-muted-foreground">
             Account logo used on documents and public surfaces.
@@ -274,7 +315,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
               ) : null}
             </div>
           ) : null}
-          {!readOnlyOrg ? (
+          {!readOnlyOrg && canUploadLogo ? (
             <>
               <Input
                 type="file"
@@ -311,9 +352,13 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
                 <p className="mt-2 text-xs text-destructive">{logoUploadError}</p>
               ) : null}
             </>
-          ) : (
+          ) : readOnlyOrg ? (
             <p className="text-sm text-muted-foreground">
               {organization.logoUrl ? 'Logo is set.' : 'No logo uploaded.'}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Enable the Files plugin to upload a logo.
             </p>
           )}
         </DetailSection>

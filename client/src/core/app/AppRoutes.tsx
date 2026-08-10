@@ -112,9 +112,7 @@ export function AppRoutes() {
         path="/public/request"
         element={
           <React.Suspense fallback={null}>
-            <div className="min-h-screen bg-background">
-              <PublicRequestForm lang="sv" />
-            </div>
+            <PublicRequestForm lang="sv" />
           </React.Suspense>
         }
       />

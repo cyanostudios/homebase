@@ -4,6 +4,57 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-10 – Settings Profile: logo upload requires Files plugin
+
+**Status:** Implementerat lokalt. **Ej QA/Security-granskat.** **Ej prod-release.**
+
+**Sammanfattning:** Logo-filväljaren i Settings → Profile visas endast när Files-pluginen är aktiverad för kontot (`useEnabledPlugins().has('files')`). Utan Files: befintlig logo + Remove behålls; uppladdning ersätts av hjälptext. Website/email Contact-kort oförändrat.
+
+**Kod:** [`ProfileSettingsForm.tsx`](../client/src/core/ui/SettingsForms/ProfileSettingsForm.tsx).
+
+---
+
+## 2026-08-10 – Settings Profile: organization website + email
+
+**Status:** Implementerat lokalt. **Ej QA/Security-granskat.** **Ej prod-release.**
+
+**Sammanfattning:** Settings → Profile har ett nytt kort **Contact** med fälten **Website** och **Email** (kontots publika kontaktinfo, skilt från Invoice email under Billing). Lagras i `tenants.organization` via befintlig `GET/PUT /api/organization`. Backend trimmar och trunkerar till 255 tecken.
+
+**Kod:** [`OrganizationService.js`](../server/core/services/organization/OrganizationService.js), [`organizationApi.ts`](../client/src/core/api/organizationApi.ts), [`ProfileSettingsForm.tsx`](../client/src/core/ui/SettingsForms/ProfileSettingsForm.tsx).
+
+---
+
+## 2026-08-10 – Requests: conversational public form (`/public/request`)
+
+**Status:** Implementerat lokalt. **QA Approved**. **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** Publika förfrågningsformuläret (`/public/request`, `PublicRequestForm`) är en 3-stegs conversational wizard med option-kort, progress-segment och Tillbaka/Fortsätt. Poppins (`font-poppins`) endast på denna sida. Branding + ärendetyper hämtas **en gång vid mount** (ingen polling/cron).
+
+**Steg (verifierat):**
+
+1. Välj typ (option-kort; lista från settings `requestTypes`, fallback `DEFAULT_REQUEST_TYPES`)
+2. Lag (om teams finns) → rubrik\* → beskrivning
+3. Namn / e-post → Skicka (`POST /api/requests/public/submit`, oförändrad payload)
+
+**Publika API (rate-limitade, utan auth):**
+
+| Metod  | Path                            | Svar / kropp                                                          |
+| ------ | ------------------------------- | --------------------------------------------------------------------- |
+| `GET`  | `/api/requests/public/teams`    | aktiva lag                                                            |
+| `GET`  | `/api/requests/public/branding` | `{ name, logoUrl, requestTypes }` för `PUBLIC_REQUESTS_USER_ID`       |
+| `POST` | `/api/requests/public/submit`   | title\*, description?, request_type?, team_id?, submitter_name/email? |
+
+**Kod:** [`PublicRequestForm.tsx`](../client/src/plugins/requests/components/PublicRequestForm.tsx), [`AppRoutes.tsx`](../client/src/core/app/AppRoutes.tsx) (`/public/request`), [`plugins/requests/controller.js`](../plugins/requests/controller.js), [`publicBranding.ts`](../client/src/plugins/requests/utils/publicBranding.ts) (+ [`publicBranding.test.ts`](../client/src/plugins/requests/utils/__tests__/publicBranding.test.ts)).
+
+**Begränsningar / avvägningar:**
+
+- `requestTypes` kommer från `user_settings` för **samma** user-id som `PUBLIC_REQUESTS_USER_ID` (inte godtycklig inloggad membership-user).
+- Ikon/beskrivning för typer: inbyggda nycklar + manuella entries (`Kläder`, `Registration`); övriga custom-typer får generisk `Tag`-fallback — nya ikoner kräver kodtillägg.
+- Ingen bilduppladdning på publika formen.
+- **Security (accepterad låg residual, TPM):** `publicSubmit` allowlistar inte `request_type` mot settings (värdet trunkeras/saniteras; risk = datapolution, ej privilegieeskalering). Branding-disclosure (namn/logo/typer) är avsiktlig publik yta.
+
+---
+
 ## 2026-08-10 – Schedule: klickbar lock-toggle (röd/grön)
 
 **Status:** Implementerat lokalt. **QA Approved**. Security **N/A** (befintlig `locks` i schedule settings). **Ej prod-release.**

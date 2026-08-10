@@ -46,15 +46,18 @@ TENANT_PROVIDER=neon
 NEON_API_KEY=<same as Railway>
 PUBLIC_CUPS_USER_ID=2
 PUBLIC_GUIDES_USER_ID=2
+PUBLIC_REQUESTS_USER_ID=2
 ```
 
-Use the prod owner user id for `PUBLIC_CUPS_USER_ID` and `PUBLIC_GUIDES_USER_ID` (script prints it).  
+Use the prod owner user id for `PUBLIC_CUPS_USER_ID`, `PUBLIC_GUIDES_USER_ID`, and `PUBLIC_REQUESTS_USER_ID` (script prints it).  
 Log in locally with the **same email/password as production**.
 
 Cup **data** then comes from the shared Neon tenant DB (same as prod).  
 Local-only schema (`TENANT_PROVIDER=local`) will **not** show prod cups.
 
 Guide **public API** (`/api/public/guides`) reads the same tenant when `PUBLIC_GUIDES_USER_ID` matches the prod owner.
+
+Requests **public form** (`/public/request`, `/api/requests/public/*`) uses the same owner when `PUBLIC_REQUESTS_USER_ID` matches (branding + `requestTypes` from that user’s settings / org).
 
 ### System-e-post (samma Resend som Mail)
 
