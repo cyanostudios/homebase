@@ -41,7 +41,7 @@ function ScheduleTitleWithLockStatus({
   name: string;
   locked: boolean;
   disabled?: boolean;
-  onToggle: (nextLocked: boolean) => void | Promise<void>;
+  onToggle: (nextLocked: boolean) => void | boolean | Promise<void | boolean>;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2">

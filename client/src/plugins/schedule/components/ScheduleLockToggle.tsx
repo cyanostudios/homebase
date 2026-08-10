@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 export type ScheduleLockToggleProps = {
   locked: boolean;
   disabled?: boolean;
-  onToggle: (nextLocked: boolean) => void | Promise<void>;
+  onToggle: (nextLocked: boolean) => void | boolean | Promise<void | boolean>;
   className?: string;
   iconClassName?: string;
 };

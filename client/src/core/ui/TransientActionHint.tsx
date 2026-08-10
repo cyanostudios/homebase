@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 export type TransientActionHintAction = {
   id: string;
   label: string;
-  onClick: () => void | Promise<void>;
+  onClick: () => void | boolean | Promise<void | boolean>;
   /** Visual weight for the action control. Default: secondary. */
   variant?: 'primary' | 'ghost';
 };

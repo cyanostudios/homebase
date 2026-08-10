@@ -463,7 +463,7 @@ export function ScheduleTimeGrid({
   onCopySlot?: (slot: ScheduleSlot) => void;
   onAddSlot?: (day: string, startMinutes: number) => void;
   /** Shown on the locked-interaction hint so the user can unlock without opening settings. */
-  onUnlock?: () => void | Promise<void>;
+  onUnlock?: () => void | boolean | Promise<void | boolean>;
   onSlotMove: (
     slot: ScheduleSlot,
     newDay: string,
