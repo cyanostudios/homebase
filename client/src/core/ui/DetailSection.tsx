@@ -23,7 +23,9 @@ export type DetailSectionIconPlugin =
   | 'clubdesk'
   | 'requests'
   | 'teams'
-  | 'ai-providers';
+  | 'ai-providers'
+  | 'pulses'
+  | 'mail';
 
 interface DetailSectionProps {
   title: string | React.ReactNode;

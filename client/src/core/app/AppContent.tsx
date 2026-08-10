@@ -179,6 +179,16 @@ export function AppContent() {
   // to another page. Providers stay mounted, so *ContentView would otherwise stick
   // (e.g. Contacts settings → Notes → Contacts still shows settings).
   useEffect(() => {
+    // Routing views before settings so a subsequent *SettingsView close can land on list
+    // (Pulse: routing→providers, settings→list; AI: routing→list).
+    for (const name of ['ai-providers', 'pulses'] as const) {
+      const ctx = pluginContexts.find(({ plugin }) => plugin.name === name)?.context as
+        | { closeRoutingView?: () => void }
+        | undefined;
+      if (typeof ctx?.closeRoutingView === 'function') {
+        ctx.closeRoutingView();
+      }
+    }
     pluginContexts.forEach(({ plugin, context }) => {
       if (!context) {
         return;
@@ -197,13 +207,6 @@ export function AppContent() {
         (closeStatisticsFn as () => void)();
       }
     });
-    // ai-providers uses closeRoutingView (not *SettingsView naming)
-    const aiCtx = pluginContexts.find(({ plugin }) => plugin.name === 'ai-providers')?.context as
-      | { closeRoutingView?: () => void }
-      | undefined;
-    if (typeof aiCtx?.closeRoutingView === 'function') {
-      aiCtx.closeRoutingView();
-    }
   }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps -- pluginContexts is stable from PLUGIN_REGISTRY
 
   // Register "Create task from note" dialog opener so NoteContext footer can open it

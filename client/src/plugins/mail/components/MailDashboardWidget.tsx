@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,30 @@ import { useMail } from '@/plugins/mail/hooks/useMail';
 
 export function MailDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) {
   const { t } = useTranslation();
-  const { mailHistory } = useMail();
+  const { providers, routing, mailHistory } = useMail();
+
+  const status = useMemo(() => {
+    const key = routing?.global?.providerKey;
+    if (!key) {
+      return t('mail.notConfigured', { defaultValue: 'Not configured' });
+    }
+    const provider = providers.find((p) => p.providerKey === key);
+    if (provider?.enabled && provider?.configured) {
+      return t(`mail.providers.${key}.title`, { defaultValue: key });
+    }
+    return t('mail.notConfigured', { defaultValue: 'Not configured' });
+  }, [providers, routing, t]);
 
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
+        {t('mail.providerCount', {
+          defaultValue: '{{count}} providers · {{status}}',
+          count: providers.length,
+          status,
+        })}
+      </p>
+      <p className="text-xs text-muted-foreground">
         {t('mail.sentCount', { count: mailHistory.length })}
       </p>
       <Button

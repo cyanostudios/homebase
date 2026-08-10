@@ -2,7 +2,12 @@
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const model = require('./model');
-const { sendSmsWithUserSettings, getSmsAdapterForUser } = require('./sendService');
+const providerModel = require('./providerModel');
+const { MASKED_SECRET, normalizeProviderKey, GLOBAL_ROUTING_SCOPE } = require('./providerModel');
+const { normalizeRoutablePluginKey } = require('./routablePlugins');
+const { sendSmsWithUserSettings } = require('./sendService');
+const SmsAdapterRegistry = require('./SmsAdapterRegistry');
+const { isSmsNotificationCapable } = require('./providerCatalog');
 
 class PulseController {
   async send(req, res) {
@@ -46,96 +51,148 @@ class PulseController {
     }
   }
 
-  async getSettings(req, res) {
+  async getCatalog(req, res) {
     try {
-      const settings = await model.getSettings(req);
-      if (settings) {
-        const twilioConfigured = !!(
-          settings.hasTwilioAccountSid &&
-          settings.hasTwilioAuthToken &&
-          (settings.twilioFromNumber || '').trim()
-        );
-        return res.json({
-          activeProvider: settings.activeProvider,
-          configured: {
-            twilio: twilioConfigured,
-            mock: true,
-          },
-          twilio: {
-            hasAccountSid: settings.hasTwilioAccountSid,
-            hasAuthToken: settings.hasTwilioAuthToken,
-            fromNumber: settings.twilioFromNumber || '',
-          },
-        });
-      }
-      res.json({
-        activeProvider: 'mock',
-        configured: { twilio: false, mock: true },
-        twilio: { hasAccountSid: false, hasAuthToken: false, fromNumber: '' },
-      });
+      res.json({ providers: providerModel.listCatalog() });
     } catch (error) {
-      Logger.error('Get pulse settings failed', error);
-      res.status(500).json({ error: 'Failed to get pulse settings' });
+      Logger.error('Get Pulse provider catalog failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to fetch Pulse provider catalog' });
     }
   }
 
-  async testSettings(req, res) {
+  async getProviderSettings(req, res) {
     try {
-      const {
-        testTo,
-        useSaved,
-        activeProvider,
-        twilioAccountSid,
-        twilioAuthToken,
-        twilioFromNumber,
-      } = req.body;
-      const to = testTo ? String(testTo).trim() : '';
-      if (!to) {
+      const providers = await providerModel.listConfiguredSettings(req);
+      res.json({ providers });
+    } catch (error) {
+      Logger.error('Get Pulse provider settings failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      const msg = error?.message || '';
+      if (msg.includes('relation') && msg.includes('does not exist')) {
+        return res.status(500).json({
+          error:
+            'Pulse provider tables are missing. Run migration 124-pulse-provider-platform.sql on your tenant database.',
+        });
+      }
+      res.status(500).json({ error: 'Failed to fetch Pulse provider settings' });
+    }
+  }
+
+  async saveProviderSettings(req, res) {
+    try {
+      const providerKey = normalizeProviderKey(req.params.providerKey);
+      const provider = await providerModel.saveSettings(req, providerKey, req.body || {});
+      res.json({ provider });
+    } catch (error) {
+      Logger.error('Save Pulse provider settings failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to save Pulse provider settings' });
+    }
+  }
+
+  async deleteProviderSettings(req, res) {
+    try {
+      const providerKey = normalizeProviderKey(req.params.providerKey);
+      const result = await providerModel.deleteSettings(req, providerKey);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Delete Pulse provider settings failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to delete Pulse provider settings' });
+    }
+  }
+
+  async testProviderSettings(req, res) {
+    try {
+      const providerKey = normalizeProviderKey(req.params.providerKey);
+      if (!isSmsNotificationCapable(providerKey)) {
+        return res.status(400).json({
+          error:
+            'Connection test via SMS is only available for SMS notification providers (Twilio, Mock).',
+        });
+      }
+      if (!SmsAdapterRegistry.has(providerKey)) {
+        return res.status(400).json({ error: 'SMS adapter not available for this provider' });
+      }
+
+      const testTo = String(req.body?.testTo || '').trim();
+      if (!testTo) {
         return res.status(400).json({ error: 'A phone number is required to send a test SMS' });
       }
-      let adapter;
-      let provider;
 
-      if (activeProvider === 'mock') {
-        const MockAdapter = require('./adapters/MockAdapter');
-        adapter = new MockAdapter();
-        provider = 'mock';
+      const useSaved = Boolean(req.body?.useSaved);
+      const saved =
+        useSaved ||
+        String(req.body?.secretPrimary ?? '').startsWith(MASKED_SECRET) ||
+        String(req.body?.secretSecondary ?? '').startsWith(MASKED_SECRET)
+          ? await providerModel.getSettings(req, providerKey, { includeSecret: true })
+          : null;
+
+      let secretPrimary = '';
+      let secretSecondary = '';
+      let options = { ...(saved?.options || {}) };
+
+      if (
+        req.body?.secretPrimary != null &&
+        !String(req.body.secretPrimary).startsWith(MASKED_SECRET)
+      ) {
+        secretPrimary = String(req.body.secretPrimary).trim();
       } else {
-        const useTwilioFromBody =
-          twilioAccountSid &&
-          String(twilioAccountSid).trim() &&
-          !String(twilioAccountSid).trim().startsWith('••••') &&
-          twilioAuthToken &&
-          String(twilioAuthToken).trim() &&
-          twilioFromNumber &&
-          String(twilioFromNumber).trim();
-
-        if (useSaved || !useTwilioFromBody) {
-          const pair = await getSmsAdapterForUser(req);
-          adapter = pair.adapter;
-          provider = pair.provider;
-          if (provider === 'mock') {
-            return res.status(400).json({
-              error:
-                'Saved Twilio settings are incomplete. Enter Account SID, Auth Token and From number and save, then try again.',
-            });
+        secretPrimary = saved?.secretPrimaryRaw || '';
+      }
+      if (
+        req.body?.secretSecondary != null &&
+        !String(req.body.secretSecondary).startsWith(MASKED_SECRET)
+      ) {
+        secretSecondary = String(req.body.secretSecondary).trim();
+      } else {
+        secretSecondary = saved?.secretSecondaryRaw || '';
+      }
+      if (req.body?.options && typeof req.body.options === 'object') {
+        options = { ...options, ...req.body.options };
+      }
+      if (req.body?.fromNumber != null) {
+        options.fromNumber = String(req.body.fromNumber).trim();
+      }
+      if (req.body?.fields && typeof req.body.fields === 'object') {
+        for (const [key, value] of Object.entries(req.body.fields)) {
+          if (key === 'accountSid' && value && !String(value).startsWith(MASKED_SECRET)) {
+            secretPrimary = String(value).trim();
+          } else if (key === 'authToken' && value && !String(value).startsWith(MASKED_SECRET)) {
+            secretSecondary = String(value).trim();
+          } else if (value != null && !String(value).startsWith(MASKED_SECRET)) {
+            options[key] = String(value).trim();
           }
-        } else {
-          const sid = String(twilioAccountSid).trim();
-          const token = String(twilioAuthToken).trim();
-          const from = String(twilioFromNumber).trim();
-          const TwilioAdapter = require('./adapters/TwilioAdapter');
-          adapter = new TwilioAdapter({ accountSid: sid, authToken: token, fromNumber: from });
-          provider = 'twilio';
         }
       }
+
+      if (providerKey !== 'mock' && (!secretPrimary || !secretSecondary || !options.fromNumber)) {
+        return res.status(400).json({
+          error: 'Account SID, Auth Token and From number are required to send a test SMS',
+        });
+      }
+
+      const adapter = SmsAdapterRegistry.create(providerKey, {
+        secretPrimary,
+        secretSecondary,
+        options,
+      });
       const result = await adapter.send({
-        to,
+        to: testTo,
         body: 'Test SMS from Pulse. If you received this, your settings work.',
       });
-      res.json({ ok: true, message: 'Test SMS sent', status: result.status });
+      res.json({ ok: true, provider: providerKey, status: result.status || 'sent' });
     } catch (error) {
-      Logger.error('Test pulse failed', error, { userId: Context.getUserId(req) });
+      Logger.error('Test Pulse provider failed', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
@@ -143,43 +200,57 @@ class PulseController {
     }
   }
 
-  async saveSettings(req, res) {
+  async getRouting(req, res) {
     try {
-      const { activeProvider, twilioAccountSid, twilioAuthToken, twilioFromNumber } = req.body;
-      const normalizedProvider = activeProvider === 'mock' ? 'mock' : 'twilio';
-      await model.saveSettings(req, {
-        activeProvider: normalizedProvider,
-        twilioAccountSid: twilioAccountSid ?? '',
-        twilioAuthToken: twilioAuthToken ?? '',
-        twilioFromNumber: twilioFromNumber ?? '',
-      });
-      res.json({ ok: true });
+      const routing = await providerModel.listRouting(req);
+      res.json(routing);
     } catch (error) {
-      Logger.error('Save pulse settings failed', error);
+      Logger.error('Get Pulse provider routing failed', error);
       if (error instanceof AppError) {
-        const json = error.toJSON();
-        if (error.details?.originalError) {
-          json.details = { ...json.details, originalError: error.details.originalError };
-        }
-        return res.status(error.statusCode).json(json);
+        return res.status(error.statusCode).json(error.toJSON());
       }
-      const msg = error?.message || '';
-      if (msg.includes('relation') && msg.includes('does not exist')) {
-        return res.status(500).json({
-          error:
-            'Pulse database tables are missing. Run migration 033-pulses-plugin.sql on your tenant database.',
-        });
+      res.status(500).json({ error: 'Failed to fetch Pulse provider routing' });
+    }
+  }
+
+  async saveGlobalRouting(req, res) {
+    try {
+      const result = await providerModel.saveRouting(req, GLOBAL_ROUTING_SCOPE, req.body || {});
+      res.json(result);
+    } catch (error) {
+      Logger.error('Save global Pulse routing failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
-      if (
-        msg.includes('User context required') ||
-        msg.includes('Unauthorized') ||
-        msg.includes('Tenant pool not found')
-      ) {
-        return res.status(401).json({
-          error: 'Session may have expired. Log out and log in again, then try saving.',
-        });
+      res.status(500).json({ error: 'Failed to save global Pulse routing' });
+    }
+  }
+
+  async savePluginRouting(req, res) {
+    try {
+      const pluginKey = normalizeRoutablePluginKey(req.params.pluginKey);
+      const result = await providerModel.saveRouting(req, pluginKey, req.body || {});
+      res.json(result);
+    } catch (error) {
+      Logger.error('Save plugin Pulse routing failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
-      res.status(500).json({ error: msg || 'Failed to save pulse settings' });
+      res.status(500).json({ error: 'Failed to save plugin Pulse routing' });
+    }
+  }
+
+  async deletePluginRouting(req, res) {
+    try {
+      const pluginKey = normalizeRoutablePluginKey(req.params.pluginKey);
+      const result = await providerModel.deletePluginRouting(req, pluginKey);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Delete plugin Pulse routing failed', error);
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to delete plugin Pulse routing' });
     }
   }
 

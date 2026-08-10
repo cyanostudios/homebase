@@ -53,6 +53,7 @@
     "migrate:teams-series-teams": "node scripts/run-teams-series-teams-migration.js",
     "migrate:teams-playing-format": "node scripts/run-teams-playing-format-migration.js",
     "migrate:pulses": "node scripts/run-pulses-migration.js",
+    "migrate:mail": "node scripts/run-mail-migration.js",
     "migrate:slots-match-id": "node scripts/run-slots-match-id-migration.js",
     "migrate:rename-slots-plugin": "node scripts/run-rename-slots-plugin-migration.js",
     "migrate:rename-slots-table": "node scripts/run-rename-slots-table-migration.js",

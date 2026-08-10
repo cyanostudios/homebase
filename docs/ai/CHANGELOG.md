@@ -2,6 +2,38 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Mail / Pulse / AI Providers — QA + Security sync (2026-08-10)
+
+Docs efter **QA Approved** + **Security Approved** för Mail multi-provider, Pulse multi-provider och AI Providers list-chrome. Residual **A1** (klartext secrets i tenant-DB) dokumenterad i ADR + produkt-CHANGELOG — **väntar TPM medvetet godkännande**. Ej prod-release.
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – poster AI Providers list-chrome, Mail, Pulse (statusrader uppdaterade).
+
+---
+
+## AI Providers list-chrome + UI standards sync (2026-08-10)
+
+Produkt-docs: AI Providers migrerad till Contacts/Pulse list-shell (`ListToolbar`, 1/2/3/tabell). `UI_AND_UX_STANDARDS_V3.md` §0.1 uppdaterad — Mail/Pulses/AI Providers ingår i card-column-referensen; legacy grid-exempel är invoices/schedule. Mail CHANGELOG: tester 21 + history-only `model.js` efter QA-rework.
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – post “AI Providers: list-chrome”.
+
+---
+
+## Mail multi-provider platform (2026-08-10)
+
+ADR [`P-MAIL_PROVIDER_PLATFORM.md`](adr/P-MAIL_PROVIDER_PLATFORM.md): Mail speglar Pulse (katalog, credentials, global/per-plugin routing). v1 send SMTP+Resend. Migration `125`. UX: provider-lista startsida; historik separat. **QA + Security Approved; A1 väntar TPM.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – post “Mail: multi-provider platform”.
+
+---
+
+## Pulse multi-provider platform (2026-08-10)
+
+ADR [`P-PULSE_PROVIDER_PLATFORM.md`](adr/P-PULSE_PROVIDER_PLATFORM.md): Pulse speglar AI Providers (katalog, credentials, global/per-plugin routing). v1 send Twilio+Mock; Twilio Verify + Stytch katalog only. Migration `124`. UX: provider-lista är startsida; SMS-historik separat vy. **QA + Security Approved; A1 väntar TPM.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – post “Pulse: multi-provider platform”.
+
+---
+
 ## Teams matchstatistik-flik + whole-team Series badges (2026-08-10)
 
 Docs-sync efter **QA Approved** + **Security Approved** för (1) Teams lagdetalj-flik **Statistik** (match W/D/L), (2) whole-team-ansvariga som badges på **Serielag**-flik/`SeriesTeamsSection`. Produkt-changelog status/begränsningar uppdaterade; checklist/MENTIONS synkade. **Local-first; ej prod-release.**

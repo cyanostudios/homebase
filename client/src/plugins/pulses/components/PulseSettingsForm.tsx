@@ -1,366 +1,335 @@
-import { Check, Key, Send, Smartphone, Zap } from 'lucide-react';
-import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { Info, Smartphone } from 'lucide-react';
+import React, { useImperativeHandle, useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { cn } from '@/lib/utils';
+import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 
 import { usePulses } from '../hooks/usePulses';
-import type { PulseProvider } from '../types/pulse';
+import type { PulseCatalogEntry, PulseProviderSettings } from '../types/pulse';
+
+const MASKED = '••••••••';
 
 interface PulseSettingsFormProps {
+  currentPulse?: PulseProviderSettings | null;
+  onSave?: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel?: () => void;
-  /** When provided (e.g. from full-page settings), called after successful save instead of closePulsePanel */
   onSaveSuccess?: () => void;
-  onDirtyChange?: (isDirty: boolean) => void;
-  onSavingChange?: (isSaving: boolean) => void;
 }
 
 export const PulseSettingsForm = React.forwardRef<PanelFormHandle, PulseSettingsFormProps>(
-  function PulseSettingsForm({ onCancel, onSaveSuccess, onDirtyChange, onSavingChange }, ref) {
+  function PulseSettingsForm(
+    { currentPulse: currentPulseProp, onSave, onCancel, onSaveSuccess },
+    ref,
+  ) {
     const { t } = useTranslation();
-    const { settings, loadSettings, saveSettings, testSettings, closePulsePanel, pulseHistory } =
-      usePulses();
-    const [provider, setProvider] = useState<PulseProvider>('twilio');
-    const [saving, setSaving] = useState(false);
-    const [testing, setTesting] = useState(false);
-    const [testSuccess, setTestSuccess] = useState<string | null>(null);
-    const [testTo, setTestTo] = useState('');
+    const {
+      panelMode,
+      currentPulse: currentFromContext,
+      pendingProviderKey,
+      setPendingProviderKey,
+      catalog,
+      providers,
+      saveSettings,
+    } = usePulses();
+
+    const currentPulse = currentPulseProp ?? currentFromContext;
+    const configuredKeys = useMemo(
+      () => new Set(providers.map((provider) => provider.providerKey)),
+      [providers],
+    );
+
+    const availableCatalog = useMemo(
+      () =>
+        panelMode === 'create'
+          ? catalog.filter((entry) => !configuredKeys.has(entry.providerKey))
+          : catalog,
+      [catalog, configuredKeys, panelMode],
+    );
+
+    const activeProviderKey = pendingProviderKey || currentPulse?.providerKey || '';
+    const catalogEntry: PulseCatalogEntry | undefined = catalog.find(
+      (entry) => entry.providerKey === activeProviderKey,
+    );
+
+    const [enabled, setEnabled] = useState(currentPulse?.enabled ?? true);
+    const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
 
-    const [twilioAccountSid, setTwilioAccountSid] = useState('');
-    const [twilioAuthToken, setTwilioAuthToken] = useState('');
-    const [twilioFromNumber, setTwilioFromNumber] = useState('');
-
-    const pluginSources = useMemo(
-      () =>
-        Array.from(
-          new Set(pulseHistory.map((e) => e.pluginSource).filter((ps): ps is string => !!ps)),
-        ),
-      [pulseHistory],
-    );
-
     useEffect(() => {
-      loadSettings();
-    }, [loadSettings]);
-
-    useEffect(() => {
-      if (settings) {
-        setProvider(settings.activeProvider === 'mock' ? 'mock' : 'twilio');
-        if (settings.twilio) {
-          const tw = settings.twilio;
-          setTwilioFromNumber(tw.fromNumber || '');
-          setTwilioAccountSid(tw.hasAccountSid ? '••••••••' : '');
-          setTwilioAuthToken(tw.hasAuthToken ? '••••••••' : '');
+      const nextFields: Record<string, string> = {};
+      for (const field of catalogEntry?.fields ?? []) {
+        if (field.storage === 'secret_primary') {
+          nextFields[field.key] = currentPulse?.hasSecretPrimary ? MASKED : '';
+        } else if (field.storage === 'secret_secondary') {
+          nextFields[field.key] = currentPulse?.hasSecretSecondary ? MASKED : '';
+        } else {
+          nextFields[field.key] = currentPulse?.options?.[field.key] || '';
         }
       }
-    }, [settings]);
+      setEnabled(currentPulse?.enabled ?? true);
+      setFieldValues(nextFields);
+      setError(null);
+    }, [activeProviderKey, catalogEntry, currentPulse]);
 
-    const savedProvider: PulseProvider =
-      settings?.activeProvider === 'mock' ? 'mock' : settings ? 'twilio' : 'twilio';
-    const savedFrom = settings?.twilio?.fromNumber || '';
+    const title = activeProviderKey
+      ? t(`pulses.providers.${activeProviderKey}.title`, {
+          defaultValue: activeProviderKey,
+        })
+      : t('pulses.chooseProviderPlaceholder', { defaultValue: 'Select a provider…' });
+    const settingsDescription = activeProviderKey
+      ? t(`pulses.providers.${activeProviderKey}.settingsDescription`, {
+          defaultValue: '',
+        })
+      : '';
 
-    const isDirty = useMemo(() => {
-      if (!settings) {
+    const buildPayload = () => {
+      const fields: Record<string, string | null> = {};
+      const options: Record<string, string | null> = {};
+      let secretPrimary: string | null | undefined;
+      let secretSecondary: string | null | undefined;
+
+      for (const field of catalogEntry?.fields ?? []) {
+        const raw = fieldValues[field.key] ?? '';
+        if (field.storage === 'secret_primary') {
+          if (!raw || raw.startsWith(MASKED)) {
+            // keep saved
+          } else {
+            secretPrimary = raw.trim();
+            fields[field.key] = raw.trim();
+          }
+        } else if (field.storage === 'secret_secondary') {
+          if (!raw || raw.startsWith(MASKED)) {
+            // keep saved
+          } else {
+            secretSecondary = raw.trim();
+            fields[field.key] = raw.trim();
+          }
+        } else {
+          options[field.key] = raw.trim() || null;
+          fields[field.key] = raw.trim() || null;
+        }
+      }
+
+      return {
+        providerKey: activeProviderKey,
+        enabled,
+        secretPrimary,
+        secretSecondary,
+        options,
+        fields,
+      };
+    };
+
+    const handleSave = async () => {
+      if (!activeProviderKey) {
+        setError(t('pulses.chooseProviderError', { defaultValue: 'Choose a provider type' }));
         return false;
       }
-      const sidChanged = Boolean(twilioAccountSid && !twilioAccountSid.startsWith('••••'));
-      const tokenChanged = Boolean(twilioAuthToken && !twilioAuthToken.startsWith('••••'));
-      return (
-        provider !== savedProvider ||
-        (twilioFromNumber || '').trim() !== savedFrom.trim() ||
-        sidChanged ||
-        tokenChanged
-      );
-    }, [
-      settings,
-      provider,
-      savedProvider,
-      twilioFromNumber,
-      savedFrom,
-      twilioAccountSid,
-      twilioAuthToken,
-    ]);
-
-    useEffect(() => {
-      onDirtyChange?.(isDirty);
-    }, [isDirty, onDirtyChange]);
-
-    useEffect(() => {
-      onSavingChange?.(saving);
-    }, [saving, onSavingChange]);
-
-    const handleSave = useCallback(async () => {
       setError(null);
-      setTestSuccess(null);
-      setSaving(true);
       try {
-        const sid =
-          twilioAccountSid && !twilioAccountSid.startsWith('••••') ? twilioAccountSid.trim() : '';
-        const token =
-          twilioAuthToken && !twilioAuthToken.startsWith('••••') ? twilioAuthToken.trim() : '';
-        await saveSettings({
-          activeProvider: provider,
-          twilioAccountSid: sid || undefined,
-          twilioAuthToken: token || undefined,
-          twilioFromNumber: (twilioFromNumber || '').trim() || undefined,
-        });
-        if (onSaveSuccess) {
-          onSaveSuccess();
-        } else if (!onDirtyChange) {
-          // Panel mode (no header Save wiring): close panel after save.
-          closePulsePanel();
+        const payload = buildPayload();
+        if (onSave) {
+          const ok = await onSave(payload);
+          if (ok) onSaveSuccess?.();
+          return ok;
         }
+        await saveSettings(activeProviderKey, payload);
+        onSaveSuccess?.();
+        return true;
       } catch (err: unknown) {
-        setError((err as Error)?.message || t('pulses.saveError'));
-      } finally {
-        setSaving(false);
-      }
-    }, [
-      provider,
-      twilioAccountSid,
-      twilioAuthToken,
-      twilioFromNumber,
-      saveSettings,
-      closePulsePanel,
-      onSaveSuccess,
-      onDirtyChange,
-      t,
-    ]);
-
-    useImperativeHandle(
-      ref,
-      () => ({
-        submit: () => handleSave(),
-        cancel: () => onCancel?.(),
-      }),
-      [handleSave, onCancel],
-    );
-
-    const handleTest = async () => {
-      setError(null);
-      setTestSuccess(null);
-      const to = testTo.trim();
-      if (!to) {
-        setError(t('pulses.testNumberRequired'));
-        return;
-      }
-      setTesting(true);
-      try {
-        const twilioConfigured = settings?.configured?.twilio === true;
-        const useSavedCredentials =
-          provider === 'twilio' &&
-          (twilioConfigured ||
-            twilioAccountSid.startsWith('••••') ||
-            twilioAuthToken.startsWith('••••'));
-        const payload: Record<string, unknown> = {
-          testTo: to,
-          activeProvider: provider,
-          useSaved: useSavedCredentials,
-        };
-        if (provider === 'twilio' && !useSavedCredentials) {
-          payload.twilioAccountSid = twilioAccountSid.startsWith('••••')
-            ? undefined
-            : twilioAccountSid.trim();
-          payload.twilioAuthToken = twilioAuthToken.startsWith('••••')
-            ? undefined
-            : twilioAuthToken.trim();
-          payload.twilioFromNumber = twilioFromNumber.trim();
-        }
-        await testSettings(payload as Parameters<typeof testSettings>[0]);
-        setTestSuccess(t('pulses.testSent'));
-      } catch (err: unknown) {
-        setError((err as Error)?.message || t('pulses.testError'));
-      } finally {
-        setTesting(false);
+        setError(
+          (err as Error)?.message ||
+            t('pulses.saveError', { defaultValue: 'Failed to save provider' }),
+        );
+        return false;
       }
     };
 
-    const isTwilioConfigured = settings?.configured?.twilio === true;
+    useImperativeHandle(ref, () => ({
+      submit: () => handleSave(),
+      cancel: () => onCancel?.(),
+    }));
 
-    const providerButtons: { id: PulseProvider; label: string; isConfigured: boolean }[] = [
-      { id: 'twilio', label: 'Twilio', isConfigured: isTwilioConfigured },
-      { id: 'mock', label: 'Mock', isConfigured: true },
-    ];
+    const enabledId = `pulse-${activeProviderKey || 'new'}-enabled`;
 
-    return (
-      <div className="plugin-pulses space-y-6">
-        {/* Provider Section */}
-        <DetailSection title={t('pulses.provider')} icon={Smartphone}>
-          <p className="text-sm text-muted-foreground mb-4">{t('pulses.settingsDescription')}</p>
-          <div className="flex gap-2 flex-wrap">
-            {providerButtons.map(({ id, label, isConfigured }) => {
-              const isActive = provider === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setProvider(id)}
-                  className={cn(
-                    'flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background border-border hover:bg-muted',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'h-2 w-2 rounded-full',
-                      isConfigured ? 'bg-green-500' : 'bg-red-500',
-                    )}
-                  />
-                  {label}
-                  {isActive && <Check className="h-3.5 w-3.5" />}
-                </button>
-              );
-            })}
-          </div>
-        </DetailSection>
-
-        {/* Credentials Section - only for Twilio */}
-        {provider === 'twilio' && (
+    const formSidebar = currentPulse ? (
+      <div className="space-y-4">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection
-            title={t('pulses.credentials')}
-            icon={Key}
-            className="border-t border-border pt-6"
+            title={t('pulses.information', { defaultValue: 'Information' })}
+            icon={Info}
+            iconPlugin="pulses"
+            className="p-4"
+            collapsible
           >
-            <p className="text-sm text-muted-foreground mb-4">
-              {t('pulses.twilioHint')}{' '}
-              <a
-                href="https://www.twilio.com/console"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline"
-              >
-                twilio.com/console
-              </a>
-            </p>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="pulse-account-sid">{t('pulses.accountSid')}</Label>
-                <Input
-                  id="pulse-account-sid"
-                  type="password"
-                  value={twilioAccountSid}
-                  onChange={(e) => setTwilioAccountSid(e.target.value)}
-                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  autoComplete="off"
-                />
+            <div className="space-y-4 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t('pulses.providerKey', { defaultValue: 'Key' })}
+                </span>
+                <span className="font-mono font-medium">{currentPulse.providerKey}</span>
               </div>
-              <div>
-                <Label htmlFor="pulse-auth-token">{t('pulses.authToken')}</Label>
-                <Input
-                  id="pulse-auth-token"
-                  type="password"
-                  value={twilioAuthToken}
-                  onChange={(e) => setTwilioAuthToken(e.target.value)}
-                  placeholder={settings?.twilio?.hasAuthToken ? '••••••••' : ''}
-                  autoComplete="new-password"
-                />
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('common.created')}</span>
+                <span className="font-medium">
+                  {currentPulse.createdAt
+                    ? new Date(currentPulse.createdAt).toLocaleDateString()
+                    : '—'}
+                </span>
               </div>
-              <div>
-                <Label htmlFor="pulse-from-number">{t('pulses.fromNumber')}</Label>
-                <Input
-                  id="pulse-from-number"
-                  type="tel"
-                  value={twilioFromNumber}
-                  onChange={(e) => setTwilioFromNumber(e.target.value)}
-                  placeholder="+46701234567"
-                />
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('common.updated')}</span>
+                <span className="font-medium">
+                  {currentPulse.updatedAt
+                    ? new Date(currentPulse.updatedAt).toLocaleDateString()
+                    : '—'}
+                </span>
               </div>
             </div>
           </DetailSection>
-        )}
+        </Card>
+      </div>
+    ) : undefined;
 
-        {/* Mock description */}
-        {provider === 'mock' && (
-          <div className="border-t border-border pt-6">
-            <p className="text-sm text-muted-foreground">{t('pulses.mockDescription')}</p>
-          </div>
-        )}
+    return (
+      <div className="plugin-pulses">
+        <DetailLayout sidebar={formSidebar}>
+          <div className="space-y-6">
+            {error ? (
+              <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
+                <p className="text-sm text-destructive">{error}</p>
+              </Card>
+            ) : null}
 
-        {/* Plugin Sources Section */}
-        <DetailSection
-          title={t('pulses.pluginSources')}
-          icon={Zap}
-          className="border-t border-border pt-6"
-        >
-          <p className="text-xs text-muted-foreground mb-3">{t('pulses.pluginSourcesHint')}</p>
-          {pluginSources.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {pluginSources.map((ps) => (
-                <Badge
-                  key={ps}
-                  variant="outline"
-                  className={cn(
-                    'capitalize font-medium text-[10px]',
-                    ps === 'contacts' &&
-                      'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle',
-                    ps === 'slots' &&
-                      'plugin-slots bg-plugin-subtle text-plugin border-plugin-subtle',
-                    ps === 'notes' &&
-                      'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle',
-                    ps === 'tasks' &&
-                      'plugin-tasks bg-plugin-subtle text-plugin border-plugin-subtle',
-                    ps === 'estimates' &&
-                      'plugin-estimates bg-plugin-subtle text-plugin border-plugin-subtle',
-                    ps === 'invoices' &&
-                      'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
-                    ps === 'files' &&
-                      'plugin-files bg-plugin-subtle text-plugin border-plugin-subtle',
-                  )}
+            {panelMode === 'create' ? (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('pulses.providerType', { defaultValue: 'Provider type' })}
+                  icon={Smartphone}
+                  iconPlugin="pulses"
+                  className="p-6"
                 >
-                  {ps}
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">{t('pulses.noPluginSources')}</p>
-          )}
-        </DetailSection>
+                  <div>
+                    <Label htmlFor="pulse-provider-type">
+                      {t('pulses.providerType', { defaultValue: 'Provider type' })}
+                    </Label>
+                    <Select
+                      value={activeProviderKey || undefined}
+                      onValueChange={(value) => setPendingProviderKey(value)}
+                    >
+                      <SelectTrigger id="pulse-provider-type" className="mt-1">
+                        <SelectValue
+                          placeholder={t('pulses.chooseProviderPlaceholder', {
+                            defaultValue: 'Select a provider…',
+                          })}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCatalog.map((entry) => (
+                          <SelectItem key={entry.providerKey} value={entry.providerKey}>
+                            {t(`pulses.providers.${entry.providerKey}.title`, {
+                              defaultValue: entry.providerKey,
+                            })}
+                            {!entry.smsNotificationCapable
+                              ? ` (${t('pulses.verifyOnly', { defaultValue: 'Verify only' })})`
+                              : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {availableCatalog.length === 0 ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {t('pulses.allProvidersConfigured', {
+                          defaultValue: 'All catalog providers are already configured.',
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
+                </DetailSection>
+              </Card>
+            ) : null}
 
-        {/* Test Section */}
-        <DetailSection
-          title={t('pulses.testTitle')}
-          icon={Send}
-          className="border-t border-border pt-6"
-        >
-          <p className="text-xs text-muted-foreground mb-3">{t('pulses.testHint')}</p>
-          <div className="flex gap-2 items-end flex-wrap">
-            <div className="flex-1 min-w-[200px]">
-              <Label htmlFor="pulse-test-to" className="text-sm">
-                {t('pulses.sendTestTo')}
-              </Label>
-              <Input
-                id="pulse-test-to"
-                type="tel"
-                value={testTo}
-                onChange={(e) => setTestTo(e.target.value)}
-                placeholder="+46701234567"
-                className="mt-1"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTest}
-              disabled={testing}
-              icon={Send}
-              className="h-9"
-            >
-              {testing ? t('pulses.sending') : t('pulses.sendTest')}
-            </Button>
+            {catalogEntry && !catalogEntry.smsNotificationCapable ? (
+              <Card className="border-amber-500/40 bg-amber-500/5 p-4 shadow-none">
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  {t('pulses.notSmsRoutableHint', {
+                    defaultValue:
+                      'Credentials only — not available for SMS routing in v1 (verify/OTP deferred).',
+                  })}
+                </p>
+              </Card>
+            ) : null}
+
+            {activeProviderKey ? (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection title={title} icon={Smartphone} iconPlugin="pulses" className="p-6">
+                  {settingsDescription ? (
+                    <p className="mb-4 text-sm text-muted-foreground">{settingsDescription}</p>
+                  ) : null}
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Switch id={enabledId} checked={enabled} onCheckedChange={setEnabled} />
+                      <Label htmlFor={enabledId}>
+                        {t('pulses.enabled', { defaultValue: 'Enabled' })}
+                      </Label>
+                    </div>
+                    <p className="-mt-2 text-xs text-muted-foreground">
+                      {t('pulses.enabledHint', {
+                        defaultValue: 'Disabled providers cannot be selected in routing.',
+                      })}
+                    </p>
+
+                    {activeProviderKey === 'mock' && (catalogEntry?.fields?.length ?? 0) === 0 ? (
+                      <p className="text-sm text-muted-foreground">{t('pulses.mockDescription')}</p>
+                    ) : null}
+
+                    {(catalogEntry?.fields ?? []).map((field) => (
+                      <div key={field.key}>
+                        <Label htmlFor={`pulse-field-${field.key}`}>
+                          {t(field.labelKey, { defaultValue: field.key })}
+                        </Label>
+                        <Input
+                          id={`pulse-field-${field.key}`}
+                          className="mt-1"
+                          type={field.secret ? 'password' : 'text'}
+                          autoComplete={field.secret ? 'new-password' : 'off'}
+                          value={fieldValues[field.key] || ''}
+                          onChange={(e) =>
+                            setFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                          }
+                          placeholder={field.secret ? MASKED : undefined}
+                        />
+                        {field.secret ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t('pulses.secretHint', {
+                              defaultValue:
+                                'Leave unchanged to keep the stored value. Clear and save to remove it.',
+                            })}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </DetailSection>
+              </Card>
+            ) : null}
           </div>
-          {error && <p className="text-sm text-destructive mt-3">{error}</p>}
-          {testSuccess && (
-            <p className="text-sm text-green-600 dark:text-green-400 mt-3">{testSuccess}</p>
-          )}
-        </DetailSection>
+        </DetailLayout>
       </div>
     );
   },

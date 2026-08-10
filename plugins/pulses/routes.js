@@ -27,36 +27,67 @@ function createPulseRoutes(context) {
   );
 
   router.get('/history', gate, (req, res) => controller.getHistory(req, res));
-  router.get('/settings', gate, (req, res) => controller.getSettings(req, res));
+
+  router.get('/providers/catalog', gate, (req, res) => controller.getCatalog(req, res));
+  router.get('/providers/settings', gate, (req, res) => controller.getProviderSettings(req, res));
+  router.get('/providers/routing', gate, (req, res) => controller.getRouting(req, res));
+
+  router.put(
+    '/providers/routing',
+    gate,
+    csrfProtection,
+    [body('providerKey').isString().trim().notEmpty()],
+    validateRequest,
+    (req, res) => controller.saveGlobalRouting(req, res),
+  );
+
+  router.put(
+    '/providers/routing/plugins/:pluginKey',
+    gate,
+    csrfProtection,
+    [body('providerKey').isString().trim().notEmpty()],
+    validateRequest,
+    (req, res) => controller.savePluginRouting(req, res),
+  );
+
+  router.delete('/providers/routing/plugins/:pluginKey', gate, csrfProtection, (req, res) =>
+    controller.deletePluginRouting(req, res),
+  );
+
+  router.put(
+    '/providers/settings/:providerKey',
+    gate,
+    csrfProtection,
+    [
+      body('enabled').optional().isBoolean(),
+      body('secretPrimary').optional({ values: 'null' }).isString(),
+      body('secretSecondary').optional({ values: 'null' }).isString(),
+      body('options').optional().isObject(),
+      body('fields').optional().isObject(),
+    ],
+    validateRequest,
+    (req, res) => controller.saveProviderSettings(req, res),
+  );
+
+  router.delete('/providers/settings/:providerKey', gate, csrfProtection, (req, res) =>
+    controller.deleteProviderSettings(req, res),
+  );
 
   router.post(
-    '/test',
+    '/providers/settings/:providerKey/test',
     gate,
     csrfProtection,
     [
       body('testTo').trim().notEmpty().withMessage('Phone number is required'),
       body('useSaved').optional().isBoolean(),
-      body('activeProvider').optional().isIn(['twilio', 'mock']),
-      body('twilioAccountSid').optional().trim(),
-      body('twilioAuthToken').optional(),
-      body('twilioFromNumber').optional().trim(),
+      body('secretPrimary').optional({ values: 'null' }).isString(),
+      body('secretSecondary').optional({ values: 'null' }).isString(),
+      body('options').optional().isObject(),
+      body('fields').optional().isObject(),
+      body('fromNumber').optional().trim(),
     ],
     validateRequest,
-    (req, res) => controller.testSettings(req, res),
-  );
-
-  router.post(
-    '/settings',
-    gate,
-    csrfProtection,
-    [
-      body('activeProvider').optional().isIn(['twilio', 'mock']),
-      body('twilioAccountSid').optional().trim(),
-      body('twilioAuthToken').optional(),
-      body('twilioFromNumber').optional().trim(),
-    ],
-    validateRequest,
-    (req, res) => controller.saveSettings(req, res),
+    (req, res) => controller.testProviderSettings(req, res),
   );
 
   router.post(

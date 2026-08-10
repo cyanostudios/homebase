@@ -1,9 +1,8 @@
-// plugins/pulses/model.js
+// plugins/pulses/model.js — history log only (provider settings live in providerModel.js)
 const { Logger, Database, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 const TABLE = 'pulse_log';
-const SETTINGS_TABLE = 'pulse_settings';
 
 class PulseModel {
   async logSent(req, data) {
@@ -133,107 +132,6 @@ class PulseModel {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to delete pulse history', error);
       throw new AppError('Failed to delete pulse history', 500, AppError.CODES.DATABASE_ERROR);
-    }
-  }
-
-  async getSettings(req, options = { needsPassword: false }) {
-    try {
-      const db = Database.get(req);
-      const userId = Context.getTenantUserId(req);
-      if (!userId) {
-        return null;
-      }
-      const sql = `SELECT id, user_id, active_provider, twilio_account_sid, twilio_auth_token, twilio_from_number, created_at, updated_at
-                   FROM ${SETTINGS_TABLE}
-                   WHERE user_id = $1
-                   LIMIT 1`;
-      const params = [userId];
-      const rows = await db.query(sql, params);
-      const row = rows[0];
-      if (!row) return null;
-      // Legacy apple-messages provider maps to mock (adapter removed).
-      const rawActive = row.active_provider || 'twilio';
-      const activeProvider =
-        rawActive === 'mock' || rawActive === 'apple-messages' ? 'mock' : 'twilio';
-      const out = {
-        id: row.id,
-        activeProvider,
-        twilioAccountSid: row.twilio_account_sid ? '••••••••' : '',
-        hasTwilioAccountSid: !!row.twilio_account_sid,
-        hasTwilioAuthToken: !!row.twilio_auth_token,
-        twilioFromNumber: row.twilio_from_number || '',
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
-      if (options.needsPassword && row.twilio_auth_token) {
-        out.twilioAuthTokenRaw = row.twilio_auth_token;
-      }
-      if (options.needsPassword && row.twilio_account_sid) {
-        out.twilioAccountSidRaw = row.twilio_account_sid;
-      }
-      return out;
-    } catch (error) {
-      Logger.error('Failed to fetch pulse settings', error);
-      throw new AppError('Failed to fetch pulse settings', 500, AppError.CODES.DATABASE_ERROR);
-    }
-  }
-
-  async saveSettings(req, data) {
-    try {
-      const db = Database.get(req);
-      const userId = Context.getTenantUserId(req);
-      if (!userId) {
-        throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
-      }
-      const rawProvider = data.activeProvider || 'twilio';
-      // Legacy apple-messages provider maps to mock (adapter removed).
-      const activeProvider =
-        rawProvider === 'mock' || rawProvider === 'apple-messages' ? 'mock' : 'twilio';
-      const twilioAccountSid =
-        data.twilioAccountSid != null ? String(data.twilioAccountSid).trim() : null;
-      const twilioAuthToken =
-        data.twilioAuthToken != null ? String(data.twilioAuthToken).trim() : null;
-      const twilioFromNumber =
-        data.twilioFromNumber != null ? String(data.twilioFromNumber).trim() : null;
-
-      const existing = await db.query(
-        `SELECT id FROM ${SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
-        [userId],
-      );
-      const now = new Date();
-
-      if (existing?.length) {
-        const updateData = {
-          active_provider: activeProvider,
-          twilio_from_number: twilioFromNumber ?? null,
-        };
-        if (
-          twilioAccountSid != null &&
-          twilioAccountSid !== '' &&
-          !String(twilioAccountSid).startsWith('••••')
-        ) {
-          updateData.twilio_account_sid = twilioAccountSid;
-        }
-        if (twilioAuthToken != null && twilioAuthToken !== '') {
-          updateData.twilio_auth_token = twilioAuthToken;
-        }
-        await db.update(SETTINGS_TABLE, existing[0].id, updateData);
-        return { ok: true };
-      }
-
-      await db.insert(SETTINGS_TABLE, {
-        active_provider: activeProvider,
-        twilio_account_sid: twilioAccountSid || null,
-        twilio_auth_token: twilioAuthToken || null,
-        twilio_from_number: twilioFromNumber || null,
-        created_at: now,
-        updated_at: now,
-      });
-      return { ok: true };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      Logger.error('Failed to save pulse settings', error);
-      throw new AppError('Failed to save pulse settings', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 }

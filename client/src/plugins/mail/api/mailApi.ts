@@ -1,10 +1,22 @@
 import { createApiClient } from '@/core/api/createApiClient';
 
-// Mail API
+import type {
+  MailCatalogEntry,
+  MailHistoryResponse,
+  MailProviderSettings,
+  MailRoutingResponse,
+  SaveMailProviderSettingsInput,
+  SaveMailRoutingInput,
+} from '../types/mail';
+
 class MailApi {
   private request = createApiClient('/mail');
 
-  async getHistory(params?: { limit?: number; offset?: number; pluginSource?: string }) {
+  async getHistory(params?: {
+    limit?: number;
+    offset?: number;
+    pluginSource?: string;
+  }): Promise<MailHistoryResponse> {
     const search = new URLSearchParams();
     if (params?.limit) {
       search.set('limit', String(params.limit));
@@ -16,47 +28,79 @@ class MailApi {
       search.set('pluginSource', params.pluginSource);
     }
     const qs = search.toString();
-    return this.request(`/history${qs ? `?${qs}` : ''}`);
+    return this.request(`/history${qs ? `?${qs}` : ''}`) as Promise<MailHistoryResponse>;
   }
 
-  async getSettings() {
-    return this.request('/settings');
+  async getCatalog(): Promise<{ providers: MailCatalogEntry[] }> {
+    return this.request('/providers/catalog') as Promise<{ providers: MailCatalogEntry[] }>;
   }
 
-  async testSettings(data: {
-    testTo: string;
-    useSaved?: boolean;
-    provider?: 'smtp' | 'resend';
-    host?: string;
-    port?: number;
-    secure?: boolean;
-    authUser?: string;
-    authPass?: string;
-    fromAddress?: string;
-    resendApiKey?: string;
-    resendFromAddress?: string;
-  }) {
-    return this.request('/test', {
+  async getProviderSettings(): Promise<{ providers: MailProviderSettings[] }> {
+    return this.request('/providers/settings') as Promise<{ providers: MailProviderSettings[] }>;
+  }
+
+  async getRouting(): Promise<MailRoutingResponse> {
+    return this.request('/providers/routing') as Promise<MailRoutingResponse>;
+  }
+
+  async saveGlobalRouting(
+    data: SaveMailRoutingInput,
+  ): Promise<{ global: { providerKey: string } }> {
+    return this.request('/providers/routing', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }) as Promise<{ global: { providerKey: string } }>;
+  }
+
+  async savePluginRouting(
+    pluginKey: string,
+    data: SaveMailRoutingInput,
+  ): Promise<{ plugin: { pluginKey: string; providerKey: string } }> {
+    return this.request(`/providers/routing/plugins/${encodeURIComponent(pluginKey)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }) as Promise<{ plugin: { pluginKey: string; providerKey: string } }>;
+  }
+
+  async deletePluginRouting(pluginKey: string): Promise<{ pluginKey: string; deleted: boolean }> {
+    return this.request(`/providers/routing/plugins/${encodeURIComponent(pluginKey)}`, {
+      method: 'DELETE',
+    }) as Promise<{ pluginKey: string; deleted: boolean }>;
+  }
+
+  async saveProviderSettings(
+    providerKey: string,
+    data: SaveMailProviderSettingsInput,
+  ): Promise<{ provider: MailProviderSettings }> {
+    return this.request(`/providers/settings/${encodeURIComponent(providerKey)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }) as Promise<{ provider: MailProviderSettings }>;
+  }
+
+  async deleteProviderSettings(
+    providerKey: string,
+  ): Promise<{ providerKey: string; deleted: boolean }> {
+    return this.request(`/providers/settings/${encodeURIComponent(providerKey)}`, {
+      method: 'DELETE',
+    }) as Promise<{ providerKey: string; deleted: boolean }>;
+  }
+
+  async testProviderSettings(
+    providerKey: string,
+    data: {
+      testTo: string;
+      useSaved?: boolean;
+      secretPrimary?: string | null;
+      secretSecondary?: string | null;
+      options?: Record<string, string>;
+      fields?: Record<string, string>;
+    },
+  ): Promise<{ ok: boolean; provider: string; status: string }> {
+    return this.request(`/providers/settings/${encodeURIComponent(providerKey)}/test`, {
       method: 'POST',
       body: JSON.stringify(data),
-    });
-  }
-
-  async saveSettings(data: {
-    provider?: 'smtp' | 'resend';
-    host?: string;
-    port?: number;
-    secure?: boolean;
-    authUser?: string;
-    authPass?: string;
-    fromAddress?: string;
-    resendApiKey?: string;
-    resendFromAddress?: string;
-  }) {
-    return this.request('/settings', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    }) as Promise<{ ok: boolean; provider: string; status: string }>;
   }
 
   async send(data: {

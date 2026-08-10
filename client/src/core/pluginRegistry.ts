@@ -392,6 +392,11 @@ const MailSettingsForm = React.lazy(() =>
     default: m.MailSettingsForm,
   })),
 );
+const MailProviderView = React.lazy(() =>
+  import('@/plugins/mail/components/MailProviderView').then((m) => ({
+    default: m.MailProviderView,
+  })),
+);
 const MailDashboardWidget = React.lazy(() =>
   import('@/plugins/mail/components/MailDashboardWidget').then((m) => ({
     default: m.MailDashboardWidget,
@@ -437,6 +442,11 @@ const PulseList = React.lazy(() =>
 const PulseSettingsForm = React.lazy(() =>
   import('@/plugins/pulses/components/PulseSettingsForm').then((m) => ({
     default: m.PulseSettingsForm,
+  })),
+);
+const PulseProviderView = React.lazy(() =>
+  import('@/plugins/pulses/components/PulseProviderView').then((m) => ({
+    default: m.PulseProviderView,
   })),
 );
 const PulsesDashboardWidget = React.lazy(() =>
@@ -910,6 +920,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     components: {
       List: MailList,
       Form: MailSettingsForm,
+      View: MailProviderView,
     },
     navigation: {
       category: 'Tools',
@@ -920,8 +931,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: MailDashboardWidget,
     displayPrefix: 'MAIL',
     contentFlush: true,
-    slugField: 'id',
+    slugField: 'providerKey',
     contentViewKey: 'mailContentView',
+    noPrimaryAction: true,
   },
   {
     name: 'pulses',
@@ -934,6 +946,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     components: {
       List: PulseList,
       Form: PulseSettingsForm,
+      View: PulseProviderView,
     },
     navigation: {
       category: 'Tools',
@@ -944,8 +957,9 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     dashboardWidget: PulsesDashboardWidget,
     displayPrefix: 'PULSE',
     contentFlush: true,
-    slugField: 'id',
+    slugField: 'providerKey',
     contentViewKey: 'pulsesContentView',
+    noPrimaryAction: true,
   },
   {
     name: 'ai-providers',

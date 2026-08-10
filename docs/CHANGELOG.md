@@ -4,6 +4,62 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-10 – AI Providers: list-chrome (Contacts/Pulse-paritet)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved** (inga nya medium+; `data-list-item`-mönster oförändrat, masked secrets). **Ej prod-release.**
+
+**Sammanfattning:** AI Providers-listan använder samma list-shell som Contacts/Pulse/Mail: `ListToolbar` (sök + sort), `ListColumnLayoutToggle` (**1 | 2 | 3 | tabell**), `ListFilterStatCard`, `ListFooterBar`, `ListEmptyState`, samt `AIProvidersListItem` / `AIProvidersListTable`. Legacy grid/list-toggle i Card är borttagen. `columnCount` / `listViewMode` persistas (settings + session); legacy `viewMode` grid→3, list→1.
+
+**Verifierat beteende (kod):**
+
+- [`AIProvidersList.tsx`](../client/src/plugins/ai-providers/components/AIProvidersList.tsx)
+- [`AIProvidersListItem.tsx`](../client/src/plugins/ai-providers/components/AIProvidersListItem.tsx)
+- [`AIProvidersListTable.tsx`](../client/src/plugins/ai-providers/components/AIProvidersListTable.tsx)
+- Utils: `aiProvidersColumnCount.ts`, `aiProvidersListViewMode.ts`, `aiProvidersListSort.ts`
+- Standard: [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1 (card-column list inkluderar nu AI Providers, Mail, Pulses)
+
+**Begränsningar:** Ingen radmarkering/bulk (`selectedCount={0}`); sort persistas inte (samma som övriga card-column-listor).
+
+---
+
+## 2026-08-10 – Mail: multi-provider platform + routing (Pulse-paritet)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. Residual **A1** (klartext secrets i tenant-DB) dokumenterad — **väntar TPM medvetet godkännande**. **Ej prod-release.**
+
+**Sammanfattning:** Mail speglar Pulse/AI Providers: katalog + credentials-rader + global/per-plugin routing. **v1 send:** `smtp` + `resend`. Legacy `mail_settings`/`provider` ersatt; migration `125` backfillar. UX: provider-lista är startsida; historik och routing är undersidor. List-chrome: Contacts-paritet (`ListToolbar`, 1/2/3/tabell) via `MailProvidersList*`.
+
+**Verifierat beteende (kod):** `MailProviderRouter`, `providerModel`, `/api/mail/providers/*`, FE providers/routing/history; `plugins/mail/model.js` är history-only (inga legacy `mail_settings`-CRUD); tester `plugins/mail/__tests__` (21).
+
+**ADR:** [`docs/ai/adr/P-MAIL_PROVIDER_PLATFORM.md`](./ai/adr/P-MAIL_PROVIDER_PLATFORM.md).
+
+**Begränsningar:** Kör `npm run migrate:mail` (023+025+026+125) på befintliga tenant-DB:er.
+
+**QA rework (2026-08-10):** legacy `getSettings`/`saveSettings` borttagna från `plugins/mail/model.js`; utökade tester (saveRouting, `provider_not_email_capable`, incomplete credentials).
+
+**Security (2026-08-10):** Auth/CSRF/tenant-isolering/secret-maskering/fail-closed send verifierade. Residualer: **A1** klartext at rest; low: `data-list-item` DOM-metadata; info: ingen per-route rate-limit på `/send`/`/test`.
+
+---
+
+## 2026-08-10 – Pulse: multi-provider platform + routing (AI Providers-paritet)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. Residual **A1** (klartext secrets i tenant-DB) dokumenterad — **väntar TPM medvetet godkännande**. **Ej prod-release.**
+
+**Sammanfattning:** Pulse speglar AI Providers: katalog + credentials-rader + global/per-plugin routing. **v1 send:** `twilio` + `mock`. **v1 katalog (credentials only):** `twilio-verify`, `stytch`. Legacy `pulse_settings`/`activeProvider` ersatt; migration `124` backfillar.
+
+**Verifierat beteende (kod):** `PulseProviderRouter`, `providerModel`, `/api/pulses/providers/*`, FE providers/routing-vyer; router-test `plugins/pulses/__tests__/router.test.js`.
+
+**ADR:** [`docs/ai/adr/P-PULSE_PROVIDER_PLATFORM.md`](./ai/adr/P-PULSE_PROVIDER_PLATFORM.md).
+
+**Begränsningar:** Verify/Stytch skickar inte SMS i v1; kör `npm run migrate:pulses` (033+124) på befintliga tenant-DB:er.
+
+**QA rework (2026-08-10):** options whitelist + filter vid läsning; `deleteSettings` rensar routing; tester för `providerModel`/`sendService`; `checkReadiness` returnerar `provider_not_sms_capable`.
+
+**UX (2026-08-10):** Startsida är provider-listan (`list`); SMS-historik är separat vy (`history`); routing oförändrad som undersida. List-chrome: Contacts-paritet (`ListToolbar`, 1/2/3/tabell) via `PulseProvidersList*`.
+
+**Security (2026-08-10):** Samma kontrollbas som Mail (plugin-gate, CSRF, tenant-scope, maskering, fail-closed). Residual **A1** — väntar TPM.
+
+---
+
 ## 2026-08-10 – Platform Preferences: `timeFormat` (12h / 24h)
 
 **Status:** Implementerat lokalt. **QA Approved**. Security grind **N/A**. **Ej prod-release.**

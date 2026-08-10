@@ -31,9 +31,54 @@ function createMailRoutes(context) {
   );
 
   router.get('/history', gate, (req, res) => controller.getHistory(req, res));
-  router.get('/settings', gate, (req, res) => controller.getSettings(req, res));
+
+  router.get('/providers/catalog', gate, (req, res) => controller.getCatalog(req, res));
+  router.get('/providers/settings', gate, (req, res) => controller.getProviderSettings(req, res));
+  router.get('/providers/routing', gate, (req, res) => controller.getRouting(req, res));
+
+  router.put(
+    '/providers/routing',
+    gate,
+    csrfProtection,
+    [body('providerKey').isString().trim().notEmpty()],
+    validateRequest,
+    (req, res) => controller.saveGlobalRouting(req, res),
+  );
+
+  router.put(
+    '/providers/routing/plugins/:pluginKey',
+    gate,
+    csrfProtection,
+    [body('providerKey').isString().trim().notEmpty()],
+    validateRequest,
+    (req, res) => controller.savePluginRouting(req, res),
+  );
+
+  router.delete('/providers/routing/plugins/:pluginKey', gate, csrfProtection, (req, res) =>
+    controller.deletePluginRouting(req, res),
+  );
+
+  router.put(
+    '/providers/settings/:providerKey',
+    gate,
+    csrfProtection,
+    [
+      body('enabled').optional().isBoolean(),
+      body('secretPrimary').optional({ values: 'null' }).isString(),
+      body('secretSecondary').optional({ values: 'null' }).isString(),
+      body('options').optional().isObject(),
+      body('fields').optional().isObject(),
+    ],
+    validateRequest,
+    (req, res) => controller.saveProviderSettings(req, res),
+  );
+
+  router.delete('/providers/settings/:providerKey', gate, csrfProtection, (req, res) =>
+    controller.deleteProviderSettings(req, res),
+  );
+
   router.post(
-    '/test',
+    '/providers/settings/:providerKey/test',
     gate,
     csrfProtection,
     [
@@ -43,38 +88,14 @@ function createMailRoutes(context) {
         .withMessage('Email address is required')
         .isEmail()
         .withMessage('Invalid email address'),
-      body('provider').optional().isIn(['smtp', 'resend']),
-      body('host').optional().trim(),
-      body('port').optional().isInt({ min: 1, max: 65535 }),
-      body('secure').optional().isBoolean(),
-      body('authUser').optional().trim(),
-      body('authPass').optional(),
-      body('fromAddress').optional().trim(),
-      body('resendApiKey').optional(),
-      body('resendFromAddress').optional().trim(),
       body('useSaved').optional().isBoolean(),
+      body('secretPrimary').optional({ values: 'null' }).isString(),
+      body('secretSecondary').optional({ values: 'null' }).isString(),
+      body('options').optional().isObject(),
+      body('fields').optional().isObject(),
     ],
     validateRequest,
-    (req, res) => controller.testSettings(req, res),
-  );
-
-  router.post(
-    '/settings',
-    gate,
-    csrfProtection,
-    [
-      body('provider').optional().isIn(['smtp', 'resend']),
-      body('host').optional().trim(),
-      body('port').optional().isInt({ min: 1, max: 65535 }),
-      body('secure').optional().isBoolean(),
-      body('authUser').optional().trim(),
-      body('authPass').optional(),
-      body('fromAddress').optional().trim(),
-      body('resendApiKey').optional(),
-      body('resendFromAddress').optional().trim(),
-    ],
-    validateRequest,
-    (req, res) => controller.saveSettings(req, res),
+    (req, res) => controller.testProviderSettings(req, res),
   );
 
   router.post(

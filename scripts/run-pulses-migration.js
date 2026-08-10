@@ -10,7 +10,10 @@ const dotenv = require('dotenv');
 dotenv.config({ path: '.env.local' });
 dotenv.config({ path: '.env' });
 
-const MIGRATION_FILE = path.join(__dirname, '../server/migrations/033-pulses-plugin.sql');
+const MIGRATION_FILES = [
+  path.join(__dirname, '../server/migrations/033-pulses-plugin.sql'),
+  path.join(__dirname, '../server/migrations/124-pulse-provider-platform.sql'),
+];
 
 async function runMigrationOnTenant(connectionString, tenantInfo) {
   const pool = new Pool({ connectionString });
@@ -26,8 +29,11 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
       await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
     }
 
-    const sql = fs.readFileSync(MIGRATION_FILE, 'utf8');
-    await client.query(sql);
+    for (const migrationFile of MIGRATION_FILES) {
+      const sql = fs.readFileSync(migrationFile, 'utf8');
+      await client.query(sql);
+      console.log(`   ✅ ${path.basename(migrationFile)}`);
+    }
 
     console.log(`   ✅ Migration completed successfully`);
     return { success: true, tenantInfo };
@@ -50,9 +56,11 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
 }
 
 async function main() {
-  if (!fs.existsSync(MIGRATION_FILE)) {
-    console.error(`❌ Migration file not found: ${MIGRATION_FILE}`);
-    process.exit(1);
+  for (const migrationFile of MIGRATION_FILES) {
+    if (!fs.existsSync(migrationFile)) {
+      console.error(`❌ Migration file not found: ${migrationFile}`);
+      process.exit(1);
+    }
   }
 
   if (!process.env.DATABASE_URL) {

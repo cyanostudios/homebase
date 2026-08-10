@@ -1,66 +1,74 @@
 /**
- * Shared send logic using per-user mail settings (Resend or SMTP).
- * Use this from other plugins instead of a platform email fallback.
+ * Shared send logic using Mail provider routing + email adapters.
  */
 const model = require('./model');
-const SmtpAdapter = require('../../server/core/services/email/adapters/SmtpAdapter');
-const ResendAdapter = require('../../server/core/services/email/adapters/ResendAdapter');
+const providerModel = require('./providerModel');
+const { MailProviderRouter } = require('./MailProviderRouter');
+const EmailAdapterRegistry = require('./EmailAdapterRegistry');
 const { AppError } = require('../../server/core/errors/AppError');
+const { isEmailCapable } = require('./providerCatalog');
 
-/**
- * Get the email service for the current user (Resend or SMTP based on saved settings).
- * @param {object} req - Express request (for session/user)
- * @returns {object} - Email adapter with .send() method
- */
-async function getEmailServiceForUser(req) {
-  const userSettings = await model.getSettings(req, { needsPassword: true });
-  const provider = userSettings?.provider === 'resend' ? 'resend' : 'smtp';
+const router = new MailProviderRouter({ settingsModel: providerModel });
 
-  if (provider === 'resend') {
-    if (userSettings?.resendApiKeyRaw) {
-      return new ResendAdapter({
-        resend: {
-          apiKey: userSettings.resendApiKeyRaw,
-          from:
-            userSettings.resendFromAddress || userSettings.fromAddress || 'onboarding@resend.dev',
-        },
-      });
-    }
+async function getEmailServiceForUser(req, opts = {}) {
+  const pluginKey =
+    String(opts.pluginKey || 'mail')
+      .trim()
+      .toLowerCase() || 'mail';
+
+  const resolved = await router.resolve(req, { pluginKey });
+  if (!resolved?.providerKey) {
     throw new AppError(
-      'Resend settings are incomplete. Open Mail settings and save API key and From address (or switch to SMTP).',
+      'No email provider is configured. Open Mail → Providers, add SMTP or Resend, then set routing.',
       400,
       AppError.CODES.BAD_REQUEST,
     );
   }
 
-  if (userSettings?.host) {
-    return new SmtpAdapter({
-      smtp: {
-        host: userSettings.host,
-        port: userSettings.port,
-        secure: userSettings.secure,
-        from: userSettings.fromAddress,
-        auth:
-          userSettings.authUser && userSettings.authPass
-            ? { user: userSettings.authUser, pass: userSettings.authPass }
-            : undefined,
-      },
-    });
+  if (!isEmailCapable(resolved.providerKey)) {
+    throw new AppError(
+      'Routed provider cannot send email. Choose SMTP or Resend in Mail routing.',
+      400,
+      AppError.CODES.BAD_REQUEST,
+    );
   }
 
-  throw new AppError(
-    'SMTP settings are incomplete. Open Mail settings and save host and From address (or switch to Resend).',
-    400,
-    AppError.CODES.BAD_REQUEST,
-  );
+  if (!EmailAdapterRegistry.has(resolved.providerKey)) {
+    throw new AppError(
+      `Email adapter is not available for provider "${resolved.providerKey}".`,
+      400,
+      AppError.CODES.BAD_REQUEST,
+    );
+  }
+
+  if (resolved.providerKey === 'resend') {
+    if (!resolved.secretPrimary || !String(resolved.options?.fromAddress || '').trim()) {
+      throw new AppError(
+        'Resend settings are incomplete. Open Mail providers and save API key and From address.',
+        400,
+        AppError.CODES.BAD_REQUEST,
+      );
+    }
+  } else if (resolved.providerKey === 'smtp') {
+    if (
+      !String(resolved.options?.host || '').trim() ||
+      !String(resolved.options?.fromAddress || '').trim()
+    ) {
+      throw new AppError(
+        'SMTP settings are incomplete. Open Mail providers and save host and From address.',
+        400,
+        AppError.CODES.BAD_REQUEST,
+      );
+    }
+  }
+
+  return EmailAdapterRegistry.create(resolved.providerKey, {
+    secretPrimary: resolved.secretPrimary,
+    secretSecondary: resolved.secretSecondary,
+    options: resolved.options || {},
+  });
 }
 
-/**
- * Send email using the current user's saved mail settings (Resend or SMTP).
- * @param {object} req - Express request
- * @param {object} payload - { to, subject, html?, text?, attachments? }
- * @param {object} logOpts - { pluginSource?, referenceId? } for mail_log
- */
 async function sendWithUserSettings(req, payload, logOpts = {}) {
   const recipients = Array.isArray(payload.to) ? payload.to : [payload.to];
   const normalizedRecipients = recipients.map((r) => String(r).trim()).filter(Boolean);
@@ -73,7 +81,8 @@ async function sendWithUserSettings(req, payload, logOpts = {}) {
     content: Buffer.isBuffer(a.content) ? a.content : Buffer.from(String(a.content), 'base64'),
   }));
 
-  const emailService = await getEmailServiceForUser(req);
+  const pluginKey = logOpts.pluginSource || 'mail';
+  const emailService = await getEmailServiceForUser(req, { pluginKey });
   await emailService.send({
     to: normalizedRecipients,
     subject: String(payload.subject || '').trim(),
@@ -92,4 +101,4 @@ async function sendWithUserSettings(req, payload, logOpts = {}) {
   return logEntry;
 }
 
-module.exports = { getEmailServiceForUser, sendWithUserSettings };
+module.exports = { getEmailServiceForUser, sendWithUserSettings, router };

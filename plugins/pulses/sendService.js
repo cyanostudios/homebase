@@ -1,41 +1,70 @@
 /**
- * Shared send logic using per-user pulse (SMS) settings.
- * Use this from other plugins to send SMS with the current user's Twilio (or mock) config.
+ * Shared send logic using Pulse provider routing + SMS adapters.
+ * Use this from other plugins to send SMS with the current user's routed provider.
  */
 const model = require('./model');
-const TwilioAdapter = require('./adapters/TwilioAdapter');
-const MockAdapter = require('./adapters/MockAdapter');
+const providerModel = require('./providerModel');
+const { PulseProviderRouter } = require('./PulseProviderRouter');
+const SmsAdapterRegistry = require('./SmsAdapterRegistry');
 const { AppError } = require('../../server/core/errors/AppError');
+const { isSmsNotificationCapable } = require('./providerCatalog');
 
-async function getSmsAdapterForUser(req) {
-  const userSettings = await model.getSettings(req, { needsPassword: true });
-  // Default to mock when no settings exist (safe/dev-friendly).
-  const provider = userSettings?.activeProvider || 'mock';
-  if (provider === 'mock') {
-    return { adapter: new MockAdapter(), provider: 'mock' };
+const router = new PulseProviderRouter({ settingsModel: providerModel });
+
+/**
+ * Resolve SMS adapter for the current user and optional plugin source.
+ * @param {object} req
+ * @param {{ pluginKey?: string }} [opts]
+ */
+async function getSmsAdapterForUser(req, opts = {}) {
+  const pluginKey =
+    String(opts.pluginKey || 'pulses')
+      .trim()
+      .toLowerCase() || 'pulses';
+
+  const resolved = await router.resolve(req, { pluginKey });
+  if (!resolved?.providerKey) {
+    throw new AppError(
+      'No SMS provider is configured. Open Pulse → Providers, add Twilio or Mock, then set routing.',
+      400,
+      AppError.CODES.BAD_REQUEST,
+    );
   }
-  if (
-    userSettings?.twilioAccountSidRaw &&
-    userSettings?.twilioAuthTokenRaw &&
-    userSettings?.twilioFromNumber &&
-    String(userSettings.twilioFromNumber).trim()
-  ) {
-    return {
-      adapter: new TwilioAdapter({
-        accountSid: userSettings.twilioAccountSidRaw,
-        authToken: userSettings.twilioAuthTokenRaw,
-        fromNumber: userSettings.twilioFromNumber.trim(),
-      }),
-      provider: 'twilio',
-    };
+
+  if (!isSmsNotificationCapable(resolved.providerKey)) {
+    throw new AppError(
+      'Routed provider cannot send SMS notifications. Choose Twilio or Mock in Pulse routing.',
+      400,
+      AppError.CODES.BAD_REQUEST,
+    );
   }
-  // Do not silently fall back to mock when user has selected Twilio.
-  // This avoids "fake success" from other plugins (contacts/slots) when Twilio isn't configured.
-  throw new AppError(
-    'Twilio settings are incomplete. Open Pulse settings and save Account SID, Auth Token and From number (or switch provider to Mock).',
-    400,
-    AppError.CODES.BAD_REQUEST,
-  );
+
+  if (!SmsAdapterRegistry.has(resolved.providerKey)) {
+    throw new AppError(
+      `SMS adapter is not available for provider "${resolved.providerKey}".`,
+      400,
+      AppError.CODES.BAD_REQUEST,
+    );
+  }
+
+  if (resolved.providerKey !== 'mock') {
+    const fromNumber = String(resolved.options?.fromNumber || '').trim();
+    if (!resolved.secretPrimary || !resolved.secretSecondary || !fromNumber) {
+      throw new AppError(
+        'SMS provider settings are incomplete. Open Pulse providers and save credentials.',
+        400,
+        AppError.CODES.BAD_REQUEST,
+      );
+    }
+  }
+
+  const adapter = SmsAdapterRegistry.create(resolved.providerKey, {
+    secretPrimary: resolved.secretPrimary,
+    secretSecondary: resolved.secretSecondary,
+    options: resolved.options || {},
+  });
+
+  return { adapter, provider: resolved.providerKey, source: resolved.source };
 }
 
 async function sendSmsWithUserSettings(req, payload, logOpts = {}) {
@@ -45,7 +74,8 @@ async function sendSmsWithUserSettings(req, payload, logOpts = {}) {
     throw new Error('SMS recipient (to) is required');
   }
 
-  const { adapter, provider } = await getSmsAdapterForUser(req);
+  const pluginKey = logOpts.pluginSource || 'pulses';
+  const { adapter, provider } = await getSmsAdapterForUser(req, { pluginKey });
   const result = await adapter.send({ to, body });
 
   const logEntry = await model.logSent(req, {
@@ -60,4 +90,4 @@ async function sendSmsWithUserSettings(req, payload, logOpts = {}) {
   return logEntry;
 }
 
-module.exports = { getSmsAdapterForUser, sendSmsWithUserSettings };
+module.exports = { getSmsAdapterForUser, sendSmsWithUserSettings, router };
