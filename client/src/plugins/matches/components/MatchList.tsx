@@ -33,6 +33,7 @@ import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 
 import { useMatches } from '../hooks/useMatches';
@@ -208,11 +209,7 @@ export function MatchList() {
       if (!needle) {
         return true;
       }
-      const timeStr = m.start_time
-        ? new Date(m.start_time)
-            .toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' })
-            .toLowerCase()
-        : '';
+      const timeStr = m.start_time ? formatDateTimeShort(m.start_time).toLowerCase() : '';
       return (
         (m.name ?? '').toLowerCase().includes(needle) ||
         (m.home_team ?? '').toLowerCase().includes(needle) ||

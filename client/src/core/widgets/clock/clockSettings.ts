@@ -1,5 +1,4 @@
 export interface ClockSettings {
-  timeFormat: '12h' | '24h';
   dateFormat: 'sv-SE' | 'en-US' | 'ISO' | 'compact';
   showSeconds: boolean;
   showDate: boolean;
@@ -8,7 +7,6 @@ export interface ClockSettings {
 }
 
 export const DEFAULT_CLOCK_SETTINGS: ClockSettings = {
-  timeFormat: '24h',
   dateFormat: 'sv-SE',
   showSeconds: true,
   showDate: true,
@@ -18,11 +16,16 @@ export const DEFAULT_CLOCK_SETTINGS: ClockSettings = {
 
 const STORAGE_KEY = 'homebase-clock-settings';
 
+function stripLegacyTimeFormat(parsed: Record<string, unknown>): ClockSettings {
+  const { timeFormat: _legacy, ...rest } = parsed;
+  return { ...DEFAULT_CLOCK_SETTINGS, ...rest } as ClockSettings;
+}
+
 export function loadClockSettings(): ClockSettings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return { ...DEFAULT_CLOCK_SETTINGS, ...JSON.parse(stored) };
+      return stripLegacyTimeFormat(JSON.parse(stored) as Record<string, unknown>);
     }
   } catch (error) {
     console.warn('Failed to load clock settings:', error);
@@ -32,7 +35,11 @@ export function loadClockSettings(): ClockSettings {
 
 export function saveClockSettings(settings: ClockSettings): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    // Never persist timeFormat — Preferences owns wall-clock format.
+    const { timeFormat: _legacy, ...rest } = settings as ClockSettings & {
+      timeFormat?: unknown;
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
   } catch (error) {
     console.warn('Failed to save clock settings:', error);
   }

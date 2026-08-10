@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
+import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import {
   DETAIL_LIST_ITEM_HOVER_CLASS,
   DETAIL_LIST_ITEM_TITLE_CLASS,
@@ -67,6 +68,7 @@ export function TeamCard({
   nextMatch?: Match | null;
 }) {
   const { t, i18n } = useTranslation();
+  useTimeFormat();
   const nextTraining = getNextTraining(team);
   const genderLabel = team.gender ? t(`teams.gender.${team.gender}`) : null;
   const onSeasonBreak = isTeamOnBreak(team);

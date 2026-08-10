@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useApp } from '@/core/api/AppContext';
+import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
@@ -39,6 +40,7 @@ export function TeamMatchesSection({
 }: TeamMatchesSectionProps) {
   const { t, i18n } = useTranslation();
   const { getSettings, settingsVersion } = useApp();
+  useTimeFormat();
   const [matches, setMatches] = useState<Match[]>([]);
   const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
   const [viewMode, setViewMode] = useState<TeamMatchesViewMode>('bySide');

@@ -15,6 +15,12 @@ import {
 } from 'react';
 
 import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
+import {
+  DEFAULT_TIME_FORMAT,
+  migrateTimeFormatFromClockLocalStorage,
+  parseTimeFormat,
+  setTimeFormat,
+} from '@/core/settings/timeFormatPreference';
 import { pomodoroAudio } from '@/core/widgets/pomodoro/pomodoroAudio';
 import i18n from '@/i18n';
 import { filterSlotsForContact } from '@/plugins/slots/utils/slotContactUtils';
@@ -614,8 +620,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const response = await api.updateSettings(category, settings);
       setSettingsVersion((prev) => prev + 1);
-      if (category === 'preferences' && settings?.language) {
-        i18n.changeLanguage(settings.language);
+      if (category === 'preferences') {
+        if (settings?.language) {
+          i18n.changeLanguage(settings.language);
+        }
+        const tf = parseTimeFormat(settings?.timeFormat);
+        if (tf) {
+          setTimeFormat(tf);
+        }
       }
       return response.settings;
     } catch (error) {
@@ -629,10 +641,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
     getSettings('preferences')
-      .then((prefs: { language?: string } | undefined) => {
+      .then((prefs: { language?: string; timeFormat?: string } | undefined) => {
         if (prefs?.language) {
           i18n.changeLanguage(prefs.language);
         }
+        const fromPrefs = parseTimeFormat(prefs?.timeFormat);
+        if (fromPrefs) {
+          setTimeFormat(fromPrefs);
+          return;
+        }
+        const migrated = migrateTimeFormatFromClockLocalStorage();
+        if (migrated) {
+          setTimeFormat(migrated);
+          void api.updateSettings('preferences', { timeFormat: migrated }).then(() => {
+            setSettingsVersion((prev) => prev + 1);
+          });
+          return;
+        }
+        setTimeFormat(DEFAULT_TIME_FORMAT);
       })
       .catch(() => {});
   }, [isAuthenticated, getSettings]);

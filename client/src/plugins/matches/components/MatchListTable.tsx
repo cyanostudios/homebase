@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { SortableListTable, type SortableListTableColumn } from '@/core/ui/SortableListTable';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 
 import type { Match } from '../types/match';
 import type { MatchSortField, MatchSortOrder } from '../utils/matchListSort';
@@ -26,7 +28,7 @@ function formatStart(value: string | null | undefined): string {
   if (!value) {
     return '—';
   }
-  return new Date(value).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+  return formatDateTimeShort(value);
 }
 
 export function MatchListTable({
@@ -42,6 +44,7 @@ export function MatchListTable({
   onHeaderCheckboxChange,
   recentlyDuplicatedMatchId,
 }: MatchListTableProps) {
+  useTimeFormat();
   const { t } = useTranslation();
 
   const columns = useMemo<SortableListTableColumn<Match, MatchSortField>[]>(

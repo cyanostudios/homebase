@@ -1,6 +1,8 @@
 // client/src/plugins/slots/utils/slotContactUtils.ts
 // Resolve selected slots to unique contacts (for bulk message / export)
 
+import { formatDateTime } from '@/core/utils/dateFormat';
+
 import type { Slot, SlotBooking, SlotMention } from '../types/slots';
 
 export interface ResolvedContact {
@@ -182,7 +184,7 @@ export function appendPublicBookingsToEmailRecipients(
 /**
  * Format slot information as text (for email body).
  */
-export function formatSlotInfoText(slot: Slot, locale: string = 'sv-SE'): string {
+export function formatSlotInfoText(slot: Slot, _locale: string = 'sv-SE'): string {
   const lines: string[] = [];
   lines.push('---');
   lines.push('Slot Information:');
@@ -192,10 +194,7 @@ export function formatSlotInfoText(slot: Slot, locale: string = 'sv-SE'): string
   }
 
   if (slot.slot_time) {
-    const date = new Date(slot.slot_time);
-    lines.push(
-      `Time: ${date.toLocaleDateString(locale, { dateStyle: 'long' })} ${date.toLocaleTimeString(locale, { timeStyle: 'short' })}`,
-    );
+    lines.push(`Time: ${formatDateTime(slot.slot_time)}`);
   }
 
   lines.push(`Capacity: ${slot.capacity}`);
@@ -206,7 +205,7 @@ export function formatSlotInfoText(slot: Slot, locale: string = 'sv-SE'): string
 /**
  * Format slot information as HTML (for email body).
  */
-export function formatSlotInfoHtml(slot: Slot, locale: string = 'sv-SE'): string {
+export function formatSlotInfoHtml(slot: Slot, _locale: string = 'sv-SE'): string {
   const rows: string[] = [];
 
   if (slot.location) {
@@ -216,8 +215,7 @@ export function formatSlotInfoHtml(slot: Slot, locale: string = 'sv-SE'): string
   }
 
   if (slot.slot_time) {
-    const date = new Date(slot.slot_time);
-    const formattedDate = `${date.toLocaleDateString(locale, { dateStyle: 'long' })} ${date.toLocaleTimeString(locale, { timeStyle: 'short' })}`;
+    const formattedDate = formatDateTime(slot.slot_time);
     rows.push(
       `<tr><td style="padding:4px 8px;color:#666;">Time:</td><td style="padding:4px 8px;">${formattedDate}</td></tr>`,
     );

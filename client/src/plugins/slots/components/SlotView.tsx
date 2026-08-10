@@ -33,7 +33,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
-import { formatDateOnly, formatDateTime } from '@/core/utils/dateFormat';
+import { formatDateOnly, formatDateTime, formatTime } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
@@ -59,7 +59,7 @@ function formatTimeOnly(s: string | null): string {
   if (!s) {
     return '—';
   }
-  return new Date(s).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+  return formatTime(s);
 }
 
 // ─── Sub-components (extracted from SlotView) ─────────────────────────────────
@@ -1001,10 +1001,7 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
               {sendEmailSlot.slot_time && (
                 <div>
                   <span className="font-medium">{t('common.time')}:</span>{' '}
-                  {new Date(sendEmailSlot.slot_time).toLocaleString('sv-SE', {
-                    dateStyle: 'long',
-                    timeStyle: 'short',
-                  })}
+                  {formatDateTime(sendEmailSlot.slot_time)}
                 </div>
               )}
               <div>

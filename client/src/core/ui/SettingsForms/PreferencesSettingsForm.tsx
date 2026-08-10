@@ -30,6 +30,7 @@ const timezones = [
 type PreferencesFormData = {
   timezone: string;
   language: string;
+  timeFormat: '12h' | '24h';
   pomodoroClockEnabled: boolean;
   timeTrackingEnabled: boolean;
 };
@@ -37,6 +38,7 @@ type PreferencesFormData = {
 const defaultFormData: PreferencesFormData = {
   timezone: 'Europe/Stockholm',
   language: 'en',
+  timeFormat: '24h',
   pomodoroClockEnabled: true,
   timeTrackingEnabled: true,
 };
@@ -62,6 +64,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
       const loaded: PreferencesFormData = {
         timezone: settings?.timezone || 'Europe/Stockholm',
         language: settings?.language || 'en',
+        timeFormat: settings?.timeFormat === '12h' ? '12h' : '24h',
         pomodoroClockEnabled: settings?.pomodoroClockEnabled !== false,
         timeTrackingEnabled: settings?.timeTrackingEnabled !== false,
       };
@@ -78,6 +81,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
   const isDirty =
     formData.timezone !== initialFormData.timezone ||
     formData.language !== initialFormData.language ||
+    formData.timeFormat !== initialFormData.timeFormat ||
     formData.pomodoroClockEnabled !== initialFormData.pomodoroClockEnabled ||
     formData.timeTrackingEnabled !== initialFormData.timeTrackingEnabled;
 
@@ -92,6 +96,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
       await updateSettings('preferences', {
         timezone: formData.timezone,
         language: formData.language,
+        timeFormat: formData.timeFormat,
         pomodoroClockEnabled: formData.pomodoroClockEnabled,
         timeTrackingEnabled: formData.timeTrackingEnabled,
       });
@@ -114,6 +119,11 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
   const languages = [
     { value: 'en', label: t('preferences.languageEnglish') },
     { value: 'sv', label: t('preferences.languageSvenska') },
+  ];
+
+  const timeFormats = [
+    { value: '24h' as const, label: t('preferences.timeFormat24h') },
+    { value: '12h' as const, label: t('preferences.timeFormat12h') },
   ];
 
   if (isLoading) {
@@ -207,6 +217,27 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
             {languages.map((lang) => (
               <option key={lang.value} value={lang.value}>
                 {lang.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+        <div>
+          <Label htmlFor="preferences-time-format" className={DETAIL_FIELD_LABEL_CLASS}>
+            {t('preferences.timeFormat')}
+          </Label>
+          <NativeSelect
+            id="preferences-time-format"
+            value={formData.timeFormat}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                timeFormat: e.target.value === '12h' ? '12h' : '24h',
+              })
+            }
+          >
+            {timeFormats.map((fmt) => (
+              <option key={fmt.value} value={fmt.value}>
+                {fmt.label}
               </option>
             ))}
           </NativeSelect>

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
+import { useTimeFormat } from '@/core/settings/useTimeFormat';
+
 import {
   ClockSettings,
   DEFAULT_CLOCK_SETTINGS,
@@ -10,6 +12,7 @@ import {
 export function useClock() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [settings, setSettings] = useState<ClockSettings>(DEFAULT_CLOCK_SETTINGS);
+  const timeFormat = useTimeFormat();
 
   useEffect(() => {
     const loadedSettings = loadClockSettings();
@@ -33,7 +36,7 @@ export function useClock() {
       const options: Intl.DateTimeFormatOptions = {
         hour: '2-digit',
         minute: '2-digit',
-        hour12: settings.timeFormat === '12h',
+        hour12: timeFormat === '12h',
         timeZone: settings.timezone,
       };
       if (settings.showSeconds) {
@@ -41,7 +44,7 @@ export function useClock() {
       }
       return date.toLocaleTimeString('sv-SE', options);
     },
-    [settings.timeFormat, settings.showSeconds, settings.timezone],
+    [timeFormat, settings.showSeconds, settings.timezone],
   );
 
   const formatDate = useCallback(
@@ -97,6 +100,7 @@ export function useClock() {
   return {
     currentTime,
     settings,
+    timeFormat,
     formattedTime: formatTime(currentTime),
     formattedDate: formatDate(currentTime),
     updateSettings,

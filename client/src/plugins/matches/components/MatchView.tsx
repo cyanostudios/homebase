@@ -28,6 +28,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { formatDateTime } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import type { AppIcon } from '@/types/icons';
@@ -239,7 +240,7 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
           <div>
             <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.dateTimePlaceholder')}</div>
             <div className={DETAIL_FIELD_VALUE_CLASS}>
-              {match.start_time ? new Date(match.start_time).toLocaleString('sv-SE') : '—'}
+              {match.start_time ? formatDateTime(match.start_time) : '—'}
             </div>
           </div>
         </div>
@@ -555,8 +556,8 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
                     items={relatedSlots.map((s) => ({
                       id: s.id,
                       label: s.location?.trim()
-                        ? `${s.location} · ${new Date(s.slot_time).toLocaleString('sv-SE')}`
-                        : new Date(s.slot_time).toLocaleString('sv-SE'),
+                        ? `${s.location} · ${formatDateTime(s.slot_time)}`
+                        : formatDateTime(s.slot_time),
                       pluginClass: 'plugin-slots',
                       onOpen: () => {
                         if (openSlotForView) {

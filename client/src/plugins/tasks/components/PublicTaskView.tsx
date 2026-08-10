@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { RichTextContent } from '@/core/ui/RichTextContent';
+import { formatDateTime } from '@/core/utils/dateFormat';
 import { dedupeInFlightByKey } from '@/core/utils/dedupeInFlightByKey';
 
 import { taskShareApi } from '../api/tasksApi';
@@ -94,11 +95,7 @@ export function PublicTaskView({ token }: PublicTaskViewProps) {
           <div className="border-b border-border px-6 py-4 bg-muted/30">
             <h1 className="text-xl font-semibold text-foreground">{title}</h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Shared task · link expires{' '}
-              {new Date(task.shareValidUntil).toLocaleString(undefined, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
+              Shared task · link expires {formatDateTime(task.shareValidUntil)}
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span

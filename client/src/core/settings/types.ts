@@ -9,9 +9,13 @@ export interface ProfileSettings {
   email?: string;
 }
 
+export type TimeFormatPreference = '12h' | '24h';
+
 export interface PreferencesSettings {
   timezone?: string;
   language?: string;
+  /** Wall-clock display: platform source of truth for plugins (default 24h). */
+  timeFormat?: TimeFormatPreference;
 }
 
 export interface UserSettings {

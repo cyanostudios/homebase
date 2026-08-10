@@ -9,6 +9,7 @@ import {
   DETAIL_LIST_ITEM_HOVER_CLASS,
   DETAIL_LIST_ITEM_TITLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import type { Slot } from '../types/slots';
@@ -19,8 +20,8 @@ import { CapacityAssignedDots } from './CapacityAssignedDots';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
 
-function formatDateTime(s: string | null) {
-  return s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+function formatSlotDateTime(s: string | null) {
+  return s ? formatDateTimeShort(s) : '—';
 }
 
 export function SlotListItem({
@@ -61,7 +62,7 @@ export function SlotListItem({
         <span className="truncate">{slot.location?.trim() || '—'}</span>
       </span>
       <span className={cn('truncate', timePast && 'font-medium text-red-600 dark:text-red-400')}>
-        {formatDateTime(slot.slot_time)}
+        {formatSlotDateTime(slot.slot_time)}
       </span>
       <span className="inline-flex min-w-0 items-center gap-1.5">
         <span>

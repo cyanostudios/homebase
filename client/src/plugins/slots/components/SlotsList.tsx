@@ -32,6 +32,7 @@ import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDia
 import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { exportItems } from '@/core/utils/exportUtils';
+import { formatDateTime, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
@@ -189,8 +190,7 @@ export function SlotsList() {
   );
 
   const formatDateTimeForFilter = useCallback(
-    (s: string | null) =>
-      s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '',
+    (s: string | null) => (s ? formatDateTimeShort(s) : ''),
     [],
   );
 
@@ -362,7 +362,7 @@ export function SlotsList() {
           mapItemToRow: (s: Slot) => ({
             id: s.id,
             location: s.location ?? '',
-            slot_time: s.slot_time ? new Date(s.slot_time).toLocaleString('sv-SE') : '',
+            slot_time: s.slot_time ? formatDateTime(s.slot_time) : '',
             capacity: s.capacity,
             visible: s.visible ? t('common.yes') : t('common.no'),
             notifications_enabled: s.notifications_enabled ? t('common.on') : t('common.off'),

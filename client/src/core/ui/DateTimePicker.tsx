@@ -6,6 +6,8 @@ import 'react-day-picker/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useTimeFormat } from '@/core/settings/useTimeFormat';
+import { formatDateTime } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 /** Value is datetime-local string: "YYYY-MM-DDTHH:mm" */
@@ -47,10 +49,9 @@ export function DateTimePicker({
   clearLabel = 'Clear date & time',
 }: DateTimePickerProps) {
   const [open, setOpen] = useState(false);
+  useTimeFormat(); // re-render when Preferences timeFormat changes
   const date = toDate(value);
-  const displayText = date
-    ? date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-    : placeholder;
+  const displayText = date ? formatDateTime(date) : placeholder;
 
   const handleDateSelect = (selected: Date | undefined) => {
     if (!selected) {

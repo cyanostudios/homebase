@@ -14,6 +14,7 @@ import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
+import { formatDateTime } from '@/core/utils/dateFormat';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
@@ -649,8 +650,8 @@ export function SlotsProvider({
     (mode: string, item: Slot | null) => {
       if (mode === 'view' && item) {
         return item.location
-          ? `${item.location} · ${new Date(item.slot_time).toLocaleString('sv-SE')}`
-          : new Date(item.slot_time).toLocaleString('sv-SE');
+          ? `${item.location} · ${formatDateTime(item.slot_time)}`
+          : formatDateTime(item.slot_time);
       }
       if (mode === 'edit') {
         return t('slots.editSlot');
@@ -669,11 +670,10 @@ export function SlotsProvider({
   const getPanelSubtitle = useCallback(
     (mode: string, item: Slot | null) => {
       if (mode === 'view' && item) {
-        const d = item.slot_time ? new Date(item.slot_time) : null;
         return (
           <span className="text-xs text-muted-foreground">
             {item.location || '—'}
-            {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
+            {item.slot_time ? ` · ${formatDateTime(item.slot_time)}` : ''}
           </span>
         );
       }
@@ -719,7 +719,7 @@ export function SlotsProvider({
       const base =
         item.name?.trim() ||
         item.location?.trim() ||
-        (item.slot_time ? new Date(item.slot_time).toLocaleString('sv-SE') : 'Slot');
+        (item.slot_time ? formatDateTime(item.slot_time) : 'Slot');
       return `Copy of ${base}`;
     },
     nameLabel: 'Name',

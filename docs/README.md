@@ -58,18 +58,18 @@ Cursor-baserat utvecklingsteam med roller, beslutsgrindar och Output Contract. *
 
 ## Kod som dokumentationen ska matcha
 
-| Koncept                  | Verifierad plats i kod                                                        |
-| ------------------------ | ----------------------------------------------------------------------------- |
-| Server entry             | `server/index.ts`                                                             |
-| Plugin discovery         | `plugin-loader.js` (root)                                                     |
-| Frontend API + CSRF      | `client/src/core/api/apiFetch.ts`                                             |
-| Delad plugin-HTTP-klient | `client/src/core/api/createApiClient.ts`                                      |
-| Datum (sv-SE)            | `client/src/core/utils/dateFormat.ts`                                         |
-| Ikoner i TS              | `client/src/types/icons.ts` (`AppIcon`)                                       |
-| ESLint                   | `eslint.config.cjs` (flat config)                                             |
-| Prod build + SPA         | `npm run build` → `dist/public/`                                              |
-| Plugin routes            | `client/src/core/routing/routeMap.ts` (`/teams`, `/requests`, `/schedule`, …) |
-| Railway                  | `railway.toml`, `nixpacks.toml`                                               |
+| Koncept                            | Verifierad plats i kod                                                                                                                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server entry                       | `server/index.ts`                                                                                                                                                 |
+| Plugin discovery                   | `plugin-loader.js` (root)                                                                                                                                         |
+| Frontend API + CSRF                | `client/src/core/api/apiFetch.ts`                                                                                                                                 |
+| Delad plugin-HTTP-klient           | `client/src/core/api/createApiClient.ts`                                                                                                                          |
+| Datum/tid (Preferences timeFormat) | `client/src/core/utils/dateFormat.ts` + `preferences.timeFormat` — ADR [`ai/adr/PLATFORM_TIME_FORMAT_PREFERENCE.md`](./ai/adr/PLATFORM_TIME_FORMAT_PREFERENCE.md) |
+| Ikoner i TS                        | `client/src/types/icons.ts` (`AppIcon`)                                                                                                                           |
+| ESLint                             | `eslint.config.cjs` (flat config)                                                                                                                                 |
+| Prod build + SPA                   | `npm run build` → `dist/public/`                                                                                                                                  |
+| Plugin routes                      | `client/src/core/routing/routeMap.ts` (`/teams`, `/requests`, `/schedule`, …)                                                                                     |
+| Railway                            | `railway.toml`, `nixpacks.toml`                                                                                                                                   |
 
 ## Dokumentationspolicy
 

@@ -1,3 +1,5 @@
+import { isHour12 } from '@/core/settings/timeFormatPreference';
+
 export type SportType = 'football' | 'handball';
 
 export const SPORT_TYPES: SportType[] = ['football', 'handball'];
@@ -171,11 +173,13 @@ export function formatMatchDateTime(
   if (Number.isNaN(date.getTime())) {
     return startTime;
   }
+  // Weekday/month follow UI locale; hour cycle follows Preferences timeFormat.
   return date.toLocaleString(locale, {
     weekday: options?.weekday ?? 'short',
     day: 'numeric',
     month: options?.month ?? 'short',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: isHour12(),
   });
 }

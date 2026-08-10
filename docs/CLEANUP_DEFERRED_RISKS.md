@@ -56,15 +56,17 @@ Migrerade (13+): contacts, notes, slots, matches, tasks, estimates, ingest, mail
 
 **Nästa steg:** utöka `createApiClient` med hooks (`parseError`, `skipJsonContentType`, `emptyBodyAsNull`) eller tunna wrappers per plugin — **inte** en stor bang-refaktor.
 
-### 3.2 `dateFormat` (sv-SE) — bara stegvis migrering
+### 3.2 `dateFormat` + Preferences `timeFormat` — stegvis migrering
 
-Central util: `client/src/core/utils/dateFormat.ts`.
+Central util: `client/src/core/utils/dateFormat.ts` (datumlocale `sv-SE`; **hour cycle** från `preferences.timeFormat` via `timeFormatPreference` store).
 
-**Redan migrerat (exempel):** export-config contacts/notes, `DetailActivityLog`, `IngestSourceList` (delvis), `SlotView` (datetime helpers).
+**Kontrakt (2026-08-10):** ADR [`ai/adr/PLATFORM_TIME_FORMAT_PREFERENCE.md`](./ai/adr/PLATFORM_TIME_FORMAT_PREFERENCE.md). Plugins ska använda `dateFormat` / `formatMatchDateTime` — inte rå `toLocale*` för wall-clock.
 
-**Fortfarande många `toLocaleDateString` / `toLocaleString` direkt i UI** (~40+ filer i `client/src/`). Risk: **Låg** för funktion, **Medel** för UX-konsistens (blandade locale/default).
+**Redan migrerat (exempel):** Teams/Matches kickoff, DateTimePicker, slots list/view/export (delvis), contacts related slots, ingest source view, mail/pulses list timestamps, public note/task expiry, `DetailActivityLog`.
 
-**Nästa steg:** migrera per plugin (invoices, cups, matches list, tasks list) + PDF/web templates (`estimates/webTemplate.ts`).
+**Fortfarande utanför preferensen / ad-hoc:** `ActivityLogForm`, `exportUtils._formatDateTime`, samt övriga direkta `toLocaleDateString` / `toLocaleString` (~återstående filer). Risk: **Låg** för funktion, **Medel** för UX-konsistens när användaren valt 12h.
+
+**Nästa steg:** migrera residualer per yta (Activity log settings, export utils, date-only plugins vid behov) + PDF/web templates.
 
 ---
 

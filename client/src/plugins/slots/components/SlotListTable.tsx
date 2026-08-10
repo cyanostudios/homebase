@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { SortableListTable } from '@/core/ui/SortableListTable';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import type { Slot } from '../types/slots';
@@ -10,8 +11,8 @@ import type { SlotSortField, SlotSortOrder } from '../utils/slotListSort';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
 
-function formatDateTime(s: string | null) {
-  return s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+function formatSlotDateTime(s: string | null) {
+  return s ? formatDateTimeShort(s) : '—';
 }
 
 export type SlotListTableProps = {
@@ -80,7 +81,7 @@ export function SlotListTable({
         header: t('slots.timeLabel'),
         cell: (slot: Slot) => (
           <span className="text-xs tabular-nums text-muted-foreground">
-            {formatDateTime(slot.slot_time ?? null)}
+            {formatSlotDateTime(slot.slot_time ?? null)}
           </span>
         ),
       },

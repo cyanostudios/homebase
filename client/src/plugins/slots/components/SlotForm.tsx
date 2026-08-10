@@ -32,6 +32,7 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -594,10 +595,7 @@ export const SlotForm = React.forwardRef<PanelFormHandle, SlotFormProps>(functio
                     <ul className="text-sm text-muted-foreground border rounded-md divide-y divide-border max-h-40 overflow-y-auto">
                       {generatedTimes.map((d) => (
                         <li key={d.toISOString()} className="px-3 py-2">
-                          {d.toLocaleString('sv-SE', {
-                            dateStyle: 'short',
-                            timeStyle: 'short',
-                          })}
+                          {formatDateTimeShort(d)}
                         </li>
                       ))}
                     </ul>

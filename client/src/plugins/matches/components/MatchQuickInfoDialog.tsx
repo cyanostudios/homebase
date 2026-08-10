@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { cn } from '@/lib/utils';
 import { formatMatchDateTime, formatMatchScore, type Match } from '@/plugins/matches/types/match';
 
@@ -30,6 +31,7 @@ export function MatchQuickInfoDialog({
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  useTimeFormat();
 
   if (!match) {
     return null;

@@ -33,6 +33,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { formatDateTime } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import { ingestApi } from '../api/ingestApi';
@@ -231,7 +232,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                       {t('ingest.lastFetch')}
                     </span>
                     <span className="text-right font-semibold text-foreground">
-                      {source.lastFetchedAt ? new Date(source.lastFetchedAt).toLocaleString() : '—'}
+                      {source.lastFetchedAt ? formatDateTime(source.lastFetchedAt) : '—'}
                     </span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
@@ -313,7 +314,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                   className="p-4 sm:p-6"
                 >
                   <p className="text-xs text-muted-foreground mb-2">
-                    {new Date(latestRunForExcerpt.startedAt).toLocaleString()} ·{' '}
+                    {formatDateTime(latestRunForExcerpt.startedAt)} ·{' '}
                     <span className="font-mono">{latestRunForExcerpt.fetchMethod ?? '—'}</span> ·
                     HTTP {latestRunForExcerpt.httpStatus ?? '—'}
                   </p>
@@ -361,7 +362,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                     {ingestRuns.map((run) => (
                       <TableRow key={run.id}>
                         <TableCell className="text-xs whitespace-nowrap">
-                          {new Date(run.startedAt).toLocaleString()}
+                          {formatDateTime(run.startedAt)}
                         </TableCell>
                         <TableCell className="hidden font-mono text-xs sm:table-cell">
                           {run.fetchMethod ?? '—'}

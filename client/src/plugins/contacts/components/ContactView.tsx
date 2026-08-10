@@ -59,6 +59,7 @@ import {
   DETAIL_VIEW_CARD_CLASS as CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { formatDateTime } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -1359,7 +1360,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               isEmpty={slots.length === 0}
             >
               {slots.map((item: any) => {
-                const when = item.slot_time ? new Date(item.slot_time).toLocaleString() : null;
+                const when = item.slot_time ? formatDateTime(item.slot_time) : null;
                 const title =
                   (item.name && String(item.name).trim()) ||
                   item.location ||

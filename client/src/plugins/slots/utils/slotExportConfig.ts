@@ -1,36 +1,23 @@
 import type { ExportFormatConfig } from '@/core/utils/exportUtils';
+import { formatDate as formatDateCore, formatDateTimeShort } from '@/core/utils/dateFormat';
 
 import type { Slot } from '../types/slots';
 
 function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return '';
-  }
-  try {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('sv-SE');
-  } catch {
-    return '';
-  }
+  return formatDateCore(value) || '';
 }
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) {
     return '';
   }
-  try {
-    const d = new Date(value);
-    return isNaN(d.getTime())
-      ? ''
-      : d.toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
-  } catch {
-    return '';
-  }
+  const formatted = formatDateTimeShort(value);
+  return formatted === '—' ? '' : formatted;
 }
 
 export function getSlotExportBaseFilename(slot: Slot): string {
   const name = (slot.name || slot.location || `slot-${slot.id}`)
-    .replace(/[^a-z0-9]/gi, '_')
+    .replace(/[^a-z0-9]+/gi, '_')
     .toLowerCase();
   return name;
 }

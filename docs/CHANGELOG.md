@@ -4,6 +4,20 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-10 – Platform Preferences: `timeFormat` (12h / 24h)
+
+**Status:** Implementerat lokalt. **QA Approved**. Security grind **N/A**. **Ej prod-release.**
+
+**Sammanfattning:** Wall-clock-visning styrs av **Settings → Preferences → Time format** (`12h` \| `24h`, default `24h`). Canonical helpers i `dateFormat.ts` sätter `hour12` från preference-store. Teams/Matches `formatMatchDateTime` följer preferensen (inte UI-språk), vilket tar bort felaktig AM/PM när språket är engelska. Clock-widgeten läser samma preferens och sparar inte längre egen `timeFormat`.
+
+**Verifierat beteende (kod):** [`timeFormatPreference.ts`](../client/src/core/settings/timeFormatPreference.ts), [`dateFormat.ts`](../client/src/core/utils/dateFormat.ts), [`PreferencesSettingsForm.tsx`](../client/src/core/ui/SettingsForms/PreferencesSettingsForm.tsx), [`formatMatchDateTime`](../client/src/plugins/matches/types/match.ts); tester `timeFormatPreference.test.ts`, `formatMatchDateTime.test.ts`.
+
+**ADR:** [`docs/ai/adr/PLATFORM_TIME_FORMAT_PREFERENCE.md`](./ai/adr/PLATFORM_TIME_FORMAT_PREFERENCE.md).
+
+**Begränsningar / residualer:** Schedule/Training `HH:mm`-strängar omformas inte; `ActivityLogForm` och `exportUtils` bypassar ännu preferensen (se ADR).
+
+---
+
 ## 2026-08-10 – Teams: whole-team-ansvariga syns på Series teams-flik
 
 **Status:** Implementerat lokalt. **QA Approved**. **Security Approved** (display-only of existing `team.responsibles`; no new API). **Ej prod-release.**

@@ -23,7 +23,7 @@ export function ClockDisplay({
 }: ClockDisplayProps) {
   const [internalExpanded, setInternalExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const { formattedTime, formattedDate, settings, updateSettings } = useClock();
+  const { formattedTime, formattedDate, settings, timeFormat, updateSettings } = useClock();
 
   const expanded = onToggle ? isExpanded : internalExpanded;
   const handleToggle = onToggle || (() => setInternalExpanded(!internalExpanded));
@@ -94,7 +94,7 @@ export function ClockDisplay({
               <div className="flex items-center justify-between py-2 border-t border-border">
                 <Text className="text-sm text-foreground mb-0">Format:</Text>
                 <Text className="text-sm font-medium text-foreground mb-0">
-                  {settings.timeFormat === '24h' ? '24 Hour' : '12 Hour'}
+                  {timeFormat === '24h' ? '24 Hour' : '12 Hour'}
                 </Text>
               </div>
               <div className="flex items-center justify-between py-2 border-t border-border">
@@ -132,27 +132,11 @@ export function ClockDisplay({
 
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Time Format
-                </label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={settings.timeFormat === '24h' ? 'default' : 'secondary'}
-                    size="sm"
-                    onClick={() => handleSettingsChange('timeFormat', '24h')}
-                    className="flex-1"
-                  >
-                    24 Hour
-                  </Button>
-                  <Button
-                    variant={settings.timeFormat === '12h' ? 'default' : 'secondary'}
-                    size="sm"
-                    onClick={() => handleSettingsChange('timeFormat', '12h')}
-                    className="flex-1"
-                  >
-                    12 Hour
-                  </Button>
-                </div>
+                <Text className="text-sm font-medium text-foreground mb-1">Time Format</Text>
+                <Text variant="muted" className="text-xs mb-0">
+                  Controlled in Settings → Preferences (
+                  {timeFormat === '24h' ? '24 Hour' : '12 Hour'})
+                </Text>
               </div>
 
               <div>

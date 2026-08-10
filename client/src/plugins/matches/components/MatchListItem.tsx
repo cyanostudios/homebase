@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import {
   DETAIL_VIEW_CARD_CLASS,
   DETAIL_LIST_ITEM_HOVER_CLASS,
@@ -78,6 +79,7 @@ export function MatchListItem({
   columnCount?: MatchColumnCount;
 }) {
   const { i18n } = useTranslation();
+  useTimeFormat();
   const locale = i18n.language ?? 'sv-SE';
 
   const dateLabel = match.start_time

@@ -11,6 +11,7 @@ import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
+import { formatDateTime } from '@/core/utils/dateFormat';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { matchesApi } from '../api/matchesApi';
@@ -434,11 +435,10 @@ export function MatchProvider({
   const getPanelSubtitle = useCallback(
     (mode: string, item: Match | null) => {
       if (mode === 'view' && item) {
-        const d = item.start_time ? new Date(item.start_time) : null;
         return (
           <span className="text-xs text-muted-foreground">
             {item.home_team} – {item.away_team}
-            {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
+            {item.start_time ? ` · ${formatDateTime(item.start_time)}` : ''}
           </span>
         );
       }

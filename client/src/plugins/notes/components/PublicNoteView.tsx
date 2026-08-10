@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { RichTextContent } from '@/core/ui/RichTextContent';
+import { formatDateTime } from '@/core/utils/dateFormat';
 import { dedupeInFlightByKey } from '@/core/utils/dedupeInFlightByKey';
 
 import { noteShareApi } from '../api/notesApi';
@@ -86,11 +87,7 @@ export function PublicNoteView({ token }: PublicNoteViewProps) {
           <div className="border-b border-border px-6 py-4 bg-muted/30">
             <h1 className="text-xl font-semibold text-foreground">{title}</h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Shared note · link expires{' '}
-              {new Date(note.shareValidUntil).toLocaleString(undefined, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
+              Shared note · link expires {formatDateTime(note.shareValidUntil)}
             </p>
           </div>
           <div className="p-6 prose prose-sm max-w-none dark:prose-invert">
