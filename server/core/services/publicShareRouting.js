@@ -33,8 +33,8 @@ async function registerPublicShareRoute(shareToken, resourceType, tenantConnecti
   } catch (err) {
     if (isMissingRoutingTableError(err)) {
       Logger.warn('public_share_routing missing — run: npm run migrate:public-share-routing');
-      return;
     }
+    // Fail closed: callers must not return a share URL that anonymous GET cannot resolve.
     throw err;
   }
 }

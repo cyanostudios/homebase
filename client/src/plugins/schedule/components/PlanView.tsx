@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Lock } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -23,8 +22,11 @@ import {
   type ScheduleTeamFilter,
   type ScheduleTrainingDialogState,
 } from '../types/schedule';
+import type { ScheduleDaySpan, WeekDay } from '../utils/scheduleDaySpan';
 
+import { ScheduleDaySpanToggle } from './ScheduleDaySpanToggle';
 import { ScheduleFooter } from './ScheduleFooter';
+import { ScheduleLockToggle } from './ScheduleLockToggle';
 import { ScheduleSlotDetailDialog } from './ScheduleSlotDetailDialog';
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
 import { ScheduleWeekView } from './ScheduleWeekView';
@@ -35,11 +37,27 @@ export function PlanView({
   scheduleName,
   teamFilter,
   schedulePlans,
+  daySpan,
+  onDaySpanChange,
+  visibleDays,
+  isStackedView,
+  canGoPrev,
+  canGoNext,
+  onPrevDaySpan,
+  onNextDaySpan,
 }: {
   scheduleId: string;
   scheduleName: string;
   teamFilter: ScheduleTeamFilter;
   schedulePlans: SchedulePlansState;
+  daySpan: ScheduleDaySpan;
+  onDaySpanChange: (span: ScheduleDaySpan) => void;
+  visibleDays: readonly WeekDay[];
+  isStackedView: boolean;
+  canGoPrev: boolean;
+  canGoNext: boolean;
+  onPrevDaySpan: () => void;
+  onNextDaySpan: () => void;
 }) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
@@ -53,6 +71,8 @@ export function PlanView({
     settings,
     isLoading: isGridSettingsLoading,
     isLockedForSchedule,
+    setLockedForSchedule,
+    isTogglingLock,
   } = useScheduleSettings();
   const gridSettings = getGridSettingsForSchedule(scheduleId);
   const availableHours = getAvailableHours(scheduleId);
@@ -294,17 +314,26 @@ export function PlanView({
   return (
     <>
       <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <h3 className="truncate text-2xl font-semibold tracking-tight text-foreground">
-            {scheduleName}
-          </h3>
-          {isLocked ? (
-            <span title={t('schedule.lockedBadge')}>
-              <Lock
-                className="h-4 w-4 shrink-0 text-muted-foreground"
-                aria-label={t('schedule.lockedBadge')}
-              />
-            </span>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+              {scheduleName}
+            </h3>
+            <ScheduleLockToggle
+              locked={isLocked}
+              disabled={isTogglingLock}
+              onToggle={(nextLocked) => setLockedForSchedule(scheduleId, nextLocked)}
+            />
+          </div>
+          {!isMobile ? (
+            <ScheduleDaySpanToggle
+              daySpan={daySpan}
+              onSelect={onDaySpanChange}
+              canGoPrev={canGoPrev}
+              canGoNext={canGoNext}
+              onPrev={onPrevDaySpan}
+              onNext={onNextDaySpan}
+            />
           ) : null}
         </div>
         {loadError ? <p className="mb-2 text-xs text-destructive">{loadError}</p> : null}
@@ -315,7 +344,7 @@ export function PlanView({
           <p className="mb-3 text-sm text-muted-foreground">{t('schedule.noScheduleEvents')}</p>
         ) : null}
         {!isLoading && !isGridSettingsLoading ? (
-          isMobile ? (
+          isMobile || isStackedView ? (
             <ScheduleWeekView slots={weekSlots} onSlotClick={handleSlotClick} />
           ) : (
             <ScheduleTimeGrid
@@ -323,12 +352,14 @@ export function PlanView({
               gridSettings={gridSettings}
               savingSlotId={savingSlotId}
               readOnly={isLocked}
+              visibleDays={visibleDays}
               columnOrdersByDay={columnOrdersByDay}
               onColumnOrderChange={isLocked ? undefined : handleColumnOrderChange}
               onSlotClick={handleSlotClick}
               onEditSlot={isLocked ? undefined : handleEditSlot}
               onCopySlot={isLocked ? undefined : handleCopySlot}
               onAddSlot={isLocked ? undefined : handleAddSlot}
+              onUnlock={isLocked ? () => setLockedForSchedule(scheduleId, false) : undefined}
               onSlotMove={handleSlotMove}
             />
           )

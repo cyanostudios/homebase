@@ -9,6 +9,9 @@ const {
   RESOURCE_NOTE,
   resolvePublicShareTenantFromToken,
 } = require('../../server/core/services/publicShareRouting');
+const {
+  resolveTenantConnectionStringForShare,
+} = require('../../server/core/utils/shareRoutingHelper');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 class NoteModel {
@@ -64,12 +67,15 @@ class NoteModel {
       const db = Database.get(req);
 
       const { title, content, mentions } = noteData;
+      const showTitleInContent =
+        noteData.showTitleInContent === undefined ? true : Boolean(noteData.showTitleInContent);
 
       // Use database.insert for automatic tenant isolation
       const result = await db.insert('notes', {
         title,
         content: content || '',
         mentions: JSON.stringify(mentions || []),
+        show_title_in_content: showTitleInContent,
       });
 
       Logger.info('Note created', { noteId: result.id });
@@ -97,12 +103,15 @@ class NoteModel {
       }
 
       const { title, content, mentions } = noteData;
+      const showTitleInContent =
+        noteData.showTitleInContent === undefined ? true : Boolean(noteData.showTitleInContent);
 
       // Use database.update for automatic tenant isolation
       const result = await db.update('notes', noteId, {
         title,
         content: content || '',
         mentions: JSON.stringify(mentions || []),
+        show_title_in_content: showTitleInContent,
       });
 
       Logger.info('Note updated', { noteId });
@@ -212,38 +221,31 @@ class NoteModel {
         [id, shareToken, validUntil],
       );
 
-      Logger.info('Note share created', { noteId: id, shareId: result.rows[0].id });
+      const shareId = result.rows[0].id;
+      Logger.info('Note share created', { noteId: id, shareId });
 
       const createdToken = result.rows[0].share_token;
-      let tenantConnectionString = req.session?.tenantConnectionString;
-      if (!tenantConnectionString && req.session?.user?.id) {
-        try {
-          const TenantContextService = require('../../server/core/services/tenant/TenantContextService');
-          const tctx = new TenantContextService();
-          const ctx = await tctx.getTenantContextByUserId(req.session.user.id);
-          tenantConnectionString = ctx?.tenantConnectionString ?? null;
-        } catch (e) {
-          Logger.warn('Could not resolve tenant connection string for note share registration', {
-            noteId: id,
-            message: e?.message,
-          });
-        }
+      const tenantConnectionString = await resolveTenantConnectionStringForShare(req);
+      if (!tenantConnectionString) {
+        await pool.query('DELETE FROM note_shares WHERE id = $1', [shareId]);
+        throw new AppError(
+          'Failed to register public share link (no tenant connection)',
+          500,
+          AppError.CODES.INTERNAL_ERROR,
+        );
       }
-      if (tenantConnectionString) {
-        try {
-          await registerPublicShareRoute(createdToken, RESOURCE_NOTE, tenantConnectionString);
-        } catch (routeErr) {
-          Logger.error('public_share_routing register failed', routeErr, {
-            noteId: id,
-            tokenPrefix: createdToken.substring(0, 8),
-          });
-        }
-      } else {
-        Logger.warn(
-          'Note share created in tenant DB but public_share_routing not registered (no tenant connection string)',
-          {
-            noteId: id,
-          },
+      try {
+        await registerPublicShareRoute(createdToken, RESOURCE_NOTE, tenantConnectionString);
+      } catch (routeErr) {
+        Logger.error('public_share_routing register failed', routeErr, {
+          noteId: id,
+          tokenPrefix: createdToken.substring(0, 8),
+        });
+        await pool.query('DELETE FROM note_shares WHERE id = $1', [shareId]);
+        throw new AppError(
+          'Failed to register public share link',
+          500,
+          AppError.CODES.DATABASE_ERROR,
         );
       }
 
@@ -435,6 +437,7 @@ class NoteModel {
       title: row.title,
       content: row.content || '',
       mentions: mentions,
+      showTitleInContent: row.show_title_in_content !== false,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

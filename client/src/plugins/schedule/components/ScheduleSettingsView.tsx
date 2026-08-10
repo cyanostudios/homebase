@@ -25,32 +25,33 @@ import {
   type ScheduleGridSettings,
 } from '../types/schedule';
 
+import { ScheduleLockToggle } from './ScheduleLockToggle';
+
 const LOCK_BUTTON_CLASS =
   'h-9 px-3 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30';
 const UNLOCK_BUTTON_CLASS =
   'h-9 px-3 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30';
 
-function ScheduleTitleWithLockStatus({ name, locked }: { name: string; locked: boolean }) {
-  const { t } = useTranslation();
-
+function ScheduleTitleWithLockStatus({
+  name,
+  locked,
+  disabled,
+  onToggle,
+}: {
+  name: string;
+  locked: boolean;
+  disabled?: boolean;
+  onToggle: (nextLocked: boolean) => void | Promise<void>;
+}) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span className="truncate">{name}</span>
-      {locked ? (
-        <span title={t('schedule.lockedBadge')}>
-          <Lock
-            className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400"
-            aria-label={t('schedule.lockedBadge')}
-          />
-        </span>
-      ) : (
-        <span title={t('schedule.settings.unlock')}>
-          <Unlock
-            className="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400"
-            aria-label={t('schedule.settings.unlock')}
-          />
-        </span>
-      )}
+      <ScheduleLockToggle
+        locked={locked}
+        disabled={disabled}
+        onToggle={onToggle}
+        iconClassName="h-3.5 w-3.5"
+      />
     </div>
   );
 }
@@ -534,6 +535,8 @@ export function ScheduleSettingsView({
                   <ScheduleTitleWithLockStatus
                     name={t('schedule.defaultScheduleName')}
                     locked={defaultLocked}
+                    disabled={isTogglingLock}
+                    onToggle={(nextLocked) => setLockedForSchedule(DEFAULT_SCHEDULE_ID, nextLocked)}
                   />
                 }
                 className="pt-0"
@@ -642,7 +645,14 @@ export function ScheduleSettingsView({
               return (
                 <Card key={plan.id} padding="md" className={DETAIL_VIEW_CARD_CLASS}>
                   <DetailSection
-                    title={<ScheduleTitleWithLockStatus name={draftName} locked={planLocked} />}
+                    title={
+                      <ScheduleTitleWithLockStatus
+                        name={draftName}
+                        locked={planLocked}
+                        disabled={isTogglingLock}
+                        onToggle={(nextLocked) => setLockedForSchedule(plan.id, nextLocked)}
+                      />
+                    }
                     className="pt-0"
                   >
                     <div className="space-y-4">

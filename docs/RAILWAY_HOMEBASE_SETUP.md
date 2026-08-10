@@ -140,9 +140,20 @@ Or manually:
 ```bash
 node scripts/setup-database.js
 npm run migrate:public-share-routing
+# Tenant DBs (fan-out from main): required for share note/task create
+npm run migrate:note-shares
+npm run migrate:task-shares
 ```
 
-**Note:** If `.env.local` still points at `localhost`, migrations only touch local Docker — set Neon main URL before `railway:migrate`.
+Against production Neon **main** (`neondb`), override `DATABASE_URL` (scripts do not read `PROD_MAIN_DATABASE_URL` alone):
+
+```bash
+DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:public-share-routing
+DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:note-shares
+DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:task-shares
+```
+
+**Note:** If `.env.local` still points at `localhost`, migrations only touch local Docker — set Neon main URL before `railway:migrate`. Missing `note_shares`/`task_shares` on a tenant makes Share note/task fail at create (“Shares table not found”).
 
 ## 4. Verifiering
 

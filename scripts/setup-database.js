@@ -111,6 +111,7 @@ async function setupDatabase() {
         title VARCHAR(255) NOT NULL,
         content TEXT,
         mentions JSONB,
+        show_title_in_content BOOLEAN NOT NULL DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )

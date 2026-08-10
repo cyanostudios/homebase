@@ -12,7 +12,7 @@ function getSlotClassName(slot: ScheduleSlot, isClickable: boolean) {
 
   return cn(
     'flex rounded-md border px-2 py-1.5',
-    colorStyles ?? 'border-plugin-subtle/60 bg-background/80 text-foreground',
+    colorStyles ?? 'border-plugin-subtle/30 bg-background/80 text-foreground',
     isClickable &&
       (colorStyles
         ? 'cursor-pointer text-left transition-[filter,box-shadow] hover:brightness-[0.98] hover:shadow-sm dark:hover:brightness-110'
@@ -88,7 +88,9 @@ export function ScheduleWeekView({
             key={day}
             className={cn(
               'flex items-stretch gap-3 rounded-lg border p-2',
-              hasSlots ? 'border-plugin-subtle bg-plugin-subtle' : 'border-transparent bg-muted/50',
+              hasSlots
+                ? 'border-plugin-subtle/25 bg-plugin-subtle'
+                : 'border-transparent bg-muted/50',
             )}
           >
             <span className="flex w-9 shrink-0 items-center justify-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">

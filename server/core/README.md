@@ -148,7 +148,7 @@ Service configuration is in `config/services.js` and can be overridden via envir
 | `FRONTEND_URL`                                                       | Allowed CORS origin for the SPA in production.                                                                           |
 | `PUBLIC_BOOKING_URL` / `PUBLIC_CUPS_URL` / `PUBLIC_INSTRUCTIONS_URL` | Optional extra CORS origins for public mini-apps.                                                                        |
 
-Public task/note share links resolve the tenant DB via the `public_share_routing` table on the main database (`npm run migrate:public-share-routing`).
+Public task/note share links resolve the tenant DB via the `public_share_routing` table on the main database (`npm run migrate:public-share-routing`). Each tenant also needs `note_shares` / `task_shares` (`npm run migrate:note-shares` / `migrate:task-shares`). Create share fails closed if main routing registration cannot complete (notes/tasks).
 
 ### Dependency and upload review
 

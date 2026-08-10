@@ -18,7 +18,12 @@ export interface NoteContextType {
   closeNotePanel: () => void;
   notesContentView: 'list' | 'settings';
   saveNote: (noteData: any) => Promise<boolean>;
-  createNote: (noteData: { title: string; content?: string; mentions?: any[] }) => Promise<Note>;
+  createNote: (noteData: {
+    title: string;
+    content?: string;
+    mentions?: any[];
+    showTitleInContent?: boolean;
+  }) => Promise<Note>;
   deleteNote: (id: string) => Promise<void>;
   deleteNotes: (ids: string[]) => Promise<void>;
   getDuplicateConfig: (

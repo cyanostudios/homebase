@@ -4,6 +4,91 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-10 – Schedule: klickbar lock-toggle (röd/grön)
+
+**Status:** Implementerat lokalt. **QA Approved**. Security **N/A** (befintlig `locks` i schedule settings). **Ej prod-release.**
+
+**Sammanfattning:** Bredvid schematiteln (default, plan, settings) finns alltid en klickbar ikon: **röd `Lock`** när låst, **grön `Unlock`** när olåst. Klick växlar via samma `setLockedForSchedule` som settings. Komponent: [`ScheduleLockToggle.tsx`](../client/src/plugins/schedule/components/ScheduleLockToggle.tsx) (används i `ScheduleList`, `PlanView`, `ScheduleSettingsView`).
+
+**Begränsningar:** Disable under `isTogglingLock`; ingen separat bekräftelsedialog vid toggle.
+
+---
+
+## 2026-08-10 – Schedule: TransientActionHint vid låst bokning
+
+**Status:** Implementerat lokalt. **QA Approved**. Security **N/A**. **Ej prod-release.** Delad UI-primitiv.
+
+**Sammanfattning:** När ett schema är låst och användaren klickar en tom tid i tidgridet visas en flytande hjälpruta vid pekaren (neutral bakgrund; röd titel/ikon och stäng-**X** uppe till höger) med beskrivning och **Unlock**-knapp. Primativen `TransientActionHint` stödjer `message` / `description` / `actions` / close för återanvändning i andra plugins.
+
+**Kod:** [`TransientActionHint.tsx`](../client/src/core/ui/TransientActionHint.tsx), [`ScheduleTimeGrid.tsx`](../client/src/plugins/schedule/components/ScheduleTimeGrid.tsx). Standard: [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) (Transient action hint).
+
+**Känd begränsning (QA):** Unlock-action dismissar rutan även om `setLockedForSchedule` returnerar `false` (persist-fel) — förbättring noterad, ej blockerande.
+
+---
+
+## 2026-08-10 – Schedule: dagspann 1 / 3 / 7 / stacked (desktop)
+
+**Status:** Implementerat lokalt. **QA Approved** (inkl. bläddring + stacked). Security **N/A**. **Ej prod-release.**
+
+**Sammanfattning:** På desktop kan schemats kalender växlas mellan tidgrid **1 / 3 / 7** dagar eller **stacked** (ikon, samma listvy som mobil) via segmenterad kontroll i kalenderkortets rubrikrad. Span/vy är en **viewport** över samma veckodagsdata — footer/kapacitet och dialogers daglista är oförändrade. Mobil behåller listvy utan toggle.
+
+**Beteende (verifierat i kod):**
+
+- **1** = fönster på en dag (start: idag); **3** = upp till tre dagar från ankare (klampat mot söndag); **7** = mån–sön tidgrid (default); **stacked** (ikon) = samma staplade listvy som mobil (`ScheduleWeekView`), alltid hela veckan — ignorerar 1/3-bläddring.
+- **Bläddring:** chevron prev/next syns bara för **1** och **3**. Steg = spannet (1 dag respektive 3 dagar). Stannar vid måndag/söndag (ingen wrap). Ingen bläddring i **7** eller **stacked**. Byte av vy återställer ankare till idag.
+- Persistens: `sessionStorage` nyckel `schedule:daySpan` (vy inklusive `stacked`, inte ankare).
+- State i `ScheduleList`, props till `PlanView`; `ScheduleTimeGrid` tar `visibleDays` i grid-lägen.
+- Dagens kolumnrubrik använder `text-primary` (grid).
+- Header/body delar dynamisk `gridTemplateColumns`; scrollbar-bredd speglas med `paddingInlineEnd` på dagrubrikerna (alignment).
+
+**Kod / ADR:**
+
+- [`scheduleDaySpan.ts`](../client/src/plugins/schedule/utils/scheduleDaySpan.ts), [`useScheduleDaySpan.ts`](../client/src/plugins/schedule/hooks/useScheduleDaySpan.ts), [`ScheduleDaySpanToggle.tsx`](../client/src/plugins/schedule/components/ScheduleDaySpanToggle.tsx)
+- [`ScheduleTimeGrid.tsx`](../client/src/plugins/schedule/components/ScheduleTimeGrid.tsx), [`ScheduleWeekView.tsx`](../client/src/plugins/schedule/components/ScheduleWeekView.tsx), [`ScheduleList.tsx`](../client/src/plugins/schedule/components/ScheduleList.tsx), [`PlanView.tsx`](../client/src/plugins/schedule/components/PlanView.tsx)
+- ADR: [`ai/adr/P-SCHEDULE_DAY_SPAN.md`](ai/adr/P-SCHEDULE_DAY_SPAN.md)
+
+**Begränsningar:** Ingen wrap till nästa/föregående kalendervecka; 3-läge nära veckoslut kan visa färre än tre kolumner; stacked har ingen drag/drop (samma som mobil); “idag” följer klientens lokala timezone; ankare persisteras inte över session (nollställs vid vy-byte / remount till idag).
+
+---
+
+## 2026-08-10 – Notes: visa titel i content (option)
+
+**Status:** Implementerat lokalt (+ migration local/prod parity). **Ej prod-release** av kod förrän deploy.
+
+**Sammanfattning:** Edit-formuläret har en checkbox bredvid Title (**Show in content** / **Visa i innehåll**), default på. Avmarkerad döljer titeln i content-arean i note view (topbar/breadcrumb behåller titeln). Lagras per note som `show_title_in_content`.
+
+**Ops:**
+
+```bash
+npm run migrate:notes-show-title-in-content
+DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:notes-show-title-in-content
+```
+
+---
+
+## 2026-08-10 – Share note/task: tenant-tabeller + fail-closed routing
+
+**Status:** Ops-fix **applicerad** på prod (+ lokal parity): `note_shares` / `task_shares` för alla tenant-DB:er inkl. `mario.nasr@sorgenfriff.se`. Kod-harden (fail-closed) **implementerad lokalt** — kräver deploy till Railway för att gälla i prod. **QA Approved** (anonym `GET /api/notes|tasks/public/:token` → 200 efter routing). **Security Approved**.
+
+**Sammanfattning:** Share create misslyckades när tenant saknade `note_shares`/`task_shares` (migration 067/068). Efter migration fungerar create + anonym open via `public_share_routing`. Notes/tasks `createShare` rullar nu tillbaka tenant-raden om main-routing inte kan registreras (inga döda länkar).
+
+**Ops:**
+
+```bash
+# Lokal
+npm run migrate:note-shares && npm run migrate:task-shares
+
+# Prod main (Neon neondb) — fan-out till alla tenants
+DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:note-shares
+DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:task-shares
+```
+
+**Kod:** [`plugins/notes/model.js`](../plugins/notes/model.js), [`plugins/tasks/model.js`](../plugins/tasks/model.js), [`server/core/services/publicShareRouting.js`](../server/core/services/publicShareRouting.js)
+
+**Begränsningar:** Estimate/invoice share behåller tidigare soft-fail vid routing-fel (utanför denna fix). Fail-closed i prod gäller först efter kod-deploy.
+
+---
+
 ## 2026-08-10 – AI Providers: list-chrome (Contacts/Pulse-paritet)
 
 **Status:** Implementerat lokalt. **QA Approved** + **Security Approved** (inga nya medium+; `data-list-item`-mönster oförändrat, masked secrets). **Ej prod-release.**

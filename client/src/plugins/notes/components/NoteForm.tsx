@@ -38,6 +38,7 @@ interface NoteFormState {
   title: string;
   content: string;
   mentions: any[];
+  showTitleInContent: boolean;
 }
 
 interface NoteFormProps {
@@ -73,6 +74,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     title: '',
     content: '',
     mentions: [],
+    showTitleInContent: true,
   });
 
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
@@ -109,6 +111,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
       title: '',
       content: '',
       mentions: [],
+      showTitleInContent: true,
     });
     markClean();
   }, [markClean]);
@@ -119,6 +122,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
         title: currentNote.title || '',
         content: currentNote.content || '',
         mentions: currentNote.mentions || [],
+        showTitleInContent: currentNote.showTitleInContent !== false,
       });
       markClean();
     } else {
@@ -166,7 +170,7 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     onCancel();
   }, [currentNote, confirmDiscard, onCancel, resetForm]);
 
-  const updateField = (field: keyof NoteFormState, value: string) => {
+  const updateField = (field: keyof NoteFormState, value: string | boolean | any[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (validationErrors.length > 0) {
       clearValidationErrors();
@@ -267,7 +271,10 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
 
             <Card
               padding="none"
-              className={cn(DETAIL_VIEW_CARD_CLASS, focusMode && 'relative z-50 shadow-lg')}
+              className={cn(
+                DETAIL_VIEW_CARD_CLASS,
+                focusMode && 'relative z-50 mx-auto w-full max-w-[1080px] shadow-lg',
+              )}
             >
               <DetailSection
                 title={t('notes.noteContent')}
@@ -295,9 +302,22 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
                   )}
                 >
                   <div>
-                    <Label htmlFor="note-title" className="mb-1">
-                      {t('notes.title')}
-                    </Label>
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <Label htmlFor="note-title">{t('notes.title')}</Label>
+                      <label
+                        htmlFor="note-show-title-in-content"
+                        className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground"
+                      >
+                        <input
+                          id="note-show-title-in-content"
+                          type="checkbox"
+                          checked={formData.showTitleInContent}
+                          onChange={(e) => updateField('showTitleInContent', e.target.checked)}
+                          className="h-3.5 w-3.5 rounded border-input"
+                        />
+                        {t('notes.showTitleInContent')}
+                      </label>
+                    </div>
                     <Input
                       id="note-title"
                       type="text"

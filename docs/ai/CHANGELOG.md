@@ -2,6 +2,22 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Schedule UX batch QA sync (2026-08-10)
+
+Docs efter **QA Approved** (Security **N/A**) för schedule-batch: day-span **1|3|7|stacked** + bläddring, `TransientActionHint` (locked booking + Unlock), `ScheduleLockToggle` (röd/grön klickbar). ADR [`P-SCHEDULE_DAY_SPAN.md`](adr/P-SCHEDULE_DAY_SPAN.md) status synkad. UI-standards: Time grid + Transient action hint (+ lock-toggle-notis). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – poster lock-toggle, TransientActionHint, dagspann (status uppdaterad).
+
+---
+
+## Schedule day span 1 / 3 / 7 (2026-08-10)
+
+Docs-sync (tidigare) för initial day-span; superseded/kompletterad av “Schedule UX batch QA sync” ovan.
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) – post “Schedule: dagspann 1 / 3 / 7 / stacked”.
+
+---
+
 ## Mail / Pulse / AI Providers — QA + Security sync (2026-08-10)
 
 Docs efter **QA Approved** + **Security Approved** för Mail multi-provider, Pulse multi-provider och AI Providers list-chrome. Residual **A1** (klartext secrets i tenant-DB) dokumenterad i ADR + produkt-CHANGELOG — **väntar TPM medvetet godkännande**. Ej prod-release.

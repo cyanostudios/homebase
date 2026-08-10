@@ -384,7 +384,12 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   }, [clearNoteSelectionCore]);
 
   const createNote = useCallback(
-    async (noteData: { title: string; content?: string; mentions?: any[] }): Promise<Note> => {
+    async (noteData: {
+      title: string;
+      content?: string;
+      mentions?: any[];
+      showTitleInContent?: boolean;
+    }): Promise<Note> => {
       const newNote = await notesApi.createNote(noteData);
       const noteWithDates = {
         ...newNote,
@@ -404,6 +409,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         title: nextName || item.title?.trim() || 'Untitled',
         content: item.content ?? '',
         mentions: item.mentions ?? [],
+        showTitleInContent: item.showTitleInContent !== false,
       });
     },
     [createNote],

@@ -50,7 +50,9 @@ Provider-kataloglistor (**Mail**, **Pulses**, **AI Providers**) följer card-col
 **Additional reference implementations (2026-06):**
 
 - **Grid cards:** `TeamCard` (`client/src/plugins/teams/components/TeamCard.tsx`) — age/color avatar, status badge, player/series counts; next training and/or next match meta; optional break-return countdown (red when &lt; 7 days to ongoing season-break `endDate`). No colored top stripe.
-- **Time grid:** `ScheduleTimeGrid` (`client/src/plugins/schedule/components/ScheduleTimeGrid.tsx`) — week grid with drag/drop training slots.
+- **Time grid:** `ScheduleTimeGrid` (`client/src/plugins/schedule/components/ScheduleTimeGrid.tsx`) — week grid with drag/drop training slots; desktop view toggle **1 | 3 | 7 | stacked** (`ScheduleDaySpanToggle`, session `schedule:daySpan`, prop `visibleDays` for grid modes); chevron prev/next for **1** and **3** only; **stacked** reuses `ScheduleWeekView` (full week, no day-span browse). Mobile always uses `ScheduleWeekView` without the toggle. See ADR [`ai/adr/P-SCHEDULE_DAY_SPAN.md`](ai/adr/P-SCHEDULE_DAY_SPAN.md).
+- **Schedule lock toggle:** `ScheduleLockToggle` (`client/src/plugins/schedule/components/ScheduleLockToggle.tsx`) — always-visible clickable icon beside schedule title: red `Lock` when locked, green `Unlock` when open; toggles via `setLockedForSchedule`. Used in `ScheduleList`, `PlanView`, and settings titles.
+- **Transient action hint:** `TransientActionHint` + `useTransientActionHint` (`client/src/core/ui/TransientActionHint.tsx`) — small floating helper near the pointer (not a modal). Neutral surface (`bg-background`); red accent on **title**, icon, and top-right close **X** only. Supports **message**, optional **description**, optional **actions** (`{ id, label, onClick }`), optional icon (default `Lock`). Auto-dismiss ~2.6s without actions, ~8s with actions; hover/focus pauses the timer. First consumer: Schedule locked empty-cell click with **Unlock** action.
 
 ## 1. List Views (Tables)
 

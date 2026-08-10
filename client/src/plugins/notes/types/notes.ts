@@ -3,6 +3,8 @@ export interface Note {
   title: string;
   content: string;
   mentions: Mention[];
+  /** When true (default), title is shown in the note content area in view mode. */
+  showTitleInContent?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { SERIES_TEAM_ROW_STYLES, WEEK_DAYS } from '@/plugins/teams/types/teams';
+import { TransientActionHint, useTransientActionHint } from '@/core/ui/TransientActionHint';
 
 import type { ScheduleSlotHighlight } from '../hooks/useSchedulePendingChanges';
 import {
@@ -40,6 +41,7 @@ import {
   type ScheduleSlot,
   type SlotLayout,
 } from '../types/schedule';
+import { getTodayWeekDay } from '../utils/scheduleDaySpan';
 
 function getSlotDropId(slot: ScheduleSlot): string {
   return `slot-drop-${getSlotDragId(slot)}`;
@@ -118,6 +120,7 @@ function DroppableCell({
   renderSettings,
   outsidePreferred,
   onAddSlot,
+  onReadOnlyInteract,
   suppressClickRef,
 }: {
   day: string;
@@ -125,6 +128,7 @@ function DroppableCell({
   renderSettings: ScheduleGridSettings;
   outsidePreferred: boolean;
   onAddSlot?: (day: string, startMinutes: number) => void;
+  onReadOnlyInteract?: (point: { clientX: number; clientY: number }) => void;
   suppressClickRef: React.MutableRefObject<boolean>;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -132,17 +136,30 @@ function DroppableCell({
     data: { day, startMinutes },
   });
 
+  const isInteractive = Boolean(onAddSlot || onReadOnlyInteract);
+
+  const handleActivate = (point: { clientX: number; clientY: number }) => {
+    if (suppressClickRef.current) {
+      return;
+    }
+    if (onAddSlot) {
+      onAddSlot(day, startMinutes);
+      return;
+    }
+    onReadOnlyInteract?.(point);
+  };
+
   return (
     <div
       ref={setNodeRef}
       role="button"
-      tabIndex={0}
+      tabIndex={isInteractive ? 0 : undefined}
       aria-label={`${day} ${minutesToTime(startMinutes)}`}
       className={cn(
         'group/cell absolute left-0 right-0 border-b border-border/30 transition-colors',
         outsidePreferred && 'bg-muted/25',
         isOver && 'bg-primary/10',
-        onAddSlot && 'cursor-pointer hover:bg-muted/40',
+        isInteractive && 'cursor-pointer hover:bg-muted/40',
       )}
       style={{
         top:
@@ -150,19 +167,17 @@ function DroppableCell({
           GRID_ROW_HEIGHT_PX,
         height: GRID_ROW_HEIGHT_PX,
       }}
-      onClick={() => {
-        if (suppressClickRef.current) {
-          return;
-        }
-        onAddSlot?.(day, startMinutes);
+      onClick={(event) => {
+        handleActivate({ clientX: event.clientX, clientY: event.clientY });
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          if (suppressClickRef.current) {
-            return;
-          }
-          onAddSlot?.(day, startMinutes);
+          const rect = event.currentTarget.getBoundingClientRect();
+          handleActivate({
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          });
         }
       }}
     >
@@ -344,6 +359,7 @@ function DayColumn({
   onEditSlot,
   onCopySlot,
   onAddSlot,
+  onReadOnlyInteract,
   suppressClickRef,
 }: {
   day: string;
@@ -358,6 +374,7 @@ function DayColumn({
   onEditSlot?: (slot: ScheduleSlot) => void;
   onCopySlot?: (slot: ScheduleSlot) => void;
   onAddSlot?: (day: string, startMinutes: number) => void;
+  onReadOnlyInteract?: (point: { clientX: number; clientY: number }) => void;
   suppressClickRef: React.MutableRefObject<boolean>;
 }) {
   const preferredStart = getGridStartMinutes(preferredSettings);
@@ -393,6 +410,7 @@ function DayColumn({
           renderSettings={renderSettings}
           outsidePreferred={startMinutes < preferredStart || startMinutes >= preferredEnd}
           onAddSlot={onAddSlot}
+          onReadOnlyInteract={readOnly ? onReadOnlyInteract : undefined}
           suppressClickRef={suppressClickRef}
         />
       ))}
@@ -419,12 +437,14 @@ export function ScheduleTimeGrid({
   savingSlotId,
   getSlotHighlight,
   readOnly = false,
+  visibleDays = WEEK_DAYS,
   columnOrdersByDay,
   onColumnOrderChange,
   onSlotClick,
   onEditSlot,
   onCopySlot,
   onAddSlot,
+  onUnlock,
   onSlotMove,
 }: {
   slots: ScheduleSlot[];
@@ -433,6 +453,8 @@ export function ScheduleTimeGrid({
   savingSlotId: string | null;
   getSlotHighlight?: (slot: ScheduleSlot) => ScheduleSlotHighlight;
   readOnly?: boolean;
+  /** Weekday columns to show (viewport subset). Defaults to full week. */
+  visibleDays?: readonly string[];
   /** Per-day ordered slot drag IDs for overlapping column placement */
   columnOrdersByDay?: Record<string, string[]>;
   onColumnOrderChange?: (day: string, order: string[]) => void;
@@ -440,6 +462,8 @@ export function ScheduleTimeGrid({
   onEditSlot?: (slot: ScheduleSlot) => void;
   onCopySlot?: (slot: ScheduleSlot) => void;
   onAddSlot?: (day: string, startMinutes: number) => void;
+  /** Shown on the locked-interaction hint so the user can unlock without opening settings. */
+  onUnlock?: () => void | Promise<void>;
   onSlotMove: (
     slot: ScheduleSlot,
     newDay: string,
@@ -451,10 +475,15 @@ export function ScheduleTimeGrid({
   const [activeSlot, setActiveSlot] = useState<ScheduleSlot | null>(null);
   const suppressCellClickRef = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollbarWidthPx, setScrollbarWidthPx] = useState(0);
+  const lockedHint = useTransientActionHint();
   const renderSettings = FULL_DAY_GRID_SETTINGS;
   const viewportHeightPx = getPreferredViewportHeightPx(gridSettings);
   const preferredStartMinutes = getGridStartMinutes(gridSettings);
   const preferredEndMinutes = getGridEndMinutes(gridSettings);
+  const dayColumns = visibleDays.length > 0 ? visibleDays : WEEK_DAYS;
+  const gridTemplateColumns = `3.5rem repeat(${dayColumns.length}, minmax(0, 1fr))`;
+  const todayWeekDay = useMemo(() => getTodayWeekDay(), []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -477,6 +506,22 @@ export function ScheduleTimeGrid({
     }
     return labels;
   }, [renderSettings]);
+
+  // Keep the day header column widths aligned with the scroll body: when a
+  // classic scrollbar appears it consumes width inside overflow-y-auto only.
+  useLayoutEffect(() => {
+    const node = scrollContainerRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const syncScrollbarWidth = () => {
+      setScrollbarWidthPx(node.offsetWidth - node.clientWidth);
+    };
+    syncScrollbarWidth();
+    const observer = new ResizeObserver(syncScrollbarWidth);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [viewportHeightPx]);
 
   // Value deps only: parents pass a new gridSettings object each render from
   // getGridSettingsForSchedule — object identity must not reset user scroll.
@@ -554,6 +599,24 @@ export function ScheduleTimeGrid({
     setActiveSlot(null);
   };
 
+  const handleReadOnlyInteract = (point: { clientX: number; clientY: number }) => {
+    lockedHint.show({
+      message: t('schedule.lockedActionHint'),
+      description: t('schedule.lockedActionDescription'),
+      x: point.clientX,
+      y: point.clientY,
+      actions: onUnlock
+        ? [
+            {
+              id: 'unlock',
+              label: t('schedule.settings.unlock'),
+              onClick: () => onUnlock(),
+            },
+          ]
+        : undefined,
+    });
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
@@ -561,6 +624,8 @@ export function ScheduleTimeGrid({
           ? t('schedule.lockedHint')
           : `${t('schedule.dragHint')} ${t('schedule.clickEmptyHint')}`}
       </p>
+
+      <TransientActionHint hint={lockedHint.hint} onDismiss={lockedHint.dismiss} />
 
       <DndContext
         sensors={readOnly ? [] : sensors}
@@ -570,12 +635,21 @@ export function ScheduleTimeGrid({
       >
         <div className="overflow-x-auto rounded-lg border border-border/60">
           <div className="min-w-[760px]">
-            <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b border-border/60 bg-muted/30">
+            <div
+              className="grid border-b border-border/60 bg-muted/30"
+              style={{
+                gridTemplateColumns,
+                ...(scrollbarWidthPx > 0 ? { paddingInlineEnd: scrollbarWidthPx } : {}),
+              }}
+            >
               <div />
-              {WEEK_DAYS.map((day) => (
+              {dayColumns.map((day) => (
                 <div
                   key={day}
-                  className="border-l border-border/50 px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                  className={cn(
+                    'border-l border-border/50 px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wide',
+                    day === todayWeekDay ? 'text-primary' : 'text-muted-foreground',
+                  )}
                 >
                   {t(`teams.daysShort.${day}`)}
                 </div>
@@ -587,7 +661,7 @@ export function ScheduleTimeGrid({
               className="overflow-y-auto"
               style={{ maxHeight: viewportHeightPx }}
             >
-              <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
+              <div className="grid" style={{ gridTemplateColumns }}>
                 <div
                   className="relative bg-muted/20"
                   style={{ height: getGridHeightPx(renderSettings) }}
@@ -615,7 +689,7 @@ export function ScheduleTimeGrid({
                   })}
                 </div>
 
-                {WEEK_DAYS.map((day) => (
+                {dayColumns.map((day) => (
                   <DayColumn
                     key={day}
                     day={day}
@@ -630,6 +704,7 @@ export function ScheduleTimeGrid({
                     onEditSlot={readOnly ? undefined : onEditSlot}
                     onCopySlot={readOnly ? undefined : onCopySlot}
                     onAddSlot={readOnly ? undefined : onAddSlot}
+                    onReadOnlyInteract={handleReadOnlyInteract}
                     suppressClickRef={suppressCellClickRef}
                   />
                 ))}

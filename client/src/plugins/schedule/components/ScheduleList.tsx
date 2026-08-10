@@ -1,4 +1,4 @@
-import { CalendarClock, Check, ChevronDown, Lock, Plus, Settings, Users, X } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, Plus, Settings, Users, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -37,6 +37,7 @@ import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import type { TrainingTime } from '@/plugins/teams/types/teams';
 
 import { useSchedule } from '../hooks/useSchedule';
+import { useScheduleDaySpan } from '../hooks/useScheduleDaySpan';
 import { useSchedulePendingChanges } from '../hooks/useSchedulePendingChanges';
 import { useSchedulePlans } from '../hooks/useSchedulePlans';
 import { useScheduleSettings } from '../hooks/useScheduleSettings';
@@ -50,7 +51,9 @@ import {
 } from '../types/schedule';
 
 import { PlanView } from './PlanView';
+import { ScheduleDaySpanToggle } from './ScheduleDaySpanToggle';
 import { ScheduleFooter } from './ScheduleFooter';
+import { ScheduleLockToggle } from './ScheduleLockToggle';
 import { ScheduleSettingsView } from './ScheduleSettingsView';
 import { ScheduleSlotDetailDialog } from './ScheduleSlotDetailDialog';
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
@@ -78,11 +81,15 @@ export function ScheduleList() {
     settings,
     isLoading: isGridSettingsLoading,
     isLockedForSchedule,
+    setLockedForSchedule,
+    isTogglingLock,
   } = useScheduleSettings();
   const defaultGridSettings = getGridSettingsForSchedule(DEFAULT_SCHEDULE_ID);
   const defaultAvailableHours = getAvailableHours(DEFAULT_SCHEDULE_ID);
   const isDefaultSchedule = activeScheduleId === DEFAULT_SCHEDULE_ID;
   const isLocked = isLockedForSchedule(activeScheduleId);
+  const { daySpan, setDaySpan, visibleDays, isStackedView, canGoPrev, canGoNext, goPrev, goNext } =
+    useScheduleDaySpan();
   const {
     displayTeams,
     isDirty,
@@ -455,23 +462,32 @@ export function ScheduleList() {
 
         {isDefaultSchedule ? (
           <Card className="rounded-xl border-0 bg-card p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <h3 className="truncate text-2xl font-semibold tracking-tight text-foreground">
-                {activeScheduleName}
-              </h3>
-              {isLocked ? (
-                <span title={t('schedule.lockedBadge')}>
-                  <Lock
-                    className="h-4 w-4 shrink-0 text-muted-foreground"
-                    aria-label={t('schedule.lockedBadge')}
-                  />
-                </span>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <h3 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+                  {activeScheduleName}
+                </h3>
+                <ScheduleLockToggle
+                  locked={isLocked}
+                  disabled={isTogglingLock}
+                  onToggle={(nextLocked) => setLockedForSchedule(activeScheduleId, nextLocked)}
+                />
+              </div>
+              {!isMobile ? (
+                <ScheduleDaySpanToggle
+                  daySpan={daySpan}
+                  onSelect={setDaySpan}
+                  canGoPrev={canGoPrev}
+                  canGoNext={canGoNext}
+                  onPrev={goPrev}
+                  onNext={goNext}
+                />
               ) : null}
             </div>
             {saveError ? <p className="mb-2 text-xs text-destructive">{saveError}</p> : null}
             {isGridSettingsLoading ? (
               <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-            ) : isMobile ? (
+            ) : isMobile || isStackedView ? (
               <ScheduleWeekView slots={weekSlots} onSlotClick={handleSlotClick} />
             ) : (
               <ScheduleTimeGrid
@@ -479,6 +495,7 @@ export function ScheduleList() {
                 gridSettings={defaultGridSettings}
                 savingSlotId={null}
                 readOnly={isLocked}
+                visibleDays={visibleDays}
                 columnOrdersByDay={columnOrdersByDay}
                 onColumnOrderChange={isLocked ? undefined : handleColumnOrderChange}
                 getSlotHighlight={isLocked ? undefined : getSlotHighlight}
@@ -486,6 +503,9 @@ export function ScheduleList() {
                 onEditSlot={isLocked ? undefined : handleEditSlot}
                 onCopySlot={isLocked ? undefined : handleCopySlot}
                 onAddSlot={isLocked ? undefined : handleAddSlot}
+                onUnlock={
+                  isLocked ? () => setLockedForSchedule(activeScheduleId, false) : undefined
+                }
                 onSlotMove={handleSlotMove}
               />
             )}
@@ -499,6 +519,14 @@ export function ScheduleList() {
             scheduleName={activeScheduleName}
             teamFilter={teamFilter}
             schedulePlans={schedulePlans}
+            daySpan={daySpan}
+            onDaySpanChange={setDaySpan}
+            visibleDays={visibleDays}
+            isStackedView={isStackedView}
+            canGoPrev={canGoPrev}
+            canGoNext={canGoNext}
+            onPrevDaySpan={goPrev}
+            onNextDaySpan={goNext}
           />
         )}
       </div>
