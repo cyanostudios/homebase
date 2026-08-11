@@ -7,7 +7,7 @@ describe('TeamRequestsSection overview filtering', () => {
   test('compact overview only shows open requests', () => {
     expect(sectionSrc).toMatch(/isOpenRequestStatus/);
     expect(sectionSrc).toMatch(
-      /compact \? requests\.filter\(\(r\) => isOpenRequestStatus\(r\.status\)\) : requests/,
+      /const visibleRequests = compact\s*\?\s*requests\.filter\(\(r\) => isOpenRequestStatus\(r\.status\)\)\s*:\s*requests/,
     );
   });
 });
