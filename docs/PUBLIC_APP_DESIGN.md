@@ -6,6 +6,8 @@
 
 **Referensimplementation (annan look):** [`public-cups/styles.css`](../public-cups/styles.css) (Cupappen) — **kopiera inte** Cupappen-tokens hit; mallen har eget system. Cupappen-listing använder bl.a. fullbredd frosted `.top-bar`, `.app-atmosphere`, och distrikts-/cup-URL:er dokumenterade i [`public-cups/README.md`](../public-cups/README.md).
 
+**Publik Clubdesk (avvikande listing-shell, 2026-08-10 + featured Hem + Kontakt 2026-08-11):** [`public-clubdesk/`](../public-clubdesk/) använder request-form-inspirerad yta (Poppins, `#f9fafb`, violet, option cards, grid utan gradient). Hem visar **featured** guider/prislistor som kvadratiska kort (admin-checkbox/listval), därefter option-rader (inkl. Swish, Kontakt när kontakter finns, Info) — se [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md). Mallens coral/beige AppShell-tokens gäller fortfarande för nya kopior från `templates/public-app/`.
+
 ---
 
 ## Designprinciper

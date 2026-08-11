@@ -25,6 +25,16 @@ if ($uriPath === '/price-list' || str_starts_with($uriPath, '/price-list/')) {
     return true;
 }
 
+if ($uriPath === '/swish' || $uriPath === '/swish/') {
+    require __DIR__ . '/swish.php';
+    return true;
+}
+
+if ($uriPath === '/kontakt' || $uriPath === '/kontakt/') {
+    require __DIR__ . '/kontakt.php';
+    return true;
+}
+
 // SPA listing paths — serve index.html (real URLs, not hash).
 if (
     preg_match('#^/(guides|alla|price-lists|info)/?$#', $uriPath) === 1

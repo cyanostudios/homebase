@@ -226,6 +226,14 @@ class ClubdeskModel {
       out.publicationStatus = status;
     }
 
+    if (!partial || data.featured !== undefined) {
+      out.featured =
+        data.featured === true ||
+        data.featured === 'true' ||
+        data.featured === 1 ||
+        data.featured === '1';
+    }
+
     return out;
   }
 
@@ -251,6 +259,7 @@ class ClubdeskModel {
       featuredImageUrl: row.featured_image_url ?? null,
       category: row.category ?? null,
       publicationStatus: row.publication_status ?? 'draft',
+      featured: row.featured === true || row.featured === 't' || row.featured === 'true',
       sortOrder:
         row.sort_order !== null && row.sort_order !== undefined ? Number(row.sort_order) : 1,
       stepCount:
@@ -640,6 +649,7 @@ class ClubdeskModel {
             i.featured_image_url,
             i.category,
             i.publication_status,
+            i.featured,
             i.sort_order,
             i.created_at,
             i.updated_at,
@@ -723,9 +733,10 @@ class ClubdeskModel {
               featured_image_url,
               category,
               publication_status,
+              featured,
               sort_order
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
           `,
           [
@@ -736,6 +747,7 @@ class ClubdeskModel {
             fields.featuredImageUrl ?? null,
             fields.category ?? null,
             fields.publicationStatus ?? 'draft',
+            fields.featured === true,
             sortOrder,
           ],
         );
@@ -790,6 +802,7 @@ class ClubdeskModel {
                 ? data.publicationStatus
                 : data.publication_status
               : existing[0].publication_status,
+          featured: data.featured !== undefined ? data.featured : existing[0].featured,
         },
         { partial: false },
       );
@@ -826,9 +839,10 @@ class ClubdeskModel {
               featured_image_url = $4,
               category = $5,
               publication_status = $6,
-              sort_order = $7,
+              featured = $7,
+              sort_order = $8,
               updated_at = CURRENT_TIMESTAMP
-            WHERE id = $8 AND user_id = $9
+            WHERE id = $9 AND user_id = $10
             RETURNING *
           `,
           [
@@ -838,6 +852,7 @@ class ClubdeskModel {
             fields.featuredImageUrl ?? null,
             fields.category ?? null,
             fields.publicationStatus ?? 'draft',
+            fields.featured === true,
             nextSortOrder,
             id,
             userId,

@@ -29,6 +29,8 @@ export interface ClubdeskPriceList {
   description: string | null;
   featuredImageUrl: string | null;
   publicationStatus: PublicationStatus;
+  /** When true, shown as a square card on public Home. */
+  featured: boolean;
   currency: string;
   sortOrder?: number;
   itemCount?: number;
@@ -51,6 +53,7 @@ export interface ClubdeskPriceListPayload {
   description: string | null;
   featuredImageUrl: string | null;
   publicationStatus: PublicationStatus;
+  featured: boolean;
   currency: string;
   items: ClubdeskPriceListItemPayload[];
 }

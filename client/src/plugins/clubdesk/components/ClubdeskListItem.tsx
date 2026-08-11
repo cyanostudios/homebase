@@ -38,6 +38,7 @@ export function ClubdeskListItem({
   checkbox,
   columnCount = 2,
   onStatusChange,
+  onFeaturedChange,
   canReorder = false,
   reorderDisabled = false,
   onMoveUp,
@@ -52,6 +53,7 @@ export function ClubdeskListItem({
   checkbox?: React.ReactNode;
   columnCount?: ClubdeskColumnCount;
   onStatusChange?: (status: PublicationStatus) => void;
+  onFeaturedChange?: (featured: boolean) => void;
   canReorder?: boolean;
   reorderDisabled?: boolean;
   onMoveUp?: () => void;
@@ -133,6 +135,14 @@ export function ClubdeskListItem({
                 {clubdesk.category.trim()}
               </Badge>
             ) : null}
+            {clubdesk.featured ? (
+              <Badge
+                variant="outline"
+                className="border-0 bg-violet-50 text-[10px] font-semibold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+              >
+                {t('clubdesk.featuredShort')}
+              </Badge>
+            ) : null}
             {metaOnTop ? metaRow : null}
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
@@ -158,6 +168,33 @@ export function ClubdeskListItem({
                     </SelectItem>
                     <SelectItem value="published" className="rounded-md text-xs">
                       {t('clubdesk.status.published')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+            {onFeaturedChange ? (
+              <div
+                className="flex-shrink-0"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <Select
+                  value={clubdesk.featured === true ? 'true' : 'false'}
+                  onValueChange={(value) => onFeaturedChange(value === 'true')}
+                >
+                  <SelectTrigger
+                    className="h-7 w-[110px] rounded-md border-border/30 bg-background px-2 text-[10px] shadow-none"
+                    aria-label={t('clubdesk.featured')}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border/50 shadow-xl">
+                    <SelectItem value="true" className="rounded-md text-xs">
+                      {t('clubdesk.featuredShort')}
+                    </SelectItem>
+                    <SelectItem value="false" className="rounded-md text-xs">
+                      {t('clubdesk.notFeatured')}
                     </SelectItem>
                   </SelectContent>
                 </Select>

@@ -47,6 +47,11 @@ function transformPriceList(array $row): array
         'slug' => $row['slug'] ?? null,
         'description' => $description,
         'currency' => $currency,
+        'featured' => $row['featured'] === true
+            || $row['featured'] === 't'
+            || $row['featured'] === 'true'
+            || $row['featured'] === 1
+            || $row['featured'] === '1',
         'item_count' => $itemCount,
         'meta' => $meta ?? (is_string($description) ? $description : null),
         'updated_at' => $row['updated_at'] ?? null,
@@ -57,7 +62,7 @@ function transformPriceList(array $row): array
 try {
     $cacheTtl = (int) (getenv('APP_CACHE_TTL') ?: 0);
     $cacheEnabled = $cacheTtl > 0 && function_exists('apcu_fetch') && filter_var(ini_get('apc.enabled'), FILTER_VALIDATE_BOOLEAN);
-    $cacheKey = 'public_clubdesk_price_lists_v1';
+    $cacheKey = 'public_clubdesk_price_lists_v2';
 
     if ($cacheEnabled) {
         $cached = apcu_fetch($cacheKey, $ok);
@@ -71,7 +76,7 @@ try {
     }
 
     $pdo = getPdoFromEnv();
-    $stmt = $pdo->query(publicAppPriceListsSql());
+    $stmt = $pdo->query(publicAppPriceListsSql($pdo));
     $rows = $stmt->fetchAll();
     $priceLists = array_map('transformPriceList', $rows);
 

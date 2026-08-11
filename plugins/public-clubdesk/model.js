@@ -8,6 +8,7 @@ class PublicClubdeskModel {
       slug: row.slug ?? '',
       description: row.description ?? null,
       featuredImageUrl: row.featured_image_url ?? null,
+      featured: row.featured === true || row.featured === 't' || row.featured === 'true',
       category: row.category ?? null,
       stepCount:
         row.step_count !== null && row.step_count !== undefined ? Number(row.step_count) : 0,
@@ -44,6 +45,7 @@ class PublicClubdeskModel {
       slug: row.slug ?? '',
       description: row.description ?? null,
       currency: row.currency ?? 'SEK',
+      featured: row.featured === true || row.featured === 't' || row.featured === 'true',
       itemCount:
         row.item_count !== null && row.item_count !== undefined ? Number(row.item_count) : 0,
       updatedAt: row.updated_at ?? null,
@@ -102,6 +104,7 @@ class PublicClubdeskModel {
           g.slug,
           g.description,
           g.featured_image_url,
+          g.featured,
           g.category,
           g.sort_order,
           g.updated_at,
@@ -205,6 +208,7 @@ class PublicClubdeskModel {
           p.slug,
           p.description,
           p.currency,
+          p.featured,
           p.sort_order,
           p.updated_at,
           COALESCE(s.cnt, 0)::int AS item_count

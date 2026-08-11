@@ -76,6 +76,7 @@ export const PriceListList: React.FC = () => {
     recentlyDuplicatedPriceListId,
     openPriceListPanel,
     updatePriceListPublicationStatus,
+    updatePriceListFeatured,
     validationErrors,
     reorderPriceLists,
     isSaving,
@@ -257,6 +258,10 @@ export const PriceListList: React.FC = () => {
 
   const handleStatusChange = (item: (typeof priceLists)[0], status: PublicationStatus) => {
     void updatePriceListPublicationStatus(item, status);
+  };
+
+  const handleFeaturedChange = (item: (typeof priceLists)[0], featured: boolean) => {
+    void updatePriceListFeatured(item, featured);
   };
 
   const handleMove = useCallback(
@@ -507,6 +512,7 @@ export const PriceListList: React.FC = () => {
                     onClick={() => handleOpenForView(item)}
                     columnCount={columnCount}
                     onStatusChange={(status) => handleStatusChange(item, status)}
+                    onFeaturedChange={(featured) => handleFeaturedChange(item, featured)}
                     canReorder={canReorder}
                     reorderDisabled={isSaving}
                     onMoveUp={canReorder ? () => void handleMove(index, -1) : undefined}

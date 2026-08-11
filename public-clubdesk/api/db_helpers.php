@@ -22,6 +22,10 @@ function publicAppTableHasColumn(PDO $pdo, string $table, string $column): bool
 
 function publicAppListSql(PDO $pdo): string
 {
+    $featuredSelect = publicAppTableHasColumn($pdo, 'clubdesk_guides', 'featured')
+        ? 'g.featured'
+        : 'FALSE AS featured';
+
     return <<<SQL
 SELECT
   g.id,
@@ -29,6 +33,7 @@ SELECT
   g.slug,
   g.description,
   g.featured_image_url,
+  {$featuredSelect},
   g.category,
   g.sort_order,
   g.updated_at,
@@ -166,8 +171,12 @@ SQL,
     ];
 }
 
-function publicAppPriceListsSql(): string
+function publicAppPriceListsSql(PDO $pdo): string
 {
+    $featuredSelect = publicAppTableHasColumn($pdo, 'clubdesk_price_lists', 'featured')
+        ? 'p.featured'
+        : 'FALSE AS featured';
+
     return <<<SQL
 SELECT
   p.id,
@@ -175,6 +184,7 @@ SELECT
   p.slug,
   p.description,
   p.currency,
+  {$featuredSelect},
   p.sort_order,
   p.updated_at,
   (
@@ -304,6 +314,51 @@ LIMIT 1
 SQL,
         'params' => [$priceListId],
     ];
+}
+
+/**
+ * Primary org Swish profile for the public Swish page (oldest non-empty payee).
+ *
+ * @return array{sql: string, params: list<mixed>}
+ */
+function publicAppPrimarySwishProfileSql(): array
+{
+    return [
+        'sql' => <<<SQL
+SELECT
+  payee,
+  message
+FROM clubdesk_swish_profiles
+WHERE TRIM(payee) <> ''
+ORDER BY id ASC
+LIMIT 1
+SQL,
+        'params' => [],
+    ];
+}
+
+/**
+ * Public Info contact list (join contacts; whitelist fields only).
+ */
+function publicAppInfoContactsSql(PDO $pdo): ?string
+{
+    if (!publicAppTableHasColumn($pdo, 'clubdesk_info_contacts', 'contact_id')) {
+        return null;
+    }
+
+    return <<<SQL
+SELECT
+  ic.id,
+  ic.blurb,
+  ic.sort_order,
+  c.company_name,
+  c.email,
+  c.phone,
+  c.contact_persons
+FROM clubdesk_info_contacts ic
+INNER JOIN contacts c ON c.id = ic.contact_id
+ORDER BY ic.sort_order ASC, ic.id ASC
+SQL;
 }
 
 /**

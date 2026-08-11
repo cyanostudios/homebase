@@ -10,17 +10,18 @@ Swish Type C-data lagras som **flera admin-profiler** per tenant, knutna till **
 
 ## Beslut
 
-| Beslut                   | Val                                                                                                  |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Lagring                  | `clubdesk_swish_profiles` + junction `clubdesk_swish_profile_price_lists` (migration **123**)        |
-| Fält                     | `payee`, `message` (≤50); **ingen** `amount`-kolumn                                                  |
-| Listkoppling             | M:N; **`UNIQUE (price_list_id)`** — max en profil per prislista                                      |
-| Soft max                 | 50 profiler / user                                                                                   |
-| API                      | `/api/clubdesk/swish-profiles` CRUD; CSRF + `requirePlugin('clubdesk')`                              |
-| QR runtime (admin)       | `@/core/qr`; `amount: null`; `lockMask = SWISH_LOCK.AMOUNT` (2)                                      |
-| QR runtime (publik cart) | `public-clubdesk/lib/swishPayload.js` + `qrcode.bundle.js`; amount = cart total; `lockMask = AMOUNT` |
-| Migrering                | Singleton `swish.meta` payee/message → första profil; meta nollställs                                |
-| Publik site-content      | Returnerar fortfarande aldrig `swish`-kortet                                                         |
+| Beslut                   | Val                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Lagring                  | `clubdesk_swish_profiles` + junction `clubdesk_swish_profile_price_lists` (migration **123**)                      |
+| Fält                     | `payee`, `message` (≤50); **ingen** `amount`-kolumn                                                                |
+| Listkoppling             | M:N; **`UNIQUE (price_list_id)`** — max en profil per prislista                                                    |
+| Soft max                 | 50 profiler / user                                                                                                 |
+| API                      | `/api/clubdesk/swish-profiles` CRUD; CSRF + `requirePlugin('clubdesk')`                                            |
+| QR runtime (admin)       | `@/core/qr`; `amount: null`; `lockMask = SWISH_LOCK.AMOUNT` (2)                                                    |
+| QR runtime (publik cart) | `public-clubdesk/lib/swishPayload.js` + `qrcode.bundle.js`; amount = cart total; `lockMask = AMOUNT`               |
+| QR runtime (publik org)  | `/swish/` SSR + `swish-page-app.js`; primary profile (oldest non-empty payee); `amount: null`; `lockMask = AMOUNT` |
+| Migrering                | Singleton `swish.meta` payee/message → första profil; meta nollställs                                              |
+| Publik site-content      | Returnerar fortfarande aldrig `swish`-kortet                                                                       |
 
 ## Avvisat
 
@@ -42,3 +43,4 @@ Etapp 2 cart-QR bör få **ny** Security-granskning före prod.
 
 - Admin Info → Swish: multi-profil UI + tags mot prislistor (`ClubdeskSwishProfilesPanel`).
 - Publik `/price-list/:slug` cart: QR under Att betala när profil finns och summa > 0.
+- Publik `/swish/`: org-QR + nummer från äldsta profil med payee (Hem-rad); belopp anges i Swish-appen.

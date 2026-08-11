@@ -956,6 +956,10 @@
     "categoryPlaceholder": "e.g. Opening, Closing",
     "uncategorized": "Uncategorized",
     "publicationStatus": "Publication status",
+    "featured": "Featured on home",
+    "featuredHint": "Shown as a card on Home in the public app.",
+    "featuredShort": "Featured",
+    "notFeatured": "Not featured",
     "status": {
       "draft": "Draft",
       "published": "Published"
@@ -1122,6 +1126,9 @@
         "info": "Info",
         "infoDescription": "Text on the Info tab",
         "infoHelp": "Heading and body are shown on the Info tab in the public app.",
+        "contacts": "Contacts",
+        "contactsDescription": "Contact list on Home and /kontakt/",
+        "contactsHelp": "Pick contacts from Contacts and add a short note. Shown on Home and the Contacts page when the list is not empty.",
         "swish": "Swish / QR",
         "swishDescription": "Swish profiles linked to price lists",
         "swishHelp": "Create Swish QR profiles (number + message). Link each profile to one or more price lists. Amount is never set here — the payer enters the sum in Swish after scanning. Admin only; not shown on the public app yet."
@@ -1154,6 +1161,24 @@
         "downloading": "Downloading…",
         "downloadFailed": "Could not download the QR code."
       }
+    },
+    "infoContacts": {
+      "help": "Pick contacts from Contacts and add a short note. The list appears on Home and the Contacts page when it is not empty.",
+      "listTitle": "Contact list",
+      "add": "Add",
+      "empty": "No contacts added yet.",
+      "contact": "Contact",
+      "searchContact": "Search contacts…",
+      "contactRequired": "Choose a contact.",
+      "blurb": "Short note",
+      "blurbPlaceholder": "e.g. Chair, weekdays 9–16",
+      "loadFailed": "Failed to load the contact list.",
+      "saveFailed": "Failed to save the contact.",
+      "deleteFailed": "Failed to remove the contact.",
+      "deleteConfirmThis": "Are you sure you want to remove this contact from the list?",
+      "deleteConfirmNamed": "Are you sure you want to remove \"{{name}}\" from the list?",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
     }
   },
   "guides": {

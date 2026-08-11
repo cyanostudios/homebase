@@ -24,6 +24,8 @@ export interface Clubdesk {
   featuredImageUrl: string | null;
   category: string | null;
   publicationStatus: PublicationStatus;
+  /** When true, shown as a square card on public Home. */
+  featured: boolean;
   sortOrder?: number;
   stepCount?: number;
   steps?: ClubdeskStep[];
@@ -45,6 +47,7 @@ export interface ClubdeskPayload {
   featuredImageUrl: string | null;
   category: string | null;
   publicationStatus: PublicationStatus;
+  featured: boolean;
   steps: ClubdeskStepPayload[];
 }
 

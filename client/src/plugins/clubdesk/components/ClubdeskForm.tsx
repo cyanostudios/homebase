@@ -140,6 +140,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
       featuredImageUrl: null,
       category: null,
       publicationStatus: 'draft',
+      featured: false,
       steps: [],
     });
 
@@ -202,6 +203,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
         featuredImageUrl: null,
         category: null,
         publicationStatus: 'draft',
+        featured: false,
         steps: [],
       });
       setSlugTouched(false);
@@ -219,6 +221,7 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
           featuredImageUrl: clubdesk.featuredImageUrl,
           category: clubdesk.category,
           publicationStatus: clubdesk.publicationStatus || 'draft',
+          featured: clubdesk.featured === true,
           steps: (clubdesk.steps || []).map((step, index) => ({
             title: step.title || '',
             description: step.description ?? null,
@@ -635,6 +638,21 @@ const ClubdeskGuideForm = React.forwardRef<PanelFormHandle, ClubdeskFormProps>(
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="clubdesk-featured-flag"
+                          type="checkbox"
+                          checked={formData.featured === true}
+                          onChange={(e) => updateField('featured', e.target.checked)}
+                          className="h-4 w-4 rounded border-border"
+                        />
+                        <Label htmlFor="clubdesk-featured-flag" className="font-normal">
+                          {t('clubdesk.featured')}
+                        </Label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{t('clubdesk.featuredHint')}</p>
                     </div>
                   </div>
                 </DetailSection>

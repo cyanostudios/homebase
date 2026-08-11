@@ -17,6 +17,7 @@ import type {
   ClubdeskSiteContentMap,
 } from '../types/siteContent';
 import type { ClubdeskSwishProfile, ClubdeskSwishProfilePayload } from '../types/swishProfile';
+import type { ClubdeskInfoContact, ClubdeskInfoContactPayload } from '../types/infoContact';
 
 const request = createApiClient('/clubdesk');
 
@@ -312,6 +313,42 @@ class ClubdeskApi {
   deleteSwishProfile(id: string) {
     return apiRequest<{ id: string }>(`/swish-profiles/${id}`, { method: 'DELETE' });
   }
+
+  async getInfoContacts(): Promise<ClubdeskInfoContact[]> {
+    const rows = await apiRequest<ClubdeskInfoContact[]>('/info-contacts');
+    return (rows || []).map(normalizeInfoContact);
+  }
+
+  createInfoContact(payload: ClubdeskInfoContactPayload) {
+    return apiRequest<ClubdeskInfoContact>('/info-contacts', {
+      method: 'POST',
+      body: JSON.stringify({
+        contactId: Number(payload.contactId),
+        blurb: payload.blurb ?? '',
+      }),
+    }).then(normalizeInfoContact);
+  }
+
+  updateInfoContact(id: string, payload: Partial<ClubdeskInfoContactPayload>) {
+    const body: Record<string, unknown> = {};
+    if (payload.contactId !== undefined) body.contactId = Number(payload.contactId);
+    if (payload.blurb !== undefined) body.blurb = payload.blurb;
+    return apiRequest<ClubdeskInfoContact>(`/info-contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }).then(normalizeInfoContact);
+  }
+
+  deleteInfoContact(id: string) {
+    return apiRequest<{ id: string }>(`/info-contacts/${id}`, { method: 'DELETE' });
+  }
+
+  reorderInfoContacts(orderedIds: string[]) {
+    return apiRequest<ClubdeskInfoContact[]>('/info-contacts/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ orderedIds: orderedIds.map((id) => Number(id)) }),
+    }).then((rows) => (rows || []).map(normalizeInfoContact));
+  }
 }
 
 function emptySiteCard(cardKey: ClubdeskSiteCardKey): ClubdeskSiteContentCard {
@@ -347,6 +384,25 @@ function normalizeSwishProfile(row: ClubdeskSwishProfile): ClubdeskSwishProfile 
     message: row.message ?? '',
     sortOrder: Number(row.sortOrder) || 1,
     priceListIds: Array.isArray(row.priceListIds) ? row.priceListIds.map((id) => String(id)) : [],
+    createdAt: row.createdAt ?? null,
+    updatedAt: row.updatedAt ?? null,
+  };
+}
+
+function normalizeInfoContact(row: ClubdeskInfoContact): ClubdeskInfoContact {
+  const contact = row.contact || ({} as ClubdeskInfoContact['contact']);
+  return {
+    id: String(row.id),
+    contactId: String(row.contactId),
+    blurb: row.blurb ?? '',
+    sortOrder: Number(row.sortOrder) || 1,
+    contact: {
+      id: String(contact.id || row.contactId),
+      companyName: contact.companyName ?? '',
+      email: contact.email ?? '',
+      phone: contact.phone ?? '',
+      displayName: contact.displayName || contact.companyName || `Kontakt ${row.contactId}`,
+    },
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
   };

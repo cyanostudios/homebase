@@ -1,9 +1,11 @@
 /**
- * Public Clubdesk listing client — AppShell design system.
+ * Public Clubdesk listing client — request-form-inspired shell.
  * Guides: /api/items.php + /guide/:slug
  * Price lists: /api/price_lists.php + /price-list/:slug
  * Site content: /api/site_content.php (home + info cards)
  * Listing URLs: `/`, `/guides/`, `/price-lists/`, `/info/`, `/kategori/:slug/`.
+ * Org Swish: `/swish/` (SSR detail, linked from Hem row).
+ * Kontakt: `/kontakt/` (SSR detail, linked from Hem row when contacts exist).
  */
 
 function resolvePublicAppApiOrigin() {
@@ -23,11 +25,19 @@ const PRICE_LISTS_API_URL =
   window.PUBLIC_APP_PRICE_LISTS_API_URL || `${API_BASE}/api/price_lists.php`;
 const SITE_CONTENT_API_URL =
   window.PUBLIC_APP_SITE_CONTENT_API_URL || `${API_BASE}/api/site_content.php`;
+const INFO_CONTACTS_API_URL =
+  window.PUBLIC_APP_INFO_CONTACTS_API_URL || `${API_BASE}/api/info_contacts.php`;
 const Urls = window.ClubdeskListingUrls;
 
 if (!Urls) {
   throw new Error('ClubdeskListingUrls saknas — ladda /lib/listingUrls.js före app.js');
 }
+
+const ICON_GUIDE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
+const ICON_PRICE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><path d="M18 15v6M15 18h6"/></svg>`;
+const ICON_INFO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>`;
+const ICON_SWISH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><path d="M14 14h5v5"/><path d="M14 19h.01"/></svg>`;
+const ICON_KONTAKT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -36,6 +46,20 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function plainText(value) {
+  return String(value || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function truncateText(value, max = 96) {
+  const text = plainText(value);
+  if (!text) return '';
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
 }
 
 function itemHref(item) {
@@ -64,24 +88,13 @@ function itemCategory(item) {
   return s.split(',')[0].trim() || 'Övrigt';
 }
 
-function itemImageUrl(item) {
-  const url = String(
-    item.featured_image_url || item.featuredImageUrl || item.image_url || item.imageUrl || '',
-  ).trim();
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
-    return url;
-  }
-  return '';
-}
-
 function itemMeta(item) {
   if (item.meta) return String(item.meta);
   const stepCount = Number(item.stepCount ?? item.step_count ?? 0);
   if (stepCount > 0) {
     return stepCount === 1 ? '1 steg' : `${stepCount} steg`;
   }
-  return String(item.description || '');
+  return '';
 }
 
 function priceListMeta(item) {
@@ -90,7 +103,25 @@ function priceListMeta(item) {
   if (count > 0) {
     return count === 1 ? '1 produkt' : `${count} produkter`;
   }
-  return String(item.description || '');
+  return '';
+}
+
+function itemDescription(item) {
+  const desc = truncateText(item.description || '');
+  if (desc) return desc;
+  const meta = itemMeta(item);
+  const cat = itemCategory(item);
+  if (meta && cat) return `${cat} · ${meta}`;
+  return meta || cat || 'Öppna guiden';
+}
+
+function priceListDescription(item) {
+  const desc = truncateText(item.description || '');
+  if (desc) return desc;
+  const meta = priceListMeta(item);
+  const currency = String(item.currency || 'SEK').trim();
+  if (meta) return `${meta} · ${currency}`;
+  return currency ? `Prislista · ${currency}` : 'Öppna prislistan';
 }
 
 function setStatus(text) {
@@ -127,41 +158,108 @@ function syncUrl(tab, filter, { replace = false } = {}) {
   }
 }
 
-/**
- * Home copy comes from CMS site-content in #rows-container (no static hero / quick-nav).
- */
-
-function renderItemCard(item) {
-  const name = escapeHtml(itemName(item));
-  const href = escapeHtml(itemHref(item));
-  const tag = escapeHtml(itemCategory(item));
-  const meta = escapeHtml(itemMeta(item));
-  const img = itemImageUrl(item);
-  const imgHtml = img ? `<img src="${escapeHtml(img)}" alt="" loading="lazy" />` : '';
-
-  return `<a class="item-card shadow-card scroll-snap-start" href="${href}">
-    <div class="item-card__media">
-      ${imgHtml}
-      <div class="item-card__gradient" aria-hidden="true"></div>
-      <span class="item-card__tag glass">${tag}</span>
-      <div class="item-card__body">
-        <h3 class="item-card__title">${name}</h3>
-        ${meta ? `<p class="item-card__meta">${meta.length > 48 ? `${meta.slice(0, 47)}…` : meta}</p>` : ''}
-      </div>
-    </div>
+function renderOptionCard({ href, title, description, kind, spaTab }) {
+  const icon =
+    kind === 'price-list'
+      ? ICON_PRICE
+      : kind === 'info'
+        ? ICON_INFO
+        : kind === 'swish'
+          ? ICON_SWISH
+          : kind === 'kontakt'
+            ? ICON_KONTAKT
+            : ICON_GUIDE;
+  const kindClass =
+    kind === 'price-list'
+      ? 'price-list'
+      : kind === 'info'
+        ? 'info'
+        : kind === 'swish'
+          ? 'swish'
+          : kind === 'kontakt'
+            ? 'kontakt'
+            : 'guide';
+  const spaAttr = spaTab ? ` data-home-spa="${escapeHtml(spaTab)}"` : '';
+  return `<a class="option-card" href="${escapeHtml(href)}"${spaAttr}>
+    <span class="option-card__icon option-card__icon--${kindClass}">${icon}</span>
+    <span class="option-card__text">
+      <span class="option-card__title">${escapeHtml(title)}</span>
+      ${description ? `<span class="option-card__desc">${escapeHtml(description)}</span>` : ''}
+    </span>
+    <span class="option-card__chevron" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="m9 18 6-6-6-6"/></svg>
+    </span>
   </a>`;
 }
 
-function renderPriceListCard(item) {
-  const name = escapeHtml(itemName(item));
-  const href = escapeHtml(priceListHref(item));
-  const meta = escapeHtml(priceListMeta(item));
-  const currency = escapeHtml(String(item.currency || 'SEK'));
+function renderGuideOptionCard(item) {
+  return renderOptionCard({
+    href: itemHref(item),
+    title: itemName(item),
+    description: itemDescription(item),
+    kind: 'guide',
+  });
+}
 
-  return `<a class="price-list-card shadow-card" href="${href}">
-    <span class="price-list-card__tag">${currency}</span>
-    <h3 class="price-list-card__title">${name}</h3>
-    ${meta ? `<p class="price-list-card__meta">${meta.length > 48 ? `${meta.slice(0, 47)}…` : meta}</p>` : ''}
+function renderPriceListCard(item) {
+  return renderOptionCard({
+    href: priceListHref(item),
+    title: itemName(item),
+    description: priceListDescription(item),
+    kind: 'price-list',
+  });
+}
+
+function renderInfoRow() {
+  return renderOptionCard({
+    href: '/info/',
+    title: 'Info',
+    description: 'Om appen och föreningen',
+    kind: 'info',
+    spaTab: 'info',
+  });
+}
+
+function renderSwishRow() {
+  return renderOptionCard({
+    href: '/swish/',
+    title: 'Swish',
+    description: 'Föreningens nummer och QR-kod',
+    kind: 'swish',
+  });
+}
+
+function renderKontaktRow() {
+  return renderOptionCard({
+    href: '/kontakt/',
+    title: 'Kontakt',
+    description: 'Personer att höra av dig till',
+    kind: 'kontakt',
+  });
+}
+
+function isFeaturedItem(item) {
+  return item?.featured === true || item?.featured === 1 || item?.featured === 'true';
+}
+
+function itemImageUrl(item) {
+  const url = String(
+    item?.featured_image_url || item?.featuredImageUrl || item?.image_url || item?.imageUrl || '',
+  ).trim();
+  return url;
+}
+
+function renderHomeSquareCard(item, kind) {
+  const href = kind === 'price-list' ? priceListHref(item) : itemHref(item);
+  const name = itemName(item);
+  const img = kind === 'guide' ? itemImageUrl(item) : '';
+  const initial = (name || '?').charAt(0).toUpperCase();
+  const media = img
+    ? `<img class="home-square-card__img" src="${escapeHtml(img)}" alt="" loading="lazy" />`
+    : `<span class="home-square-card__fallback" aria-hidden="true">${escapeHtml(initial)}</span>`;
+  return `<a class="home-square-card" href="${escapeHtml(href)}">
+    <span class="home-square-card__media">${media}</span>
+    <span class="home-square-card__label">${escapeHtml(name)}</span>
   </a>`;
 }
 
@@ -233,6 +331,31 @@ function groupByCategory(items) {
   return map;
 }
 
+function renderConvPanel({ title, subtitle, bodyHtml, panelId }) {
+  const head = `<div class="conv-step-head">
+    <h2 class="conv-step-head__title">${escapeHtml(title)}</h2>
+    ${subtitle ? `<p class="conv-step-head__subtitle">${subtitle}</p>` : ''}
+  </div>`;
+  return `<div class="conv-panel" ${panelId ? `id="${escapeHtml(panelId)}"` : ''}>
+    ${head}
+    ${bodyHtml}
+  </div>`;
+}
+
+/** Shared listing chrome: beige header + white sheet (Hem layout). */
+function renderPageChrome({ title, subtitleHtml, bodyHtml, headerId }) {
+  return `
+    <header class="home-header"${headerId ? ` id="${escapeHtml(headerId)}"` : ''}>
+      <h1 class="home-header__title">${escapeHtml(title)}</h1>
+      ${subtitleHtml || ''}
+    </header>
+    <div class="home-sheet">${bodyHtml}</div>`;
+}
+
+function plainSubtitle(text) {
+  return `<p class="home-header__text">${escapeHtml(text)}</p>`;
+}
+
 function renderHomeHub() {
   const container = document.getElementById('rows-container');
   if (!container) return;
@@ -243,45 +366,56 @@ function renderHomeHub() {
   const site = window.__PUBLIC_APP_SITE_CONTENT__ || {};
   const homeHtml = String(site.home?.contentHtml || '').trim();
   const homeTitle = String(site.home?.title || '').trim();
-  const guideCount = guides.length;
-  const priceCount = priceLists.length;
-  const guideMeta =
-    guideCount === 0 ? 'Inga guider ännu' : guideCount === 1 ? '1 guide' : `${guideCount} guider`;
-  const priceMeta =
-    priceCount === 0
-      ? 'Inga prislistor ännu'
-      : priceCount === 1
-        ? '1 prislista'
-        : `${priceCount} prislistor`;
 
-  const introParts = [];
-  if (homeTitle) {
-    introParts.push(`<h2 class="site-content-title">${escapeHtml(homeTitle)}</h2>`);
+  const title = homeTitle || 'Hem';
+  const subtitleHtml = homeHtml
+    ? `<div class="home-header__text site-content-html site-content-html--home">${homeHtml}</div>`
+    : plainSubtitle('Guider och prislistor för personalen.');
+
+  const featuredCards = [
+    ...guides.filter(isFeaturedItem).map((item) => renderHomeSquareCard(item, 'guide')),
+    ...priceLists.filter(isFeaturedItem).map((item) => renderHomeSquareCard(item, 'price-list')),
+  ];
+
+  const infoContacts = Array.isArray(window.__PUBLIC_APP_INFO_CONTACTS__)
+    ? window.__PUBLIC_APP_INFO_CONTACTS__
+    : [];
+
+  const rowCards = [
+    ...guides.map(renderGuideOptionCard),
+    ...priceLists.map(renderPriceListCard),
+    renderSwishRow(),
+    ...(infoContacts.length > 0 ? [renderKontaktRow()] : []),
+    renderInfoRow(),
+  ];
+
+  const sections = [];
+  if (featuredCards.length > 0) {
+    sections.push(`<section class="home-section home-section--cards" aria-label="Utvalt">
+      <div class="home-square-grid">${featuredCards.join('')}</div>
+    </section>`);
   }
-  if (homeHtml) {
-    introParts.push(`<div class="site-content-html site-content-html--home">${homeHtml}</div>`);
-  }
-  const intro =
-    introParts.length > 0
-      ? `<div class="site-content-intro" id="home-intro">${introParts.join('')}</div>`
-      : '';
+  sections.push(
+    rowCards.length > 0
+      ? `<section class="home-section home-section--rows" aria-label="Innehåll">
+          <div class="option-list" id="home-option-list">${rowCards.join('')}</div>
+        </section>`
+      : `<section class="home-section"><div class="empty-state empty-state--inset">Inget innehåll ännu</div></section>`,
+  );
 
-  container.innerHTML = `${intro}<div class="hub-grid" id="hub-grid" aria-label="Startsida">
-    <a class="hub-tile shadow-card" href="/guides/" data-hub="guides">
-      <span class="hub-tile__label">Guides</span>
-      <span class="hub-tile__meta">${escapeHtml(guideMeta)}</span>
-    </a>
-    <a class="hub-tile shadow-card" href="/price-lists/" data-hub="price-lists">
-      <span class="hub-tile__label">Price list</span>
-      <span class="hub-tile__meta">${escapeHtml(priceMeta)}</span>
-    </a>
-  </div>`;
+  const bodyHtml = sections.join('');
 
-  container.querySelectorAll('[data-hub]').forEach((el) => {
+  container.innerHTML = renderPageChrome({
+    title,
+    subtitleHtml,
+    bodyHtml,
+    headerId: 'home-intro',
+  });
+
+  container.querySelectorAll('[data-home-spa]').forEach((el) => {
     bindSpaLink(el, () => {
-      const key = el.getAttribute('data-hub') || 'guides';
-      if (key === 'price-lists') return { tab: 'price-lists', filter: 'Alla' };
-      return { tab: 'guides', filter: 'Alla' };
+      const tab = el.getAttribute('data-home-spa') || 'home';
+      return { tab, filter: 'Alla' };
     });
   });
 }
@@ -290,47 +424,49 @@ function renderGuideRows(items) {
   const container = document.getElementById('rows-container');
   if (!container) return;
 
+  const filter = window.__PUBLIC_APP_FILTER__ || 'Alla';
+  const pageTitle = filter !== 'Alla' ? filter : 'Guides';
+  const pageSubtitle =
+    filter !== 'Alla'
+      ? plainSubtitle('Guider i den här kategorin')
+      : plainSubtitle('Alla publicerade guider');
+
   if (items.length === 0) {
-    container.innerHTML = `<div class="empty-state">Inga guider just nu</div>`;
+    container.innerHTML = renderPageChrome({
+      title: pageTitle,
+      subtitleHtml: pageSubtitle,
+      bodyHtml: `<div class="empty-state empty-state--inset">Inga guider just nu</div>`,
+    });
     return;
   }
 
-  const sections = [];
-  const filter = window.__PUBLIC_APP_FILTER__ || 'Alla';
-
+  let bodyHtml;
   if (filter !== 'Alla') {
-    const title = escapeHtml(filter);
-    sections.push(`<section class="item-grid-section">
-      <div class="item-grid-section__header">
-        <h2 class="item-grid-section__title">${title}</h2>
+    bodyHtml = `<section class="home-section home-section--rows">
+      <div class="option-list item-grid">
+        ${items.map(renderGuideOptionCard).join('')}
       </div>
-      <div class="item-grid">
-        ${items.map(renderItemCard).join('')}
-      </div>
-    </section>`);
+    </section>`;
   } else {
+    const sections = [];
     groupByCategory(items).forEach((groupItems, cat) => {
       const title = escapeHtml(cat);
-      const moreHref = escapeHtml(Urls.categoryPath(cat));
-      sections.push(`<section class="item-row">
-        <div class="item-row__header">
-          <h2 class="item-row__title">${title}</h2>
-          <a class="item-row__more" href="${moreHref}" data-filter-more="${title}">Visa alla</a>
+      sections.push(`<section class="home-section home-section--rows">
+        <div class="home-section__head">
+          <h2 class="home-section__title">${title}</h2>
         </div>
-        <div class="item-row__scroller no-scrollbar scroll-snap-x">
-          ${groupItems.map(renderItemCard).join('')}
+        <div class="option-list item-grid">
+          ${groupItems.map(renderGuideOptionCard).join('')}
         </div>
       </section>`);
     });
+    bodyHtml = sections.join('');
   }
 
-  container.innerHTML = sections.join('');
-
-  container.querySelectorAll('[data-filter-more]').forEach((btn) => {
-    bindSpaLink(btn, () => ({
-      tab: 'category',
-      filter: btn.getAttribute('data-filter-more') || 'Alla',
-    }));
+  container.innerHTML = renderPageChrome({
+    title: pageTitle,
+    subtitleHtml: pageSubtitle,
+    bodyHtml,
   });
 }
 
@@ -340,18 +476,17 @@ function renderPriceListListing() {
   const items = Array.isArray(window.__PUBLIC_APP_PRICE_LISTS__)
     ? window.__PUBLIC_APP_PRICE_LISTS__
     : [];
-  if (items.length === 0) {
-    container.innerHTML = `<div class="empty-state">Inga prislistor just nu</div>`;
-    return;
-  }
-  container.innerHTML = `<section class="item-grid-section">
-    <div class="item-grid-section__header">
-      <h2 class="item-grid-section__title">Price list</h2>
-    </div>
-    <div class="item-grid">
-      ${items.map(renderPriceListCard).join('')}
-    </div>
-  </section>`;
+  const bodyHtml =
+    items.length === 0
+      ? `<div class="empty-state empty-state--inset">Inga prislistor just nu</div>`
+      : `<section class="home-section home-section--rows">
+          <div class="option-list item-grid">${items.map(renderPriceListCard).join('')}</div>
+        </section>`;
+  container.innerHTML = renderPageChrome({
+    title: 'Price list',
+    subtitleHtml: plainSubtitle('Välj en prislista för att se produkter och betala.'),
+    bodyHtml,
+  });
 }
 
 function renderInfoListing() {
@@ -361,29 +496,29 @@ function renderInfoListing() {
   const site = window.__PUBLIC_APP_SITE_CONTENT__ || {};
   const infoHtml = String(site.info?.contentHtml || '').trim();
   const infoTitle = String(site.info?.title || '').trim();
-  let body;
-  if (infoHtml || infoTitle) {
-    const titleBlock = infoTitle
-      ? `<h2 class="site-content-title">${escapeHtml(infoTitle)}</h2>`
-      : '';
-    const htmlBlock = infoHtml
-      ? `<div class="site-content-html site-content-html--info">${infoHtml}</div>`
-      : '';
-    body = `${titleBlock}${htmlBlock}`;
+
+  const title = infoTitle || 'Info';
+  let subtitleHtml;
+  let bodyInner;
+  if (infoHtml) {
+    subtitleHtml = '';
+    bodyInner = `<div class="site-content-html site-content-html--info" id="info">${infoHtml}</div>
+      <p class="info-panel__contact">© <span id="footer-year">${escapeHtml(year)}</span> Clubdesk</p>`;
+  } else if (infoTitle) {
+    subtitleHtml = plainSubtitle('Information om föreningen och appen.');
+    bodyInner = `<p class="info-panel__contact">© <span id="footer-year">${escapeHtml(year)}</span> Clubdesk</p>`;
   } else {
-    body = `<p class="info-panel__eyebrow">Om appen</p>
-      <h2 class="info-panel__title">Clubdesk</h2>
-      <p class="info-panel__lead">
-        Här hittar du guider och prislistor för personalen. Börja på startsidan eller öppna Guides och Price list.
-      </p>`;
+    subtitleHtml = plainSubtitle(
+      'Här hittar du guider och prislistor för personalen. Börja på startsidan eller öppna Guides och Price list.',
+    );
+    bodyInner = `<p class="info-panel__contact">© <span id="footer-year">${escapeHtml(year)}</span> Clubdesk</p>`;
   }
-  container.innerHTML = `
-    <div class="info-panel" id="info">
-      ${body}
-      <p class="info-panel__contact">
-        © <span id="footer-year">${escapeHtml(year)}</span> Clubdesk
-      </p>
-    </div>`;
+
+  container.innerHTML = renderPageChrome({
+    title,
+    subtitleHtml,
+    bodyHtml: `<section class="home-section" id="info">${bodyInner}</section>`,
+  });
 }
 
 function applyFilter() {
@@ -419,9 +554,17 @@ function applyFilter() {
     setStatus('');
     const container = document.getElementById('rows-container');
     if (container) {
-      container.innerHTML = `<div class="empty-state">${
-        items.length === 0 ? 'Inga guider just nu' : 'Inget i den här kategorin'
-      }</div>`;
+      const filter = window.__PUBLIC_APP_FILTER__ || 'Alla';
+      const emptyTitle = filter !== 'Alla' ? filter : 'Guides';
+      container.innerHTML = renderPageChrome({
+        title: emptyTitle,
+        subtitleHtml: plainSubtitle(
+          items.length === 0 ? 'Inga guider just nu' : 'Inget i den här kategorin',
+        ),
+        bodyHtml: `<div class="empty-state empty-state--inset">${
+          items.length === 0 ? 'Inga guider just nu' : 'Inget i den här kategorin'
+        }</div>`,
+      });
     }
     return;
   }
@@ -452,10 +595,11 @@ function applyRouteFromLocation({ replaceUrl = false } = {}) {
 
 async function loadItems() {
   try {
-    const [guidesRes, priceRes, siteRes] = await Promise.all([
+    const [guidesRes, priceRes, siteRes, contactsRes] = await Promise.all([
       fetch(ITEMS_API_URL),
       fetch(PRICE_LISTS_API_URL),
       fetch(SITE_CONTENT_API_URL),
+      fetch(INFO_CONTACTS_API_URL),
     ]);
     if (!guidesRes.ok) throw new Error(`Guides HTTP ${guidesRes.status}`);
     if (!priceRes.ok) throw new Error(`Price lists HTTP ${priceRes.status}`);
@@ -481,6 +625,16 @@ async function loadItems() {
       }
     }
 
+    let infoContacts = [];
+    if (contactsRes.ok) {
+      try {
+        const parsed = await contactsRes.json();
+        infoContacts = Array.isArray(parsed?.items) ? parsed.items : [];
+      } catch {
+        infoContacts = [];
+      }
+    }
+
     const items = Array.isArray(guidesData.items)
       ? guidesData.items
       : Array.isArray(guidesData.guides)
@@ -491,6 +645,7 @@ async function loadItems() {
     window.__PUBLIC_APP_ITEMS__ = items;
     window.__PUBLIC_APP_PRICE_LISTS__ = priceLists;
     window.__PUBLIC_APP_SITE_CONTENT__ = siteData;
+    window.__PUBLIC_APP_INFO_CONTACTS__ = infoContacts;
     window.__PUBLIC_APP_CATEGORY_ORDER__ = Array.isArray(guidesData.categoryOrder)
       ? guidesData.categoryOrder
       : [];

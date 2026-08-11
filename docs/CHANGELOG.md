@@ -4,6 +4,56 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-11 – Clubdesk Info-kontaktlista (Hem + /kontakt/)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. Residual **IC-1** (publikt PHP utan `user_id`-filter; PII whitelist) väntar TPM medvetet godkännande. **Ej prod-release.**
+
+**Sammanfattning:** Under Clubdesk Info finns fliken **Kontakt**: välj kontakter från Contacts + kort text. Ingen published-flagga — tom lista syns inte. Publik Hem får option-rad **Kontakt** (när listan har rader) → egen sida `/kontakt/` (SSR). Migration `128-clubdesk-info-contacts.sql` (`npm run migrate:clubdesk-info-contacts`).
+
+**Kod:** `clubdesk_info_contacts`, admin panel, `public-clubdesk/kontakt.php` + `api/info_contacts.php`. ADR: [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md) (Security residual IC-1/IC-2).
+
+---
+
+## 2026-08-11 – Clubdesk featured: startsidans kortmeny
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved** (ingen ny oacceptabel risk; samma publik PHP-tenantmodell). **Ej prod-release.**
+
+**Sammanfattning:** Guider och prislistor får boolean **`featured`**. I backoffice: checkbox “Utvald på startsidan” + snabbval på listkort (Utvald / Ej utvald). På publik Hem visas utvalda som kvadratiska kort (tidigare kortmeny); option-rader listar fortfarande alla guider/prislistor + Swish + Kontakt (om kontakter) + Info. Migration `127-clubdesk-featured.sql` (`npm run migrate:clubdesk-featured`).
+
+**Kod:** migration + clubdesk models/routes, admin forms/list items, `public-clubdesk` API/`app.js`. ADR: [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
+
+---
+
+## 2026-08-11 – Publik Clubdesk: org-Swish-sida från Hem
+
+**Status:** Implementerat lokalt. **Tester gröna** (`public-clubdesk/__tests__`). **Ej prod-release.**
+
+**Sammanfattning:** Hem får en option-rad **Swish** → `/swish/`. Sidan visar föreningens Swish-QR och nummer (äldsta profil med payee i `clubdesk_swish_profiles`). Type C utan belopp (`lockMask = AMOUNT` så belopp anges i Swish-appen). Tom profil → tomt tillstånd. Site-content returnerar fortfarande aldrig `swish`-kortet.
+
+**Kod:** [`swish.php`](../public-clubdesk/swish.php), [`swish-page-app.js`](../public-clubdesk/swish-page-app.js), [`app.js`](../public-clubdesk/app.js), [`router.php`](../public-clubdesk/router.php), [`api/db_helpers.php`](../public-clubdesk/api/db_helpers.php). ADR: [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md), [`ai/adr/CLUBDESK_SWISH_PROFILES.md`](ai/adr/CLUBDESK_SWISH_PROFILES.md).
+
+---
+
+## 2026-08-11 – Publik Clubdesk Hem: kort-grid + rader (inspo)
+
+**Status:** Implementerat lokalt. **Tester gröna** (`public-clubdesk/__tests__`). **Ej prod-release.**
+
+**Sammanfattning:** Hem i `public-clubdesk/` får inspo-komposition: soft beige page, stor CMS-header (`site.home.title` + `contentHtml`), vit rounded sheet, **guider** som 3-kolumners kvadratiska kort, **Info + prislistor** som option-rader. “Visa alla” → Guides-flik. Övriga flikar/guide-detalj oförändrade i layout.
+
+**Kod:** [`app.js`](../public-clubdesk/app.js), [`styles.css`](../public-clubdesk/styles.css), [`appShellPatterns.test.js`](../public-clubdesk/__tests__/appShellPatterns.test.js). ADR: [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
+
+---
+
+## 2026-08-10 – Publik Clubdesk: request-form layout (listing shell)
+
+**Status:** Implementerat lokalt. **Tester gröna** (`public-clubdesk/__tests__`). **Ej separat Security-grind** (CSS/markup-restyle). **Ej prod-release.**
+
+**Sammanfattning:** Publik Clubdesk-listning (`public-clubdesk/`) får samma conversationala layoutspråk som `PublicRequestForm`: Poppins, `gray-50`/`#f9fafb`, violet accent, vit `conv-panel`, option cards. Gradient/blob-bakgrund bort; rutmönster kvar. **Hem** listar publicerade guider **och** prislistor som option cards (CMS-titel/HTML eller default “Vad vill du göra?”). Guides / Price list / Info / bottennav samma visuella språk. Guide-stegflöde (`guide.php`) oförändrat i beteende; prislista/Swish/API oförändrade.
+
+**Kod:** [`styles.css`](../public-clubdesk/styles.css), [`app.js`](../public-clubdesk/app.js), [`index.html`](../public-clubdesk/index.html), [`__tests__/appShellPatterns.test.js`](../public-clubdesk/__tests__/appShellPatterns.test.js). ADR: [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
+
+---
+
 ## 2026-08-10 – Settings Profile: logo upload requires Files plugin
 
 **Status:** Implementerat lokalt. **Ej QA/Security-granskat.** **Ej prod-release.**

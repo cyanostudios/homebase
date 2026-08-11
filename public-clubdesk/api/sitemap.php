@@ -124,7 +124,7 @@ echo '    <changefreq>daily</changefreq>' . "\n";
 echo '    <priority>1.0</priority>' . "\n";
 echo '  </url>' . "\n";
 
-foreach (['/guides/', '/price-lists/', '/info/'] as $listingPath) {
+foreach (['/guides/', '/price-lists/', '/info/', '/swish/'] as $listingPath) {
     echo '  <url>' . "\n";
     echo '    <loc>' . xmlText($base . $listingPath) . '</loc>' . "\n";
     echo '    <lastmod>' . xmlText($homeLastmod) . '</lastmod>' . "\n";

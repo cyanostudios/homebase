@@ -45,6 +45,11 @@ function transformItem(array $row): array
         'slug' => $row['slug'] ?? null,
         'description' => $description,
         'featured_image_url' => $row['featured_image_url'] ?? null,
+        'featured' => $row['featured'] === true
+            || $row['featured'] === 't'
+            || $row['featured'] === 'true'
+            || $row['featured'] === 1
+            || $row['featured'] === '1',
         'category' => $row['category'] ?? null,
         'meta' => $meta ?? (is_string($description) ? $description : null),
         'updated_at' => $row['updated_at'] ?? null,
@@ -55,7 +60,7 @@ function transformItem(array $row): array
 try {
     $cacheTtl = (int) (getenv('APP_CACHE_TTL') ?: 0);
     $cacheEnabled = $cacheTtl > 0 && function_exists('apcu_fetch') && filter_var(ini_get('apc.enabled'), FILTER_VALIDATE_BOOLEAN);
-    $cacheKey = 'public_clubdesk_guides_v1';
+    $cacheKey = 'public_clubdesk_guides_v2';
 
     if ($cacheEnabled) {
         $cached = apcu_fetch($cacheKey, $ok);

@@ -1,4 +1,4 @@
-import { Home, Info, QrCode as QrCodeIcon } from 'lucide-react';
+import { Home, Info, QrCode as QrCodeIcon, Users } from 'lucide-react';
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -14,13 +14,14 @@ import { cn } from '@/lib/utils';
 
 import { clubdeskApi } from '../api/clubdeskApi';
 
+import { ClubdeskInfoContactsPanel } from './ClubdeskInfoContactsPanel';
 import { ClubdeskSwishProfilesPanel } from './ClubdeskSwishProfilesPanel';
 
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
 );
 
-type InfoCardTab = 'home' | 'info' | 'swish';
+type InfoCardTab = 'home' | 'info' | 'contacts' | 'swish';
 
 function EditorFallback({ className }: { className?: string }) {
   return (
@@ -115,6 +116,13 @@ export function ClubdeskInfoView() {
         dotClassName: 'bg-emerald-500',
       },
       {
+        id: 'contacts',
+        label: t('clubdesk.siteContent.cards.contacts'),
+        description: t('clubdesk.siteContent.cards.contactsDescription'),
+        icon: Users,
+        dotClassName: 'bg-amber-500',
+      },
+      {
         id: 'swish',
         label: t('clubdesk.siteContent.cards.swish'),
         description: t('clubdesk.siteContent.cards.swishDescription'),
@@ -207,7 +215,7 @@ export function ClubdeskInfoView() {
           activeCategory={activeTab}
           onCategoryChange={(id) => setActiveTab(id as InfoCardTab)}
           saveAction={
-            activeTab !== 'swish' && isDirty ? (
+            activeTab !== 'swish' && activeTab !== 'contacts' && isDirty ? (
               <SettingsHeaderSaveButton
                 onClick={handleSave}
                 isSaving={isSaving}
@@ -216,7 +224,7 @@ export function ClubdeskInfoView() {
             ) : null
           }
         >
-          {errorMessage && activeTab !== 'swish' ? (
+          {errorMessage && activeTab !== 'swish' && activeTab !== 'contacts' ? (
             <p className="mb-4 text-sm text-destructive" role="alert">
               {errorMessage}
             </p>
@@ -284,6 +292,8 @@ export function ClubdeskInfoView() {
               </div>
             </div>
           ) : null}
+
+          {activeTab === 'contacts' ? <ClubdeskInfoContactsPanel disabled={isLoading} /> : null}
 
           {activeTab === 'swish' ? <ClubdeskSwishProfilesPanel disabled={isLoading} /> : null}
         </PluginSettingsPageShell>

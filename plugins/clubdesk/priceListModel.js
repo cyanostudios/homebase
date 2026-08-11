@@ -203,6 +203,14 @@ class PriceListModel {
       out.publicationStatus = status;
     }
 
+    if (!partial || data.featured !== undefined) {
+      out.featured =
+        data.featured === true ||
+        data.featured === 'true' ||
+        data.featured === 1 ||
+        data.featured === '1';
+    }
+
     if (!partial || data.currency !== undefined) {
       const currencyRaw =
         data.currency === undefined || data.currency === null || data.currency === ''
@@ -246,6 +254,7 @@ class PriceListModel {
       description: row.description ?? null,
       featuredImageUrl: null,
       publicationStatus: row.publication_status ?? 'draft',
+      featured: row.featured === true || row.featured === 't' || row.featured === 'true',
       currency: row.currency ?? DEFAULT_CURRENCY,
       sortOrder:
         row.sort_order !== null && row.sort_order !== undefined ? Number(row.sort_order) : 1,
@@ -700,6 +709,7 @@ class PriceListModel {
             i.description,
             i.featured_image_url,
             i.publication_status,
+            i.featured,
             i.currency,
             i.sort_order,
             i.created_at,
@@ -773,10 +783,11 @@ class PriceListModel {
               description,
               featured_image_url,
               publication_status,
+              featured,
               currency,
               sort_order
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
           `,
           [
@@ -786,6 +797,7 @@ class PriceListModel {
             fields.description ?? null,
             fields.featuredImageUrl ?? null,
             fields.publicationStatus ?? 'draft',
+            fields.featured === true,
             fields.currency ?? DEFAULT_CURRENCY,
             sortOrder,
           ],
@@ -840,6 +852,7 @@ class PriceListModel {
                 ? data.publicationStatus
                 : data.publication_status
               : existing[0].publication_status,
+          featured: data.featured !== undefined ? data.featured : existing[0].featured,
           currency: data.currency !== undefined ? data.currency : existing[0].currency,
         },
         { partial: false },
@@ -868,9 +881,10 @@ class PriceListModel {
               description = $3,
               featured_image_url = $4,
               publication_status = $5,
-              currency = $6,
+              featured = $6,
+              currency = $7,
               updated_at = CURRENT_TIMESTAMP
-            WHERE id = $7 AND user_id = $8
+            WHERE id = $8 AND user_id = $9
             RETURNING *
           `,
           [
@@ -879,6 +893,7 @@ class PriceListModel {
             fields.description ?? null,
             fields.featuredImageUrl ?? null,
             fields.publicationStatus ?? 'draft',
+            fields.featured === true,
             fields.currency ?? DEFAULT_CURRENCY,
             id,
             userId,

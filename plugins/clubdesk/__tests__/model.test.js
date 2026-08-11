@@ -31,6 +31,7 @@ describe('ClubdeskModel', () => {
         featured_image_url: 'https://cdn.example/a.jpg',
         category: 'Kitchen',
         publication_status: 'published',
+        featured: true,
         sort_order: 2,
         step_count: 3,
         created_at: '2026-01-01T00:00:00.000Z',
@@ -44,11 +45,25 @@ describe('ClubdeskModel', () => {
       featuredImageUrl: 'https://cdn.example/a.jpg',
       category: 'Kitchen',
       publicationStatus: 'published',
+      featured: true,
       sortOrder: 2,
       stepCount: 3,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     });
+  });
+
+  test('getAll SELECT includes featured for list reload', async () => {
+    const { Database } = require('@homebase/core');
+    const query = jest.fn().mockResolvedValue([]);
+    Database.get.mockReturnValue({
+      getUserId: () => 1,
+      query,
+    });
+    await model.getAll({});
+    expect(query).toHaveBeenCalled();
+    const sql = String(query.mock.calls[0][0]);
+    expect(sql).toMatch(/i\.featured\b/);
   });
 
   test('transformDetailRow includes ordered steps', () => {

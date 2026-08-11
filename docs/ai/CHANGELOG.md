@@ -2,6 +2,30 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Clubdesk Info contacts + featured — QA/Security docs sync (2026-08-11)
+
+Docs efter **QA Approved** + **Security Approved** för featured Hem-kort + Info-kontaktlista. ADR [`CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md) Security-residual **IC-1** (publikt PHP utan `user_id`; PII whitelist) + **IC-2** (join hardening) — **väntar TPM medvetet godkännande** för IC-1. README `public-clubdesk` synkad (routes/API). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
+## Clubdesk Info contacts (2026-08-11)
+
+Docs-sync: ADR [`CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md) — Info-kontaktlista (Contacts-pick + blurb), Hem-rad + `/kontakt/`. Presence = published. **Local-first; ej prod-release.** (Gate-status: se posten ovan.)
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
+## Clubdesk featured home cards (2026-08-11)
+
+Docs-sync: ADR [`CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md) — `featured` på guider/prislistor styr Hem-kortmenyn; listkort snabbval. **Local-first; ej prod-release.** (Gate-status: se QA/Security-posten ovan.)
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Schedule UX batch QA sync (2026-08-10)
 
 Docs efter **QA Approved** (Security **N/A**) för schedule-batch: day-span **1|3|7|stacked** + bläddring, `TransientActionHint` (locked booking + Unlock), `ScheduleLockToggle` (röd/grön klickbar). ADR [`P-SCHEDULE_DAY_SPAN.md`](adr/P-SCHEDULE_DAY_SPAN.md) status synkad. UI-standards: Time grid + Transient action hint (+ lock-toggle-notis). **Local-first; ej prod-release.**
@@ -171,6 +195,18 @@ ADR-uppdatering: Info-sida med kort `home` | `info` | `swish`. Swish är nu Type
 ## Clubdesk public companion (2026-08-07)
 
 ADR + docs för publik Clubdesk-sajt (`public-clubdesk/`, port 3011) och Node companion `/api/public/clubdesk`. Hem-hub 2 kolumner; flikar Hem | Guides | Price list | Info. **Local-first; ej prod-release.**
+
+## Clubdesk public listing shell → request-form (2026-08-10)
+
+Listing chrome på `public-clubdesk/` alignad med conversational `PublicRequestForm` (Poppins, option cards, flat bg + grid). Hem listar guider + prislistor. Guide-detalj oförändrad. Se ADR `CLUBDESK_PUBLIC_COMPANION.md` + `docs/CHANGELOG.md`. **Local-first; ej prod-release.**
+
+## Clubdesk Hem kort + rader (2026-08-11)
+
+Hem: CMS inspo-header, kvadratiska guide-kort, Info/prislistor som rader, beige page. Se ADR + CHANGELOG. **Local-first; ej prod-release.**
+
+## Clubdesk org-Swish-sida (2026-08-11)
+
+Hem-rad → `/swish/`: QR + Swish-nummer från äldsta profil med payee; belopp olåst i appen. Se ADR companion + Swish profiles + CHANGELOG. **Local-first; ej prod-release.**
 
 **ADR:** [`docs/ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md); Etapp 1 ADR pekar dit.
 

@@ -28,10 +28,27 @@ describe('PublicClubdeskModel', () => {
       slug: 'public',
       description: 'Desc',
       featuredImageUrl: 'https://cdn.example/x.png',
+      featured: false,
       category: 'Home',
       stepCount: 4,
       updatedAt: '2026-08-01T00:00:00.000Z',
     });
+  });
+
+  test('transformGuideListRow maps featured true', () => {
+    expect(
+      model.transformGuideListRow({
+        id: 3,
+        title: 'Feat',
+        slug: 'feat',
+        description: null,
+        featured_image_url: null,
+        featured: true,
+        category: null,
+        step_count: 1,
+        updated_at: null,
+      }).featured,
+    ).toBe(true);
   });
 
   test('transformGuideDetail maps steps to public { number, title, description, image }', () => {

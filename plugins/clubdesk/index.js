@@ -8,6 +8,8 @@ const SiteContentModel = require('./siteContentModel');
 const SiteContentController = require('./siteContentController');
 const SwishProfileModel = require('./swishProfileModel');
 const SwishProfileController = require('./swishProfileController');
+const InfoContactModel = require('./infoContactModel');
+const InfoContactController = require('./infoContactController');
 const createClubdeskRoutes = require('./routes');
 const config = require('./plugin.config');
 
@@ -20,12 +22,15 @@ function initializeClubdeskPlugin(context) {
   const siteContentController = new SiteContentController(siteContentModel);
   const swishProfileModel = new SwishProfileModel();
   const swishProfileController = new SwishProfileController(swishProfileModel);
+  const infoContactModel = new InfoContactModel();
+  const infoContactController = new InfoContactController(infoContactModel);
   const router = createClubdeskRoutes(
     controller,
     context,
     priceListController,
     siteContentController,
     swishProfileController,
+    infoContactController,
   );
 
   return {
@@ -39,6 +44,8 @@ function initializeClubdeskPlugin(context) {
     siteContentController,
     swishProfileModel,
     swishProfileController,
+    infoContactModel,
+    infoContactController,
   };
 }
 

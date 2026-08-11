@@ -950,6 +950,10 @@
     "categoryPlaceholder": "t.ex. Öppning, Stängning",
     "uncategorized": "Okategoriserad",
     "publicationStatus": "Publiceringsstatus",
+    "featured": "Utvald på startsidan",
+    "featuredHint": "Visas som kort på Hem i den publika appen.",
+    "featuredShort": "Utvald",
+    "notFeatured": "Ej utvald",
     "status": {
       "draft": "Utkast",
       "published": "Publicerad"
@@ -1116,6 +1120,9 @@
         "info": "Info",
         "infoDescription": "Text på Info-fliken",
         "infoHelp": "Rubrik och text visas på Info-fliken i den publika appen.",
+        "contacts": "Kontakt",
+        "contactsDescription": "Kontaktlista på Hem och /kontakt/",
+        "contactsHelp": "Välj kontakter från Contacts och skriv en kort text. Syns på Hem och egen Kontakt-sida när listan inte är tom.",
         "swish": "Swish / QR",
         "swishDescription": "Swish-profiler kopplade till prislistor",
         "swishHelp": "Skapa Swish-QR-profiler (nummer + märkning). Knyt varje profil till en eller flera prislistor. Belopp anges aldrig här — betalaren fyller i summan i Swish efter skanning. Endast admin; visas inte i den publika appen ännu."
@@ -1148,6 +1155,24 @@
         "downloading": "Laddar ner…",
         "downloadFailed": "Kunde inte ladda ner QR-koden."
       }
+    },
+    "infoContacts": {
+      "help": "Välj kontakter från Contacts och skriv en kort text. Listan syns på Hem och på Kontakt-sidan när den inte är tom.",
+      "listTitle": "Kontaktlista",
+      "add": "Lägg till",
+      "empty": "Inga kontakter tillagda ännu.",
+      "contact": "Kontakt",
+      "searchContact": "Sök kontakt…",
+      "contactRequired": "Välj en kontakt.",
+      "blurb": "Kort text",
+      "blurbPlaceholder": "t.ex. Ordförande, vardagar 9–16",
+      "loadFailed": "Kunde inte ladda kontaktlistan.",
+      "saveFailed": "Kunde inte spara kontakten.",
+      "deleteFailed": "Kunde inte ta bort kontakten.",
+      "deleteConfirmThis": "Är du säker på att du vill ta bort den här kontakten från listan?",
+      "deleteConfirmNamed": "Är du säker på att du vill ta bort \"{{name}}\" från listan?",
+      "moveUp": "Flytta upp",
+      "moveDown": "Flytta ner"
     }
   },
   "guides": {

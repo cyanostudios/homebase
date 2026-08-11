@@ -201,38 +201,31 @@ foreach ($lines as $line) {
   </head>
   <body>
     <a class="skip-link" href="#main">Hoppa till innehåll</a>
-    <div class="app-bg" aria-hidden="true"></div>
 
     <div class="app-shell">
-      <div class="app-atmosphere" aria-hidden="true">
-        <div class="app-atmosphere__grid"></div>
-        <div class="app-atmosphere__blob app-atmosphere__blob--left"></div>
-        <div class="app-atmosphere__blob app-atmosphere__blob--right"></div>
-      </div>
-
-      <header class="top-bar">
-        <div class="top-bar__inner">
-          <a class="brand" href="/">
-            Clubdesk
-            <span class="brand__dot" aria-hidden="true"></span>
-          </a>
-          <a class="detail-back-btn shadow-soft" href="/price-lists/" id="detail-back-btn" aria-label="Tillbaka">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            Tillbaka
-          </a>
-        </div>
-      </header>
-
 <?php if ($item && !$notFound): ?>
 <?php
     $listTitle = (string) ($item['name'] ?? 'Prislista');
+    $listDesc = trim((string) ($item['description'] ?? ''));
 ?>
+      <header class="guide-header">
+        <div class="guide-header__copy">
+          <h1 class="guide-header__title"><?= h($listTitle) ?></h1>
+<?php if ($listDesc !== ''): ?>
+          <p class="home-header__text guide-header__text"><?= h($listDesc) ?></p>
+<?php endif; ?>
+        </div>
+        <a class="guide-back-btn" href="/price-lists/" id="detail-back-btn" aria-label="Tillbaka">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </a>
+      </header>
+
       <div class="step-subheader" id="price-list-subheader">
         <div class="step-subheader__inner step-subheader__inner--cart">
           <div class="step-subheader__cart-text">
-            <p class="step-subheader__guide" id="price-list-subheader-label"><?= h($listTitle) ?></p>
+            <p class="step-subheader__guide" id="price-list-subheader-label">Varukorg</p>
             <p class="step-subheader__step step-subheader__total" id="price-list-subheader-info" aria-live="polite"><?= h(formatPriceAmount(0, $currency)) ?></p>
           </div>
           <div class="step-subheader__cart-actions">
@@ -272,11 +265,20 @@ foreach ($lines as $line) {
 
       <main id="main" class="app-main no-scrollbar">
 <?php if ($notFound || !$item): ?>
-        <article class="detail-article">
-          <h1>Sidan hittades inte</h1>
-          <p>Prislistan finns inte eller är inte publikt.</p>
-          <a class="detail-back" href="/price-lists/" id="detail-back-not-found">Till prislistor</a>
-        </article>
+        <header class="guide-header">
+          <div class="guide-header__copy">
+            <h1 class="guide-header__title">Sidan hittades inte</h1>
+            <p class="home-header__text guide-header__text">Prislistan finns inte eller är inte publikt.</p>
+          </div>
+          <a class="guide-back-btn" href="/price-lists/" id="detail-back-not-found" aria-label="Tillbaka">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </a>
+        </header>
+        <div class="home-sheet">
+          <a class="detail-back" href="/price-lists/">Till prislistor</a>
+        </div>
 <?php else: ?>
         <div
           id="price-list-app"
@@ -285,68 +287,65 @@ foreach ($lines as $line) {
           data-swish-payee="<?= h($swishPayee) ?>"
           data-swish-message="<?= h($swishMessage) ?>"
         >
-          <div id="price-list-view">
-            <article class="price-list-detail">
-<?php if (!empty($item['description'])): ?>
-              <p class="price-list-detail__lead"><?= h((string) $item['description']) ?></p>
-<?php endif; ?>
+          <div id="price-list-view" class="home-sheet">
 <?php if ($lines === []): ?>
-              <p class="empty-state">Inga rader i den här prislistan.</p>
+            <div class="empty-state empty-state--inset">Inga rader i den här prislistan.</div>
 <?php else: ?>
 <?php foreach ($grouped as $catName => $catLines): ?>
-              <section class="price-list-section">
-                <h2 class="price-list-section__title"><?= h((string) $catName) ?></h2>
-                <ul class="price-list-rows">
+            <section class="home-section home-section--rows price-list-section">
+              <div class="home-section__head">
+                <h2 class="home-section__title price-list-section__title"><?= h((string) $catName) ?></h2>
+              </div>
+              <ul class="option-list price-list-rows">
 <?php foreach ($catLines as $line): ?>
-                  <li
-                    class="price-list-row"
-                    data-line-id="<?= h((string) $line['id']) ?>"
-                    data-title="<?= h((string) $line['title']) ?>"
-                    data-price="<?= h((string) $line['price']) ?>"
-                    data-category="<?= h((string) ($line['category'] !== '' ? $line['category'] : 'Övrigt')) ?>"
-                  >
-                    <div class="price-list-row__main">
-                      <div class="price-list-row__text">
-                        <p class="price-list-row__title"><?= h($line['title']) ?></p>
-                      </div>
-                      <div class="price-list-row__actions">
-                        <p class="price-list-row__price"><?= h(formatPriceAmount((float) $line['price'], $currency)) ?></p>
-                        <button type="button" class="price-list-qty-btn price-list-qty-btn--plus" data-cart-add aria-label="Lägg till">
-                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
-                            <path d="M12 5v14M5 12h14" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                <li
+                  class="option-card price-list-row"
+                  data-line-id="<?= h((string) $line['id']) ?>"
+                  data-title="<?= h((string) $line['title']) ?>"
+                  data-price="<?= h((string) $line['price']) ?>"
+                  data-category="<?= h((string) ($line['category'] !== '' ? $line['category'] : 'Övrigt')) ?>"
+                >
+                  <span class="option-card__text">
+                    <span class="option-card__title"><?= h($line['title']) ?></span>
 <?php if ($line['description'] !== ''): ?>
-                    <p class="price-list-row__desc"><?= h($line['description']) ?></p>
+                    <span class="option-card__desc price-list-row__desc"><?= h($line['description']) ?></span>
 <?php endif; ?>
-                  </li>
+                  </span>
+                  <span class="price-list-row__actions">
+                    <span class="price-list-row__price"><?= h(formatPriceAmount((float) $line['price'], $currency)) ?></span>
+                    <button type="button" class="price-list-qty-btn price-list-qty-btn--plus" data-cart-add aria-label="Lägg till">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </button>
+                  </span>
+                </li>
 <?php endforeach; ?>
-                </ul>
-              </section>
+              </ul>
+            </section>
 <?php endforeach; ?>
 <?php endif; ?>
-            </article>
           </div>
 
-          <div id="cart-view" hidden>
-            <article class="price-list-detail cart-detail">
-              <div id="cart-body"></div>
-              <h2 class="price-list-section__title cart-pay__title">Att betala</h2>
-              <p class="cart-total" id="cart-total" aria-live="polite"><?= h(formatPriceAmount(0, $currency)) ?></p>
-              <div class="cart-swish" id="cart-swish" hidden>
-                <img class="cart-swish__qr" id="cart-swish-qr" alt="Swish QR-kod" width="256" height="256" />
-                <p class="cart-swish__number" id="cart-swish-number"></p>
+          <div id="cart-view" class="home-sheet" hidden>
+            <div id="cart-body"></div>
+            <section class="home-section cart-pay">
+              <div class="cart-pay__row">
+                <h2 class="cart-pay__title">Att betala</h2>
+                <p class="cart-total" id="cart-total" aria-live="polite"><?= h(formatPriceAmount(0, $currency)) ?></p>
               </div>
-            </article>
+              <div class="cart-swish org-swish" id="cart-swish" hidden>
+                <img class="cart-swish__qr org-swish__qr" id="cart-swish-qr" alt="Swish QR-kod" width="256" height="256" />
+                <p class="cart-swish__number org-swish__number" id="cart-swish-number"></p>
+              </div>
+            </section>
           </div>
         </div>
 <?php endif; ?>
       </main>
 
       <nav class="bottom-bar" aria-label="Sidnavigering">
-        <div class="bottom-bar__inner glass shadow-float">
+        <div class="bottom-bar__inner">
           <a class="bottom-bar__tab" href="/" data-tab="home">
             <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z" />
@@ -370,14 +369,6 @@ foreach ($lines as $line) {
               <path d="M18 15v6M15 18h6" />
             </svg>
             <span class="bottom-bar__label">Price list</span>
-            <span class="bottom-bar__dot" aria-hidden="true"></span>
-          </a>
-          <a class="bottom-bar__tab" href="/info/" data-tab="info">
-            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 10v6M12 7h.01" />
-            </svg>
-            <span class="bottom-bar__label">Info</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
         </div>

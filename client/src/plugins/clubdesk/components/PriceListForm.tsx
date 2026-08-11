@@ -100,6 +100,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
     description: null,
     featuredImageUrl: null,
     publicationStatus: 'draft',
+    featured: false,
     currency: 'SEK',
     items: [],
   });
@@ -173,6 +174,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
       description: null,
       featuredImageUrl: null,
       publicationStatus: 'draft',
+      featured: false,
       currency: 'SEK',
       items: [],
     });
@@ -191,6 +193,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
         description: priceList.description,
         featuredImageUrl: priceList.featuredImageUrl,
         publicationStatus: priceList.publicationStatus || 'draft',
+        featured: priceList.featured === true,
         currency: priceList.currency || 'SEK',
         items: (priceList.items || []).map((item, index) => ({
           title: item.title || '',
@@ -637,6 +640,21 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                         <SelectItem value="published">{t('clubdesk.status.published')}</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="price-list-featured"
+                        type="checkbox"
+                        checked={formData.featured === true}
+                        onChange={(e) => updateField('featured', e.target.checked)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <Label htmlFor="price-list-featured" className="font-normal">
+                        {t('clubdesk.featured')}
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t('clubdesk.featuredHint')}</p>
                   </div>
                 </div>
               </DetailSection>

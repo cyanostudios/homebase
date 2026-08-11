@@ -65,6 +65,8 @@
     "migrate:guides": "node scripts/run-guides-migration.js",
     "migrate:instructions": "node scripts/run-instructions-migration.js",
     "migrate:clubdesk": "node scripts/run-clubdesk-migration.js",
+    "migrate:clubdesk-featured": "node scripts/run-clubdesk-featured-migration.js",
+    "migrate:clubdesk-info-contacts": "node scripts/run-clubdesk-info-contacts-migration.js",
     "set:tenant-plugins": "node scripts/set-tenant-plugin-access.js",
     "migrate:ingest-tenants": "node scripts/run-ingest-tenant-migrations.js",
     "migrate:cups-upsert-index": "node scripts/run-cups-upsert-index-migration.js",

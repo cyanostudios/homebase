@@ -29,6 +29,7 @@
   const cartClearBtn = document.getElementById('cart-clear-btn');
   const subTotalEl = document.getElementById('price-list-subheader-info');
   const toggleBtn = document.getElementById('cart-toggle-btn');
+  const backBtn = document.getElementById('detail-back-btn');
 
   let swishQrSeq = 0;
 
@@ -178,29 +179,29 @@
         const rows = items
           .map((item) => {
             const lineTotal = item.price * item.qty;
-            const meta =
-              item.qty > 1
-                ? `<p class="price-list-row__desc">${escapeHtml(String(item.qty))} × ${escapeHtml(money(item.price))}</p>`
-                : '';
-            return `<li class="price-list-row">
-            <div class="price-list-row__main">
-              <div class="price-list-row__text">
-                <p class="price-list-row__title">${escapeHtml(item.title)}</p>
-              </div>
-              <div class="price-list-row__actions">
-                <p class="price-list-row__price">${escapeHtml(money(lineTotal))}</p>
-                <button type="button" class="price-list-qty-btn price-list-qty-btn--minus" data-cart-minus="${escapeHtml(item.id)}" aria-label="Minska antal">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
-                </button>
-              </div>
-            </div>
-            ${meta}
+            return `<li class="option-card price-list-row">
+            <span class="option-card__text">
+              <span class="option-card__title">${escapeHtml(item.title)}</span>
+              ${
+                item.qty > 1
+                  ? `<span class="option-card__desc price-list-row__desc">${escapeHtml(String(item.qty))} × ${escapeHtml(money(item.price))}</span>`
+                  : ''
+              }
+            </span>
+            <span class="price-list-row__actions">
+              <span class="price-list-row__price">${escapeHtml(money(lineTotal))}</span>
+              <button type="button" class="price-list-qty-btn price-list-qty-btn--minus" data-cart-minus="${escapeHtml(item.id)}" aria-label="Minska antal">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
+              </button>
+            </span>
           </li>`;
           })
           .join('');
-        sections.push(`<section class="price-list-section">
-        <h2 class="price-list-section__title">${escapeHtml(cat)}</h2>
-        <ul class="price-list-rows">${rows}</ul>
+        sections.push(`<section class="home-section home-section--rows price-list-section">
+        <div class="home-section__head">
+          <h2 class="home-section__title price-list-section__title">${escapeHtml(cat)}</h2>
+        </div>
+        <ul class="option-list price-list-rows">${rows}</ul>
       </section>`);
       },
     );
@@ -211,6 +212,7 @@
     view = next;
     if (listView) listView.hidden = view !== 'list';
     if (cartView) cartView.hidden = view !== 'cart';
+    if (backBtn) backBtn.hidden = view === 'cart';
     const cart = Cart.getCart(slug);
     syncHeader(cart);
     if (view === 'cart') {

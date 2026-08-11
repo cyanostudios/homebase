@@ -56,6 +56,7 @@ function toPayload(clubdesk: Clubdesk, overrides?: Partial<ClubdeskPayload>): Cl
     featuredImageUrl: clubdesk.featuredImageUrl,
     category: clubdesk.category,
     publicationStatus: clubdesk.publicationStatus,
+    featured: clubdesk.featured === true,
     steps: (clubdesk.steps || []).map((step, index) => ({
       title: step.title,
       description: step.description ?? null,
@@ -76,6 +77,7 @@ function toPriceListPayload(
     description: priceList.description,
     featuredImageUrl: priceList.featuredImageUrl,
     publicationStatus: priceList.publicationStatus,
+    featured: priceList.featured === true,
     currency: priceList.currency || 'SEK',
     items: (priceList.items || []).map((item, index) => ({
       title: item.title,
@@ -686,6 +688,7 @@ export function ClubdeskProvider({
         featuredImageUrl: raw.featuredImageUrl?.trim() ? raw.featuredImageUrl.trim() : null,
         category: raw.category?.trim() ? raw.category.trim() : null,
         publicationStatus: raw.publicationStatus === 'published' ? 'published' : 'draft',
+        featured: raw.featured === true,
         steps: (raw.steps || []).map((step, index) => {
           const rawDesc = (step.description ?? '').trim();
           const description = rawDesc && rawDesc.replace(/<[^>]*>/g, '').trim() ? rawDesc : null;
@@ -772,6 +775,7 @@ export function ClubdeskProvider({
         description: raw.description?.trim() ? raw.description.trim() : null,
         featuredImageUrl: null,
         publicationStatus: raw.publicationStatus === 'published' ? 'published' : 'draft',
+        featured: raw.featured === true,
         currency: (raw.currency || 'SEK').trim() || 'SEK',
         items: renumberWithinCategories(
           (raw.items || []).map((item, index) => {
@@ -1079,6 +1083,70 @@ export function ClubdeskProvider({
     [clearValidationErrors, currentPriceList, ensureFullPriceList, setValidationErrors, t],
   );
 
+  const updateClubdeskFeatured = useCallback(
+    async (clubdesk: Clubdesk, featured: boolean) => {
+      try {
+        const full = await ensureFullClubdesk(clubdesk);
+        const saved = await clubdeskApi.updateClubdesk(
+          full.id,
+          toPayload(full, { featured: featured === true }),
+        );
+        setClubdesks((prev) =>
+          prev.map((row) =>
+            String(row.id) === String(saved.id)
+              ? { ...row, ...saved, stepCount: saved.steps?.length ?? saved.stepCount }
+              : row,
+          ),
+        );
+        if (currentClubdesk && String(currentClubdesk.id) === String(saved.id)) {
+          setCurrentClubdesk(saved);
+        }
+        clearValidationErrors();
+      } catch (error: unknown) {
+        const err = error as { message?: string; error?: string };
+        setValidationErrors([
+          {
+            field: 'general',
+            message: err?.message || err?.error || t('clubdesk.saveFailed'),
+          },
+        ]);
+      }
+    },
+    [clearValidationErrors, currentClubdesk, ensureFullClubdesk, setValidationErrors, t],
+  );
+
+  const updatePriceListFeatured = useCallback(
+    async (priceList: ClubdeskPriceList, featured: boolean) => {
+      try {
+        const full = await ensureFullPriceList(priceList);
+        const saved = await clubdeskApi.updatePriceList(
+          full.id,
+          toPriceListPayload(full, { featured: featured === true }),
+        );
+        setPriceLists((prev) =>
+          prev.map((row) =>
+            String(row.id) === String(saved.id)
+              ? { ...row, ...saved, itemCount: saved.items?.length ?? saved.itemCount }
+              : row,
+          ),
+        );
+        if (currentPriceList && String(currentPriceList.id) === String(saved.id)) {
+          setCurrentPriceList(saved);
+        }
+        clearValidationErrors();
+      } catch (error: unknown) {
+        const err = error as { message?: string; error?: string };
+        setValidationErrors([
+          {
+            field: 'general',
+            message: err?.message || err?.error || t('clubdesk.priceList.saveFailed'),
+          },
+        ]);
+      }
+    },
+    [clearValidationErrors, currentPriceList, ensureFullPriceList, setValidationErrors, t],
+  );
+
   const reorderClubdeskSteps = useCallback(
     async (clubdesk: Clubdesk, fromIndex: number, direction: -1 | 1) => {
       const reordered = reorderSteps(clubdesk.steps || [], fromIndex, direction);
@@ -1334,6 +1402,7 @@ export function ClubdeskProvider({
         featuredImageUrl: full.featuredImageUrl,
         category: full.category,
         publicationStatus: 'draft',
+        featured: full.featured === true,
         steps: (full.steps || []).map((step, index) => ({
           title: step.title,
           description: step.description ?? null,
@@ -1370,6 +1439,7 @@ export function ClubdeskProvider({
         description: full.description,
         featuredImageUrl: full.featuredImageUrl,
         publicationStatus: 'draft',
+        featured: full.featured === true,
         currency: full.currency || 'SEK',
         items: (full.items || []).map((row, index) => ({
           title: row.title,
@@ -1454,6 +1524,7 @@ export function ClubdeskProvider({
       deleteClubdesk,
       deleteClubdesks,
       updateClubdeskPublicationStatus,
+      updateClubdeskFeatured,
       reorderClubdeskSteps,
       copyClubdeskStep,
       reorderClubdesksInCategory,
@@ -1464,6 +1535,7 @@ export function ClubdeskProvider({
       deletePriceList,
       deletePriceLists,
       updatePriceListPublicationStatus,
+      updatePriceListFeatured,
       reorderPriceLists: reorderPriceListsFn,
       reorderPriceListItems,
       createPriceListCategory,
@@ -1535,6 +1607,7 @@ export function ClubdeskProvider({
       deleteClubdesk,
       deleteClubdesks,
       updateClubdeskPublicationStatus,
+      updateClubdeskFeatured,
       reorderClubdeskSteps,
       copyClubdeskStep,
       reorderClubdesksInCategory,
@@ -1545,6 +1618,7 @@ export function ClubdeskProvider({
       deletePriceList,
       deletePriceLists,
       updatePriceListPublicationStatus,
+      updatePriceListFeatured,
       reorderPriceListsFn,
       reorderPriceListItems,
       createPriceListCategory,

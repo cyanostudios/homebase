@@ -15,6 +15,8 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/120-clubdesk-price-lists.sql'),
   path.join(__dirname, '../server/migrations/122-clubdesk-site-content.sql'),
   path.join(__dirname, '../server/migrations/123-clubdesk-swish-profiles.sql'),
+  path.join(__dirname, '../server/migrations/127-clubdesk-featured.sql'),
+  path.join(__dirname, '../server/migrations/128-clubdesk-info-contacts.sql'),
 ];
 const MAIN_MIGRATION = path.join(
   __dirname,

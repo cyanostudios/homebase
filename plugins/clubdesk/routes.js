@@ -11,6 +11,7 @@ function createClubdeskRoutes(
   priceListController,
   siteContentController,
   swishProfileController,
+  infoContactController,
 ) {
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
@@ -155,6 +156,78 @@ function createClubdeskRoutes(
     );
   }
 
+  // --- Info contacts (BEFORE /:id) ---
+  if (infoContactController) {
+    router.get('/info-contacts', gate, (req, res) => {
+      infoContactController.getAll(req, res);
+    });
+
+    router.post(
+      '/info-contacts',
+      gate,
+      csrfProtection,
+      body('contactId').isInt({ min: 1 }).withMessage('contactId must be a positive integer'),
+      body('blurb')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 500 })
+        .withMessage('blurb must not exceed 500 characters'),
+      validateRequest,
+      (req, res) => {
+        infoContactController.create(req, res);
+      },
+    );
+
+    router.put(
+      '/info-contacts/reorder',
+      gate,
+      csrfProtection,
+      body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds must be a non-empty array'),
+      body('orderedIds.*')
+        .isInt({ min: 1 })
+        .withMessage('each orderedId must be a positive integer'),
+      validateRequest,
+      (req, res) => {
+        infoContactController.reorder(req, res);
+      },
+    );
+
+    router.get('/info-contacts/:id', gate, commonRules.id('id'), validateRequest, (req, res) => {
+      infoContactController.getById(req, res);
+    });
+
+    router.put(
+      '/info-contacts/:id',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      body('contactId')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('contactId must be a positive integer'),
+      body('blurb')
+        .optional({ values: 'falsy' })
+        .isString()
+        .isLength({ max: 500 })
+        .withMessage('blurb must not exceed 500 characters'),
+      validateRequest,
+      (req, res) => {
+        infoContactController.update(req, res);
+      },
+    );
+
+    router.delete(
+      '/info-contacts/:id',
+      gate,
+      csrfProtection,
+      commonRules.id('id'),
+      validateRequest,
+      (req, res) => {
+        infoContactController.remove(req, res);
+      },
+    );
+  }
+
   const parentValidators = [
     commonRules.plainString('title', 1, 255),
     commonRules.plainString('slug', 1, 255),
@@ -170,6 +243,7 @@ function createClubdeskRoutes(
       .withMessage('featuredImageUrl must not exceed 2000 characters'),
     commonRules.optionalString('category', 100),
     commonRules.optionalEnum('publicationStatus', ['draft', 'published']),
+    body('featured').optional().isBoolean().withMessage('featured must be a boolean'),
     body('steps')
       .optional({ values: 'null' })
       .isArray({ max: 200 })
@@ -205,6 +279,7 @@ function createClubdeskRoutes(
       .isLength({ max: 50000 })
       .withMessage('description must not exceed 50000 characters'),
     commonRules.optionalEnum('publicationStatus', ['draft', 'published']),
+    body('featured').optional().isBoolean().withMessage('featured must be a boolean'),
     body('currency')
       .optional({ values: 'falsy' })
       .isString()

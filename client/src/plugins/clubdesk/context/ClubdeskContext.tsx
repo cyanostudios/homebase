@@ -50,6 +50,7 @@ export interface ClubdeskContextType {
   deleteClubdesk: (id: string) => Promise<void>;
   deleteClubdesks: (ids: string[]) => Promise<void>;
   updateClubdeskPublicationStatus: (clubdesk: Clubdesk, status: PublicationStatus) => Promise<void>;
+  updateClubdeskFeatured: (clubdesk: Clubdesk, featured: boolean) => Promise<void>;
   reorderClubdeskSteps: (clubdesk: Clubdesk, fromIndex: number, direction: -1 | 1) => Promise<void>;
   copyClubdeskStep: (clubdesk: Clubdesk, index: number) => Promise<void>;
   reorderClubdesksInCategory: (category: string | null, orderedIds: string[]) => Promise<void>;
@@ -66,6 +67,7 @@ export interface ClubdeskContextType {
     priceList: ClubdeskPriceList,
     status: PublicationStatus,
   ) => Promise<void>;
+  updatePriceListFeatured: (priceList: ClubdeskPriceList, featured: boolean) => Promise<void>;
   reorderPriceLists: (orderedIds: string[]) => Promise<void>;
   reorderPriceListItems: (
     priceList: ClubdeskPriceList,
@@ -162,6 +164,7 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   deleteClubdesk: async () => {},
   deleteClubdesks: async () => {},
   updateClubdeskPublicationStatus: async () => {},
+  updateClubdeskFeatured: async () => {},
   reorderClubdeskSteps: async () => {},
   copyClubdeskStep: async () => {},
   reorderClubdesksInCategory: async () => {},
@@ -172,6 +175,7 @@ const EMPTY_CLUBDESK_CONTEXT: ClubdeskContextType = {
   deletePriceList: async () => {},
   deletePriceLists: async () => {},
   updatePriceListPublicationStatus: async () => {},
+  updatePriceListFeatured: async () => {},
   reorderPriceLists: async () => {},
   reorderPriceListItems: async () => {},
   createPriceListCategory: async () => {},

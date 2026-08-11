@@ -118,6 +118,7 @@ const ClubdeskGuidesList: React.FC = () => {
     recentlyDuplicatedClubdeskId,
     openClubdeskPanel,
     updateClubdeskPublicationStatus,
+    updateClubdeskFeatured,
     validationErrors,
     reorderClubdesksInCategory,
     isSaving,
@@ -338,6 +339,10 @@ const ClubdeskGuidesList: React.FC = () => {
 
   const handleStatusChange = (item: (typeof clubdesk)[0], status: PublicationStatus) => {
     void updateClubdeskPublicationStatus(item, status);
+  };
+
+  const handleFeaturedChange = (item: (typeof clubdesk)[0], featured: boolean) => {
+    void updateClubdeskFeatured(item, featured);
   };
 
   const handleMoveInCategory = useCallback(
@@ -663,6 +668,7 @@ const ClubdeskGuidesList: React.FC = () => {
                     onClick={() => handleOpenForView(item)}
                     columnCount={columnCount}
                     onStatusChange={(status) => handleStatusChange(item, status)}
+                    onFeaturedChange={(featured) => handleFeaturedChange(item, featured)}
                     canReorder={canReorderCategory}
                     reorderDisabled={isSaving}
                     onMoveUp={

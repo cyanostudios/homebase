@@ -239,47 +239,26 @@ $totalSteps = count($steps);
   </head>
   <body>
     <a class="skip-link" href="#main">Hoppa till innehåll</a>
-    <div class="app-bg" aria-hidden="true"></div>
 
-    <div class="app-shell">
-      <div class="app-atmosphere" aria-hidden="true">
-        <div class="app-atmosphere__grid"></div>
-        <div class="app-atmosphere__blob app-atmosphere__blob--left"></div>
-        <div class="app-atmosphere__blob app-atmosphere__blob--right"></div>
-      </div>
-
-      <header class="top-bar">
-        <div class="top-bar__inner">
-          <a class="brand" href="/">
-            Clubdesk
-            <span class="brand__dot" aria-hidden="true"></span>
-          </a>
-          <a class="detail-back-btn shadow-soft" href="/" id="detail-back-btn" aria-label="Tillbaka">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            Tillbaka
-          </a>
-        </div>
-      </header>
-
-<?php if ($showProgress && $item): ?>
+    <div class="app-shell app-shell--guide">
+<?php if ($item && !$notFound): ?>
 <?php
     $guideTitle = (string) ($item['name'] ?? 'Guide');
-    $firstStepTitle = (string) ($steps[0]['title'] ?? 'Steg 1');
+    $guideDesc = trim((string) ($item['description'] ?? ''));
 ?>
-      <div class="step-subheader" id="progress-pod" data-progress-pod>
-        <div class="step-subheader__inner">
-          <p class="step-subheader__guide" id="progress-guide"><?= h($guideTitle) ?></p>
-          <p class="step-subheader__step" id="progress-step" aria-live="polite"><?= h($firstStepTitle) ?></p>
-          <div class="step-subheader__meta">
-            <span class="step-subheader__count" id="progress-eyebrow">Steg 1 av <?= (int) $totalSteps ?></span>
-            <div class="step-subheader__bar" aria-hidden="true">
-              <span class="step-subheader__fill" id="progress-fill" style="width: <?= $totalSteps > 0 ? (100 / $totalSteps) : 0 ?>%"></span>
-            </div>
-          </div>
+      <header class="guide-header">
+        <div class="guide-header__copy">
+          <h1 class="guide-header__title"><?= h($guideTitle) ?></h1>
+<?php if ($guideDesc !== ''): ?>
+          <p class="home-header__text guide-header__text"><?= h($guideDesc) ?></p>
+<?php endif; ?>
         </div>
-      </div>
+        <a class="guide-back-btn" href="/guides/" id="detail-back-btn" aria-label="Tillbaka">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </a>
+      </header>
 <?php endif; ?>
 
       <main id="main" class="app-main no-scrollbar">
@@ -302,13 +281,27 @@ $totalSteps = count($steps);
           <article class="step-slide scroll-snap-center" data-step-index="<?= $num ?>" data-step-title="<?= h((string) ($step['title'] ?? '')) ?>">
             <div class="step-slide__media">
 <?php if ($stepImg !== ''): ?>
-              <img class="kenburns" src="<?= h($stepImg) ?>" alt="" />
+              <img src="<?= h($stepImg) ?>" alt="" />
 <?php endif; ?>
-              <div class="step-slide__fade" aria-hidden="true"></div>
-              <span class="step-slide__number"><?= $num ?></span>
             </div>
             <div class="step-slide__sheet">
-              <div class="step-slide__handle" aria-hidden="true"></div>
+              <div
+                class="step-progress"
+                data-progress-pod
+                role="progressbar"
+                aria-valuemin="1"
+                aria-valuemax="<?= (int) $totalSteps ?>"
+                aria-valuenow="1"
+                aria-label="Stegprogress"
+              >
+<?php for ($seg = 1; $seg <= $totalSteps; $seg++): ?>
+                <span
+                  class="step-progress__seg<?= $seg === 1 ? ' is-done' : '' ?>"
+                  data-progress-seg="<?= $seg ?>"
+                  aria-hidden="true"
+                ></span>
+<?php endfor; ?>
+              </div>
               <h2 class="step-slide__title"><?= h((string) ($step['title'] ?? '')) ?></h2>
 <?php if (!empty($step['description'])): ?>
               <div class="step-slide__desc"><?= renderInstructionBodyHtml((string) $step['description']) ?></div>
@@ -347,7 +340,7 @@ $totalSteps = count($steps);
 <?php endif; ?>
 
       <nav class="bottom-bar" aria-label="Sidnavigering">
-        <div class="bottom-bar__inner glass shadow-float">
+        <div class="bottom-bar__inner">
           <a class="bottom-bar__tab" href="/" data-tab="home">
             <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5z" />
@@ -355,7 +348,7 @@ $totalSteps = count($steps);
             <span class="bottom-bar__label">Hem</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
-          <a class="bottom-bar__tab" href="/guides/" data-tab="guides">
+          <a class="bottom-bar__tab is-active" href="/guides/" data-tab="guides">
             <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7" rx="1.5" />
               <rect x="14" y="3" width="7" height="7" rx="1.5" />
@@ -371,14 +364,6 @@ $totalSteps = count($steps);
               <path d="M18 15v6M15 18h6" />
             </svg>
             <span class="bottom-bar__label">Price list</span>
-            <span class="bottom-bar__dot" aria-hidden="true"></span>
-          </a>
-          <a class="bottom-bar__tab" href="/info/" data-tab="info">
-            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 10v6M12 7h.01" />
-            </svg>
-            <span class="bottom-bar__label">Info</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
         </div>
@@ -408,12 +393,11 @@ $totalSteps = count($steps);
         }
 
         var swipe = document.getElementById('step-swipe');
-        var stepLabel = document.getElementById('progress-step');
-        var countLabel = document.getElementById('progress-eyebrow');
-        var fill = document.getElementById('progress-fill');
+        var segments = document.querySelectorAll('[data-progress-seg]');
+        var progressPods = document.querySelectorAll('[data-progress-pod]');
         var prevBtn = document.getElementById('step-prev');
         var nextBtn = document.getElementById('step-next');
-        if (!swipe || !stepLabel) return;
+        if (!swipe) return;
 
         var total = Math.max(1, Number(swipe.getAttribute('data-step-total') || 1));
         var slides = Array.prototype.slice.call(swipe.querySelectorAll('.step-slide'));
@@ -434,17 +418,14 @@ $totalSteps = count($steps);
 
         function setCurrent(n) {
           current = n;
-          var slide = slides[current - 1];
-          var stepTitle = slide
-            ? (slide.getAttribute('data-step-title') || ('Steg ' + current))
-            : ('Steg ' + current);
-          stepLabel.textContent = stepTitle;
-          if (countLabel) {
-            countLabel.textContent = 'Steg ' + current + ' av ' + total;
-          }
-          if (fill) {
-            fill.style.width = Math.round((current / total) * 100) + '%';
-          }
+          segments.forEach(function (seg) {
+            var i = Number(seg.getAttribute('data-progress-seg') || 0);
+            seg.classList.toggle('is-done', i > 0 && i <= current);
+          });
+          progressPods.forEach(function (pod) {
+            pod.setAttribute('aria-valuenow', String(current));
+            pod.setAttribute('aria-label', 'Steg ' + current + ' av ' + total);
+          });
           if (prevBtn) {
             prevBtn.disabled = current <= 1;
           }
