@@ -19,10 +19,15 @@ import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
 import { invoicesNavigation } from '../navigation';
+import {
+  invoiceMatchesListFilters,
+  toggleInvoiceListFilter,
+  type InvoiceListFilter,
+  type InvoiceListFilterSelection,
+} from '../utils/invoiceListFilter';
 
 type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'status';
 type SortOrder = 'asc' | 'desc';
-type InvoiceFilter = 'all' | 'draft' | 'paid' | 'overdue';
 
 export function InvoicesList() {
   const { t } = useTranslation();
@@ -45,7 +50,7 @@ export function InvoicesList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<InvoiceFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<InvoiceListFilterSelection>([]);
 
   // Read currentPage from localStorage (same as App.tsx does)
   useEffect(() => {
@@ -76,18 +81,9 @@ export function InvoicesList() {
   const [sortOrder] = useState<SortOrder>('desc');
 
   const sortedInvoices = useMemo(() => {
-    const byFilter = invoices.filter((invoice) => {
-      if (activeFilter === 'draft') {
-        return invoice.status === 'draft';
-      }
-      if (activeFilter === 'paid') {
-        return invoice.status === 'paid';
-      }
-      if (activeFilter === 'overdue') {
-        return invoice.status === 'overdue';
-      }
-      return true;
-    });
+    const byFilter = invoices.filter((invoice) =>
+      invoiceMatchesListFilters(invoice, activeFilters),
+    );
 
     const filtered = byFilter.filter((invoice) => {
       const searchStr = searchTerm.toLowerCase();
@@ -115,7 +111,12 @@ export function InvoicesList() {
 
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [invoices, searchTerm, sortField, sortOrder, activeFilter]);
+  }, [invoices, searchTerm, sortField, sortOrder, activeFilters]);
+
+  const isFilterActive = (filter: InvoiceListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: InvoiceListFilter) => {
+    setActiveFilters((prev) => toggleInvoiceListFilter(prev, filter));
+  };
   const stats = useMemo(
     () => ({
       total: invoices.length,
@@ -319,29 +320,29 @@ export function InvoicesList() {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Draft"
             value={stats.draft}
             dotClassName="bg-slate-500"
-            active={activeFilter === 'draft'}
-            onClick={() => setActiveFilter('draft')}
+            active={isFilterActive('draft')}
+            onClick={() => toggleFilter('draft')}
           />
           <ListFilterStatCard
             label="Paid"
             value={stats.paid}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'paid'}
-            onClick={() => setActiveFilter('paid')}
+            active={isFilterActive('paid')}
+            onClick={() => toggleFilter('paid')}
           />
           <ListFilterStatCard
             label="Overdue"
             value={stats.overdue}
             dotClassName="bg-rose-500"
-            active={activeFilter === 'overdue'}
-            onClick={() => setActiveFilter('overdue')}
+            active={isFilterActive('overdue')}
+            onClick={() => toggleFilter('overdue')}
           />
         </div>
 

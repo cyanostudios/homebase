@@ -30,6 +30,12 @@ import {
   type AIProvidersColumnCount,
 } from '../utils/aiProvidersColumnCount';
 import {
+  aiProviderMatchesListFilters,
+  toggleAIProvidersListFilter,
+  type AIProvidersListFilter,
+  type AIProvidersListFilterSelection,
+} from '../utils/aiProvidersListFilter';
+import {
   compareAIProviders,
   nextAIProviderTableSort,
   type AIProviderSortField,
@@ -45,8 +51,6 @@ import {
 import { AIProvidersListItem } from './AIProvidersListItem';
 import { AIProvidersListTable } from './AIProvidersListTable';
 import { AIProvidersRouting } from './AIProvidersRouting';
-
-type ProviderFilter = 'all' | 'enabled' | 'disabled' | 'configured';
 
 function providerTitle(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -79,7 +83,7 @@ export const AIProvidersList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<AIProvidersListViewMode>(
     getInitialAIProvidersListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<ProviderFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<AIProvidersListFilterSelection>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,18 +145,9 @@ export const AIProvidersList: React.FC = () => {
   );
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = providers.filter((provider) => {
-      if (activeFilter === 'enabled') {
-        return provider.enabled;
-      }
-      if (activeFilter === 'disabled') {
-        return !provider.enabled;
-      }
-      if (activeFilter === 'configured') {
-        return provider.hasApiKey;
-      }
-      return true;
-    });
+    const byFilter = providers.filter((provider) =>
+      aiProviderMatchesListFilters(provider, activeFilters),
+    );
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((provider) => {
@@ -172,7 +167,12 @@ export const AIProvidersList: React.FC = () => {
     return [...filtered].sort((a, b) =>
       compareAIProviders(a, b, primarySort, sortOrder, (provider) => providerTitle(t, provider)),
     );
-  }, [activeFilter, primarySort, providers, searchTerm, sortOrder, t]);
+  }, [activeFilters, primarySort, providers, searchTerm, sortOrder, t]);
+
+  const isFilterActive = (filter: AIProvidersListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: AIProvidersListFilter) => {
+    setActiveFilters((prev) => toggleAIProvidersListFilter(prev, filter));
+  };
 
   const handlePrimarySortChange = useCallback((field: AIProviderSortField) => {
     setPrimarySort(field);
@@ -243,29 +243,29 @@ export const AIProvidersList: React.FC = () => {
             label={t('aiProviders.filterAll', { defaultValue: 'Total' })}
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('aiProviders.statusEnabled')}
             value={stats.enabled}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'enabled'}
-            onClick={() => setActiveFilter('enabled')}
+            active={isFilterActive('enabled')}
+            onClick={() => toggleFilter('enabled')}
           />
           <ListFilterStatCard
             label={t('aiProviders.statusDisabled')}
             value={stats.disabled}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'disabled'}
-            onClick={() => setActiveFilter('disabled')}
+            active={isFilterActive('disabled')}
+            onClick={() => toggleFilter('disabled')}
           />
           <ListFilterStatCard
             label={t('aiProviders.keyConfigured')}
             value={stats.configured}
             dotClassName="bg-rose-500"
-            active={activeFilter === 'configured'}
-            onClick={() => setActiveFilter('configured')}
+            active={isFilterActive('configured')}
+            onClick={() => toggleFilter('configured')}
           />
         </div>
 

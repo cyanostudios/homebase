@@ -1,7 +1,16 @@
 export type TeamStatus = 'active' | 'dormant' | 'break';
 export type TeamGender = 'boys' | 'girls' | 'mixed';
 export type TeamPlayingFormat = '3v3' | '5v5' | '7v7' | '9v9' | '11v11';
-export type TeamColor = 'green' | 'blue' | 'red' | 'purple' | 'orange' | 'teal' | 'white';
+export type TeamColor =
+  | 'black'
+  | 'white'
+  | 'red'
+  | 'blue'
+  | 'green'
+  | 'yellow'
+  | 'orange'
+  | 'purple'
+  | 'teal';
 export type ResponsibleRole = 'coach' | 'team_leader' | 'parent_contact' | 'board_member' | 'other';
 
 export interface TrainingTime {
@@ -235,21 +244,26 @@ export const TEAM_STATUSES: TeamStatus[] = ['active', 'dormant', 'break'];
 export const TEAM_GENDERS: TeamGender[] = ['boys', 'girls', 'mixed'];
 export const TEAM_PLAYING_FORMATS: TeamPlayingFormat[] = ['3v3', '5v5', '7v7', '9v9', '11v11'];
 export const TEAM_COLORS: TeamColor[] = [
-  'green',
-  'blue',
-  'red',
-  'purple',
-  'orange',
-  'teal',
+  'black',
   'white',
+  'red',
+  'blue',
+  'green',
+  'yellow',
+  'orange',
+  'purple',
+  'teal',
 ];
 
 export function isLightTeamColor(color: TeamColor): boolean {
-  return color === 'white';
+  return color === 'white' || color === 'yellow';
 }
 
 /** Text on team color gradients (avatars, header). */
 export function teamColorGradientTextClass(color: TeamColor): string {
+  if (color === 'yellow') {
+    return 'text-slate-900';
+  }
   return isLightTeamColor(color) ? 'text-slate-800 dark:text-slate-100' : 'text-white';
 }
 export const RESPONSIBLE_ROLES: ResponsibleRole[] = [
@@ -272,40 +286,48 @@ export const WEEK_DAYS = [
 
 /** Gradient classes for team theme colors (cards, detail header, avatar icons). */
 export const TEAM_COLOR_GRADIENTS: Record<TeamColor, string> = {
-  green: 'from-emerald-600 to-emerald-800',
-  blue: 'from-blue-600 to-blue-800',
-  red: 'from-red-600 to-red-800',
-  purple: 'from-purple-600 to-purple-800',
-  orange: 'from-orange-500 to-orange-700',
-  teal: 'from-teal-600 to-teal-800',
+  black: 'from-neutral-900 to-black',
   white:
     'from-slate-100 to-white border border-slate-200 dark:from-slate-700 dark:to-slate-800 dark:border-slate-600',
+  red: 'from-red-600 to-red-800',
+  blue: 'from-blue-600 to-blue-800',
+  green: 'from-emerald-600 to-emerald-800',
+  yellow: 'from-yellow-400 to-yellow-500',
+  orange: 'from-orange-500 to-orange-700',
+  purple: 'from-purple-600 to-purple-800',
+  teal: 'from-teal-600 to-teal-800',
 };
 
 /** Solid accent classes for the top color stripe on team cards. */
 export const TEAM_COLOR_STRIPES: Record<TeamColor, string> = {
-  green: 'bg-emerald-600',
-  blue: 'bg-blue-600',
-  red: 'bg-red-600',
-  purple: 'bg-purple-600',
-  orange: 'bg-orange-500',
-  teal: 'bg-teal-600',
+  black: 'bg-neutral-900',
   white: 'bg-slate-300 dark:bg-slate-500',
+  red: 'bg-red-600',
+  blue: 'bg-blue-600',
+  green: 'bg-emerald-600',
+  yellow: 'bg-yellow-400',
+  orange: 'bg-orange-500',
+  purple: 'bg-purple-600',
+  teal: 'bg-teal-600',
 };
 
 /** Overview row background per series team color. */
 export const SERIES_TEAM_ROW_STYLES: Record<TeamColor, string> = {
-  green:
-    'border-emerald-200/80 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200',
-  blue: 'border-blue-200/80 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200',
-  red: 'border-red-200/80 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200',
-  purple:
-    'border-purple-200/80 bg-purple-50 text-purple-900 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-200',
-  orange:
-    'border-orange-200/80 bg-orange-50 text-orange-900 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200',
-  teal: 'border-teal-200/80 bg-teal-50 text-teal-900 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200',
+  black:
+    'border-neutral-700/80 bg-neutral-900 text-neutral-100 dark:border-neutral-600 dark:bg-neutral-950 dark:text-neutral-100',
   white:
     'border-slate-200/80 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-950/40 dark:text-slate-200',
+  red: 'border-red-200/80 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200',
+  blue: 'border-blue-200/80 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200',
+  green:
+    'border-emerald-200/80 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200',
+  yellow:
+    'border-yellow-200/80 bg-yellow-50 text-yellow-900 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-200',
+  orange:
+    'border-orange-200/80 bg-orange-50 text-orange-900 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200',
+  purple:
+    'border-purple-200/80 bg-purple-50 text-purple-900 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-200',
+  teal: 'border-teal-200/80 bg-teal-50 text-teal-900 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200',
 };
 
 /** Neutral pill badge when a series team has no theme color. */
@@ -314,15 +336,16 @@ export const SERIES_TEAM_BADGE_NEUTRAL_STYLE =
 
 /** Pill badge classes per series team color. */
 export const SERIES_TEAM_BADGE_STYLES: Record<TeamColor, string> = {
-  green: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
-  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
-  red: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
-  purple: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300',
-  orange: 'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300',
-  teal: 'bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300',
+  black: 'bg-neutral-900 text-neutral-100 dark:bg-neutral-950 dark:text-neutral-100',
   white: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  red: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+  green: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+  yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300',
+  orange: 'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300',
+  purple: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300',
+  teal: 'bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300',
 };
-
 /** Pill badge classes per status. */
 export const TEAM_STATUS_BADGES: Record<TeamStatus, string> = {
   active: 'bg-emerald-100 text-emerald-700',

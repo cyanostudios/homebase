@@ -33,6 +33,12 @@ import {
   type IngestColumnCount,
 } from '../utils/ingestColumnCount';
 import {
+  ingestMatchesListFilters,
+  toggleIngestListFilter,
+  type IngestListFilter,
+  type IngestListFilterSelection,
+} from '../utils/ingestListFilter';
+import {
   compareIngestByField,
   isIngestAscDefaultField,
   type IngestSortField,
@@ -50,7 +56,6 @@ import { IngestSourceListTable } from './IngestSourceListTable';
 
 type SortField = IngestSortField;
 type SortOrder = IngestSortOrder;
-type IngestFilter = 'all' | 'active' | 'success' | 'failed';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'updatedAt', label: 'Updated' },
@@ -89,7 +94,7 @@ export const IngestSourceList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<IngestListViewMode>(
     getInitialIngestListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<IngestFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<IngestListFilterSelection>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -160,18 +165,7 @@ export const IngestSourceList: React.FC = () => {
   const isTableView = listViewMode === 'table';
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = ingest.filter((s) => {
-      if (activeFilter === 'active') {
-        return Boolean(s.isActive);
-      }
-      if (activeFilter === 'success') {
-        return s.lastFetchStatus === 'success';
-      }
-      if (activeFilter === 'failed') {
-        return s.lastFetchStatus === 'failed';
-      }
-      return true;
-    });
+    const byFilter = ingest.filter((s) => ingestMatchesListFilters(s, activeFilters));
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((s) => {
@@ -187,7 +181,12 @@ export const IngestSourceList: React.FC = () => {
     });
 
     return [...filtered].sort((a, b) => compareIngestByField(a, b, primarySort, sortOrder));
-  }, [ingest, searchTerm, primarySort, sortOrder, activeFilter]);
+  }, [ingest, searchTerm, primarySort, sortOrder, activeFilters]);
+
+  const isFilterActive = (filter: IngestListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: IngestListFilter) => {
+    setActiveFilters((prev) => toggleIngestListFilter(prev, filter));
+  };
 
   const stats = useMemo(
     () => ({
@@ -263,29 +262,29 @@ export const IngestSourceList: React.FC = () => {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Active"
             value={stats.active}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'active'}
-            onClick={() => setActiveFilter('active')}
+            active={isFilterActive('active')}
+            onClick={() => toggleFilter('active')}
           />
           <ListFilterStatCard
             label="Success"
             value={stats.success}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'success'}
-            onClick={() => setActiveFilter('success')}
+            active={isFilterActive('success')}
+            onClick={() => toggleFilter('success')}
           />
           <ListFilterStatCard
             label="Failed"
             value={stats.failed}
             dotClassName="bg-rose-500"
-            active={activeFilter === 'failed'}
-            onClick={() => setActiveFilter('failed')}
+            active={isFilterActive('failed')}
+            onClick={() => toggleFilter('failed')}
           />
         </div>
 

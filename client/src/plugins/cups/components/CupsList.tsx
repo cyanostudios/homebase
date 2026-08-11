@@ -46,6 +46,12 @@ import {
   type CupColumnCount,
 } from '../utils/cupColumnCount';
 import {
+  cupMatchesListFilters,
+  toggleCupListFilter,
+  type CupListFilter,
+  type CupListFilterSelection,
+} from '../utils/cupListFilter';
+import {
   compareCupsByField,
   isCupAscDefaultField,
   type CupSortField,
@@ -70,7 +76,6 @@ import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView'
 
 type SortField = CupSortField;
 type SortOrder = CupSortOrder;
-type CupFilter = 'all' | 'visible' | 'featured' | 'upcoming' | 'removed';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'updatedAt', label: 'Updated' },
@@ -111,7 +116,7 @@ export function CupsList() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [columnCount, setColumnCountState] = useState<CupColumnCount>(getInitialCupColumnCount);
   const [listViewMode, setListViewModeState] = useState<CupListViewMode>(getInitialCupListViewMode);
-  const [activeFilter, setActiveFilter] = useState<CupFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<CupListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<CupsSettingsCategory>('view');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkPropertiesDialog, setShowBulkPropertiesDialog] = useState(false);
@@ -248,28 +253,7 @@ export function CupsList() {
     todayStart.setHours(0, 0, 0, 0);
     const todayStartMs = todayStart.getTime();
 
-    const byFilter = cups.filter((c) => {
-      if (activeFilter === 'removed') {
-        return c.deleted_at !== null && c.deleted_at !== undefined;
-      }
-      if (c.deleted_at !== null && c.deleted_at !== undefined) {
-        return false;
-      }
-      if (activeFilter === 'visible') {
-        return Boolean(c.visible);
-      }
-      if (activeFilter === 'featured') {
-        return Boolean(c.featured);
-      }
-      if (activeFilter === 'upcoming') {
-        if (!c.start_date) {
-          return false;
-        }
-        const startDateMs = new Date(c.start_date).getTime();
-        return Number.isFinite(startDateMs) && startDateMs >= todayStartMs;
-      }
-      return true;
-    });
+    const byFilter = cups.filter((c) => cupMatchesListFilters(c, activeFilters, todayStartMs));
 
     const q = search.trim().toLowerCase();
     if (!q) {
@@ -281,7 +265,12 @@ export function CupsList() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [cups, search, ingestTitleForCup, activeFilter]);
+  }, [cups, search, ingestTitleForCup, activeFilters]);
+
+  const isFilterActive = (filter: CupListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: CupListFilter) => {
+    setActiveFilters((prev) => toggleCupListFilter(prev, filter));
+  };
 
   const filteredAndSorted = useMemo(() => {
     return [...filtered].sort((a, b) =>
@@ -501,37 +490,37 @@ export function CupsList() {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Visible"
             value={stats.visible}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'visible'}
-            onClick={() => setActiveFilter('visible')}
+            active={isFilterActive('visible')}
+            onClick={() => toggleFilter('visible')}
           />
           <ListFilterStatCard
             label="Featured"
             value={stats.featured}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'featured'}
-            onClick={() => setActiveFilter('featured')}
+            active={isFilterActive('featured')}
+            onClick={() => toggleFilter('featured')}
           />
           <ListFilterStatCard
             label="Upcoming"
             value={stats.upcoming}
             dotClassName="bg-violet-500"
-            active={activeFilter === 'upcoming'}
-            onClick={() => setActiveFilter('upcoming')}
+            active={isFilterActive('upcoming')}
+            onClick={() => toggleFilter('upcoming')}
           />
           {stats.removed > 0 && (
             <ListFilterStatCard
               label="Removed"
               value={stats.removed}
               dotClassName="bg-red-400"
-              active={activeFilter === 'removed'}
-              onClick={() => setActiveFilter('removed')}
+              active={isFilterActive('removed')}
+              onClick={() => toggleFilter('removed')}
             />
           )}
         </div>
@@ -761,7 +750,7 @@ export function CupsList() {
             meta={
               <>
                 Showing {filteredAndSorted.length} of{' '}
-                {activeFilter === 'removed' ? stats.removed : stats.total} Cups
+                {isFilterActive('removed') ? stats.removed : stats.total} Cups
               </>
             }
           />

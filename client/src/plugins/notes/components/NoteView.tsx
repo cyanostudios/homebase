@@ -1,5 +1,5 @@
-import { Copy, Download, Edit, Info, Trash2, Users, Zap } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { Copy, Download, Edit, Info, Maximize2, Minimize2, Trash2, Users, Zap } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
+  DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_INFO_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
@@ -293,6 +294,25 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const [showDeleteNoteConfirm, setShowDeleteNoteConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
+
+  useEffect(() => {
+    setFocusMode(false);
+  }, [note?.id]);
+
+  useEffect(() => {
+    if (!focusMode) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setFocusMode(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [focusMode]);
 
   const contactById = useMemo(() => {
     const map = new Map<string, Contact>();
@@ -333,100 +353,132 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     return null;
   }
 
+  const focusModeToggle = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      icon={focusMode ? Minimize2 : Maximize2}
+      className={DETAIL_ENTITY_LINK_TRIGGER_CLASS}
+      aria-pressed={focusMode}
+      title={t('notes.focusModeHint')}
+      onClick={() => setFocusMode((open) => !open)}
+    >
+      {focusMode ? t('notes.exitFocusMode') : t('notes.focusMode')}
+    </Button>
+  );
+
+  const noteContent = (
+    <RichTextContent
+      content={note.content}
+      mentions={note.mentions || []}
+      onMentionClick={handleContactClick}
+    />
+  );
+
+  const sidebar = (
+    <div className="space-y-4">
+      <NoteQuickActionsCard
+        note={note}
+        onEdit={openNoteForEdit}
+        onDeleteClick={() => setShowDeleteNoteConfirm(true)}
+        onDuplicate={() => setShowDuplicateDialog(true)}
+        getDuplicateConfig={getDuplicateConfig}
+        detailFooterActions={detailFooterActions}
+      />
+      <NoteExportOptionsCard
+        note={note}
+        exportFormats={exportFormats}
+        onExportItem={onExportItem}
+        shareActions={exportShareActions}
+      />
+
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('notes.information')}
+          icon={Info}
+          iconPlugin="notes"
+          subtleTitle
+          className="p-4"
+          collapsible
+        >
+          <div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">ID</span>
+              <span className="font-mono font-semibold text-foreground">
+                {formatDisplayNumber('notes', note.id)}
+              </span>
+            </div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">Created</span>
+              <span className="font-mono font-semibold text-foreground">
+                {new Date(note.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">Updated</span>
+              <span className="font-mono font-semibold text-foreground">
+                {new Date(note.updatedAt).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+
+      <DetailActivityLog
+        entityType="note"
+        entityId={note.id}
+        limit={30}
+        title={t('notes.activity')}
+        showClearButton
+        refreshKey={String(note.updatedAt ?? note.id)}
+      />
+    </div>
+  );
+
   return (
     <>
-      <DetailLayout
-        sidebar={
-          <div className="space-y-4">
-            <NoteQuickActionsCard
-              note={note}
-              onEdit={openNoteForEdit}
-              onDeleteClick={() => setShowDeleteNoteConfirm(true)}
-              onDuplicate={() => setShowDuplicateDialog(true)}
-              getDuplicateConfig={getDuplicateConfig}
-              detailFooterActions={detailFooterActions}
-            />
-            <NoteExportOptionsCard
-              note={note}
-              exportFormats={exportFormats}
-              onExportItem={onExportItem}
-              shareActions={exportShareActions}
-            />
+      {focusMode ? (
+        <button
+          type="button"
+          aria-label={t('notes.exitFocusMode')}
+          className="fixed inset-0 z-40 cursor-default border-0 bg-slate-950/55 p-0"
+          onClick={() => setFocusMode(false)}
+        />
+      ) : null}
 
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('notes.information')}
-                icon={Info}
-                iconPlugin="notes"
-                subtleTitle
-                className="p-4"
-                collapsible
-              >
-                <div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
-                      {formatDisplayNumber('notes', note.id)}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Created</span>
-                    <span className="font-mono font-semibold text-foreground">
-                      {new Date(note.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className={DETAIL_INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                    <span className="font-mono font-semibold text-foreground">
-                      {new Date(note.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-
-            <DetailActivityLog
-              entityType="note"
-              entityId={note.id}
-              limit={30}
-              title={t('notes.activity')}
-              showClearButton
-              refreshKey={String(note.updatedAt ?? note.id)}
-            />
-          </div>
-        }
-      >
+      <DetailLayout sidebar={focusMode ? undefined : sidebar}>
         <div className="space-y-4">
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <Card
+            padding="none"
+            className={cn(
+              DETAIL_VIEW_CARD_CLASS,
+              focusMode && 'relative z-50 mx-auto w-full max-w-[1080px] shadow-lg',
+            )}
+          >
             {note.showTitleInContent !== false ? (
               <DetailSection
                 title={(note.title || '').trim() || '—'}
                 iconPlugin="notes"
                 className="p-6"
                 prominentTitle
+                action={focusModeToggle}
               >
-                <RichTextContent
-                  content={note.content}
-                  mentions={note.mentions || []}
-                  onMentionClick={handleContactClick}
-                />
+                <div className={cn(focusMode && 'min-h-[min(70vh,560px)]')}>{noteContent}</div>
               </DetailSection>
             ) : (
               <div className="p-6">
-                <RichTextContent
-                  content={note.content}
-                  mentions={note.mentions || []}
-                  onMentionClick={handleContactClick}
-                />
+                <div className="mb-3 flex justify-end">{focusModeToggle}</div>
+                <div className={cn(focusMode && 'min-h-[min(70vh,560px)]')}>{noteContent}</div>
               </div>
             )}
           </Card>
 
-          {hasFilesPlugin ? (
+          {!focusMode && hasFilesPlugin ? (
             <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
           ) : null}
 
-          {uniqueMentions.length > 0 ? (
+          {!focusMode && uniqueMentions.length > 0 ? (
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
                 title={t('notes.mentionedContacts')}
@@ -491,7 +543,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
             </Card>
           ) : null}
 
-          <NoteShareBlock note={note} />
+          {!focusMode ? <NoteShareBlock note={note} /> : null}
         </div>
       </DetailLayout>
 

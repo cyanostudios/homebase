@@ -50,6 +50,13 @@ import {
   type TaskColumnCount,
 } from '../utils/taskColumnCount';
 import { getTasksExportConfig } from '../utils/taskExportConfig';
+import {
+  TASK_LIST_FILTER_INITIAL,
+  taskMatchesListFilters,
+  toggleTaskListFilter,
+  type TaskListFilter,
+  type TaskListFilterSelection,
+} from '../utils/taskListFilter';
 import { buildTaskListStatusSavePayload } from '../utils/taskListSave';
 import {
   compareTasksByField,
@@ -73,7 +80,6 @@ import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView'
 
 type SortField = TaskSortField;
 type SortOrder = TaskSortOrder;
-type TaskFilter = 'all' | 'open' | 'completed' | 'overdue';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'updatedAt', label: 'Updated' },
@@ -125,7 +131,8 @@ export function TaskList() {
   const [listViewMode, setListViewModeState] = useState<TaskListViewMode>(
     getInitialTaskListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<TaskFilter>('open');
+  const [activeFilters, setActiveFilters] =
+    useState<TaskListFilterSelection>(TASK_LIST_FILTER_INITIAL);
   const [settingsCategory, setSettingsCategory] = useState<TaskSettingsCategory>('view');
 
   useEffect(() => {
@@ -223,21 +230,7 @@ export function TaskList() {
 
   const sortedTasks = useMemo(() => {
     const now = Date.now();
-    const byFilter = tasks.filter((task) => {
-      if (activeFilter === 'open') {
-        return task.status !== 'completed' && task.status !== 'cancelled';
-      }
-      if (activeFilter === 'completed') {
-        return task.status === 'completed';
-      }
-      if (activeFilter === 'overdue') {
-        if (!task.dueDate || task.status === 'completed' || task.status === 'cancelled') {
-          return false;
-        }
-        return new Date(task.dueDate).getTime() < now;
-      }
-      return true;
-    });
+    const byFilter = tasks.filter((task) => taskMatchesListFilters(task, activeFilters, now));
 
     const q = searchTerm.toLowerCase();
     const filtered = byFilter.filter((task) => {
@@ -281,8 +274,13 @@ export function TaskList() {
     getAssignedContacts,
     getAssignedTeamName,
     hasTeamsPlugin,
-    activeFilter,
+    activeFilters,
   ]);
+
+  const isFilterActive = (filter: TaskListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: TaskListFilter) => {
+    setActiveFilters((prev) => toggleTaskListFilter(prev, filter));
+  };
 
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
   const stats = useMemo(
@@ -466,29 +464,29 @@ export function TaskList() {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Open"
             value={stats.open}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'open'}
-            onClick={() => setActiveFilter('open')}
+            active={isFilterActive('open')}
+            onClick={() => toggleFilter('open')}
           />
           <ListFilterStatCard
             label="Completed"
             value={stats.completed}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'completed'}
-            onClick={() => setActiveFilter('completed')}
+            active={isFilterActive('completed')}
+            onClick={() => toggleFilter('completed')}
           />
           <ListFilterStatCard
             label="Overdue"
             value={stats.overdue}
             dotClassName="bg-rose-500"
-            active={activeFilter === 'overdue'}
-            onClick={() => setActiveFilter('overdue')}
+            active={isFilterActive('overdue')}
+            onClick={() => toggleFilter('overdue')}
           />
         </div>
 

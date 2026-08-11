@@ -697,7 +697,7 @@
     "noteContent": "Anteckningsinnehåll",
     "focusMode": "Fokus",
     "exitFocusMode": "Avsluta fokus",
-    "focusModeHint": "Döljer resten av vyn så du kan skriva ostört. Esc eller klick utanför avslutar.",
+    "focusModeHint": "Döljer resten av vyn så du kan läsa eller skriva ostört. Esc eller klick utanför avslutar.",
     "settingsSubtitle": "Hantera listvy och import.",
     "settingsCategories": {
       "view": "Vy",
@@ -2091,6 +2091,7 @@
       "age": "Ålder",
       "gender": "Kön",
       "status": "Status",
+      "seriesTeams": "Serielag",
       "players": "Spelare",
       "updated": "Uppdaterad"
     },

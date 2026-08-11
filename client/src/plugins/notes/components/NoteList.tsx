@@ -44,6 +44,16 @@ import {
   resolveNoteColumnCount,
   type NoteColumnCount,
 } from '../utils/noteColumnCount';
+import { notesExportConfig } from '../utils/noteExportConfig';
+import {
+  noteHasContent,
+  noteHasMentions,
+  noteIsRecentlyUpdated,
+  noteMatchesListFilters,
+  toggleNoteListFilter,
+  type NoteListFilter,
+  type NoteListFilterSelection,
+} from '../utils/noteListFilter';
 import {
   compareNotesByField,
   isNoteStringSortField,
@@ -57,7 +67,6 @@ import {
   resolveNoteListViewMode,
   type NoteListViewMode,
 } from '../utils/noteListViewMode';
-import { notesExportConfig } from '../utils/noteExportConfig';
 
 import { NoteListItem } from './NoteListItem';
 import { NoteListTable } from './NoteListTable';
@@ -66,7 +75,6 @@ import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsVi
 
 type SortField = NoteSortField;
 type SortOrder = NoteSortOrder;
-type NoteFilter = 'all' | 'withMentions' | 'withContent' | 'recentlyUpdated';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'updatedAt', label: 'Updated' },
@@ -109,7 +117,7 @@ export const NoteList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<NoteListViewMode>(
     getInitialNoteListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<NoteFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<NoteListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<NotesSettingsCategory>('view');
 
   useEffect(() => {
@@ -179,18 +187,7 @@ export const NoteList: React.FC = () => {
   const isTableView = listViewMode === 'table';
 
   const sortedNotes = useMemo(() => {
-    const byFilter = notes.filter((note) => {
-      if (activeFilter === 'withMentions') {
-        return (note.mentions?.length ?? 0) > 0;
-      }
-      if (activeFilter === 'withContent') {
-        return stripHtml(note.content || '').trim().length > 0;
-      }
-      if (activeFilter === 'recentlyUpdated') {
-        return Date.now() - new Date(note.updatedAt).getTime() <= 7 * 24 * 60 * 60 * 1000;
-      }
-      return true;
-    });
+    const byFilter = notes.filter((note) => noteMatchesListFilters(note, activeFilters));
 
     const q = searchTerm.toLowerCase();
     const filtered = byFilter.filter(
@@ -204,20 +201,23 @@ export const NoteList: React.FC = () => {
     );
 
     return [...filtered].sort((a, b) => compareNotesByField(a, b, primarySort, sortOrder));
-  }, [notes, searchTerm, primarySort, sortOrder, activeFilter]);
+  }, [notes, searchTerm, primarySort, sortOrder, activeFilters]);
 
   const visibleNoteIds = useMemo(() => sortedNotes.map((note) => String(note.id)), [sortedNotes]);
   const stats = useMemo(
     () => ({
       total: notes.length,
-      withMentions: notes.filter((n) => (n.mentions?.length ?? 0) > 0).length,
-      withContent: notes.filter((n) => stripHtml(n.content || '').trim().length > 0).length,
-      recentlyUpdated: notes.filter(
-        (n) => Date.now() - new Date(n.updatedAt).getTime() <= 7 * 24 * 60 * 60 * 1000,
-      ).length,
+      withMentions: notes.filter((n) => noteHasMentions(n)).length,
+      withContent: notes.filter((n) => noteHasContent(n)).length,
+      recentlyUpdated: notes.filter((n) => noteIsRecentlyUpdated(n)).length,
     }),
     [notes],
   );
+
+  const isFilterActive = (filter: NoteListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: NoteListFilter) => {
+    setActiveFilters((prev) => toggleNoteListFilter(prev, filter));
+  };
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -368,29 +368,29 @@ export const NoteList: React.FC = () => {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="With Mentions"
             value={stats.withMentions}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'withMentions'}
-            onClick={() => setActiveFilter('withMentions')}
+            active={isFilterActive('withMentions')}
+            onClick={() => toggleFilter('withMentions')}
           />
           <ListFilterStatCard
             label="With Content"
             value={stats.withContent}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'withContent'}
-            onClick={() => setActiveFilter('withContent')}
+            active={isFilterActive('withContent')}
+            onClick={() => toggleFilter('withContent')}
           />
           <ListFilterStatCard
             label="Updated 7d"
             value={stats.recentlyUpdated}
             dotClassName="bg-violet-500"
-            active={activeFilter === 'recentlyUpdated'}
-            onClick={() => setActiveFilter('recentlyUpdated')}
+            active={isFilterActive('recentlyUpdated')}
+            onClick={() => toggleFilter('recentlyUpdated')}
           />
         </div>
 

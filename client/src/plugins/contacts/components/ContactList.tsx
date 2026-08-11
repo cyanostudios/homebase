@@ -46,6 +46,12 @@ import { cn } from '@/lib/utils';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
 import {
+  contactMatchesListFilters,
+  toggleContactListFilter,
+  type ContactListFilter,
+  type ContactListFilterSelection,
+} from '../utils/contactListFilter';
+import {
   getInitialContactColumnCount,
   resolveContactColumnCount,
   CONTACTS_COLUMN_COUNT_STORAGE_KEY,
@@ -74,7 +80,6 @@ import { ContactSettingsView, type ContactSettingsCategory } from './ContactSett
 
 type SortField = ContactSortField;
 type SortOrder = ContactSortOrder;
-type ContactFilter = 'all' | 'company' | 'private' | 'withTags' | 'timeLogged';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'name', label: 'Name' },
@@ -135,7 +140,7 @@ export const ContactList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<ContactListViewMode>(
     getInitialContactListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<ContactFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<ContactListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('view');
 
   useEffect(() => {
@@ -219,22 +224,9 @@ export const ContactList: React.FC = () => {
     const comparePair = (a: Contact, b: Contact): number =>
       compareContactsByField(a, b, primarySort, sortOrder, timeCtx);
 
-    const byFilter = contacts.filter((contact) => {
-      if (activeFilter === 'company') {
-        return contact.contactType === 'company';
-      }
-      if (activeFilter === 'private') {
-        return contact.contactType === 'private';
-      }
-      if (activeFilter === 'withTags') {
-        return Array.isArray(contact.tags) && contact.tags.length > 0;
-      }
-      if (activeFilter === 'timeLogged') {
-        const idStr = String(contact.id);
-        return contactIdsWithTimeEntries.has(contact.id) || contactIdsWithTimeEntries.has(idStr);
-      }
-      return true;
-    });
+    const byFilter = contacts.filter((contact) =>
+      contactMatchesListFilters(contact, activeFilters, contactIdsWithTimeEntries),
+    );
 
     const needle = searchTerm.trim().toLowerCase();
     if (!needle) {
@@ -259,7 +251,7 @@ export const ContactList: React.FC = () => {
     searchTerm,
     primarySort,
     sortOrder,
-    activeFilter,
+    activeFilters,
     activeTimeTrackingContactId,
     contactIdsWithTimeEntries,
   ]);
@@ -392,6 +384,11 @@ export const ContactList: React.FC = () => {
     };
   }, [contacts, contactIdsWithTimeEntries]);
 
+  const isFilterActive = (filter: ContactListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: ContactListFilter) => {
+    setActiveFilters((prev) => toggleContactListFilter(prev, filter));
+  };
+
   if (contactsContentView === 'settings') {
     return (
       <div className="plugin-contacts min-h-full bg-background">
@@ -454,36 +451,36 @@ export const ContactList: React.FC = () => {
             label={t('contacts.stats.total')}
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('contacts.stats.companies')}
             value={stats.companies}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'company'}
-            onClick={() => setActiveFilter('company')}
+            active={isFilterActive('company')}
+            onClick={() => toggleFilter('company')}
           />
           <ListFilterStatCard
             label={t('contacts.stats.private')}
             value={stats.private}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'private'}
-            onClick={() => setActiveFilter('private')}
+            active={isFilterActive('private')}
+            onClick={() => toggleFilter('private')}
           />
           <ListFilterStatCard
             label={t('contacts.stats.withTags')}
             value={stats.withTags}
             dotClassName="bg-orange-500"
-            active={activeFilter === 'withTags'}
-            onClick={() => setActiveFilter('withTags')}
+            active={isFilterActive('withTags')}
+            onClick={() => toggleFilter('withTags')}
           />
           <ListFilterStatCard
             label={t('contacts.stats.timeLogged')}
             value={stats.timeLogged}
             dotClassName="bg-amber-600"
-            active={activeFilter === 'timeLogged'}
-            onClick={() => setActiveFilter('timeLogged')}
+            active={isFilterActive('timeLogged')}
+            onClick={() => toggleFilter('timeLogged')}
           />
         </div>
 

@@ -45,7 +45,7 @@ import { useMatches } from '@/plugins/matches/hooks/useMatches';
 import type { Match } from '@/plugins/matches/types/match';
 
 import { useTeams } from '../hooks/useTeams';
-import { isTeamOnBreak, TEAM_GENDERS, type TeamGender, type TeamStatus } from '../types/teams';
+import { isTeamOnBreak, TEAM_GENDERS, type TeamGender } from '../types/teams';
 import {
   getInitialTeamColumnCount,
   resolveTeamColumnCount,
@@ -53,6 +53,12 @@ import {
   TEAMS_SETTINGS_KEY,
   type TeamColumnCount,
 } from '../utils/teamColumnCount';
+import {
+  teamMatchesListFilters,
+  toggleTeamListFilter,
+  type TeamListFilter,
+  type TeamListFilterSelection,
+} from '../utils/teamListFilter';
 import {
   compareTeamsByField,
   isTeamAscDefaultField,
@@ -74,7 +80,6 @@ import { TeamsStatisticsView } from './TeamsStatisticsView';
 
 type SortField = TeamSortField;
 type SortOrder = TeamSortOrder;
-type StatusFilter = 'all' | TeamStatus;
 type GenderFilter = 'all' | TeamGender;
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
@@ -117,7 +122,7 @@ export function TeamList() {
   const { matches } = useMatches();
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<TeamListFilterSelection>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [activeSeason, setActiveSeason] = useState<string>('');
   const [primarySort, setPrimarySort] = useState<SortField>('name');
@@ -206,11 +211,7 @@ export function TeamList() {
       if (genderFilter !== 'all' && team.gender !== genderFilter) {
         return false;
       }
-      if (statusFilter === 'break') {
-        if (!isTeamOnBreak(team)) {
-          return false;
-        }
-      } else if (statusFilter !== 'all' && team.status !== statusFilter) {
+      if (!teamMatchesListFilters(team, activeFilters)) {
         return false;
       }
       if (!q) {
@@ -223,7 +224,12 @@ export function TeamList() {
     });
 
     return [...filtered].sort((a, b) => compareTeamsByField(a, b, primarySort, sortOrder));
-  }, [teams, search, genderFilter, statusFilter, t, primarySort, sortOrder]);
+  }, [teams, search, genderFilter, activeFilters, t, primarySort, sortOrder]);
+
+  const isFilterActive = (filter: TeamListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: TeamListFilter) => {
+    setActiveFilters((prev) => toggleTeamListFilter(prev, filter));
+  };
 
   const stats = useMemo(() => {
     let active = 0;
@@ -423,22 +429,22 @@ export function TeamList() {
             label={t('teams.status.active')}
             value={stats.active}
             dotClassName="bg-emerald-500"
-            active={statusFilter === 'active'}
-            onClick={() => setStatusFilter(statusFilter === 'active' ? 'all' : 'active')}
+            active={isFilterActive('active')}
+            onClick={() => toggleFilter('active')}
           />
           <ListFilterStatCard
             label={t('teams.status.break')}
             value={stats.break}
             dotClassName="bg-orange-500"
-            active={statusFilter === 'break'}
-            onClick={() => setStatusFilter(statusFilter === 'break' ? 'all' : 'break')}
+            active={isFilterActive('break')}
+            onClick={() => toggleFilter('break')}
           />
           <ListFilterStatCard
             label={t('teams.status.dormant')}
             value={stats.dormant}
             dotClassName="bg-amber-500"
-            active={statusFilter === 'dormant'}
-            onClick={() => setStatusFilter(statusFilter === 'dormant' ? 'all' : 'dormant')}
+            active={isFilterActive('dormant')}
+            onClick={() => toggleFilter('dormant')}
           />
         </div>
 

@@ -5,7 +5,9 @@ import {
   contactHasPhone,
   contactIsRecentlyUpdated,
   contactMatchesListFilter,
+  contactMatchesListFilters,
   contactMatchesTagFilter,
+  toggleContactListFilter,
 } from '../contactListFilter';
 
 const base = {
@@ -54,6 +56,25 @@ describe('contactListFilter', () => {
       true,
     );
     expect(contactMatchesListFilter(base, 'withEmail', empty)).toBe(true);
+  });
+
+  it('ANDs selected filters; empty selection matches all', () => {
+    const empty = new Set<string | number>();
+    const tagged = { ...base, tags: ['vip'] };
+    expect(contactMatchesListFilters(tagged, [], empty)).toBe(true);
+    expect(contactMatchesListFilters(tagged, ['company', 'withTags'], empty)).toBe(true);
+    expect(contactMatchesListFilters(tagged, ['private', 'withTags'], empty)).toBe(false);
+  });
+
+  it('toggles company/private exclusively and facets independently', () => {
+    expect(toggleContactListFilter([], 'company')).toEqual(['company']);
+    expect(toggleContactListFilter(['company'], 'private')).toEqual(['private']);
+    expect(toggleContactListFilter(['private', 'withTags'], 'company')).toEqual([
+      'withTags',
+      'company',
+    ]);
+    expect(toggleContactListFilter(['company'], 'withTags')).toEqual(['company', 'withTags']);
+    expect(toggleContactListFilter(['company', 'withTags'], 'withTags')).toEqual(['company']);
   });
 
   it('matches tag filter and collects unique tags', () => {

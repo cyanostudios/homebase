@@ -1,16 +1,13 @@
 import { useMemo } from 'react';
 
 import { useRequests } from '@/plugins/requests/hooks/useRequests';
+import { isOpenRequestStatus } from '@/plugins/requests/types/requests';
 
 import type { ResponsibleRole } from '../types/teams';
 import { getDisplaySeriesTeams, isTeamOnBreak } from '../types/teams';
 import type { TeamStatsData } from '../types/teamStats';
 
 import { useTeams } from './useTeams';
-
-function isOpenRequest(status: string): boolean {
-  return status === 'not started' || status === 'in progress';
-}
 
 export function useTeamStats(includeRequests: boolean): TeamStatsData {
   const { teams } = useTeams();
@@ -112,7 +109,7 @@ export function useTeamStats(includeRequests: boolean): TeamStatsData {
 
         const entry = requestCounts.get(req.teamId) ?? { open: 0, total: 0 };
         entry.total += 1;
-        if (isOpenRequest(req.status)) {
+        if (isOpenRequestStatus(req.status)) {
           entry.open += 1;
         }
         requestCounts.set(req.teamId, entry);

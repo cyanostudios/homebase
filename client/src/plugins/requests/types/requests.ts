@@ -20,6 +20,11 @@ export const REQUEST_STATUSES: RequestStatus[] = [
   'cancelled',
 ];
 
+/** Open requests shown on team overview; completed/cancelled are hidden there. */
+export function isOpenRequestStatus(status: RequestStatus | string): boolean {
+  return status === 'not started' || status === 'in progress';
+}
+
 export const REQUEST_PRIORITIES: RequestPriority[] = ['Low', 'Medium', 'High'];
 
 export interface Request {

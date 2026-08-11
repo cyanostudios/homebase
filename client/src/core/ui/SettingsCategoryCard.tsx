@@ -30,7 +30,7 @@ export function SettingsCategoryCard({
       className={cn(
         'group rounded-xl border-0 bg-card px-6 py-4 shadow-sm transition-colors',
         'cursor-pointer hover:bg-primary/10 hover:text-primary',
-        active && 'ring-1 ring-border/70',
+        active && 'bg-primary/10 text-primary ring-1 ring-border/70',
       )}
       role="button"
       tabIndex={0}
@@ -50,13 +50,25 @@ export function SettingsCategoryCard({
       }}
     >
       <div className="flex items-center justify-between gap-5">
-        <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400 transition-colors group-hover:text-primary dark:text-slate-500">
+        <div
+          className={cn(
+            'flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] transition-colors group-hover:text-primary',
+            active ? 'text-primary' : 'text-slate-400 dark:text-slate-500',
+          )}
+        >
           <span className={cn('h-2 w-2 shrink-0 rounded-full', dotClassName)} aria-hidden />
           <span className="truncate">{label}</span>
         </div>
-        <Icon className="h-5 w-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+        <Icon
+          className={cn(
+            'h-5 w-5 shrink-0 transition-colors group-hover:text-primary',
+            active ? 'text-primary' : 'text-muted-foreground',
+          )}
+        />
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      <p className={cn('mt-2 text-sm', active ? 'text-primary/80' : 'text-muted-foreground')}>
+        {description}
+      </p>
     </Card>
   );
 }

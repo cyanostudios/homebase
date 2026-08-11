@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, Circle, Trophy, Users } from 'lucide-react';
+import { CalendarDays, ChevronRight, Trophy, Users } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -21,7 +21,7 @@ import {
   teamColorGradientTextClass,
   WEEK_DAYS,
 } from '../types/teams';
-
+import { TeamSeriesTeamBadges } from './TeamSeriesTeamBadges';
 /** Picks the next training relative to today's weekday (wraps around the week). */
 function getNextTraining(team: Team): TrainingTime | null {
   const trainings = (team.training_times || []).filter((t) => t.day);
@@ -78,6 +78,7 @@ export function TeamCard({
   const metaLine =
     [team.age_group, genderLabel, team.playing_format].filter(Boolean).join(' · ') || '—';
   const metaOnTop = columnCount === 1;
+  const seriesTeamsMeta = <TeamSeriesTeamBadges team={team} />;
 
   const breakTrainingMeta =
     daysUntilTrainingAfterBreak !== null ? (
@@ -130,10 +131,7 @@ export function TeamCard({
         <Users className="h-3.5 w-3.5" />
         {t('teams.playerCount', { count: team.player_count })}
       </span>
-      <span className="inline-flex items-center gap-1.5">
-        <Circle className="h-3 w-3" />
-        {t('teams.seriesTeamCount', { count: team.series_team_count })}
-      </span>
+      {seriesTeamsMeta}
       {breakTrainingMeta}
       {nextMatchMeta}
       {!breakTrainingMeta ? nextTrainingMeta : null}
@@ -197,10 +195,7 @@ export function TeamCard({
                 <Users className="h-3.5 w-3.5" />
                 {t('teams.playerCount', { count: team.player_count })}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Circle className="h-3 w-3" />
-                {t('teams.seriesTeamCount', { count: team.series_team_count })}
-              </span>
+              {seriesTeamsMeta}
             </div>
 
             {(breakTrainingMeta || nextMatchMeta || (!breakTrainingMeta && nextTrainingMeta)) && (

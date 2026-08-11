@@ -51,6 +51,12 @@ import {
   type ClubdeskColumnCount,
 } from '../utils/clubdeskColumnCount';
 import {
+  clubdeskMatchesListFilters,
+  toggleClubdeskListFilter,
+  type ClubdeskListFilter,
+  type ClubdeskListFilterSelection,
+} from '../utils/clubdeskListFilter';
+import {
   compareClubdesksByField,
   isClubdeskAscDefaultField,
   isClubdeskStringSortField,
@@ -71,8 +77,6 @@ import { ClubdeskListTable } from './ClubdeskListTable';
 import { ClubdeskInfoView } from './ClubdeskInfoView';
 import { ClubdeskSettingsView } from './ClubdeskSettingsView';
 import { PriceListList } from './PriceListList';
-
-type ClubdeskFilter = 'all' | 'draft' | 'published';
 
 const UNCATEGORIZED_FILTER = '__uncategorized__';
 
@@ -142,7 +146,7 @@ const ClubdeskGuidesList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<ClubdeskListViewMode>(
     getInitialClubdeskListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<ClubdeskFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<ClubdeskListFilterSelection>([]);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
   useEffect(() => {
@@ -218,15 +222,7 @@ const ClubdeskGuidesList: React.FC = () => {
   const catalogOrder = useMemo(() => categories.map((c) => c.name), [categories]);
 
   const sortedClubdesks = useMemo(() => {
-    const byFilter = clubdesk.filter((item) => {
-      if (activeFilter === 'draft') {
-        return item.publicationStatus === 'draft';
-      }
-      if (activeFilter === 'published') {
-        return item.publicationStatus === 'published';
-      }
-      return true;
-    });
+    const byFilter = clubdesk.filter((item) => clubdeskMatchesListFilters(item, activeFilters));
 
     const byCategory =
       categoryFilter === 'all'
@@ -254,10 +250,18 @@ const ClubdeskGuidesList: React.FC = () => {
     }
 
     return [...filtered].sort((a, b) => compareClubdesksByField(a, b, primarySort, sortOrder));
-  }, [clubdesk, searchTerm, primarySort, sortOrder, activeFilter, categoryFilter, isTableView]);
+  }, [clubdesk, searchTerm, primarySort, sortOrder, activeFilters, categoryFilter, isTableView]);
 
   const canReorderCategory =
-    !isTableView && categoryFilter !== 'all' && searchTerm.trim() === '' && activeFilter === 'all';
+    !isTableView &&
+    categoryFilter !== 'all' &&
+    searchTerm.trim() === '' &&
+    activeFilters.length === 0;
+
+  const isFilterActive = (filter: ClubdeskListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: ClubdeskListFilter) => {
+    setActiveFilters((prev) => toggleClubdeskListFilter(prev, filter));
+  };
 
   const categoryOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -428,22 +432,22 @@ const ClubdeskGuidesList: React.FC = () => {
             label={t('clubdesk.filter.all')}
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('clubdesk.filter.draft')}
             value={stats.draft}
             dotClassName="bg-slate-400"
-            active={activeFilter === 'draft'}
-            onClick={() => setActiveFilter('draft')}
+            active={isFilterActive('draft')}
+            onClick={() => toggleFilter('draft')}
           />
           <ListFilterStatCard
             label={t('clubdesk.filter.published')}
             value={stats.published}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'published'}
-            onClick={() => setActiveFilter('published')}
+            active={isFilterActive('published')}
+            onClick={() => toggleFilter('published')}
           />
         </div>
 
@@ -619,17 +623,17 @@ const ClubdeskGuidesList: React.FC = () => {
           {sortedClubdesks.length === 0 ? (
             <ListEmptyState
               message={
-                searchTerm || activeFilter !== 'all' || categoryFilter !== 'all'
+                searchTerm || activeFilters.length > 0 || categoryFilter !== 'all'
                   ? t('clubdesk.noMatch')
                   : t('clubdesk.noYet')
               }
               createLabel={
-                !searchTerm && activeFilter === 'all' && categoryFilter === 'all'
+                !searchTerm && activeFilters.length === 0 && categoryFilter === 'all'
                   ? t('clubdesk.addClubdesk')
                   : undefined
               }
               onCreate={
-                !searchTerm && activeFilter === 'all' && categoryFilter === 'all'
+                !searchTerm && activeFilters.length === 0 && categoryFilter === 'all'
                   ? () => attemptNavigation(() => openClubdeskPanel(null))
                   : undefined
               }

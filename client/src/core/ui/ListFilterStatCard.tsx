@@ -25,7 +25,7 @@ export function ListFilterStatCard({
       className={cn(
         'group rounded-xl border-0 bg-card px-6 py-4 shadow-sm transition-colors',
         onClick && 'cursor-pointer hover:bg-primary/10 hover:text-primary',
-        active && 'ring-1 ring-border/70',
+        active && 'bg-primary/10 text-primary ring-1 ring-border/70',
       )}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -42,11 +42,21 @@ export function ListFilterStatCard({
       }
     >
       <div className="flex items-center justify-between gap-5">
-        <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400 transition-colors group-hover:text-primary dark:text-slate-500">
+        <div
+          className={cn(
+            'flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] transition-colors group-hover:text-primary',
+            active ? 'text-primary' : 'text-slate-400 dark:text-slate-500',
+          )}
+        >
           <span className={cn('h-2 w-2 shrink-0 rounded-full', dotClassName)} aria-hidden />
           <span className="truncate">{label}</span>
         </div>
-        <div className="shrink-0 text-3xl font-semibold leading-none tracking-tight tabular-nums text-foreground transition-colors group-hover:text-primary">
+        <div
+          className={cn(
+            'shrink-0 text-3xl font-semibold leading-none tracking-tight tabular-nums transition-colors group-hover:text-primary',
+            active ? 'text-primary' : 'text-foreground',
+          )}
+        >
           {value}
         </div>
       </div>

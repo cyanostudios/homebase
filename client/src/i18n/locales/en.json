@@ -703,7 +703,7 @@
     "noteContent": "Note Content",
     "focusMode": "Focus",
     "exitFocusMode": "Exit focus",
-    "focusModeHint": "Dim everything except the editor. Press Esc or click outside to exit.",
+    "focusModeHint": "Dim everything except the note. Press Esc or click outside to exit.",
     "settingsSubtitle": "Manage view layout and import.",
     "settingsCategories": {
       "view": "View",
@@ -2096,6 +2096,7 @@
       "age": "Age",
       "gender": "Gender",
       "status": "Status",
+      "seriesTeams": "Series teams",
       "players": "Players",
       "updated": "Updated"
     },

@@ -4,6 +4,39 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-11 – ListFilterStatCard multi-select (platform)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Samma multi-select-filterlogik som Matches gäller nu listor med `ListFilterStatCard` (inkl. Mail/Pulse history). Tomt urval / **Alla** = allt; exclusiva grupper (status/tidsfönster) byter varandra; övriga facets AND:as. Delad kärna: `client/src/core/list/listFilterSelection.ts`. Per-plugin `*ListFilter.ts`. Tasks/Requests behåller icke-tomt **initialt** urval (`open` / `active`); Alla rensar fortfarande till `[]`.
+
+**ADR:** [`ai/adr/LIST_FILTER_STAT_CARD_MULTI_SELECT.md`](ai/adr/LIST_FILTER_STAT_CARD_MULTI_SELECT.md).
+
+**Begränsningar:** Client-side på laddad lista; ingen OR-union inom exclusiv statusgrupp.
+
+---
+
+## 2026-08-11 – Teams / Matches / Notes / Requests (list- och detalj-UX)
+
+**Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. **Ej prod-release.**
+
+**Sammanfattning:** Flera UX-beteenden i samma leverans:
+
+1. **Teams list:** tabell + kort visar **alla serielag** (namn · nivå) via `TeamSeriesTeamBadges` / befintliga `SeriesTeamBadge` — inte bara antal.
+2. **Teams färger:** kanonisk palett `black | white | red | blue | green | yellow | orange | purple | teal` (nya: black, yellow). Synkad i `plugins/teams` + `plugins/schedule` enums och frontend stilkartor; `isLightTeamColor` = white + yellow.
+3. **Matches listfilter:** samma stora `ListFilterStatCard`-knappar som tidigare, men **multi-select** — tidsfönster byter varandra; `homeTeam` kan kombineras (AND), t.ex. hemmalag + kommande 7 dagar. Tomt urval / **Alla** = alla matcher. Lagfilter-rad tillagd och **borttagen** (ej i scope). _(Senare: samma mönster platform-wide — se post “ListFilterStatCard multi-select”.)_
+4. **Notes:** Fokusläge även i **detail** (`NoteView`), samma mönster som edit (`NoteForm`): Esc / klick utanför / döljer sidebar.
+5. **Teams overview requests:** `TeamRequestsSection` med `compact` döljer `completed` / `cancelled`; Requests-fliken visar fortfarande alla. Helper: `isOpenRequestStatus`.
+6. **ListFilterStatCard / SettingsCategoryCard:** markerad (`active`) använder samma `bg-primary/10` + `text-primary` som hover.
+
+**Kod (urval):** `TeamListTable.tsx`, `TeamCard.tsx`, `TeamSeriesTeamBadges.tsx`, `teams.ts` / `plugins/teams|schedule` color enums, `matchListFilter.ts`, `MatchList.tsx`, `NoteView.tsx`, `TeamRequestsSection.tsx`, `ListFilterStatCard.tsx`, `SettingsCategoryCard.tsx`.
+
+**Tester:** `teamColors` (BE+FE), `teamListTableView`, `matchListFilter`, `matchDefaultHomeTeamFilter`, `isOpenRequestStatus`, `teamRequestsOverviewFilter`.
+
+**Begränsningar:** Overview-döljning av stängda requests är UX, inte access control. Tab-badge `requestsCount` kan fortfarande räkna alla statusar. Ingen ADR (inkrementell UI/enum).
+
+---
+
 ## 2026-08-11 – Clubdesk Info-kontaktlista (Hem + /kontakt/)
 
 **Status:** Implementerat lokalt. **QA Approved** + **Security Approved**. Residual **IC-1** (publikt PHP utan `user_id`-filter; PII whitelist) väntar TPM medvetet godkännande. **Ej prod-release.**

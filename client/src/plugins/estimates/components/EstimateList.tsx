@@ -46,6 +46,12 @@ import {
   type EstimateColumnCount,
 } from '../utils/estimateColumnCount';
 import {
+  estimateMatchesListFilters,
+  toggleEstimateListFilter,
+  type EstimateListFilter,
+  type EstimateListFilterSelection,
+} from '../utils/estimateListFilter';
+import {
   compareEstimatesByField,
   isEstimateStringSortField,
   type EstimateSortField,
@@ -64,7 +70,6 @@ import { EstimateSettingsView } from './EstimateSettingsView';
 
 type SortField = EstimateSortField;
 type SortOrder = EstimateSortOrder;
-type EstimateFilter = 'all' | 'draft' | 'sent' | 'accepted';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'createdAt', label: 'Created' },
@@ -111,7 +116,7 @@ export function EstimateList() {
   const [listViewMode, setListViewModeState] = useState<EstimateListViewMode>(
     getInitialEstimateListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<EstimateFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<EstimateListFilterSelection>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,18 +185,9 @@ export function EstimateList() {
   const isTableView = listViewMode === 'table';
 
   const sortedEstimates = useMemo(() => {
-    const byFilter = estimates.filter((estimate) => {
-      if (activeFilter === 'draft') {
-        return estimate.status === 'draft';
-      }
-      if (activeFilter === 'accepted') {
-        return estimate.status === 'accepted';
-      }
-      if (activeFilter === 'sent') {
-        return estimate.status === 'sent';
-      }
-      return true;
-    });
+    const byFilter = estimates.filter((estimate) =>
+      estimateMatchesListFilters(estimate, activeFilters),
+    );
 
     const q = searchTerm.toLowerCase();
     const filtered = byFilter.filter(
@@ -203,7 +199,12 @@ export function EstimateList() {
     );
 
     return [...filtered].sort((a, b) => compareEstimatesByField(a, b, primarySort, sortOrder));
-  }, [estimates, searchTerm, primarySort, sortOrder, activeFilter]);
+  }, [estimates, searchTerm, primarySort, sortOrder, activeFilters]);
+
+  const isFilterActive = (filter: EstimateListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: EstimateListFilter) => {
+    setActiveFilters((prev) => toggleEstimateListFilter(prev, filter));
+  };
 
   const stats = useMemo(
     () => ({
@@ -402,29 +403,29 @@ export function EstimateList() {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Draft"
             value={stats.draft}
             dotClassName="bg-slate-500"
-            active={activeFilter === 'draft'}
-            onClick={() => setActiveFilter('draft')}
+            active={isFilterActive('draft')}
+            onClick={() => toggleFilter('draft')}
           />
           <ListFilterStatCard
             label="Sent"
             value={stats.sent}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'sent'}
-            onClick={() => setActiveFilter('sent')}
+            active={isFilterActive('sent')}
+            onClick={() => toggleFilter('sent')}
           />
           <ListFilterStatCard
             label="Accepted"
             value={stats.accepted}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'accepted'}
-            onClick={() => setActiveFilter('accepted')}
+            active={isFilterActive('accepted')}
+            onClick={() => toggleFilter('accepted')}
           />
         </div>
 

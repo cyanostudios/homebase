@@ -41,12 +41,16 @@ import {
   resolveMailListViewMode,
   type MailListViewMode,
 } from '../utils/mailListViewMode';
+import {
+  mailProviderMatchesListFilters,
+  toggleMailProvidersListFilter,
+  type MailProvidersListFilter,
+  type MailProvidersListFilterSelection,
+} from '../utils/mailProvidersListFilter';
 
 import { MailProvidersListItem } from './MailProvidersListItem';
 import { MailProvidersListTable } from './MailProvidersListTable';
 import { MailProvidersRouting } from './MailProvidersRouting';
-
-type ProviderFilter = 'all' | 'enabled' | 'disabled' | 'configured';
 
 function providerTitle(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -78,7 +82,7 @@ export const MailProvidersList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<MailListViewMode>(
     getInitialMailListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<ProviderFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<MailProvidersListFilterSelection>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,18 +143,9 @@ export const MailProvidersList: React.FC = () => {
   );
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = providers.filter((provider) => {
-      if (activeFilter === 'enabled') {
-        return provider.enabled;
-      }
-      if (activeFilter === 'disabled') {
-        return !provider.enabled;
-      }
-      if (activeFilter === 'configured') {
-        return provider.configured;
-      }
-      return true;
-    });
+    const byFilter = providers.filter((provider) =>
+      mailProviderMatchesListFilters(provider, activeFilters),
+    );
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((provider) => {
@@ -164,7 +159,12 @@ export const MailProvidersList: React.FC = () => {
     return [...filtered].sort((a, b) =>
       compareMailProviders(a, b, primarySort, sortOrder, (provider) => providerTitle(t, provider)),
     );
-  }, [activeFilter, primarySort, providers, searchTerm, sortOrder, t]);
+  }, [activeFilters, primarySort, providers, searchTerm, sortOrder, t]);
+
+  const isFilterActive = (filter: MailProvidersListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: MailProvidersListFilter) => {
+    setActiveFilters((prev) => toggleMailProvidersListFilter(prev, filter));
+  };
 
   const handlePrimarySortChange = useCallback((field: MailProviderSortField) => {
     setPrimarySort(field);
@@ -249,29 +249,29 @@ export const MailProvidersList: React.FC = () => {
             label={t('mail.total', { defaultValue: 'Total' })}
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('mail.statusEnabled', { defaultValue: 'Enabled' })}
             value={stats.enabled}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'enabled'}
-            onClick={() => setActiveFilter('enabled')}
+            active={isFilterActive('enabled')}
+            onClick={() => toggleFilter('enabled')}
           />
           <ListFilterStatCard
             label={t('mail.statusDisabled', { defaultValue: 'Disabled' })}
             value={stats.disabled}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'disabled'}
-            onClick={() => setActiveFilter('disabled')}
+            active={isFilterActive('disabled')}
+            onClick={() => toggleFilter('disabled')}
           />
           <ListFilterStatCard
             label={t('mail.keyConfigured', { defaultValue: 'Configured' })}
             value={stats.configured}
             dotClassName="bg-rose-500"
-            active={activeFilter === 'configured'}
-            onClick={() => setActiveFilter('configured')}
+            active={isFilterActive('configured')}
+            onClick={() => toggleFilter('configured')}
           />
         </div>
 

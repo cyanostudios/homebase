@@ -4,7 +4,17 @@ const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { body, commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
-const SCHEDULE_COLORS = ['green', 'blue', 'red', 'purple', 'orange', 'teal', 'white'];
+const SCHEDULE_COLORS = [
+  'black',
+  'white',
+  'red',
+  'blue',
+  'green',
+  'yellow',
+  'orange',
+  'purple',
+  'teal',
+];
 const EVENT_TYPES = ['recurring', 'date_based'];
 const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 

@@ -2,6 +2,9 @@ import {
   matchIsUpcoming,
   matchIsWithinUpcomingDays,
   matchMatchesListFilter,
+  matchMatchesListFilters,
+  toggleMatchListFilter,
+  withoutHomeTeamFilter,
 } from '../matchListFilter';
 
 const NOW = Date.parse('2026-08-07T12:00:00.000Z');
@@ -63,5 +66,48 @@ describe('matchMatchesListFilter', () => {
     ).toBe(true);
     expect(matchMatchesListFilter(match, 'homeTeam', NOW, 'Other')).toBe(false);
     expect(matchMatchesListFilter(match, 'homeTeam', NOW, '')).toBe(false);
+  });
+});
+
+describe('matchMatchesListFilters', () => {
+  const homeUpcoming = { start_time: '2026-08-12T15:00:00.000Z', home_team: 'AIK P16' };
+  const awayUpcoming = { start_time: '2026-08-12T15:00:00.000Z', home_team: 'Other FC' };
+  const homeFar = { start_time: '2026-09-01T15:00:00.000Z', home_team: 'AIK P16' };
+
+  it('allows all when selection is empty', () => {
+    expect(matchMatchesListFilters(homeUpcoming, [], NOW, 'AIK')).toBe(true);
+    expect(matchMatchesListFilters(awayUpcoming, [], NOW, 'AIK')).toBe(true);
+  });
+
+  it('ANDs home team with upcoming 7 days', () => {
+    expect(matchMatchesListFilters(homeUpcoming, ['homeTeam', 'upcoming7'], NOW, 'AIK')).toBe(true);
+    expect(matchMatchesListFilters(awayUpcoming, ['homeTeam', 'upcoming7'], NOW, 'AIK')).toBe(
+      false,
+    );
+    expect(matchMatchesListFilters(homeFar, ['homeTeam', 'upcoming7'], NOW, 'AIK')).toBe(false);
+  });
+});
+
+describe('toggleMatchListFilter', () => {
+  it('toggles home team independently', () => {
+    expect(toggleMatchListFilter([], 'homeTeam')).toEqual(['homeTeam']);
+    expect(toggleMatchListFilter(['homeTeam'], 'homeTeam')).toEqual([]);
+    expect(toggleMatchListFilter(['upcoming7', 'homeTeam'], 'homeTeam')).toEqual(['upcoming7']);
+  });
+
+  it('replaces time windows but keeps home team', () => {
+    expect(toggleMatchListFilter([], 'upcoming7')).toEqual(['upcoming7']);
+    expect(toggleMatchListFilter(['upcoming7'], 'upcoming14')).toEqual(['upcoming14']);
+    expect(toggleMatchListFilter(['homeTeam', 'upcoming7'], 'upcoming14')).toEqual([
+      'homeTeam',
+      'upcoming14',
+    ]);
+    expect(toggleMatchListFilter(['upcoming7'], 'upcoming7')).toEqual([]);
+  });
+});
+
+describe('withoutHomeTeamFilter', () => {
+  it('removes homeTeam when settings clear', () => {
+    expect(withoutHomeTeamFilter(['homeTeam', 'upcoming7'])).toEqual(['upcoming7']);
   });
 });

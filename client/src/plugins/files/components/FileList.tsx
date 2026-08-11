@@ -43,6 +43,15 @@ import {
   type FileColumnCount,
 } from '../utils/fileColumnCount';
 import {
+  fileHasSize,
+  fileIsImage,
+  fileIsUpdatedWithinDays,
+  fileMatchesListFilters,
+  toggleFileListFilter,
+  type FileListFilter,
+  type FileListFilterSelection,
+} from '../utils/fileListFilter';
+import {
   compareFilesByField,
   isFileAscDefaultField,
   type FileSortField,
@@ -62,7 +71,6 @@ import { FileSettingsView } from './FileSettingsView';
 
 type SortField = FileSortField;
 type SortOrder = FileSortOrder;
-type FileFilter = 'all' | 'images' | 'withSize' | 'updated7d';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'updatedAt', label: 'Updated' },
@@ -101,7 +109,7 @@ export const FileList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<FileListViewMode>(
     getInitialFileListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<FileFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<FileListFilterSelection>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -182,19 +190,7 @@ export const FileList: React.FC = () => {
   const isTableView = listViewMode === 'table';
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = files.filter((item: any) => {
-      if (activeFilter === 'images') {
-        return String(item?.mimeType || '').startsWith('image/');
-      }
-      if (activeFilter === 'withSize') {
-        return typeof item?.size === 'number' && item.size > 0;
-      }
-      if (activeFilter === 'updated7d') {
-        const date = item?.updatedAt ? new Date(item.updatedAt).getTime() : NaN;
-        return Number.isFinite(date) && Date.now() - date <= 7 * 24 * 60 * 60 * 1000;
-      }
-      return true;
-    });
+    const byFilter = files.filter((item: any) => fileMatchesListFilters(item, activeFilters));
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((item: any) => {
@@ -215,20 +211,22 @@ export const FileList: React.FC = () => {
     });
 
     return [...filtered].sort((a, b) => compareFilesByField(a, b, primarySort, sortOrder));
-  }, [files, searchTerm, primarySort, sortOrder, activeFilter]);
+  }, [files, searchTerm, primarySort, sortOrder, activeFilters]);
 
   const stats = useMemo(
     () => ({
       total: files.length,
-      images: files.filter((f: any) => String(f?.mimeType || '').startsWith('image/')).length,
-      withSize: files.filter((f: any) => typeof f?.size === 'number' && f.size > 0).length,
-      updated7d: files.filter((f: any) => {
-        const date = f?.updatedAt ? new Date(f.updatedAt).getTime() : NaN;
-        return Number.isFinite(date) && Date.now() - date <= 7 * 24 * 60 * 60 * 1000;
-      }).length,
+      images: files.filter((f: any) => fileIsImage(f)).length,
+      withSize: files.filter((f: any) => fileHasSize(f)).length,
+      updated7d: files.filter((f: any) => fileIsUpdatedWithinDays(f, 7)).length,
     }),
     [files],
   );
+
+  const isFilterActive = (filter: FileListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: FileListFilter) => {
+    setActiveFilters((prev) => toggleFileListFilter(prev, filter));
+  };
 
   const visibleIds = useMemo(
     () => filteredAndSorted.map((f: any) => String(f.id)),
@@ -331,29 +329,29 @@ export const FileList: React.FC = () => {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Images"
             value={stats.images}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'images'}
-            onClick={() => setActiveFilter('images')}
+            active={isFilterActive('images')}
+            onClick={() => toggleFilter('images')}
           />
           <ListFilterStatCard
             label="With Size"
             value={stats.withSize}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'withSize'}
-            onClick={() => setActiveFilter('withSize')}
+            active={isFilterActive('withSize')}
+            onClick={() => toggleFilter('withSize')}
           />
           <ListFilterStatCard
             label="Updated 7d"
             value={stats.updated7d}
             dotClassName="bg-violet-500"
-            active={activeFilter === 'updated7d'}
-            onClick={() => setActiveFilter('updated7d')}
+            active={isFilterActive('updated7d')}
+            onClick={() => toggleFilter('updated7d')}
           />
         </div>
 

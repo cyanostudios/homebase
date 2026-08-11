@@ -24,8 +24,11 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useMail } from '../hooks/useMail';
-
-type MailFilter = 'all' | 'filtered' | 'withSource' | 'today';
+import {
+  mailHistoryMatchesListFilters,
+  toggleMailHistoryListFilter,
+  type MailHistoryListFilter,
+} from '../utils/mailHistoryListFilter';
 
 export const MailHistoryView: React.FC = () => {
   useTimeFormat();
@@ -48,7 +51,7 @@ export const MailHistoryView: React.FC = () => {
   } = useMail();
   const [searchTerm, setSearchTerm] = useState('');
   const [pluginFilter, setPluginFilter] = useState('');
-  const [activeFilter, setActiveFilter] = useState<MailFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<MailHistoryListFilter[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -63,19 +66,13 @@ export const MailHistoryView: React.FC = () => {
       const matchPlugin = !pluginFilter || entry.pluginSource === pluginFilter;
       return matchSearch && matchPlugin;
     });
-    return baseFiltered.filter((entry) => {
-      if (activeFilter === 'withSource') {
-        return Boolean(entry.pluginSource);
-      }
-      if (activeFilter === 'today') {
-        return (
-          Boolean(entry.sentAt) &&
-          new Date(entry.sentAt).toDateString() === new Date().toDateString()
-        );
-      }
-      return true;
-    });
-  }, [mailHistory, searchTerm, pluginFilter, activeFilter]);
+    return baseFiltered.filter((entry) => mailHistoryMatchesListFilters(entry, activeFilters));
+  }, [mailHistory, searchTerm, pluginFilter, activeFilters]);
+
+  const isFilterActive = (filter: MailHistoryListFilter) => activeFilters.includes(filter);
+  const onToggleFilter = (filter: MailHistoryListFilter | 'all') => {
+    setActiveFilters((prev) => toggleMailHistoryListFilter(prev, filter));
+  };
 
   const pluginSources = useMemo(
     () =>
@@ -212,29 +209,29 @@ export const MailHistoryView: React.FC = () => {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Filtered"
             value={stats.filtered}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'filtered'}
-            onClick={() => setActiveFilter('filtered')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="With Source"
             value={stats.withSource}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'withSource'}
-            onClick={() => setActiveFilter('withSource')}
+            active={isFilterActive('withSource')}
+            onClick={() => onToggleFilter('withSource')}
           />
           <ListFilterStatCard
             label="Sent Today"
             value={stats.today}
             dotClassName="bg-violet-500"
-            active={activeFilter === 'today'}
-            onClick={() => setActiveFilter('today')}
+            active={isFilterActive('today')}
+            onClick={() => onToggleFilter('today')}
           />
         </div>
 

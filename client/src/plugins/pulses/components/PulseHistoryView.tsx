@@ -24,8 +24,11 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
-
-type PulseFilter = 'all' | 'filtered' | 'failed' | 'today';
+import {
+  pulseHistoryMatchesListFilters,
+  togglePulseHistoryListFilter,
+  type PulseHistoryListFilter,
+} from '../utils/pulseHistoryListFilter';
 
 export const PulseHistoryView: React.FC = () => {
   useTimeFormat();
@@ -50,7 +53,7 @@ export const PulseHistoryView: React.FC = () => {
   } = usePulses();
   const [searchTerm, setSearchTerm] = useState('');
   const [pluginFilter, setPluginFilter] = useState('');
-  const [activeFilter, setActiveFilter] = useState<PulseFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<PulseHistoryListFilter[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
@@ -65,19 +68,13 @@ export const PulseHistoryView: React.FC = () => {
       const matchPlugin = !pluginFilter || entry.pluginSource === pluginFilter;
       return matchSearch && matchPlugin;
     });
-    return baseFiltered.filter((entry) => {
-      if (activeFilter === 'failed') {
-        return String(entry.status || '').toLowerCase() === 'failed';
-      }
-      if (activeFilter === 'today') {
-        return (
-          Boolean(entry.sentAt) &&
-          new Date(entry.sentAt).toDateString() === new Date().toDateString()
-        );
-      }
-      return true;
-    });
-  }, [pulseHistory, searchTerm, pluginFilter, activeFilter]);
+    return baseFiltered.filter((entry) => pulseHistoryMatchesListFilters(entry, activeFilters));
+  }, [pulseHistory, searchTerm, pluginFilter, activeFilters]);
+
+  const isFilterActive = (filter: PulseHistoryListFilter) => activeFilters.includes(filter);
+  const onToggleFilter = (filter: PulseHistoryListFilter | 'all') => {
+    setActiveFilters((prev) => togglePulseHistoryListFilter(prev, filter));
+  };
 
   const pluginSources = useMemo(
     () =>
@@ -235,29 +232,29 @@ export const PulseHistoryView: React.FC = () => {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Filtered"
             value={stats.filtered}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'filtered'}
-            onClick={() => setActiveFilter('filtered')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Failed"
             value={stats.failed}
             dotClassName="bg-rose-500"
-            active={activeFilter === 'failed'}
-            onClick={() => setActiveFilter('failed')}
+            active={isFilterActive('failed')}
+            onClick={() => onToggleFilter('failed')}
           />
           <ListFilterStatCard
             label="Sent Today"
             value={stats.today}
             dotClassName="bg-violet-500"
-            active={activeFilter === 'today'}
-            onClick={() => setActiveFilter('today')}
+            active={isFilterActive('today')}
+            onClick={() => onToggleFilter('today')}
           />
         </div>
 

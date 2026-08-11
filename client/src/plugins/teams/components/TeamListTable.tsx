@@ -12,6 +12,9 @@ import { cn } from '@/lib/utils';
 
 import { isTeamOnBreak, TEAM_STATUS_BADGES, type Team, type TeamStatus } from '../types/teams';
 import type { TeamSortField, TeamSortOrder } from '../utils/teamListSort';
+import { TeamSeriesTeamBadges } from './TeamSeriesTeamBadges';
+
+type TeamTableColumnField = TeamSortField | 'series_teams';
 
 export type TeamListTableProps = {
   teams: Team[];
@@ -43,7 +46,7 @@ export function TeamListTable({
   const { t } = useTranslation();
 
   const columns = useMemo(
-    (): SortableListTableColumn<Team, TeamSortField>[] => [
+    (): SortableListTableColumn<Team, TeamTableColumnField>[] => [
       {
         field: 'name',
         header: t('teams.table.name'),
@@ -84,6 +87,18 @@ export function TeamListTable({
         },
       },
       {
+        field: 'series_teams',
+        header: t('teams.table.seriesTeams'),
+        sortable: false,
+        className: 'hidden md:table-cell',
+        cell: (team) => (
+          <TeamSeriesTeamBadges
+            team={team}
+            empty={<span className="text-xs text-muted-foreground">—</span>}
+          />
+        ),
+      },
+      {
         field: 'player_count',
         header: t('teams.table.players'),
         className: 'hidden md:table-cell',
@@ -122,7 +137,12 @@ export function TeamListTable({
       getRowId={(team) => String(team.id)}
       primarySort={primarySort}
       sortOrder={sortOrder}
-      onSort={onSort}
+      onSort={(field) => {
+        if (field === 'series_teams') {
+          return;
+        }
+        onSort(field);
+      }}
       onRowClick={onRowClick}
       rowAriaLabel={(team) => t('teams.openTeam', { name: team.name })}
       rowClassName={(team) =>

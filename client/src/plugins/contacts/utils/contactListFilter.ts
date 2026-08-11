@@ -1,7 +1,9 @@
+import { itemMatchesListFilters, toggleListFilterSelection } from '@/core/list/listFilterSelection';
+
 import type { Contact } from '../types/contacts';
 
+/** Selectable filters (excluding "all", which clears the selection). */
 export type ContactListFilter =
-  | 'all'
   | 'company'
   | 'private'
   | 'withTags'
@@ -11,6 +13,13 @@ export type ContactListFilter =
   | 'withPhone'
   | 'withNotes'
   | 'recentlyUpdated';
+
+/** Empty array = show all contacts. Multiple filters are AND-combined. */
+export type ContactListFilterSelection = ContactListFilter[];
+
+const TYPE_FILTERS = ['company', 'private'] as const satisfies readonly ContactListFilter[];
+
+export const CONTACT_LIST_FILTER_EXCLUSIVE_GROUPS = [TYPE_FILTERS] as const;
 
 export function contactHasEmail(contact: Pick<Contact, 'email'>): boolean {
   return Boolean(contact.email?.trim());
@@ -32,26 +41,25 @@ export function contactIsRecentlyUpdated(
   return Number.isFinite(updated) && nowMs - updated <= 7 * 24 * 60 * 60 * 1000;
 }
 
-export function contactMatchesListFilter(
-  contact: Pick<
-    Contact,
-    | 'contactType'
-    | 'isAssignable'
-    | 'email'
-    | 'phone'
-    | 'phone2'
-    | 'notes'
-    | 'tags'
-    | 'updatedAt'
-    | 'id'
-  >,
+type ContactFilterFields = Pick<
+  Contact,
+  | 'contactType'
+  | 'isAssignable'
+  | 'email'
+  | 'phone'
+  | 'phone2'
+  | 'notes'
+  | 'tags'
+  | 'updatedAt'
+  | 'id'
+>;
+
+export function contactMatchesSingleFilter(
+  contact: ContactFilterFields,
   filter: ContactListFilter,
   contactIdsWithTimeEntries: ReadonlySet<string | number>,
   nowMs: number = Date.now(),
 ): boolean {
-  if (filter === 'all') {
-    return true;
-  }
   if (filter === 'company') {
     return contact.contactType === 'company';
   }
@@ -81,6 +89,39 @@ export function contactMatchesListFilter(
     return contactIsRecentlyUpdated(contact, nowMs);
   }
   return true;
+}
+
+/** AND across selected filters. Empty selection = all contacts. */
+export function contactMatchesListFilters(
+  contact: ContactFilterFields,
+  filters: ContactListFilterSelection,
+  contactIdsWithTimeEntries: ReadonlySet<string | number>,
+  nowMs: number = Date.now(),
+): boolean {
+  return itemMatchesListFilters(contact, filters, (item, filter) =>
+    contactMatchesSingleFilter(item, filter, contactIdsWithTimeEntries, nowMs),
+  );
+}
+
+/** @deprecated Prefer contactMatchesListFilters; kept for single-filter call sites/tests. */
+export function contactMatchesListFilter(
+  contact: ContactFilterFields,
+  filter: ContactListFilter,
+  contactIdsWithTimeEntries: ReadonlySet<string | number>,
+  nowMs: number = Date.now(),
+): boolean {
+  return contactMatchesSingleFilter(contact, filter, contactIdsWithTimeEntries, nowMs);
+}
+
+/**
+ * Toggle a filter for multi-select.
+ * company/private replace each other; other facets toggle independently.
+ */
+export function toggleContactListFilter(
+  current: ContactListFilterSelection,
+  filter: ContactListFilter,
+): ContactListFilterSelection {
+  return toggleListFilterSelection(current, filter, CONTACT_LIST_FILTER_EXCLUSIVE_GROUPS);
 }
 
 export function contactMatchesTagFilter(

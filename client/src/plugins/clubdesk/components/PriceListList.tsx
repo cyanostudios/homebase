@@ -40,6 +40,12 @@ import {
 } from '../utils/clubdeskListViewMode';
 import { getClubdeskListStatusErrorMessage } from '../utils/clubdeskListStatusError';
 import {
+  priceListMatchesListFilters,
+  togglePriceListListFilter,
+  type PriceListListFilter,
+  type PriceListListFilterSelection,
+} from '../utils/priceListListFilter';
+import {
   comparePriceListsByField,
   isPriceListAscDefaultField,
   type PriceListSortField,
@@ -48,8 +54,6 @@ import {
 
 import { PriceListListItem } from './PriceListListItem';
 import { PriceListListTable } from './PriceListListTable';
-
-type PriceListFilter = 'all' | 'draft' | 'published';
 
 const SORT_FIELD_OPTIONS: { value: PriceListSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'clubdesk.sort.updated' },
@@ -94,7 +98,7 @@ export const PriceListList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<ClubdeskListViewMode>(
     getInitialClubdeskListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<PriceListFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<PriceListListFilterSelection>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,15 +167,7 @@ export const PriceListList: React.FC = () => {
   const isTableView = listViewMode === 'table';
 
   const sortedPriceLists = useMemo(() => {
-    const byFilter = priceLists.filter((item) => {
-      if (activeFilter === 'draft') {
-        return item.publicationStatus === 'draft';
-      }
-      if (activeFilter === 'published') {
-        return item.publicationStatus === 'published';
-      }
-      return true;
-    });
+    const byFilter = priceLists.filter((item) => priceListMatchesListFilters(item, activeFilters));
 
     const q = searchTerm.toLowerCase();
     const filtered = byFilter.filter(
@@ -182,7 +178,7 @@ export const PriceListList: React.FC = () => {
         (item.currency || '').toLowerCase().includes(q),
     );
 
-    if (!isTableView && searchTerm.trim() === '' && activeFilter === 'all') {
+    if (!isTableView && searchTerm.trim() === '' && activeFilters.length === 0) {
       return [...filtered].sort((a, b) => {
         const ao = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
         const bo = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
@@ -194,9 +190,14 @@ export const PriceListList: React.FC = () => {
     }
 
     return [...filtered].sort((a, b) => comparePriceListsByField(a, b, primarySort, sortOrder));
-  }, [priceLists, searchTerm, primarySort, sortOrder, activeFilter, isTableView]);
+  }, [priceLists, searchTerm, primarySort, sortOrder, activeFilters, isTableView]);
 
-  const canReorder = !isTableView && searchTerm.trim() === '' && activeFilter === 'all';
+  const canReorder = !isTableView && searchTerm.trim() === '' && activeFilters.length === 0;
+
+  const isFilterActive = (filter: PriceListListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: PriceListListFilter) => {
+    setActiveFilters((prev) => togglePriceListListFilter(prev, filter));
+  };
 
   const visibleIds = useMemo(
     () => sortedPriceLists.map((item) => String(item.id)),
@@ -312,22 +313,22 @@ export const PriceListList: React.FC = () => {
             label={t('clubdesk.filter.all')}
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('clubdesk.filter.draft')}
             value={stats.draft}
             dotClassName="bg-slate-400"
-            active={activeFilter === 'draft'}
-            onClick={() => setActiveFilter('draft')}
+            active={isFilterActive('draft')}
+            onClick={() => toggleFilter('draft')}
           />
           <ListFilterStatCard
             label={t('clubdesk.filter.published')}
             value={stats.published}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'published'}
-            onClick={() => setActiveFilter('published')}
+            active={isFilterActive('published')}
+            onClick={() => toggleFilter('published')}
           />
         </div>
 
@@ -465,15 +466,15 @@ export const PriceListList: React.FC = () => {
           {sortedPriceLists.length === 0 ? (
             <ListEmptyState
               message={
-                searchTerm || activeFilter !== 'all'
+                searchTerm || activeFilters.length > 0
                   ? t('clubdesk.priceList.noMatch')
                   : t('clubdesk.priceList.noYet')
               }
               createLabel={
-                !searchTerm && activeFilter === 'all' ? t('clubdesk.priceList.add') : undefined
+                !searchTerm && activeFilters.length === 0 ? t('clubdesk.priceList.add') : undefined
               }
               onCreate={
-                !searchTerm && activeFilter === 'all'
+                !searchTerm && activeFilters.length === 0
                   ? () => attemptNavigation(() => openPriceListPanel(null))
                   : undefined
               }

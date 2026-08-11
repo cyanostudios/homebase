@@ -60,6 +60,15 @@ import {
   type SlotColumnCount,
 } from '../utils/slotColumnCount';
 import {
+  slotHasCategory,
+  slotIsUpcoming,
+  slotIsVisible,
+  slotMatchesListFilters,
+  toggleSlotListFilter,
+  type SlotListFilter,
+  type SlotListFilterSelection,
+} from '../utils/slotListFilter';
+import {
   compareSlotsByField,
   isSlotAscDefaultField,
   nextSlotTableSort,
@@ -80,7 +89,6 @@ import { SlotsSettingsView } from './SlotsSettingsView';
 
 type SortField = SlotSortField;
 type SortOrder = SlotSortOrder;
-type SlotFilter = 'all' | 'visible' | 'upcoming' | 'withCategory';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'slot_time', label: 'Time' },
@@ -122,7 +130,7 @@ export function SlotsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [primarySort, setPrimarySort] = useState<SortField>('slot_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [activeFilter, setActiveFilter] = useState<SlotFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<SlotListFilterSelection>([]);
   const [columnCount, setColumnCountState] = useState<SlotColumnCount>(getInitialSlotColumnCount);
   const [listViewMode, setListViewModeState] = useState<SlotListViewMode>(
     getInitialSlotListViewMode,
@@ -195,18 +203,7 @@ export function SlotsList() {
   );
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = slots.filter((s) => {
-      if (activeFilter === 'visible') {
-        return Boolean(s.visible);
-      }
-      if (activeFilter === 'upcoming') {
-        return new Date(s.slot_time).getTime() > Date.now();
-      }
-      if (activeFilter === 'withCategory') {
-        return Boolean(s.category?.trim());
-      }
-      return true;
-    });
+    const byFilter = slots.filter((s) => slotMatchesListFilters(s, activeFilters));
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = byFilter.filter((s) => {
@@ -219,16 +216,21 @@ export function SlotsList() {
       return nameStr.includes(needle) || locationStr.includes(needle) || timeStr.includes(needle);
     });
     return [...filtered].sort((a, b) => compareSlotsByField(a, b, primarySort, sortOrder));
-  }, [slots, searchTerm, primarySort, sortOrder, formatDateTimeForFilter, activeFilter]);
+  }, [slots, searchTerm, primarySort, sortOrder, formatDateTimeForFilter, activeFilters]);
   const stats = useMemo(
     () => ({
       total: slots.length,
-      visible: slots.filter((s) => Boolean(s.visible)).length,
-      upcoming: slots.filter((s) => new Date(s.slot_time).getTime() > Date.now()).length,
-      withCategory: slots.filter((s) => Boolean(s.category?.trim())).length,
+      visible: slots.filter((s) => slotIsVisible(s)).length,
+      upcoming: slots.filter((s) => slotIsUpcoming(s)).length,
+      withCategory: slots.filter((s) => slotHasCategory(s)).length,
     }),
     [slots],
   );
+
+  const isFilterActive = (filter: SlotListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: SlotListFilter) => {
+    setActiveFilters((prev) => toggleSlotListFilter(prev, filter));
+  };
 
   const visibleSlotIds = useMemo(
     () => filteredAndSorted.map((s) => String(s.id)),
@@ -437,29 +439,29 @@ export function SlotsList() {
             label="Total"
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label="Visible"
             value={stats.visible}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'visible'}
-            onClick={() => setActiveFilter('visible')}
+            active={isFilterActive('visible')}
+            onClick={() => toggleFilter('visible')}
           />
           <ListFilterStatCard
             label="Upcoming"
             value={stats.upcoming}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'upcoming'}
-            onClick={() => setActiveFilter('upcoming')}
+            active={isFilterActive('upcoming')}
+            onClick={() => toggleFilter('upcoming')}
           />
           <ListFilterStatCard
             label="With Category"
             value={stats.withCategory}
             dotClassName="bg-violet-500"
-            active={activeFilter === 'withCategory'}
-            onClick={() => setActiveFilter('withCategory')}
+            active={isFilterActive('withCategory')}
+            onClick={() => toggleFilter('withCategory')}
           />
         </div>
 

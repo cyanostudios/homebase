@@ -49,6 +49,14 @@ import {
   type RequestColumnCount,
 } from '../utils/requestColumnCount';
 import {
+  isRequestListStatusFilterNonDefault,
+  REQUEST_LIST_FILTER_INITIAL,
+  requestMatchesListFilters,
+  toggleRequestListFilter,
+  type RequestListFilter,
+  type RequestListFilterSelection,
+} from '../utils/requestListFilter';
+import {
   buildRequestListPrioritySavePayload,
   buildRequestListStatusSavePayload,
 } from '../utils/requestListSave';
@@ -70,7 +78,6 @@ import { RequestListTable } from './RequestListTable';
 import { RequestQuickAdd } from './RequestQuickAdd';
 import { RequestsSettingsView } from './RequestsSettingsView';
 
-type StatusFilter = 'all' | 'active' | RequestStatus;
 type TypeFilter = 'all' | string;
 type TeamFilter = 'all' | 'unlinked';
 type SortField = RequestSortField;
@@ -110,7 +117,9 @@ export function RequestList() {
   } = useRequests();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+  const [activeFilters, setActiveFilters] = useState<RequestListFilterSelection>(
+    REQUEST_LIST_FILTER_INITIAL,
+  );
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('all');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -168,11 +177,7 @@ export function RequestList() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return requests.filter((req) => {
-      if (statusFilter === 'active') {
-        if (req.status !== 'not started' && req.status !== 'in progress') {
-          return false;
-        }
-      } else if (statusFilter !== 'all' && req.status !== statusFilter) {
+      if (!requestMatchesListFilters(req, activeFilters)) {
         return false;
       }
       if (typeFilter !== 'all' && req.requestType !== typeFilter) {
@@ -189,7 +194,12 @@ export function RequestList() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [requests, search, statusFilter, typeFilter, teamFilter, teamById]);
+  }, [requests, search, activeFilters, typeFilter, teamFilter, teamById]);
+
+  const isFilterActive = (filter: RequestListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: RequestListFilter) => {
+    setActiveFilters((prev) => toggleRequestListFilter(prev, filter));
+  };
 
   const stats = useMemo(
     () => ({
@@ -294,12 +304,15 @@ export function RequestList() {
     });
 
   const hasActiveFilters = Boolean(
-    search || statusFilter !== 'active' || typeFilter !== 'all' || teamFilter !== 'all',
+    search ||
+      isRequestListStatusFilterNonDefault(activeFilters) ||
+      typeFilter !== 'all' ||
+      teamFilter !== 'all',
   );
 
   const clearAllFilters = () => {
     setSearch('');
-    setStatusFilter('active');
+    setActiveFilters(REQUEST_LIST_FILTER_INITIAL);
     setTypeFilter('all');
     setTeamFilter('all');
   };
@@ -365,22 +378,22 @@ export function RequestList() {
             label={t('requests.filterAll')}
             value={stats.all}
             dotClassName="bg-slate-400"
-            active={statusFilter === 'all'}
-            onClick={() => setStatusFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('requests.statActive')}
             value={stats.active}
             dotClassName="bg-blue-500"
-            active={statusFilter === 'active'}
-            onClick={() => setStatusFilter(statusFilter === 'active' ? 'all' : 'active')}
+            active={isFilterActive('active')}
+            onClick={() => toggleFilter('active')}
           />
           <ListFilterStatCard
             label={t('requests.statCompleted')}
             value={stats.completed}
             dotClassName="bg-emerald-500"
-            active={statusFilter === 'completed'}
-            onClick={() => setStatusFilter(statusFilter === 'completed' ? 'active' : 'completed')}
+            active={isFilterActive('completed')}
+            onClick={() => toggleFilter('completed')}
           />
           <ListFilterStatCard
             label={t('requests.statExternal')}

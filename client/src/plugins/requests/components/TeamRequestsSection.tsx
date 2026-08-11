@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 import { requestsApi } from '../api/requestsApi';
 import type { Request, RequestPriority, RequestStatus } from '../types/requests';
-import { formatSubmittedDateWithAge, getTypeLabel } from '../types/requests';
+import { formatSubmittedDateWithAge, getTypeLabel, isOpenRequestStatus } from '../types/requests';
 
 import { RequestPrioritySelect } from './RequestPrioritySelect';
 import { RequestQuickInfoDialog } from './RequestQuickInfoDialog';
@@ -111,13 +111,16 @@ export function TeamRequestsSection({
     [onOpenRequest],
   );
 
-  const displayRequests = compact ? requests.slice(0, 5) : requests;
+  const visibleRequests = compact
+    ? requests.filter((r) => isOpenRequestStatus(r.status))
+    : requests;
+  const displayRequests = compact ? visibleRequests.slice(0, 5) : visibleRequests;
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">{t('common.loading')}</p>;
   }
 
-  if (requests.length === 0) {
+  if (visibleRequests.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-4 text-center">
         <Inbox className="h-8 w-8 text-muted-foreground/40" />
@@ -198,9 +201,9 @@ export function TeamRequestsSection({
           );
         })}
 
-        {compact && requests.length > 5 && (
+        {compact && visibleRequests.length > 5 && (
           <p className="pt-1 text-center text-xs text-muted-foreground">
-            {t('requests.moreCount', { count: requests.length - 5 })}
+            {t('requests.moreCount', { count: visibleRequests.length - 5 })}
           </p>
         )}
 

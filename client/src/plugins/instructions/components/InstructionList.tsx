@@ -49,6 +49,12 @@ import {
   type InstructionColumnCount,
 } from '../utils/instructionColumnCount';
 import {
+  instructionMatchesListFilters,
+  toggleInstructionListFilter,
+  type InstructionListFilter,
+  type InstructionListFilterSelection,
+} from '../utils/instructionListFilter';
+import {
   compareInstructionsByField,
   isInstructionAscDefaultField,
   isInstructionStringSortField,
@@ -67,8 +73,6 @@ import { sortCategoryNames } from '../utils/sortCategoryNames';
 import { InstructionListItem } from './InstructionListItem';
 import { InstructionListTable } from './InstructionListTable';
 import { InstructionSettingsView } from './InstructionSettingsView';
-
-type InstructionFilter = 'all' | 'draft' | 'published';
 
 const UNCATEGORIZED_FILTER = '__uncategorized__';
 
@@ -125,7 +129,7 @@ export const InstructionList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<InstructionListViewMode>(
     getInitialInstructionListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<InstructionFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<InstructionListFilterSelection>([]);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
 
   useEffect(() => {
@@ -202,15 +206,9 @@ export const InstructionList: React.FC = () => {
   const catalogOrder = useMemo(() => categories.map((c) => c.name), [categories]);
 
   const sortedInstructions = useMemo(() => {
-    const byFilter = instructions.filter((item) => {
-      if (activeFilter === 'draft') {
-        return item.publicationStatus === 'draft';
-      }
-      if (activeFilter === 'published') {
-        return item.publicationStatus === 'published';
-      }
-      return true;
-    });
+    const byFilter = instructions.filter((item) =>
+      instructionMatchesListFilters(item, activeFilters),
+    );
 
     const byCategory =
       categoryFilter === 'all'
@@ -238,10 +236,26 @@ export const InstructionList: React.FC = () => {
     }
 
     return [...filtered].sort((a, b) => compareInstructionsByField(a, b, primarySort, sortOrder));
-  }, [instructions, searchTerm, primarySort, sortOrder, activeFilter, categoryFilter, isTableView]);
+  }, [
+    instructions,
+    searchTerm,
+    primarySort,
+    sortOrder,
+    activeFilters,
+    categoryFilter,
+    isTableView,
+  ]);
 
   const canReorderCategory =
-    !isTableView && categoryFilter !== 'all' && searchTerm.trim() === '' && activeFilter === 'all';
+    !isTableView &&
+    categoryFilter !== 'all' &&
+    searchTerm.trim() === '' &&
+    activeFilters.length === 0;
+
+  const isFilterActive = (filter: InstructionListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: InstructionListFilter) => {
+    setActiveFilters((prev) => toggleInstructionListFilter(prev, filter));
+  };
 
   const categoryOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -410,22 +424,22 @@ export const InstructionList: React.FC = () => {
             label={t('instructions.filter.all')}
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('instructions.filter.draft')}
             value={stats.draft}
             dotClassName="bg-slate-400"
-            active={activeFilter === 'draft'}
-            onClick={() => setActiveFilter('draft')}
+            active={isFilterActive('draft')}
+            onClick={() => toggleFilter('draft')}
           />
           <ListFilterStatCard
             label={t('instructions.filter.published')}
             value={stats.published}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'published'}
-            onClick={() => setActiveFilter('published')}
+            active={isFilterActive('published')}
+            onClick={() => toggleFilter('published')}
           />
         </div>
 
@@ -603,17 +617,17 @@ export const InstructionList: React.FC = () => {
           {sortedInstructions.length === 0 ? (
             <ListEmptyState
               message={
-                searchTerm || activeFilter !== 'all' || categoryFilter !== 'all'
+                searchTerm || activeFilters.length > 0 || categoryFilter !== 'all'
                   ? t('instructions.noMatch')
                   : t('instructions.noYet')
               }
               createLabel={
-                !searchTerm && activeFilter === 'all' && categoryFilter === 'all'
+                !searchTerm && activeFilters.length === 0 && categoryFilter === 'all'
                   ? t('instructions.addInstruction')
                   : undefined
               }
               onCreate={
-                !searchTerm && activeFilter === 'all' && categoryFilter === 'all'
+                !searchTerm && activeFilters.length === 0 && categoryFilter === 'all'
                   ? () => attemptNavigation(() => openInstructionPanel(null))
                   : undefined
               }

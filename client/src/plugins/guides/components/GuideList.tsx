@@ -40,6 +40,12 @@ import {
   type GuideColumnCount,
 } from '../utils/guideColumnCount';
 import {
+  guideMatchesListFilters,
+  toggleGuideListFilter,
+  type GuideListFilter,
+  type GuideListFilterSelection,
+} from '../utils/guideListFilter';
+import {
   compareGuidesByField,
   isGuideAscDefaultField,
   type GuideSortField,
@@ -58,7 +64,6 @@ import { GuideSettingsView, type GuideSettingsCategory } from './GuideSettingsVi
 
 type SortField = GuideSortField;
 type SortOrder = GuideSortOrder;
-type GuideListFilter = 'all' | 'draft' | 'active' | 'audioReady';
 
 export const GuideList: React.FC = () => {
   const { t } = useTranslation();
@@ -88,7 +93,7 @@ export const GuideList: React.FC = () => {
   const [listViewMode, setListViewModeState] = useState<GuideListViewMode>(
     getInitialGuideListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<GuideListFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<GuideListFilterSelection>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -158,12 +163,7 @@ export const GuideList: React.FC = () => {
   }, [guides]);
 
   const filteredAndSorted = useMemo(() => {
-    const byFilter = guides.filter((guide) => {
-      if (activeFilter === 'draft') return guide.lifecycleStatus === 'draft';
-      if (activeFilter === 'active') return guide.lifecycleStatus === 'active';
-      if (activeFilter === 'audioReady') return Boolean(guide.hasReadyAudio);
-      return true;
-    });
+    const byFilter = guides.filter((guide) => guideMatchesListFilters(guide, activeFilters));
 
     const needle = searchTerm.trim().toLowerCase();
     const filtered = needle
@@ -177,7 +177,12 @@ export const GuideList: React.FC = () => {
       : byFilter;
 
     return [...filtered].sort((a, b) => compareGuidesByField(a, b, primarySort, sortOrder));
-  }, [guides, searchTerm, primarySort, sortOrder, activeFilter]);
+  }, [guides, searchTerm, primarySort, sortOrder, activeFilters]);
+
+  const isFilterActive = (filter: GuideListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: GuideListFilter) => {
+    setActiveFilters((prev) => toggleGuideListFilter(prev, filter));
+  };
 
   const visibleGuideIds = useMemo(
     () => filteredAndSorted.map((guide) => String(guide.id)),
@@ -288,29 +293,29 @@ export const GuideList: React.FC = () => {
             label={t('guides.stats.total')}
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('guides.stats.draft')}
             value={stats.draft}
             dotClassName="bg-slate-500"
-            active={activeFilter === 'draft'}
-            onClick={() => setActiveFilter('draft')}
+            active={isFilterActive('draft')}
+            onClick={() => toggleFilter('draft')}
           />
           <ListFilterStatCard
             label={t('guides.stats.active')}
             value={stats.active}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'active'}
-            onClick={() => setActiveFilter('active')}
+            active={isFilterActive('active')}
+            onClick={() => toggleFilter('active')}
           />
           <ListFilterStatCard
             label={t('guides.stats.audioReady')}
             value={stats.audioReady}
             dotClassName="bg-green-500"
-            active={activeFilter === 'audioReady'}
-            onClick={() => setActiveFilter('audioReady')}
+            active={isFilterActive('audioReady')}
+            onClick={() => toggleFilter('audioReady')}
           />
         </div>
 
@@ -455,11 +460,13 @@ export const GuideList: React.FC = () => {
           {filteredAndSorted.length === 0 ? (
             <ListEmptyState
               message={
-                searchTerm || activeFilter !== 'all' ? t('guides.noMatch') : t('guides.noYet')
+                searchTerm || activeFilters.length > 0 ? t('guides.noMatch') : t('guides.noYet')
               }
-              createLabel={!searchTerm && activeFilter === 'all' ? t('guides.addPlace') : undefined}
+              createLabel={
+                !searchTerm && activeFilters.length === 0 ? t('guides.addPlace') : undefined
+              }
               onCreate={
-                !searchTerm && activeFilter === 'all'
+                !searchTerm && activeFilters.length === 0
                   ? () => attemptNavigation(() => openGuidePanel(null))
                   : undefined
               }

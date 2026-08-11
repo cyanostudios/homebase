@@ -7,7 +7,17 @@ const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHe
 const TEAM_STATUSES = ['active', 'dormant', 'break'];
 const TEAM_GENDERS = ['boys', 'girls', 'mixed'];
 const TEAM_PLAYING_FORMATS = ['3v3', '5v5', '7v7', '9v9', '11v11'];
-const TEAM_COLORS = ['green', 'blue', 'red', 'purple', 'orange', 'teal', 'white'];
+const TEAM_COLORS = [
+  'black',
+  'white',
+  'red',
+  'blue',
+  'green',
+  'yellow',
+  'orange',
+  'purple',
+  'teal',
+];
 
 /** Undo express-validator .escape() layers saved before plainString migration. */
 function decodeHtmlEntities(raw) {

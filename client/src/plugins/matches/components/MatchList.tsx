@@ -52,7 +52,14 @@ import {
   type MatchSortField,
   type MatchSortOrder,
 } from '../utils/matchListSort';
-import { matchMatchesListFilter, type MatchListFilter } from '../utils/matchListFilter';
+import {
+  matchMatchesListFilter,
+  matchMatchesListFilters,
+  toggleMatchListFilter,
+  withoutHomeTeamFilter,
+  type MatchListFilter,
+  type MatchListFilterSelection,
+} from '../utils/matchListFilter';
 import {
   getInitialMatchListViewMode,
   persistMatchListViewModeSession,
@@ -114,7 +121,7 @@ export function MatchList() {
   const [listViewMode, setListViewModeState] = useState<MatchListViewMode>(
     getInitialMatchListViewMode,
   );
-  const [activeFilter, setActiveFilter] = useState<MatchListFilter>('all');
+  const [activeFilters, setActiveFilters] = useState<MatchListFilterSelection>([]);
   const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
   const [settingsCategory, setSettingsCategory] = useState<MatchSettingsCategory>('view');
 
@@ -136,7 +143,7 @@ export function MatchList() {
         const nextDefaultHomeTeam = resolveMatchDefaultHomeTeam(settings);
         setDefaultHomeTeam(nextDefaultHomeTeam);
         if (!nextDefaultHomeTeam) {
-          setActiveFilter((prev) => (prev === 'homeTeam' ? 'all' : prev));
+          setActiveFilters((prev) => withoutHomeTeamFilter(prev));
         }
       })
       .catch(() => {});
@@ -201,7 +208,7 @@ export function MatchList() {
   const filteredAndSorted = useMemo(() => {
     const nowMs = Date.now();
     const byFilter = matches.filter((m) =>
-      matchMatchesListFilter(m, activeFilter, nowMs, defaultHomeTeam),
+      matchMatchesListFilters(m, activeFilters, nowMs, defaultHomeTeam),
     );
 
     const needle = searchTerm.trim().toLowerCase();
@@ -224,7 +231,7 @@ export function MatchList() {
     return [...filtered].sort((a, b) =>
       compareMatchesByField(a, b, primarySort, sortOrder, teamNameById),
     );
-  }, [matches, searchTerm, primarySort, sortOrder, activeFilter, defaultHomeTeam, teamNameById]);
+  }, [matches, searchTerm, primarySort, sortOrder, activeFilters, defaultHomeTeam, teamNameById]);
 
   const visibleMatchIds = useMemo(
     () => filteredAndSorted.map((m) => String(m.id)),
@@ -244,6 +251,11 @@ export function MatchList() {
         : 0,
     };
   }, [matches, defaultHomeTeam, showHomeTeamFilter]);
+
+  const isFilterActive = (filter: MatchListFilter) => activeFilters.includes(filter);
+  const toggleFilter = (filter: MatchListFilter) => {
+    setActiveFilters((prev) => toggleMatchListFilter(prev, filter));
+  };
 
   const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
     useShiftRangeListSelection({
@@ -383,37 +395,37 @@ export function MatchList() {
             label={t('matches.filterAll')}
             value={stats.total}
             dotClassName="bg-blue-500"
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
+            active={activeFilters.length === 0}
+            onClick={() => setActiveFilters([])}
           />
           <ListFilterStatCard
             label={t('matches.filterUpcoming')}
             value={stats.upcoming}
             dotClassName="bg-emerald-500"
-            active={activeFilter === 'upcoming'}
-            onClick={() => setActiveFilter('upcoming')}
+            active={isFilterActive('upcoming')}
+            onClick={() => toggleFilter('upcoming')}
           />
           <ListFilterStatCard
             label={t('matches.filterUpcoming7')}
             value={stats.upcoming7}
             dotClassName="bg-indigo-500"
-            active={activeFilter === 'upcoming7'}
-            onClick={() => setActiveFilter('upcoming7')}
+            active={isFilterActive('upcoming7')}
+            onClick={() => toggleFilter('upcoming7')}
           />
           <ListFilterStatCard
             label={t('matches.filterUpcoming14')}
             value={stats.upcoming14}
             dotClassName="bg-amber-500"
-            active={activeFilter === 'upcoming14'}
-            onClick={() => setActiveFilter('upcoming14')}
+            active={isFilterActive('upcoming14')}
+            onClick={() => toggleFilter('upcoming14')}
           />
           {showHomeTeamFilter ? (
             <ListFilterStatCard
               label={defaultHomeTeam}
               value={stats.homeTeam}
               dotClassName="bg-rose-500"
-              active={activeFilter === 'homeTeam'}
-              onClick={() => setActiveFilter('homeTeam')}
+              active={isFilterActive('homeTeam')}
+              onClick={() => toggleFilter('homeTeam')}
             />
           ) : null}
         </div>
