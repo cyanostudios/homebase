@@ -1,6 +1,7 @@
 import { apiFetch } from '@/core/api/apiFetch';
 
 import type { Cup } from '../types/cups';
+import type { CupPageviewStats } from '../types/pageviewStats';
 
 function decodeHtmlEntities(value: string): string {
   if (typeof document === 'undefined') {
@@ -167,6 +168,42 @@ class CupsApi {
     errors: string[];
   }> {
     return this.request(`/cups/import-from-ingest/${sourceId}`, { method: 'POST' });
+  }
+
+  async getPageviewStats(days = 30): Promise<CupPageviewStats> {
+    const q = new URLSearchParams({ days: String(days) });
+    const raw = (await this.request(`/cups/stats/pageviews?${q.toString()}`)) as Record<
+      string,
+      unknown
+    >;
+    const totalsRaw = (raw.totals && typeof raw.totals === 'object' ? raw.totals : {}) as Record<
+      string,
+      unknown
+    >;
+    return {
+      days: Number(raw.days) || days,
+      totals: { views: Number(totalsRaw.views) || 0 },
+      topCups: Array.isArray(raw.topCups)
+        ? raw.topCups.map((row: Record<string, unknown>) => ({
+            cup_id: Number(row.cup_id) || 0,
+            name: String(row.name ?? ''),
+            views: Number(row.views) || 0,
+          }))
+        : [],
+      topDistricts: Array.isArray(raw.topDistricts)
+        ? raw.topDistricts.map((row: Record<string, unknown>) => ({
+            district_slug: String(row.district_slug ?? ''),
+            views: Number(row.views) || 0,
+          }))
+        : [],
+      sources: Array.isArray(raw.sources)
+        ? raw.sources.map((row: Record<string, unknown>) => ({
+            bucket: String(row.bucket ?? ''),
+            referrer_domain: String(row.referrer_domain ?? ''),
+            views: Number(row.views) || 0,
+          }))
+        : [],
+    };
   }
 }
 

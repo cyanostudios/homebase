@@ -4,6 +4,70 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-12 – Cupappen first-party pageviews + Cups admin statistics
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (accepterade residualer **A1–A2**, se ADR). **Ej prod-release** (kräver tenant-migrate + Cupappen-deploy + Homebase-deploy vid explicit release).
+
+**Sammanfattning:** Google-oberoende besöksstatistik för publik Cups: sidvisningar på **cup-detalj** och **distriktssidor**, trafikkälla som **bucket + domän**, adminvy **Statistik** i Cups (Matches-mönster). Publik “mest besökta”-rad på Hem **ingår inte** i v1. GTM orörd.
+
+**Data / migrate**
+
+- Tenant-tabell `cupappen_pageviews_daily` — migration `129-cupappen-pageviews-daily.sql`
+- `npm run migrate:cups-pageviews` (kör mot tenant-DB; samma DB som `CUPS_DB_URL`)
+
+**Cupappen (`public-cups/`)**
+
+- `POST /api/pageview.php` — beacon från `cup.php` och distriktsnavigering i `app.js`
+- Server klassar `source_bucket` / `referrer_domain` (`referrer_classify.php`); klient-bucket ignoreras
+- Session-cooldown ~45 s per sida; ingen IP-persistens
+
+**Homebase**
+
+- `GET /api/cups/stats/pageviews?days=30` (auth + cups plugin; `days` clamp 1–90)
+- UI: Cups → **Statistik** — mest besökta cuper/distrikt + trafikkällor (senaste 30 dagar)
+
+**ADR:** [`ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md)
+
+**Accepterade residualrisker (Security)**
+
+| ID     | Risk                                          | Motivering                                      |
+| ------ | --------------------------------------------- | ----------------------------------------------- |
+| **A1** | Publika räknare kan blåsas upp trots cooldown | Siffror är riktningsgivande, inte billing/authz |
+| **A2** | Session-only rate limit är ofullständig       | Proportionerligt för v1 utan IP-lagring         |
+
+**Begränsningar:** Hem/sök/listing (utom distrikt) spåras inte; UTM lagras inte; statistik kräver JS-beacon; lokal migrate räcker inte för prod Cupappen utan separat release.
+
+**Docs:** denna post; [`public-cups/README.md`](../public-cups/README.md); [`public-cups/api/README.md`](../public-cups/api/README.md); [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md); [`DEVELOPMENT_GUIDE_V2.md`](DEVELOPMENT_GUIDE_V2.md).
+
+---
+
+## 2026-08-12 – Cups district catalog + weekly cron recommendation
+
+**Status:** Docs only. **Ej prod-release.**
+
+**Sammanfattning:** Ops-mall för ~20 distrikts-URL:er ([`CUPS_DISTRICT_SOURCE_CATALOG.md`](CUPS_DISTRICT_SOURCE_CATALOG.md)): profiler, checklista, katalogtabell, soft-delete-policy. Cron-doc rekommenderar veckovis schema `0 3 * * 1` (daglig kvar som alternativ).
+
+---
+
+## 2026-08-11 – Cups + Ingest cleanup (sync, allowlist, SSRF)
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (accepterade residualer A1–A4, se cron-doc — TPM-bekräftelse pending). **Ej prod-release.**
+
+**Sammanfattning:** Kvalitets- och säkerhetsfix för Cups-import från ingest utan ny produktfunktionalitet.
+
+- **Location-only skip:** manuell plats behålls, men `touchImportSeen` sätter `last_seen_at` (och nollar `deleted_at`) så mark-and-sweep inte soft-raderar cupen.
+- **`restored`:** räknas och returneras från `importFromIngest` (tidigare alltid `0`).
+- **Allowlist:** icke-tom `allowedIngestSourceIds` enforcas på servern (403); tom lista = tillåt (UI-paritet).
+- **Ingest:** final URL valideras efter redirect; `browser_fetch` har samma ~2 MiB-tak som `generic_http`.
+- **UI:** importresultat i Cups Settings visar softDeleted / restored / hardDeleted.
+- **Tester:** model/import/parse/SSRF-unit tests tillagda.
+
+**Docs:** [`CUPS_AUTO_REFRESH_CRON.md`](CUPS_AUTO_REFRESH_CRON.md) (location-skip, allowlist, security residuals A1–A4).
+
+**Utanför epic:** `parseCupSource.js`-split (fortfarande deferred i `CLEANUP_DEFERRED_RISKS.md`).
+
+---
+
 ## 2026-08-11 – ListFilterStatCard multi-select (platform)
 
 **Status:** Implementerat lokalt. **Ej prod-release.**

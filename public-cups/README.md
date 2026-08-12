@@ -46,6 +46,14 @@ URL-helpers (delade med Jest): [`lib/districtUrls.js`](lib/districtUrls.js).
 - Kort länkar till SSR-detaljsidan (`cupDetailUrl`).
 - **Utlänkar (anmälan):** `utm_source=cupappen` — `app.js` (`withCupappenUtm`) och `cup.php` + `api/url_helpers.php`.
 
+## Pageviews (första-part)
+
+- Beacon till `POST /api/pageview.php` från **cup-detalj** (`cup.php`) och **distriktssidor** (`app.js`).
+- Dagliga aggregat i tenant-DB (`cupappen_pageviews_daily`). Server klassar trafikkälla (bucket + domän); ingen Google-beroende lagring.
+- Admin: Homebase Cups → **Statistik** (`GET /api/cups/stats/pageviews`).
+- Migration: `npm run migrate:cups-pageviews` (se [`docs/ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](../docs/ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md)).
+- **Begränsningar:** riktningsgivande siffror (Security A1/A2); Hem/sök/listing utöver distrikt spåras inte; GTM kan finnas kvar parallellt.
+
 ## Filterkort
 
 `.hero-search-card` / `.filter-card` i shared filter under hero/distriktsheader.
@@ -70,4 +78,5 @@ Lokalt: PHP built-in + [`router.php`](router.php).
 
 ```bash
 npx jest public-cups/__tests__/districtUrls.test.js
+npx jest public-cups/__tests__/referrerClassify.test.js
 ```

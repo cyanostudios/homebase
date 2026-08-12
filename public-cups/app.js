@@ -410,6 +410,45 @@ function syncUrlForState({ push = false } = {}) {
   const method = push ? 'pushState' : 'replaceState';
   window.history[method]({ tab: state.activeTab, district: state.selectedDistrict }, '', url);
   syncDocumentSeo();
+  maybeTrackDistrictPageview();
+}
+
+/** Dedupe key for district pageview beacons (one per slug per SPA session stretch). */
+let lastDistrictPageviewSlug = '';
+
+function postCupappenPageview(payload) {
+  const body = JSON.stringify({
+    ...payload,
+    referrer: typeof document !== 'undefined' ? document.referrer || '' : '',
+  });
+  try {
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      navigator.sendBeacon('/api/pageview.php', new Blob([body], { type: 'application/json' }));
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
+  fetch('/api/pageview.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function maybeTrackDistrictPageview() {
+  if (state.activeTab !== 'district') {
+    lastDistrictPageviewSlug = '';
+    return;
+  }
+  const name = String(state.selectedDistrict || '').trim();
+  if (!name || name === 'all') return;
+  const slug = DistrictUrls.districtToSlug(name);
+  if (!slug || !/^[a-z0-9-]{1,64}$/.test(slug)) return;
+  if (slug === lastDistrictPageviewSlug) return;
+  lastDistrictPageviewSlug = slug;
+  postCupappenPageview({ page_kind: 'district', district_slug: slug });
 }
 
 async function loadCups() {
@@ -495,6 +534,7 @@ function renderApp() {
   }
 
   if (state.activeTab === 'district') {
+    maybeTrackDistrictPageview();
     renderQuickNav();
     setStatus('');
     renderSearchPanel();

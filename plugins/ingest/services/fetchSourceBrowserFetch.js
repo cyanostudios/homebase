@@ -1,8 +1,10 @@
 // plugins/ingest/services/fetchSourceBrowserFetch.js
 // Headless browser fetch for ingest — separate strategy from generic_http (axios).
 const MAX_EXCERPT = 8000;
+const MAX_BYTES = 2 * 1024 * 1024;
 const { validatePublicHttpsUrl } = require('../../../server/core/utils/ssrfUrlGuard');
 const { bufferLooksLikePdf, isPdfContentType, pdfTextFromBuffer } = require('./pdfTextFromBuffer');
+const { assertFinalUrlPublicHttps } = require('./fetchSourceSsrf');
 
 /** Fallback if browser.userAgent() is unavailable. */
 const BROWSER_FETCH_USER_AGENT_FALLBACK =
@@ -364,6 +366,18 @@ async function fetchSourceBrowserFetch(sourceUrl, options = {}) {
       try {
         const buf = await response.buffer();
         contentLength = buf.length;
+        if (contentLength > MAX_BYTES) {
+          return {
+            ok: false,
+            status: navigationHttpStatus,
+            contentType,
+            contentLength,
+            bodyText: null,
+            excerpt: null,
+            finalUrl: finalUrlAfterWait,
+            errorMessage: `browser_fetch: response exceeds max size (${MAX_BYTES} bytes)`,
+          };
+        }
         if (bufferLooksLikePdf(buf) || isPdfContentType(contentType)) {
           bodyText = await pdfTextFromBuffer(buf);
         } else {
@@ -378,6 +392,33 @@ async function fetchSourceBrowserFetch(sourceUrl, options = {}) {
       htmlContent = await page.content();
       bodyText = htmlContent;
       contentLength = Buffer.byteLength(htmlContent, 'utf8');
+    }
+
+    if (contentLength > MAX_BYTES) {
+      return {
+        ok: false,
+        status: navigationHttpStatus,
+        contentType,
+        contentLength,
+        bodyText: null,
+        excerpt: null,
+        finalUrl: finalUrlAfterWait,
+        errorMessage: `browser_fetch: response exceeds max size (${MAX_BYTES} bytes)`,
+      };
+    }
+
+    const finalCheck = assertFinalUrlPublicHttps(finalUrlAfterWait);
+    if (!finalCheck.ok) {
+      return {
+        ok: false,
+        status: navigationHttpStatus,
+        contentType,
+        contentLength,
+        bodyText: null,
+        excerpt: null,
+        finalUrl: finalUrlAfterWait,
+        errorMessage: finalCheck.errorMessage,
+      };
     }
 
     const htmlForSignals = htmlContent || bodyText || '';

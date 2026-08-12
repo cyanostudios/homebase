@@ -20,6 +20,7 @@ export type CupListTableProps = {
   primarySort: CupSortField;
   sortOrder: CupSortOrder;
   onSort: (field: CupSortField) => void;
+  ingestTitleForCup: (id: string | null | undefined) => string;
   isSelected: (id: string) => boolean;
   onRowClick: (cup: Cup) => void;
   onCheckboxMouseDown: (event: React.MouseEvent, index: number) => void;
@@ -40,6 +41,7 @@ export function CupListTable({
   primarySort,
   sortOrder,
   onSort,
+  ingestTitleForCup,
   isSelected,
   onRowClick,
   onCheckboxMouseDown,
@@ -57,6 +59,19 @@ export function CupListTable({
         cell: (cup) => <span className="font-medium text-foreground">{cup.name || '—'}</span>,
       },
       {
+        field: 'ingest',
+        header: t('cups.columnDistrict'),
+        className: 'hidden sm:table-cell',
+        cell: (cup) => {
+          const title = ingestTitleForCup(cup.ingest_source_id).trim();
+          return (
+            <span className="text-xs text-muted-foreground">
+              {title || (cup.ingest_source_id ? String(cup.ingest_source_id) : '—')}
+            </span>
+          );
+        },
+      },
+      {
         field: 'start_date',
         header: t('cups.columnStart'),
         cell: (cup) => (
@@ -68,7 +83,7 @@ export function CupListTable({
       {
         field: 'location',
         header: t('cups.columnLocation'),
-        className: 'hidden sm:table-cell',
+        className: 'hidden md:table-cell',
         cell: (cup) => <span className="text-xs text-muted-foreground">{cup.location || '—'}</span>,
       },
       {
@@ -87,7 +102,7 @@ export function CupListTable({
       {
         field: 'ratings_count',
         header: t('cups.columnRatings'),
-        className: 'hidden md:table-cell',
+        className: 'hidden lg:table-cell',
         cell: (cup) =>
           cup.ratings_count > 0 ? (
             <span className="inline-flex items-center gap-1 tabular-nums text-xs text-foreground">
@@ -107,7 +122,7 @@ export function CupListTable({
         ),
       },
     ],
-    [t],
+    [t, ingestTitleForCup],
   );
 
   return (

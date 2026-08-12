@@ -159,6 +159,17 @@ class CupsController {
       res.status(500).json({ error: 'Failed to import cups from ingest' });
     }
   }
+
+  async getPageviewStats(req, res) {
+    try {
+      const result = await this.model.getPageviewStats(req, req.query?.days);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Get pageview stats failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch pageview stats' });
+    }
+  }
 }
 
 module.exports = CupsController;

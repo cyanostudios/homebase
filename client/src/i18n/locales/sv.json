@@ -2036,6 +2036,7 @@
     "columnFeatured": "Utvald",
     "columnLocation": "Plats",
     "columnIngest": "Ingest",
+    "columnDistrict": "Distrikt",
     "columnStart": "Start",
     "featured": "Utvald",
     "notFeatured": "Inte utvald",
@@ -2060,6 +2061,27 @@
       "viewDescription": "Standardlistvy för cuper.",
       "import": "Import",
       "importDescription": "Importera cuper från ingest-källor."
+    },
+    "statistics": {
+      "title": "Cupappen-statistik",
+      "description": "Första-parts sidvisningar från Cupappen (cup-detalj och distriktssidor). Senaste 30 dagarna. Riktningsgivande — inte Google Analytics.",
+      "loading": "Laddar statistik…",
+      "loadError": "Kunde inte ladda statistik.",
+      "empty": "Inga sidvisningar ännu. Besök syns när Cupappen är deployad med spårning.",
+      "windowSummary": "Senaste {{days}} dagarna · {{views}} sidvisningar",
+      "topCups": "Mest besökta cuper",
+      "topDistricts": "Mest besökta distrikt",
+      "sources": "Trafikkällor",
+      "noCups": "Inga cup-sidvisningar i perioden.",
+      "noDistricts": "Inga distriktssidvisningar i perioden.",
+      "noSources": "Inga trafikkällor i perioden.",
+      "bucket": {
+        "direct": "Direkt",
+        "internal": "Intern",
+        "search": "Sök",
+        "social": "Social",
+        "other": "Övrigt"
+      }
     }
   },
   "teams": {

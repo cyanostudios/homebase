@@ -1,15 +1,19 @@
 # Public Cups API (PHP)
 
-En enkel read-only endpoint för Cupappen som hämtar publika cuper från Postgres/Neon.
+Publika endpoints för Cupappen mot samma tenant-Postgres som cups-datan (`CUPS_DB_URL`).
 
 ## Filer
 
-- Endpoint: `public-cups/api/cups.php`
+- Endpoint: `public-cups/api/cups.php` (read-only lista)
 - Dynamisk sitemap: `public-cups/api/sitemap.php` (HTML-sidans URL:er, listing-paths `/sok/` `/kommande/` `/info/`, distriktssidor `/{slug}/` inkl. `ovrigt` vid behov, cup-detaljer `/{distrikt}/{cup-slug}-{år}`, `Content-Type: application/xml`)
 - Betyg: `public-cups/api/ratings.php`
+- Pageviews (första-part): `public-cups/api/pageview.php` — `POST` JSON `{ page_kind: "cup"|"district", cup_id?: number, district_slug?: string, referrer?: string }` → UPSERT i `cupappen_pageviews_daily`; session-cooldown ~45s; server klassar bucket/domän via `referrer_classify.php` (klient-bucket ignoreras). Svar `204` vid OK, `429` vid cooldown.
+- Klassning (testspegel): `public-cups/lib/referrerClassify.js` (håll synkad med PHP)
 - Liv / readiness: `public-cups/api/health.php` (`GET`, JSON `{ "status": "ok" }` vid lyckad DB-ping — används av Docker `HEALTHCHECK`)
 - Delad DB-hantering: `public-cups/api/pdo_env.php` (`getPdoFromEnv()`)
 - Gemensamma säkerhetsheaders: `public-cups/api/security_headers.php` (`applyPublicCupsSecurityHeaders()`)
+
+**Homebase (auth):** `GET /api/cups/stats/pageviews?days=30` — aggregat för admin Statistik-vy (inte denna PHP-API).
 
 ## Krav
 
@@ -65,10 +69,12 @@ Om variabeln är tom skickas ingen CORS allow-header.
 
 ## Driftnotering
 
-- Endpointen är read-only (endast `GET`/`OPTIONS`)
+- `cups.php` är read-only (endast `GET`/`OPTIONS`)
+- `ratings.php` / `pageview.php` är publika **skriv**-endpoints med validering + rate limit (session-cooldown)
 - SQL-feltext exponeras inte i produktion (`CUPS_DEBUG_ERRORS=0`)
 - Listan filtrerar `visible = true` och `deleted_at IS NULL` (samma intent som Homebase `plugins/public-cups/model.js`)
 - Produktion: anropa **`https://www.cupappen.se/api/cups.php`** — apex `cupappen.se` kan redirecta `/api/*` till startsidan via Cloudflare
+- Pageviews: krävd tabell `cupappen_pageviews_daily` (`npm run migrate:cups-pageviews` på tenant). Accepterade residualrisker A1/A2 — se ADR.
 
 ## Felsökning
 

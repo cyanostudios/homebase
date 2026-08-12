@@ -11,6 +11,9 @@ function createCupsRoutes(controller, context) {
 
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
+  // Must be registered before /:id so "stats" is not parsed as an id.
+  router.get('/stats/pageviews', gate, (req, res) => controller.getPageviewStats(req, res));
+
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res),
   );

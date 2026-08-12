@@ -2041,6 +2041,7 @@
     "columnFeatured": "Featured",
     "columnLocation": "Location",
     "columnIngest": "Ingest",
+    "columnDistrict": "District",
     "columnStart": "Start",
     "featured": "Featured",
     "notFeatured": "Not featured",
@@ -2065,6 +2066,27 @@
       "viewDescription": "Default list view for cups.",
       "import": "Import",
       "importDescription": "Import cups from ingest sources."
+    },
+    "statistics": {
+      "title": "Cupappen statistics",
+      "description": "First-party pageviews from Cupappen (cup detail and district pages). Last 30 days. Directional only — not Google Analytics.",
+      "loading": "Loading statistics…",
+      "loadError": "Could not load statistics.",
+      "empty": "No pageviews recorded yet. Visits appear after Cupappen is deployed with tracking.",
+      "windowSummary": "Last {{days}} days · {{views}} pageviews",
+      "topCups": "Most visited cups",
+      "topDistricts": "Most visited districts",
+      "sources": "Traffic sources",
+      "noCups": "No cup pageviews in this period.",
+      "noDistricts": "No district pageviews in this period.",
+      "noSources": "No traffic sources in this period.",
+      "bucket": {
+        "direct": "Direct",
+        "internal": "Internal",
+        "search": "Search",
+        "social": "Social",
+        "other": "Other"
+      }
     }
   },
   "teams": {

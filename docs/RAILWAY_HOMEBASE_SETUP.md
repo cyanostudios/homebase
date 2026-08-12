@@ -364,5 +364,7 @@ Se [CUPS_AUTO_REFRESH_CRON.md](./CUPS_AUTO_REFRESH_CRON.md):
 
 - `POST https://<homebase-url>/api/cron/cups/refresh`
 - Header: `x-cron-secret: <CRON_SECRET>`
+- Schema: rekommenderat veckovis `0 3 * * 1` (eller daglig `0 3 * * *`)
+- Distriktsonboarding: [CUPS_DISTRICT_SOURCE_CATALOG.md](./CUPS_DISTRICT_SOURCE_CATALOG.md)
 
 Mer bakgrund: [DEPLOYMENT_V2.md](./DEPLOYMENT_V2.md).

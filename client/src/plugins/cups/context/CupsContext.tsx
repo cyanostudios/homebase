@@ -8,7 +8,7 @@ export type CupsContextType = {
   panelMode: 'create' | 'edit' | 'view' | 'settings';
   validationErrors: CupValidationError[];
   cups: Cup[];
-  cupsContentView: 'list' | 'settings';
+  cupsContentView: 'list' | 'settings' | 'statistics';
   isSaving: boolean;
   refreshCups: () => Promise<void>;
 
@@ -17,6 +17,8 @@ export type CupsContextType = {
   openCupForView: (cup: Cup) => void;
   openCupSettings: () => void;
   closeCupSettingsView: () => void;
+  openCupStatistics: () => void;
+  closeCupStatisticsView: () => void;
   closeCupPanel: () => void;
   saveCup: (data: Partial<Cup> & { name: string }, cupId?: string) => Promise<boolean>;
   deleteCup: (id: string) => Promise<void>;
@@ -87,6 +89,8 @@ const EMPTY_CUPS_CONTEXT: CupsContextType = {
   openCupForView: () => {},
   openCupSettings: () => {},
   closeCupSettingsView: () => {},
+  openCupStatistics: () => {},
+  closeCupStatisticsView: () => {},
   closeCupPanel: () => {},
   saveCup: async () => false,
   deleteCup: async () => {},

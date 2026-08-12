@@ -27,6 +27,7 @@ export interface CupIngestImportResultDialogProps {
   updated?: number;
   skipped?: number;
   softDeleted?: number;
+  restored?: number;
   hardDeleted?: number;
   errors?: string[];
 }
@@ -42,6 +43,7 @@ export function CupIngestImportResultDialog({
   updated = 0,
   skipped = 0,
   softDeleted = 0,
+  restored = 0,
   hardDeleted = 0,
   errors = [],
 }: CupIngestImportResultDialogProps) {
@@ -79,7 +81,7 @@ export function CupIngestImportResultDialog({
           <AlertDialogDescription asChild>
             <div className="space-y-3 pt-2 text-left text-foreground">
               <div className="rounded-md border border-border/70 bg-muted/40 px-3 py-2 text-sm">
-                <div className="grid grid-cols-3 gap-3 text-center sm:grid-cols-6">
+                <div className="grid grid-cols-3 gap-3 text-center sm:grid-cols-4 lg:grid-cols-7">
                   <div>
                     <div className="text-xs text-muted-foreground">Parsed</div>
                     <div className="font-semibold tabular-nums">{parsed}</div>
@@ -99,6 +101,10 @@ export function CupIngestImportResultDialog({
                   <div>
                     <div className="text-xs text-muted-foreground">Skipped</div>
                     <div className="font-semibold tabular-nums">{skipped}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Restored</div>
+                    <div className="font-semibold tabular-nums">{restored}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Removed</div>

@@ -2,9 +2,56 @@ const IngestModel = require('../../ingest/model');
 const ingestService = require('../../ingest/services/ingestService');
 const { AppError } = require('../../../server/core/errors/AppError');
 const { parseCupSource } = require('./parseCupSource');
-const { Logger } = require('@homebase/core');
+const { Logger, Context } = require('@homebase/core');
+const ServiceManager = require('../../../server/core/ServiceManager');
 
 const MIN_ITEMS_FOR_SWEEP = 3;
+
+/**
+ * When Cups settings have a non-empty allowedIngestSourceIds list, reject imports
+ * of sources not on that list. Empty/missing list = allow (UI-compatible).
+ * Cron already loops only allowed ids; this enforces the same gate for the API.
+ *
+ * @param {import('express').Request} req
+ * @param {number} sourceId
+ */
+async function assertIngestSourceAllowedForCups(req, sourceId) {
+  const userId =
+    Context.getUserId(req) ?? req?.session?.user?.id ?? req?.session?.currentTenantUserId;
+  if (userId == null) {
+    throw new AppError('User context required for import', 400, AppError.CODES.BAD_REQUEST);
+  }
+
+  let settings = {};
+  try {
+    const mainPool = ServiceManager.getMainPool();
+    const result = await mainPool.query(
+      `SELECT settings FROM user_settings WHERE user_id = $1 AND category = $2`,
+      [Number(userId), 'cups'],
+    );
+    settings = result.rows.length ? result.rows[0].settings || {} : {};
+  } catch (e) {
+    Logger.warn('cups import: failed to load allowlist settings — allowing import', {
+      error: e?.message,
+      userId,
+    });
+    return;
+  }
+
+  const allowed = Array.isArray(settings?.allowedIngestSourceIds)
+    ? settings.allowedIngestSourceIds.map(String)
+    : [];
+  if (allowed.length === 0) {
+    return;
+  }
+  if (!allowed.includes(String(sourceId))) {
+    throw new AppError(
+      'This ingest source is not enabled for Cups. Enable it in Cups settings.',
+      403,
+      AppError.CODES.FORBIDDEN,
+    );
+  }
+}
 
 /**
  * Import cups from one ingest source id.
@@ -19,6 +66,8 @@ async function importFromIngest({ model, req, sourceId }) {
   if (Number.isNaN(parsedSourceId)) {
     throw new AppError('Invalid ingest source id', 400, AppError.CODES.BAD_REQUEST);
   }
+
+  await assertIngestSourceAllowedForCups(req, parsedSourceId);
 
   const ingestModel = new IngestModel();
   const source = await ingestModel.getSourceById(req, parsedSourceId);
@@ -57,12 +106,6 @@ async function importFromIngest({ model, req, sourceId }) {
     ingestSourceId: source.id,
   });
 
-  // restored is the count of cups that were soft-deleted but appeared again in parsedItems
-  // (createManyFromImport already sets deleted_at = NULL on those rows via buildImportPayload).
-  // We detect them by counting rows that had deleted_at before this run but are now cleared —
-  // for simplicity we report saveResult.updated as a proxy; the model handles clearing deleted_at.
-  // The sweep below calculates softDeleted directly.
-
   let softDeleted = 0;
   let hardDeleted = 0;
 
@@ -92,7 +135,7 @@ async function importFromIngest({ model, req, sourceId }) {
     updated: saveResult.updated,
     skipped: saveResult.skipped,
     softDeleted,
-    restored: 0,
+    restored: saveResult.restored ?? 0,
     hardDeleted,
     errors: saveResult.errors,
     diagnostics: {
@@ -104,4 +147,4 @@ async function importFromIngest({ model, req, sourceId }) {
   };
 }
 
-module.exports = { importFromIngest };
+module.exports = { importFromIngest, assertIngestSourceAllowedForCups, MIN_ITEMS_FOR_SWEEP };

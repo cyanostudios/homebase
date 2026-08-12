@@ -96,6 +96,24 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
           <div className="space-y-3">
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
+                title={t('contacts.quickActions')}
+                icon={Zap}
+                subtleTitle
+                className="p-4"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 [&>svg]:text-red-600 dark:[&>svg]:text-red-400"
+                  onClick={() => setShowDelete(true)}
+                >
+                  {t('common.delete')}
+                </Button>
+              </DetailSection>
+            </Card>
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
                 title={t('contacts.information')}
                 icon={Info}
                 subtleTitle
@@ -146,24 +164,6 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                 </div>
               </DetailSection>
             </Card>
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('contacts.quickActions')}
-                icon={Zap}
-                subtleTitle
-                className="p-4"
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 [&>svg]:text-red-600 dark:[&>svg]:text-red-400"
-                  onClick={() => setShowDelete(true)}
-                >
-                  {t('common.delete')}
-                </Button>
-              </DetailSection>
-            </Card>
             <DetailActivityLog
               entityType="cups"
               entityId={current.id}
@@ -201,13 +201,7 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
           </Card>
         )}
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title="Cup information"
-            icon={Trophy}
-            subtleTitle
-            className="p-6"
-            collapsible
-          >
+          <DetailSection title="Cup information" icon={Trophy} subtleTitle className="p-6">
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-3 gap-3">
                 <span className="text-muted-foreground">Name</span>

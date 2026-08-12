@@ -1,14 +1,19 @@
 # Cups Auto-Refresh Cron
 
 Automatically keeps the Cups plugin (and the public cupappen) up to date by
-running the existing import + mark-and-sweep pipeline on a daily schedule.
+running the existing import + mark-and-sweep pipeline on a schedule.
+
+**Recommended for Cupappen (≈20 district sources):** weekly — e.g. `0 3 * * 1` (Monday 03:00 UTC).  
+Daily (`0 3 * * *`) is fine if you want fresher data; the app endpoint is the same either way.
+
+District onboarding checklist: [`CUPS_DISTRICT_SOURCE_CATALOG.md`](CUPS_DISTRICT_SOURCE_CATALOG.md).
 
 ---
 
 ## How it works
 
 ```
-Railway Cron (0 3 * * *)
+Railway Cron (weekly recommended: 0 3 * * 1)
     │
     │  POST /api/cron/cups/refresh
     │  x-cron-secret: <CRON_SECRET>
@@ -26,9 +31,13 @@ plugins/cups/services/cronRefresh.js
     │                 → connectionPool.getTenantPool(tenantConnectionString)
     │
     └─ For each allowedIngestSourceId → importFromIngest()
-           ├─ fetch source URL
+           ├─ enforce allowlist (API: non-empty allowedIngestSourceIds must include source)
+           ├─ fetch source URL (final URL re-validated; browser_fetch size-capped)
            ├─ parse cups
-           ├─ upsert into tenant DB (sets last_seen_at = NOW(), clears deleted_at)
+           ├─ upsert into tenant DB
+           │    • matching cups: update content fields, set last_seen_at, clear deleted_at
+           │    • location-only diff: keep manual location, still touch last_seen_at (and clear deleted_at)
+           │    • new cups: create
            ├─ soft-delete cups not seen in this run (deleted_at = NOW())
            └─ hard-delete cups soft-deleted > 30 days ago
 ```
@@ -41,6 +50,12 @@ The `importFromIngest` function applies **safety guards** before running the swe
 
 This prevents accidental mass-deletion when a source is temporarily unavailable
 or returns an empty/malformed response.
+
+**Location-only skip:** If an existing cup matches the source item on all compared fields except `location`, import does **not** overwrite the stored location, but still updates `last_seen_at` (and clears `deleted_at` if the cup was soft-deleted). That keeps mark-and-sweep from treating the cup as missing. Implementation: `CupsModel.touchImportSeen` in `plugins/cups/model.js`.
+
+**Allowlist (API):** When `allowedIngestSourceIds` in Cups settings is non-empty, `POST /api/cups/import-from-ingest/:sourceId` returns 403 if the source is not listed. An empty/missing allowlist still allows import of any tenant-owned ingest source (same as the Cups list UI). Cron only iterates the allowlist.
+
+**`restored` counter:** Import responses include `restored` — cups that had `deleted_at` set and were cleared during this run (via full update or `touchImportSeen`).
 
 ---
 
@@ -70,7 +85,8 @@ Add to `.env.local` for local testing. Add to Railway Variables for production.
 
 1. Go to your Railway project → **Settings → Cron / Scheduled Tasks**.
 2. Add a new cron job:
-   - **Schedule**: `0 3 * * *` (daily at 03:00 UTC)
+   - **Schedule (recommended):** `0 3 * * 1` (weekly, Monday 03:00 UTC)  
+     Alternative: `0 3 * * *` (daily at 03:00 UTC)
    - **Command**:
      ```
      curl -fsS -X POST \
@@ -79,6 +95,7 @@ Add to `.env.local` for local testing. Add to Railway Variables for production.
        https://$RAILWAY_PUBLIC_DOMAIN/api/cron/cups/refresh
      ```
 3. Ensure `CRON_SECRET` is set in Railway Variables (same value as in the API service).
+4. In the app: **Cups → Settings → Import** — select all district ingest sources and enable **Auto refresh**.
 
 ---
 
@@ -124,6 +141,7 @@ curl -fsS -X POST \
       "updated": 38,
       "skipped": 2,
       "softDeleted": 1,
+      "restored": 0,
       "hardDeleted": 0,
       "errors": []
     }
@@ -139,6 +157,8 @@ curl -fsS -X POST \
   }
 }
 ```
+
+Per-source objects come from `importFromIngest` (includes `restored`). Cron `totals` aggregate selected counters and may omit `restored` unless added later.
 
 ---
 
@@ -167,6 +187,23 @@ In production these logs flow into Railway's log stream. Filter on `cups cron:`.
   not abort other users.
 - The endpoint only runs already-opted-in imports — no cross-tenant mutations.
 
+### Import API / ingest fetch (cleanup epic)
+
+Verified behaviors (Security Approved for epic scope; residual risks below):
+
+- Manual/API import uses session auth, CSRF, and plugin gate (`plugins/cups/routes.js`).
+- Non-empty `allowedIngestSourceIds` is enforced server-side in `importFromIngest`.
+- Ingest fetch re-validates the **final URL** after redirects (`assertFinalUrlPublicHttps`) and caps `browser_fetch` responses at the same ~2 MiB limit as `generic_http`.
+
+**Known limitations / accepted residuals (TPM acknowledgment pending for delivery):**
+
+| ID  | Limitation                                                                                                           |
+| --- | -------------------------------------------------------------------------------------------------------------------- |
+| A1  | If reading `user_settings` fails, allowlist check **fail-opens** (import allowed) and logs a warning.                |
+| A2  | Empty/missing allowlist allows any tenant-owned ingest source (UI-compatible).                                       |
+| A3  | SSRF guard is hostname-/URL-string based (no DNS pinning); redirect hops may contact a host before final-URL reject. |
+| A4  | `browser_fetch` may buffer the full response before applying the size cap.                                           |
+
 ---
 
 ## Related files
@@ -175,6 +212,10 @@ In production these logs flow into Railway's log stream. Filter on `cups cron:`.
 | --------------------------------------------------------- | ---------------------------------------------- |
 | `server/core/routes/cron.js`                              | HTTP endpoint, secret validation               |
 | `plugins/cups/services/cronRefresh.js`                    | Core logic, tenant resolution, per-source loop |
-| `plugins/cups/services/importFromIngest.js`               | Existing import + mark-and-sweep (unchanged)   |
-| `client/src/plugins/cups/components/CupsSettingsView.tsx` | Auto-refresh toggle in UI                      |
+| `plugins/cups/services/importFromIngest.js`               | Import, allowlist gate, mark-and-sweep         |
+| `plugins/cups/model.js`                                   | Upsert, `touchImportSeen`, soft/hard delete    |
+| `plugins/ingest/services/fetchSource.js`                  | HTTP fetch + final URL check                   |
+| `plugins/ingest/services/fetchSourceBrowserFetch.js`      | Browser fetch + size cap + final URL check     |
+| `plugins/ingest/services/fetchSourceSsrf.js`              | Shared final-URL SSRF helper                   |
+| `client/src/plugins/cups/components/CupsSettingsView.tsx` | Auto-refresh toggle + import summary in UI     |
 | `.env.example`                                            | `CRON_SECRET` variable documentation           |

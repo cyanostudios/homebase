@@ -52,6 +52,7 @@ Cursor-baserat utvecklingsteam med roller, beslutsgrindar och Output Contract. *
 - **Local/prod parity:** `LOCAL_PROD_PARITY.md`
 - **Plugin-migration (kort referens):** `REFACTORING_EXISTING_PLUGINS.md` — lång guide borttagen maj 2026; canonical mönster i `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` + `CORE_SERVICES_ARCHITECTURE.md`
 - **Cups cron (Railway Homebase):** `CUPS_AUTO_REFRESH_CRON.md`
+- **Cups distriktskatalog / onboarding:** `CUPS_DISTRICT_SOURCE_CATALOG.md`
 - **Cupappen drift (Docker, CUPS_DB_URL):** `CUPPAPPEN_RAILWAY_OPERATIONS.md`
 - **Public app template (nya SEO-sajter):** `PUBLIC_APP_TEMPLATE.md`, design: `PUBLIC_APP_DESIGN.md`
 - **Lessons learned / agent-regler:** `LESSONS_LEARNED.md`

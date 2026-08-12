@@ -145,8 +145,10 @@ Pre-commit: **lint-staged** runs `eslint --fix --quiet` and Prettier on staged T
 
 - **Kod:** `plugins/cups/services/parseCupSource.js` – `parseCupSource({ html, sourceUrl, sourceType })` returnerar normaliserade cup-rader; `detectCupSourceProfile` väljer vilken parser som ska köras (tabell, accordion, år+månad-lista, PDF, m.m.).
 - **Östergötland _Sanktionerade cuper_:** profil `svff_yearmonth_list` när värd är `ostergotland.svenskfotboll.se` och sidan innehåller rubriken _Sanktionerade cuper_; **Futsal**-rader importeras inte.
-- **Historik och full profil-lista:** `docs/CHANGELOG.md` (§ **2026-04 – Cups: SvFF-import**).
+- **Sync / reimport:** `importFromIngest` upsertar per `(ingest_source_id, external_id)`; location-only skiljer behåller manuell plats men uppdaterar `last_seen_at` (`touchImportSeen`). Allowlist och auto-refresh: [`CUPS_AUTO_REFRESH_CRON.md`](CUPS_AUTO_REFRESH_CRON.md). Distrikts-URL:er (~20): checklista [`CUPS_DISTRICT_SOURCE_CATALOG.md`](CUPS_DISTRICT_SOURCE_CATALOG.md).
+- **Historik och full profil-lista:** `docs/CHANGELOG.md` (§ **2026-04 – Cups: SvFF-import** och § **2026-08-11 – Cups + Ingest cleanup**).
 - **Publik cup-sajt:** katalogen `public-cups/` (statisk frontend + `api/cups.php`); listning bygger på API som bara exponerar **synliga** cuper (`visible`). Se samma changelog-avsnitt.
+- **Pageviews (första-part):** `POST /api/pageview.php` + tenant-tabell via `npm run migrate:cups-pageviews`; admin **Statistik** i Cups. ADR: [`ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md). Changelog § **2026-08-12 – Cupappen first-party pageviews**.
 - **Nya publika SEO-sajter (mall):** kopiera [`templates/public-app/`](../templates/public-app/) → t.ex. `sites/<name>/`. Ops: [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md). Prod-referens: `public-cups/` (Cupappen).
 
 ---

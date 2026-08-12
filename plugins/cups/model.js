@@ -1,6 +1,7 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+const { clampPageviewDays } = require('./services/pageviewStats');
 
 class CupsModel {
   normalizeLookupString(value) {
@@ -446,11 +447,33 @@ class CupsModel {
     };
   }
 
+  /**
+   * Mark a cup as seen during import without overwriting content fields
+   * (used for location-only diffs so mark-and-sweep does not soft-delete it).
+   */
+  async touchImportSeen(req, cupId) {
+    const db = Database.get(req);
+    const rows = await db.query(
+      `UPDATE cups
+          SET last_seen_at = NOW(),
+              deleted_at   = NULL,
+              updated_at   = NOW()
+        WHERE id = $1
+        RETURNING id`,
+      [cupId],
+    );
+    if (!rows.length) {
+      throw new AppError('Cup not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    return { id: String(cupId) };
+  }
+
   async createManyFromImport(req, items, importMeta = {}) {
     const errors = [];
     let created = 0;
     let updated = 0;
     let skipped = 0;
+    let restored = 0;
     const ingestSourceId = importMeta.ingestSourceId ?? null;
 
     const userId = Database.get(req).getUserId();
@@ -473,12 +496,21 @@ class CupsModel {
             existingId,
           ]);
           const existingRow = existingRows.length ? existingRows[0] : null;
+          const wasDeleted =
+            existingRow?.deleted_at !== null && existingRow?.deleted_at !== undefined;
           if (this.isOnlyLocationDifference(existingRow, payload)) {
+            await this.touchImportSeen(req, existingId);
+            if (wasDeleted) {
+              restored += 1;
+            }
             skipped += 1;
             continue;
           }
           await this.update(req, existingId, payload);
           updated += 1;
+          if (wasDeleted) {
+            restored += 1;
+          }
         } else {
           await this.create(req, payload);
           created += 1;
@@ -493,7 +525,7 @@ class CupsModel {
         );
       }
     }
-    return { created, updated, skipped, errors };
+    return { created, updated, skipped, restored, errors };
   }
 
   // ── Ratings ────────────────────────────────────────────────────────────────
@@ -579,6 +611,81 @@ class CupsModel {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to delete rating', error, { cupId, ratingId });
       throw new AppError('Failed to delete rating', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * Aggregated Cupappen pageviews for the last N days (tenant DB).
+   * @param {object} req
+   * @param {string|number|undefined} daysRaw
+   */
+  async getPageviewStats(req, daysRaw) {
+    const days = clampPageviewDays(daysRaw);
+    try {
+      const db = Database.get(req);
+      const userId = db.getUserId();
+      const pool = db.getPool();
+
+      const [totalsRes, topCupsRes, topDistrictsRes, sourcesRes] = await Promise.all([
+        pool.query(
+          `SELECT COALESCE(SUM(views), 0)::int AS views
+             FROM cupappen_pageviews_daily
+            WHERE day >= (CURRENT_DATE - ($1::int - 1))`,
+          [days],
+        ),
+        pool.query(
+          `SELECT c.id AS cup_id, c.name, SUM(pv.views)::int AS views
+             FROM cupappen_pageviews_daily pv
+             JOIN cups c ON c.id::text = pv.target_key AND c.user_id = $2
+            WHERE pv.page_kind = 'cup'
+              AND pv.day >= (CURRENT_DATE - ($1::int - 1))
+            GROUP BY c.id, c.name
+            ORDER BY views DESC, c.name ASC
+            LIMIT 25`,
+          [days, userId],
+        ),
+        pool.query(
+          `SELECT target_key AS district_slug, SUM(views)::int AS views
+             FROM cupappen_pageviews_daily
+            WHERE page_kind = 'district'
+              AND day >= (CURRENT_DATE - ($1::int - 1))
+            GROUP BY target_key
+            ORDER BY views DESC, target_key ASC
+            LIMIT 25`,
+          [days],
+        ),
+        pool.query(
+          `SELECT source_bucket AS bucket, referrer_domain, SUM(views)::int AS views
+             FROM cupappen_pageviews_daily
+            WHERE day >= (CURRENT_DATE - ($1::int - 1))
+            GROUP BY source_bucket, referrer_domain
+            ORDER BY views DESC, source_bucket ASC, referrer_domain ASC
+            LIMIT 50`,
+          [days],
+        ),
+      ]);
+
+      return {
+        days,
+        totals: { views: totalsRes.rows[0]?.views ?? 0 },
+        topCups: topCupsRes.rows.map((r) => ({
+          cup_id: Number(r.cup_id),
+          name: r.name ?? '',
+          views: Number(r.views) || 0,
+        })),
+        topDistricts: topDistrictsRes.rows.map((r) => ({
+          district_slug: String(r.district_slug || ''),
+          views: Number(r.views) || 0,
+        })),
+        sources: sourcesRes.rows.map((r) => ({
+          bucket: String(r.bucket || ''),
+          referrer_domain: String(r.referrer_domain || ''),
+          views: Number(r.views) || 0,
+        })),
+      };
+    } catch (error) {
+      Logger.error('Failed to fetch pageview stats', error, { days });
+      throw new AppError('Failed to fetch pageview stats', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 

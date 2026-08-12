@@ -1,5 +1,19 @@
 # Migrations
 
+## 129 – Cupappen pageviews daily (aug 2026)
+
+- **`129-cupappen-pageviews-daily.sql`** — tenant-DB: `cupappen_pageviews_daily` (dagliga aggregat för cup-detalj + distriktssidor; bucket + referrer_domain).
+
+```bash
+npm run migrate:cups-pageviews
+```
+
+**Parity:** kör mot alla tenants lokalt (och prod endast vid explicit release). Cupappen `POST /api/pageview.php` kräver tabellen. Admin: Homebase `GET /api/cups/stats/pageviews`.
+
+**ADR:** [`docs/ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](../../docs/ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md).
+
+---
+
 ## 114–117 – Instructions plugin (aug 2026)
 
 - **`114-instructions.sql`** — tenant-DB: `instructions` + `instruction_steps` (ordered steps, draft/published).

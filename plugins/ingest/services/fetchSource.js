@@ -4,6 +4,7 @@ const axios = require('axios');
 const { validatePublicHttpsUrl } = require('../../../server/core/utils/ssrfUrlGuard');
 const { fetchSourceBrowserFetch } = require('./fetchSourceBrowserFetch');
 const { bufferLooksLikePdf, isPdfContentType, pdfTextFromBuffer } = require('./pdfTextFromBuffer');
+const { assertFinalUrlPublicHttps } = require('./fetchSourceSsrf');
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_EXCERPT = 8000;
@@ -89,6 +90,20 @@ async function fetchSourceGenericHttp(sourceUrl, options = {}) {
 
     const responseUrl = res.request?.res?.responseUrl || res.request?.responseURL || sourceUrl;
     const finalUrl = typeof responseUrl === 'string' ? responseUrl : sourceUrl;
+
+    const finalCheck = assertFinalUrlPublicHttps(finalUrl);
+    if (!finalCheck.ok) {
+      return {
+        ok: false,
+        status,
+        contentType,
+        contentLength,
+        bodyText: null,
+        excerpt: null,
+        finalUrl,
+        errorMessage: finalCheck.errorMessage,
+      };
+    }
 
     const looksBinary =
       !contentType || /^(image|audio|video|application\/octet-stream)/i.test(contentType);

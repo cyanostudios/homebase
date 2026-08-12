@@ -82,6 +82,9 @@ export function CupsSettingsView({
     created: number;
     updated: number;
     skipped: number;
+    softDeleted: number;
+    restored: number;
+    hardDeleted: number;
     errors: string[];
   } | null>(null);
 
@@ -224,6 +227,9 @@ export function CupsSettingsView({
       let totalCreated = 0;
       let totalUpdated = 0;
       let totalSkipped = 0;
+      let totalSoftDeleted = 0;
+      let totalRestored = 0;
+      let totalHardDeleted = 0;
       const errors: string[] = [];
 
       for (const sourceId of allowedIngestSourceIds) {
@@ -233,6 +239,9 @@ export function CupsSettingsView({
           totalCreated += result.created || 0;
           totalUpdated += result.updated || 0;
           totalSkipped += result.skipped || 0;
+          totalSoftDeleted += result.softDeleted || 0;
+          totalRestored += result.restored || 0;
+          totalHardDeleted += result.hardDeleted || 0;
           if (Array.isArray(result.errors) && result.errors.length) {
             errors.push(...result.errors.map((e) => `[${sourceId}] ${e}`));
           }
@@ -254,6 +263,9 @@ export function CupsSettingsView({
         created: totalCreated,
         updated: totalUpdated,
         skipped: totalSkipped,
+        softDeleted: totalSoftDeleted,
+        restored: totalRestored,
+        hardDeleted: totalHardDeleted,
         errors,
       });
       setImportResultOpen(true);
@@ -429,9 +441,9 @@ export function CupsSettingsView({
                       Auto refresh
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
-                      Runs daily at 03:00 UTC — imports cups from the selected sources above and
-                      soft-deletes cups that are no longer in the source. Cups not seen for 30 days
-                      are permanently deleted.
+                      Scheduled via Railway cron (recommended weekly, e.g. Monday 03:00 UTC) —
+                      imports cups from the selected sources above and soft-deletes cups that are no
+                      longer in the source. Cups not seen for 30 days are permanently deleted.
                     </span>
                   </span>
                 </label>
@@ -454,6 +466,9 @@ export function CupsSettingsView({
           created={importResult.created}
           updated={importResult.updated}
           skipped={importResult.skipped}
+          softDeleted={importResult.softDeleted}
+          restored={importResult.restored}
+          hardDeleted={importResult.hardDeleted}
           errors={importResult.errors}
         />
       )}

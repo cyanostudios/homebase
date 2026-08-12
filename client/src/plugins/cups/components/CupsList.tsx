@@ -1,4 +1,5 @@
 import {
+  BarChart2,
   CheckSquare,
   ArrowDown,
   ArrowUp,
@@ -73,6 +74,7 @@ import {
 } from './CupIngestImportResultDialog';
 import { CupIngestPickSourceDialog } from './CupIngestPickSourceDialog';
 import { CupsSettingsView, type CupsSettingsCategory } from './CupsSettingsView';
+import { CupsStatisticsView } from './CupsStatisticsView';
 
 type SortField = CupSortField;
 type SortOrder = CupSortOrder;
@@ -96,6 +98,8 @@ export function CupsList() {
     openCupPanel,
     openCupSettings,
     closeCupSettingsView,
+    openCupStatistics,
+    closeCupStatisticsView,
     openCupForView,
     selectedCupIds,
     selectAllCups,
@@ -138,6 +142,7 @@ export function CupsList() {
     updated: number;
     skipped: number;
     softDeleted: number;
+    restored: number;
     hardDeleted: number;
     errors: string[];
     sourceCount?: number;
@@ -360,6 +365,7 @@ export function CupsList() {
           updated: 0,
           skipped: 0,
           softDeleted: 0,
+          restored: 0,
           hardDeleted: 0,
           errors: ['This ingest source is not enabled for Cups. Enable it in Cups settings.'],
           sourceCount: 1,
@@ -388,6 +394,7 @@ export function CupsList() {
           updated: result.updated ?? 0,
           skipped: result.skipped ?? 0,
           softDeleted: result.softDeleted ?? 0,
+          restored: result.restored ?? 0,
           hardDeleted: result.hardDeleted ?? 0,
           errors: errs,
           sourceCount: 1,
@@ -402,6 +409,7 @@ export function CupsList() {
           updated: 0,
           skipped: 0,
           softDeleted: 0,
+          restored: 0,
           hardDeleted: 0,
           errors: [error?.message || 'Import failed'],
           sourceCount: 1,
@@ -440,6 +448,29 @@ export function CupsList() {
     );
   }
 
+  if (cupsContentView === 'statistics') {
+    return (
+      <div className="plugin-cups min-h-full bg-background">
+        <div className="px-6 py-4">
+          <CupsStatisticsView
+            inlineTrailing={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={X}
+                className="h-9 px-3 text-xs"
+                onClick={closeCupStatisticsView}
+              >
+                {t('common.close')}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="plugin-cups min-h-full bg-background px-6 py-4">
       <div className="space-y-3">
@@ -457,6 +488,16 @@ export function CupsList() {
               onClick={openImportPicker}
             >
               {t('cups.importFromIngest')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={BarChart2}
+              className="h-9 px-2.5 text-xs"
+              onClick={() => openCupStatistics()}
+              title={t('common.statistics')}
+            >
+              {t('common.statistics')}
             </Button>
             <Button
               variant="ghost"
@@ -567,6 +608,7 @@ export function CupsList() {
             updated={importResult.updated}
             skipped={importResult.skipped}
             softDeleted={importResult.softDeleted}
+            restored={importResult.restored}
             hardDeleted={importResult.hardDeleted}
             errors={importResult.errors}
           />
@@ -706,6 +748,7 @@ export function CupsList() {
               primarySort={primarySort}
               sortOrder={sortOrder}
               onSort={handleTableSort}
+              ingestTitleForCup={ingestTitleForCup}
               isSelected={isSelected}
               onRowClick={(cup) => attemptNavigation(() => openCupForView(cup))}
               onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}

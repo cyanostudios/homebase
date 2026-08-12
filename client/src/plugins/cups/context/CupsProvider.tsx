@@ -52,7 +52,9 @@ export function CupsProvider({
   const { validationErrors, setValidationErrors, clearValidationErrors } =
     usePluginValidation<CupValidationError>();
   const [cups, setCups] = useState<Cup[]>([]);
-  const [cupsContentView, setCupsContentView] = useState<'list' | 'settings'>('list');
+  const [cupsContentView, setCupsContentView] = useState<'list' | 'settings' | 'statistics'>(
+    'list',
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [quickEditDraft, setQuickEditDraft] = useState<Partial<
     Pick<Cup, 'visible' | 'sanctioned' | 'featured'>
@@ -324,6 +326,16 @@ export function CupsProvider({
     setCupsContentView('list');
   }, []);
 
+  const openCupStatistics = useCallback(() => {
+    clearCupSelection();
+    setCupsContentView('statistics');
+    onCloseOtherPanels();
+  }, [clearCupSelection, onCloseOtherPanels]);
+
+  const closeCupStatisticsView = useCallback(() => {
+    setCupsContentView('list');
+  }, []);
+
   const cupsOrderedById = useMemo(
     () => [...cups].sort((x, y) => compareCupIdForNav(String(x.id), String(y.id))),
     [cups],
@@ -352,6 +364,8 @@ export function CupsProvider({
     openCupForView,
     openCupSettings,
     closeCupSettingsView,
+    openCupStatistics,
+    closeCupStatisticsView,
     closeCupPanel,
     saveCup,
     deleteCup,

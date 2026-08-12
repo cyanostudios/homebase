@@ -163,18 +163,27 @@ Public API (`api/cups.php`) använder [`api/db_helpers.php`](../public-cups/api/
 - Lägger till `deleted_at IS NULL` **om** kolumnen finns (migration `070-cups-sync-state.sql`)
 - `LEFT JOIN ingest_sources` **om** kolumn/tabell finns
 
-Kör tenant-migrationer via Homebase om nya kolumner saknas; public API anpassar sig men **kräver** fortfarande en fungerande `cups`-tabell.
+Kör tenant-migrationer via Homebase om nya kolumner/tabeller saknas; public API anpassar sig men **kräver** fortfarande en fungerande `cups`-tabell.
+
+### Pageviews (`cupappen_pageviews_daily`)
+
+- Migration: `server/migrations/129-cupappen-pageviews-daily.sql`
+- Runner: `npm run migrate:cups-pageviews` (alla tenants via `DATABASE_URL` / Neon)
+- Skrivs av Cupappen `POST /api/pageview.php`; läses av Homebase `GET /api/cups/stats/pageviews`
+- **Release:** kör migrate på tenant **innan** eller i samma steg som Cupappen-deploy som aktiverar beacons; annars 500 på pageview
+- ADR + residualrisker A1/A2: [`ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](./ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md)
 
 ---
 
 ## Ändringar i Homebase som påverkar cupappen (indirekt)
 
-| Ändring i Homebase                               | Påverkan på cupappen.se                                |
-| ------------------------------------------------ | ------------------------------------------------------ |
-| Cups import / cron / soft-delete                 | Rader i **samma** tenant-DB som `CUPS_DB_URL` pekar på |
-| `featured_image_url` + R2 på Homebase            | Bild-URL:er i list-API                                 |
-| Neon tenant connection string ändras             | Uppdatera **`CUPS_DB_URL`** på Cupappen                |
-| Refaktor i `client/`, `server/` (ej public-cups) | **Ingen** deploy till Cupappen                         |
+| Ändring i Homebase                                | Påverkan på cupappen.se                                |
+| ------------------------------------------------- | ------------------------------------------------------ |
+| Cups import / cron / soft-delete                  | Rader i **samma** tenant-DB som `CUPS_DB_URL` pekar på |
+| `migrate:cups-pageviews` + Homebase statistik-API | Tabell + adminvy; Cupappen måste deployas för beacons  |
+| `featured_image_url` + R2 på Homebase             | Bild-URL:er i list-API                                 |
+| Neon tenant connection string ändras              | Uppdatera **`CUPS_DB_URL`** på Cupappen                |
+| Refaktor i `client/`, `server/` (ej public-cups)  | **Ingen** deploy till Cupappen                         |
 
 ---
 
@@ -202,10 +211,11 @@ Lokal PHP kan falla tillbaka till `DATABASE_URL` i `.env.local` om `CUPS_DB_URL`
 
 ## Historik
 
-| Datum   | Händelse                                                                            |
-| ------- | ----------------------------------------------------------------------------------- |
-| 2026-05 | `pdo_pgsql` / `libpq` saknas i image → 500; fix `postgresql-libs` kvar i Dockerfile |
-| 2026-05 | `CUPS_DB_URL` + redeploy → cup-lista åter                                           |
-| 2026-05 | `deleted_at`-filter + schema-säker SQL i `db_helpers.php`                           |
+| Datum   | Händelse                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------- |
+| 2026-08 | First-party pageviews (`pageview.php` + `cupappen_pageviews_daily`); admin Statistik i Cups |
+| 2026-05 | `pdo_pgsql` / `libpq` saknas i image → 500; fix `postgresql-libs` kvar i Dockerfile         |
+| 2026-05 | `CUPS_DB_URL` + redeploy → cup-lista åter                                                   |
+| 2026-05 | `deleted_at`-filter + schema-säker SQL i `db_helpers.php`                                   |
 
 Uppdatera denna tabell vid nya driftincidenter.

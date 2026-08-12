@@ -1168,6 +1168,27 @@ $jsonLdGraph = jsonLdStripNulls([
       });
 
       const cupId = <?= (int) $cup['id'] ?>;
+
+      (function trackCupPageview() {
+        const body = JSON.stringify({
+          page_kind: 'cup',
+          cup_id: cupId,
+          referrer: document.referrer || '',
+        });
+        try {
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon('/api/pageview.php', new Blob([body], { type: 'application/json' }));
+            return;
+          }
+        } catch (_) {}
+        fetch('/api/pageview.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true,
+        }).catch(function () {});
+      })();
+
       const form = document.getElementById('rating-form');
       const errorEl = document.getElementById('rating-error');
       const successEl = document.getElementById('rating-success');

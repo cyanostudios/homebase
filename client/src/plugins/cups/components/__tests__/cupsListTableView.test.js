@@ -16,6 +16,8 @@ describe('CupsList table view wiring', () => {
   test('table uses SortableListTable with expected columns', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
     expect(tableSrc).toMatch(/name/);
+    expect(tableSrc).toMatch(/ingest/);
+    expect(tableSrc).toMatch(/columnDistrict/);
     expect(tableSrc).toMatch(/start_date/);
     expect(tableSrc).toMatch(/featured/);
     expect(tableSrc).toMatch(/ratings_count/);
