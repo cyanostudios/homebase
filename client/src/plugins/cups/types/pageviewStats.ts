@@ -7,6 +7,9 @@ export type CupPageviewSourceRow = {
 export type CupPageviewTopCup = {
   cup_id: number;
   name: string;
+  district: string | null;
+  start_date: string | null;
+  end_date: string | null;
   views: number;
 };
 

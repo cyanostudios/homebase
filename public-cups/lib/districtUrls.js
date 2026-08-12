@@ -31,6 +31,7 @@
     'kommande',
     'alla',
     'info',
+    'distrikt',
   ]);
 
   /** Tab → canonical listing path (trailing slash). Home is `/`. */
@@ -39,6 +40,7 @@
     upcoming: '/kommande/',
     all: '/alla/',
     info: '/info/',
+    districts: '/distrikt/',
   };
 
   const APP_PATH_SEGMENT_TO_TAB = {
@@ -46,6 +48,7 @@
     kommande: 'upcoming',
     alla: 'all',
     info: 'info',
+    distrikt: 'districts',
   };
 
   function decodeHtmlEntities(value) {
@@ -95,7 +98,7 @@
 
   /**
    * Listing app tab from a single-segment path (`/sok/` → `search`).
-   * @returns {'search'|'upcoming'|'all'|'info'|null}
+   * @returns {'search'|'upcoming'|'all'|'info'|'districts'|null}
    */
   function appTabFromPath(pathname) {
     const parts = String(pathname || '/')

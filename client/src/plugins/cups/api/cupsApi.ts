@@ -187,6 +187,18 @@ class CupsApi {
         ? raw.topCups.map((row: Record<string, unknown>) => ({
             cup_id: Number(row.cup_id) || 0,
             name: String(row.name ?? ''),
+            district:
+              row.district != null && String(row.district).trim() !== ''
+                ? String(row.district)
+                : null,
+            start_date:
+              row.start_date != null && String(row.start_date).trim() !== ''
+                ? String(row.start_date)
+                : null,
+            end_date:
+              row.end_date != null && String(row.end_date).trim() !== ''
+                ? String(row.end_date)
+                : null,
             views: Number(row.views) || 0,
           }))
         : [],

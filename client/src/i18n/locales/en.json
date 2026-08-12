@@ -2074,6 +2074,7 @@
       "loadError": "Could not load statistics.",
       "empty": "No pageviews recorded yet. Visits appear after Cupappen is deployed with tracking.",
       "windowSummary": "Last {{days}} days · {{views}} pageviews",
+      "pageviewsLastDays": "Pageviews · {{days}} days",
       "topCups": "Most visited cups",
       "topDistricts": "Most visited districts",
       "sources": "Traffic sources",

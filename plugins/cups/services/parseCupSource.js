@@ -2,13 +2,14 @@
  * Domain-owned cup parser. Ingest supplies full `bodyText`; this module extracts cup rows.
  * Profiles: Stockholm PDF table, SvFF-style PDF (Cupnamn + Arrangör, e.g. Göteborg), labeled PDF/plaintext,
  * Skåne/SVFF accordion, Småland lists, Bohuslän list, SvFF table (Cupnamn), Södermanland accordion h3,
- * Östergötland year/month lists, Ångermanland labeled blocks, Uppland/Jämtland paragraph lists, then fallback.
+ * Östergötland year/month lists, Ångermanland labeled blocks, Dalarna h3+labels,
+ * Gästrikland beviljade ul/li, Uppland/Jämtland paragraph lists, then fallback.
  *
  * @param {{ html: string, sourceUrl?: string, sourceType?: string }} input
  * @returns {Array<Record<string, unknown>>}
  */
 
-/** @typedef {'skane_accordion' | 'smaland_label_list' | 'stockholm_pdf_table' | 'labeled_plaintext_pdf' | 'bohuslan_html_list' | 'svff_table' | 'svff_paragraph_list' | 'sodermanland_accordion' | 'svff_yearmonth_list' | 'angermanland_labeled' | null} CupSourceProfile */
+/** @typedef {'skane_accordion' | 'smaland_label_list' | 'stockholm_pdf_table' | 'labeled_plaintext_pdf' | 'bohuslan_html_list' | 'svff_table' | 'svff_paragraph_list' | 'sodermanland_accordion' | 'svff_yearmonth_list' | 'angermanland_labeled' | 'dalarna_h3_labeled' | 'svff_beviljade_list' | 'varmland_cuptillstand' | null} CupSourceProfile */
 
 /** Default calendar year for Stockholm PDF day/month-only dates (conservative; year rarely appears in cells). */
 const STOCKHOLM_PDF_DEFAULT_YEAR = new Date().getFullYear();
@@ -178,17 +179,41 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
     /\bTävlingens namn\s*:/i.test(decodedHtml) ||
     (/\bÅlder\s*:/i.test(decodedHtml) && /\bArrangör\s*:/i.test(decodedHtml));
 
-  /** Småland/Skåne accordion must be classified before generic paragraph-list checks. */
+  /** Småland/Skåne accordion with labeled fields (before Cupnamn-table / bare accordion). */
   if (hasSkaneAccordion && hasSmalandStyleMarkers) {
     return 'skane_accordion';
   }
+
+  /**
+   * Västerbotten / Västmanland: Excel-style table with Cupnamn column.
+   * Must run before generic accordion — SvFF wraps the table in accordion__item
+   * ("Sanktionerade cuper"); otherwise skane_accordion + fallback yields one fake cup
+   * named after the accordion title.
+   */
+  if (/<table[\s>]/.test(html) && /\bCupnamn\b/i.test(html)) {
+    return 'svff_table';
+  }
+
+  /**
+   * Värmland dokumentbank: accordion "Cuptillstånd YYYY" with month h2 + h3 cups
+   * (Åldersgrupp/Datum/Arrangörsförening). Must run before generic skane_accordion —
+   * otherwise every document-board accordion becomes a fake cup.
+   */
+  if (looksLikeVarmlandCuptillstand(decodedHtml, html)) {
+    return 'varmland_cuptillstand';
+  }
+
   if (hasSkaneAccordion) {
     return 'skane_accordion';
   }
 
-  /** Västerbotten / Västmanland: Excel-style table with Cupnamn column. */
-  if (/<table[\s>]/.test(html) && /\bCupnamn\b/i.test(html)) {
-    return 'svff_table';
+  /**
+   * Dalarna (dalafotboll.nu): h3 cup title + labeled p (Arrangör/Datum/Spelort/Åldersgrupp).
+   * Must run before svff_paragraph_list — page has `<h2>Cuper YYYY</h2>` which would
+   * otherwise route to Jämtland paragraph parsing and use the whole label blob as name.
+   */
+  if (looksLikeDalarnaH3Labeled(decodedHtml, html)) {
+    return 'dalarna_h3_labeled';
   }
 
   /** Uppland: Arr. förening blocks (SvFF HTML uses entities e.g. Arr. f&ouml;rening). */
@@ -202,6 +227,14 @@ function detectCupSourceProfile(html, sourceUrl, sourceType) {
 
   if (isBohuslanDalslandHost && /\bFotbollscuper\b/i.test(html)) {
     return 'bohuslan_html_list';
+  }
+
+  /**
+   * Gästrikland m.fl.: "Beviljade cuper YYYY" + plain &lt;ul&gt;&lt;li&gt;
+   * "Namn, Arrangör, kategorier, datum" (HTML i article, ingen accordion/tabell).
+   */
+  if (looksLikeSvffBeviljadeList(decodedHtml, html)) {
+    return 'svff_beviljade_list';
   }
 
   if (isSmalandHost || hasSmalandStyleMarkers) {
@@ -258,6 +291,14 @@ function parseCupSource({ html, sourceUrl, sourceType }) {
     return parseFallbackSinglePage(html, sourceUrl, sourceType);
   }
 
+  if (profile === 'svff_beviljade_list') {
+    const rows = parseSvffBeviljadeListCups(html, sourceUrl, sourceType);
+    if (rows.length > 0) {
+      return rows;
+    }
+    return parseFallbackSinglePage(html, sourceUrl, sourceType);
+  }
+
   if (profile === 'svff_table') {
     const rows = parseSvffTableCups(html, sourceUrl, sourceType);
     if (rows.length > 0) {
@@ -284,6 +325,22 @@ function parseCupSource({ html, sourceUrl, sourceType }) {
 
   if (profile === 'angermanland_labeled') {
     const rows = parseAngermanlandLabeledCups(html, sourceUrl, sourceType);
+    if (rows.length > 0) {
+      return rows;
+    }
+    return parseFallbackSinglePage(html, sourceUrl, sourceType);
+  }
+
+  if (profile === 'dalarna_h3_labeled') {
+    const rows = parseDalarnaH3LabeledCups(html, sourceUrl, sourceType);
+    if (rows.length > 0) {
+      return rows;
+    }
+    return parseFallbackSinglePage(html, sourceUrl, sourceType);
+  }
+
+  if (profile === 'varmland_cuptillstand') {
+    const rows = parseVarmlandCuptillstandCups(html, sourceUrl, sourceType);
     if (rows.length > 0) {
       return rows;
     }
@@ -388,8 +445,31 @@ function padIsoPart(n) {
   return n < 10 ? `0${n}` : `${n}`;
 }
 
+/** Last calendar day of month (UTC). Returns null if month/year invalid. */
+function daysInUtcMonth(y, month) {
+  if (!Number.isFinite(y) || !Number.isFinite(month) || month < 1 || month > 12) {
+    return null;
+  }
+  return new Date(Date.UTC(y, month, 0)).getUTCDate();
+}
+
+/**
+ * Build YYYY-MM-DD, or null if components are unusable.
+ * Clamps day to the last valid day of the month (source pages sometimes write 31/9).
+ */
 function toIsoDate(y, month, day) {
-  return `${y}-${padIsoPart(month)}-${padIsoPart(day)}`;
+  if (!Number.isFinite(y) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+  const maxDay = daysInUtcMonth(y, month);
+  if (maxDay == null) {
+    return null;
+  }
+  const safeDay = Math.min(day, maxDay);
+  return `${y}-${padIsoPart(month)}-${padIsoPart(safeDay)}`;
 }
 
 /** Full + abbreviated Swedish month names (Småland datumrader). */
@@ -434,6 +514,97 @@ function resolveSwedishMonth(token) {
 }
 
 /**
+ * Multi-weekend same month: "14-15, 21-22, 28-29/11" or "14, 21, 28/11 2026".
+ * Start = earliest day, end = latest day (Cupappen range for upcoming filter).
+ * @returns {{ start: string|null, end: string|null, dateText: string }|null}
+ */
+function parseMultiWeekendSlashMonth(raw, defaultYear = STOCKHOLM_PDF_DEFAULT_YEAR) {
+  const s = String(raw || '').trim();
+  if (!s || !s.includes(',')) {
+    return null;
+  }
+  const m = s.match(
+    /^((?:\d{1,2}(?:\s*[-–]\s*\d{1,2})?\s*,\s*)+\d{1,2}(?:\s*[-–]\s*\d{1,2})?)\s*\/\s*(\d{1,2})(?:\s+(\d{4}))?$/,
+  );
+  if (!m) {
+    return null;
+  }
+  const mo = parseInt(m[2], 10);
+  if (mo < 1 || mo > 12) {
+    return null;
+  }
+  const y = m[3] ? parseInt(m[3], 10) : defaultYear;
+  const days = [];
+  for (const seg of m[1].split(/\s*,\s*/)) {
+    const sm = seg.match(/^(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?$/);
+    if (!sm) {
+      return null;
+    }
+    const d1 = parseInt(sm[1], 10);
+    const d2 = sm[2] ? parseInt(sm[2], 10) : d1;
+    if (d1 < 1 || d1 > 31 || d2 < 1 || d2 > 31) {
+      return null;
+    }
+    days.push(Math.min(d1, d2), Math.max(d1, d2));
+  }
+  if (days.length < 2) {
+    return null;
+  }
+  const lo = Math.min(...days);
+  const hi = Math.max(...days);
+  return {
+    start: toIsoDate(y, mo, lo),
+    end: toIsoDate(y, mo, hi),
+    dateText: s,
+  };
+}
+
+/**
+ * Multi-weekend with Swedish month: "14-15, 21-22, 28-29 november 2026".
+ * @returns {{ start: string|null, end: string|null, dateText: string }|null}
+ */
+function parseMultiWeekendSwedishMonth(raw, defaultYear = STOCKHOLM_PDF_DEFAULT_YEAR) {
+  const s = String(raw || '').trim();
+  if (!s || !s.includes(',')) {
+    return null;
+  }
+  const m = s.match(
+    /^((?:\d{1,2}(?:\s*[-–]\s*\d{1,2})?\s*,\s*)+\d{1,2}(?:\s*[-–]\s*\d{1,2})?)\s+([a-zåäö]+)(?:\s+(\d{4}))?$/i,
+  );
+  if (!m) {
+    return null;
+  }
+  const mo = resolveSwedishMonth(m[2]);
+  if (!mo) {
+    return null;
+  }
+  const y = m[3] ? parseInt(m[3], 10) : defaultYear;
+  const days = [];
+  for (const seg of m[1].split(/\s*,\s*/)) {
+    const sm = seg.match(/^(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?$/);
+    if (!sm) {
+      return null;
+    }
+    const d1 = parseInt(sm[1], 10);
+    const d2 = sm[2] ? parseInt(sm[2], 10) : d1;
+    if (d1 < 1 || d1 > 31 || d2 < 1 || d2 > 31) {
+      return null;
+    }
+    days.push(Math.min(d1, d2), Math.max(d1, d2));
+  }
+  if (days.length < 2) {
+    return null;
+  }
+  const lo = Math.min(...days);
+  const hi = Math.max(...days);
+  return {
+    start: toIsoDate(y, mo, lo),
+    end: toIsoDate(y, mo, hi),
+    dateText: s,
+  };
+}
+
+/**
  * Småland datum: ISO (via parseDatumField) first, then "12 september", "12-14 september 2026", first "+"-segment only.
  * @returns {{ start: string|null, end: string|null, dateText: string|null }}
  */
@@ -448,6 +619,15 @@ function parseDatumFieldSmaland(datumValue, defaultYear = STOCKHOLM_PDF_DEFAULT_
     return { start: null, end: null, dateText: null };
   }
   const firstPart = trimmed.split(/\s*\+\s*/)[0].trim();
+
+  const multiSlash = parseMultiWeekendSlashMonth(firstPart, defaultYear);
+  if (multiSlash && multiSlash.start && multiSlash.end) {
+    return { start: multiSlash.start, end: multiSlash.end, dateText: trimmed };
+  }
+  const multiMonth = parseMultiWeekendSwedishMonth(firstPart, defaultYear);
+  if (multiMonth && multiMonth.start && multiMonth.end) {
+    return { start: multiMonth.start, end: multiMonth.end, dateText: trimmed };
+  }
 
   let m = firstPart.match(/^(\d{1,2})\s*[-–]\s*(\d{1,2})\s+([a-zåäö]+)(?:\s+(\d{4}))?$/i);
   if (m) {
@@ -514,6 +694,32 @@ function parseDatumFieldSmaland(datumValue, defaultYear = STOCKHOLM_PDF_DEFAULT_
     const y = m[3] ? parseInt(m[3], 10) : defaultYear;
     if (mo >= 1 && mo <= 12) {
       return { start: toIsoDate(y, mo, day), end: toIsoDate(y, mo, day), dateText: trimmed };
+    }
+  }
+
+  // Fallback: shared slash-range helper (cross-month, etc.)
+  const slash = parseSwedishSlashDateRange(firstPart, defaultYear);
+  if (slash.start && slash.end) {
+    return { start: slash.start, end: slash.end, dateText: trimmed };
+  }
+
+  /** Cross-month full names: "30 januari-1 februari", "27 februari - 1 mars", "31 juli - 2 augusti". */
+  m = firstPart.match(
+    /^(\d{1,2})\s+([a-zåäö]+)\.?\s*[-–]\s*(\d{1,2})\s+([a-zåäö]+)\.?(?:\s+(\d{4}))?$/i,
+  );
+  if (m) {
+    const d1 = parseInt(m[1], 10);
+    const mo1 = resolveSwedishMonth(m[2]);
+    const d2 = parseInt(m[3], 10);
+    const mo2 = resolveSwedishMonth(m[4]);
+    if (mo1 && mo2) {
+      const y1 = m[5] ? parseInt(m[5], 10) : defaultYear;
+      const y2 = mo2 < mo1 ? y1 + 1 : y1;
+      return {
+        start: toIsoDate(y1, mo1, d1),
+        end: toIsoDate(y2, mo2, d2),
+        dateText: trimmed,
+      };
     }
   }
 
@@ -1059,6 +1265,228 @@ function accordionLinesLookLikeSmalandLabeledList(lines) {
   });
 }
 
+/** Halland sanction accordion: Arrangerande förening + Startdatum/Slutdatum (ISO). */
+function accordionLooksLikeHallandSanction(linesOrText) {
+  const text = Array.isArray(linesOrText) ? linesOrText.join('\n') : String(linesOrText || '');
+  return (
+    /Arrangerande\s+förening\s*:/i.test(text) &&
+    (/(?:Tävlingens\s+)?Startdatum\s*:/i.test(text) ||
+      /(?:Tävlingens\s+)?S?lutdatum\s*:/i.test(text))
+  );
+}
+
+/**
+ * Halland pages sometimes break "Slutdatum" as `S<strong>lutdatum:` → "S lutdatum".
+ * @param {string} htmlOrText
+ */
+function normalizeHallandBrokenSlutdatum(htmlOrText) {
+  return String(htmlOrText || '')
+    .replace(/S\s*<strong\b[^>]*>\s*lutdatum\s*:?\s*<\/strong>/gi, '<strong>Slutdatum:</strong>')
+    .replace(/\bS\s+lutdatum\s*:/gi, 'Slutdatum:');
+}
+
+/**
+ * Pull value for a Halland label from free text; stops at the next known label.
+ * @param {string} text
+ * @param {RegExp} labelRe label only (no capture), case-insensitive
+ */
+function extractHallandLabeledValue(text, labelRe) {
+  const re = new RegExp(
+    `(?:${labelRe.source})\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:Arrangerande förening|Startdatum|Slutdatum|Tävlingens startdatum|Tävlingens slutdatum|Aktuella kategorier|Tävlingskategorier|Aktuell åldersgrupp|Åldersgrupper|Aktuella spelformer|Spelformer|Speltid|Tävlingsform|Aktuell tävlingsform|Antal lag|Beskrivning av tävlingen|Tävlingens upplägg|Webbadress till anmälan|Kontaktperson|E-post|Mobilnummer|Telefon|Föreningens e-post|Tävlingsjury|Föreningen)\\b|$)`,
+    'i',
+  );
+  const m = String(text || '').match(re);
+  if (!m || m[1] == null) return '';
+  return m[1]
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.]\s*$/, '')
+    .trim();
+}
+
+/**
+ * Best-effort venue from Halland free text ("Spelas … i X idrottshall").
+ * @param {string} text
+ */
+function extractHallandLocation(text) {
+  const t = String(text || '');
+  const labeled =
+    extractHallandLabeledValue(t, /(?:Spel)?plats|Ort|Anläggning/i) ||
+    extractHallandLabeledValue(t, /Spelplats/i);
+  if (labeled) return labeled.slice(0, 255);
+
+  const patterns = [
+    /\bSpelas\s+(?:som\s+[^.]{0,40}?\s+)?i\s+([^.]{5,90}?(?:idrottshall|sporthall|arena|hallen|IP)\b[^.]{0,40})/i,
+    /\bspelas\s+i\s+([^.]{5,90}?(?:idrottshall|sporthall|arena|hallen|IP)\b[^.]{0,40})/i,
+    /\bi\s+([A-ZÅÄÖ][^.]{3,70}?(?:idrottshall|sporthall|arena)\b)/,
+  ];
+  for (const re of patterns) {
+    const m = t.match(re);
+    if (m && m[1]) {
+      return m[1]
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/[,.]\s*$/, '')
+        .slice(0, 255);
+    }
+  }
+  return null;
+}
+
+/**
+ * City hint from titles like "IFC Cupen Halmstad (okt)".
+ * @param {string} title
+ */
+function locationHintFromHallandTitle(title) {
+  const t = String(title || '')
+    .replace(/\)+\s*$/, ')')
+    .trim();
+  const m = t.match(
+    /\s+([A-ZÅÄÖ][A-Za-zÅÄÖåäö-]{2,})\s*\(\s*(?:jan(?:uari)?|feb(?:ruari)?|mar(?:s)?|apr(?:il)?|maj|jun(?:i)?|jul(?:i)?|aug(?:usti)?|sep(?:tember)?|okt(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s*\)\s*$/i,
+  );
+  if (!m) return null;
+  const place = m[1];
+  if (
+    /^(cupen|cup|cups|football|futsal|indoor|outdoor|summer|winter|minicup|youth|ungdom|edition|festival|open|turnering|cupen)$/i.test(
+      place,
+    )
+  ) {
+    return null;
+  }
+  return place;
+}
+
+/**
+ * Collect Speltid… lines for description (match times / period lengths).
+ * @param {string} text
+ */
+function extractHallandSpeltider(text) {
+  const lines = String(text || '').split(/\n+/);
+  const out = [];
+  for (const raw of lines) {
+    const line = raw.replace(/\s+/g, ' ').trim();
+    if (/^Speltid\b/i.test(line)) {
+      out.push(line);
+    }
+  }
+  if (out.length === 0) {
+    const re = /Speltid[^:\n]{0,80}:\s*[^.\n]+/gi;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      out.push(m[0].replace(/\s+/g, ' ').trim());
+    }
+  }
+  return out;
+}
+
+/**
+ * Parse Halland accordion body into structured cup fields + readable description.
+ * @param {string} innerHtml
+ * @param {string} title
+ */
+function parseHallandSanctionAccordionContent(innerHtml, title) {
+  const fixedHtml = normalizeHallandBrokenSlutdatum(innerHtml);
+  const text = decodeHtmlEntities(
+    fixedHtml
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li)\b>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/ {2,}/g, ' '),
+  )
+    .replace(/\bS\s+lutdatum\s*:/gi, 'Slutdatum:')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  const organizer = extractHallandLabeledValue(text, /Arrangerande\s+förening/i) || null;
+
+  const startIso =
+    (text.match(/(?:Tävlingens\s+)?Startdatum\s*:\s*(\d{4}-\d{2}-\d{2})/i) || [])[1] || null;
+  const endIso =
+    (text.match(/(?:Tävlingens\s+)?Slutdatum\s*:\s*(\d{4}-\d{2}-\d{2})/i) || [])[1] || null;
+
+  const categories =
+    extractHallandLabeledValue(text, /Aktuella kategorier/i) ||
+    extractHallandLabeledValue(text, /Tävlingskategorier/i) ||
+    null;
+
+  const spelformRaw =
+    extractHallandLabeledValue(text, /Aktuella spelformer/i) ||
+    extractHallandLabeledValue(text, /Spelformer/i) ||
+    null;
+  const match_format = spelformRaw ? translateSpelformToEnglish(spelformRaw) || spelformRaw : null;
+
+  const antalRaw =
+    extractHallandLabeledValue(text, /Antal lag(?:, totalt,)? som kan delta/i) ||
+    extractHallandLabeledValue(text, /Antal lag/i) ||
+    null;
+  const team_count = antalRaw != null ? parseTeamCountFromAntalLag(antalRaw) : null;
+
+  const tavlingsform =
+    extractHallandLabeledValue(text, /Aktuell tävlingsform/i) ||
+    extractHallandLabeledValue(text, /Tävlingsform/i) ||
+    null;
+
+  const narrative =
+    extractHallandLabeledValue(text, /Beskrivning av tävlingen/i) ||
+    extractHallandLabeledValue(text, /Tävlingens upplägg, organisation och genomförande/i) ||
+    '';
+
+  const kontakt = extractHallandLabeledValue(text, /Kontaktperson/i);
+  const email =
+    extractHallandLabeledValue(text, /E-post(?:adress)?(?:\s+kontaktperson)?/i) ||
+    extractHallandLabeledValue(text, /Föreningens e-post(?:adress)?/i);
+  const phone =
+    extractHallandLabeledValue(text, /Mobilnummer(?:\s+kontaktperson)?/i) ||
+    extractHallandLabeledValue(text, /Telefon[^:\n]*/i);
+
+  const speltider = extractHallandSpeltider(text);
+  const location = extractHallandLocation(text) || locationHintFromHallandTitle(title);
+
+  const descParts = [];
+  if (organizer) descParts.push(`Arrangör: ${organizer}`);
+  if (startIso || endIso) {
+    descParts.push(
+      startIso && endIso && startIso !== endIso
+        ? `Datum: ${startIso} – ${endIso}`
+        : `Datum: ${startIso || endIso}`,
+    );
+  }
+  if (location) descParts.push(`Plats: ${location}`);
+  if (categories) descParts.push(`Kategorier: ${categories}`);
+  if (match_format) descParts.push(`Spelform: ${match_format}`);
+  if (speltider.length) {
+    descParts.push(`Speltid: ${speltider.join('; ')}`);
+  }
+  if (tavlingsform) descParts.push(`Tävlingsform: ${tavlingsform}`);
+  if (team_count != null) descParts.push(`Antal lag: ${team_count}`);
+  if (narrative) descParts.push('', narrative);
+  const contactBits = [
+    kontakt && `Kontakt: ${kontakt}`,
+    email && `E-post: ${email}`,
+    phone && `Tel: ${phone}`,
+  ].filter(Boolean);
+  if (contactBits.length) {
+    descParts.push('', contactBits.join(' · '));
+  }
+
+  const date_text = startIso && endIso ? `${startIso} – ${endIso}` : startIso || endIso || null;
+
+  return {
+    organizer,
+    cupName: null,
+    location: location || null,
+    categories,
+    team_count,
+    match_format,
+    start_date: startIso,
+    end_date: endIso || startIso,
+    date_text,
+    description: descParts.join('\n').trim() || null,
+  };
+}
+
 /** Normalize external URL so the same link does not produce a different id after trivial HTML differences. */
 function normalizeRegistrationUrlForId(url) {
   if (!url || typeof url !== 'string') return '';
@@ -1131,17 +1559,22 @@ function parseSkaneAccordionCups(html, sourceUrl, sourceType) {
   for (const block of blocks) {
     const title = extractAccordionTitle(block);
     const inner = extractAccordionContentAllParagraphsInnerHtml(block);
-    const lines = htmlFragmentToLabelLines(inner);
-    const parsed = accordionLinesLookLikeSmalandLabeledList(lines)
-      ? parseLabeledCupLines(lines, pageYear)
-      : parseStructuredParagraph(inner);
+    const lines = htmlFragmentToLabelLines(normalizeHallandBrokenSlutdatum(inner));
+    let parsed;
+    if (accordionLooksLikeHallandSanction(lines) || accordionLooksLikeHallandSanction(inner)) {
+      parsed = parseHallandSanctionAccordionContent(inner, title || '');
+    } else if (accordionLinesLookLikeSmalandLabeledList(lines)) {
+      parsed = parseLabeledCupLines(lines, pageYear);
+    } else {
+      parsed = parseStructuredParagraph(inner);
+    }
 
     const nameRaw = (parsed.cupName || title || '').trim();
     if (!nameRaw) {
       continue;
     }
 
-    const registrationUrl = extractExternalUrl(block);
+    const registrationUrl = extractExternalUrl(block) || extractUrlFromCellOrLine(inner) || null;
     out.push({
       name: nameRaw.slice(0, 255),
       organizer: parsed.organizer || null,
@@ -1223,20 +1656,29 @@ function parseSvMonthToken(token) {
     .replace(/\.$/, '');
   const map = {
     jan: 1,
+    januari: 1,
     feb: 2,
+    februari: 2,
     mar: 3,
     mars: 3,
     apr: 4,
+    april: 4,
     maj: 5,
     jun: 6,
+    juni: 6,
     jul: 7,
     juli: 7,
     aug: 8,
+    augusti: 8,
     sep: 9,
     sept: 9,
+    september: 9,
     okt: 10,
+    oktober: 10,
     nov: 11,
+    november: 11,
     dec: 12,
+    december: 12,
   };
   return map[t] ?? null;
 }
@@ -1249,6 +1691,10 @@ function parseSwedishSlashDateRange(raw, defaultYear = STOCKHOLM_PDF_DEFAULT_YEA
   const s = String(raw || '').trim();
   if (!s) {
     return { start: null, end: null, dateText: null };
+  }
+  const multi = parseMultiWeekendSlashMonth(s, defaultYear);
+  if (multi && multi.start && multi.end) {
+    return multi;
   }
   /** "28/29/3" (två dagar i samma månad, förekommer i listor). */
   const mDoubleDay = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{1,2})(?:\s*\/\s*(\d{2,4}))?$/);
@@ -1269,8 +1715,10 @@ function parseSwedishSlashDateRange(raw, defaultYear = STOCKHOLM_PDF_DEFAULT_YEA
       }
     }
   }
-  /** "14/5 - 17/5", "31/1-8/2" (samma eller annan månad). */
-  const crossM = s.match(/^(\d{1,2})\/(\d{1,2})\s*-\s*(\d{1,2})\/(\d{1,2})(?:\s*\/\s*(\d{2,4}))?$/);
+  /** "14/5 - 17/5", "31/1-8/2", optional trailing year "1/5-31/9 2026". */
+  const crossM = s.match(
+    /^(\d{1,2})\/(\d{1,2})\s*-\s*(\d{1,2})\/(\d{1,2})(?:\s*(?:\/\s*)?(\d{2,4}))?$/,
+  );
   if (crossM) {
     const da1 = parseInt(crossM[1], 10);
     const mo1 = parseInt(crossM[2], 10);
@@ -1314,6 +1762,128 @@ function parseSwedishSlashDateRange(raw, defaultYear = STOCKHOLM_PDF_DEFAULT_YEA
   const lo = Math.min(d1, d2);
   const hi = Math.max(d1, d2);
   return { start: isoDate(y, mo, lo), end: isoDate(y, mo, hi), dateText: s };
+}
+
+/**
+ * Gästrikland-style approved-cup list: "Beviljade cuper 2026" then Fotboll/Futsal &lt;ul&gt;.
+ * Items: "Valbocupen, Valbo FF, Dam (senior), 30/1 - 1/2"
+ * @param {string} decodedHtml
+ * @param {string} rawHtml
+ */
+function looksLikeSvffBeviljadeList(decodedHtml, rawHtml) {
+  const html = decodedHtml || rawHtml || '';
+  if (!/Beviljade cuper\s+\d{4}/i.test(html)) {
+    return false;
+  }
+  if (!/<li\b/i.test(html)) {
+    return false;
+  }
+  // At least one list row that looks like name + slash-date
+  return /<li\b[^>]*>[\s\S]{0,200}?\d{1,2}\s*\/\s*\d{1,2}/i.test(html);
+}
+
+/**
+ * @param {string} html
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseSvffBeviljadeListCups(html, sourceUrl, sourceType) {
+  const decoded = decodeHtmlEntities(html);
+  const yearMatch = decoded.match(/Beviljade cuper\s+(\d{4})/i);
+  const defaultYear = yearMatch ? parseInt(yearMatch[1], 10) : STOCKHOLM_PDF_DEFAULT_YEAR;
+
+  const startIdx = decoded.search(/Beviljade cuper\s+\d{4}/i);
+  let slice = startIdx >= 0 ? decoded.slice(startIdx) : decoded;
+  const stopAt = slice.search(/<nav\b|sidebar-nav|<\/article>/i);
+  if (stopAt > 0) {
+    slice = slice.slice(0, stopAt);
+  }
+
+  /** @type {Array<{ kind: 'section', name: string } | { kind: 'item', text: string }>} */
+  const events = [];
+  const re = /<p\b[^>]*>([\s\S]*?)<\/p>|<li\b[^>]*>([\s\S]*?)<\/li>/gi;
+  let m;
+  while ((m = re.exec(slice)) !== null) {
+    if (m[1] != null) {
+      const label = stripTags(m[1])
+        .replace(/\u00a0/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (/^(Fotboll|Futsal)\b/i.test(label)) {
+        events.push({ kind: 'section', name: label.split(/\s+/)[0] });
+      }
+      continue;
+    }
+    const text = stripTags(m[2] || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (text) {
+      events.push({ kind: 'item', text });
+    }
+  }
+
+  const out = [];
+  let section = 'Fotboll';
+  const dateTailRe =
+    /(\d{1,2}\/\d{1,2}\s*[-–]\s*\d{1,2}\/\d{1,2}|\d{1,2}\s*[-–]\s*\d{1,2}\s*\/\s*\d{1,2}|\d{1,2}\/\d{1,2})\s*$/;
+
+  for (const ev of events) {
+    if (ev.kind === 'section') {
+      section = ev.name;
+      continue;
+    }
+    const line = ev.text;
+    const dm = line.match(dateTailRe);
+    if (!dm) {
+      continue;
+    }
+    const dateRaw = dm[1].trim();
+    const before = line.slice(0, dm.index).trim().replace(/,\s*$/, '').trim();
+    const parts = before
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (!parts.length) {
+      continue;
+    }
+    const name = parts[0];
+    const organizer = parts[1] || null;
+    let categories = parts.slice(2).join(', ') || null;
+    if (!categories && /^Futsal$/i.test(section)) {
+      categories = 'Futsal';
+    } else if (categories && /^Futsal$/i.test(section) && !/futsal/i.test(categories)) {
+      categories = `${categories}, Futsal`;
+    }
+
+    const parsedDate = parseSwedishSlashDateRange(dateRaw, defaultYear);
+    const formatMatch = line.match(/\b(\d+\s*mot\s*\d+)\b/i);
+    const matchFormat = formatMatch ? formatMatch[1].replace(/\s+/g, ' ') : null;
+
+    out.push({
+      name: name.slice(0, 255),
+      organizer,
+      location: null,
+      start_date: parsedDate.start,
+      end_date: parsedDate.end,
+      categories,
+      team_count: null,
+      match_format: matchFormat,
+      description: line.slice(0, 1500),
+      registration_url: null,
+      source_url: sourceUrl || null,
+      source_type: sourceType || 'html',
+      external_id: stableExternalId(
+        name,
+        parsedDate.start,
+        parsedDate.end,
+        null,
+        parsedDate.dateText || dateRaw,
+      ),
+    });
+  }
+
+  return out;
 }
 
 /**
@@ -1414,16 +1984,14 @@ function parseBohuslanHtmlListCups(html, sourceUrl, sourceType) {
   return out;
 }
 
-function pad2(n) {
-  return n < 10 ? `0${n}` : `${n}`;
-}
-
+/** Alias for toIsoDate (slash-date / PDF paths). */
 function isoDate(y, m, d) {
-  return `${y}-${pad2(m)}-${pad2(d)}`;
+  return toIsoDate(y, m, d);
 }
 
 /**
  * Stockholm PDF cells: "2 jan", "2-6 jan", "24-25 jan + 14-15 feb" — first segment only for ISO range.
+ * Also "26 dec – 6 jan", "30 okt-1 nov".
  * @returns {{ start: string|null, end: string|null, dateText: string }}
  */
 function parseStockholmPdfDateText(raw, year = STOCKHOLM_PDF_DEFAULT_YEAR) {
@@ -1432,6 +2000,26 @@ function parseStockholmPdfDateText(raw, year = STOCKHOLM_PDF_DEFAULT_YEAR) {
     return { start: null, end: null, dateText: '' };
   }
   const firstPart = full.split(/\s*\+\s*/)[0].trim();
+
+  /** Cross-month: "26 dec – 6 jan", "30 okt-1 nov". */
+  const crossMonth = firstPart.match(
+    /^(\d{1,2})\s+([a-zåäö]+)\.?\s*[-–]\s*(\d{1,2})\s+([a-zåäö]+)\.?(?:\s+(\d{4}))?$/i,
+  );
+  if (crossMonth) {
+    const d1 = parseInt(crossMonth[1], 10);
+    const mo1 = parseSvMonthToken(crossMonth[2]);
+    const d2 = parseInt(crossMonth[3], 10);
+    const mo2 = parseSvMonthToken(crossMonth[4]);
+    if (mo1 && mo2) {
+      const y1 = crossMonth[5] ? parseInt(crossMonth[5], 10) : year;
+      const y2 = mo2 < mo1 ? y1 + 1 : y1;
+      return {
+        start: isoDate(y1, mo1, d1),
+        end: isoDate(y2, mo2, d2),
+        dateText: full,
+      };
+    }
+  }
 
   const rangeWithMonth = firstPart.match(
     /^(\d{1,2})\s*[-–]\s*(\d{1,2})\s+([a-zåäö]+)\.?(?:\s+\d{4})?$/i,
@@ -1551,34 +2139,48 @@ function tryParseCollapsedSwedishCupTableRow(line) {
   // PDF extraction often keeps "Hemsida" as a trailing pseudo-column token.
   t = t.replace(/\s+hemsida\s*$/i, '').trim();
 
-  const monthPat = '(?:jan|feb|mar|mars|apr|maj|jun|jul|juli|aug|sep|sept|okt|nov|dec)';
+  const monthPat =
+    '(?:jan(?:uari)?|feb(?:ruari)?|mar(?:s)?|apr(?:il)?|maj|jun(?:i)?|jul(?:i)?|aug(?:usti)?|sep(?:t(?:ember)?)?|okt(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
   const dateRangeRe = new RegExp(
-    `(\\d{1,2}\\s*[-–]\\s*\\d{1,2}\\s+${monthPat}\\.?(?:\\s+\\d{4})?(?=\\s|$))`,
+    `(\\d{1,2}\\s*[-–]\\s*\\d{1,2}\\s+${monthPat}\\.?(?:\\s+\\d{4})?)\\b`,
     'i',
   );
-  const dateSingleRe = new RegExp(`(\\d{1,2}\\s+${monthPat}\\.?(?:\\s+\\d{4})?(?=\\s|$))`, 'i');
+  const dateSingleRe = new RegExp(`(\\d{1,2}\\s+${monthPat}\\.?(?:\\s+\\d{4})?)\\b`, 'i');
+  /** Cross-month in collapsed row: "26 dec – 6 jan", "30 okt-1 nov". */
+  const dateCrossRe = new RegExp(
+    `(\\d{1,2}\\s+${monthPat}\\.?\\s*[-–]\\s*\\d{1,2}\\s+${monthPat}\\.?(?:\\s+\\d{4})?)\\b`,
+    'i',
+  );
 
-  if (!dateRangeRe.test(t) && !dateSingleRe.test(t)) {
+  if (!dateRangeRe.test(t) && !dateSingleRe.test(t) && !dateCrossRe.test(t)) {
     return null;
   }
 
   let categories = null;
-  const catM = t.match(/\s+([FP]\/[FP][\d./A-Za-z\-]+)\s*$/i);
+  const catM = t.match(
+    /\s+((?:[FP]\/[FP]\s*)?[\d][\d./A-Za-z\-]*|[FP]\d{4}(?:-\d{2,4})?|Herr|Dam(?:er)?(?:\/herr(?:ar)?)?)\s*$/i,
+  );
   if (catM) {
     categories = catM[1].trim();
     t = t.slice(0, catM.index).trim();
   }
 
   let dateRaw = null;
-  let rm = t.match(dateRangeRe);
+  let rm = t.match(dateCrossRe);
   if (rm) {
     dateRaw = rm[1].trim();
     t = t.slice(0, rm.index).trim();
   } else {
-    rm = t.match(dateSingleRe);
+    rm = t.match(dateRangeRe);
     if (rm) {
       dateRaw = rm[1].trim();
       t = t.slice(0, rm.index).trim();
+    } else {
+      rm = t.match(dateSingleRe);
+      if (rm) {
+        dateRaw = rm[1].trim();
+        t = t.slice(0, rm.index).trim();
+      }
     }
   }
 
@@ -1600,8 +2202,43 @@ function tryParseCollapsedSwedishCupTableRow(line) {
     'bois',
     'afc',
     'hk',
+    'club',
+    'academy',
+  ]);
+  const clubStartSet = new Set([
+    'if',
+    'ff',
+    'bk',
+    'ik',
+    'sk',
+    'fc',
+    'fk',
+    'ifk',
+    'gif',
+    'bois',
+    'afc',
+    'hk',
   ]);
   const lastIdx = tokens.length - 1;
+
+  // Prefer split right after …Cup/Cupen when the rest looks like an organizer.
+  for (let j = 1; j < tokens.length; j += 1) {
+    const prev = tokens[j - 1];
+    if (!/cupen$/i.test(prev) && !/^cup$/i.test(prev)) {
+      continue;
+    }
+    const organizer = tokens.slice(j).join(' ');
+    const name = tokens.slice(0, j).join(' ');
+    const orgToks = tokens.slice(j);
+    const looksLikeOrg =
+      orgToks.length >= 1 &&
+      (orgToks.some((tok) => clubStartSet.has(tok.replace(/\.$/, '').toLowerCase())) ||
+        suffixSet.has(orgToks[orgToks.length - 1].replace(/\.$/, '').toLowerCase()));
+    if (name.length >= 2 && organizer.length >= 3 && looksLikeOrg) {
+      return { name, organizer, dateRaw, categories };
+    }
+  }
+
   const lastNorm = tokens[lastIdx] ? tokens[lastIdx].replace(/\.$/, '').toLowerCase() : '';
   if (lastIdx >= 2 && suffixSet.has(lastNorm)) {
     let best = null;
@@ -1626,6 +2263,18 @@ function tryParseCollapsedSwedishCupTableRow(line) {
     }
   }
 
+  // "GF Cupen FC Stockholm Internazionale" — split before last club marker (FC/IF/…).
+  for (let j = lastIdx; j >= 1; j -= 1) {
+    const tok = tokens[j].replace(/\.$/, '').toLowerCase();
+    if (clubStartSet.has(tok) && j >= 1) {
+      const name = tokens.slice(0, j).join(' ');
+      const organizer = tokens.slice(j).join(' ');
+      if (name.length >= 2 && organizer.length >= 3) {
+        return { name, organizer, dateRaw, categories };
+      }
+    }
+  }
+
   return {
     name: t
       .replace(/\s+hemsida\s*$/i, '')
@@ -1635,6 +2284,20 @@ function tryParseCollapsedSwedishCupTableRow(line) {
     dateRaw,
     categories,
   };
+}
+
+/** PDF page footers / year separators that must not become cups. */
+function isStockholmPdfJunkRow(name) {
+  const n = String(name || '').trim();
+  if (!n) return true;
+  if (/^\d{1,3}$/.test(n)) return true;
+  if (/^20\d{2}$/.test(n)) return true;
+  if (/^sanktionerade cuper\b/i.test(n)) return true;
+  if (/^johan wallberg$/i.test(n)) return true;
+  if (/^uppdaterad:/i.test(n)) return true;
+  if (/^cupens namn\b/i.test(n)) return true;
+  if (/^cupnamn\b/i.test(n)) return true;
+  return false;
 }
 
 /**
@@ -1694,7 +2357,7 @@ function parseStockholmPdfTableCups(text, sourceUrl, sourceType) {
     }
 
     let nameRaw = col.name >= 0 && cells[col.name] != null ? String(cells[col.name]).trim() : '';
-    if (!nameRaw || /^datum$/i.test(nameRaw)) {
+    if (!nameRaw || /^datum$/i.test(nameRaw) || isStockholmPdfJunkRow(nameRaw)) {
       continue;
     }
 
@@ -1707,11 +2370,12 @@ function parseStockholmPdfTableCups(text, sourceUrl, sourceType) {
         ? String(cells[col.categories]).trim()
         : '';
 
+    const monthTok =
+      '(?:jan(?:uari)?|feb(?:ruari)?|mar(?:s)?|apr(?:il)?|maj|jun(?:i)?|jul(?:i)?|aug(?:usti)?|sep(?:t(?:ember)?)?|okt(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
     const hasCollapsedDateInName =
-      /\d{1,2}\s*[-–]\s*\d{1,2}\s+(?:jan|feb|mar|mars|apr|maj|jun|jul|juli|aug|sep|sept|okt|nov|dec)/i.test(
-        nameRaw,
-      ) ||
-      /\d{1,2}\s+(?:jan|feb|mar|mars|apr|maj|jun|jul|juli|aug|sep|sept|okt|nov|dec)\b/i.test(
+      new RegExp(`\\d{1,2}\\s*[-–]\\s*\\d{1,2}\\s+${monthTok}\\b`, 'i').test(nameRaw) ||
+      new RegExp(`\\d{1,2}\\s+${monthTok}\\b`, 'i').test(nameRaw) ||
+      new RegExp(`\\d{1,2}\\s+${monthTok}\\.?\\s*[-–]\\s*\\d{1,2}\\s+${monthTok}\\b`, 'i').test(
         nameRaw,
       );
 
@@ -1732,6 +2396,14 @@ function parseStockholmPdfTableCups(text, sourceUrl, sourceType) {
           categories = collapsed.categories;
         }
       }
+    }
+
+    if (isStockholmPdfJunkRow(nameRaw)) {
+      continue;
+    }
+    // Collapsed PDF rows without a parseable date are almost always footer/noise.
+    if (!datumRaw && !organizer && cells.length === 1) {
+      continue;
     }
 
     let registrationUrl = null;
@@ -2471,6 +3143,387 @@ function parseAngermanlandLabeledCups(html, sourceUrl, sourceType) {
 }
 
 /**
+ * Dalarna cup list: several h3 titles each followed by a labeled paragraph
+ * (Arrangör / Datum / Spelort / Åldersgrupp), no accordion required.
+ * @param {string} decodedHtml
+ * @param {string} rawHtml
+ */
+function looksLikeDalarnaH3Labeled(decodedHtml, rawHtml) {
+  const html = decodedHtml || rawHtml || '';
+  if (!/<h3\b/i.test(html)) {
+    return false;
+  }
+  if (!/\bArrangör\s*:/i.test(html) || !/\bDatum\s*:/i.test(html)) {
+    return false;
+  }
+  if (!/\bSpelort\s*:/i.test(html) && !/\bÅldersgrupp\s*:/i.test(html)) {
+    return false;
+  }
+  // Prefer pages that clearly use h3 cup titles with labeled fields nearby.
+  const sample = html.match(
+    /<h3\b[^>]*>[\s\S]{0,300}?<\/h3>[\s\S]{0,1200}?Arrangör\s*:[\s\S]{0,400}?Datum\s*:/i,
+  );
+  return Boolean(sample);
+}
+
+/**
+ * Read value after a labeled strong field (Dalarna rich-text).
+ * Handles both clean `<strong>Datum:</strong>…` and nested breaks like
+ * `<strong><br />Datum: </strong>25-26/4` (common on dalafotboll.nu).
+ * @param {string} html
+ * @param {string} label
+ */
+function extractDalarnaStrongLabel(html, label) {
+  const escaped = String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(
+    `<strong\\b[^>]*>(?:(?!<\\/strong>)[\\s\\S])*?${escaped}\\s*:?\\s*<\\/strong>\\s*([^<]*)`,
+    'i',
+  );
+  const m = String(html || '').match(re);
+  if (!m) {
+    return '';
+  }
+  return stripTags(m[1]).replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * @param {string} html
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseDalarnaH3LabeledCups(html, sourceUrl, sourceType) {
+  const mainMatch = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  const slice = decodeHtmlEntities(mainMatch ? mainMatch[1] : html);
+  const pageYear = extractPageDefaultYear(html) ?? STOCKHOLM_PDF_DEFAULT_YEAR;
+  const out = [];
+
+  const h3Re = /<h3\b[^>]*>([\s\S]*?)<\/h3>/gi;
+  /** @type {Array<{ name: string, contentStart: number }>} */
+  const headings = [];
+  let hm;
+  while ((hm = h3Re.exec(slice)) !== null) {
+    const name = stripTags(hm[1])
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!name || /^cuper\s+\d{4}\b/i.test(name)) {
+      continue;
+    }
+    headings.push({
+      name,
+      contentStart: hm.index + hm[0].length,
+    });
+  }
+
+  for (let i = 0; i < headings.length; i += 1) {
+    const contentStart = headings[i].contentStart;
+    const after = slice.slice(contentStart);
+    const nextH3 = after.search(/<h3\b/i);
+    const nextH2 = after.search(/<h2\b/i);
+    let relEnd = after.length;
+    if (nextH3 >= 0) {
+      relEnd = Math.min(relEnd, nextH3);
+    }
+    if (nextH2 >= 0) {
+      relEnd = Math.min(relEnd, nextH2);
+    }
+    const block = after.slice(0, relEnd);
+    if (!/\bArrangör\s*:/i.test(block) && !/\bDatum\s*:/i.test(block)) {
+      continue;
+    }
+
+    const organizer = extractDalarnaStrongLabel(block, 'Arrangör') || null;
+    const dateRaw = extractDalarnaStrongLabel(block, 'Datum');
+    const location = extractDalarnaStrongLabel(block, 'Spelort') || null;
+    const categories = extractDalarnaStrongLabel(block, 'Åldersgrupp') || null;
+
+    let start = null;
+    let end = null;
+    let dateText = dateRaw || null;
+    if (dateRaw) {
+      const sm = parseDatumFieldSmaland(dateRaw, pageYear);
+      start = sm.start;
+      end = sm.end;
+      dateText = sm.dateText || dateRaw;
+      if (!start) {
+        const slash = parseSwedishSlashDateRange(dateRaw, pageYear);
+        start = slash.start;
+        end = slash.end;
+        dateText = slash.dateText || dateRaw;
+      }
+      if (!start) {
+        const aw = parseAngermanlandSlashWeekendRanges(dateRaw, pageYear);
+        start = aw.start;
+        end = aw.end;
+        dateText = aw.dateText || dateRaw;
+      }
+    }
+
+    const registrationUrl = extractExternalUrl(block) || extractUrlFromCellOrLine(block);
+
+    const descParts = [
+      dateRaw,
+      location,
+      categories,
+      organizer,
+      extractDalarnaStrongLabel(block, 'Info'),
+    ].filter(Boolean);
+
+    out.push({
+      name: headings[i].name.slice(0, 255),
+      organizer,
+      location,
+      start_date: start,
+      end_date: end,
+      categories,
+      team_count: null,
+      match_format: null,
+      description: descParts.join(' · ').slice(0, 1500) || null,
+      registration_url: registrationUrl,
+      source_url: sourceUrl || null,
+      source_type: sourceType || 'html',
+      external_id: stableExternalId(
+        headings[i].name,
+        start,
+        end,
+        registrationUrl,
+        dateText || dateRaw,
+      ),
+    });
+  }
+
+  return out;
+}
+
+/**
+ * Värmland dokumentbank: accordion "Cuptillstånd YYYY" with month h2 + h3 cups.
+ * @param {string} decodedHtml
+ * @param {string} rawHtml
+ */
+function looksLikeVarmlandCuptillstand(decodedHtml, rawHtml) {
+  const html = decodedHtml || rawHtml || '';
+  if (!/Cuptillstånd\s*20\d{2}/i.test(html)) {
+    return false;
+  }
+  // No \b before Å — JS \b is ASCII-only and fails on "Åldersgrupp".
+  if (!/Åldersgrupp\s*:/i.test(html) || !/\bDatum\s*:/i.test(html)) {
+    return false;
+  }
+  return /Arrangörsförening\s*:/i.test(html) || /\bArrangör\s*:/i.test(html);
+}
+
+/**
+ * Resolve site-relative or absolute hrefs; only http(s) allowed (blocks data:, javascript:, etc.).
+ * @param {string|null|undefined} href
+ * @param {string|null|undefined} sourceUrl
+ */
+function resolveMaybeRelativeUrl(href, sourceUrl) {
+  const t = String(href || '').trim();
+  if (!t || t.startsWith('#')) {
+    return null;
+  }
+  let resolved;
+  try {
+    if (/^https?:\/\//i.test(t)) {
+      resolved = new URL(t);
+    } else if (!sourceUrl) {
+      return null;
+    } else {
+      resolved = new URL(t, sourceUrl);
+    }
+  } catch {
+    return null;
+  }
+  if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') {
+    return null;
+  }
+  return resolved.href;
+}
+
+/**
+ * Prefer "Inbjudan" PDF/link; accept absolute or site-relative hrefs.
+ * @param {string} blockHtml
+ * @param {string|null|undefined} sourceUrl
+ */
+function extractVarmlandInviteUrl(blockHtml, sourceUrl) {
+  const invite = String(blockHtml || '').match(
+    /<a\b[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?Inbjudan/i,
+  );
+  if (invite) {
+    return resolveMaybeRelativeUrl(invite[1], sourceUrl);
+  }
+  const abs = extractExternalUrl(blockHtml);
+  if (abs) {
+    return abs;
+  }
+  const any = String(blockHtml || '').match(/<a\b[^>]*href=["']([^"']+)["']/i);
+  if (any) {
+    return resolveMaybeRelativeUrl(any[1], sourceUrl);
+  }
+  return null;
+}
+
+/**
+ * Plain "Label: value" from text (Värmland uses br-separated labels, not strong).
+ * @param {string} text
+ * @param {string} label
+ */
+function extractPlainLabeledValue(text, label) {
+  const escaped = String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`${escaped}\\s*:\\s*([^\\n]+)`, 'i');
+  const m = String(text || '').match(re);
+  if (!m) {
+    return '';
+  }
+  return m[1].replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * @param {string} html
+ * @param {string|null|undefined} sourceUrl
+ * @param {string|null|undefined} sourceType
+ */
+function parseVarmlandCuptillstandCups(html, sourceUrl, sourceType) {
+  const blocks = splitAccordionItemBlocks(html);
+  let innerHtml = '';
+  let accordionYear = null;
+  for (const block of blocks) {
+    const title = extractAccordionTitle(block);
+    const titleText = stripTags(title)
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!/Cuptillstånd\s*20\d{2}/i.test(titleText)) {
+      continue;
+    }
+    const ym = titleText.match(/Cuptillstånd\s*(20\d{2})/i);
+    if (ym) {
+      accordionYear = parseInt(ym[1], 10);
+    }
+    const idx = block.indexOf('accordion__content');
+    innerHtml = decodeHtmlEntities(idx >= 0 ? block.slice(idx) : block);
+    break;
+  }
+
+  if (!innerHtml) {
+    // Fixture / partial HTML without accordion chrome.
+    if (!looksLikeVarmlandCuptillstand(decodeHtmlEntities(html), html)) {
+      return [];
+    }
+    innerHtml = decodeHtmlEntities(html);
+  }
+
+  let defaultYear = accordionYear || extractPageDefaultYear(html) || STOCKHOLM_PDF_DEFAULT_YEAR;
+  const out = [];
+
+  const h3Re = /<h3\b[^>]*>([\s\S]*?)<\/h3>/gi;
+  /** @type {Array<{ name: string, contentStart: number }>} */
+  const headings = [];
+  let hm;
+  while ((hm = h3Re.exec(innerHtml)) !== null) {
+    const name = stripTags(hm[1])
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!name) {
+      continue;
+    }
+    headings.push({
+      name,
+      contentStart: hm.index + hm[0].length,
+    });
+  }
+
+  for (let i = 0; i < headings.length; i += 1) {
+    const contentStart = headings[i].contentStart;
+    const after = innerHtml.slice(contentStart);
+    const nextH3 = after.search(/<h3\b/i);
+    const nextH2 = after.search(/<h2\b/i);
+    let relEnd = after.length;
+    if (nextH3 >= 0) {
+      relEnd = Math.min(relEnd, nextH3);
+    }
+    if (nextH2 >= 0) {
+      relEnd = Math.min(relEnd, nextH2);
+    }
+
+    // Year from preceding month heading when present ("JANUARI - 2026").
+    const before = innerHtml.slice(0, contentStart);
+    const monthHeads = [...before.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)];
+    if (monthHeads.length > 0) {
+      const lastH2 = stripTags(monthHeads[monthHeads.length - 1][1])
+        .replace(/\s+/g, ' ')
+        .trim();
+      const hy = lastH2.match(/\b(20\d{2})\b/);
+      if (hy) {
+        defaultYear = parseInt(hy[1], 10);
+      }
+    }
+
+    const block = after.slice(0, relEnd);
+    const text = decodeHtmlEntities(
+      block
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<[^>]+>/g, ' '),
+    )
+      .replace(/\u00a0/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{2,}/g, '\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim();
+
+    if (!/\bDatum\s*:/i.test(text) && !/Åldersgrupp\s*:/i.test(text)) {
+      continue;
+    }
+
+    const categories = extractPlainLabeledValue(text, 'Åldersgrupp') || null;
+    const dateRaw = extractPlainLabeledValue(text, 'Datum');
+    const organizer =
+      extractPlainLabeledValue(text, 'Arrangörsförening') ||
+      extractPlainLabeledValue(text, 'Arrangör') ||
+      null;
+
+    let start = null;
+    let end = null;
+    let dateText = dateRaw || null;
+    if (dateRaw) {
+      const sm = parseDatumFieldSmaland(dateRaw, defaultYear);
+      start = sm.start;
+      end = sm.end;
+      dateText = sm.dateText || dateRaw;
+    }
+
+    const registrationUrl = extractVarmlandInviteUrl(block, sourceUrl);
+    let matchFormat = null;
+    if (/\(\s*F\s*\)\s*$/i.test(headings[i].name) || /\bfutsal\b/i.test(headings[i].name)) {
+      matchFormat = 'Futsal';
+    }
+
+    const descParts = [dateRaw, categories, organizer].filter(Boolean);
+    const idKey = [dateText || dateRaw || '', categories || ''].filter(Boolean).join('|');
+
+    out.push({
+      name: headings[i].name.slice(0, 255),
+      organizer,
+      location: null,
+      start_date: start,
+      end_date: end,
+      categories,
+      team_count: null,
+      match_format: matchFormat,
+      description: descParts.join(' · ').slice(0, 1500) || null,
+      registration_url: registrationUrl,
+      source_url: sourceUrl || null,
+      source_type: sourceType || 'html',
+      external_id: stableExternalId(headings[i].name, start, end, registrationUrl, idKey),
+    });
+  }
+
+  return out;
+}
+
+/**
  * Uppland (Arr. förening + strong date line) and Jämtland (Cuper YYYY + prose paragraphs).
  * @param {string} html
  * @param {string|null|undefined} sourceUrl
@@ -2494,11 +3547,17 @@ function parseSvffParagraphListCups(html, sourceUrl, sourceType) {
  * @param {string|null|undefined} sourceType
  */
 function parseUpplandParagraphCups(htmlFragment, sourceUrl, sourceType) {
-  const out = [];
+  /** @type {Array<{ inner: string }>} */
+  const paragraphs = [];
   const pRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
   let pm;
   while ((pm = pRe.exec(htmlFragment)) !== null) {
-    const inner = pm[1];
+    paragraphs.push({ inner: pm[1] });
+  }
+
+  const out = [];
+  for (let i = 0; i < paragraphs.length; i += 1) {
+    const inner = paragraphs[i].inner;
     if (!/Arr\.\s*förening\s*:/i.test(inner)) {
       continue;
     }
@@ -2518,7 +3577,31 @@ function parseUpplandParagraphCups(htmlFragment, sourceUrl, sourceType) {
     const orgM = inner.match(/Arr\.\s*förening\s*:\s*([^<\n]+)/i);
     const organizer = orgM ? stripTags(orgM[1]).replace(/\s+/g, ' ').trim() : '';
 
-    const regUrl = extractExternalUrl(inner) || extractUrlFromCellOrLine(inner);
+    const kontaktM = inner.match(/Kontakts?person\s*:\s*([\s\S]*?)(?=<br\s*\/?>|$)/i);
+    let kontakt = '';
+    let kontaktEmail = null;
+    if (kontaktM) {
+      const chunk = kontaktM[1];
+      const mail = chunk.match(/mailto:([^"'\s>]+)/i);
+      if (mail) {
+        kontaktEmail = decodeURIComponent(mail[1].trim());
+      }
+      kontakt = stripTags(chunk).replace(/\s+/g, ' ').trim();
+    }
+
+    let regUrl = extractExternalUrl(inner) || extractUrlFromCellOrLine(inner);
+    // Info-länken ligger ofta i nästa <p> ("Klicka här för information om cupen").
+    if (!regUrl && i + 1 < paragraphs.length) {
+      const nextInner = paragraphs[i + 1].inner;
+      const nextText = stripTags(nextInner).replace(/\s+/g, ' ').trim();
+      if (
+        /Klicka här|information om cupen/i.test(nextText) ||
+        /cupmate|procup|laget\.se/i.test(nextInner)
+      ) {
+        regUrl = extractExternalUrl(nextInner) || extractUrlFromCellOrLine(nextInner);
+      }
+    }
+
     const dateRawClean = dateRaw.trim();
     let start = null;
     let end = null;
@@ -2544,6 +3627,19 @@ function parseUpplandParagraphCups(htmlFragment, sourceUrl, sourceType) {
       end = smd.end;
     }
 
+    const descParts = [];
+    if (organizer) descParts.push(`Arrangör: ${organizer}`);
+    if (dateRawClean) {
+      descParts.push(`Datum: ${dateRawClean}`);
+    } else if (start || end) {
+      descParts.push(
+        start && end && start !== end ? `Datum: ${start} – ${end}` : `Datum: ${start || end}`,
+      );
+    }
+    if (kontakt) descParts.push(`Kontakt: ${kontakt}`);
+    if (kontaktEmail) descParts.push(`E-post: ${kontaktEmail}`);
+    if (regUrl) descParts.push(`Anmälan: ${regUrl}`);
+
     out.push({
       name: cupName.slice(0, 255),
       organizer: organizer || null,
@@ -2553,7 +3649,7 @@ function parseUpplandParagraphCups(htmlFragment, sourceUrl, sourceType) {
       categories: null,
       team_count: null,
       match_format: null,
-      description: stripTags(inner).slice(0, 1500),
+      description: descParts.join('\n').slice(0, 1500) || null,
       registration_url: regUrl,
       source_url: sourceUrl || null,
       source_type: sourceType || 'html',
@@ -2714,9 +3810,13 @@ module.exports = {
   parseStockholmPdfTableCups,
   parseLabeledPlaintextPdfCups,
   parseBohuslanHtmlListCups,
+  parseSvffBeviljadeListCups,
   parseSvffTableCups,
   parseSodermanlandAccordionCups,
   parseSvffYearMonthListCups,
   parseAngermanlandLabeledCups,
+  parseDalarnaH3LabeledCups,
+  parseVarmlandCuptillstandCups,
+  resolveMaybeRelativeUrl,
   parseSvffParagraphListCups,
 };

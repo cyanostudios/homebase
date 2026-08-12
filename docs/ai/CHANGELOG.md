@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Cupappen UX/IA + UTM + stats-fält — QA/Security docs sync (2026-08-12)
+
+Docs efter **QA Approved** + **Security Approved** för Cupappen bottom bar Hem/Distrikt/Info, `/distrikt/`, Hem-picker/utvalda/tidsbuckets, cup-detalj-polish, UTM entity-decode, favicon 301, admin pageview-fält (distrikt/datum). Ärvd residual **A1–A2** (pageviews ADR). Rekommendation **R-UTM-1** (http(s)-allowlist på anmälnings-CTA) dokumenterad i produkt-CHANGELOG + `public-cups/README`. Parallellt: ingest parse-profiler + `CUPS_DISTRICT_SOURCE_CATALOG.md`. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Clubdesk Info contacts + featured — QA/Security docs sync (2026-08-11)
 
 Docs efter **QA Approved** + **Security Approved** för featured Hem-kort + Info-kontaktlista. ADR [`CLUBDESK_PUBLIC_COMPANION.md`](adr/CLUBDESK_PUBLIC_COMPANION.md) Security-residual **IC-1** (publikt PHP utan `user_id`; PII whitelist) + **IC-2** (join hardening) — **väntar TPM medvetet godkännande** för IC-1. README `public-clubdesk` synkad (routes/API). **Local-first; ej prod-release.**

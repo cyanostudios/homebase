@@ -16,9 +16,11 @@ Cupappen is a public catalogue of football (soccer) tournaments in Sweden, publi
   - `{slug}` is derived from the cup name (ASCII slug). `{year}` is taken from start/end date when available to disambiguate recurring names.
 - **District listing (SPA):** `https://www.cupappen.se/{district}/` (e.g. `/skane/`)
 - **Search (SPA):** `https://www.cupappen.se/sok/` — optional `?q={term}` (and `?date=all` when showing all dates). Prefer this over legacy `#search` hashes.
-- **Other listing paths (SPA):** `/kommande/`, `/alla/`, `/info/`
+- **Districts index (SPA):** `https://www.cupappen.se/distrikt/` — A–Ö picker of federation districts (also linked from the home page and bottom bar).
+- **Other listing paths (SPA):** `/kommande/`, `/alla/`, `/info/` (still valid; primary chrome is Hem / Distrikt / Info).
 - Legacy redirect: older links like `/cup/{slug}-{year}` or `/cup/{id}-{slug}` 301 to the district URL when the cup exists.
-- Homepage `https://www.cupappen.se/` loads the interactive listing. Each visible cup also has the dedicated detail URL in the sitemap.
+- Homepage `https://www.cupappen.se/` loads the interactive listing (featured + time rows + district picker). Each visible cup also has the dedicated detail URL in the sitemap.
+- Favicon: `/favicon.ico` redirects (301) to `/favicon.svg`.
 
 ## Machine-readable metadata
 - Cup detail pages are **server-rendered HTML** (not only a client shell) and include:
@@ -34,7 +36,7 @@ Cupappen is a public catalogue of football (soccer) tournaments in Sweden, publi
 
 ## Sitemaps & discovery
 - XML sitemap: https://www.cupappen.se/sitemap.xml
-  - Includes homepage, `/sok/`, `/kommande/`, `/info/`, district listing URLs (`/{district}/` including `/ovrigt/` when applicable), and cup detail URLs (`/{district}/{slug}-{year}`).
+  - Includes homepage, `/sok/`, `/kommande/`, `/distrikt/`, `/info/`, district listing URLs (`/{district}/` including `/ovrigt/` when applicable), and cup detail URLs (`/{district}/{slug}-{year}`).
   - Prefer **www** in Search Console (apex redirects can drop paths).
 
 ## Data freshness & accuracy

@@ -27,6 +27,22 @@ describe('Cupappen districtUrls', () => {
     expect(districtSlugFromPath('/kommande/')).toBeNull();
     expect(districtSlugFromPath('/alla/')).toBeNull();
     expect(districtSlugFromPath('/info/')).toBeNull();
+    expect(districtSlugFromPath('/distrikt/')).toBeNull();
+  });
+
+  test('appTabFromPath maps listing segments including districts index', () => {
+    expect(appTabFromPath('/sok/')).toBe('search');
+    expect(appTabFromPath('/kommande/')).toBe('upcoming');
+    expect(appTabFromPath('/alla/')).toBe('all');
+    expect(appTabFromPath('/info/')).toBe('info');
+    expect(appTabFromPath('/distrikt/')).toBe('districts');
+    expect(appTabFromPath('/distrikt')).toBe('districts');
+    expect(appTabFromPath('/skane/')).toBeNull();
+  });
+
+  test('appPathForTab includes districts index', () => {
+    expect(appPathForTab('districts')).toBe('/distrikt/');
+    expect(appPathForTab('home')).toBe('/');
   });
 
   test('appTabFromPath / appPathForTab map listing tabs', () => {

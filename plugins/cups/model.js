@@ -634,12 +634,18 @@ class CupsModel {
           [days],
         ),
         pool.query(
-          `SELECT c.id AS cup_id, c.name, SUM(pv.views)::int AS views
+          `SELECT c.id AS cup_id,
+                  c.name,
+                  c.start_date,
+                  c.end_date,
+                  src.name AS district,
+                  SUM(pv.views)::int AS views
              FROM cupappen_pageviews_daily pv
              JOIN cups c ON c.id::text = pv.target_key AND c.user_id = $2
+             LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
             WHERE pv.page_kind = 'cup'
               AND pv.day >= (CURRENT_DATE - ($1::int - 1))
-            GROUP BY c.id, c.name
+            GROUP BY c.id, c.name, c.start_date, c.end_date, src.name
             ORDER BY views DESC, c.name ASC
             LIMIT 25`,
           [days, userId],
@@ -671,6 +677,9 @@ class CupsModel {
         topCups: topCupsRes.rows.map((r) => ({
           cup_id: Number(r.cup_id),
           name: r.name ?? '',
+          district: r.district ? String(r.district) : null,
+          start_date: r.start_date ? String(r.start_date) : null,
+          end_date: r.end_date ? String(r.end_date) : null,
           views: Number(r.views) || 0,
         })),
         topDistricts: topDistrictsRes.rows.map((r) => ({

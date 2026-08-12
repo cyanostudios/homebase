@@ -13,6 +13,11 @@
 		php_fastcgi 127.0.0.1:9000
 	}
 
+	# Browsers request /favicon.ico; keep SPA fallback from serving index.html as the icon.
+	handle /favicon.ico {
+		redir /favicon.svg permanent
+	}
+
 	# Legacy /cup/... and new /{district}/{cup-slug}
 	# API is handled above so /api/* never hits this regexp.
 	@legacyCup path /cup /cup/*

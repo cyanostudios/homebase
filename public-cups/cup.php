@@ -160,6 +160,7 @@ function cupReservedDistrictSegments(): array
         'kommande',
         'alla',
         'info',
+        'distrikt',
     ];
 }
 
@@ -280,7 +281,25 @@ function formatDateSv(?string $value): string
     if ($ts === false) {
         return $value;
     }
-    return date('j M Y', $ts);
+    static $monthsSv = [
+        1 => 'jan',
+        2 => 'feb',
+        3 => 'mar',
+        4 => 'apr',
+        5 => 'maj',
+        6 => 'jun',
+        7 => 'jul',
+        8 => 'aug',
+        9 => 'sep',
+        10 => 'okt',
+        11 => 'nov',
+        12 => 'dec',
+    ];
+    $day = (int) date('j', $ts);
+    $month = $monthsSv[(int) date('n', $ts)] ?? '';
+    $year = date('Y', $ts);
+
+    return $month !== '' ? ($day . ' ' . $month . ' ' . $year) : date('j M Y', $ts);
 }
 
 function dateRangeLabel(array $cup): string
@@ -303,8 +322,24 @@ function splitCategories(?string $categories): array
     if (!$categories) {
         return [];
     }
-    $parts = array_map(static fn($s) => trim((string) $s), explode(',', $categories));
+    $parts = array_map(
+        static fn($s) => capitalizeBadgeLabel(trim((string) $s)),
+        explode(',', $categories),
+    );
     return array_values(array_filter($parts, static fn($s) => $s !== ''));
+}
+
+/** First character uppercase (UTF-8) for badge labels. */
+function capitalizeBadgeLabel(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+    $first = mb_substr($value, 0, 1, 'UTF-8');
+    $rest = mb_substr($value, 1, null, 'UTF-8');
+
+    return mb_strtoupper($first, 'UTF-8') . $rest;
 }
 
 /** Samma som startsidans filtrering för “utvalda” (featured). */
@@ -337,12 +372,131 @@ function sortCupsLikeHomepage(array &$rows): void
             if ($cmp !== 0) {
                 return $cmp;
             }
-
-            return strcmp(
+            $nameCmp = strcmp(
                 normalizeText((string) ($a['name'] ?? '')),
                 normalizeText((string) ($b['name'] ?? '')),
             );
+            if ($nameCmp !== 0) {
+                return $nameCmp;
+            }
+
+            return ((int) ($a['id'] ?? 0)) <=> ((int) ($b['id'] ?? 0));
         },
+    );
+}
+
+/**
+ * Upcoming for district “next cup” nav (same compare date as past-cup banner).
+ *
+ * @param array<string, mixed> $cup
+ */
+function cupIsUpcomingForNav(array $cup): bool
+{
+    $raw = (string) ($cup['end_date'] ?? $cup['start_date'] ?? '');
+    if ($raw === '') {
+        return false;
+    }
+    $ts = strtotime($raw);
+
+    return $ts !== false && $ts >= time();
+}
+
+/**
+ * Next upcoming cup in the same district (sorted like homepage). Wraps among upcoming only.
+ *
+ * @param array<string, mixed> $current
+ * @param array<int, array<string, mixed>> $districtCups
+ * @return array<string, mixed>|null
+ */
+function nextCupInDistrict(array $current, array $districtCups): ?array
+{
+    $upcoming = array_values(
+        array_filter(
+            $districtCups,
+            static fn (array $row): bool => cupIsUpcomingForNav($row),
+        ),
+    );
+    if ($upcoming === []) {
+        return null;
+    }
+    sortCupsLikeHomepage($upcoming);
+    $currentId = (int) ($current['id'] ?? 0);
+    $idx = -1;
+    foreach ($upcoming as $i => $row) {
+        if ((int) ($row['id'] ?? 0) === $currentId) {
+            $idx = $i;
+            break;
+        }
+    }
+    if ($idx < 0) {
+        return $upcoming[0] ?? null;
+    }
+    if (count($upcoming) < 2) {
+        return null;
+    }
+
+    return $upcoming[($idx + 1) % count($upcoming)] ?? null;
+}
+
+/**
+ * @param array<string, mixed> $current
+ * @return array<int, array<string, mixed>>
+ */
+function fetchDistrictCupsForNav(PDO $pdo, array $current): array
+{
+    require_once __DIR__ . '/api/db_helpers.php';
+    $deletedFilter = publicCupsTableHasColumn($pdo, 'cups', 'deleted_at')
+        ? ' AND c.deleted_at IS NULL'
+        : '';
+    $hasIngest = publicCupsTableHasColumn($pdo, 'cups', 'ingest_source_id');
+
+    $upcomingFilter = ' AND COALESCE(c.end_date, c.start_date) IS NOT NULL'
+        . ' AND COALESCE(c.end_date, c.start_date)::timestamp >= NOW()';
+
+    if ($hasIngest) {
+        $sourceId = $current['ingest_source_id'] ?? null;
+        if ($sourceId === null || $sourceId === '') {
+            $sql = "SELECT c.id, c.name, c.start_date, c.end_date, src.name AS ingest_source_name
+                    FROM cups c
+                    LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
+                    WHERE COALESCE(c.visible, TRUE) = TRUE
+                      AND c.ingest_source_id IS NULL
+                      {$deletedFilter}
+                      {$upcomingFilter}
+                    ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC";
+            $stmt = $pdo->query($sql);
+        } else {
+            $sql = "SELECT c.id, c.name, c.start_date, c.end_date, src.name AS ingest_source_name
+                    FROM cups c
+                    LEFT JOIN ingest_sources src ON src.id = c.ingest_source_id
+                    WHERE COALESCE(c.visible, TRUE) = TRUE
+                      AND c.ingest_source_id = :sid
+                      {$deletedFilter}
+                      {$upcomingFilter}
+                    ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(['sid' => (int) $sourceId]);
+        }
+        $rows = $stmt ? $stmt->fetchAll() : [];
+        return array_values(array_filter($rows, static fn ($r) => is_array($r)));
+    }
+
+    $districtSlug = cupDistrictSlug($current);
+    $sql = "SELECT c.id, c.name, c.start_date, c.end_date, NULL::text AS ingest_source_name
+            FROM cups c
+            WHERE COALESCE(c.visible, TRUE) = TRUE
+              {$deletedFilter}
+              {$upcomingFilter}
+            ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC";
+    $stmt = $pdo->query($sql);
+    $rows = $stmt ? $stmt->fetchAll() : [];
+    return array_values(
+        array_filter(
+            $rows,
+            static function ($r) use ($districtSlug): bool {
+                return is_array($r) && cupDistrictSlug($r) === $districtSlug;
+            },
+        ),
     );
 }
 
@@ -736,6 +890,36 @@ if ($pdo instanceof PDO) {
     $sidebarFeaturedCups = array_slice($pool, 0, $sidebarUtvaldaLimit);
 }
 
+$nextCupInDistrict = null;
+$nextCupHref = '';
+if ($pdo instanceof PDO) {
+    try {
+        $districtNavCups = fetchDistrictCupsForNav($pdo, $cup);
+        $nextCupInDistrict = nextCupInDistrict($cup, $districtNavCups);
+    } catch (Throwable $e) {
+        $nextCupInDistrict = null;
+    }
+} else {
+    if (!isset($allCupsFallback) || !is_array($allCupsFallback)) {
+        $allCupsFallback = fetchPublicCupsFallback();
+    }
+    $districtSlug = cupDistrictSlug($cup);
+    $districtNavCups = array_values(
+        array_filter(
+            $allCupsFallback,
+            static function ($row) use ($districtSlug): bool {
+                return is_array($row)
+                    && cupDistrictSlug($row) === $districtSlug
+                    && cupIsUpcomingForNav($row);
+            },
+        ),
+    );
+    $nextCupInDistrict = nextCupInDistrict($cup, $districtNavCups);
+}
+if (is_array($nextCupInDistrict) && (int) ($nextCupInDistrict['id'] ?? 0) > 0) {
+    $nextCupHref = cupCanonicalPath($nextCupInDistrict);
+}
+
 $metaDescription = $description !== '' ? $description : trim($title . ' i ' . ($location !== '' ? $location : 'Sverige') . '. Datum, arrangör och anmälan på Cupappen.');
 $metaDescriptionHtml = truncateMetaDescription($metaDescription !== '' ? $metaDescription : $title);
 $ogImageUrl = absolutePublicUrl($baseUrl, $imageUrl);
@@ -944,7 +1128,15 @@ $jsonLdGraph = jsonLdStripNulls([
           />
         </picture>
       </a>
-      <a class="detail-back" href="/" id="detail-back-btn">Tillbaka</a>
+      <div class="detail-header__actions">
+        <?php if ($nextCupHref !== ''): ?>
+          <a class="detail-next" href="<?= h($nextCupHref) ?>" title="Nästa cup i samma distrikt">
+            <span class="detail-next__long">Nästa cup i samma distrikt</span>
+            <span class="detail-next__short">Nästa cup</span>
+          </a>
+        <?php endif; ?>
+        <a class="detail-back" href="<?= h('/' . cupDistrictSlug($cup) . '/') ?>" id="detail-back-btn">Tillbaka</a>
+      </div>
     </div>
   </header>
 
@@ -971,30 +1163,36 @@ $jsonLdGraph = jsonLdStripNulls([
         <button class="share-btn" id="share-btn" type="button">Dela</button>
       </div>
 
-      <div class="highlights-grid">
-        <?php if (($cup['sanctioned'] ?? true) !== false && ($cup['sanctioned'] ?? 'true') !== 'false'): ?>
-          <div class="highlight-item"><span class="highlight-item__check">✓</span><div class="highlight-item__text">Sanktionerad cup</div></div>
-        <?php endif; ?>
-        <?php if (!empty($cup['match_format'])): ?>
-          <div class="highlight-item"><span class="highlight-item__check">✓</span><div class="highlight-item__text">Spelform: <?= h((string) $cup['match_format']) ?></div></div>
-        <?php endif; ?>
-        <?php if ($organizer !== ''): ?>
-          <div class="highlight-item"><span class="highlight-item__check">✓</span><div class="highlight-item__text">Arrangör: <?= h($organizer) ?></div></div>
-        <?php endif; ?>
-      </div>
-
+      <?php
+        $isSanctioned = ($cup['sanctioned'] ?? true) !== false && ($cup['sanctioned'] ?? 'true') !== 'false';
+        $matchFormat = normalizeText((string) ($cup['match_format'] ?? ''));
+        $metaBadges = [];
+        if ($matchFormat !== '') {
+            $metaBadges[] = capitalizeBadgeLabel('Spelform: ' . $matchFormat);
+        }
+        if ($organizer !== '') {
+            $metaBadges[] = capitalizeBadgeLabel('Arrangör: ' . $organizer);
+        }
+      ?>
+      <?php if (count($metaBadges) > 0): ?>
+        <div class="meta-badges" aria-label="Cupmeta">
+          <?php foreach ($metaBadges as $badge): ?>
+            <span class="meta-badge"><?= h($badge) ?></span>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
       <?php if (count($categories) > 0): ?>
-        <div class="included-chips">
+        <div class="meta-badges meta-badges--categories" aria-label="Ålderskategorier">
           <?php foreach ($categories as $category): ?>
-            <span class="included-chip"><?= h($category) ?></span>
+            <span class="meta-badge meta-badge--category"><?= h(capitalizeBadgeLabel($category)) ?></span>
           <?php endforeach; ?>
         </div>
       <?php endif; ?>
 
       <?php if ($description !== ''): ?>
-        <section style="margin-top: 2rem;">
+        <section class="cup-about" style="margin-top: 2rem;">
           <h2 class="h3">Om cupen</h2>
-          <p><?= h($description) ?></p>
+          <div class="cup-description"><?= h($description) ?></div>
         </section>
       <?php endif; ?>
 
@@ -1100,10 +1298,23 @@ $jsonLdGraph = jsonLdStripNulls([
           <li class="info-list__row"><div><span class="info-list__label">Datum</span><p class="info-list__value"><?= h($dateRange) ?></p></div></li>
           <?php if ($location !== ''): ?><li class="info-list__row"><div><span class="info-list__label">Plats</span><p class="info-list__value"><?= h($location) ?></p></div></li><?php endif; ?>
           <?php if ($organizer !== ''): ?><li class="info-list__row"><div><span class="info-list__label">Arrangör</span><p class="info-list__value"><?= h($organizer) ?></p></div></li><?php endif; ?>
+          <?php if ($isSanctioned): ?>
+            <li class="info-list__row info-list__row--sanction">
+              <div class="info-list__sanction">
+                <p class="info-list__sanction-label">
+                  <span class="info-list__sanction-check" aria-hidden="true">✓</span>
+                  Sanktionerad av distrikt
+                </p>
+                <a class="info-list__district-link" href="<?= h('/' . cupDistrictSlug($cup) . '/') ?>"><?= h($districtLabel) ?></a>
+              </div>
+            </li>
+          <?php endif; ?>
           <?php if (!empty($cup['team_count'])): ?><li class="info-list__row"><div><span class="info-list__label">Lag</span><p class="info-list__value"><?= h((string) ((int) $cup['team_count'])) ?></p></div></li><?php endif; ?>
         </ul>
         <?php if ($registrationWithUtm !== ''): ?>
           <a class="info-card__cta" target="_blank" rel="noopener noreferrer" href="<?= h($registrationWithUtm) ?>">Till anmälan</a>
+        <?php else: ?>
+          <p class="info-card__cta-missing">Det finns tyvärr ingen anmälningslänk</p>
         <?php endif; ?>
         <?php
             $mailSubject = 'Uppdatering: ' . $title;
@@ -1139,24 +1350,11 @@ $jsonLdGraph = jsonLdStripNulls([
   </main>
 
   <footer class="detail-footer">
-    <a href="/" id="detail-footer-back">Tillbaka till Cupappen</a>
+    <a href="<?= h('/' . cupDistrictSlug($cup) . '/') ?>" id="detail-footer-back">Tillbaka till <?= h($districtLabel) ?></a>
   </footer>
 
   <script>
     (function () {
-      /** Prefer browser history so Tillbaka returns to listing tab. */
-      function bindBackNav(el) {
-        if (!el) return;
-        el.addEventListener('click', function (e) {
-          if (window.history.length > 1) {
-            e.preventDefault();
-            window.history.back();
-          }
-        });
-      }
-      bindBackNav(document.getElementById('detail-back-btn'));
-      bindBackNav(document.getElementById('detail-footer-back'));
-
       document.querySelectorAll('#detail-logo, a.logo').forEach(function (el) {
         el.addEventListener('click', function () {
           try {

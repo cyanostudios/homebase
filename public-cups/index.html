@@ -53,10 +53,10 @@
     <link rel="canonical" href="https://www.cupappen.se/" />
     <link rel="alternate" hreflang="sv-SE" href="https://www.cupappen.se/" />
     <link rel="alternate" hreflang="x-default" href="https://www.cupappen.se/" />
-    <!-- Absolute URLs help Google & social crawlers (avoid wrong default /favicon.svg). -->
-    <link rel="icon" type="image/svg+xml" href="https://www.cupappen.se/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="48x48" href="https://www.cupappen.se/assets/cupappen-favicon.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="https://www.cupappen.se/assets/cupappen-favicon.png" />
+    <!-- Same-origin icons (works on localhost + prod; /favicon.ico redirects to SVG). -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/assets/cupappen-favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/cupappen-favicon.png" />
     <link rel="sitemap" type="application/xml" title="Sitemap" href="https://www.cupappen.se/sitemap.xml" />
     <link rel="alternate" type="text/plain" title="Guide för AI/LLM (llms.txt)" href="https://www.cupappen.se/llms.txt" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -198,10 +198,31 @@
             </div>
           </section>
 
-          <section class="district-page" id="district-hero" aria-label="Distrikt" hidden>
-            <div class="district-page__header">
-              <h1 class="district-page__title" id="district-hero-title"></h1>
-              <p class="district-page__lead" id="district-hero-lead"></p>
+          <section class="hero" id="district-hero" aria-label="Distrikt" hidden>
+            <div class="hero__content">
+              <div class="hero__badge fade-up" role="status" aria-live="polite" data-testid="district-cup-count-badge">
+                <span class="hero__badge-dot" aria-hidden="true"></span>
+                <span id="district-cup-count-line">…</span>
+              </div>
+              <h1 class="hero__title fade-up delay-1" id="district-hero-title"></h1>
+              <p class="hero__lead fade-up delay-2" id="district-hero-lead"></p>
+            </div>
+          </section>
+
+          <section class="hero" id="districts-index-hero" aria-label="Distriktsöversikt" hidden>
+            <div class="hero__content">
+              <p class="hero__preheading fade-up">Svenska Fotbollsförbundets distrikt</p>
+              <h1 class="hero__title fade-up delay-1">
+                Välj ditt <em class="display-accent">distrikt</em>
+              </h1>
+              <p class="hero__lead fade-up delay-2">
+                Hitta sanktionerade cuper via ditt distriktsförbund — samma lista som förbunden publicerar.
+              </p>
+              <a
+                class="info-panel__cta hero__cta fade-up delay-2"
+                href="mailto:info@cupappen.se?subject=Saknar%20cup"
+                >Kontakta oss om du saknar en cup</a
+              >
             </div>
           </section>
 
@@ -280,32 +301,12 @@
             <span class="bottom-bar__label">Hem</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
-          <a class="bottom-bar__tab" href="/kommande/" data-tab="upcoming">
+          <a class="bottom-bar__tab" href="/distrikt/" data-tab="districts">
             <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
+              <path d="M4 4h4l2 2h4l2-2h4v16H4V4z" />
+              <path d="M9 7h6M9 11h6M9 15h3" />
             </svg>
-            <span class="bottom-bar__label">Kommande</span>
-            <span class="bottom-bar__dot" aria-hidden="true"></span>
-          </a>
-          <a class="bottom-bar__tab" href="/alla/" data-tab="all">
-            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <rect x="3" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="3" width="7" height="7" rx="1.5" />
-              <rect x="3" y="14" width="7" height="7" rx="1.5" />
-              <rect x="14" y="14" width="7" height="7" rx="1.5" />
-            </svg>
-            <span class="bottom-bar__label">Alla</span>
-            <span class="bottom-bar__dot" aria-hidden="true"></span>
-          </a>
-          <a class="bottom-bar__tab" href="/sok/" data-tab="search">
-            <svg class="bottom-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <span class="bottom-bar__label">Sök</span>
+            <span class="bottom-bar__label">Distrikt</span>
             <span class="bottom-bar__dot" aria-hidden="true"></span>
           </a>
           <a class="bottom-bar__tab" href="/info/" data-tab="info">
@@ -328,9 +329,7 @@
           </button>
           <ul class="menu-drawer__list">
             <li><a href="/" data-drawer-tab="home">Hem</a></li>
-            <li><a href="/kommande/" data-drawer-tab="upcoming">Kommande cuper</a></li>
-            <li><a href="/alla/" data-drawer-tab="all">Alla cuper</a></li>
-            <li><a href="/sok/" data-drawer-tab="search">Sök</a></li>
+            <li><a href="/distrikt/" data-drawer-tab="districts">Distrikt</a></li>
             <li><a href="/info/" data-drawer-tab="info">Om & FAQ</a></li>
             <li><a href="/info/" data-drawer-tab="info">För arrangörer</a></li>
           </ul>
@@ -344,6 +343,9 @@
     </noscript>
 
     <script src="/lib/districtUrls.js" defer></script>
+    <script src="/lib/categoryFilters.js" defer></script>
+    <script src="/lib/cupDateFilters.js" defer></script>
+    <script src="/lib/utm.js" defer></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

@@ -149,6 +149,7 @@ echo '  </url>' . "\n";
 $staticListingPaths = [
     '/sok/' => '0.9',
     '/kommande/' => '0.7',
+    '/distrikt/' => '0.85',
     '/info/' => '0.6',
 ];
 foreach ($staticListingPaths as $path => $priority) {

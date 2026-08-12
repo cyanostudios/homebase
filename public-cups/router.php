@@ -15,6 +15,12 @@ if ($uriPath === '/sitemap.xml') {
     return true;
 }
 
+// Browsers request /favicon.ico by default; file is SVG — do not fall through to index.html.
+if ($uriPath === '/favicon.ico') {
+    header('Location: /favicon.svg', true, 301);
+    return true;
+}
+
 $reservedDistrict = [
     'api',
     'assets',
@@ -34,6 +40,7 @@ $reservedDistrict = [
     'kommande',
     'alla',
     'info',
+    'distrikt',
 ];
 
 $isLegacyCup = $uriPath === '/cup' || str_starts_with($uriPath, '/cup/');

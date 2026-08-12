@@ -2069,6 +2069,7 @@
       "loadError": "Kunde inte ladda statistik.",
       "empty": "Inga sidvisningar ännu. Besök syns när Cupappen är deployad med spårning.",
       "windowSummary": "Senaste {{days}} dagarna · {{views}} sidvisningar",
+      "pageviewsLastDays": "Sidvisningar · {{days}} dagar",
       "topCups": "Mest besökta cuper",
       "topDistricts": "Mest besökta distrikt",
       "sources": "Trafikkällor",

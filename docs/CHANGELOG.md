@@ -4,9 +4,50 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-12 – Cupappen UX/IA + UTM-fix + stats-fält
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (ärvda residualer **A1–A2** oförändrade; rekommendation **R-UTM-1**). **Ej prod-release.**
+
+**Sammanfattning:** Publik Cupappen-IA och cup-detalj-polish; korrekt `utm_source=cupappen` på anmälningslänkar; favicon-routing; Homebase statistik visar distrikt/datum på topp-cuper.
+
+**Cupappen (`public-cups/`)**
+
+- **Bottom bar / meny:** Hem · Distrikt · Info (Kommande/Alla/Sök bort från chrome; URL:er `/kommande/`, `/alla/`, `/sok/` finns kvar).
+- **`/distrikt/`:** reserved listing-path + full distriktsöversikt (A–Ö-valkort med logo/initialer). Samma picker på **Hem** under cup-raderna.
+- **Hem-rader:** **Utvalda cuper** (max 3, endast Hem); tidsbuckets **Den här månaden** + **Kommande** (+ **Passerade** där tillämpligt). Ingen “Nästa månad”.
+- **Cup-detalj:** meta-badges (spelform/arrangör + kategorier); sanktionerad-rad med distriktslänk; bakåt/footer → `/{distrikt}/`.
+- **UTM:** entity-decode (`&amp;` m.m.) före append av `utm_source=cupappen` — `lib/utm.js` + `api/url_helpers.php` (undviker trasiga Procup/Cupmate-querysträngar).
+- **Favicon:** `/favicon.ico` → **301** `/favicon.svg` (`router.php` + Caddy).
+- **Assets:** `assets/districts/{slug}.png` (placeholder-README).
+
+**Homebase**
+
+- Pageview-statistik: topp-cuper inkluderar `district`, `start_date`, `end_date`; UI `CupPageviewStats` + i18n `pageviewsLastDays`.
+
+**Security**
+
+| ID          | Typ                               | Notering                                                         |
+| ----------- | --------------------------------- | ---------------------------------------------------------------- |
+| **A1–A2**   | Accepterad residual (ärvd)        | Pageviews — se ADR / posten nedan                                |
+| **R-UTM-1** | Rekommendation (icke-blockerande) | Spegla JSON-LD:s http(s)-allowlist på anmälnings-CTA i `cup.php` |
+
+**Docs:** denna post; [`public-cups/README.md`](../public-cups/README.md); [`public-cups/llms.txt`](../public-cups/llms.txt); [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md).
+
+---
+
+## 2026-08-12 – Cups ingest parse-profiler (katalog + parser)
+
+**Status:** Implementerat lokalt (samma arbetsträd som UX-posten). Tester i `parseCupSource.test.js`. **Ej prod-release.**
+
+**Sammanfattning:** Utökad `parseCupSource` + ops-katalog: bl.a. `dalarna_h3_labeled`, `svff_beviljade_list`, `varmland_cuptillstand`; förtydliganden för Stockholm-PDF, Halland, Västmanland-accordion, Uppland. Länkupplösning tillåter endast http(s) (`resolveMaybeRelativeUrl`).
+
+**Docs:** [`CUPS_DISTRICT_SOURCE_CATALOG.md`](CUPS_DISTRICT_SOURCE_CATALOG.md).
+
+---
+
 ## 2026-08-12 – Cupappen first-party pageviews + Cups admin statistics
 
-**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (accepterade residualer **A1–A2**, se ADR). **Ej prod-release** (kräver tenant-migrate + Cupappen-deploy + Homebase-deploy vid explicit release).
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (accepterade residualer **A1–A2**, se ADR). **Ej prod-release** (kräver tenant-migrate + Cupappen-deploy + Homebase-deploy vid explicit release). _Admin-UI utökad med distrikt/datum 2026-08-12 — se posten “Cupappen UX/IA + UTM-fix + stats-fält” ovan._
 
 **Sammanfattning:** Google-oberoende besöksstatistik för publik Cups: sidvisningar på **cup-detalj** och **distriktssidor**, trafikkälla som **bucket + domän**, adminvy **Statistik** i Cups (Matches-mönster). Publik “mest besökta”-rad på Hem **ingår inte** i v1. GTM orörd.
 
