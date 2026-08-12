@@ -13,7 +13,9 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 **Cupappen (`public-cups/`)**
 
 - **Bottom bar / meny:** Hem · Distrikt · Info (Kommande/Alla/Sök bort från chrome; URL:er `/kommande/`, `/alla/`, `/sok/` finns kvar).
-- **`/distrikt/`:** reserved listing-path + full distriktsöversikt (A–Ö-valkort med logo/initialer). Samma picker på **Hem** under cup-raderna.
+- **`/distrikt/`:** reserved listing-path + full distriktsöversikt (hero + CTA + A–Ö-valkort). Samma picker även på **Hem** under cup-raderna.
+- **`/{distrikt}/`:** distriktssida med hero + snabbfilter-badges + cupgrid; **utan** shared filter / CTA.
+- **Shared filter:** Hem och Sök (inte distriktsöversikt / enskild distriktssida).
 - **Hem-rader:** **Utvalda cuper** (max 3, endast Hem); tidsbuckets **Den här månaden** + **Kommande** (+ **Passerade** där tillämpligt). Ingen “Nästa månad”.
 - **Cup-detalj:** meta-badges (spelform/arrangör + kategorier); sanktionerad-rad med distriktslänk; bakåt/footer → `/{distrikt}/`.
 - **UTM:** entity-decode (`&amp;` m.m.) före append av `utm_source=cupappen` — `lib/utm.js` + `api/url_helpers.php` (undviker trasiga Procup/Cupmate-querysträngar).
@@ -26,10 +28,11 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 **Security**
 
-| ID          | Typ                               | Notering                                                         |
-| ----------- | --------------------------------- | ---------------------------------------------------------------- |
-| **A1–A2**   | Accepterad residual (ärvd)        | Pageviews — se ADR / posten nedan                                |
-| **R-UTM-1** | Rekommendation (icke-blockerande) | Spegla JSON-LD:s http(s)-allowlist på anmälnings-CTA i `cup.php` |
+| ID          | Typ                               | Notering                                                                                                |
+| ----------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **A1–A2**   | Accepterad residual (ärvd)        | Pageviews — se ADR / posten nedan                                                                       |
+| **R-UTM-1** | Rekommendation (icke-blockerande) | Spegla JSON-LD:s http(s)-allowlist på anmälnings-CTA i `cup.php`                                        |
+| **R-REG-1** | Rekommendation (icke-blockerande) | Central http(s)-allowlist vid render av alla `registration_url` (SPA/`cup.php`); se också ingest-posten |
 
 **Docs:** denna post; [`public-cups/README.md`](../public-cups/README.md); [`public-cups/llms.txt`](../public-cups/llms.txt); [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md).
 
@@ -37,9 +40,15 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-08-12 – Cups ingest parse-profiler (katalog + parser)
 
-**Status:** Implementerat lokalt (samma arbetsträd som UX-posten). Tester i `parseCupSource.test.js`. **Ej prod-release.**
+**Status:** Implementerat lokalt (samma arbetsträd som UX-posten). Tester i `parseCupSource.test.js`. **QA Approved**; **Security Approved** (http(s)-only i `resolveMaybeRelativeUrl`). **Ej prod-release.**
 
-**Sammanfattning:** Utökad `parseCupSource` + ops-katalog: bl.a. `dalarna_h3_labeled`, `svff_beviljade_list`, `varmland_cuptillstand`; förtydliganden för Stockholm-PDF, Halland, Västmanland-accordion, Uppland. Länkupplösning tillåter endast http(s) (`resolveMaybeRelativeUrl`).
+**Sammanfattning:** Utökad `parseCupSource` + ops-katalog: bl.a. `dalarna_h3_labeled`, `svff_beviljade_list`, `varmland_cuptillstand`; förtydliganden för Stockholm-PDF, Halland, Västmanland-accordion, Uppland.
+
+**Värmland (`varmland_cuptillstand`)**
+
+- Källa: `https://www.varmlandsff.se/tavling/dokumentbank-ny/` — endast accordion **Cuptillstånd YYYY**.
+- Inbjudan / relativa länkar resolvas mot `sourceUrl`; **endast `http:`/`https:`** sparas som `registration_url` (`data:`, `javascript:`, m.fl. → `null`).
+- Residual (låg): protokol-relativ `//host` blir `https://host` under semi-trusted distriktsmodell.
 
 **Docs:** [`CUPS_DISTRICT_SOURCE_CATALOG.md`](CUPS_DISTRICT_SOURCE_CATALOG.md).
 

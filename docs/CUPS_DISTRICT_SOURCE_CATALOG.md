@@ -25,22 +25,22 @@ Fyll en rad per distrikt. Uppdatera efter varje lyckad/testad import.
 
 Använd samma profil för flera URL:er om layouten är densamma. Ny layout → ny/justerad profil i `parseCupSource.js`.
 
-| Profil                   | Kännetecken                                                    | Exempel                                       |
-| ------------------------ | -------------------------------------------------------------- | --------------------------------------------- |
-| `stockholm_pdf_table`    | PDF-tabell Cupens namn / Cupnamn (sidfot/sidnummer filtreras)  | Stockholm (`stff.se` sanktionerade-cuper PDF) |
-| `labeled_plaintext_pdf`  | Märkt PDF (Tävlingens namn, Arrangör)                          | PDF med etiketter                             |
-| `skane_accordion`        | `accordion__item` / accordion-innehåll                         | Skåne; Halland (sanktionsfält)                |
-| `smaland_label_list`     | Tävlingens namn / Ålder / Arrangör                             | Småland                                       |
-| `bohuslan_html_list`     | Host Bohuslän + “Fotbollscuper”                                | Bohuslän-Dalsland                             |
-| `svff_table`             | HTML-tabell med kolumn **Cupnamn** (även inuti SvFF-accordion) | Västerbotten, Västmanland                     |
-| `sodermanland_accordion` | Accordion + h3 med YYYYMMDD-id                                 | Södermanland                                  |
-| `svff_yearmonth_list`    | År + månadslistor / sanktionerade cuper                        | Östergötland                                  |
-| `angermanland_labeled`   | “Tävling / Cup:”                                               | Ångermanland                                  |
-| `svff_paragraph_list`    | Arr. förening / “Cuper YYYY”                                   | Uppland (`/tavling/cuper2/`), Jämtland        |
-| `dalarna_h3_labeled`     | h3-titel + Arrangör/Datum/Spelort                              | Dalarna (`dalafotboll.nu`)                    |
-| `svff_beviljade_list`    | “Beviljade cuper YYYY” + ul/li                                 | Gästrikland                                   |
-| `varmland_cuptillstand`  | Accordion “Cuptillstånd YYYY” + h3 cups                        | Värmland (`dokumentbank-ny`)                  |
-| _(fallback)_             | titel/h1 — **undvik**                                          | Fixera profil innan prod                      |
+| Profil                   | Kännetecken                                                                                                                                                                                      | Exempel                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `stockholm_pdf_table`    | PDF-tabell Cupens namn / Cupnamn (sidfot/sidnummer filtreras)                                                                                                                                    | Stockholm (`stff.se` sanktionerade-cuper PDF)                    |
+| `labeled_plaintext_pdf`  | Märkt PDF (Tävlingens namn, Arrangör)                                                                                                                                                            | PDF med etiketter                                                |
+| `skane_accordion`        | `accordion__item` / accordion-innehåll                                                                                                                                                           | Skåne; Halland (sanktionsfält)                                   |
+| `smaland_label_list`     | Tävlingens namn / Ålder / Arrangör                                                                                                                                                               | Småland                                                          |
+| `bohuslan_html_list`     | Host Bohuslän + “Fotbollscuper”                                                                                                                                                                  | Bohuslän-Dalsland                                                |
+| `svff_table`             | HTML-tabell med kolumn **Cupnamn** (även inuti SvFF-accordion)                                                                                                                                   | Västerbotten, Västmanland                                        |
+| `sodermanland_accordion` | Accordion + h3 med YYYYMMDD-id                                                                                                                                                                   | Södermanland                                                     |
+| `svff_yearmonth_list`    | År + månadslistor / sanktionerade cuper                                                                                                                                                          | Östergötland                                                     |
+| `angermanland_labeled`   | “Tävling / Cup:”                                                                                                                                                                                 | Ångermanland                                                     |
+| `svff_paragraph_list`    | Arr. förening / “Cuper YYYY”                                                                                                                                                                     | Uppland (`/tavling/cuper2/`), Jämtland                           |
+| `dalarna_h3_labeled`     | h3-titel + Arrangör/Datum/Spelort                                                                                                                                                                | Dalarna (`dalafotboll.nu`)                                       |
+| `svff_beviljade_list`    | “Beviljade cuper YYYY” + ul/li                                                                                                                                                                   | Gästrikland                                                      |
+| `varmland_cuptillstand`  | Accordion **“Cuptillstånd YYYY”** only (h2 månad + h3; Åldersgrupp/Datum/Arrangörsförening). Övriga dokumentbank-accordions ignoreras. Inbjudan: endast **http(s)** (`resolveMaybeRelativeUrl`). | Värmland — `https://www.varmlandsff.se/tavling/dokumentbank-ny/` |
+| _(fallback)_             | titel/h1 — **undvik**                                                                                                                                                                            | Fixera profil innan prod                                         |
 
 **Fetch:** `generic_http` först; `browser_fetch` bara om sidan kräver JS/Cloudflare.
 
@@ -91,13 +91,14 @@ Använd samma profil för flera URL:er om layouten är densamma. Ny layout → n
 
 ## När något går fel
 
-| Symptom                       | Trolig orsak                                             | Åtgärd                                                        |
-| ----------------------------- | -------------------------------------------------------- | ------------------------------------------------------------- |
-| `parsed = 0` / fel profil     | Layout matchar ingen detektor                            | Utveckling: utöka `detectCupSourceProfile` / ny parser        |
-| Många `softDeleted` plötsligt | Trasig sida eller fel parse (men sweep kräver ≥3 parsed) | Jämför med föregående körning; kör inte “fix” utan att förstå |
-| Fetch-fel / Cloudflare        | Behöver browser                                          | Byt till `browser_fetch` (+ ev. cookie-env)                   |
-| Dubbletter                    | Ändrad `external_id` / två källor                        | Se dedupe i `CupsModel.findCupIdForImportDedupe`              |
-| Tom allowlist + 403           | Källan inte ibockad                                      | Cups Settings → Import                                        |
+| Symptom                       | Trolig orsak                                                               | Åtgärd                                                        |
+| ----------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `parsed = 0` / fel profil     | Layout matchar ingen detektor                                              | Utveckling: utöka `detectCupSourceProfile` / ny parser        |
+| Fake cups = accordion-titlar  | Generisk `skane_accordion` på dokumentbank (t.ex. Värmland före profilfix) | Kontrollera att `varmland_cuptillstand` detekteras; re-import |
+| Många `softDeleted` plötsligt | Trasig sida eller fel parse (men sweep kräver ≥3 parsed)                   | Jämför med föregående körning; kör inte “fix” utan att förstå |
+| Fetch-fel / Cloudflare        | Behöver browser                                                            | Byt till `browser_fetch` (+ ev. cookie-env)                   |
+| Dubbletter                    | Ändrad `external_id` / två källor                                          | Se dedupe i `CupsModel.findCupIdForImportDedupe`              |
+| Tom allowlist + 403           | Källan inte ibockad                                                        | Cups Settings → Import                                        |
 
 ---
 
