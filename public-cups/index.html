@@ -12,9 +12,6 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://tagmanager.google.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https: http://127.0.0.1:3002 http://localhost:3002; frame-src https://www.googletagmanager.com; form-action 'self'; upgrade-insecure-requests"
     />
-    <!-- Google Tag Manager (deferred external bootstrap — see L5/L7) -->
-    <script src="/gtm-bootstrap.js" defer></script>
-    <!-- End Google Tag Manager -->
     <title>Cupappen - Hitta fotbollscuper</title>
     <meta name="description" content="Cupappen samlar Sveriges fotbollscuper på ett ställe. Sök, jämför och anmäl ert lag till rätt cup." />
     <meta name="robots" content="index, follow" />
@@ -410,6 +407,8 @@
       <p class="noscript-note">Cupappen kräver JavaScript för att visa aktuell cupdata och filterfunktioner.</p>
     </noscript>
 
+    <!-- GTM + app: all deferred — no parser-blocking scripts in <head> (Sitegrade L7) -->
+    <script src="/gtm-bootstrap.js" defer></script>
     <script src="/lib/districtUrls.js" defer></script>
     <script src="/lib/categoryFilters.js" defer></script>
     <script src="/lib/cupDateFilters.js" defer></script>
