@@ -174,6 +174,15 @@ Kör tenant-migrationer via Homebase om nya kolumner/tabeller saknas; public API
 - **Release:** kör migrate på tenant **innan** eller i samma steg som Cupappen-deploy som aktiverar beacons; annars 500 på pageview
 - ADR + residualrisker A1/A2: [`ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](./ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md)
 
+### Fallback photos (`cups_site_config`)
+
+- Migration: `server/migrations/130-cups-site-config.sql`
+- Runner: `npm run migrate:cups-site-config`
+- Admin: Homebase Cups → Settings → Appearance → Fallback photos (`GET/PUT /api/cups/site-config/fallback-images`)
+- Public: Cupappen `GET /api/fallback_images.php` (empty → static `assets/fallback/`)
+- **Release:** migrate tenant before relying on admin-saved pool; set `PUBLIC_CUPS_USER_ID` on Cupappen so the owner row is selected
+- Residual **R-FB-1** (public URL list): produkt-CHANGELOG 2026-08-13 — väntar TPM
+
 ---
 
 ## Ändringar i Homebase som påverkar cupappen (indirekt)
@@ -182,7 +191,8 @@ Kör tenant-migrationer via Homebase om nya kolumner/tabeller saknas; public API
 | ------------------------------------------------- | ------------------------------------------------------ |
 | Cups import / cron / soft-delete                  | Rader i **samma** tenant-DB som `CUPS_DB_URL` pekar på |
 | `migrate:cups-pageviews` + Homebase statistik-API | Tabell + adminvy; Cupappen måste deployas för beacons  |
-| `featured_image_url` + R2 på Homebase             | Bild-URL:er i list-API                                 |
+| `migrate:cups-site-config` + Fallback photos      | Admin-pool; Cupappen läser `fallback_images.php`       |
+| `featured_image_url` + R2 på Homebase             | Bild-URL:er i list-API + fallback-uppladdning          |
 | Neon tenant connection string ändras              | Uppdatera **`CUPS_DB_URL`** på Cupappen                |
 | Refaktor i `client/`, `server/` (ej public-cups)  | **Ingen** deploy till Cupappen                         |
 

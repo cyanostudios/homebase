@@ -2060,12 +2060,28 @@
     "columnsHelp": "How many columns cup cards use by default (1 = full width, 2 = half, 3 = one third).",
     "columnFeaturedVisible": "Featured / Visible",
     "columnRatings": "Ratings",
-    "settingsSubtitle": "Manage view and import.",
+    "settingsSubtitle": "Manage view, appearance, and import.",
     "settingsCategories": {
       "view": "View",
       "viewDescription": "Default list view for cups.",
+      "appearance": "Appearance",
+      "appearanceDescription": "Fallback photos for Cupappen when a cup has no cover.",
       "import": "Import",
       "importDescription": "Import cups from ingest sources."
+    },
+    "fallbackPhotos": {
+      "title": "Fallback photos",
+      "help": "These images are used on Cupappen when a cup has no hero image. Upload as many as you need (up to 100). Order is the pool order; assignment is hashed per cup and section.",
+      "upload": "Upload photos",
+      "uploading": "Uploading…",
+      "loading": "Loading fallback photos…",
+      "empty": "No custom fallback photos yet — Cupappen uses the built-in defaults.",
+      "count": "{{count}} / {{max}}",
+      "remove": "Remove photo",
+      "loadError": "Could not load fallback photos. Run migrate:cups-site-config if this is the first time.",
+      "saveError": "Could not save fallback photos.",
+      "uploadError": "Upload failed.",
+      "maxReached": "Maximum {{max}} fallback photos."
     },
     "statistics": {
       "title": "Cupappen statistics",

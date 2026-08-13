@@ -81,6 +81,7 @@
     "migrate:cups-ratings-club": "node scripts/run-cups-ratings-club-migration.js",
     "migrate:cups-ratings-class": "node scripts/run-cups-ratings-class-migration.js",
     "migrate:cups-pageviews": "node scripts/run-cups-pageviews-migration.js",
+    "migrate:cups-site-config": "node scripts/run-cups-site-config-migration.js",
     "migrate:files-storage": "node scripts/run-files-storage-migrations.js",
     "migrate:notes-show-title-in-content": "node scripts/run-notes-show-title-in-content-migration.js",
     "migrate:note-shares": "node scripts/run-note-shares-migration.js",

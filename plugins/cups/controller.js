@@ -170,6 +170,28 @@ class CupsController {
       res.status(500).json({ error: 'Failed to fetch pageview stats' });
     }
   }
+
+  async getFallbackImages(req, res) {
+    try {
+      const urls = await this.model.getFallbackImages(req);
+      res.json({ urls });
+    } catch (error) {
+      Logger.error('Get fallback images failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch fallback images' });
+    }
+  }
+
+  async setFallbackImages(req, res) {
+    try {
+      const urls = await this.model.setFallbackImages(req, req.body?.urls);
+      res.json({ urls });
+    } catch (error) {
+      Logger.error('Set fallback images failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to save fallback images' });
+    }
+  }
 }
 
 module.exports = CupsController;

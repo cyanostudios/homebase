@@ -217,6 +217,25 @@ class CupsApi {
         : [],
     };
   }
+
+  async getFallbackImages(): Promise<string[]> {
+    const raw = (await this.request('/cups/site-config/fallback-images')) as {
+      urls?: unknown;
+    };
+    return Array.isArray(raw.urls)
+      ? raw.urls.map((u) => String(u || '').trim()).filter(Boolean)
+      : [];
+  }
+
+  async setFallbackImages(urls: string[]): Promise<string[]> {
+    const raw = (await this.request('/cups/site-config/fallback-images', {
+      method: 'PUT',
+      body: JSON.stringify({ urls }),
+    })) as { urls?: unknown };
+    return Array.isArray(raw.urls)
+      ? raw.urls.map((u) => String(u || '').trim()).filter(Boolean)
+      : [];
+  }
 }
 
 export const cupsApi = new CupsApi();

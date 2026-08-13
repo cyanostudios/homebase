@@ -2055,12 +2055,28 @@
     "columnsHelp": "Hur många kolumner cup-kort använder som standard (1 = full bredd, 2 = halv, 3 = en tredjedel).",
     "columnFeaturedVisible": "Utvald / Synlig",
     "columnRatings": "Betyg",
-    "settingsSubtitle": "Hantera vy och import.",
+    "settingsSubtitle": "Hantera vy, utseende och import.",
     "settingsCategories": {
       "view": "Vy",
       "viewDescription": "Standardlistvy för cuper.",
+      "appearance": "Utseende",
+      "appearanceDescription": "Fallback-bilder för Cupappen när en cup saknar omslag.",
       "import": "Import",
       "importDescription": "Importera cuper från ingest-källor."
+    },
+    "fallbackPhotos": {
+      "title": "Fallback-bilder",
+      "help": "Används på Cupappen när en cup saknar hero-bild. Ladda upp så många du vill (max 100). Ordningen är poolen; tilldelning hashas per cup och sektion.",
+      "upload": "Ladda upp bilder",
+      "uploading": "Laddar upp…",
+      "loading": "Laddar fallback-bilder…",
+      "empty": "Inga egna fallback-bilder ännu — Cupappen använder inbyggda standardbilder.",
+      "count": "{{count}} / {{max}}",
+      "remove": "Ta bort bild",
+      "loadError": "Kunde inte ladda fallback-bilder. Kör migrate:cups-site-config om det är första gången.",
+      "saveError": "Kunde inte spara fallback-bilder.",
+      "uploadError": "Uppladdning misslyckades.",
+      "maxReached": "Max {{max}} fallback-bilder."
     },
     "statistics": {
       "title": "Cupappen-statistik",

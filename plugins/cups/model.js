@@ -2,6 +2,11 @@ const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 const { clampPageviewDays } = require('./services/pageviewStats');
+const {
+  FALLBACK_IMAGES_CONFIG_KEY,
+  MAX_FALLBACK_IMAGES,
+  normalizeFallbackImageUrls,
+} = require('./services/fallbackImages');
 
 class CupsModel {
   normalizeLookupString(value) {
@@ -757,6 +762,77 @@ class CupsModel {
       throw new AppError('Cup not found', 404, AppError.CODES.NOT_FOUND);
     }
     return this.transformRow(rows[0]);
+  }
+
+  /**
+   * Cupappen fallback cover URLs for cups without featured_image_url.
+   * @returns {Promise<string[]>}
+   */
+  async getFallbackImages(req) {
+    try {
+      const db = Database.get(req);
+      const userId = db.getUserId();
+      const pool = db.getPool();
+      const result = await pool.query(
+        `SELECT value
+           FROM cups_site_config
+          WHERE user_id = $1 AND config_key = $2
+          LIMIT 1`,
+        [userId, FALLBACK_IMAGES_CONFIG_KEY],
+      );
+      if (!result.rows.length) {
+        return [];
+      }
+      return normalizeFallbackImageUrls(result.rows[0].value);
+    } catch (error) {
+      if (error?.code === '42P01') {
+        // Table missing — migration not applied yet.
+        return [];
+      }
+      Logger.error('Failed to get fallback images', error);
+      throw new AppError('Failed to get fallback images', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * Replace the fallback image URL list (order preserved).
+   * @param {object} req
+   * @param {unknown} urlsRaw
+   * @returns {Promise<string[]>}
+   */
+  async setFallbackImages(req, urlsRaw) {
+    const urls = normalizeFallbackImageUrls({ urls: urlsRaw });
+    if (urls.length > MAX_FALLBACK_IMAGES) {
+      throw new AppError(
+        `At most ${MAX_FALLBACK_IMAGES} fallback images allowed`,
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
+    try {
+      const db = Database.get(req);
+      const userId = db.getUserId();
+      const pool = db.getPool();
+      await pool.query(
+        `INSERT INTO cups_site_config (user_id, config_key, value, updated_at)
+         VALUES ($1, $2, $3::jsonb, NOW())
+         ON CONFLICT (user_id, config_key)
+         DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+        [userId, FALLBACK_IMAGES_CONFIG_KEY, JSON.stringify({ urls })],
+      );
+      return urls;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      if (error?.code === '42P01') {
+        throw new AppError(
+          'Fallback images table missing — run npm run migrate:cups-site-config',
+          503,
+          AppError.CODES.DATABASE_ERROR,
+        );
+      }
+      Logger.error('Failed to set fallback images', error);
+      throw new AppError('Failed to set fallback images', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 }
 

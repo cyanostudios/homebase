@@ -500,21 +500,113 @@ function fetchDistrictCupsForNav(PDO $pdo, array $current): array
     );
 }
 
-function genericImageForCup(array $cup): string
+function genericImageForCup(array $cup, ?array $pool = null): string
 {
-    $images = [
-        'https://images.pexels.com/photos/47730/the-ball-stadion-football-the-pitch-47730.jpeg?w=1600',
-        'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?w=1600',
-        'https://images.pexels.com/photos/1171084/pexels-photo-1171084.jpeg?w=1600',
-        'https://images.pexels.com/photos/186239/pexels-photo-186239.jpeg?w=1600',
-        'https://images.pexels.com/photos/1308713/pexels-photo-1308713.jpeg?w=1600',
-        'https://images.pexels.com/photos/3886384/pexels-photo-3886384.jpeg?w=1600',
-    ];
-    $idx = abs(crc32((string) ($cup['name'] ?? 'cup'))) % count($images);
+    $images = is_array($pool) && $pool !== []
+        ? $pool
+        : [
+            '/assets/fallback/01.jpg',
+            '/assets/fallback/02.jpg',
+            '/assets/fallback/03.jpg',
+            '/assets/fallback/04.jpg',
+            '/assets/fallback/05.jpg',
+            '/assets/fallback/06.jpg',
+            '/assets/fallback/07.jpg',
+            '/assets/fallback/08.jpg',
+            '/assets/fallback/09.jpg',
+            '/assets/fallback/10.jpg',
+            '/assets/fallback/11.jpg',
+            '/assets/fallback/12.jpg',
+            '/assets/fallback/13.jpg',
+            '/assets/fallback/14.jpg',
+            '/assets/fallback/15.jpg',
+            '/assets/fallback/16.jpg',
+        ];
+    $idPart = trim((string) ($cup['id'] ?? ''));
+    $namePart = trim(preg_replace('/\s+/', ' ', (string) ($cup['name'] ?? '')) ?? '');
+    $key = ($idPart !== '' ? $idPart : ($namePart !== '' ? $namePart : 'cup'));
+    $idx = abs(crc32($key)) % count($images);
+
     return $images[$idx];
 }
 
-function cupImageUrl(array $cup): string
+/**
+ * @return list<string>
+ */
+function loadFallbackImagePool(PDO $pdo): array
+{
+    static $cached = null;
+    if (is_array($cached)) {
+        return $cached;
+    }
+    $cached = [];
+    try {
+        $check = $pdo->query(
+            "SELECT 1 FROM information_schema.tables
+             WHERE table_schema = current_schema()
+               AND table_name = 'cups_site_config'
+             LIMIT 1",
+        );
+        if (!$check || !$check->fetchColumn()) {
+            return $cached;
+        }
+        $ownerId = trim((string) (getenv('PUBLIC_CUPS_USER_ID') ?: ''));
+        if ($ownerId !== '' && ctype_digit($ownerId)) {
+            $stmt = $pdo->prepare(
+                "SELECT value FROM cups_site_config
+                  WHERE user_id = :uid AND config_key = 'fallback_images'
+                  LIMIT 1",
+            );
+            $stmt->execute(['uid' => (int) $ownerId]);
+        } else {
+            $stmt = $pdo->query(
+                "SELECT value FROM cups_site_config
+                  WHERE config_key = 'fallback_images'
+                  ORDER BY updated_at DESC
+                  LIMIT 1",
+            );
+        }
+        $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!is_array($row)) {
+            return $cached;
+        }
+        $raw = $row['value'] ?? null;
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+        $list = [];
+        if (is_array($raw)) {
+            if (array_is_list($raw)) {
+                $list = $raw;
+            } elseif (isset($raw['urls']) && is_array($raw['urls'])) {
+                $list = $raw['urls'];
+            }
+        }
+        $out = [];
+        $seen = [];
+        foreach ($list as $item) {
+            $url = trim((string) $item);
+            if ($url === '' || !preg_match('#^https?://#i', $url)) {
+                continue;
+            }
+            if (preg_match('#^https?://[^/]+/api/#i', $url)) {
+                continue;
+            }
+            if (isset($seen[$url])) {
+                continue;
+            }
+            $seen[$url] = true;
+            $out[] = $url;
+        }
+        $cached = $out;
+    } catch (Throwable $e) {
+        $cached = [];
+    }
+
+    return $cached;
+}
+
+function cupImageUrl(array $cup, ?array $fallbackPool = null): string
 {
     $raw = trim((string) ($cup['featured_image_url'] ?? ''));
     if ($raw !== ''
@@ -523,7 +615,7 @@ function cupImageUrl(array $cup): string
     ) {
         return $raw;
     }
-    return genericImageForCup($cup);
+    return genericImageForCup($cup, $fallbackPool);
 }
 
 function starString(float $avg): string
@@ -815,7 +907,8 @@ $location = normalizeText((string) ($cup['location'] ?? ''));
 $organizer = normalizeText((string) ($cup['organizer'] ?? ''));
 $description = normalizeText((string) ($cup['description'] ?? ''));
 $categories = splitCategories($cup['categories'] ?? null);
-$imageUrl = cupImageUrl($cup);
+$fallbackPool = $pdo instanceof PDO ? loadFallbackImagePool($pdo) : [];
+$imageUrl = cupImageUrl($cup, $fallbackPool !== [] ? $fallbackPool : null);
 $compareDateRaw = (string) ($cup['end_date'] ?? $cup['start_date'] ?? '');
 $compareTs = $compareDateRaw !== '' ? strtotime($compareDateRaw) : false;
 $isPastCup = $compareTs !== false && $compareTs < time();
@@ -1331,7 +1424,7 @@ $jsonLdGraph = jsonLdStripNulls([
           <?php foreach ($sidebarFeaturedCups as $rel):
               $relName = normalizeText((string) ($rel['name'] ?? 'Cup'));
               $relHref = cupCanonicalPath($rel);
-              $relImage = cupImageUrl($rel);
+              $relImage = cupImageUrl($rel, $fallbackPool !== [] ? $fallbackPool : null);
               ?>
             <li>
               <a class="related-link" href="<?= h($relHref) ?>">

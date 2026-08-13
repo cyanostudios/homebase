@@ -51,6 +51,12 @@ URL-helpers (delade med Jest): [`lib/districtUrls.js`](lib/districtUrls.js).
 - Kort länkar till SSR-detaljsidan (`cupDetailUrl`).
 - **Utlänkar (anmälan):** `utm_source=cupappen` — `lib/utm.js` + `app.js`, och `cup.php` + `api/url_helpers.php` (HTML-entities som `&amp;` avkodas före UTM).
 - **Security R-UTM-1 (rekommendation):** JSON-LD tillåter bara `http(s)` på offers-URL; anmälnings-CTA i `cup.php` saknar samma allowlist — spegla gaten i ett senare pass.
+- **Fallback-omslag (ingen egen `featured_image_url`):**
+  - **Admin:** Cups → Inställningar → **Utseende / Fallback-bilder** — ladda upp valfritt antal (max 100) via R2/`files`; sparas i tenant-tabell `cups_site_config`.
+  - **Publikt:** `GET /api/fallback_images.php`; SPA/SSR använder uppladdad pool om den inte är tom, annars statiska [`assets/fallback/`](assets/fallback/).
+  - Listing hashar `cup.id` + sektionsnamn så t.ex. Kommande och Passerade inte får samma bildsekvens.
+  - Migrate: `npm run migrate:cups-site-config`.
+  - **Security R-FB-1 (accepterad residual, väntar TPM):** publikt GET exponerar URL-listan — by design. **R-FB-2/R-FB-3:** https-only i prod respektive `PUBLIC_CUPS_USER_ID` rekommenderas.
 
 ## Pageviews (första-part)
 

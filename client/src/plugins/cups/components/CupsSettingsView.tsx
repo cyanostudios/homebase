@@ -1,5 +1,5 @@
 import { Download, RefreshCw } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -34,10 +34,11 @@ import {
   CupIngestImportResultDialog,
   type CupIngestImportResultVariant,
 } from './CupIngestImportResultDialog';
+import { CupFallbackPhotosSettings } from './CupFallbackPhotosSettings';
 
 const COLUMN_OPTIONS: CupColumnCount[] = [1, 2, 3];
 const VIEW_MODE_OPTIONS: CupListViewMode[] = ['cards', 'table'];
-export type CupsSettingsCategory = 'view' | 'import';
+export type CupsSettingsCategory = 'view' | 'import' | 'appearance';
 
 export function CupsSettingsView({
   selectedCategory,
@@ -87,6 +88,9 @@ export function CupsSettingsView({
     hardDeleted: number;
     errors: string[];
   } | null>(null);
+  const [appearanceDirty, setAppearanceDirty] = useState(false);
+  const [appearanceSaving, setAppearanceSaving] = useState(false);
+  const appearanceSaveRef = useRef<{ save: (() => Promise<void>) | null }>({ save: null });
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
@@ -96,6 +100,13 @@ export function CupsSettingsView({
         description: t('cups.settingsCategories.viewDescription'),
         icon: SETTINGS_CATEGORY_ICONS.view,
         dotClassName: 'bg-blue-500',
+      },
+      {
+        id: 'appearance',
+        label: t('cups.settingsCategories.appearance'),
+        description: t('cups.settingsCategories.appearanceDescription'),
+        icon: SETTINGS_CATEGORY_ICONS.appearance,
+        dotClassName: 'bg-amber-500',
       },
       {
         id: 'import',
@@ -288,7 +299,14 @@ export function CupsSettingsView({
         onCategoryChange={(id) => setActiveCategory(id as CupsSettingsCategory)}
         trailing={inlineTrailing}
         saveAction={
-          isDirty ? (
+          activeCategory === 'appearance' ? (
+            appearanceDirty ? (
+              <SettingsHeaderSaveButton
+                onClick={() => void appearanceSaveRef.current.save?.()}
+                isSaving={appearanceSaving}
+              />
+            ) : null
+          ) : isDirty ? (
             <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />
           ) : null
         }
@@ -348,6 +366,14 @@ export function CupsSettingsView({
               </DetailSection>
             ) : null}
           </>
+        )}
+
+        {activeCategory === 'appearance' && (
+          <CupFallbackPhotosSettings
+            onDirtyChange={setAppearanceDirty}
+            onSavingChange={setAppearanceSaving}
+            saveRef={appearanceSaveRef}
+          />
         )}
 
         {activeCategory === 'import' && (

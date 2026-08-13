@@ -67,14 +67,74 @@ const HERO_CATEGORY_OPTIONS = [
   { value: 'girls_boys', label: 'Flickor och Pojkar' },
 ];
 
-const FALLBACK_IMAGES = [
-  'https://images.pexels.com/photos/47730/the-ball-stadion-football-the-pitch-47730.jpeg?w=640',
-  'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?w=640',
-  'https://images.pexels.com/photos/1171084/pexels-photo-1171084.jpeg?w=640',
-  'https://images.pexels.com/photos/186239/pexels-photo-186239.jpeg?w=640',
-  'https://images.pexels.com/photos/1308713/pexels-photo-1308713.jpeg?w=640',
-  'https://images.pexels.com/photos/3886384/pexels-photo-3886384.jpeg?w=640',
+const DEFAULT_FALLBACK_IMAGES = [
+  '/assets/fallback/01.jpg',
+  '/assets/fallback/02.jpg',
+  '/assets/fallback/03.jpg',
+  '/assets/fallback/04.jpg',
+  '/assets/fallback/05.jpg',
+  '/assets/fallback/06.jpg',
+  '/assets/fallback/07.jpg',
+  '/assets/fallback/08.jpg',
+  '/assets/fallback/09.jpg',
+  '/assets/fallback/10.jpg',
+  '/assets/fallback/11.jpg',
+  '/assets/fallback/12.jpg',
+  '/assets/fallback/13.jpg',
+  '/assets/fallback/14.jpg',
+  '/assets/fallback/15.jpg',
+  '/assets/fallback/16.jpg',
 ];
+
+/** Active pool: admin-uploaded URLs when present, else static defaults. */
+let fallbackImagePool = DEFAULT_FALLBACK_IMAGES.slice();
+
+function getFallbackImagePool() {
+  return fallbackImagePool.length > 0 ? fallbackImagePool : DEFAULT_FALLBACK_IMAGES;
+}
+
+/** Stable non-crypto hash for fallback image index (cup + optional section salt). */
+function fallbackImageHash(key) {
+  const s = String(key || '');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function fallbackImageForCup(cup, sectionKey = '') {
+  const pool = getFallbackImagePool();
+  const idPart = cup?.id != null && String(cup.id).trim() !== '' ? String(cup.id).trim() : '';
+  const namePart = String(cup?.name || '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  const key = `${idPart || namePart || 'cup'}|${String(sectionKey || '')}`;
+  const idx = fallbackImageHash(key) % pool.length;
+  return pool[idx];
+}
+
+async function loadFallbackImagesFromApi() {
+  try {
+    const res = await fetch(`${window.location.origin}/api/fallback_images.php`, {
+      credentials: 'omit',
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const urls = Array.isArray(data?.urls)
+      ? data.urls
+          .map((u) => String(u || '').trim())
+          .filter((u) => /^https?:\/\//i.test(u) && !/^https?:\/\/[^/]+\/api\//i.test(u))
+      : [];
+    if (urls.length > 0) {
+      fallbackImagePool = urls;
+    }
+  } catch {
+    /* keep static defaults */
+  }
+}
 
 const state = {
   cups: [],
@@ -202,7 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initBrandHome();
   initHeroSearch();
   initPathRouting();
-  loadCups();
+  void loadFallbackImagesFromApi().finally(() => {
+    loadCups();
+  });
 });
 
 function applyUrlParams() {
@@ -311,7 +373,7 @@ const ROUTE_SEO = {
   home: {
     title: 'Cupappen - Hitta fotbollscuper',
     description:
-      'Cupappen samlar Sveriges fotbollscuper på ett ställe. Sök, jämför och anmäl ert lag till rätt cup — utan att scrolla genom tio olika webbsidor.',
+      'Cupappen samlar Sveriges fotbollscuper på ett ställe. Sök, jämför och anmäl ert lag till rätt cup.',
   },
   search: {
     title: 'Sök fotbollscuper · Cupappen',
@@ -333,9 +395,8 @@ const ROUTE_SEO = {
       'Vanliga frågor om Cupappen och information för arrangörer som vill lista sin cup.',
   },
   districts: {
-    title: 'Distrikt · Cupappen',
-    description:
-      'Välj distrikt och hitta sanktionerade fotbollscuper från distriktsförbunden i Sverige.',
+    title: 'Utforska cuper per distrikt · Cupappen',
+    description: 'Sanktionerade cuper från Svenska fotbollsförbundets distrikt.',
   },
 };
 
@@ -657,7 +718,7 @@ function getFilteredCups() {
   let dateFilter = state.selectedDateFilter;
   if (state.activeTab === 'home' || state.activeTab === 'upcoming') {
     dateFilter = 'upcoming';
-  } else if (state.activeTab === 'all') {
+  } else if (state.activeTab === 'district' || state.activeTab === 'all') {
     dateFilter = 'all';
   }
 
@@ -739,13 +800,13 @@ function primaryCategoryBadge(cup) {
   return first || 'Cup';
 }
 
-function cupImageSrc(cup, index = 0) {
+function cupImageSrc(cup, sectionKey = '') {
   const custom = resolveCupImageUrlForAttr(cup);
   if (custom) return custom;
-  return FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+  return fallbackImageForCup(cup, sectionKey);
 }
 
-function renderCupCard(cup, index = 0) {
+function renderCupCard(cup, sectionKey = '') {
   const name = escapeHtml(normalizeText(cup.name) || 'Okänd cup');
   const dateRange = formatDateRange(cup.start_date, cup.end_date);
   const district = normalizeText(cup.ingest_source_name).trim() || normalizeText(cup.location);
@@ -753,7 +814,7 @@ function renderCupCard(cup, index = 0) {
   const meta = escapeHtml(metaParts.join(' · '));
   const tag = escapeHtml(primaryCategoryBadge(cup));
   const detailUrl = escapeHtml(cupDetailUrl(cup));
-  const img = cupImageSrc(cup, index);
+  const img = escapeHtml(cupImageSrc(cup, sectionKey));
 
   return `<a class="item-card shadow-card scroll-snap-start" href="${detailUrl}" data-testid="cup-listing-card" aria-label="Öppna ${name}">
     <div class="item-card__media">
@@ -782,6 +843,7 @@ function renderCategorizedRows(cups, options = {}) {
   const includeDistricts = options.includeDistricts !== false;
   const includeDistrictsPicker = options.includeDistrictsPicker === true;
   const emptyMessage = options.emptyMessage || 'Inga cuper att visa.';
+  const emptyUpcomingMessage = String(options.emptyUpcomingMessage || '').trim();
 
   if (!rowsContainerEl) return;
 
@@ -815,6 +877,12 @@ function renderCategorizedRows(cups, options = {}) {
 
   if (featuredCups.length > 0) {
     sections.push(rowSectionHtml('Utvalda cuper', featuredCups, '', null, { featured: true }));
+  }
+
+  const upcomingLabels = order.filter((label) => label !== 'Passerade');
+  const hasUpcomingRows = upcomingLabels.some((label) => (groups.get(label) || []).length > 0);
+  if (!hasUpcomingRows && emptyUpcomingMessage) {
+    sections.push(`<div class="empty-state">${escapeHtml(emptyUpcomingMessage)}</div>`);
   }
 
   order.forEach((label) => {
@@ -868,7 +936,7 @@ function rowSectionHtml(title, cups, moreTab, moreDistrict, options = {}) {
       ${moreBtn}
     </div>
     <div class="item-row__scroller no-scrollbar scroll-snap-x">
-      ${cups.map((c, i) => renderCupCard(c, i)).join('')}
+      ${cups.map((c) => renderCupCard(c, title)).join('')}
     </div>
   </section>`;
 }
@@ -918,7 +986,7 @@ function districtsPickerSectionHtml() {
     return `<section class="district-picker district-picker--home" id="districts-picker" aria-labelledby="districts-picker-title">
       <div class="district-picker__header">
         <h2 class="district-picker__title" id="districts-picker-title">Distrikt</h2>
-        <p class="district-picker__lead">Hitta cuper via ditt distriktsförbund.</p>
+        <p class="district-picker__lead">Hitta cuper via distriktsförbunden.</p>
       </div>
       <p class="empty-state">Inga distrikt att visa ännu.</p>
     </section>`;
@@ -1047,8 +1115,8 @@ function openDistrictPage(district) {
 ================================================================ */
 function renderSearchPanel() {
   const results = getFilteredCups();
-  const district = state.selectedDistrict;
-  const isDistrictPage = state.activeTab === 'district' && district && district !== 'all';
+  const isDistrictPage =
+    state.activeTab === 'district' && state.selectedDistrict && state.selectedDistrict !== 'all';
 
   setStatus('');
 
@@ -1057,8 +1125,9 @@ function renderSearchPanel() {
     includePast: true,
     includeDistricts: !isDistrictPage,
     emptyMessage: isDistrictPage
-      ? `Inga cuper i ${district} just nu.`
+      ? 'Inga kommande cuper just nu.'
       : 'Inga cuper matchade din sökning.',
+    emptyUpcomingMessage: isDistrictPage ? 'Inga kommande cuper just nu.' : '',
   });
   renderJsonLd(results);
 }

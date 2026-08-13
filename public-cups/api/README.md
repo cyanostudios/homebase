@@ -8,12 +8,13 @@ Publika endpoints för Cupappen mot samma tenant-Postgres som cups-datan (`CUPS_
 - Dynamisk sitemap: `public-cups/api/sitemap.php` (HTML-sidans URL:er, listing-paths `/sok/` `/kommande/` `/info/`, distriktssidor `/{slug}/` inkl. `ovrigt` vid behov, cup-detaljer `/{distrikt}/{cup-slug}-{år}`, `Content-Type: application/xml`)
 - Betyg: `public-cups/api/ratings.php`
 - Pageviews (första-part): `public-cups/api/pageview.php` — `POST` JSON `{ page_kind: "cup"|"district", cup_id?: number, district_slug?: string, referrer?: string }` → UPSERT i `cupappen_pageviews_daily`; session-cooldown ~45s; server klassar bucket/domän via `referrer_classify.php` (klient-bucket ignoreras). Svar `204` vid OK, `429` vid cooldown.
+- Fallback covers: `public-cups/api/fallback_images.php` — `GET` JSON `{ "urls": ["https://…"] }` från tenant `cups_site_config` (`fallback_images`); tom lista → klient/SSR använder `assets/fallback/`. Residual **R-FB-1** (publik URL-lista) — se produkt-CHANGELOG.
 - Klassning (testspegel): `public-cups/lib/referrerClassify.js` (håll synkad med PHP)
 - Liv / readiness: `public-cups/api/health.php` (`GET`, JSON `{ "status": "ok" }` vid lyckad DB-ping — används av Docker `HEALTHCHECK`)
 - Delad DB-hantering: `public-cups/api/pdo_env.php` (`getPdoFromEnv()`)
 - Gemensamma säkerhetsheaders: `public-cups/api/security_headers.php` (`applyPublicCupsSecurityHeaders()`)
 
-**Homebase (auth):** `GET /api/cups/stats/pageviews?days=30` — aggregat för admin Statistik-vy (inte denna PHP-API).
+**Homebase (auth):** `GET /api/cups/stats/pageviews?days=30` — aggregat för admin Statistik-vy (inte denna PHP-API). `GET/PUT /api/cups/site-config/fallback-images` — admin fallback-pool (Homebase, inte denna PHP-API).
 
 ## Krav
 

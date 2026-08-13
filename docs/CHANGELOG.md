@@ -4,6 +4,78 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-13 – Settings: Account profile / Team split + org phone/Swish + sidebar footer
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (accepterad residual **R-ORG-1** — TPM medvetet godkännande som notering). **Ej prod-release** utan explicit beslut.
+
+**Sammanfattning:** Core Settings skiljer delad kontoinfo från teammedlems-info. Org-telefon flyttas till Contact; Swish läggs under Billing. Sidebar visar kompakt kontoinfo längst ner.
+
+**Settings UI**
+
+- Category-etikett **Profile** → **Account profile** (delad identity/billing)
+- **Personal** (name/title/email) flyttad till **Team** → **Your profile**
+- Contact: Website, Email, **Phone** (top-level `organization.phone`; legacy `billing.phone` migreras vid normalize)
+- Billing: **Swish number** (`billing.swishNumber`); phone borttaget från billing-UI
+
+**API / data**
+
+- `tenants.organization` JSONB oförändrad lagring; shape utökad med `phone` + `billing.swishNumber`
+- `GET/PUT /api/organization` — read: `user`/`editor`/`admin`; write: `admin`/`editor` + CSRF
+- Klient: `normalizeOrganizationProfile` / `getSidebarOrganizationLines` i [`organizationApi.ts`](../client/src/core/api/organizationApi.ts); AppContext håller `organizationProfile` och `refreshOrganization` via org-API
+
+**Sidebar**
+
+- [`SidebarAccountFooter.tsx`](../client/src/core/ui/sidebar/SidebarAccountFooter.tsx): org.nr, adress, website-länk, mail, Swish (tomma fält döljs)
+
+**Security**
+
+| ID          | Typ                             | Notering                                                                                                                                  |
+| ----------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **R-ORG-1** | Accepterad residual (by design) | Org.nr / adress / website / mail / Swish synliga i sidobar för alla inloggade tenant-roller — samma läsbehörighet som `GET /organization` |
+
+**Docs:** denna post; [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md); [`PLUGIN_ARCHITECTURE_V3.md`](PLUGIN_ARCHITECTURE_V3.md).
+
+---
+
+## 2026-08-13 – Cups Fallback photos (admin pool) + Cupappen polish
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (residual **R-FB-1** väntar TPM medvetet godkännande; rekommendationer **R-FB-2**, **R-FB-3**). **Ej prod-release** (kräver `npm run migrate:cups-site-config` på tenant + Cupappen/Homebase-deploy vid explicit release).
+
+**Sammanfattning:** Admin kan ladda upp valfritt antal fallback-omslag (max 100) för Cupappen när cup saknar `featured_image_url`. Publik pool via API; statiska `assets/fallback/` som default. Mindre copy-/distriktspolish i samma leveransfönster.
+
+**Data / migrate**
+
+- Tenant-tabell `cups_site_config` — migration `130-cups-site-config.sql`
+- `npm run migrate:cups-site-config`
+- Värde för `config_key = fallback_images`: `{ "urls": ["https://…", …] }`
+
+**Homebase**
+
+- Cups → Inställningar → **Utseende** — multi-upload (Files/R2), ta bort, Spara
+- API: `GET/PUT /api/cups/site-config/fallback-images` (auth + plugin-gate; PUT CSRF)
+- URL-normalisering: http(s) only, blockerar `/api/…`, dedupe, max 100 (`plugins/cups/services/fallbackImages.js` + tester)
+
+**Cupappen (`public-cups/`)**
+
+- `GET /api/fallback_images.php` — publika URL:er (tom → SPA/SSR använder `assets/fallback/01.jpg` … `16.jpg`)
+- Listing: hash av `cup.id` + sektionsnamn (Kommande ≠ Passerade-sekvens)
+- Distriktssida: text **Inga kommande cuper just nu.** när inga kommande finns, **Passerade** visas fortfarande
+- Copy: distriktshero _Utforska cuper per distrikt_; Hem utan “under en minut” / “tio olika webbsidor”
+
+**Security**
+
+| ID         | Typ                              | Notering                                                                                      |
+| ---------- | -------------------------------- | --------------------------------------------------------------------------------------------- |
+| **R-FB-1** | Accepterad residual (väntar TPM) | Publikt GET exponerar fallback-URL-lista — by design (samma klass som publika omslags-URL:er) |
+| **R-FB-2** | Rekommendation                   | Överväg https-only i prod; CSP `img-src … https:` mitigerar `http` på HTML                    |
+| **R-FB-3** | Rekommendation                   | Sätt `PUBLIC_CUPS_USER_ID` så rätt owners rad används                                         |
+
+**Begränsningar:** Tom admin-pool → inbyggda defaults; migrate krävs innan admin-spar fungerar; ej prod-release utan explicit beslut.
+
+**Docs:** denna post; [`public-cups/README.md`](../public-cups/README.md); [`public-cups/assets/fallback/README.md`](../public-cups/assets/fallback/README.md); [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md).
+
+---
+
 ## 2026-08-12 – Cupappen UX/IA + UTM-fix + stats-fält
 
 **Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (ärvda residualer **A1–A2** oförändrade; rekommendation **R-UTM-1**). **Ej prod-release.**

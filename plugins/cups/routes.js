@@ -11,8 +11,15 @@ function createCupsRoutes(controller, context) {
 
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
-  // Must be registered before /:id so "stats" is not parsed as an id.
+  // Must be registered before /:id so "stats" / "site-config" are not parsed as ids.
   router.get('/stats/pageviews', gate, (req, res) => controller.getPageviewStats(req, res));
+
+  router.get('/site-config/fallback-images', gate, (req, res) =>
+    controller.getFallbackImages(req, res),
+  );
+  router.put('/site-config/fallback-images', gate, csrfProtection, (req, res) =>
+    controller.setFallbackImages(req, res),
+  );
 
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res),
