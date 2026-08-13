@@ -24,6 +24,9 @@ function applyPublicCupsSecurityHeaders(string $responseType = 'json'): void
         // Framing: allow same-origin only (protects against clickjacking).
         header('X-Frame-Options: SAMEORIGIN');
 
+        // Cup HTML: short shared cache with revalidation (Sitegrade L8).
+        header('Cache-Control: public, max-age=60, must-revalidate');
+
 		// Full CSP for HTML pages.
         // - script-src: self + GTM/GA domains (no unsafe-inline / unsafe-eval).
         // - style-src:  self + Google Fonts (no unsafe-inline).
@@ -46,5 +49,6 @@ function applyPublicCupsSecurityHeaders(string $responseType = 'json'): void
         // API / XML: strict no-framing + minimal CSP.
         header('X-Frame-Options: DENY');
         header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
+        header('Cache-Control: no-store');
     }
 }

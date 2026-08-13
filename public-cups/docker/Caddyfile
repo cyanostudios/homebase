@@ -42,6 +42,17 @@
 		respond "Not Found" 404
 	}
 
+	# Long-lived cache for versioned-ish static assets (Sitegrade L8).
+	@staticAssets path *.css *.js *.svg *.png *.webp *.jpg *.jpeg *.woff2 *.ico *.txt
+	handle @staticAssets {
+		header {
+			-X-Powered-By
+			X-Content-Type-Options "nosniff"
+			Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+		}
+		file_server
+	}
+
 	handle {
 		header {
 			-X-Powered-By
@@ -51,6 +62,8 @@
 			Strict-Transport-Security "max-age=31536000; includeSubDomains"
 			X-Frame-Options "SAMEORIGIN"
 			Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://tagmanager.google.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https:; frame-src https://www.googletagmanager.com; form-action 'self'; upgrade-insecure-requests"
+			# HTML shell / SPA routes — revalidate promptly
+			Cache-Control "no-cache"
 		}
 		try_files {path} /index.html
 		file_server
