@@ -42,8 +42,8 @@
 		respond "Not Found" 404
 	}
 
-	# Long-lived cache for versioned-ish static assets (Sitegrade L8).
-	@staticAssets path *.css *.js *.svg *.png *.webp *.jpg *.jpeg *.woff2 *.ico *.txt
+	# Long-lived cache for static assets (Sitegrade L8).
+	@staticAssets path_regexp static_assets \.(css|js|svg|png|webp|jpe?g|woff2|ico|txt)$
 	handle @staticAssets {
 		header {
 			-X-Powered-By
