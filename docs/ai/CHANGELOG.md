@@ -4,7 +4,7 @@ Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
 ## Cups Fallback photos — QA/Security docs sync (2026-08-13)
 
-Docs efter **QA Approved** + **Security Approved** för admin Fallback photos (`cups_site_config`, Appearance-settings, `fallback_images.php`, hash+sektions-salt, tester). Residual **R-FB-1** (publik URL-lista) dokumenterad — **väntar TPM medvetet godkännande**. Rekommendationer **R-FB-2** (https-only), **R-FB-3** (`PUBLIC_CUPS_USER_ID`). Ops: `migrate:cups-site-config`. **Local-first; ej prod-release.**
+Docs efter **QA Approved** + **Security Approved** för admin Fallback photos (`cups_site_config`, Appearance-settings, `fallback_images.php`, stabil cup-hash utan sektions-salt, tester). Residual **R-FB-1** (publik URL-lista) dokumenterad — **väntar TPM medvetet godkännande**. Rekommendationer **R-FB-2** (https-only), **R-FB-3** (`PUBLIC_CUPS_USER_ID`). Ops: `migrate:cups-site-config`. **Local-first; ej prod-release.**
 
 **Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
 

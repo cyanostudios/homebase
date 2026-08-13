@@ -723,7 +723,7 @@ textarea {
 
 .item-card__title {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.25;
   color: #fff;
@@ -742,7 +742,7 @@ textarea {
   }
 
   .item-card__title {
-    font-size: 0.875rem;
+    font-size: 1.25rem;
   }
 
   .item-card__meta {
@@ -782,7 +782,7 @@ textarea {
   }
 
   .item-row--featured .item-card__title {
-    font-size: 0.9375rem;
+    font-size: 1.375rem;
   }
 
   .item-row--featured .item-card__meta {

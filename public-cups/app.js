@@ -93,24 +93,26 @@ function getFallbackImagePool() {
   return fallbackImagePool.length > 0 ? fallbackImagePool : DEFAULT_FALLBACK_IMAGES;
 }
 
-/** Stable non-crypto hash for fallback image index (cup + optional section salt). */
+/** CRC-32 (IEEE) — must match PHP `crc32()` / `abs(crc32($key))` on cup.php. */
 function fallbackImageHash(key) {
   const s = String(key || '');
-  let h = 2166136261;
+  let crc = 0xffffffff;
   for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
+    crc ^= s.charCodeAt(i);
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+    }
   }
-  return h >>> 0;
+  return (crc ^ 0xffffffff) >>> 0;
 }
 
-function fallbackImageForCup(cup, sectionKey = '') {
+function fallbackImageForCup(cup) {
   const pool = getFallbackImagePool();
   const idPart = cup?.id != null && String(cup.id).trim() !== '' ? String(cup.id).trim() : '';
   const namePart = String(cup?.name || '')
     .trim()
     .replace(/\s+/g, ' ');
-  const key = `${idPart || namePart || 'cup'}|${String(sectionKey || '')}`;
+  const key = idPart || namePart || 'cup';
   const idx = fallbackImageHash(key) % pool.length;
   return pool[idx];
 }
@@ -800,13 +802,13 @@ function primaryCategoryBadge(cup) {
   return first || 'Cup';
 }
 
-function cupImageSrc(cup, sectionKey = '') {
+function cupImageSrc(cup) {
   const custom = resolveCupImageUrlForAttr(cup);
   if (custom) return custom;
-  return fallbackImageForCup(cup, sectionKey);
+  return fallbackImageForCup(cup);
 }
 
-function renderCupCard(cup, sectionKey = '') {
+function renderCupCard(cup) {
   const name = escapeHtml(normalizeText(cup.name) || 'Okänd cup');
   const dateRange = formatDateRange(cup.start_date, cup.end_date);
   const district = normalizeText(cup.ingest_source_name).trim() || normalizeText(cup.location);
@@ -814,7 +816,7 @@ function renderCupCard(cup, sectionKey = '') {
   const meta = escapeHtml(metaParts.join(' · '));
   const tag = escapeHtml(primaryCategoryBadge(cup));
   const detailUrl = escapeHtml(cupDetailUrl(cup));
-  const img = escapeHtml(cupImageSrc(cup, sectionKey));
+  const img = escapeHtml(cupImageSrc(cup));
 
   return `<a class="item-card shadow-card scroll-snap-start" href="${detailUrl}" data-testid="cup-listing-card" aria-label="Öppna ${name}">
     <div class="item-card__media">
@@ -936,7 +938,7 @@ function rowSectionHtml(title, cups, moreTab, moreDistrict, options = {}) {
       ${moreBtn}
     </div>
     <div class="item-row__scroller no-scrollbar scroll-snap-x">
-      ${cups.map((c) => renderCupCard(c, title)).join('')}
+      ${cups.map((c) => renderCupCard(c)).join('')}
     </div>
   </section>`;
 }

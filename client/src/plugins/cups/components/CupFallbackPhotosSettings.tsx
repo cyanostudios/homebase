@@ -90,7 +90,7 @@ export function CupFallbackPhotosSettings({
     setUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleUpload = async (fileList: FileList | null) => {
+  const handleUpload = async (fileList: File[] | FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     const remaining = MAX_FALLBACK_IMAGES - urls.length;
     if (remaining <= 0) {
@@ -147,7 +147,8 @@ export function CupFallbackPhotosSettings({
             disabled={isUploading || urls.length >= MAX_FALLBACK_IMAGES}
             className="sr-only"
             onChange={(e) => {
-              const list = e.target.files;
+              // Snapshot before clearing — input.files is a live FileList.
+              const list = e.target.files ? Array.from(e.target.files) : null;
               e.target.value = '';
               void handleUpload(list);
             }}

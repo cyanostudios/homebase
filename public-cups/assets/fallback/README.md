@@ -14,7 +14,7 @@ If the admin pool is empty, Cupappen uses the JPEGs here (`01.jpg` …). Replace
 
 ## Assignment
 
-Listing picks an image with a stable hash of `cup.id` (or name) **plus section title** (e.g. Kommande vs Passerade). Detail uses `cup.id` / name only (no section salt).
+Listing and detail pick an image with the same CRC-32 of `cup.id` (or name) as PHP `cup.php` — same cup → same fallback on cards, header, and related.
 
 ## Security
 

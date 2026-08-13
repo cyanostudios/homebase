@@ -54,7 +54,7 @@ URL-helpers (delade med Jest): [`lib/districtUrls.js`](lib/districtUrls.js).
 - **Fallback-omslag (ingen egen `featured_image_url`):**
   - **Admin:** Cups → Inställningar → **Utseende / Fallback-bilder** — ladda upp valfritt antal (max 100) via R2/`files`; sparas i tenant-tabell `cups_site_config`.
   - **Publikt:** `GET /api/fallback_images.php`; SPA/SSR använder uppladdad pool om den inte är tom, annars statiska [`assets/fallback/`](assets/fallback/).
-  - Listing hashar `cup.id` + sektionsnamn så t.ex. Kommande och Passerade inte får samma bildsekvens.
+  - Listing/detalj hashar `cup.id` (eller namn) med samma CRC-32 som PHP — samma cup får samma fallback-bild på kort, header och relaterade.
   - Migrate: `npm run migrate:cups-site-config`.
   - **Security R-FB-1 (accepterad residual, väntar TPM):** publikt GET exponerar URL-listan — by design. **R-FB-2/R-FB-3:** https-only i prod respektive `PUBLIC_CUPS_USER_ID` rekommenderas.
 

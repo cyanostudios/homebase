@@ -58,7 +58,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 **Cupappen (`public-cups/`)**
 
 - `GET /api/fallback_images.php` — publika URL:er (tom → SPA/SSR använder `assets/fallback/01.jpg` … `16.jpg`)
-- Listing: hash av `cup.id` + sektionsnamn (Kommande ≠ Passerade-sekvens)
+- Listing/detalj: CRC-32 av `cup.id` (eller namn), samma algoritm i SPA och PHP — samma cup → samma fallback på kort, header och relaterade
 - Distriktssida: text **Inga kommande cuper just nu.** när inga kommande finns, **Passerade** visas fortfarande
 - Copy: distriktshero _Utforska cuper per distrikt_; Hem utan “under en minut” / “tio olika webbsidor”
 
