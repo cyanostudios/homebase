@@ -105,7 +105,23 @@
         ]
       }
     </script>
-    <script type="application/ld+json" id="cups-json-ld"></script>
+    <script type="application/ld+json" id="cups-json-ld">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "ItemList",
+            "@id": "https://www.cupappen.se/#cup-catalog-itemlist",
+            "name": "Aktuellt i cupkatalogen – Cupappen",
+            "description": "Varje SportsEvent pekar på en SSR-detaljsida (/{distrikt}/{slug}-{år}) med fakta och omdömen.",
+            "url": "https://www.cupappen.se/",
+            "numberOfItems": 0,
+            "itemListOrder": "https://schema.org/ItemListOrderAscending",
+            "itemListElement": []
+          }
+        ]
+      }
+    </script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",

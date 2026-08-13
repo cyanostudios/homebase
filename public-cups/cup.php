@@ -11,6 +11,19 @@ function h(?string $value): string
     return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
+/**
+ * Encode JSON-LD for embedding in <script type="application/ld+json">.
+ * Do not HTML-escape (breaks JSON parsers); hex-escape HTML-sensitive chars instead.
+ */
+function jsonLdScriptPayload(mixed $value): string
+{
+    $json = json_encode(
+        $value,
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS
+    );
+    return $json === false ? '{}' : $json;
+}
+
 function siteBaseUrl(): string
 {
     $raw = trim((string) (getenv('CUPS_PUBLIC_SITE_URL') ?: 'https://www.cupappen.se'));
@@ -1212,7 +1225,7 @@ $jsonLdGraph = jsonLdStripNulls([
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/cupappen-cup-detail.css" />
-  <script type="application/ld+json"><?= h(json_encode($jsonLdGraph, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
+  <script type="application/ld+json"><?= jsonLdScriptPayload($jsonLdGraph) ?></script>
 </head>
 <body>
   <header class="detail-header">

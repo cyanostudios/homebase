@@ -1697,7 +1697,7 @@ function renderJsonLd(cups) {
     '@id': `${origin}/#cup-catalog-itemlist`,
     name: 'Aktuellt i cupkatalogen – Cupappen',
     description:
-      'Varje SportEvent pekar på en SSR-detaljsida (/{distrikt}/{slug}-{år}) med fakta och omdömen.',
+      'Varje SportsEvent pekar på en SSR-detaljsida (/{distrikt}/{slug}-{år}) med fakta och omdömen.',
     url: `${origin}/`,
     numberOfItems: unique.length,
     itemListOrder: 'https://schema.org/ItemListOrderAscending',
