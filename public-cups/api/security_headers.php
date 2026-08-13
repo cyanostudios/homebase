@@ -24,17 +24,17 @@ function applyPublicCupsSecurityHeaders(string $responseType = 'json'): void
         // Framing: allow same-origin only (protects against clickjacking).
         header('X-Frame-Options: SAMEORIGIN');
 
-        // Full CSP for HTML pages.
-        // - script-src: self + inline (GTM requires it) + GTM/GA domains.
-        // - style-src:  self + inline (used throughout) + Google Fonts.
+		// Full CSP for HTML pages.
+        // - script-src: self + GTM/GA domains (no unsafe-inline / unsafe-eval).
+        // - style-src:  self + Google Fonts (no unsafe-inline).
         // - font-src:   self + gstatic + data: (font face fallbacks).
         // - img-src:    self + data: + https: (R2 images, Pexels, OG images).
         // - connect-src: self + https: (API calls, analytics, etc.).
         // - frame-src:  GTM noscript iframe.
         header(
             "Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none';" .
-            " script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://tagmanager.google.com;" .
-            " style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;" .
+            " script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://tagmanager.google.com;" .
+            " style-src 'self' https://fonts.googleapis.com;" .
             " font-src 'self' https://fonts.gstatic.com data:;" .
             " img-src 'self' data: https:;" .
             " connect-src 'self' https:;" .

@@ -1231,7 +1231,10 @@ textarea {
   text-decoration: none;
 }
 
-/* --- SEO primer (static facts for crawlers + humans) --- */
+.gtm-noscript {
+  display: none;
+  visibility: hidden;
+}
 
 .seo-primer {
   margin: 0 auto 2.5rem;

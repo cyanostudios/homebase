@@ -1305,7 +1305,7 @@ $jsonLdGraph = jsonLdStripNulls([
       <?php endif; ?>
 
       <?php if ($description !== ''): ?>
-        <section class="cup-about" style="margin-top: 2rem;">
+        <section class="cup-about">
           <h2 class="h3">Om cupen</h2>
           <div class="cup-description"><?= h($description) ?></div>
         </section>
@@ -1326,7 +1326,18 @@ $jsonLdGraph = jsonLdStripNulls([
                 ?>
               <div class="rating-bar-row">
                 <span class="rating-bar-row__label"><?= h((string) $star) ?></span>
-                <div class="rating-bar-row__track"><div class="rating-bar-row__fill" style="width: <?= h(number_format($width, 2, '.', '')) ?>%"></div></div>
+                <div class="rating-bar-row__track" aria-hidden="true">
+                  <svg class="rating-bar-row__svg" viewBox="0 0 100 8" preserveAspectRatio="none" focusable="false">
+                    <rect
+                      class="rating-bar-row__fill-rect"
+                      x="0"
+                      y="0"
+                      width="<?= h(number_format($width, 2, '.', '')) ?>"
+                      height="8"
+                      rx="4"
+                    />
+                  </svg>
+                </div>
                 <span class="rating-bar-row__count"><?= h((string) $count) ?></span>
               </div>
             <?php endfor; ?>
@@ -1468,127 +1479,7 @@ $jsonLdGraph = jsonLdStripNulls([
     <a href="<?= h('/' . cupDistrictSlug($cup) . '/') ?>" id="detail-footer-back">Tillbaka till <?= h($districtLabel) ?></a>
   </footer>
 
-  <script>
-    (function () {
-      document.querySelectorAll('#detail-logo, a.logo').forEach(function (el) {
-        el.addEventListener('click', function () {
-          try {
-            sessionStorage.setItem('cupappen_active_tab', 'home');
-          } catch (err) {
-            /* ignore */
-          }
-        });
-      });
-
-      const cupId = <?= (int) $cup['id'] ?>;
-
-      (function trackCupPageview() {
-        const body = JSON.stringify({
-          page_kind: 'cup',
-          cup_id: cupId,
-          referrer: document.referrer || '',
-        });
-        try {
-          if (navigator.sendBeacon) {
-            navigator.sendBeacon('/api/pageview.php', new Blob([body], { type: 'application/json' }));
-            return;
-          }
-        } catch (_) {}
-        fetch('/api/pageview.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body,
-          keepalive: true,
-        }).catch(function () {});
-      })();
-
-      const form = document.getElementById('rating-form');
-      const errorEl = document.getElementById('rating-error');
-      const successEl = document.getElementById('rating-success');
-      const picker = document.getElementById('star-picker');
-      const ratingValue = document.getElementById('rating-value');
-      const shareBtn = document.getElementById('share-btn');
-      let currentRating = 0;
-
-      function renderStars() {
-        if (!picker) return;
-        picker.innerHTML = '';
-        for (let i = 1; i <= 5; i++) {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.dataset.active = i <= currentRating ? 'true' : 'false';
-          btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="m12 17.3-6.18 3.73 1.64-7.03L2 9.27l7.19-.62L12 2l2.81 6.65 7.19.62-5.46 4.73 1.64 7.03z"/></svg>';
-          btn.addEventListener('click', function () {
-            currentRating = i;
-            if (ratingValue) ratingValue.value = String(i);
-            renderStars();
-          });
-          picker.appendChild(btn);
-        }
-      }
-      renderStars();
-
-      if (shareBtn) {
-        shareBtn.addEventListener('click', async function () {
-          try {
-            if (navigator.share) {
-              await navigator.share({ url: window.location.href });
-            } else {
-              await navigator.clipboard.writeText(window.location.href);
-              shareBtn.textContent = 'Länk kopierad';
-              setTimeout(() => (shareBtn.textContent = 'Dela'), 1500);
-            }
-          } catch (_) {}
-        });
-      }
-
-      if (!form) return;
-      form.addEventListener('submit', async function (event) {
-        event.preventDefault();
-        if (errorEl) {
-          errorEl.hidden = true;
-          errorEl.textContent = '';
-        }
-        if (successEl) successEl.hidden = true;
-
-        const body = {
-          cup_id: cupId,
-          reviewer_name: String(document.getElementById('reviewer_name')?.value || '').trim(),
-          reviewer_role: String(document.getElementById('reviewer_role')?.value || '').trim(),
-          reviewer_club: String(document.getElementById('reviewer_club')?.value || '').trim(),
-          reviewer_class: String(document.getElementById('reviewer_class')?.value || '').trim(),
-          comment: String(document.getElementById('comment')?.value || '').trim(),
-          rating: Number(ratingValue?.value || 0),
-        };
-
-        if (!body.reviewer_name || body.rating < 1 || body.rating > 5) {
-          if (errorEl) {
-            errorEl.hidden = false;
-            errorEl.textContent = 'Namn och betyg (1-5) krävs.';
-          }
-          return;
-        }
-
-        try {
-          const response = await fetch('/api/ratings.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          });
-          const payload = await response.json();
-          if (!response.ok) {
-            throw new Error(payload?.error || 'Kunde inte spara omdömet.');
-          }
-          if (successEl) successEl.hidden = false;
-          setTimeout(() => window.location.reload(), 500);
-        } catch (err) {
-          if (errorEl) {
-            errorEl.hidden = false;
-            errorEl.textContent = err?.message || 'Kunde inte spara omdömet.';
-          }
-        }
-      });
-    })();
-  </script>
+  <script type="application/json" id="cup-detail-boot"><?= jsonLdScriptPayload(['cupId' => (int) $cup['id']]) ?></script>
+  <script src="/cup-detail.js" defer></script>
 </body>
 </html>

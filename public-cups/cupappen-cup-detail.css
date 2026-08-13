@@ -107,6 +107,10 @@ button {
   letter-spacing: -0.01em;
 }
 
+.cup-about {
+  margin-top: 2rem;
+}
+
 .cup-description {
   margin-top: 0.75rem;
   white-space: pre-wrap;
@@ -773,6 +777,14 @@ button {
   border-radius: 9999px;
   background: var(--border);
   overflow: hidden;
+}
+.rating-bar-row__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.rating-bar-row__fill-rect {
+  fill: var(--brand);
 }
 .rating-bar-row__fill {
   height: 100%;

@@ -4,26 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!--
-      CSP: GTM kräver script-src 'unsafe-inline' + googletagmanager; typsnitt/bilder från https;
-      connect-src inkluderar lokal dev (CUPS_API_URL) och all https (API-bilder m.m.).
+      CSP: GTM via /gtm-bootstrap.js (no script-src unsafe-inline/unsafe-eval).
+      style-src without unsafe-inline; Google Fonts via external stylesheet.
+      connect-src inkluderar lokal dev (CUPS_API_URL) och all https.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https: http://127.0.0.1:3002 http://localhost:3002; frame-src https://www.googletagmanager.com; form-action 'self'; upgrade-insecure-requests"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://tagmanager.google.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https: http://127.0.0.1:3002 http://localhost:3002; frame-src https://www.googletagmanager.com; form-action 'self'; upgrade-insecure-requests"
     />
-    <!-- Google Tag Manager -->
-    <script>
-      (function (w, d, s, l, i) {
-        w[l] = w[l] || [];
-        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
-        var f = d.getElementsByTagName(s)[0],
-          j = d.createElement(s),
-          dl = l != 'dataLayer' ? '&l=' + l : '';
-        j.async = true;
-        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
-        f.parentNode.insertBefore(j, f);
-      })(window, document, 'script', 'dataLayer', 'GTM-T9Z5HTC6');
-    </script>
+    <!-- Google Tag Manager (deferred external bootstrap — see L5/L7) -->
+    <script src="/gtm-bootstrap.js" defer></script>
     <!-- End Google Tag Manager -->
     <title>Cupappen - Hitta fotbollscuper</title>
     <meta name="description" content="Cupappen samlar Sveriges fotbollscuper på ett ställe. Sök, jämför och anmäl ert lag till rätt cup." />
@@ -166,7 +156,15 @@
   </head>
   <body>
     <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T9Z5HTC6" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+    <noscript
+      ><iframe
+        class="gtm-noscript"
+        src="https://www.googletagmanager.com/ns.html?id=GTM-T9Z5HTC6"
+        height="0"
+        width="0"
+        title="Google Tag Manager"
+      ></iframe
+    ></noscript>
 
     <a class="skip-link" href="#main">Hoppa till cupförteckning</a>
 
