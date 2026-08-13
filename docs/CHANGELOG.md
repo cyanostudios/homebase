@@ -4,6 +4,40 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-13 – CupStats analytics dashboard (v1.5)
+
+**Status:** Implementerat lokalt. **QA Approved**; **Security Approved**. Residual **R-STATS-1** dokumenterad — **väntar TPM medvetet godkännande**. Ärvd residual **A1–A2** oförändrad. **Ej prod-release** utan explicit beslut.
+
+**Sammanfattning:** Cups → Statistik får Plausible-lik layout på befintlig first-party pageview-data: periodväljare 7/30/90, fyra metric-kort, SVG-tidsserie (views/dag), rankade bar-listor. Ingen visitors/bounce/realtime.
+
+**API**
+
+- `GET /api/cups/stats/pageviews` returnerar `series: [{ day, views }]` (luckfria dagar via `fillPageviewSeries`) och utökade `totals` (`views`, `cups`, `districts`, `sources`)
+- Topplistor: `topCups` **LIMIT 20**; `topDistricts` LIMIT 25; `sources` LIMIT 50
+- `days` clamp 1–90 (default 30); auth + cups plugin oförändrat
+
+**UI**
+
+- [`CupsStatisticsView`](../client/src/plugins/cups/components/CupsStatisticsView.tsx) — period-select i header
+- [`CupPageviewStats`](../client/src/plugins/cups/components/stats/CupPageviewStats.tsx) + `PageviewTimeSeriesChart` + `RankedBarList`
+
+**Begränsningar**
+
+- Pageviews-only (inga visitors, bounce, duration, device, country, live)
+- Riktningssiffror; inte Google Analytics-parity
+- Serie fylls mot lokal kalenderdag; SQL-fönster använder DB `CURRENT_DATE` (möjlig ±1 dag vid TZ-kant)
+
+**Security**
+
+| ID            | Risk                                                                                                                | Status                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **A1–A2**     | Publika räknare / session-rate-limit                                                                                | Ärvd, oförändrad (ADR)                              |
+| **R-STATS-1** | Tenant-aggregat (`series`, `totals`, districts, sources) synliga för alla med cups-plugin; `topCups` är user-scopad | Security Approved som låg residual — **väntar TPM** |
+
+**ADR:** [`ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md) (beslutspunkt 8)
+
+---
+
 ## 2026-08-13 – Settings: Account profile / Team split + org phone/Swish + sidebar footer
 
 **Status:** Implementerat lokalt. **QA Approved**; **Security Approved** (accepterad residual **R-ORG-1** — TPM medvetet godkännande som notering). **Ej prod-release** utan explicit beslut.

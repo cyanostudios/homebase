@@ -170,9 +170,9 @@ Kör tenant-migrationer via Homebase om nya kolumner/tabeller saknas; public API
 
 - Migration: `server/migrations/129-cupappen-pageviews-daily.sql`
 - Runner: `npm run migrate:cups-pageviews` (alla tenants via `DATABASE_URL` / Neon)
-- Skrivs av Cupappen `POST /api/pageview.php`; läses av Homebase `GET /api/cups/stats/pageviews`
+- Skrivs av Cupappen `POST /api/pageview.php`; läses av Homebase `GET /api/cups/stats/pageviews` (v1.5: `series` + utökade `totals`; admin period 7/30/90)
 - **Release:** kör migrate på tenant **innan** eller i samma steg som Cupappen-deploy som aktiverar beacons; annars 500 på pageview
-- ADR + residualrisker A1/A2: [`ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](./ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md)
+- ADR + residualrisker A1/A2; v1.5 residual **R-STATS-1** (väntar TPM): [`ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](./ai/adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md)
 
 ### Fallback photos (`cups_site_config`)
 
@@ -222,11 +222,12 @@ Lokal PHP kan falla tillbaka till `DATABASE_URL` i `.env.local` om `CUPS_DB_URL`
 
 ## Historik
 
-| Datum   | Händelse                                                                                    |
-| ------- | ------------------------------------------------------------------------------------------- |
-| 2026-08 | First-party pageviews (`pageview.php` + `cupappen_pageviews_daily`); admin Statistik i Cups |
-| 2026-05 | `pdo_pgsql` / `libpq` saknas i image → 500; fix `postgresql-libs` kvar i Dockerfile         |
-| 2026-05 | `CUPS_DB_URL` + redeploy → cup-lista åter                                                   |
-| 2026-05 | `deleted_at`-filter + schema-säker SQL i `db_helpers.php`                                   |
+| Datum      | Händelse                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------- |
+| 2026-08    | First-party pageviews (`pageview.php` + `cupappen_pageviews_daily`); admin Statistik i Cups |
+| 2026-08-13 | CupStats admin dashboard v1.5 (period/series/bars); residual R-STATS-1 väntar TPM           |
+| 2026-05    | `pdo_pgsql` / `libpq` saknas i image → 500; fix `postgresql-libs` kvar i Dockerfile         |
+| 2026-05    | `CUPS_DB_URL` + redeploy → cup-lista åter                                                   |
+| 2026-05    | `deleted_at`-filter + schema-säker SQL i `db_helpers.php`                                   |
 
 Uppdatera denna tabell vid nya driftincidenter.

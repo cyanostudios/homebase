@@ -14,7 +14,7 @@ Publika endpoints för Cupappen mot samma tenant-Postgres som cups-datan (`CUPS_
 - Delad DB-hantering: `public-cups/api/pdo_env.php` (`getPdoFromEnv()`)
 - Gemensamma säkerhetsheaders: `public-cups/api/security_headers.php` (`applyPublicCupsSecurityHeaders()`)
 
-**Homebase (auth):** `GET /api/cups/stats/pageviews?days=30` — aggregat för admin Statistik-vy (inte denna PHP-API). `GET/PUT /api/cups/site-config/fallback-images` — admin fallback-pool (Homebase, inte denna PHP-API).
+**Homebase (auth):** `GET /api/cups/stats/pageviews?days=30` — aggregat för admin Statistik-vy (totals + daily `series` + topp-listor; inte denna PHP-API). `GET/PUT /api/cups/site-config/fallback-images` — admin fallback-pool (Homebase, inte denna PHP-API).
 
 ## Krav
 

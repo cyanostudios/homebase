@@ -1,7 +1,7 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
-const { clampPageviewDays } = require('./services/pageviewStats');
+const { clampPageviewDays, fillPageviewSeries } = require('./services/pageviewStats');
 const {
   FALLBACK_IMAGES_CONFIG_KEY,
   MAX_FALLBACK_IMAGES,
@@ -631,11 +631,22 @@ class CupsModel {
       const userId = db.getUserId();
       const pool = db.getPool();
 
-      const [totalsRes, topCupsRes, topDistrictsRes, sourcesRes] = await Promise.all([
+      const [totalsRes, seriesRes, topCupsRes, topDistrictsRes, sourcesRes] = await Promise.all([
         pool.query(
-          `SELECT COALESCE(SUM(views), 0)::int AS views
+          `SELECT COALESCE(SUM(views), 0)::int AS views,
+                  COUNT(DISTINCT CASE WHEN page_kind = 'cup' THEN target_key END)::int AS cups,
+                  COUNT(DISTINCT CASE WHEN page_kind = 'district' THEN target_key END)::int AS districts,
+                  COUNT(DISTINCT (source_bucket, referrer_domain))::int AS sources
              FROM cupappen_pageviews_daily
             WHERE day >= (CURRENT_DATE - ($1::int - 1))`,
+          [days],
+        ),
+        pool.query(
+          `SELECT day::text AS day, SUM(views)::int AS views
+             FROM cupappen_pageviews_daily
+            WHERE day >= (CURRENT_DATE - ($1::int - 1))
+            GROUP BY day
+            ORDER BY day ASC`,
           [days],
         ),
         pool.query(
@@ -652,7 +663,7 @@ class CupsModel {
               AND pv.day >= (CURRENT_DATE - ($1::int - 1))
             GROUP BY c.id, c.name, c.start_date, c.end_date, src.name
             ORDER BY views DESC, c.name ASC
-            LIMIT 25`,
+            LIMIT 20`,
           [days, userId],
         ),
         pool.query(
@@ -676,9 +687,16 @@ class CupsModel {
         ),
       ]);
 
+      const totalsRow = totalsRes.rows[0] || {};
       return {
         days,
-        totals: { views: totalsRes.rows[0]?.views ?? 0 },
+        totals: {
+          views: Number(totalsRow.views) || 0,
+          cups: Number(totalsRow.cups) || 0,
+          districts: Number(totalsRow.districts) || 0,
+          sources: Number(totalsRow.sources) || 0,
+        },
+        series: fillPageviewSeries(days, seriesRes.rows),
         topCups: topCupsRes.rows.map((r) => ({
           cup_id: Number(r.cup_id),
           name: r.name ?? '',

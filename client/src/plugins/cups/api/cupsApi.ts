@@ -182,7 +182,18 @@ class CupsApi {
     >;
     return {
       days: Number(raw.days) || days,
-      totals: { views: Number(totalsRaw.views) || 0 },
+      totals: {
+        views: Number(totalsRaw.views) || 0,
+        cups: Number(totalsRaw.cups) || 0,
+        districts: Number(totalsRaw.districts) || 0,
+        sources: Number(totalsRaw.sources) || 0,
+      },
+      series: Array.isArray(raw.series)
+        ? raw.series.map((row: Record<string, unknown>) => ({
+            day: String(row.day ?? '').slice(0, 10),
+            views: Number(row.views) || 0,
+          }))
+        : [],
       topCups: Array.isArray(raw.topCups)
         ? raw.topCups.map((row: Record<string, unknown>) => ({
             cup_id: Number(row.cup_id) || 0,

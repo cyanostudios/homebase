@@ -7,7 +7,12 @@ import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 
 import { cupsApi } from '../../api/cupsApi';
-import type { CupPageviewStats, CupPageviewTopCup } from '../../types/pageviewStats';
+import type {
+  CupPageviewStats as CupPageviewStatsData,
+  CupPageviewTopCup,
+} from '../../types/pageviewStats';
+import { PageviewTimeSeriesChart } from './PageviewTimeSeriesChart';
+import { RankedBarList } from './RankedBarList';
 
 function formatViews(n: number): string {
   return new Intl.NumberFormat(undefined).format(n);
@@ -41,9 +46,9 @@ function topCupMeta(row: CupPageviewTopCup): string | null {
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
-export function CupPageviewStats() {
+export function CupPageviewStats({ days }: { days: number }) {
   const { t } = useTranslation();
-  const [stats, setStats] = useState<CupPageviewStats | null>(null);
+  const [stats, setStats] = useState<CupPageviewStatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +57,7 @@ export function CupPageviewStats() {
     setLoading(true);
     setError(null);
     cupsApi
-      .getPageviewStats(30)
+      .getPageviewStats(days)
       .then((data) => {
         if (!cancelled) {
           setStats(data);
@@ -71,7 +76,7 @@ export function CupPageviewStats() {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [days, t]);
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">{t('cups.statistics.loading')}</p>;
@@ -91,103 +96,100 @@ export function CupPageviewStats() {
 
   const empty = stats.totals.views === 0;
 
+  const sourceItems = stats.sources.map((row) => {
+    const bucketLabel = t(`cups.statistics.bucket.${row.bucket}`, { defaultValue: row.bucket });
+    const label = row.referrer_domain ? `${bucketLabel} · ${row.referrer_domain}` : bucketLabel;
+    return {
+      key: `${row.bucket}|${row.referrer_domain}`,
+      label,
+      value: row.views,
+    };
+  });
+
+  const cupItems = stats.topCups.map((row) => ({
+    key: String(row.cup_id),
+    label: row.name,
+    value: row.views,
+    secondary: topCupMeta(row),
+  }));
+
+  const districtItems = stats.topDistricts.map((row) => ({
+    key: row.district_slug,
+    label: row.district_slug,
+    value: row.views,
+  }));
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <ListFilterStatCard
-          label={t('cups.statistics.pageviewsLastDays', { days: stats.days })}
-          value={stats.totals.views}
-          dotClassName="bg-emerald-500"
-        />
-      </div>
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <div className="space-y-4 p-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <ListFilterStatCard
+              label={t('cups.statistics.metricPageviews')}
+              value={stats.totals.views}
+              dotClassName="bg-primary"
+              active
+            />
+            <ListFilterStatCard
+              label={t('cups.statistics.metricCups')}
+              value={stats.totals.cups}
+              dotClassName="bg-emerald-500"
+            />
+            <ListFilterStatCard
+              label={t('cups.statistics.metricDistricts')}
+              value={stats.totals.districts}
+              dotClassName="bg-violet-500"
+            />
+            <ListFilterStatCard
+              label={t('cups.statistics.metricSources')}
+              value={stats.totals.sources}
+              dotClassName="bg-amber-500"
+            />
+          </div>
 
-      {empty ? <p className="text-sm text-muted-foreground">{t('cups.statistics.empty')}</p> : null}
+          {empty ? (
+            <p className="text-sm text-muted-foreground">{t('cups.statistics.empty')}</p>
+          ) : (
+            <PageviewTimeSeriesChart
+              series={stats.series}
+              ariaLabel={t('cups.statistics.chartAriaLabel', { days: stats.days })}
+              viewsLabel={t('cups.statistics.chartViews')}
+            />
+          )}
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection title={t('cups.statistics.sources')} subtleTitle className="p-4">
+            <RankedBarList
+              items={sourceItems}
+              emptyLabel={t('cups.statistics.noSources')}
+              barClassName="bg-primary"
+              valueFormatter={formatViews}
+            />
+          </DetailSection>
+        </Card>
+
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection title={t('cups.statistics.topCups')} subtleTitle className="p-4">
-            {stats.topCups.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">{t('cups.statistics.noCups')}</p>
-            ) : (
-              <ul className="mt-2 divide-y divide-border/60">
-                {stats.topCups.map((row) => {
-                  const meta = topCupMeta(row);
-                  return (
-                    <li
-                      key={row.cup_id}
-                      className="flex items-start justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate font-medium text-foreground">{row.name}</div>
-                        {meta ? (
-                          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {meta}
-                          </div>
-                        ) : null}
-                      </div>
-                      <span className="shrink-0 tabular-nums text-muted-foreground">
-                        {formatViews(row.views)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <RankedBarList
+              items={cupItems}
+              emptyLabel={t('cups.statistics.noCups')}
+              barClassName="bg-emerald-500"
+              valueFormatter={formatViews}
+            />
           </DetailSection>
         </Card>
 
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection title={t('cups.statistics.topDistricts')} subtleTitle className="p-4">
-            {stats.topDistricts.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                {t('cups.statistics.noDistricts')}
-              </p>
-            ) : (
-              <ul className="mt-2 divide-y divide-border/60">
-                {stats.topDistricts.map((row) => (
-                  <li
-                    key={row.district_slug}
-                    className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
-                  >
-                    <span className="min-w-0 truncate font-medium text-foreground">
-                      {row.district_slug}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {formatViews(row.views)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </DetailSection>
-        </Card>
-
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection title={t('cups.statistics.sources')} subtleTitle className="p-4">
-            {stats.sources.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">{t('cups.statistics.noSources')}</p>
-            ) : (
-              <ul className="mt-2 divide-y divide-border/60">
-                {stats.sources.map((row) => {
-                  const label = row.referrer_domain
-                    ? `${t(`cups.statistics.bucket.${row.bucket}`, {
-                        defaultValue: row.bucket,
-                      })} · ${row.referrer_domain}`
-                    : t(`cups.statistics.bucket.${row.bucket}`, { defaultValue: row.bucket });
-                  return (
-                    <li
-                      key={`${row.bucket}|${row.referrer_domain}`}
-                      className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
-                    >
-                      <span className="min-w-0 truncate font-medium text-foreground">{label}</span>
-                      <span className="shrink-0 tabular-nums text-muted-foreground">
-                        {formatViews(row.views)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <RankedBarList
+              items={districtItems}
+              emptyLabel={t('cups.statistics.noDistricts')}
+              barClassName="bg-violet-500"
+              valueFormatter={formatViews}
+            />
           </DetailSection>
         </Card>
       </div>
