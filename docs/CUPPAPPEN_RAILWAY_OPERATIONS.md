@@ -121,6 +121,20 @@ apk del .php-build-deps              # Ta bara bort build-deps
 
 `app.js` använder `https://www.cupappen.se` som API-origin när besökaren är på apex `cupappen.se`. Fixa ändå Cloudflare så `/api/*` inte tappar path vid redirect.
 
+### robots.txt — Cloudflare Managed Content (Sitegrade Q1)
+
+Origin-filen [`public-cups/robots.txt`](../public-cups/robots.txt) har `User-agent: *` → `Allow: /` (ingen bred `Disallow: /`).
+
+Cloudflare kan **injicera** ett block “BEGIN Cloudflare Managed content” före origin-filen. Där får enskilda botar `Disallow: /` (t.ex. Amazonbot). SEO-verktyg kan då felaktigt rapportera att hela sajten är stängd.
+
+**Åtgärd (prod, Cloudflare-dashboard):**
+
+1. Öppna zonen för `cupappen.se` → **Security** / **Bot Fight** / **AI Crawl Control** (eller **Scrape Shield** / managed robots — namn varierar).
+2. Stäng av eller begränsa **Managed robots.txt** så den **inte** lägger `Disallow: /` på crawlers ni vill tillåta för vanlig sökindexering.
+3. Verifiera: `curl -sS https://www.cupappen.se/robots.txt` — ska **inte** ha en generell `User-agent: *` + `Disallow: /`. Origin-`Allow: /` och `Sitemap:` ska synas.
+
+Se även AI-crawler-allowlist under samma sektion (Sitegrade Q2).
+
 ---
 
 ## Publika URL:er (listing vs detalj)

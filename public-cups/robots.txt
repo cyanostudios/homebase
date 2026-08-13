@@ -1,3 +1,6 @@
+# Origin robots for Cupappen. Do not add "Disallow: /" for User-agent: *.
+# If Cloudflare Managed robots injects per-bot Disallow rules, configure the
+# dashboard so search crawlers are not blocked (see docs/CUPPAPPEN_RAILWAY_OPERATIONS.md).
 User-agent: *
 Allow: /
 # LLM / AI crawler guidance: see https://www.cupappen.se/llms.txt
