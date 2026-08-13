@@ -16,6 +16,12 @@ import {
 
 import { apiFetch, invalidateCsrfToken } from '@/core/api/apiFetch';
 import {
+  cloneOrganizationProfile,
+  EMPTY_ORGANIZATION,
+  organizationApi,
+  type OrganizationProfile,
+} from '@/core/api/organizationApi';
+import {
   DEFAULT_TIME_FORMAT,
   migrateTimeFormatFromClockLocalStorage,
   parseTimeFormat,
@@ -134,9 +140,11 @@ interface AppContextType {
   updateSettings: (category: string, settings: any) => Promise<any>;
   settingsVersion: number;
 
-  /** Shared account (tenant) display name from Settings → Profile. */
+  /** Shared account (tenant) display name from Settings → Account profile. */
   organizationName: string;
   organizationLogoUrl: string;
+  /** Full shared account organization profile (sidebar footer, settings, etc.). */
+  organizationProfile: OrganizationProfile;
   refreshOrganization: () => Promise<void>;
 }
 
@@ -240,6 +248,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [organizationName, setOrganizationName] = useState('');
   const [organizationLogoUrl, setOrganizationLogoUrl] = useState('');
+  const [organizationProfile, setOrganizationProfile] = useState<OrganizationProfile>(() =>
+    cloneOrganizationProfile(EMPTY_ORGANIZATION),
+  );
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -329,16 +340,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const clearOrganizationState = useCallback(() => {
+    setOrganizationName('');
+    setOrganizationLogoUrl('');
+    setOrganizationProfile(cloneOrganizationProfile(EMPTY_ORGANIZATION));
+  }, []);
+
+  const refreshOrganization = useCallback(async () => {
+    try {
+      const org = await organizationApi.getOrganization();
+      const next = cloneOrganizationProfile(org);
+      setOrganizationProfile(next);
+      setOrganizationName(next.name);
+      setOrganizationLogoUrl(next.logoUrl);
+    } catch (error) {
+      console.error('Failed to refresh organization:', error);
+    }
+  }, []);
+
   const checkAuth = async () => {
     try {
       const response = await api.getMe();
       setUser(response.user);
       applyOrganizationFromMe(response);
       setIsAuthenticated(true);
+      void refreshOrganization();
     } catch {
       setUser(null);
-      setOrganizationName('');
-      setOrganizationLogoUrl('');
+      clearOrganizationState();
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
@@ -399,6 +428,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser(me.user);
         applyOrganizationFromMe(me);
         setIsAuthenticated(true);
+        void refreshOrganization();
         return { success: true };
       } catch (error: any) {
         console.error('Login failed:', error.message || 'Unknown error');
@@ -407,7 +437,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, error: errorMessage };
       }
     },
-    [applyOrganizationFromMe],
+    [applyOrganizationFromMe, refreshOrganization],
   );
 
   const signup = useCallback(
@@ -424,6 +454,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser(me.user);
         applyOrganizationFromMe(me);
         setIsAuthenticated(true);
+        void refreshOrganization();
         return { success: true };
       } catch (error: any) {
         console.error('Signup failed:', error);
@@ -431,7 +462,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, error: errorMessage };
       }
     },
-    [applyOrganizationFromMe],
+    [applyOrganizationFromMe, refreshOrganization],
   );
 
   const logout = useCallback(async () => {
@@ -442,24 +473,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       pomodoroAudio.close();
       setUser(null);
-      setOrganizationName('');
-      setOrganizationLogoUrl('');
+      clearOrganizationState();
       setIsAuthenticated(false);
       setContacts([]);
       setNotes([]);
       setTasks([]);
       setSlots([]);
     }
-  }, []);
-
-  const refreshOrganization = useCallback(async () => {
-    try {
-      const me = await api.getMe();
-      applyOrganizationFromMe(me);
-    } catch (error) {
-      console.error('Failed to refresh organization:', error);
-    }
-  }, [applyOrganizationFromMe]);
+  }, [clearOrganizationState]);
 
   const registerPanelCloseFunction = useCallback(
     (pluginName: string, closeFunction: () => void) => {
@@ -721,6 +742,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       settingsVersion,
       organizationName,
       organizationLogoUrl,
+      organizationProfile,
       refreshOrganization,
     }),
     [
@@ -768,6 +790,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       settingsVersion,
       organizationName,
       organizationLogoUrl,
+      organizationProfile,
       refreshOrganization,
     ],
   );

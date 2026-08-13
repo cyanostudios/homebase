@@ -1,4 +1,4 @@
-// Profile settings: personal user profile + shared tenant organization cards.
+// Account profile settings: shared tenant organization cards (identity, contact, billing).
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
 import {
+  cloneOrganizationProfile,
   EMPTY_ORGANIZATION,
   organizationApi,
   type OrganizationProfile,
@@ -22,23 +23,12 @@ interface ProfileSettingsFormProps {
   onCancel: () => void;
 }
 
-function cloneOrganization(value: OrganizationProfile): OrganizationProfile {
-  return {
-    name: value.name,
-    logoUrl: value.logoUrl,
-    website: value.website,
-    email: value.email,
-    address: { ...value.address },
-    billing: { ...value.billing },
-  };
-}
-
 function organizationsEqual(a: OrganizationProfile, b: OrganizationProfile): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
 export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
-  const { user, getSettings, updateSettings, refreshOrganization } = useApp();
+  const { refreshOrganization } = useApp();
   const { registerSaveHandler, setIsSaving, setHasChanges } = useSettingsContext();
   const enabledPlugins = useEnabledPlugins();
   const canUploadLogo = enabledPlugins.has('files');
@@ -47,50 +37,34 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
   const [logoUploadBusy, setLogoUploadBusy] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
-  const [personal, setPersonal] = useState({
-    name: '',
-    title: '',
-    email: user?.email || '',
-  });
-  const [initialPersonal, setInitialPersonal] = useState({ name: '', title: '' });
-
-  const [organization, setOrganization] = useState<OrganizationProfile>(
-    cloneOrganization(EMPTY_ORGANIZATION),
+  const [organization, setOrganization] = useState<OrganizationProfile>(() =>
+    cloneOrganizationProfile(EMPTY_ORGANIZATION),
   );
-  const [initialOrganization, setInitialOrganization] = useState<OrganizationProfile>(
-    cloneOrganization(EMPTY_ORGANIZATION),
+  const [initialOrganization, setInitialOrganization] = useState<OrganizationProfile>(() =>
+    cloneOrganizationProfile(EMPTY_ORGANIZATION),
   );
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings('profile', {
-        name: personal.name,
-        title: personal.title,
-      });
-      setInitialPersonal({ name: personal.name, title: personal.title });
-
       if (canEditOrganization) {
         const saved = await organizationApi.updateOrganization(organization);
-        setOrganization(cloneOrganization(saved));
-        setInitialOrganization(cloneOrganization(saved));
+        setOrganization(cloneOrganizationProfile(saved));
+        setInitialOrganization(cloneOrganizationProfile(saved));
         await refreshOrganization();
       }
 
       setHasChanges(false);
       onCancel();
     } catch (error) {
-      console.error('Failed to save profile settings:', error);
+      console.error('Failed to save account profile settings:', error);
     } finally {
       setIsSaving(false);
     }
   }, [
-    personal.name,
-    personal.title,
     organization,
     canEditOrganization,
     onCancel,
-    updateSettings,
     refreshOrganization,
     setIsSaving,
     setHasChanges,
@@ -102,9 +76,10 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
     const load = async () => {
       setIsLoading(true);
       try {
-        const [profileSettings, org, meRes] = await Promise.all([
-          getSettings('profile'),
-          organizationApi.getOrganization().catch(() => cloneOrganization(EMPTY_ORGANIZATION)),
+        const [org, meRes] = await Promise.all([
+          organizationApi
+            .getOrganization()
+            .catch(() => cloneOrganizationProfile(EMPTY_ORGANIZATION)),
           fetch('/api/auth/me', { credentials: 'include' })
             .then((res) => (res.ok ? res.json() : null))
             .catch(() => null),
@@ -114,24 +89,15 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
           return;
         }
 
-        const name = profileSettings?.name || '';
-        const title = profileSettings?.title || '';
-        setPersonal({
-          name,
-          title,
-          email: user?.email || '',
-        });
-        setInitialPersonal({ name, title });
-
-        const nextOrg = cloneOrganization(org);
+        const nextOrg = cloneOrganizationProfile(org);
         setOrganization(nextOrg);
-        setInitialOrganization(cloneOrganization(nextOrg));
+        setInitialOrganization(cloneOrganizationProfile(nextOrg));
 
         const role = typeof meRes?.tenantRole === 'string' ? meRes.tenantRole : 'user';
         setCanEditOrganization(role === 'admin' || role === 'editor');
         setHasChanges(false);
       } catch (error) {
-        console.error('Failed to load profile settings:', error);
+        console.error('Failed to load account profile settings:', error);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -143,22 +109,11 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
     return () => {
       cancelled = true;
     };
-  }, [getSettings, setHasChanges, user?.email]);
+  }, [setHasChanges]);
 
   const isDirty = useMemo(() => {
-    const personalDirty =
-      personal.name !== initialPersonal.name || personal.title !== initialPersonal.title;
-    const orgDirty = canEditOrganization && !organizationsEqual(organization, initialOrganization);
-    return personalDirty || orgDirty;
-  }, [
-    personal.name,
-    personal.title,
-    initialPersonal.name,
-    initialPersonal.title,
-    organization,
-    initialOrganization,
-    canEditOrganization,
-  ]);
+    return canEditOrganization && !organizationsEqual(organization, initialOrganization);
+  }, [organization, initialOrganization, canEditOrganization]);
 
   useEffect(() => {
     setHasChanges(isDirty);
@@ -193,50 +148,6 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
   return (
     <div className="space-y-3">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection title="Personal" className="p-4">
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="profile-name" className={DETAIL_FIELD_LABEL_CLASS}>
-                Name
-              </Label>
-              <Input
-                id="profile-name"
-                type="text"
-                value={personal.name}
-                onChange={(e) => setPersonal({ ...personal, name: e.target.value })}
-                placeholder="Enter your name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="profile-title" className={DETAIL_FIELD_LABEL_CLASS}>
-                Title
-              </Label>
-              <Input
-                id="profile-title"
-                type="text"
-                value={personal.title}
-                onChange={(e) => setPersonal({ ...personal, title: e.target.value })}
-                placeholder="Enter your job title"
-              />
-            </div>
-            <div>
-              <Label htmlFor="profile-email" className={DETAIL_FIELD_LABEL_CLASS}>
-                Email
-              </Label>
-              <Input
-                id="profile-email"
-                type="email"
-                value={personal.email}
-                disabled
-                className="bg-muted"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">Email cannot be changed</p>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
-
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection title="Account name" className="p-4">
           <p className="mb-3 text-sm text-muted-foreground">
             Display name for this Homebase account (shared with your team).
@@ -258,7 +169,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection title="Contact" className="p-4">
           <p className="mb-3 text-sm text-muted-foreground">
-            Public website and contact email for this account (shared with your team).
+            Public website, email and phone for this account (shared with your team).
           </p>
           <div className="space-y-3">
             <div>
@@ -285,6 +196,19 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
                 disabled={readOnlyOrg}
                 onChange={(e) => setOrganization({ ...organization, email: e.target.value })}
                 placeholder="hello@example.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="org-phone" className={DETAIL_FIELD_LABEL_CLASS}>
+                Phone
+              </Label>
+              <Input
+                id="org-phone"
+                type="tel"
+                value={organization.phone}
+                disabled={readOnlyOrg}
+                onChange={(e) => setOrganization({ ...organization, phone: e.target.value })}
+                placeholder="+46 8 123 45 67"
               />
             </div>
           </div>
@@ -519,14 +443,15 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
               />
             </div>
             <div>
-              <Label htmlFor="org-phone" className={DETAIL_FIELD_LABEL_CLASS}>
-                Phone
+              <Label htmlFor="org-swish" className={DETAIL_FIELD_LABEL_CLASS}>
+                Swish number
               </Label>
               <Input
-                id="org-phone"
-                value={organization.billing.phone}
+                id="org-swish"
+                value={organization.billing.swishNumber}
                 disabled={readOnlyOrg}
-                onChange={(e) => updateBilling('phone', e.target.value)}
+                onChange={(e) => updateBilling('swishNumber', e.target.value)}
+                placeholder="123 456 78 90"
               />
             </div>
           </div>

@@ -13,8 +13,13 @@ describe('normalizeOrganization', () => {
         logoUrl: ' https://example.com/logo.png ',
         website: ' https://acme.example ',
         email: ' hello@acme.example ',
+        phone: ' 08-123 45 67 ',
         address: { line1: ' Storgatan 1 ', city: ' Stockholm ', extra: 'drop' },
-        billing: { organizationNumber: ' 556677-8899 ', bankgiro: '123' },
+        billing: {
+          organizationNumber: ' 556677-8899 ',
+          bankgiro: '123',
+          swishNumber: ' 123 456 78 90 ',
+        },
         unknown: true,
       }),
     ).toEqual({
@@ -22,6 +27,7 @@ describe('normalizeOrganization', () => {
       logoUrl: 'https://example.com/logo.png',
       website: 'https://acme.example',
       email: 'hello@acme.example',
+      phone: '08-123 45 67',
       address: {
         line1: 'Storgatan 1',
         line2: '',
@@ -37,9 +43,25 @@ describe('normalizeOrganization', () => {
         iban: '',
         bic: '',
         invoiceEmail: '',
-        phone: '',
+        swishNumber: '123 456 78 90',
       },
     });
+  });
+
+  test('migrates legacy billing.phone to top-level phone', () => {
+    expect(normalizeOrganization({ billing: { phone: ' 070-111 22 33 ' } })).toEqual({
+      ...EMPTY_ORGANIZATION,
+      phone: '070-111 22 33',
+    });
+  });
+
+  test('prefers top-level phone over legacy billing.phone', () => {
+    expect(
+      normalizeOrganization({
+        phone: '08-1',
+        billing: { phone: '070-2' },
+      }).phone,
+    ).toBe('08-1');
   });
 
   test('truncates website and email to 255 characters', () => {

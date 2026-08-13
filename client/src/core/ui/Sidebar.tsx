@@ -9,6 +9,7 @@ import {
   SidebarNavContent,
   type SidebarNavContentProps,
 } from '@/core/ui/sidebar/SidebarNavContent';
+import { SidebarAccountFooter } from '@/core/ui/sidebar/SidebarAccountFooter';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { toggleSetItem } from '@/lib/setUtils';
@@ -118,18 +119,18 @@ export function Sidebar({
       <aside className="fixed left-0 top-0 z-10 hidden h-screen w-[252px] flex-shrink-0 bg-workspace md:flex">
         <div className="flex h-full flex-col pt-14">
           <SidebarNavContent {...navContentProps} />
+          <SidebarAccountFooter />
         </div>
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
-        <SheetContent side="left" className="w-72 border-border/60 bg-workspace p-0">
+        <SheetContent side="left" className="flex w-72 flex-col border-border/60 bg-workspace p-0">
           <SheetHeader className="px-4 pt-4">
             <SheetTitle>{t('nav.navigation')}</SheetTitle>
           </SheetHeader>
-          <div className="px-2 pb-6 pt-2">
-            <div className="flex flex-col">
-              <SidebarNavContent {...navContentProps} />
-            </div>
+          <div className="flex min-h-0 flex-1 flex-col px-2 pb-0 pt-2">
+            <SidebarNavContent {...navContentProps} />
+            <SidebarAccountFooter />
           </div>
         </SheetContent>
       </Sheet>

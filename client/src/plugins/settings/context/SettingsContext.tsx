@@ -11,7 +11,7 @@ import React, {
 import { useApp } from '@/core/api/AppContext';
 
 const SETTINGS_CATEGORY_LABELS: Record<string, string> = {
-  profile: 'User Profile',
+  profile: 'Account profile',
   preferences: 'Preferences',
   'activity-log': 'Activity Log',
   team: 'Team',
@@ -22,7 +22,7 @@ export interface SettingsContextType {
   currentSetting: { category: string } | null;
   panelMode: 'create' | 'edit' | 'view';
   isSaving: boolean;
-  /** True when the active form (Preferences/Profile) has unsaved changes. */
+  /** True when the active form (Preferences / Account profile / Team personal) has unsaved changes. */
   hasChanges: boolean;
   setHasChanges: (value: boolean) => void;
   openSettingsPanel: (categoryId: string) => void;

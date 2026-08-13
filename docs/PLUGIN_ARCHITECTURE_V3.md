@@ -84,7 +84,7 @@ Plugins (notes, tasks, estimates) register their "open for view" function with A
 
 - **Settings** is implemented as a normal plugin (`plugins/settings` on the server, `client/src/plugins/settings` on the client) but is **always active**: it is not gated by `user_plugin_access`. The backend injects `settings` into `user.plugins` in auth responses (login, signup, GET /me); the frontend treats Settings as enabled in nav and search even if missing from `user.plugins`.
 - **API:** User settings and activity log are served by the settings plugin at `/api/settings` (GET/PUT all or per category) and `/api/settings/activity-log` (GET with query params). Core no longer mounts separate settings or activity-log routes.
-- **Panel flow:** Settings uses the same plugin panel flow as other plugins (List = category list, Form = Profile/Preferences/ActivityLog wrapper). There is no `currentPage === 'settings'` special case in App.
+- **Panel flow:** Settings uses the same plugin panel flow as other plugins (List = category list, Form = Account profile / Preferences / Team / Activity Log wrapper). There is no `currentPage === 'settings'` special case in App.
 
 ### Cross-plugin dialog registration (e.g. Slots from Matches)
 

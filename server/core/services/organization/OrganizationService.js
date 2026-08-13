@@ -5,6 +5,7 @@ const EMPTY_ORGANIZATION = Object.freeze({
   logoUrl: '',
   website: '',
   email: '',
+  phone: '',
   address: Object.freeze({
     line1: '',
     line2: '',
@@ -20,7 +21,7 @@ const EMPTY_ORGANIZATION = Object.freeze({
     iban: '',
     bic: '',
     invoiceEmail: '',
-    phone: '',
+    swishNumber: '',
   }),
 });
 
@@ -51,6 +52,7 @@ function normalizeOrganization(raw) {
     logoUrl: asString(source.logoUrl),
     website: asContactString(source.website),
     email: asContactString(source.email),
+    phone: asContactString(source.phone) || asContactString(billing.phone),
     address: {
       line1: asString(address.line1),
       line2: asString(address.line2),
@@ -66,7 +68,7 @@ function normalizeOrganization(raw) {
       iban: asString(billing.iban),
       bic: asString(billing.bic),
       invoiceEmail: asString(billing.invoiceEmail),
-      phone: asString(billing.phone),
+      swishNumber: asString(billing.swishNumber),
     },
   };
 }

@@ -1,6 +1,6 @@
 // Core Settings: Contacts-style page shell — header, category cards, detail content card.
 
-import { Check, User, Globe, History, Users } from 'lucide-react';
+import { Building2, Check, Globe, History, Users } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -34,10 +34,10 @@ const settingsCategories: SettingsCategory[] = [
   },
   {
     id: 'profile',
-    label: 'Profile',
-    icon: User,
+    label: 'Account profile',
+    icon: Building2,
     category: 'profile',
-    description: 'Your details and account identity',
+    description: 'Shared account identity and billing',
     dotClassName: 'bg-emerald-500',
   },
   {
@@ -45,7 +45,7 @@ const settingsCategories: SettingsCategory[] = [
     label: 'Team',
     icon: Users,
     category: 'team',
-    description: 'Members and roles',
+    description: 'Your profile, members, and roles',
     dotClassName: 'bg-amber-500',
   },
   {
@@ -64,7 +64,8 @@ export function SettingsList() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>(settingsCategories[0].id);
 
-  const isReadOnlyCategory = selectedCategory === 'activity-log' || selectedCategory === 'team';
+  const isReadOnlyCategory = selectedCategory === 'activity-log';
+  const usesOwnCards = selectedCategory === 'profile' || selectedCategory === 'team';
 
   return (
     <div className="min-h-full bg-background px-6 py-4">
@@ -73,7 +74,7 @@ export function SettingsList() {
           <div className="min-w-0">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.settings')}</h2>
             <p className="text-sm text-muted-foreground">
-              Manage preferences, profile, team, and activity.
+              Manage preferences, account profile, team, and activity.
             </p>
           </div>
           {!isReadOnlyCategory && hasChanges ? (
@@ -108,7 +109,7 @@ export function SettingsList() {
           ))}
         </div>
 
-        {selectedCategory === 'profile' ? (
+        {usesOwnCards ? (
           <SettingsForm currentItem={{ category: selectedCategory }} onCancel={() => {}} />
         ) : (
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
