@@ -183,7 +183,6 @@ const heroDistrictFilterEl = document.getElementById('hero-district-filter');
 const heroDistrictTriggerEl = document.getElementById('hero-district-trigger');
 const heroDistrictLabelEl = document.getElementById('hero-district-label');
 const heroDistrictMenuEl = document.getElementById('hero-district-menu');
-const seoPrimerEl = document.getElementById('seo-primer');
 
 const ACTIVE_TAB_KEY = 'cupappen_active_tab';
 
@@ -694,7 +693,6 @@ function syncHeroVisibility() {
     sharedFilterEl.hidden = !showFilter;
   }
   if (quickNavEl) quickNavEl.hidden = !showQuickNav;
-  if (seoPrimerEl) seoPrimerEl.hidden = state.activeTab !== 'home';
   if (showFilter) renderHeroFilters();
   syncDocumentSeo();
 }
