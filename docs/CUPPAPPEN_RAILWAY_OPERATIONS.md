@@ -135,6 +135,18 @@ Cloudflare kan **injicera** ett block “BEGIN Cloudflare Managed content” fö
 
 Se även AI-crawler-allowlist under samma sektion (Sitegrade Q2).
 
+### AI crawlers — tillåt (Sitegrade Q2)
+
+Produktbeslut: GPTBot, ClaudeBot, Google-Extended och CCBot ska **tillåtas** (citering i AI-svar). Residual risk: `R-SEO-AI-1` i ADR [`CUPAPPEN_SITEGRADE_SEO.md`](ai/adr/CUPAPPEN_SITEGRADE_SEO.md).
+
+**Cloudflare (prod):**
+
+1. Under **AI Crawl Control** (eller motsvarande): sätt GPTBot, ClaudeBot, Google-Extended, CCBot till **Allow** / ta bort deras `Disallow: /` i Managed robots.
+2. Origin [`public-cups/robots.txt`](../public-cups/robots.txt) har explicit `Allow: /` för samma user-agents — Cloudflare-regeln får inte överskrida dem med Disallow.
+3. Verifiera: `curl -sS https://www.cupappen.se/robots.txt | grep -A1 -E 'GPTBot|ClaudeBot|Google-Extended|CCBot'` — ska visa `Allow: /`, inte `Disallow: /`.
+
+**Obs:** `Content-Signal: ai-train=no` (om Cloudflare behåller den) är separat från crawl-Allow; crawl för sök/citering kan tillåtas medan träningssignal förblir restriktiv.
+
 ---
 
 ## Publika URL:er (listing vs detalj)
