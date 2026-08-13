@@ -1392,9 +1392,18 @@ function renderHeroFilters() {
 function renderHeroDateFilter() {
   if (!dateMenuHeroEl) return;
   const months = new Set();
+  const now = new Date();
   state.cups.forEach((cup) => {
+    if (
+      typeof CupappenDateFilters !== 'undefined' &&
+      CupappenDateFilters.selectableMonthKeysFromCup
+    ) {
+      CupappenDateFilters.selectableMonthKeysFromCup(cup, now).forEach((key) => months.add(key));
+      return;
+    }
     const key = monthKeyFromCup(cup);
-    if (key) months.add(key);
+    const minKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (key && key >= minKey) months.add(key);
   });
   const ordered = Array.from(months).sort((a, b) => a.localeCompare(b, 'sv'));
   const options = [

@@ -138,12 +138,60 @@
     return `${y}-${m}`;
   }
 
+  /**
+   * @param {Date} [now]
+   * @returns {string} YYYY-MM for the local calendar month of `now`
+   */
+  function currentMonthKey(now = new Date()) {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  }
+
+  /**
+   * Month keys a cup spans that belong in the date-filter dropdown:
+   * current calendar month and later only (no past months).
+   * @param {{ start_date?: unknown, end_date?: unknown }} cup
+   * @param {Date} [now]
+   * @returns {string[]}
+   */
+  function selectableMonthKeysFromCup(cup, now = new Date()) {
+    const start = parseCupDate(cup?.start_date);
+    const end = parseCupDate(cup?.end_date) || start;
+    if (!start && !end) return [];
+    const first = start || end;
+    const last = end || start;
+    if (!first || !last) return [];
+
+    const minKey = currentMonthKey(now);
+    const keys = [];
+    let y = first.getFullYear();
+    let m = first.getMonth();
+    const endY = last.getFullYear();
+    const endM = last.getMonth();
+    let guard = 0;
+    while (y < endY || (y === endY && m <= endM)) {
+      const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+      if (key >= minKey) keys.push(key);
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+      guard += 1;
+      if (guard > 48) break;
+    }
+    return keys;
+  }
+
   return {
     parseCupDate,
     isUpcoming,
     cupMatchesDateFilter,
     timeBucket,
     monthKeyFromCup,
+    currentMonthKey,
+    selectableMonthKeysFromCup,
     startOfLocalDay,
     endOfLocalDay,
   };
