@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Cupappen Sitegrade SEO — QA/Security docs sync (2026-08-13)
+
+Docs efter **QA Approved** + **Security Approved** för Sitegrade Q1–Q5 + L3–L8 (ingen homepage-SSR L1/L2). ADR [`CUPAPPEN_SITEGRADE_SEO.md`](adr/CUPAPPEN_SITEGRADE_SEO.md). Residual **R-SEO-AI-1** (AI crawl allow), **R-SEO-CSP-1** (GTM/CSP). Ops Cloudflare robots/AI i [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](../CUPPAPPEN_RAILWAY_OPERATIONS.md). **Local-first; ej prod-release** — Q1–Q2 syns i Sitegrade först efter Cloudflare + deploy.
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## CupStats analytics dashboard v1.5 — QA/Security docs sync (2026-08-13)
 
 Docs efter **QA Approved** + **Security Approved** för Cups Statistik-dashboard (period 7/30/90, metrics, `series`, bar-listor). `topCups` LIMIT 20. Residual **R-STATS-1** (tenant-aggregat vs user-scopad `topCups`) dokumenterad — **väntar TPM medvetet godkännande**. Ärvd **A1–A2**. ADR [`CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md`](adr/CUPAPPEN_FIRST_PARTY_PAGEVIEWS.md) beslutspunkt 8. **Local-first; ej prod-release.**

@@ -4,6 +4,41 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-13 – Cupappen Sitegrade SEO (Q1–Q5, L3–L8)
+
+**Status:** Implementerat lokalt. **QA Approved** (checklist + `public-cups` tester). **Security Approved** med residualer **R-SEO-AI-1**, **R-SEO-CSP-1**. **Ej prod-release** utan explicit beslut. Q1–Q2 kräver **Cloudflare-dashboard** utöver deploy.
+
+**Sammanfattning:** Sitegrade-punkter för www.cupappen.se utan homepage-SSR (L1/L2 ute). Meta/OG/Twitter synkade. En commit per punkt.
+
+**Crawl / robots**
+
+- Origin [`public-cups/robots.txt`](../public-cups/robots.txt): `Allow: /`; explicit Allow för GPTBot, ClaudeBot, Google-Extended, CCBot m.fl.
+- Ops: Cloudflare Managed robots / AI Crawl Control — se [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md)
+
+**HTML / SEO**
+
+- En H1 på SPA-shell; distriktsheros är H2
+- Giltig JSON-LD (tom ItemList i HTML; cup-detalj utan `htmlspecialchars` på LD)
+- SEO-primer med listor, tabell, H2/H3 och utökad copy
+- Meta description = og:description = twitter:description
+
+**Säkerhet / prestanda**
+
+- CSP utan `unsafe-inline`/`unsafe-eval` (GTM + cup-detail externaliserade)
+- Caddy `encode zstd gzip`; scripts deferred utanför `<head>`
+- Cache-Control: statiska assets 7 dagar; SPA HTML `no-cache`; cup HTML `max-age=60`; API `no-store`
+
+**Security**
+
+| ID              | Risk                                                                    | Status                   |
+| --------------- | ----------------------------------------------------------------------- | ------------------------ |
+| **R-SEO-AI-1**  | AI-crawlers tillåtna (citering) kan öka scrape/träning trots `llms.txt` | Accepted (produktbeslut) |
+| **R-SEO-CSP-1** | GTM kan injicera scripts som kräver CSP-uppdatering senare              | Accepted residual        |
+
+**ADR:** [`ai/adr/CUPAPPEN_SITEGRADE_SEO.md`](ai/adr/CUPAPPEN_SITEGRADE_SEO.md)
+
+---
+
 ## 2026-08-13 – CupStats analytics dashboard (v1.5)
 
 **Status:** Implementerat lokalt. **QA Approved**; **Security Approved**. Residual **R-STATS-1** dokumenterad — **väntar TPM medvetet godkännande**. Ärvd residual **A1–A2** oförändrad. **Ej prod-release** utan explicit beslut.
