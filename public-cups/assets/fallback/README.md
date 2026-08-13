@@ -10,7 +10,7 @@ Requires: `npm run migrate:cups-site-config` (local + prod tenant when releasing
 
 ## Built-in defaults (this folder)
 
-If the admin pool is empty, Cupappen uses the JPEGs here (`01.jpg` …). Replace these for offline/default branding; keep names in sync with `DEFAULT_FALLBACK_IMAGES` in `app.js` and the default list in `cup.php`.
+If the admin pool is empty, Cupappen uses the JPEGs here (`01.jpg` … `25.jpg`). Replace these for offline/default branding; keep names in sync with `DEFAULT_FALLBACK_IMAGES` in `app.js` and the default list in `cup.php`.
 
 ## Assignment
 

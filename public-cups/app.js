@@ -84,6 +84,15 @@ const DEFAULT_FALLBACK_IMAGES = [
   '/assets/fallback/14.jpg',
   '/assets/fallback/15.jpg',
   '/assets/fallback/16.jpg',
+  '/assets/fallback/17.jpg',
+  '/assets/fallback/18.jpg',
+  '/assets/fallback/19.jpg',
+  '/assets/fallback/20.jpg',
+  '/assets/fallback/21.jpg',
+  '/assets/fallback/22.jpg',
+  '/assets/fallback/23.jpg',
+  '/assets/fallback/24.jpg',
+  '/assets/fallback/25.jpg',
 ];
 
 /** Active pool: admin-uploaded URLs when present, else static defaults. */
