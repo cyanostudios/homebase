@@ -102,11 +102,16 @@ export function CupFallbackPhotosSettings({
     setError(null);
     try {
       const items = await filesApi.uploadFiles(files);
-      const newUrls = items
-        .map((item) => String(item?.url || '').trim())
-        .filter((url) => /^https?:\/\//i.test(url));
+      const rawUrls = items.map((item) => String(item?.url || '').trim()).filter(Boolean);
+      const newUrls = rawUrls.filter((url) => /^https?:\/\//i.test(url));
       if (newUrls.length === 0) {
-        setError(t('cups.fallbackPhotos.uploadError'));
+        // Local `/api/files/raw/…` is rejected on purpose — Cupappen needs a public https URL (R2).
+        const hasNonPublic = rawUrls.some((url) => !/^https?:\/\//i.test(url));
+        setError(
+          hasNonPublic
+            ? t('cups.fallbackPhotos.uploadNeedsPublicUrl')
+            : t('cups.fallbackPhotos.uploadError'),
+        );
         return;
       }
       setUrls((prev) => {
@@ -120,8 +125,12 @@ export function CupFallbackPhotosSettings({
         }
         return merged;
       });
-    } catch {
-      setError(t('cups.fallbackPhotos.uploadError'));
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message?: unknown }).message || '').trim()
+          : '';
+      setError(message || t('cups.fallbackPhotos.uploadError'));
     } finally {
       setIsUploading(false);
     }
