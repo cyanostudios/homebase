@@ -13,6 +13,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { useTeamVenues } from '@/plugins/teams/hooks/useTeamVenues';
+import { resolveTrainingLocation } from '@/plugins/teams/utils/resolveTrainingLocation';
 
 import { slotCountsTowardCapacity, type ScheduleSlot } from '../types/schedule';
 
@@ -32,6 +34,7 @@ export function ScheduleSlotDetailDialog({
   onNavigateToTeam?: (slot: ScheduleSlot) => void;
 }) {
   const { t } = useTranslation();
+  const { venues } = useTeamVenues();
 
   if (!slot) {
     return null;
@@ -42,6 +45,10 @@ export function ScheduleSlotDetailDialog({
   const counts = slotCountsTowardCapacity(slot);
   const canEdit = !isLocked && Boolean(onEdit);
   const canGoToTeam = Boolean(slot.teamId && onNavigateToTeam);
+  const resolvedLocation = resolveTrainingLocation(
+    { location: slot.location, venueId: slot.venueId },
+    venues,
+  );
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -76,14 +83,26 @@ export function ScheduleSlotDetailDialog({
                   </div>
                 </div>
 
-                {slot.location?.trim() ? (
+                {resolvedLocation.name ? (
                   <div className="flex items-start gap-2">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
                       <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                         {t('schedule.slotDetail.location')}
                       </div>
-                      <div className="text-sm text-foreground">{slot.location}</div>
+                      {resolvedLocation.mapUrl ? (
+                        <a
+                          href={resolvedLocation.mapUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-plugin hover:underline"
+                        >
+                          {resolvedLocation.name}
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      ) : (
+                        <div className="text-sm text-foreground">{resolvedLocation.name}</div>
+                      )}
                     </div>
                   </div>
                 ) : null}

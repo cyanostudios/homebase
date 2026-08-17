@@ -195,6 +195,7 @@ export function PlanView({
           startTime: newStartTime,
           endTime: newEndTime,
           location: slot.location,
+          venueId: slot.venueId,
           countsTowardCapacity: slot.countsTowardCapacity !== false,
         },
         teams,

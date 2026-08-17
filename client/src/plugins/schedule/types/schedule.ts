@@ -6,6 +6,7 @@ export interface ScheduleSlot {
   startTime: string;
   endTime: string;
   location: string;
+  venueId?: string;
   teamId?: string;
   teamName?: string;
   teamColor?: TeamColor;
@@ -39,6 +40,7 @@ export interface PlanEvent {
   end_time: string;
   location: string;
   team_id: string | null;
+  venue_id?: string | null;
   counts_toward_capacity?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -61,6 +63,7 @@ export function planEventToSlot(event: PlanEvent, teams: Team[]): ScheduleSlot {
     startTime: event.start_time,
     endTime: event.end_time,
     location: event.location ?? '',
+    venueId: event.venue_id ?? undefined,
     teamId: event.team_id ?? undefined,
     teamName: team ? formatTeamLabel(team) : undefined,
     teamColor: team?.color,
@@ -108,6 +111,7 @@ export function buildTeamSlots(teams: Team[], teamFilter: ScheduleTeamFilter): S
         startTime: training.startTime,
         endTime: training.endTime,
         location: training.location,
+        venueId: training.venueId,
         teamId: team.id,
         teamName: formatTeamLabel(team),
         teamColor: team.color,
@@ -453,6 +457,7 @@ export function buildScheduleEventPayload(
     start_time: training.startTime,
     end_time: training.endTime,
     location: training.location,
+    venue_id: training.venueId ? Number(training.venueId) || null : null,
     team_id: resolvedTeamId ? Number(resolvedTeamId) : null,
     counts_toward_capacity: training.countsTowardCapacity === false ? false : true,
   };

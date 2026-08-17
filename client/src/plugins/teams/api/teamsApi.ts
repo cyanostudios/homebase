@@ -7,6 +7,7 @@ import type {
   SeriesTeam,
   Team,
   TeamNote,
+  TeamVenue,
   TrainingTime,
 } from '../types/teams';
 
@@ -51,6 +52,21 @@ function rowToTeam(row: Record<string, unknown>): Team {
   };
 }
 
+function rowToVenue(row: Record<string, unknown>): TeamVenue {
+  return {
+    id: String(row.id),
+    name: String(row.name ?? ''),
+    mapLink: row.mapLink != null && String(row.mapLink).trim() ? String(row.mapLink).trim() : null,
+    created_at: row.created_at as string | undefined,
+    updated_at: row.updated_at as string | undefined,
+  };
+}
+
+export interface TeamVenuePayload {
+  name: string;
+  mapLink?: string | null;
+}
+
 export interface TeamPayload {
   name: string;
   age_group?: string | null;
@@ -75,6 +91,25 @@ class TeamsApi {
   async getTeams(): Promise<Team[]> {
     const rows = await this.request('');
     return (rows || []).map((row: Record<string, unknown>) => rowToTeam(row));
+  }
+
+  async getVenues(): Promise<TeamVenue[]> {
+    const rows = await this.request('/venues');
+    return (Array.isArray(rows) ? rows : []).map((row: Record<string, unknown>) => rowToVenue(row));
+  }
+
+  async createVenue(data: TeamVenuePayload): Promise<TeamVenue> {
+    const row = await this.request('/venues', { method: 'POST', body: JSON.stringify(data) });
+    return rowToVenue(row);
+  }
+
+  async updateVenue(id: string, data: TeamVenuePayload): Promise<TeamVenue> {
+    const row = await this.request(`/venues/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return rowToVenue(row);
+  }
+
+  async deleteVenue(id: string): Promise<void> {
+    await this.request(`/venues/${id}`, { method: 'DELETE' });
   }
 
   async getExternalOptions(): Promise<ExternalTeamOptionsResponse> {

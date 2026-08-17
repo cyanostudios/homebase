@@ -4,8 +4,10 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 
-import type { TeamColor, TrainingTime } from '../types/teams';
+import { useTeamVenues } from '../hooks/useTeamVenues';
+import type { TeamColor, TeamVenue, TrainingTime } from '../types/teams';
 import { SERIES_TEAM_ROW_STYLES, WEEK_DAYS } from '../types/teams';
+import { resolveTrainingLocation } from '../utils/resolveTrainingLocation';
 
 function getTrainingSlotClassName(teamColor?: TeamColor) {
   const colorStyles = teamColor ? SERIES_TEAM_ROW_STYLES[teamColor] : null;
@@ -27,18 +29,31 @@ function getTrainingsForDay(trainingTimes: TrainingTime[], day: string): Trainin
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 }
 
-function TrainingTimeBlock({ training }: { training: TrainingTime }) {
+function TrainingTimeBlock({ training, venues }: { training: TrainingTime; venues: TeamVenue[] }) {
   const timeLabel = training.endTime
     ? `${training.startTime}–${training.endTime}`
     : training.startTime;
+  const resolved = resolveTrainingLocation(training, venues);
 
   return (
     <div className="flex w-full min-w-0 flex-col items-center gap-0.5">
       <span className="truncate text-xs font-semibold leading-tight">{timeLabel}</span>
-      {training.location ? (
+      {resolved.name ? (
         <span className="inline-flex max-w-full items-center gap-0.5 text-[10px] leading-tight opacity-75">
           <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
-          <span className="truncate">{training.location}</span>
+          {resolved.mapUrl ? (
+            <a
+              href={resolved.mapUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="truncate underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {resolved.name}
+            </a>
+          ) : (
+            <span className="truncate">{resolved.name}</span>
+          )}
         </span>
       ) : null}
     </div>
@@ -56,6 +71,7 @@ export function TrainingSchedule({
   variant?: 'overview' | 'detailed';
 }) {
   const { t } = useTranslation();
+  const { venues } = useTeamVenues();
   const slotClassName = getTrainingSlotClassName(teamColor);
   const trainingsByDay = useMemo(() => {
     const map = new Map<string, TrainingTime[]>();
@@ -97,7 +113,7 @@ export function TrainingSchedule({
               <span className="text-xs text-muted-foreground/50">—</span>
             ) : variant === 'overview' ? (
               <div className={slotClassName}>
-                <TrainingTimeBlock training={dayTrainings[0]} />
+                <TrainingTimeBlock training={dayTrainings[0]} venues={venues} />
               </div>
             ) : (
               <div className="flex w-full flex-col gap-1.5">
@@ -106,7 +122,7 @@ export function TrainingSchedule({
                     key={`${day}-${training.startTime}-${training.endTime}-${index}`}
                     className={slotClassName}
                   >
-                    <TrainingTimeBlock training={training} />
+                    <TrainingTimeBlock training={training} venues={venues} />
                   </div>
                 ))}
               </div>

@@ -29,6 +29,38 @@ function createTeamRoutes(controller, context) {
 
   router.get('/external-options', gate, (req, res) => controller.getExternalOptions(req, res));
 
+  router.get('/venues', gate, (req, res) => controller.listVenues(req, res));
+
+  router.post(
+    '/venues',
+    gate,
+    csrfProtection,
+    commonRules.plainString('name', 1, 255),
+    commonRules.optionalUrl('mapLink', 2000),
+    validateRequest,
+    (req, res) => controller.createVenue(req, res),
+  );
+
+  router.put(
+    '/venues/:id',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.plainString('name', 1, 255),
+    commonRules.optionalUrl('mapLink', 2000),
+    validateRequest,
+    (req, res) => controller.updateVenue(req, res),
+  );
+
+  router.delete(
+    '/venues/:id',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.deleteVenue(req, res),
+  );
+
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res),
   );

@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { TrainingLocationField } from '@/plugins/teams/components/TrainingLocationField';
 import type { Team, TrainingTime } from '@/plugins/teams/types/teams';
 import { WEEK_DAYS } from '@/plugins/teams/types/teams';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
@@ -42,6 +43,7 @@ type FormState = {
   startTime: string;
   endTime: string;
   location: string;
+  venueId?: string;
   countsTowardCapacity: boolean;
 };
 
@@ -58,6 +60,7 @@ function buildDefaultForm(
       startTime: state.slot.startTime,
       endTime: state.slot.endTime,
       location: state.slot.location ?? '',
+      venueId: state.slot.venueId,
       countsTowardCapacity: state.slot.countsTowardCapacity !== false,
     };
   }
@@ -148,6 +151,7 @@ export function ScheduleTrainingDialog({
       startTime: form.startTime,
       endTime: form.endTime,
       location: form.location.trim(),
+      ...(form.venueId ? { venueId: form.venueId } : {}),
       countsTowardCapacity: form.countsTowardCapacity,
     };
 
@@ -280,11 +284,17 @@ export function ScheduleTrainingDialog({
 
             <div className="space-y-2">
               <Label className="text-xs">{t('teams.form.locationLabel')}</Label>
-              <Input
-                value={form.location}
-                onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-                className="h-9"
-                placeholder={t('teams.form.locationPlaceholder')}
+              <TrainingLocationField
+                training={{ location: form.location, venueId: form.venueId }}
+                onChange={(next) =>
+                  setForm((prev) => {
+                    const updated = { ...prev, location: next.location, venueId: next.venueId };
+                    if (!next.venueId) {
+                      delete updated.venueId;
+                    }
+                    return updated;
+                  })
+                }
               />
             </div>
 

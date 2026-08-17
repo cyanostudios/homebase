@@ -91,6 +91,77 @@ class TeamController {
     }
   }
 
+  sendVenueAppError(res, error) {
+    if (
+      (error.code === AppError.CODES.VALIDATION_ERROR || error.code === AppError.CODES.CONFLICT) &&
+      Array.isArray(error.details) &&
+      error.details.length > 0 &&
+      error.details[0]?.field
+    ) {
+      const errors = error.details.map((d) => ({
+        field: d.field,
+        message: d.message || error.message,
+      }));
+      return res.status(error.statusCode).json({
+        error: error.message,
+        code: error.code,
+        errors,
+        details: errors,
+      });
+    }
+    return res.status(error.statusCode).json(error.toJSON());
+  }
+
+  async listVenues(req, res) {
+    try {
+      const venues = await this.model.listVenues(req);
+      res.json(venues);
+    } catch (error) {
+      Logger.error('List team venues failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return this.sendVenueAppError(res, error);
+      res.status(500).json({ error: 'Failed to list venues' });
+    }
+  }
+
+  async createVenue(req, res) {
+    try {
+      const venue = await this.model.createVenue(req, req.body);
+      res.json(venue);
+    } catch (error) {
+      Logger.error('Create team venue failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return this.sendVenueAppError(res, error);
+      res.status(500).json({ error: 'Failed to create venue' });
+    }
+  }
+
+  async updateVenue(req, res) {
+    try {
+      const venue = await this.model.updateVenue(req, req.params.id, req.body);
+      res.json(venue);
+    } catch (error) {
+      Logger.error('Update team venue failed', error, {
+        venueId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return this.sendVenueAppError(res, error);
+      res.status(500).json({ error: 'Failed to update venue' });
+    }
+  }
+
+  async deleteVenue(req, res) {
+    try {
+      await this.model.deleteVenue(req, req.params.id);
+      res.json({ message: 'Venue deleted successfully' });
+    } catch (error) {
+      Logger.error('Delete team venue failed', error, {
+        venueId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return this.sendVenueAppError(res, error);
+      res.status(500).json({ error: 'Failed to delete venue' });
+    }
+  }
+
   async bulkDelete(req, res) {
     try {
       const idsRaw = req.body?.ids;

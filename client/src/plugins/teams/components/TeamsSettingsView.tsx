@@ -1,6 +1,6 @@
 // Teams settings as full-page content matching Core Settings layout.
 
-import { CalendarRange, Grip, LayoutGrid } from 'lucide-react';
+import { CalendarRange, Grip, LayoutGrid, MapPin } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,8 @@ import {
   normalizeCardOrder,
   type OverviewCardId,
 } from '../types/teamOverviewCards';
+
+import { TeamsVenuesSettingsSection } from './TeamsVenuesSettingsSection';
 
 const TEAMS_SETTINGS_KEY = 'teams';
 
@@ -242,6 +244,19 @@ export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {
                   ))}
                 </ul>
               </div>
+            </DetailSection>
+          </div>
+        </Card>
+
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <div className="p-4">
+            <DetailSection
+              title={t('teams.settings.venuesSection')}
+              icon={MapPin}
+              iconPlugin="teams"
+              className="pt-0"
+            >
+              <TeamsVenuesSettingsSection />
             </DetailSection>
           </div>
         </Card>

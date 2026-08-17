@@ -18,8 +18,18 @@ export interface TrainingTime {
   startTime: string;
   endTime: string;
   location: string;
+  /** Catalog id when the location was chosen from team venues. */
+  venueId?: string;
   /** When false, session is excluded from booked-time / capacity totals. Default true. */
   countsTowardCapacity?: boolean;
+}
+
+export interface TeamVenue {
+  id: string;
+  name: string;
+  mapLink: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SeasonBreak {

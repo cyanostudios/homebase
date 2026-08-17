@@ -53,16 +53,31 @@ function parseJsonArray(value) {
   return [];
 }
 
+function sanitizeTrainingVenueId(value) {
+  if (value === null || value === undefined) return undefined;
+  const trimmed = String(value).trim();
+  if (!trimmed || trimmed.length > 20) return undefined;
+  if (!/^[1-9]\d*$/.test(trimmed)) return undefined;
+  return trimmed;
+}
+
 function sanitizeTrainingTimes(value) {
   return parseJsonArray(value)
     .filter((t) => t && typeof t === 'object')
-    .map((t) => ({
-      day: String(t.day ?? '').slice(0, 20),
-      startTime: String(t.startTime ?? '').slice(0, 10),
-      endTime: String(t.endTime ?? '').slice(0, 10),
-      location: String(t.location ?? '').slice(0, 255),
-      countsTowardCapacity: t.countsTowardCapacity === false ? false : true,
-    }))
+    .map((t) => {
+      const item = {
+        day: String(t.day ?? '').slice(0, 20),
+        startTime: String(t.startTime ?? '').slice(0, 10),
+        endTime: String(t.endTime ?? '').slice(0, 10),
+        location: String(t.location ?? '').slice(0, 255),
+        countsTowardCapacity: t.countsTowardCapacity === false ? false : true,
+      };
+      const venueId = sanitizeTrainingVenueId(t.venueId);
+      if (venueId !== undefined) {
+        item.venueId = venueId;
+      }
+      return item;
+    })
     .slice(0, 50);
 }
 
@@ -529,6 +544,179 @@ class TeamModel {
     }
   }
 
+  transformVenueRow(row) {
+    return {
+      id: String(row.id),
+      name: decodeHtmlEntities(row.name ?? ''),
+      mapLink: row.map_link != null && String(row.map_link).trim() ? String(row.map_link) : null,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+  }
+
+  sanitizeVenueName(value) {
+    return decodeHtmlEntities(String(value ?? '').trim()).slice(0, 255);
+  }
+
+  sanitizeVenueMapLink(value) {
+    if (value === null || value === undefined) return null;
+    const trimmed = String(value).trim();
+    return trimmed ? trimmed.slice(0, 2000) : null;
+  }
+
+  mapVenueUniqueViolation(error) {
+    const code = error?.code || error?.details?.errorCode;
+    if (code !== '23505') return null;
+    return new AppError('Venue name already exists', 409, AppError.CODES.CONFLICT, [
+      { field: 'name', message: 'Venue name already exists' },
+    ]);
+  }
+
+  async assertVenueNameUnique(db, userId, name, excludeId = null) {
+    const params = [userId, name];
+    let sql = `
+      SELECT id
+      FROM team_venues
+      WHERE user_id = $1 AND lower(btrim(name)) = lower($2)
+    `;
+    if (excludeId != null) {
+      sql += ' AND id <> $3';
+      params.push(excludeId);
+    }
+    sql += ' LIMIT 1';
+    const rows = await db.query(sql, params);
+    if (rows && rows.length > 0) {
+      throw new AppError('Venue name already exists', 409, AppError.CODES.CONFLICT, [
+        { field: 'name', message: 'Venue name already exists' },
+      ]);
+    }
+  }
+
+  async listVenues(req) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query(
+        `
+          SELECT id, name, map_link, created_at, updated_at
+          FROM team_venues
+          ORDER BY lower(name) ASC, id ASC
+        `,
+        [],
+      );
+      return rows.map((row) => this.transformVenueRow(row));
+    } catch (error) {
+      Logger.error('Failed to list team venues', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to list venues', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async createVenue(req, data) {
+    try {
+      const db = Database.get(req);
+      const userId = db.getUserId();
+      if (!userId) {
+        throw new AppError('User context required', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const name = this.sanitizeVenueName(data?.name);
+      if (!name) {
+        throw new AppError('Venue name is required', 400, AppError.CODES.VALIDATION_ERROR, [
+          { field: 'name', message: 'Venue name is required' },
+        ]);
+      }
+
+      const mapLink = this.sanitizeVenueMapLink(data?.mapLink);
+
+      const countRows = await db.query('SELECT COUNT(*)::int AS c FROM team_venues', []);
+      if ((countRows[0]?.c ?? 0) >= 100) {
+        throw new AppError('Venue limit reached', 400, AppError.CODES.VALIDATION_ERROR, [
+          { field: 'general', message: 'at most 100 venues allowed' },
+        ]);
+      }
+
+      await this.assertVenueNameUnique(db, userId, name);
+
+      const result = await db.insert('team_venues', {
+        name,
+        map_link: mapLink,
+      });
+      Logger.info('Team venue created', { venueId: result.id });
+      return this.transformVenueRow(result);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      const mapped = this.mapVenueUniqueViolation(error);
+      if (mapped) throw mapped;
+      Logger.error('Failed to create team venue', error);
+      throw new AppError('Failed to create venue', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updateVenue(req, venueId, data) {
+    try {
+      const db = Database.get(req);
+      const userId = db.getUserId();
+      if (!userId) {
+        throw new AppError('User context required', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const id = parseInt(String(venueId), 10);
+      if (Number.isNaN(id)) {
+        throw new AppError('Venue not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const name = this.sanitizeVenueName(data?.name);
+      if (!name) {
+        throw new AppError('Venue name is required', 400, AppError.CODES.VALIDATION_ERROR, [
+          { field: 'name', message: 'Venue name is required' },
+        ]);
+      }
+
+      const mapLink =
+        data?.mapLink !== undefined ? this.sanitizeVenueMapLink(data.mapLink) : undefined;
+
+      await this.assertVenueNameUnique(db, userId, name, id);
+
+      const payload = { name };
+      if (mapLink !== undefined) {
+        payload.map_link = mapLink;
+      }
+
+      const result = await db.update('team_venues', id, payload);
+      Logger.info('Team venue updated', { venueId: id });
+      return this.transformVenueRow(result);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      const mapped = this.mapVenueUniqueViolation(error);
+      if (mapped) throw mapped;
+      Logger.error('Failed to update team venue', error, { venueId });
+      throw new AppError('Failed to update venue', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async deleteVenue(req, venueId) {
+    try {
+      const db = Database.get(req);
+      const userId = db.getUserId();
+      if (!userId) {
+        throw new AppError('User context required', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const id = parseInt(String(venueId), 10);
+      if (Number.isNaN(id)) {
+        throw new AppError('Venue not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      await db.deleteRecord('team_venues', id);
+      Logger.info('Team venue deleted', { venueId: id });
+      return { id: String(id) };
+    } catch (error) {
+      Logger.error('Failed to delete team venue', error, { venueId });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to delete venue', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   transformRow(row) {
     return {
       id: row.id.toString(),
@@ -553,5 +741,7 @@ class TeamModel {
     };
   }
 }
+
+TeamModel.sanitizeTrainingTimes = sanitizeTrainingTimes;
 
 module.exports = TeamModel;

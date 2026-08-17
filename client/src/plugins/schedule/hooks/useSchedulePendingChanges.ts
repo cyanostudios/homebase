@@ -10,7 +10,7 @@ export type ScheduleSlotHighlight = 'pending' | 'saved' | null;
 const SAVED_HIGHLIGHT_MS = 3000;
 
 function trainingKey(training: TrainingTime): string {
-  return `${training.day}|${training.startTime}|${training.endTime}|${training.location}`;
+  return `${training.day}|${training.startTime}|${training.endTime}|${training.location}|${training.venueId ?? ''}`;
 }
 
 function computePendingSlotIds(
@@ -33,6 +33,7 @@ function computePendingSlotIds(
             startTime: training.startTime,
             endTime: training.endTime,
             location: training.location,
+            venueId: training.venueId,
             teamId,
             trainingIndex: index,
           }),

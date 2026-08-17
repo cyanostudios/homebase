@@ -60,11 +60,13 @@ import {
   isOrphanExternalTeamId,
   type ExternalOptionsUiStatus,
 } from '../utils/externalTeamOptions';
+import { applyTrainingLocationPatch } from '../utils/trainingLocationSelect';
 
 import { SeriesTeamBadge } from './ResponsibleRow';
 import { SeriesTeamColorPicker } from './SeriesTeamColorPicker';
 import { SeriesTeamSelect } from './SeriesTeamSelect';
 import { TeamNotesSection } from './TeamNotesSection';
+import { TrainingLocationField } from './TrainingLocationField';
 
 interface TeamFormProps {
   currentTeam?: Team | null;
@@ -251,7 +253,9 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
   };
 
   const updateTrainingTime = (index: number, patch: Partial<TrainingTime>) => {
-    setTrainingTimes((prev) => prev.map((tt, i) => (i === index ? { ...tt, ...patch } : tt)));
+    setTrainingTimes((prev) =>
+      prev.map((tt, i) => (i === index ? applyTrainingLocationPatch(tt, patch) : tt)),
+    );
     markDirty();
   };
 
@@ -654,11 +658,9 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                     </div>
                     <div>
                       <Label className="text-[11px]">{t('teams.form.locationLabel')}</Label>
-                      <Input
-                        value={training.location}
-                        onChange={(e) => updateTrainingTime(index, { location: e.target.value })}
-                        className="h-9"
-                        placeholder={t('teams.form.locationPlaceholder')}
+                      <TrainingLocationField
+                        training={training}
+                        onChange={(next) => updateTrainingTime(index, next)}
                       />
                     </div>
                     <Button

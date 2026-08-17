@@ -12,6 +12,7 @@ export interface PlanEventPayload {
   end_time: string;
   location?: string;
   team_id?: number | null;
+  venue_id?: number | null;
   counts_toward_capacity?: boolean;
 }
 
@@ -39,6 +40,7 @@ function rowToEvent(row: Record<string, unknown>): PlanEvent {
     end_time: (row.end_time as string) ?? '',
     location: (row.location as string) ?? '',
     team_id: row.team_id != null ? String(row.team_id) : null,
+    venue_id: row.venue_id != null ? String(row.venue_id) : null,
     counts_toward_capacity: row.counts_toward_capacity === false ? false : true,
     created_at: row.created_at as string | undefined,
     updated_at: row.updated_at as string | undefined,
@@ -136,6 +138,7 @@ class ScheduleApi {
         startTime: event.start_time,
         endTime: event.end_time,
         location: event.location ?? '',
+        venueId: event.venue_id ?? undefined,
         countsTowardCapacity: event.counts_toward_capacity === false ? false : true,
       });
       result[teamId] = times;

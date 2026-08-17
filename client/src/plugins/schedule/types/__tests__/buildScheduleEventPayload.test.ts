@@ -20,6 +20,7 @@ describe('buildScheduleEventPayload', () => {
       start_time: '17:00',
       end_time: '18:00',
       location: 'Pitch A',
+      venue_id: null,
       team_id: 10,
       counts_toward_capacity: true,
     });
@@ -34,12 +35,19 @@ describe('buildScheduleEventPayload', () => {
         start_time: '17:00',
         end_time: '18:00',
         location: 'Pitch A',
+        venue_id: null,
         team_id: null,
         counts_toward_capacity: true,
       },
     );
 
     expect(buildScheduleEventPayload('', training, teams, 'No team').team_id).toBeNull();
+  });
+
+  it('maps venueId to venue_id', () => {
+    expect(
+      buildScheduleEventPayload('10', { ...training, venueId: '12' }, teams, 'No team').venue_id,
+    ).toBe(12);
   });
 
   it('maps countsTowardCapacity false to counts_toward_capacity false', () => {
