@@ -27,7 +27,7 @@ export function YourItemsProvider({
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/your-items');
 
-  const [isYourItemsPanelOpen, setIsYourItemsPanelOpen] = useState(false);
+  const [isYourItemPanelOpen, setIsYourItemPanelOpen] = useState(false);
   const [currentYourItem, setCurrentYourItem] = useState<YourItem | null>(null);
   const [panelMode, setPanelMode] = useState<YourItemsContextType['panelMode']>('create');
   const { validationErrors, setValidationErrors, clearValidationErrors } =
@@ -35,11 +35,6 @@ export function YourItemsProvider({
   const [yourItems, setYourItems] = useState<YourItem[]>([]);
   const [yourItemsContentView, setYourItemsContentView] = useState<'list' | 'settings'>('list');
   const [isSaving, setIsSaving] = useState(false);
-
-  const loadItems = useCallback(async () => {
-    const items = await templateApi.getItems();
-    setYourItems(items);
-  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -65,8 +60,8 @@ export function YourItemsProvider({
     };
   }, [isAuthenticated, setValidationErrors]);
 
-  const closeYourItemsPanel = useCallback(() => {
-    setIsYourItemsPanelOpen(false);
+  const closeYourItemPanel = useCallback(() => {
+    setIsYourItemPanelOpen(false);
     setCurrentYourItem(null);
     setPanelMode('create');
     clearValidationErrors();
@@ -74,15 +69,15 @@ export function YourItemsProvider({
   }, [clearValidationErrors, navigateToBase]);
 
   useEffect(() => {
-    registerPanelCloseFunction('your-items', closeYourItemsPanel);
+    registerPanelCloseFunction('your-items', closeYourItemPanel);
     return () => unregisterPanelCloseFunction('your-items');
-  }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeYourItemsPanel]);
+  }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeYourItemPanel]);
 
-  const openYourItemsPanel = useCallback(
+  const openYourItemPanel = useCallback(
     (item: YourItem | null) => {
       setCurrentYourItem(item);
       setPanelMode(item ? 'edit' : 'create');
-      setIsYourItemsPanelOpen(true);
+      setIsYourItemPanelOpen(true);
       clearValidationErrors();
       onCloseOtherPanels();
       if (item) {
@@ -96,7 +91,7 @@ export function YourItemsProvider({
     (item: YourItem) => {
       setCurrentYourItem(item);
       setPanelMode('edit');
-      setIsYourItemsPanelOpen(true);
+      setIsYourItemPanelOpen(true);
       clearValidationErrors();
       onCloseOtherPanels();
       navigateToItem(item, yourItems, 'title');
@@ -113,7 +108,7 @@ export function YourItemsProvider({
       }
       setCurrentYourItem(item);
       setPanelMode('view');
-      setIsYourItemsPanelOpen(true);
+      setIsYourItemPanelOpen(true);
       clearValidationErrors();
       onCloseOtherPanels();
       navigateToItem(item, yourItems, 'title');
@@ -187,7 +182,7 @@ export function YourItemsProvider({
         } else {
           const saved = await templateApi.createItem(payload);
           setYourItems((prev) => [saved, ...prev]);
-          closeYourItemsPanel();
+          closeYourItemPanel();
         }
         clearValidationErrors();
         return true;
@@ -204,7 +199,7 @@ export function YourItemsProvider({
         setIsSaving(false);
       }
     },
-    [clearValidationErrors, closeYourItemsPanel, currentYourItem, setValidationErrors, validate],
+    [clearValidationErrors, closeYourItemPanel, currentYourItem, setValidationErrors, validate],
   );
 
   const deleteYourItem = useCallback(
@@ -213,50 +208,70 @@ export function YourItemsProvider({
         await templateApi.deleteItem(id);
         setYourItems((prev) => prev.filter((i) => i.id !== id));
         if (currentYourItem?.id === id) {
-          closeYourItemsPanel();
+          closeYourItemPanel();
         }
       } catch (err) {
         console.error('Failed to delete your-item:', err);
       }
     },
-    [closeYourItemsPanel, currentYourItem?.id],
+    [closeYourItemPanel, currentYourItem?.id],
   );
+
+  const deleteYourItems = useCallback(
+    async (ids: string[]) => {
+      for (const id of ids) {
+        await deleteYourItem(id);
+      }
+    },
+    [deleteYourItem],
+  );
+
+  const getDeleteMessage = useCallback((item: YourItem | null) => {
+    if (item?.title) {
+      return `Delete "${item.title}"? This cannot be undone.`;
+    }
+    return 'Delete this item? This cannot be undone.';
+  }, []);
 
   const value = useMemo<YourItemsContextType>(
     () => ({
-      isYourItemsPanelOpen,
+      isYourItemPanelOpen,
       currentYourItem,
       panelMode,
       validationErrors,
       yourItems,
       yourItemsContentView,
       isSaving,
-      openYourItemsPanel,
+      openYourItemPanel,
       openYourItemForEdit,
       openYourItemForView,
       openYourItemsSettings,
       closeYourItemsSettingsView,
-      closeYourItemsPanel,
+      closeYourItemPanel,
       saveYourItem,
       deleteYourItem,
+      deleteYourItems,
+      getDeleteMessage,
       clearValidationErrors,
     }),
     [
-      isYourItemsPanelOpen,
+      isYourItemPanelOpen,
       currentYourItem,
       panelMode,
       validationErrors,
       yourItems,
       yourItemsContentView,
       isSaving,
-      openYourItemsPanel,
+      openYourItemPanel,
       openYourItemForEdit,
       openYourItemForView,
       openYourItemsSettings,
       closeYourItemsSettingsView,
-      closeYourItemsPanel,
+      closeYourItemPanel,
       saveYourItem,
       deleteYourItem,
+      deleteYourItems,
+      getDeleteMessage,
       clearValidationErrors,
     ],
   );

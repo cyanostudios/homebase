@@ -14,6 +14,7 @@ import {
   MapPin,
   ListOrdered,
   Sparkles,
+  Shirt,
 } from 'lucide-react';
 import React from 'react';
 
@@ -146,6 +147,9 @@ import { useMail } from '@/plugins/mail/hooks/useMail';
 // Matches
 import { MatchNullProvider } from '@/plugins/matches/context/MatchContext';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
+// Garments
+import { GarmentNullProvider } from '@/plugins/garments/context/GarmentContext';
+import { useGarments } from '@/plugins/garments/hooks/useGarments';
 // Notes
 import { NoteNullProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
@@ -417,6 +421,17 @@ const MatchesDashboardWidget = React.lazy(() =>
   import('@/plugins/matches/components/MatchesDashboardWidget').then((m) => ({
     default: m.MatchesDashboardWidget,
   })),
+);
+
+// Garments
+const GarmentList = React.lazy(() =>
+  import('@/plugins/garments/components/GarmentList').then((m) => ({ default: m.GarmentList })),
+);
+const GarmentForm = React.lazy(() =>
+  import('@/plugins/garments/components/GarmentForm').then((m) => ({ default: m.GarmentForm })),
+);
+const GarmentView = React.lazy(() =>
+  import('@/plugins/garments/components/GarmentView').then((m) => ({ default: m.GarmentView })),
 );
 
 // Notes
@@ -737,6 +752,31 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     contentFlush: true,
     slugField: (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
     contentViewKey: 'matchesContentView',
+  },
+  {
+    name: 'garments',
+    Provider: GarmentNullProvider as React.ComponentType<ProviderProps>,
+    providerLoader: () =>
+      import('@/plugins/garments/context/GarmentProvider').then((m) => m.GarmentProvider),
+    NullProvider: GarmentNullProvider,
+    hook: useGarments,
+    panelKey: 'isGarmentPanelOpen',
+    components: {
+      List: GarmentList,
+      Form: GarmentForm,
+      View: GarmentView,
+    },
+    navigation: {
+      category: 'Sport',
+      label: 'Kläder',
+      icon: Shirt,
+      order: 2,
+    },
+    displayPrefix: 'GRM',
+    contentFlush: true,
+    slugField: 'name',
+    contentViewKey: 'garmentsContentView',
+    noPrimaryAction: true,
   },
   {
     name: 'requests',

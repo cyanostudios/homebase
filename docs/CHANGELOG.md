@@ -4,6 +4,59 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-17 – Kläder: tvåradiga personblock
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved** (samma residualklass som Etapp 1 publik share). **Ej prod-release.**
+
+**Sammanfattning:** Personer på en klädlista visas som två rader (namn + nummer, sedan storlekar och checkrutor med synlig etikett) i stället för en bred tabell. Publik visningslänk (`/public/garment-list/:token`) använder samma layout, read-only, utan kommentar.
+
+### Beteende
+
+- Checkrutor kan bockas även medan raden redigeras
+- Dubblett av tröjnummer: varning, sparas ändå
+- Kommentar bara i inloggad vy; API nollställer `comment` på publik GET
+
+### Docs
+
+- [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md)
+- [`ai/adr/GARMENTS_PLUGIN_ETAPP1.md`](ai/adr/GARMENTS_PLUGIN_ETAPP1.md)
+- [`ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md`](ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md)
+
+**Begränsningar:** Ingen koppling lista↔lager. Publik länk är fortfarande obehörig visning av namn/storlekar (minderåriga) — se security-noten. Local-first.
+
+---
+
+## 2026-08-14 – Plugin golden templates (card-column sync)
+
+**Status:** Implementerat lokalt. Mall-only (kopieras in i nya plugins). **Ej prod-release.**
+
+**Sammanfattning:** `templates/plugin-frontend-template` och `templates/plugin-backend-template` synkade mot konventioner sedan juli 2026 (listskal, settings, detaljvy-chrome).
+
+### Frontend-mall
+
+- Card-column-listskal: `ListToolbar`, `1 | 2 | 3 | table`, `YourItemListItem`, `YourItemListTable`, `ListFooterBar`, `ListEmptyState`
+- Persistens: `listViewMode` (`cards` \| `table`) + `columnCount` via AppContext `getSettings`/`updateSettings` (legacy `viewMode` grid→3, list→1)
+- Panelnamn enligt `pluginSingular.ts`: `isYourItemPanelOpen` / `openYourItemPanel` / `closeYourItemPanel`
+- `YourItemsNullProvider`; `ConfirmDialog` före delete; collapsible Information
+- Form/view: `DETAIL_VIEW_CARD_CLASS`; ingen `PANEL_MAX_WIDTH` / `md:-mx-6`-bleed
+- Settings: `PluginSettingsPageShell` med cards/table + kolumnantal (dirty header Save)
+
+### Backend-mall
+
+- Borttaget plugin `GET/PUT /settings` (`defaultView` grid/list) — listlayout ligger i core user settings
+- Oförändrat: `initializeX(context)`, `requirePlugin`, CSRF, `validateRequest`, `Database.get(req)`
+
+### Docs
+
+- [`templates/README.md`](../templates/README.md) — konventioner 2026-08
+- [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md) §6
+- [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)
+- [`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`](PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md) Official Template Rule
+
+**Begränsningar:** Mallen kompileras inte i `npm run lint` (ligger utanför `client/src`). Inga filter-stat-kort, export, duplicate eller quick-add (medvetet minimalt skal).
+
+---
+
 ## 2026-08-13 – Cupappen Sitegrade SEO (Q1–Q5, L3–L8)
 
 **Status:** Implementerat lokalt. **QA Approved** (checklist + `public-cups` tester). **Security Approved** med residualer **R-SEO-AI-1**, **R-SEO-CSP-1**. **Ej prod-release** utan explicit beslut. Q1–Q2 kräver **Cloudflare-dashboard** utöver deploy.

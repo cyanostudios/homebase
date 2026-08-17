@@ -17,6 +17,7 @@ export type DetailSectionIconPlugin =
   | 'files'
   | 'slots'
   | 'matches'
+  | 'garments'
   | 'ingest'
   | 'guides'
   | 'instructions'

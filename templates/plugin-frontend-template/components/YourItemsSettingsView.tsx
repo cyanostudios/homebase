@@ -1,4 +1,3 @@
-import { Grid3x3, List as ListIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -11,9 +10,23 @@ import {
 } from '@/core/ui/PluginSettingsPageShell';
 import { cn } from '@/lib/utils';
 
-const YOUR_ITEMS_SETTINGS_KEY = 'your-items';
+import {
+  getInitialYourItemColumnCount,
+  resolveYourItemColumnCount,
+  YOUR_ITEMS_COLUMN_COUNT_STORAGE_KEY,
+  YOUR_ITEMS_SETTINGS_KEY,
+  type YourItemColumnCount,
+} from '../utils/yourItemColumnCount';
+import {
+  getInitialYourItemListViewMode,
+  persistYourItemListViewModeSession,
+  resolveYourItemListViewMode,
+  YOUR_ITEMS_LIST_VIEW_MODE_STORAGE_KEY,
+  type YourItemListViewMode,
+} from '../utils/yourItemListViewMode';
 
-type ViewMode = 'grid' | 'list';
+const VIEW_MODE_OPTIONS: YourItemListViewMode[] = ['cards', 'table'];
+const COLUMN_OPTIONS: YourItemColumnCount[] = [1, 2, 3];
 
 interface YourItemsSettingsViewProps {
   inlineTrailing?: React.ReactNode;
@@ -22,8 +35,18 @@ interface YourItemsSettingsViewProps {
 export function YourItemsSettingsView({ inlineTrailing }: YourItemsSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [initialViewMode, setInitialViewMode] = useState<ViewMode>('list');
+  const [listViewMode, setListViewMode] = useState<YourItemListViewMode>(
+    getInitialYourItemListViewMode,
+  );
+  const [initialListViewMode, setInitialListViewMode] = useState<YourItemListViewMode>(
+    getInitialYourItemListViewMode,
+  );
+  const [columnCount, setColumnCount] = useState<YourItemColumnCount>(
+    getInitialYourItemColumnCount,
+  );
+  const [initialColumnCount, setInitialColumnCount] = useState<YourItemColumnCount>(
+    getInitialYourItemColumnCount,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -34,9 +57,12 @@ export function YourItemsSettingsView({ inlineTrailing }: YourItemsSettingsViewP
         if (cancelled) {
           return;
         }
-        const loaded = settings?.viewMode === 'grid' ? 'grid' : 'list';
-        setViewMode(loaded);
-        setInitialViewMode(loaded);
+        const loadedView = resolveYourItemListViewMode(settings);
+        const loadedColumns = resolveYourItemColumnCount(settings);
+        setListViewMode(loadedView);
+        setInitialListViewMode(loadedView);
+        setColumnCount(loadedColumns);
+        setInitialColumnCount(loadedColumns);
       })
       .catch(() => {})
       .finally(() => {
@@ -49,15 +75,18 @@ export function YourItemsSettingsView({ inlineTrailing }: YourItemsSettingsViewP
     };
   }, [getSettings, settingsVersion]);
 
-  const hasChanges = viewMode !== initialViewMode;
+  const hasChanges = listViewMode !== initialListViewMode || columnCount !== initialColumnCount;
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await updateSettings(YOUR_ITEMS_SETTINGS_KEY, { viewMode });
-      setInitialViewMode(viewMode);
+      await updateSettings(YOUR_ITEMS_SETTINGS_KEY, { listViewMode, columnCount });
+      setInitialListViewMode(listViewMode);
+      setInitialColumnCount(columnCount);
+      persistYourItemListViewModeSession(listViewMode);
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('your-items:viewMode', viewMode);
+        window.sessionStorage.setItem(YOUR_ITEMS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
+        window.sessionStorage.setItem(YOUR_ITEMS_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
       }
     } finally {
       setIsSaving(false);
@@ -79,43 +108,58 @@ export function YourItemsSettingsView({ inlineTrailing }: YourItemsSettingsViewP
         ) : null
       }
     >
-      <DetailSection title="Default list view" className="pt-0">
-        <p className="mb-4 text-sm text-muted-foreground">
-          Choose whether the list opens in table or grid mode.
-        </p>
-        <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={ListIcon}
-            className={cn(
-              'h-7 rounded-[6px] px-2 text-xs',
-              viewMode === 'list'
-                ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            onClick={() => setViewMode('list')}
-          >
-            List
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={Grid3x3}
-            className={cn(
-              'h-7 rounded-[6px] px-2 text-xs',
-              viewMode === 'grid'
-                ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            onClick={() => setViewMode('grid')}
-          >
-            Grid
-          </Button>
+      <DetailSection title={t('common.defaultListView')} className="pt-0">
+        <div className="flex flex-wrap items-center gap-2">
+          {VIEW_MODE_OPTIONS.map((mode) => {
+            const isActive = listViewMode === mode;
+            return (
+              <Button
+                key={mode}
+                variant="ghost"
+                onClick={() => setListViewMode(mode)}
+                className={cn(
+                  'h-9 rounded-lg px-3 text-xs font-medium',
+                  isActive
+                    ? 'border border-primary bg-primary/10 text-primary'
+                    : 'border-transparent bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
+                )}
+                aria-pressed={isActive}
+              >
+                {mode === 'cards' ? t('common.cardsView') : t('common.tableView')}
+              </Button>
+            );
+          })}
         </div>
+        <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
       </DetailSection>
+      {listViewMode === 'cards' ? (
+        <DetailSection title="Default columns">
+          <div className="flex flex-wrap items-center gap-2">
+            {COLUMN_OPTIONS.map((count) => {
+              const isActive = columnCount === count;
+              return (
+                <Button
+                  key={count}
+                  variant="ghost"
+                  onClick={() => setColumnCount(count)}
+                  className={cn(
+                    'h-9 min-w-9 rounded-lg px-3 text-xs font-medium',
+                    isActive
+                      ? 'border border-primary bg-primary/10 text-primary'
+                      : 'border-transparent bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                  aria-pressed={isActive}
+                >
+                  {count}
+                </Button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            How many columns cards use by default (1 = full width, 2 = half, 3 = one third).
+          </p>
+        </DetailSection>
+      ) : null}
     </PluginSettingsPageShell>
   );
 }

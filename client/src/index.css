@@ -84,6 +84,8 @@
     /* Rose */
     --plugin-matches: 173 80% 40%;
     /* Teal */
+    --plugin-garments: 340 65% 48%;
+    /* Rose pink */
     --plugin-slots: 250 60% 58%;
     /* Indigo */
     --plugin-ingest: 24 95% 53%;
@@ -146,6 +148,7 @@
     --plugin-files: 215 16% 47%;
     --plugin-mail: 346 84% 61%;
     --plugin-matches: 173 80% 40%;
+    --plugin-garments: 340 65% 48%;
     --plugin-slots: 250 60% 58%;
     --plugin-ingest: 24 95% 53%;
     --plugin-guides: 160 84% 39%;
@@ -212,6 +215,10 @@
 
   .plugin-matches {
     --plugin-color: var(--plugin-matches);
+  }
+
+  .plugin-garments {
+    --plugin-color: var(--plugin-garments);
   }
 
   .plugin-slots {

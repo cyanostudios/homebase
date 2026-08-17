@@ -8,6 +8,7 @@ import {
   Info,
   LayoutGrid,
   Mail,
+  Shirt,
   StickyNote,
   Trash2,
   Trophy,
@@ -46,6 +47,8 @@ import { TeamRequestsSection } from '@/plugins/requests/components/TeamRequestsS
 import { useRequests } from '@/plugins/requests/hooks/useRequests';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
+import { useGarments } from '@/plugins/garments/hooks/useGarments';
+import { TeamGarmentsSection } from '@/plugins/garments/components/TeamGarmentsSection';
 
 import { useTeams } from '../hooks/useTeams';
 import type { Team, TeamNote } from '../types/teams';
@@ -84,6 +87,7 @@ type TeamViewTab =
   | 'notes'
   | 'requests'
   | 'matches'
+  | 'garments'
   | 'statistics';
 
 const TEAM_VIEW_TABS: TeamViewTab[] = [
@@ -94,6 +98,7 @@ const TEAM_VIEW_TABS: TeamViewTab[] = [
   'notes',
   'requests',
   'matches',
+  'garments',
   'statistics',
 ];
 
@@ -196,8 +201,10 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
   const { contacts } = useContacts();
   const { openRequestForView } = useRequests();
   const { openMatchForView } = useMatches();
+  const { openGarmentForView } = useGarments();
   const enabledPlugins = useEnabledPlugins();
   const hasMatchesPlugin = enabledPlugins.has('matches');
+  const hasGarmentsPlugin = enabledPlugins.has('garments');
   const canSendEmail =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
   const [searchParams, setSearchParams] = useSearchParams();
@@ -390,8 +397,25 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             },
           ]
         : []),
+      ...(hasGarmentsPlugin
+        ? [
+            {
+              id: 'garments' as const,
+              label: t('teams.tabs.garments'),
+              icon: Shirt,
+            },
+          ]
+        : []),
     ],
-    [hasMatchesPlugin, notesCount, requestsCount, seriesTeamsCount, t, upcomingMatchCount],
+    [
+      hasGarmentsPlugin,
+      hasMatchesPlugin,
+      notesCount,
+      requestsCount,
+      seriesTeamsCount,
+      t,
+      upcomingMatchCount,
+    ],
   );
 
   if (!team) {
@@ -845,6 +869,14 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('teams.tabs.matches')} className="p-4">
                 <TeamMatchesSection teamId={team.id} onOpenMatch={openMatchForView} />
+              </DetailSection>
+            </Card>
+          )}
+
+          {hasGarmentsPlugin && activeTab === 'garments' && (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection title={t('teams.tabs.garments')} className="p-4">
+                <TeamGarmentsSection teamId={team.id} onOpenList={openGarmentForView} />
               </DetailSection>
             </Card>
           )}

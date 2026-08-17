@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Garments personblock UX — QA/Security docs sync (2026-08-17)
+
+Docs efter **QA Approved** + **Security Approved** för tvåradiga personblock i Kläder-listdetalj och publik share-vy. Residualklass oförändrad mot [`security/GARMENTS_PUBLIC_SHARE_ETAPP1.md`](security/GARMENTS_PUBLIC_SHARE_ETAPP1.md) (minderåriga PII på token-länk). ADR [`adr/GARMENTS_PLUGIN_ETAPP1.md`](adr/GARMENTS_PLUGIN_ETAPP1.md) tillagd UX-sektion. Operator: [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Cupappen Sitegrade SEO — QA/Security docs sync (2026-08-13)
 
 Docs efter **QA Approved** + **Security Approved** för Sitegrade Q1–Q5 + L3–L8 (ingen homepage-SSR L1/L2). ADR [`CUPAPPEN_SITEGRADE_SEO.md`](adr/CUPAPPEN_SITEGRADE_SEO.md). Residual **R-SEO-AI-1** (AI crawl allow), **R-SEO-CSP-1** (GTM/CSP). Ops Cloudflare robots/AI i [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](../CUPPAPPEN_RAILWAY_OPERATIONS.md). **Local-first; ej prod-release** — Q1–Q2 syns i Sitegrade först efter Cloudflare + deploy.

@@ -1,5 +1,7 @@
 // templates/plugin-backend-template/routes.js
 // Align with production plugins: context from plugin-loader, shared validation + CSRF hooks.
+// List layout (listViewMode / columnCount) persists via AppContext getSettings/updateSettings
+// (core user_settings) — do not add a plugin GET/PUT /settings for that.
 // Optional: add DELETE /batch with commonRules.requiredArray('ids') before /:id routes (see notes).
 const express = require('express');
 const router = express.Router();
@@ -13,10 +15,6 @@ function createTemplateRoutes(controller, context) {
   const gate = requirePlugin(config.name);
 
   router.get('/', gate, (req, res, next) => controller.getAll(req, res, next));
-
-  router.get('/settings', gate, (req, res) => {
-    res.json({ defaultView: 'list', allowDuplicate: true });
-  });
 
   router.post(
     '/',
@@ -54,16 +52,6 @@ function createTemplateRoutes(controller, context) {
     commonRules.id('id'),
     validateRequest,
     (req, res, next) => controller.delete(req, res, next),
-  );
-
-  router.put(
-    '/settings',
-    gate,
-    csrfProtection,
-    body('defaultView').isIn(['list', 'grid']).withMessage('defaultView must be list or grid'),
-    body('allowDuplicate').isBoolean().withMessage('allowDuplicate must be a boolean'),
-    validateRequest,
-    (req, res) => res.json(req.body),
   );
 
   return router;

@@ -10,15 +10,17 @@ Start here when adding a new Homebase plugin or a Cupappen-class public site.
 
 **Public SEO sites (PHP + Caddy):** see [`public-app/README.md`](./public-app/README.md), [`docs/PUBLIC_APP_TEMPLATE.md`](../docs/PUBLIC_APP_TEMPLATE.md), and design rules [`docs/PUBLIC_APP_DESIGN.md`](../docs/PUBLIC_APP_DESIGN.md). Production reference: `public-cups/` (Cupappen). The plugin checklist below does **not** apply to `public-app/` — use the public-app copy checklist instead.
 
-## Current conventions (2026-07)
+## Current conventions (2026-08)
 
-- **Backend:** `function initializeX(context)` — gate routes with `context.middleware.requirePlugin`, tenant DB via `Database.get(req)`, CSRF on mutating routes.
-- **Frontend context:** split `*Context.tsx` (types + hook) and `*Provider.tsx` (implementation), like `contacts` / `notes` / `requests`.
+- **Backend:** `function initializeX(context)` — gate routes with `context.middleware.requirePlugin`, tenant DB via `Database.get(req)`, CSRF on mutating routes. List layout is **not** a plugin `/settings` route.
+- **Frontend context:** split `*Context.tsx` (types + `NullProvider`) and `*Provider.tsx` (implementation), like `contacts` / `notes` / `requests`.
+- **Panel names:** `is{SingularCap}PanelOpen` from `pluginSingular.ts` (template plugin `your-items` → `isYourItemPanelOpen`). Match `panelKey` in `pluginRegistry.ts`.
 - **URL navigation:** `useItemUrl('/<plugin>')` + `navigateToBase()` on panel close; deep-link via `resolveSlug` + pathname ref in Provider.
-- **Forms:** `React.forwardRef<PanelFormHandle>` + **inline Save/Cancel** in the form body (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12). No `window.submit*Form` globals.
-- **List shell v3.6:** in-card toolbar (search, grid/list toggle) — see `UI_AND_UX_STANDARDS_V3.md` §0.1 and `YourItemList.tsx`. Do **not** use `ContentToolbar` in `setHeaderTrailing` for list views.
-- **List empty state:** `ListEmptyState` with short “No items yet” + Create CTA when truly empty (same `openYourItemsPanel(null)` as header Add). No Create on search “no match”.
-- **Settings:** full-page `*SettingsView` opened from the list (not panel-settings). See `YourItemsSettingsView.tsx`.
+- **Forms:** `React.forwardRef<PanelFormHandle>` + **inline Save/Cancel** in the form body (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12). No `window.submit*Form` globals. Same chrome as view: `DETAIL_VIEW_CARD_CLASS`, no `PANEL_MAX_WIDTH`, no `md:-mx-6` bleed (`UI_AND_UX_STANDARDS_V3.md` §3.2).
+- **List shell:** card-column — shared `ListToolbar` (search, sort, **1 \| 2 \| 3 \| table**), `*ListItem` + `*ListTable`, `ListFooterBar`, `ListEmptyState`. Persist `listViewMode` (`cards` \| `table`) and `columnCount` via AppContext `getSettings`/`updateSettings`. Do **not** reuse legacy `viewMode` grid/list. Do **not** use `ContentToolbar` in `setHeaderTrailing`. See `UI_AND_UX_STANDARDS_V3.md` §0.1 and `YourItemList.tsx`.
+- **List empty state:** `ListEmptyState` with short “No items yet” + Create CTA when truly empty (same `openYourItemPanel(null)` as header Add). No Create on search “no match”.
+- **Settings:** full-page `*SettingsView` on the list route (`PluginSettingsPageShell`, dirty header Save). Defaults: `listViewMode` + `columnCount`. See `YourItemsSettingsView.tsx`.
+- **View:** `ConfirmDialog` before delete (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §7); Information `DetailSection` with `collapsible`.
 - **Dates/times:** `formatDate` / `formatDateTime` / `formatDateTimeShort` / `formatTime` from `@/core/utils/dateFormat`. Wall-clock hour cycle follows Preferences `timeFormat` (12h/24h) — do not use raw `toLocaleString` / i18n locale for AM/PM.
 - **API:** `createApiClient('/your-items')` — path must match `routeBase` in `plugin.config.js`.
 
@@ -35,5 +37,6 @@ Start here when adding a new Homebase plugin or a Cupappen-class public site.
 
 | Pattern                     | Reference                                                   |
 | --------------------------- | ----------------------------------------------------------- |
-| CRUD + list shell           | `client/src/plugins/contacts/`                              |
+| CRUD + list shell           | Golden template; then `client/src/plugins/contacts/`        |
+| List utils (view/columns)   | `client/src/plugins/files/utils/`                           |
 | Richer provider (URL, bulk) | `client/src/plugins/notes/`, `client/src/plugins/requests/` |

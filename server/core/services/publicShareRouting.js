@@ -8,6 +8,7 @@ const RESOURCE_TASK = 'task';
 const RESOURCE_NOTE = 'note';
 const RESOURCE_ESTIMATE = 'estimate';
 const RESOURCE_INVOICE = 'invoice';
+const RESOURCE_GARMENT_LIST = 'garment_list';
 
 function isMissingRoutingTableError(err) {
   if (!err) return false;
@@ -16,7 +17,7 @@ function isMissingRoutingTableError(err) {
 
 /**
  * @param {string} shareToken
- * @param {'task'|'note'|'estimate'|'invoice'} resourceType
+ * @param {'task'|'note'|'estimate'|'invoice'|'garment_list'} resourceType
  * @param {string} tenantConnectionString
  */
 async function registerPublicShareRoute(shareToken, resourceType, tenantConnectionString) {
@@ -57,6 +58,7 @@ const RESOURCE_BY_PATH_SEGMENT = {
   notes: RESOURCE_NOTE,
   estimates: RESOURCE_ESTIMATE,
   invoices: RESOURCE_INVOICE,
+  garments: RESOURCE_GARMENT_LIST,
 };
 
 /**
@@ -64,7 +66,7 @@ const RESOURCE_BY_PATH_SEGMENT = {
  * Used by GET middleware and by share models when req.tenantPool is still missing.
  * Does not override an existing req.tenantPool.
  * @param {import('express').Request} req
- * @param {'task'|'note'|'estimate'|'invoice'} resourceType
+ * @param {'task'|'note'|'estimate'|'invoice'|'garment_list'} resourceType
  * @param {string} shareToken
  */
 async function resolvePublicShareTenantFromToken(req, resourceType, shareToken) {
@@ -114,7 +116,9 @@ async function attachPublicShareTenantPool(req) {
   }
 
   const path = req.path || '';
-  const match = path.match(/^\/api\/(tasks|notes|estimates|invoices)\/public\/([^/]+)\/?$/);
+  const match = path.match(
+    /^\/api\/(tasks|notes|estimates|invoices|garments)\/public\/([^/]+)\/?$/,
+  );
   if (!match) {
     return;
   }
@@ -129,6 +133,7 @@ module.exports = {
   RESOURCE_NOTE,
   RESOURCE_ESTIMATE,
   RESOURCE_INVOICE,
+  RESOURCE_GARMENT_LIST,
   registerPublicShareRoute,
   unregisterPublicShareRoute,
   attachPublicShareTenantPool,

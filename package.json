@@ -64,6 +64,7 @@
     "migrate:ingest-plugin-access": "node scripts/run-grant-ingest-plugin-access-migration.js",
     "migrate:guides": "node scripts/run-guides-migration.js",
     "migrate:instructions": "node scripts/run-instructions-migration.js",
+    "migrate:garments": "node scripts/run-garments-migration.js",
     "migrate:clubdesk": "node scripts/run-clubdesk-migration.js",
     "migrate:clubdesk-featured": "node scripts/run-clubdesk-featured-migration.js",
     "migrate:clubdesk-info-contacts": "node scripts/run-clubdesk-info-contacts-migration.js",

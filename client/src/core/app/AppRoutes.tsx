@@ -79,6 +79,11 @@ const PublicTaskView = React.lazy(() =>
     default: m.PublicTaskView,
   })),
 );
+const PublicGarmentListView = React.lazy(() =>
+  import('@/plugins/garments/components/PublicGarmentListView').then((m) => ({
+    default: m.PublicGarmentListView,
+  })),
+);
 const PublicRequestForm = React.lazy(() =>
   import('@/plugins/requests/components/PublicRequestForm').then((m) => ({
     default: m.PublicRequestForm,
@@ -107,6 +112,10 @@ export function AppRoutes() {
       />
       <Route path="/public/note/:token" element={<PublicTokenRoute Component={PublicNoteView} />} />
       <Route path="/public/task/:token" element={<PublicTokenRoute Component={PublicTaskView} />} />
+      <Route
+        path="/public/garment-list/:token"
+        element={<PublicTokenRoute Component={PublicGarmentListView} />}
+      />
 
       <Route
         path="/public/request"

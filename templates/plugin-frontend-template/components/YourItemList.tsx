@@ -1,62 +1,98 @@
-import { ArrowDown, ArrowUp, Grid3x3, List as ListIcon, Plus, Search, Settings, X } from 'lucide-react';
-// Canonical list shell reference: client/src/plugins/contacts/components/ContactList.tsx
-// See docs/UI_AND_UX_STANDARDS_V3.md §0.1 for shell, toolbar, table, and bulk-action patterns.
-import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckSquare,
+  Plus,
+  Search,
+  Settings,
+  Trash2,
+  X,
+  XCircle,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { nextListTableSort } from '@/core/list/listViewMode';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { formatDate } from '@/core/utils/dateFormat';
+import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useYourItems } from '../hooks/useYourItems';
 import type { YourItem } from '../types/your-items';
+import {
+  getInitialYourItemColumnCount,
+  resolveYourItemColumnCount,
+  settingsHasYourItemColumnPreference,
+  YOUR_ITEMS_COLUMN_COUNT_STORAGE_KEY,
+  YOUR_ITEMS_SETTINGS_KEY,
+  type YourItemColumnCount,
+} from '../utils/yourItemColumnCount';
+import {
+  compareYourItemsByField,
+  isYourItemAscDefaultField,
+  type YourItemSortField,
+  type YourItemSortOrder,
+} from '../utils/yourItemListSort';
+import {
+  getInitialYourItemListViewMode,
+  isYourItemListViewMode,
+  persistYourItemListViewModeSession,
+  resolveYourItemListViewMode,
+  type YourItemListViewMode,
+} from '../utils/yourItemListViewMode';
 
+import { YourItemListItem } from './YourItemListItem';
+import { YourItemListTable } from './YourItemListTable';
 import { YourItemsSettingsView } from './YourItemsSettingsView';
 
-type SortField = 'title' | 'updatedAt';
-type SortOrder = 'asc' | 'desc';
-type ViewMode = 'grid' | 'list';
-
-const YOUR_ITEMS_VIEW_MODE_STORAGE_KEY = 'your-items:viewMode';
-const YOUR_ITEMS_SETTINGS_KEY = 'your-items';
-
-function getInitialViewMode(): ViewMode {
-  if (typeof window === 'undefined') {
-    return 'list';
-  }
-  return window.sessionStorage.getItem(YOUR_ITEMS_VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
-}
+const SORT_FIELD_OPTIONS: { value: YourItemSortField; label: string }[] = [
+  { value: 'updatedAt', label: 'Updated' },
+  { value: 'title', label: 'Title' },
+  { value: 'createdAt', label: 'Created' },
+  { value: 'id', label: 'ID' },
+];
 
 export const YourItemList: React.FC = () => {
   const { t } = useTranslation();
   const {
     yourItems,
     yourItemsContentView,
-    openYourItemsPanel,
+    openYourItemPanel,
     openYourItemForView,
     openYourItemsSettings,
     closeYourItemsSettingsView,
+    deleteYourItems,
   } = useYourItems();
-  const { getSettings, settingsVersion } = useApp();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('title');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [viewMode, setViewModeState] = useState<ViewMode>(getInitialViewMode);
+  const [primarySort, setPrimarySort] = useState<YourItemSortField>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<YourItemSortOrder>('desc');
+  const [columnCount, setColumnCountState] = useState<YourItemColumnCount>(
+    getInitialYourItemColumnCount,
+  );
+  const [listViewMode, setListViewModeState] = useState<YourItemListViewMode>(
+    getInitialYourItemListViewMode,
+  );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,10 +101,22 @@ export const YourItemList: React.FC = () => {
         if (cancelled) {
           return;
         }
-        const nextMode: ViewMode = settings?.viewMode === 'grid' ? 'grid' : 'list';
-        setViewModeState(nextMode);
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(YOUR_ITEMS_VIEW_MODE_STORAGE_KEY, nextMode);
+        const hasColumnPref = settingsHasYourItemColumnPreference(settings);
+        const hasListViewPref = isYourItemListViewMode(settings?.listViewMode);
+        if (!hasColumnPref && !hasListViewPref) {
+          return;
+        }
+        if (hasColumnPref) {
+          const next = resolveYourItemColumnCount(settings);
+          setColumnCountState(next);
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(YOUR_ITEMS_COLUMN_COUNT_STORAGE_KEY, String(next));
+          }
+        }
+        if (hasListViewPref) {
+          const nextView = resolveYourItemListViewMode(settings);
+          setListViewModeState(nextView);
+          persistYourItemListViewModeSession(nextView);
         }
       })
       .catch(() => {});
@@ -77,12 +125,49 @@ export const YourItemList: React.FC = () => {
     };
   }, [getSettings, settingsVersion]);
 
-  const setViewMode = (mode: ViewMode) => {
-    setViewModeState(mode);
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(YOUR_ITEMS_VIEW_MODE_STORAGE_KEY, mode);
-    }
+  const setColumnCount = useCallback(
+    (count: YourItemColumnCount) => {
+      setColumnCountState(count);
+      setListViewModeState('cards');
+      persistYourItemListViewModeSession('cards');
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(YOUR_ITEMS_COLUMN_COUNT_STORAGE_KEY, String(count));
+      }
+      updateSettings(YOUR_ITEMS_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+        () => {},
+      );
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: YourItemListViewMode) => {
+      setListViewModeState(mode);
+      persistYourItemListViewModeSession(mode);
+      updateSettings(YOUR_ITEMS_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
+    },
+    [updateSettings],
+  );
+
+  const handlePrimarySortChange = (field: YourItemSortField) => {
+    setPrimarySort(field);
+    setSortOrder(isYourItemAscDefaultField(field) ? 'asc' : 'desc');
   };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const handleTableSort = useCallback(
+    (field: YourItemSortField) => {
+      const next = nextListTableSort(primarySort, sortOrder, field, isYourItemAscDefaultField);
+      setPrimarySort(next.field);
+      setSortOrder(next.order);
+    },
+    [primarySort, sortOrder],
+  );
+
+  const isTableView = listViewMode === 'table';
 
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -94,53 +179,70 @@ export const YourItemList: React.FC = () => {
         item.title.toLowerCase().includes(needle) || String(item.id).toLowerCase().includes(needle)
       );
     });
+    return [...filtered].sort((a, b) => compareYourItemsByField(a, b, primarySort, sortOrder));
+  }, [yourItems, searchTerm, primarySort, sortOrder]);
 
-    return [...filtered].sort((a, b) => {
-      let av: string | number = '';
-      let bv: string | number = '';
-      switch (sortField) {
-        case 'updatedAt':
-          av = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-          bv = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-          break;
-        case 'title':
-        default:
-          av = a.title.toLowerCase();
-          bv = b.title.toLowerCase();
-      }
-      if (typeof av === 'number' && typeof bv === 'number') {
-        return sortOrder === 'asc' ? av - bv : bv - av;
-      }
-      const res = String(av).localeCompare(String(bv), undefined, {
-        numeric: true,
-        sensitivity: 'base',
-      });
-      return sortOrder === 'asc' ? res : -res;
+  const visibleIds = useMemo(
+    () => filteredAndSorted.map((item) => String(item.id)),
+    [filteredAndSorted],
+  );
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const isSelected = useCallback((id: string) => selectedSet.has(id), [selectedSet]);
+  const selectedCount = selectedIds.length;
+
+  const toggleOne = useCallback((id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  const mergeIntoSelection = useCallback((ids: string[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return Array.from(next);
     });
-  }, [yourItems, searchTerm, sortField, sortOrder]);
+  }, []);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
+
+  const allVisibleSelected = useMemo(
+    () => visibleIds.length > 0 && visibleIds.every((id) => selectedSet.has(id)),
+    [visibleIds, selectedSet],
+  );
+
+  const { handleRowCheckboxShiftMouseDown, onVisibleRowCheckboxChange } =
+    useShiftRangeListSelection({
+      orderedVisibleIds: visibleIds,
+      mergeIntoSelection,
+      toggleOne,
+    });
+
+  const handleHeaderCheckboxChange = () => {
+    if (allVisibleSelected) {
+      clearSelection();
     } else {
-      setSortField(field);
-      setSortOrder('asc');
+      setSelectedIds(visibleIds);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteYourItems(selectedIds);
+      clearSelection();
+      setShowBulkDeleteModal(false);
+    } catch (err) {
+      console.error('Bulk delete failed:', err);
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleOpenForView = (item: YourItem) => {
     attemptNavigation(() => openYourItemForView(item));
-  };
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return null;
-    }
-    return sortOrder === 'asc' ? (
-      <ArrowUp className="inline h-3 w-3" />
-    ) : (
-      <ArrowDown className="inline h-3 w-3" />
-    );
   };
 
   if (yourItemsContentView === 'settings') {
@@ -168,13 +270,13 @@ export const YourItemList: React.FC = () => {
 
   return (
     <div className="plugin-your-items min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="truncate text-xl font-semibold tracking-tight">Your items</h2>
             <p className="text-sm text-muted-foreground">{yourItems.length} items</p>
           </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1">
+          <div className="flex flex-shrink-0 items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
@@ -190,169 +292,197 @@ export const YourItemList: React.FC = () => {
               size="sm"
               icon={Plus}
               className="h-9 px-3 text-xs"
-              onClick={() => attemptNavigation(() => openYourItemsPanel(null))}
+              onClick={() => attemptNavigation(() => openYourItemPanel(null))}
             >
               Add item
             </Button>
           </div>
         </div>
 
-        <Card
-          className={cn(
-            'rounded-xl border-0',
-            viewMode === 'grid'
-              ? 'overflow-visible bg-transparent shadow-none'
-              : 'overflow-hidden bg-white shadow-sm dark:bg-slate-950',
-          )}
-        >
-          <div
-            className={cn(
-              'flex flex-shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3',
-              viewMode === 'grid' && 'mx-1 mt-1 rounded-xl bg-white dark:bg-slate-950',
-            )}
-          >
-            <div className="relative w-full max-w-sm md:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by title or id..."
-                className="h-8 bg-background pl-9 text-xs"
-              />
-            </div>
-            <div className="inline-flex items-center rounded-md border border-border/30 bg-muted/40 p-0.5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={Grid3x3}
-                className={cn(
-                  'h-7 rounded-[6px] px-2 text-xs',
-                  viewMode === 'grid'
-                    ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-                onClick={() => setViewMode('grid')}
-                title="Grid view"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={ListIcon}
-                className={cn(
-                  'h-7 rounded-[6px] px-2 text-xs',
-                  viewMode === 'list'
-                    ? 'bg-background text-foreground shadow-sm hover:bg-background'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-                onClick={() => setViewMode('list')}
-                title="List view"
-              />
-            </div>
-          </div>
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          itemCount={selectedCount}
+          itemLabel="items"
+          isLoading={deleting}
+        />
 
-          {viewMode === 'grid' ? (
-            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredAndSorted.length === 0 ? (
-                <ListEmptyState
-                  className="col-span-full"
-                  message={searchTerm ? 'No items match your search.' : 'No items yet.'}
-                  createLabel={!searchTerm ? 'Add item' : undefined}
-                  onCreate={
-                    !searchTerm
-                      ? () => attemptNavigation(() => openYourItemsPanel(null))
-                      : undefined
-                  }
+        <div className="flex flex-col gap-3">
+          <ListToolbar
+            selectedCount={selectedCount}
+            showSelectAll={filteredAndSorted.length > 0}
+            selectAll={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                icon={CheckSquare}
+                onClick={handleHeaderCheckboxChange}
+              >
+                {t('common.selectAll')}
+              </Button>
+            }
+            search={
+              <div className="relative w-full max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search by title or id..."
+                  className="h-8 bg-background pl-9 text-xs"
                 />
-              ) : (
-                filteredAndSorted.map((item) => (
-                  <Card
-                    key={item.id}
-                    className="cursor-pointer rounded-xl border-0 bg-card p-4 shadow-sm transition-colors hover:bg-muted/40"
-                    onClick={() => handleOpenForView(item)}
-                  >
-                    <div className="text-sm font-medium">{item.title || '—'}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {formatDate(item.updatedAt) || '—'}
-                    </div>
-                  </Card>
-                ))
-              )}
-            </div>
-          ) : (
-            <Table rowBorders={false}>
-              <TableHeader>
-                <TableRow className="bg-slate-50/90 dark:bg-slate-900/50 hover:bg-slate-50/90 dark:hover:bg-slate-900/50">
-                  <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
-                    onClick={() => handleSort('title')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Title</span>
-                      <SortIcon field="title" />
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none hover:bg-muted/50"
-                    onClick={() => handleSort('updatedAt')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Updated</span>
-                      <SortIcon field="updatedAt" />
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAndSorted.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="p-0">
-                      <ListEmptyState
-                        className="rounded-none shadow-none"
-                        message={
-                          searchTerm ? 'No items match your search.' : 'No items yet.'
-                        }
-                        createLabel={!searchTerm ? 'Add item' : undefined}
-                        onCreate={
-                          !searchTerm
-                            ? () => attemptNavigation(() => openYourItemsPanel(null))
-                            : undefined
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredAndSorted.map((item) => (
-                    <TableRow
-                      key={item.id}
-                      className={cn(
-                        'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50',
-                        'focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset',
-                      )}
-                      tabIndex={0}
-                      data-list-item={JSON.stringify(item)}
-                      data-plugin-name="your-items"
-                      role="button"
-                      aria-label={`Open ${item.title || item.id}`}
-                      onClick={() => handleOpenForView(item)}
+              </div>
+            }
+            trailing={
+              <>
+                {!isTableView ? (
+                  <div className="mr-1 flex items-center gap-1">
+                    <Select
+                      value={primarySort}
+                      onValueChange={(value) => handlePrimarySortChange(value as YourItemSortField)}
                     >
-                      <TableCell>
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {item.title || '—'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{item.id}</div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(item.updatedAt) || '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      <SelectTrigger
+                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                        aria-label="Sort by"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="item-aligned"
+                        className="rounded-xl border-border/50 shadow-xl"
+                      >
+                        {SORT_FIELD_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-md text-xs"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 px-0 text-xs"
+                      onClick={toggleSortOrder}
+                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                    >
+                      {sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                ) : null}
+                <ListColumnLayoutToggle
+                  columnCount={columnCount}
+                  listViewMode={listViewMode}
+                  onSelectColumns={setColumnCount}
+                  onSelectTable={() => setListViewMode('table')}
+                  columnAriaLabel={(count) => `${count} columns`}
+                  tableAriaLabel={t('common.tableView')}
+                />
+              </>
+            }
+            bulkActions={
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={XCircle}
+                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  onClick={clearSelection}
+                  type="button"
+                >
+                  {t('common.clearSelection')}
+                </Button>
+                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                  {t('bulk.selected', { count: selectedCount })}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  onClick={() => setShowBulkDeleteModal(true)}
+                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                >
+                  {t('common.delete')}
+                </Button>
+              </>
+            }
+          />
+
+          {filteredAndSorted.length === 0 ? (
+            <ListEmptyState
+              message={searchTerm ? 'No items match your search.' : 'No items yet.'}
+              createLabel={!searchTerm ? 'Add item' : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openYourItemPanel(null)) : undefined
+              }
+            />
+          ) : isTableView ? (
+            <YourItemListTable
+              items={filteredAndSorted}
+              primarySort={primarySort}
+              sortOrder={sortOrder}
+              onSort={handleTableSort}
+              isSelected={isSelected}
+              onRowClick={handleOpenForView}
+              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+              onCheckboxChange={onVisibleRowCheckboxChange}
+              allVisibleSelected={allVisibleSelected}
+              onHeaderCheckboxChange={handleHeaderCheckboxChange}
+            />
+          ) : (
+            <div
+              className={cn(
+                'grid gap-3',
+                columnCount === 1 && 'grid-cols-1',
+                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+              )}
+            >
+              {filteredAndSorted.map((item, index) => {
+                const itemIsSelected = isSelected(String(item.id));
+                return (
+                  <YourItemListItem
+                    key={item.id}
+                    item={item}
+                    selected={itemIsSelected}
+                    onClick={() => handleOpenForView(item)}
+                    columnCount={columnCount}
+                    checkbox={
+                      <input
+                        type="checkbox"
+                        checked={itemIsSelected}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(String(item.id))}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={itemIsSelected ? 'Unselect item' : 'Select item'}
+                      />
+                    }
+                  />
+                );
+              })}
+            </div>
           )}
-        </Card>
+
+          <ListFooterBar
+            meta={
+              <>
+                Showing {filteredAndSorted.length} of {yourItems.length}
+              </>
+            }
+          />
+        </div>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@
 - New plugins must be generated from:
   - `templates/plugin-frontend-template`
   - `templates/plugin-backend-template`
-- The templates are now the source of truth for Contract v2 panel wiring.
+- The templates are the source of truth for Contract v2 panel wiring **and** the card-column list shell (`ListToolbar`, `1 | 2 | 3 | table`, `*ListItem` / `*ListTable`). List visual rules live in `UI_AND_UX_STANDARDS_V3.md` §0.1 — do not copy the legacy in-card grid/list toggle.
 - Integration steps are tracked in `NEW_PLUGIN_INTEGRATION_CHECKLIST.md`.
 
 ---

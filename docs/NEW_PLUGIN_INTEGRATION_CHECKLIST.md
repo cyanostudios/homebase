@@ -2,7 +2,7 @@
 
 Use when creating a plugin from `templates/plugin-frontend-template` and `templates/plugin-backend-template`. Canonical naming for panels and hooks: **`PLUGIN_RUNTIME_CONVENTIONS.md`**. Design rules (inline Save/Cancel, settings footer): **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`**, **`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`**.
 
-**Related (not this checklist):** Cupappen-class public SEO sites use [`templates/public-app/`](../templates/public-app/) + [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md). Optional companion Node API: `plugins/public-<name>/` (copy `plugins/public-cups/`). **Concrete Etapp 1 examples:** `plugins/instructions` + public companion — see [`ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md); Clubdesk admin + public companion — [`ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md) + [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md).
+**Related (not this checklist):** Cupappen-class public SEO sites use [`templates/public-app/`](../templates/public-app/) + [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md). Optional companion Node API: `plugins/public-<name>/` (copy `plugins/public-cups/`). **Concrete Etapp 1 examples:** `plugins/instructions` + public companion — see [`ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md); Clubdesk admin + public companion — [`ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md) + [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md); Garments (Kläder) lists + inventory + Notes-style share — [`ai/adr/GARMENTS_PLUGIN_ETAPP1.md`](ai/adr/GARMENTS_PLUGIN_ETAPP1.md) + [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md).
 
 ---
 
@@ -17,6 +17,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - **Routes factory:** `createYourRoutes(controller, context)` — pass `context` through; do not thread `requirePlugin` as a separate top-level argument.
 - **Validation:** use `validateRequest` and `commonRules` / `body` from `server/core/middleware/validation.js` (same stack as production plugins).
 - **CSRF:** import `csrfProtection` from `server/core/middleware/csrf.js` on all POST/PUT/PATCH/DELETE routes (template already does). Server uses session-backed `csrf({ cookie: false })` when `ENABLE_CSRF=true` — see `docs/RAILWAY_HOMEBASE_SETUP.md` §5. Frontend must use `createApiClient` / `apiFetch` (template `templateApi.ts`).
+- **List layout settings:** persist `listViewMode` / `columnCount` with AppContext `getSettings` / `updateSettings` (core `user_settings`). Do **not** add a plugin `GET/PUT /settings` for that (template has none).
 - **Discovery:** folder under `plugins/<name>/` with `index.js` + `plugin.config.js` so `plugin-loader.js` picks it up.
 - **Schema:** add tenant migrations under `server/migrations/` for plugin tables; optional extra runner under `scripts/` if you need data backfills.
 
@@ -31,8 +32,10 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
   - Required: `name`, `Provider`, `hook`, `panelKey`, `components.List`, `components.Form`, `components.View`.
   - Usually: `providerLoader`, `NullProvider`, `navigation`.
   - Optional: `dashboardWidget`, `displayPrefix`, `contentFlush`, `slugField`, `contentViewKey`, `noPrimaryAction`, `getViewExtraProps`, `getFormExtraProps` (see JSDoc on `PluginRegistryEntry` in that file).
-- **`panelKey`:** must match the boolean the hook exposes (e.g. `isContactPanelOpen` → panelKey reflects that string as documented in `PLUGIN_RUNTIME_CONVENTIONS.md`).
-- **Singular names:** ensure `pluginSingular.ts` rules fit your `name` (`contacts` → `contact`, `matches` → `match`, etc.).
+- **`panelKey`:** must match the boolean the hook exposes (e.g. `isContactPanelOpen`). Template plugin `your-items` uses `isYourItemPanelOpen` (`pluginSingular.ts`).
+- **`NullProvider`:** copy `YourItemsNullProvider` from the template context; register it as eager `Provider` / `NullProvider` with `providerLoader` for the real provider.
+- **Singular names:** ensure `pluginSingular.ts` rules fit your `name` (`contacts` → `contact`, `matches` → `match`, `your-items` → `yourItem`).
+- **List UI:** keep the template card-column shell (`ListToolbar`, `1 | 2 | 3 | table`, `*ListItem`, `*ListTable`, `ListFooterBar`). See `UI_AND_UX_STANDARDS_V3.md` §0.1.
 - **Mounting:** plugin should participate in `useEnabledPlugins()` / `PluginProviders.tsx` so heavy providers load only when the tenant has access.
 - **Routes:** add entries in `client/src/core/routing/routeMap.ts` (and any deep-link rules) so list URLs resolve.
 
@@ -41,8 +44,8 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 ## 3) Panel contract (mandatory)
 
 - Context + hook expose the patterns in **`PLUGIN_RUNTIME_CONVENTIONS.md`** (e.g. `is{Singular}PanelOpen`, `current{Singular}`, `panelMode`, `save{Singular}`, `close{Singular}Panel`, open helpers).
-- **Create / edit / settings `*Form.tsx`:** implement **`PanelFormHandle`** (`forwardRef` + `useImperativeHandle`) so panel header Save/Cancel calls `formRef.current.submit()` / `.cancel()`. Do **not** use `window.submit*Form` globals (see golden template + **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`** §12).
-- **View:** use `DetailLayout` with quick actions, export (if applicable), information sidebar, and **`DetailActivityLog`** when the backend exposes the standard activity pattern on `/api/<plugin>/:id` (same idea as contacts, notes, tasks, slots, matches).
+- **Create / edit `*Form.tsx`:** implement **`PanelFormHandle`** (`forwardRef` + `useImperativeHandle`) plus **inline Save/Cancel**. Match view chrome: `DETAIL_VIEW_CARD_CLASS`, no `PANEL_MAX_WIDTH`, no `md:-mx-6` bleed (`UI_AND_UX_STANDARDS_V3.md` §3.2). Do **not** use `window.submit*Form` globals (see golden template + **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`** §12).
+- **View:** use `DetailLayout` with quick actions, `ConfirmDialog` before delete (§7 of the design checklist), collapsible Information `DetailSection`, and **`DetailActivityLog`** when the backend exposes the standard activity pattern (same idea as contacts, notes, tasks, slots, matches).
 - **Tabular import (optional):** If the plugin needs CSV/Excel/paste import, wire Settings → core `ImportWizard` + plugin `import*` returning `{ successCount, failureCount }`, and offer `downloadImportCsvTemplate` with an example row — see `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §5 and ADR `ai/adr/TABULAR_IMPORT_EXPORT.md`. Do not create a separate import plugin. Domän/API imports stay plugin-local.
 
 **Reference plugins (2026-06):**
@@ -81,11 +84,11 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - `npm run lint` passes.
 - `npm run build` passes.
 - Manual smoke test:
-  - list loads
+  - list loads (cards 1/2/3 and table)
   - empty list shows short `No X yet` + Create button that opens create
   - search/filter with no results shows match copy **without** Create
   - create works
   - edit works
-  - view shows correct details
-  - settings save/close works via the intended UX (inline vs footer, per sections 3–4)
+  - view shows correct details; delete asks for confirmation
+  - settings save/close works via dirty header Save (`listViewMode` / `columnCount`)
   - tenant without plugin access sees no broken hooks / no stray panel state

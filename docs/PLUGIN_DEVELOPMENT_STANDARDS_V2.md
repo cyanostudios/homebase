@@ -178,17 +178,17 @@ När en plugin stödjer manuell tabellimport (inte FOGIS/cups-style API-import):
 
 ## 6. List and toolbar UI (mandatory for consistency)
 
-Use the same UI components and styling as other plugins so list views and toolbars look and behave the same across the app.
+Use the same UI components and styling as other plugins so list views and toolbars look and behave the same across the app. **New plugins** start from `templates/plugin-frontend-template` (card-column shell). Canonical rules: [UI_AND_UX_STANDARDS_V3.md](UI_AND_UX_STANDARDS_V3.md) §0.1.
 
-- **Toolbar:** Use the in-card list toolbar shell used across current list views (search/settings/grid-list controls in the same main card as list content), not legacy `ContentToolbar` header injection.
+- **Toolbar:** Shared `ListToolbar` (`@/core/ui/ListToolbar`): idle = Select all + search + sort + `ListColumnLayoutToggle` (**1 / 2 / 3 / table**); selection = bulk actions replace that row. Do **not** use legacy `ContentToolbar` header injection, and do **not** use an in-card grid/list toggle (`viewMode`).
 - **Toolbar buttons:** Use the shared `Button` from `@/components/ui/button` with:
-  - `variant="secondary"` for secondary actions (e.g. Settings, Grid, List, Import).
+  - `variant="ghost"` or `variant="secondary"` for secondary actions (e.g. Settings).
   - `size="sm"`.
   - `className="h-9 text-xs px-3"` for consistent height and label size.
-  - `icon={IconComponent}` for the icon (e.g. `Settings`, `Grid3x3`, `List` from `lucide-react`), and put the label as children (e.g. `Settings`, `Grid`, `List`).
-- **List layout:** Use `Card` from `@/components/ui/card` for the list container with plugin semantic class (e.g. `plugin-my-plugins`). For **Tasks, Contacts, Notes, Guides, Requests, Slots, Estimates, Matches, Files, Ingest, Cups, Teams** use the card-column list shell in [UI_AND_UX_STANDARDS_V3.md](UI_AND_UX_STANDARDS_V3.md) §0.1 (`*ListItem` / Teams `TeamCard`, **1 / 2 / 3** columns, single sort field + asc/desc, shared `ListToolbar` + `ListFooterBar`). Do not add unused parallel `*Card` list components. Other plugins still use `Table` / grid until migrated — see §0.1 legacy shell and checkbox column width (`w-12`).
+  - `icon={IconComponent}` for the icon (e.g. `Settings` from `lucide-react`), and put the label as children.
+- **List layout:** Card-column shell: `*ListItem` cards (`DETAIL_VIEW_CARD_CLASS`) + `*ListTable` (`SortableListTable`, `rowBorders={false}`) + `ListFooterBar`. Persist `listViewMode` (`cards` \| `table`) and `columnCount` via AppContext settings — never treat legacy `viewMode` (grid/list) as table. Rolled out for Tasks, Contacts, Notes, Guides, Requests, Slots, Estimates, Matches, Files, Ingest, Cups, Teams, Instructions, Clubdesk (and the golden template). Do not add unused parallel `*Card` list components. Remaining unmigrated plugins (e.g. invoices, schedule) still use §0.1 legacy table/grid shell and checkbox column width (`w-12`).
 - **Empty state:** Use shared `ListEmptyState` from `@/core/ui/ListEmptyState`. Short i18n `*.noYet` (`No X yet`); when truly empty, pass `createLabel` + `onCreate` (same handler as header Add). Search/filter “no match” → message only, no Create. See UI standards §0.1 **Empty state** and the golden template list.
-- **Settings button:** If the plugin has a settings screen, add a **Settings** button in the toolbar with the same style as other toolbar buttons (secondary, sm, icon + label "Settings"), e.g. `icon={Settings}` and children `Settings`. Do not use an icon-only button; keep it consistent with Files, Contacts, and Mail.
+- **Settings button:** If the plugin has a settings screen, add a **Settings** button on the list page header (same style as Files/Contacts: ghost/sm, icon + label "Settings"). Do not use an icon-only button.
 
 ## 7. Plugin settings page (when the plugin has a settings screen)
 

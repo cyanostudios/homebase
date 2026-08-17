@@ -1,6 +1,6 @@
 import { createApiClient, type ApiRequestError } from '@/core/api/createApiClient';
 
-import type { ValidationError, YourItem, YourItemPayload, YourItemsSettings } from '../types/your-items';
+import type { ValidationError, YourItem, YourItemPayload } from '../types/your-items';
 
 const request = createApiClient('/your-items');
 
@@ -8,10 +8,12 @@ type ApiError = ApiRequestError & { errors?: ValidationError[] };
 
 function mapValidationDetails(err: ApiError): ApiError {
   if (Array.isArray(err.details)) {
-    err.errors = err.details.map((d: { path?: string; msg?: string; field?: string; message?: string }) => ({
-      field: d.path ?? d.field ?? 'general',
-      message: d.msg ?? d.message ?? 'Invalid',
-    }));
+    err.errors = err.details.map(
+      (d: { path?: string; msg?: string; field?: string; message?: string }) => ({
+        field: d.path ?? d.field ?? 'general',
+        message: d.msg ?? d.message ?? 'Invalid',
+      }),
+    );
   }
   return err;
 }
@@ -39,17 +41,6 @@ class TemplateApi {
 
   deleteItem(id: string) {
     return apiRequest<{ deleted: boolean }>(`/${id}`, { method: 'DELETE' });
-  }
-
-  getSettings() {
-    return apiRequest<YourItemsSettings>('/settings');
-  }
-
-  saveSettings(payload: YourItemsSettings) {
-    return apiRequest<YourItemsSettings>('/settings', {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
   }
 }
 

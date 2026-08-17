@@ -1,5 +1,23 @@
 # Migrations
 
+## 131–133 – Garments plugin (Kläder) (aug 2026)
+
+- **`131-garments.sql`** — tenant-DB: `garment_lists`, `garment_list_persons`, `garment_list_shares`, `garment_inventory_items`.
+- **`132-grant-garments-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Grant plugin `garments` in `tenant_plugin_access` / `user_plugin_access`. Alternative: `npm run set:tenant-plugins -- --enable=garments`.
+- **`133-public-share-routing-garment-list.sql`** — **`MAIN_DB_ONLY`**. Widen `public_share_routing.resource_type` CHECK to include `garment_list`.
+
+```bash
+npm run migrate:garments
+# or grant only:
+npm run set:tenant-plugins -- --enable=garments
+```
+
+After plugin access: **log out/in**. Local first; prod only on explicit release. Public share URL: `/public/garment-list/:token`.
+
+**ADR:** [`docs/ai/adr/GARMENTS_PLUGIN_ETAPP1.md`](../../docs/ai/adr/GARMENTS_PLUGIN_ETAPP1.md).
+
+---
+
 ## 129 – Cupappen pageviews daily (aug 2026)
 
 - **`129-cupappen-pageviews-daily.sql`** — tenant-DB: `cupappen_pageviews_daily` (dagliga aggregat för cup-detalj + distriktssidor; bucket + referrer_domain).
