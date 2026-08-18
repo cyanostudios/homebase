@@ -31,6 +31,7 @@ function initializeGuidesPlugin(context) {
     contentSourceSettingsModel,
   });
   const audioOrchestration = new AudioOrchestrationService(model);
+  guidesWorker = new WorkerService(productionOrchestration, productionSettingsModel);
   const controller = new GuidesController(
     model,
     ingestBridge,
@@ -38,10 +39,10 @@ function initializeGuidesPlugin(context) {
     contentSourceSettingsModel,
     audioOrchestration,
     productionSettingsModel,
+    guidesWorker,
   );
   const router = createGuidesRoutes(controller, context);
 
-  guidesWorker = new WorkerService(productionOrchestration, productionSettingsModel);
   guidesWorker.start();
 
   return {

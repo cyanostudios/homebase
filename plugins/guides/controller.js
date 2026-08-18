@@ -11,6 +11,7 @@ class GuidesController {
    * @param {import('./sources/ContentSourceSettingsModel')|null} [contentSourceSettingsModel]
    * @param {import('./audio/AudioOrchestrationService')|null} [audioOrchestration]
    * @param {import('./production/ProductionSettingsModel')|null} [productionSettingsModel]
+   * @param {import('./production/WorkerService').WorkerService|null} [productionWorker]
    */
   constructor(
     model,
@@ -19,6 +20,7 @@ class GuidesController {
     contentSourceSettingsModel = null,
     audioOrchestration = null,
     productionSettingsModel = null,
+    productionWorker = null,
   ) {
     this.model = model;
     this.ingestBridge = ingestBridge;
@@ -26,6 +28,7 @@ class GuidesController {
     this.contentSourceSettingsModel = contentSourceSettingsModel;
     this.audioOrchestration = audioOrchestration;
     this.productionSettingsModel = productionSettingsModel;
+    this.productionWorker = productionWorker;
   }
 
   async getAll(req, res) {
@@ -542,7 +545,15 @@ class GuidesController {
         pollIntervalMs: req.body.pollIntervalMs,
       });
       const userId = Context.getTenantUserId(req);
-      if (userId) bustProductionSettingsCache(userId);
+      if (userId) {
+        bustProductionSettingsCache(userId);
+        if (
+          this.productionWorker &&
+          typeof this.productionWorker.notifySettingsChanged === 'function'
+        ) {
+          this.productionWorker.notifySettingsChanged(userId, settings);
+        }
+      }
       res.json({
         ...settings,
         allowedPollIntervalMs: this.productionSettingsModel.constructor.getAllowedPollIntervalsMs(),

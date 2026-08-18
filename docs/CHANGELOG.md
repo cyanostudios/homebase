@@ -4,6 +4,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-18 – Guides production worker: UI-switch parkerar poll
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Av i Guides → Settings → Produktion stoppar den in-process-loopen (ingen `_listTenants` / tenant-SQL var 5:e sekund). På väcker loopen omedelbart via `notifySettingsChanged`. Default per tenant är fortfarande av.
+
+**Varför:** Switchen hoppade tidigare bara över jobb; `setInterval(5s)` fortsatte mot Neon main och tenant och förhindrade scale-to-zero.
+
+---
+
 ## 2026-08-17 – Kläder: tvåradiga personblock
 
 **Status:** Implementerat lokalt. **QA Approved.** **Security Approved** (samma residualklass som Etapp 1 publik share). **Ej prod-release.**

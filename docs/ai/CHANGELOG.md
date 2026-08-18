@@ -1246,7 +1246,7 @@ Migrationer **096–098** (v1 pipeline) + **099** (async schema) på alla tenant
 | `GUIDES_PRODUCTION_ITEM_TIMEOUT_MIN`  | `10`                          | Supervisor timeout för stuck `processing` |
 | `GUIDES_PRODUCTION_MAX_RETRIES`       | `5`                           | Max retry innan item → `failed`           |
 
-**Per-tenant (UI, migration 113):** `GET/PUT /api/guides/production-settings` — `workerEnabled` (default **false**) + `pollIntervalMs` (5s/15s/30s/1m/5m). Process-env förblir nödstopp; tenant-settings styr om/hur ofta tenanten pollas.
+**Per-tenant (UI, migration 113):** `GET/PUT /api/guides/production-settings` — `workerEnabled` (default **false**) + `pollIntervalMs` (5s/15s/30s/1m/5m). Process-env förblir nödstopp. När **alla** tenants har worker av **parkeras** in-process-loopen (ingen DB-poll). UI-save med worker på **väcker** loopen (`notifySettingsChanged`). Av-cache gäller tills bust (ingen 60s om-läsning mot tenant).
 
 **Tenant-filter:** Workern anropar `listGuidesEnabledTenants` — endast tenants med guides enabled (`tenant_plugin_access`; legacy `user_plugin_access` om ingen guides-rad). HTTP `requirePlugin('guides')` och bakgrundsworkern följer samma princip.
 
