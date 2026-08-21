@@ -4,6 +4,14 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-21 – Requests: ingen Clear filters-knapp (samma som övriga listor)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+Requests-listan har inte längre **Rensa filter** vid sökfältet. Sök rensas med **X** i `ListSearchInput`, som övriga card-column-listor. Status- och type-filter nollställs via korten/chippen.
+
+---
+
 ## 2026-08-21 – Edit mode: ingen Information-kort (Tasks/Notes/Requests)
 
 **Status:** Implementerat lokalt. **Ej prod-release.**
@@ -34,7 +42,7 @@ Internal notes följer Contacts-mönstret: **vänster identitets-/fakta-stack** 
 
 **Sökfält:** Delad `ListSearchInput` (`@/core/ui/ListSearchInput`) i list-toolbars (card-column-plugins + Mail/Pulse provider-/historikvyer m.fl.). När fältet har text visas **X** (`common.clearSearch`) som rensar sökningen. Samma clear-mönster i `ContentToolbar` där den används.
 
-**ListToolbar:** Valfri slot `beforeSearch` — kontroll **direkt före** sökfältet (högergrupp: `beforeSearch` → search → trailing). Requests använder den för **Rensa filter** (`common.clearFilters`) till vänster om sökfältet.
+**ListToolbar:** Valfri slot `beforeSearch` — kontroll **direkt före** sökfältet (högergrupp: `beforeSearch` → search → trailing).
 
 ---
 

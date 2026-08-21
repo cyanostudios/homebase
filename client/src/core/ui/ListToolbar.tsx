@@ -11,7 +11,7 @@ export interface ListToolbarProps {
   selectAll?: React.ReactNode;
   /** Idle-only controls beside select-all (e.g. Quick task / Quick note). */
   leadingActions?: React.ReactNode;
-  /** Idle-only control immediately before the search field (e.g. Clear filters). */
+  /** Idle-only control immediately before the search field. */
   beforeSearch?: React.ReactNode;
   search: React.ReactNode;
   /** Sort + column toggles (idle only). */

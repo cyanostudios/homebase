@@ -50,7 +50,6 @@ import {
   type RequestColumnCount,
 } from '../utils/requestColumnCount';
 import {
-  isRequestListStatusFilterNonDefault,
   REQUEST_LIST_FILTER_INITIAL,
   requestMatchesListFilters,
   toggleRequestListFilter,
@@ -345,20 +344,6 @@ export function RequestList() {
       toggleOne: toggleRequestSelected,
     });
 
-  const hasActiveFilters = Boolean(
-    search ||
-      isRequestListStatusFilterNonDefault(activeFilters) ||
-      typeFilter !== 'all' ||
-      teamFilter !== 'all',
-  );
-
-  const clearAllFilters = () => {
-    setSearch('');
-    setActiveFilters(REQUEST_LIST_FILTER_INITIAL);
-    setTypeFilter('all');
-    setTeamFilter('all');
-  };
-
   if (requestsContentView === 'settings') {
     return (
       <div className="plugin-requests min-h-full bg-background">
@@ -539,20 +524,6 @@ export function RequestList() {
                 onChange={setSearch}
                 placeholder={t('requests.searchPlaceholder', { count: requests.length })}
               />
-            }
-            beforeSearch={
-              hasActiveFilters ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearAllFilters}
-                >
-                  {t('common.clearFilters')}
-                </Button>
-              ) : null
             }
             trailing={
               <>
