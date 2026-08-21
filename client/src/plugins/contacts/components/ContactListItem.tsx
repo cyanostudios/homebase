@@ -26,6 +26,7 @@ export function ContactListItem({
   hasTimeLogged = false,
   timeTrackingActive = false,
   columnCount = 1,
+  active = false,
 }: {
   contact: Contact;
   selected?: boolean;
@@ -36,6 +37,7 @@ export function ContactListItem({
   timeTrackingActive?: boolean;
   /** When 1, meta sits on the top row; 2/3 keep meta below title/excerpt. */
   columnCount?: ContactColumnCount;
+  active?: boolean;
 }) {
   const { t } = useTranslation();
   const updatedLabel = contact.updatedAt ? new Date(contact.updatedAt).toLocaleDateString() : null;
@@ -90,6 +92,7 @@ export function ContactListItem({
         DETAIL_VIEW_CARD_CLASS,
         highlighted && 'bg-green-50 dark:bg-green-950/30',
         selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
+        active && 'bg-primary/5 ring-1 ring-primary/40',
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('input[type="checkbox"], button')) {
@@ -102,12 +105,13 @@ export function ContactListItem({
       data-plugin-name="contacts"
       role="button"
       tabIndex={0}
+      aria-current={active ? 'true' : undefined}
       aria-label={`Open contact ${contact.companyName}`}
     >
       <div className="flex flex-col gap-2 p-4">
+        {checkbox ? <div className="flex">{checkbox}</div> : null}
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
             <Badge
               className={cn(
                 BADGE_CLASS,

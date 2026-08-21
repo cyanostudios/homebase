@@ -1,4 +1,8 @@
-import { buildTaskListStatusSavePayload, shouldApplyOpenTaskSaveEffects } from '../taskListSave';
+import {
+  buildTaskListQuickFieldsSavePayload,
+  buildTaskListStatusSavePayload,
+  shouldApplyOpenTaskSaveEffects,
+} from '../taskListSave';
 
 describe('shouldApplyOpenTaskSaveEffects', () => {
   it('returns true when open task matches updated id', () => {
@@ -17,6 +21,43 @@ describe('shouldApplyOpenTaskSaveEffects', () => {
 
   it('compares ids as strings', () => {
     expect(shouldApplyOpenTaskSaveEffects(1 as unknown as string, '1')).toBe(true);
+  });
+});
+
+describe('buildTaskListQuickFieldsSavePayload', () => {
+  const baseTask = {
+    title: 'Ship list redesign',
+    content: '<p>Body</p>',
+    mentions: [],
+    status: 'not started' as const,
+    priority: 'High' as const,
+    dueDate: new Date('2026-08-01T00:00:00.000Z'),
+    assignedToIds: ['c1'],
+    assignedTo: null,
+    teamId: '7',
+  };
+
+  it('applies assignee patch over existing task and draft', () => {
+    expect(
+      buildTaskListQuickFieldsSavePayload(
+        baseTask,
+        { assignedToIds: ['c9'] },
+        { assignedToIds: ['c2'], priority: 'Low' },
+      ),
+    ).toEqual({
+      title: 'Ship list redesign',
+      content: '<p>Body</p>',
+      mentions: [],
+      status: 'not started',
+      priority: 'Low',
+      dueDate: baseTask.dueDate,
+      assignedToIds: ['c9'],
+      teamId: '7',
+    });
+  });
+
+  it('applies team patch', () => {
+    expect(buildTaskListQuickFieldsSavePayload(baseTask, { teamId: null }, null).teamId).toBe(null);
   });
 });
 

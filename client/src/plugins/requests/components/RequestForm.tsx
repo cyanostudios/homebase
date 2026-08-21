@@ -1,10 +1,8 @@
-import { Search, Trash2, User, Users } from 'lucide-react';
+import { Search, User } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -18,18 +16,22 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
+import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 
 import type { RequestPayload } from '../api/requestsApi';
-import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
 import { REQUEST_PRIORITIES, REQUEST_STATUSES, getTypeLabel } from '../types/requests';
+
+import { RequestAssignedTeamSelect } from './RequestAssignedTeamSelect';
+import { RequestAssigneeSelect } from './RequestAssigneeSelect';
 
 interface RequestFormProps {
   currentRequest?: Request | null;
@@ -46,7 +48,8 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
   const { validationErrors, clearValidationErrors, requestTypes } = useRequests();
   const { contacts, user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
-  const teams = useRequestTeams();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeamsPlugin = enabledPlugins.has('teams');
   const item = currentRequest ?? currentItem ?? null;
 
   const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
@@ -68,8 +71,6 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
 
   const [contactSearch, setContactSearch] = useState('');
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
-  const [assigneeSearch, setAssigneeSearch] = useState('');
-  const [showAssigneeSuggestions, setShowAssigneeSuggestions] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -131,7 +132,9 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
       internal_notes: form.internalNotes.trim() || null,
     };
     const success = await onSave(payload);
-    if (success) markClean();
+    if (success) {
+      markClean();
+    }
     return success;
   }, [form, onSave, markClean]);
 
@@ -155,8 +158,12 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
     const q = contactSearch.trim().toLowerCase();
     return (contacts as any[])
       .filter((c) => {
-        if (form.contactId && String(c.id) === form.contactId) return false;
-        if (!q) return true;
+        if (form.contactId && String(c.id) === form.contactId) {
+          return false;
+        }
+        if (!q) {
+          return true;
+        }
         return [c.companyName, c.email, c.phone]
           .filter(Boolean)
           .some((v: string) => v.toLowerCase().includes(q));
@@ -164,155 +171,112 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
       .slice(0, 20);
   }, [contacts, contactSearch, form.contactId]);
 
-  // Assignees
-  const assignedContacts = useMemo(
-    () =>
-      form.assignedToIds
-        .map((id) => (contacts as any[]).find((c) => String(c.id) === id))
-        .filter(Boolean),
-    [contacts, form.assignedToIds],
-  );
+  const formLeftSidebar = (
+    <div className="space-y-4">
+      {/* Title + Type */}
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection title={t('requests.form.details')} className="p-4">
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">{t('requests.form.title')} *</Label>
+              <Input
+                value={form.title}
+                onChange={(e) => updateForm('title', e.target.value)}
+                placeholder={t('requests.form.titlePlaceholder')}
+                className={cn('text-sm', titleError && 'border-red-500')}
+              />
+              {titleError && <p className="text-xs text-red-500">{titleError}</p>}
+            </div>
 
-  const addableAssignees = useMemo(() => {
-    const q = assigneeSearch.trim().toLowerCase();
-    return (contacts as any[])
-      .filter((c) => {
-        if (form.assignedToIds.includes(String(c.id))) return false;
-        if (!q) return true;
-        return [c.companyName, c.email, c.phone]
-          .filter(Boolean)
-          .some((v: string) => v.toLowerCase().includes(q));
-      })
-      .slice(0, 20);
-  }, [contacts, assigneeSearch, form.assignedToIds]);
+            <div className="space-y-1">
+              <Label className="text-xs">{t('requests.form.description')}</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => updateForm('description', e.target.value)}
+                placeholder={t('requests.form.descriptionPlaceholder')}
+                rows={3}
+                className="text-sm"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">{t('requests.form.requestType')}</Label>
+              <Select
+                value={form.requestType}
+                onValueChange={(v) => updateForm('requestType', v as Request['requestType'])}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {requestTypes.map((type) => (
+                    <SelectItem key={type} value={type} className="text-xs">
+                      {getTypeLabel(type, t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+
+      {/* Status + Priority */}
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection title={t('requests.form.properties')} className="p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">{t('requests.form.status')}</Label>
+              <Select
+                value={form.status}
+                onValueChange={(v) => updateForm('status', v as Request['status'])}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REQUEST_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s} className="text-xs">
+                      {t(`requests.status.${s.replace(/ /g, '_')}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">{t('requests.form.priority')}</Label>
+              <Select
+                value={form.priority}
+                onValueChange={(v) => updateForm('priority', v as Request['priority'])}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REQUEST_PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p} className="text-xs">
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+    </div>
+  );
 
   return (
     <>
-      <DetailLayout>
+      <DetailLayout leftSidebar={formLeftSidebar}>
         <div className="space-y-4">
           {generalError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
               {generalError}
             </div>
           )}
-
-          {/* Title + Type */}
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('requests.form.details')} className="p-4">
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">{t('requests.form.title')} *</Label>
-                  <Input
-                    value={form.title}
-                    onChange={(e) => updateForm('title', e.target.value)}
-                    placeholder={t('requests.form.titlePlaceholder')}
-                    className={cn('text-sm', titleError && 'border-red-500')}
-                  />
-                  {titleError && <p className="text-xs text-red-500">{titleError}</p>}
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">{t('requests.form.description')}</Label>
-                  <Textarea
-                    value={form.description}
-                    onChange={(e) => updateForm('description', e.target.value)}
-                    placeholder={t('requests.form.descriptionPlaceholder')}
-                    rows={3}
-                    className="text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('requests.form.requestType')}</Label>
-                    <Select
-                      value={form.requestType}
-                      onValueChange={(v) => updateForm('requestType', v as Request['requestType'])}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {requestTypes.map((type) => (
-                          <SelectItem key={type} value={type} className="text-xs">
-                            {getTypeLabel(type, t)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">{t('requests.form.team')}</Label>
-                    <Select
-                      value={form.teamId || 'none'}
-                      onValueChange={(v) => updateForm('teamId', v === 'none' ? '' : v)}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder={t('requests.form.generalRequest')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none" className="text-xs">
-                          {t('requests.form.generalRequest')}
-                        </SelectItem>
-                        {teams.map((team: any) => (
-                          <SelectItem key={team.id} value={String(team.id)} className="text-xs">
-                            {team.name}
-                            {team.age_group ? ` · ${team.age_group}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-
-          {/* Status + Priority */}
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('requests.form.properties')} className="p-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">{t('requests.form.status')}</Label>
-                  <Select
-                    value={form.status}
-                    onValueChange={(v) => updateForm('status', v as Request['status'])}
-                  >
-                    <SelectTrigger className="h-9 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REQUEST_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s} className="text-xs">
-                          {t(`requests.status.${s.replace(/ /g, '_')}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">{t('requests.form.priority')}</Label>
-                  <Select
-                    value={form.priority}
-                    onValueChange={(v) => updateForm('priority', v as Request['priority'])}
-                  >
-                    <SelectTrigger className="h-9 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REQUEST_PRIORITIES.map((p) => (
-                        <SelectItem key={p} value={p} className="text-xs">
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
 
           {/* Submitter */}
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -415,90 +379,17 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
             </DetailSection>
           </Card>
 
-          {/* Assignees */}
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection title={t('requests.form.assignees')} className="p-4">
-              <div className="space-y-2">
-                <Popover
-                  open={showAssigneeSuggestions && addableAssignees.length > 0}
-                  onOpenChange={setShowAssigneeSuggestions}
-                >
-                  <PopoverAnchor asChild>
-                    <div className="relative">
-                      <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={assigneeSearch}
-                        onChange={(e) => {
-                          setAssigneeSearch(e.target.value);
-                          setShowAssigneeSuggestions(true);
-                        }}
-                        onFocus={() => setShowAssigneeSuggestions(true)}
-                        placeholder={t('requests.form.addAssigneePlaceholder')}
-                        className="h-9 pl-9 text-xs"
-                        disabled={addableAssignees.length === 0 && !assigneeSearch}
-                      />
-                    </div>
-                  </PopoverAnchor>
-                  <PopoverContent
-                    align="start"
-                    side="bottom"
-                    sideOffset={4}
-                    className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-52 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
-                  >
-                    {addableAssignees.map((c: any) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="flex w-full items-start rounded-lg px-2.5 py-2 text-left hover:bg-accent"
-                        onClick={() => {
-                          updateForm('assignedToIds', [...form.assignedToIds, String(c.id)]);
-                          setAssigneeSearch('');
-                          setShowAssigneeSuggestions(false);
-                        }}
-                      >
-                        <span className="block truncate text-xs font-medium">
-                          {c.companyName ?? `Contact ${c.id}`}
-                        </span>
-                      </button>
-                    ))}
-                  </PopoverContent>
-                </Popover>
+          <RequestAssigneeSelect
+            request={{ assignedToIds: form.assignedToIds }}
+            onAssigneeChange={(ids) => updateForm('assignedToIds', ids)}
+          />
 
-                {assignedContacts.length > 0 && (
-                  <div className="space-y-1.5">
-                    {assignedContacts.map((c: any) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <span className="truncate text-xs font-medium">
-                            {c.companyName ?? `Contact ${c.id}`}
-                          </span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          icon={Trash2}
-                          className="h-7 px-2 text-[10px] text-red-600 hover:bg-red-50 dark:text-red-400"
-                          onClick={() =>
-                            updateForm(
-                              'assignedToIds',
-                              form.assignedToIds.filter((id) => id !== String(c.id)),
-                            )
-                          }
-                        >
-                          {t('common.remove')}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </DetailSection>
-          </Card>
+          {hasTeamsPlugin ? (
+            <RequestAssignedTeamSelect
+              request={{ teamId: form.teamId || null }}
+              onTeamChange={(teamId) => updateForm('teamId', teamId ?? '')}
+            />
+          ) : null}
 
           {/* Internal notes */}
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>

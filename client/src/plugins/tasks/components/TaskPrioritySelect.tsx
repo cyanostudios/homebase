@@ -16,21 +16,30 @@ interface TaskPrioritySelectProps {
   task: any;
   onPriorityChange: (priority: string) => void;
   hideInlineLabel?: boolean;
+  /** Smaller trigger for inline lists / quick context. */
+  compact?: boolean;
 }
 
 export function TaskPrioritySelect({
   task,
   onPriorityChange,
   hideInlineLabel = false,
+  compact = false,
 }: TaskPrioritySelectProps) {
   const selectEl = (
     <Select value={task.priority} onValueChange={onPriorityChange}>
-      <SelectTrigger className="h-9 w-[180px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-xs">
+      <SelectTrigger
+        className={cn(
+          'rounded-md border-border/50 bg-background px-2 text-xs shadow-none transition-colors hover:bg-accent/50',
+          compact ? 'h-8 min-h-8 w-[130px] sm:h-7' : 'h-9 w-[180px]',
+        )}
+      >
         <SelectValue placeholder="Select priority">
           <Badge
             variant="outline"
             className={cn(
-              'border-transparent font-medium text-xs px-2 h-5 flex items-center',
+              'flex items-center border-transparent px-2 font-medium',
+              compact ? 'h-5 text-[10px]' : 'h-5 text-xs',
               TASK_PRIORITY_COLORS[task.priority as keyof typeof TASK_PRIORITY_COLORS],
             )}
           >

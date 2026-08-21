@@ -33,6 +33,7 @@ export function RequestListItem({
   request,
   selected,
   highlighted,
+  active,
   onClick,
   checkbox,
   teamName,
@@ -44,6 +45,7 @@ export function RequestListItem({
   request: Request;
   selected?: boolean;
   highlighted?: boolean;
+  active?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
   teamName?: string | null;
@@ -102,6 +104,7 @@ export function RequestListItem({
         'group cursor-pointer overflow-hidden p-0 transition-all',
         DETAIL_VIEW_CARD_CLASS,
         highlighted && 'bg-green-50 dark:bg-green-950/30',
+        active && 'bg-primary/5 ring-1 ring-primary/40',
         selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
       )}
       onClick={(e) => {
@@ -119,6 +122,7 @@ export function RequestListItem({
       data-plugin-name="requests"
       role="button"
       tabIndex={0}
+      aria-current={active ? 'true' : undefined}
       aria-label={`Open request ${request.title}`}
     >
       <div className="flex flex-col gap-2 p-4">

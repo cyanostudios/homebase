@@ -40,6 +40,7 @@ export type SortableListTableProps<TRow, TField extends string> = {
   onRowClick?: (row: TRow) => void;
   rowAriaLabel?: (row: TRow) => string;
   rowClassName?: (row: TRow) => string | undefined;
+  isRowActive?: (row: TRow) => boolean;
   selection?: SortableListTableSelection;
   pluginName?: string;
   /** When set, serializes row into data-list-item (existing list pattern). */
@@ -56,6 +57,7 @@ export function SortableListTable<TRow, TField extends string>({
   onRowClick,
   rowAriaLabel,
   rowClassName,
+  isRowActive,
   selection,
   pluginName,
   dataListItem,
@@ -66,12 +68,12 @@ export function SortableListTable<TRow, TField extends string>({
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
             {selection ? (
-              <TableHead className="w-12">
+              <TableHead className="w-8 px-3 pr-1">
                 <input
                   type="checkbox"
                   checked={selection.allVisibleSelected}
                   onChange={selection.onHeaderCheckboxChange}
-                  className="h-4 w-4 cursor-pointer"
+                  className="h-4 w-4 cursor-pointer align-middle"
                   aria-label={selection.selectAllAriaLabel}
                 />
               </TableHead>
@@ -97,7 +99,7 @@ export function SortableListTable<TRow, TField extends string>({
                         : undefined
                   }
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 leading-4">
                     <span>{col.header}</span>
                     {sortable ? (
                       <ListTableSortIcon active={primarySort === col.field} order={sortOrder} />
@@ -112,14 +114,17 @@ export function SortableListTable<TRow, TField extends string>({
           {rows.map((row, index) => {
             const id = getRowId(row);
             const selected = selection ? selection.isSelected(id) : false;
+            const active = isRowActive?.(row) ?? false;
             return (
               <TableRow
                 key={id}
                 className={cn(
                   onRowClick && 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80',
                   selected && 'bg-plugin-subtle ring-1 border-plugin-subtle',
+                  active && 'bg-primary/5 ring-1 ring-primary/40',
                   rowClassName?.(row),
                 )}
+                aria-current={active ? 'true' : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 data-list-item={dataListItem ? JSON.stringify(dataListItem(row)) : undefined}
                 data-plugin-name={pluginName}
@@ -127,23 +132,29 @@ export function SortableListTable<TRow, TField extends string>({
                 aria-label={rowAriaLabel?.(row)}
               >
                 {selection ? (
-                  <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="w-8 px-3 py-4 pr-1" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selected}
                       onMouseDown={(e) => selection.onCheckboxMouseDown(e, index)}
                       onChange={() => selection.onCheckboxChange(id)}
                       onClick={(e) => e.stopPropagation()}
-                      className="h-4 w-4 cursor-pointer"
+                      className="relative -top-[2px] h-4 w-4 cursor-pointer align-middle"
                       aria-label={selection.selectRowAriaLabel(selected)}
                     />
                   </TableCell>
                 ) : null}
-                {columns.map((col) => (
-                  <TableCell key={col.field} className={col.className}>
-                    {col.cell(row, index)}
-                  </TableCell>
-                ))}
+                {columns.map((col, colIndex) => {
+                  const isFirstDataCol = Boolean(selection) && colIndex === 0;
+                  return (
+                    <TableCell
+                      key={col.field}
+                      className={cn(isFirstDataCol && 'pl-2', col.className)}
+                    >
+                      {col.cell(row, index)}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             );
           })}

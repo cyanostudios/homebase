@@ -1,6 +1,8 @@
 import {
+  buildRequestAssigneesSavePayload,
   buildRequestListPrioritySavePayload,
   buildRequestListStatusSavePayload,
+  buildRequestTeamSavePayload,
   shouldApplyOpenRequestSaveEffects,
 } from '../requestListSave';
 
@@ -38,6 +40,47 @@ describe('buildRequestListPrioritySavePayload', () => {
     expect(buildRequestListPrioritySavePayload({ title: 'Pitch booking' }, 'High')).toEqual({
       title: 'Pitch booking',
       priority: 'High',
+    });
+  });
+});
+
+describe('buildRequestAssigneesSavePayload', () => {
+  it('applies new assignee ids and keeps title', () => {
+    expect(buildRequestAssigneesSavePayload({ title: 'Pitch booking' }, ['1', '2'])).toEqual({
+      title: 'Pitch booking',
+      assigned_to_ids: ['1', '2'],
+    });
+  });
+
+  it('coerces non-string ids to strings', () => {
+    expect(
+      buildRequestAssigneesSavePayload({ title: 'Pitch booking' }, [1, 2] as unknown as string[]),
+    ).toEqual({
+      title: 'Pitch booking',
+      assigned_to_ids: ['1', '2'],
+    });
+  });
+
+  it('supports clearing all assignees', () => {
+    expect(buildRequestAssigneesSavePayload({ title: 'Pitch booking' }, [])).toEqual({
+      title: 'Pitch booking',
+      assigned_to_ids: [],
+    });
+  });
+});
+
+describe('buildRequestTeamSavePayload', () => {
+  it('applies new team id and keeps title', () => {
+    expect(buildRequestTeamSavePayload({ title: 'Pitch booking' }, '5')).toEqual({
+      title: 'Pitch booking',
+      team_id: 5,
+    });
+  });
+
+  it('clears the team when null is passed', () => {
+    expect(buildRequestTeamSavePayload({ title: 'Pitch booking' }, null)).toEqual({
+      title: 'Pitch booking',
+      team_id: null,
     });
   });
 });

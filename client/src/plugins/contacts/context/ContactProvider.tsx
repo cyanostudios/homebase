@@ -14,18 +14,18 @@ import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { contactsApi } from '../api/contactsApi';
-import { Contact, ValidationError } from '../types/contacts';
+import { Contact, CONTACT_TYPE_COLORS, ValidationError } from '../types/contacts';
 import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
 import {
   buildContactTagsSavePayload,
   hasContactTagsDraftChanges,
   mergeContactTag,
+  omitContactTag,
   resolveContactDisplayTags,
 } from '../utils/contactTagsDraft';
 import { buildContactAssignableSavePayload } from '../utils/contactAssignableSave';
@@ -79,6 +79,8 @@ export function ContactProvider({
   const [contactIdsWithTimeEntries, setContactIdsWithTimeEntries] = useState<Set<string | number>>(
     () => new Set(),
   );
+  /** Skip deep-link → view when we already opened edit for this path. */
+  const contactsDeepLinkPathSyncedRef = useRef<string | null>(null);
 
   const setContactHasTimeEntries = useCallback(
     (contactId: string | number, hasEntries: boolean) => {
@@ -361,6 +363,8 @@ export function ContactProvider({
     setValidationErrors([]);
     onCloseOtherPanels();
     if (contact) {
+      const slug = buildSlug(contact, contacts, 'companyName');
+      contactsDeepLinkPathSyncedRef.current = `/contacts/${slug}`;
       navigateToItem(contact, contacts, 'companyName');
     }
   };
@@ -373,6 +377,8 @@ export function ContactProvider({
     setIsContactPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    const slug = buildSlug(contact, contacts, 'companyName');
+    contactsDeepLinkPathSyncedRef.current = `/contacts/${slug}`;
     navigateToItem(contact, contacts, 'companyName');
   };
 
@@ -430,7 +436,6 @@ export function ContactProvider({
   useEffect(() => {
     openContactForViewRef.current = openContactForView;
   }, [openContactForView]);
-  const contactsDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (contacts.length === 0) {
       return;
@@ -643,6 +648,14 @@ export function ContactProvider({
     [setContactTags],
   );
 
+  const removeTagFromContact = useCallback(
+    async (contact: Contact, tag: string): Promise<boolean> => {
+      const nextTags = omitContactTag(contact.tags, tag);
+      return setContactTags(contact, nextTags);
+    },
+    [setContactTags],
+  );
+
   const clearTagsFromContact = useCallback(
     async (contact: Contact): Promise<boolean> => setContactTags(contact, []),
     [setContactTags],
@@ -740,37 +753,28 @@ export function ContactProvider({
     }
     if (mode === 'view' && item) {
       const isCompany = item.contactType === 'company';
-      const typeColors = {
-        company: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-        personal:
-          'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
-      };
-      const color = isCompany ? typeColors.company : typeColors.personal;
-      const label = isCompany ? 'Company' : 'Private';
-      const contactIdLabel = formatDisplayNumber('contacts', item.id);
-      const updatedLabel = item.updatedAt
-        ? new Date(item.updatedAt).toLocaleDateString(undefined, {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-          })
-        : null;
-      const hasTimeEntries = contactIdsWithTimeEntries.has(item.id);
+      const typeColor = isCompany ? CONTACT_TYPE_COLORS.company : CONTACT_TYPE_COLORS.private;
+      const orgOrPersonal = isCompany
+        ? item.organizationNumber?.trim() || null
+        : item.personalNumber?.trim() || null;
+      const email = item.email?.trim() || null;
+      const phone = item.phone?.trim() || null;
+      const hasTimeEntries =
+        contactIdsWithTimeEntries.has(item.id) || contactIdsWithTimeEntries.has(String(item.id));
+      const metaParts = [orgOrPersonal, email, phone].filter(Boolean);
+
       return (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <Badge
             variant="outline"
-            className={cn('text-[10px] px-1.5 h-5 shrink-0 font-medium', color)}
+            className={cn('text-[10px] px-1.5 h-5 shrink-0 font-medium border-0', typeColor)}
           >
-            {label}
+            {t(`contacts.type.${item.contactType}`)}
           </Badge>
-          {(contactIdLabel || updatedLabel) && (
-            <span className="text-xs text-muted-foreground truncate">
-              {contactIdLabel}
-              {updatedLabel ? ` · Updated ${updatedLabel}` : ''}
-            </span>
-          )}
-          {hasTimeEntries && (
+          {metaParts.length > 0 ? (
+            <span className="text-xs text-muted-foreground truncate">{metaParts.join(' · ')}</span>
+          ) : null}
+          {hasTimeEntries ? (
             <Badge
               variant="outline"
               className="text-[10px] px-1.5 h-5 shrink-0 font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 dark:text-amber-300 border-amber-200/60"
@@ -778,7 +782,7 @@ export function ContactProvider({
               <Timer className="h-2.5 w-2.5" aria-hidden />
               Time logged
             </Badge>
-          )}
+          ) : null}
         </div>
       );
     }
@@ -909,6 +913,7 @@ export function ContactProvider({
     hasTagsChanges,
     onApplyTagsEdit,
     applyTagToContact,
+    removeTagFromContact,
     clearTagsFromContact,
     setContactAssignable,
     showDiscardTagsDialog,

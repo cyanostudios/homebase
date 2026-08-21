@@ -6,9 +6,7 @@ import {
   Phone,
   SlidersHorizontal,
   Trash2,
-  Trophy,
   User,
-  Users,
   Zap,
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
@@ -33,21 +31,29 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
+import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
-import {
-  AssignmentQuickInfoDialog,
-  type AssignmentQuickInfoDetail,
-} from '@/plugins/contacts/components/AssignmentQuickInfoDialog';
+import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import {
+  CONTACT_TYPE_BADGE_CLASS,
+  CONTACT_TYPE_COLORS,
+  type Contact,
+} from '@/plugins/contacts/types/contacts';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
-import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
-import { useRequestTeams } from '../hooks/useRequestTeams';
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
 import { REQUEST_SOURCE_COLORS, formatSubmittedDateWithAge, getTypeLabel } from '../types/requests';
+import {
+  buildRequestAssigneesSavePayload,
+  buildRequestTeamSavePayload,
+} from '../utils/requestListSave';
 
+import { RequestAssignedTeamSelect } from './RequestAssignedTeamSelect';
+import { RequestAssigneeSelect } from './RequestAssigneeSelect';
 import { RequestPrioritySelect } from './RequestPrioritySelect';
+import { RequestQuickContextPanel } from './RequestQuickContextPanel';
 import { RequestStatusSelect } from './RequestStatusSelect';
 
 interface RequestViewProps {
@@ -110,92 +116,87 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const request = requestProp ?? item ?? null;
-  const teams = useRequestTeams();
   const { user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
-  const { openRequestForEdit, deleteRequest, saveRequest, closeRequestPanel } = useRequests();
-  const { contacts, openContactForView } = useContacts();
+  const enabledPlugins = useEnabledPlugins();
+  const hasTeamsPlugin = enabledPlugins.has('teams');
+  const {
+    openRequestForEdit,
+    deleteRequest,
+    saveRequest,
+    closeRequestPanel,
+    validationErrors,
+    clearValidationErrors,
+  } = useRequests();
+  const { contacts } = useContacts();
   const [showDelete, setShowDelete] = useState(false);
-  const [showTeamQuickInfo, setShowTeamQuickInfo] = useState(false);
-
-  const linkedTeam = useMemo(() => {
-    if (!request?.teamId) {
-      return null;
-    }
-    return teams.find((team) => Number(team.id) === request.teamId) ?? null;
-  }, [request?.teamId, teams]);
-
-  const teamLabel = linkedTeam ? formatTeamLabel(linkedTeam) || linkedTeam.name : null;
-
-  const teamQuickInfoDetails = useMemo((): AssignmentQuickInfoDetail[] => {
-    if (!linkedTeam) {
-      return [];
-    }
-    const details: AssignmentQuickInfoDetail[] = [
-      {
-        icon: User,
-        label: t('teams.form.statusLabel'),
-        value: t(`teams.status.${linkedTeam.status}`),
-      },
-    ];
-    if (linkedTeam.age_group?.trim()) {
-      details.push({
-        icon: Users,
-        label: t('teams.form.ageGroupLabel'),
-        value: linkedTeam.age_group.trim(),
-      });
-    }
-    if (linkedTeam.gender) {
-      details.push({
-        icon: Users,
-        label: t('teams.form.genderLabel'),
-        value: t(`teams.gender.${linkedTeam.gender}`),
-      });
-    }
-    if (linkedTeam.playing_format) {
-      details.push({
-        icon: Trophy,
-        label: t('teams.form.playingFormatLabel'),
-        value: linkedTeam.playing_format,
-      });
-    }
-    return details;
-  }, [linkedTeam, t]);
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null);
 
   const linkedContact = useMemo(() => {
-    if (!request?.contactId) return null;
+    if (!request?.contactId) {
+      return null;
+    }
     return contacts.find((c) => String(c.id) === request.contactId) ?? null;
   }, [request?.contactId, contacts]);
 
-  const assignedContacts = useMemo(() => {
-    if (!request?.assignedToIds?.length) return [];
-    return request.assignedToIds
-      .map((id) => contacts.find((c) => String(c.id) === id))
-      .filter(Boolean);
-  }, [request?.assignedToIds, contacts]);
+  const navigateToContact = (contact: Contact) => {
+    closeRequestPanel();
+    setViewingContact(null);
+    navigate(`/contacts/${buildSlug(contact, contacts, 'companyName')}`);
+  };
 
-  if (!request) return null;
+  const blockingValidationErrors = validationErrors.filter(
+    (error) => !String(error.message || '').includes('Warning'),
+  );
+
+  if (!request) {
+    return null;
+  }
 
   const handleStatusChange = async (newStatus: Request['status']) => {
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
     await saveRequest({ title: request.title, status: newStatus }, request.id);
   };
 
   const handlePriorityChange = async (newPriority: Request['priority']) => {
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
     await saveRequest({ title: request.title, priority: newPriority }, request.id);
   };
 
-  const openLinkedTeam = () => {
-    if (!linkedTeam) {
+  const handleAssigneeChange = async (newAssigneeIds: string[]) => {
+    if (!request?.id) {
       return;
     }
-    setShowTeamQuickInfo(false);
-    closeRequestPanel();
-    navigate(`/teams/${buildSlug(linkedTeam, teams, 'name')}`);
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    await saveRequest(buildRequestAssigneesSavePayload(request, newAssigneeIds), request.id);
+  };
+
+  const handleAssignedTeamChange = async (teamId: string | null) => {
+    if (!request?.id) {
+      return;
+    }
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    await saveRequest(buildRequestTeamSavePayload(request, teamId), request.id);
   };
 
   return (
     <>
       <DetailLayout
+        leftSidebar={
+          <RequestQuickContextPanel
+            request={request}
+            onEdit={() => openRequestForEdit(request)}
+            variant="full"
+          />
+        }
         sidebar={
           <div className="space-y-6">
             <RequestQuickActionsCard
@@ -252,6 +253,17 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
         }
       >
         <div className="space-y-6">
+          {blockingValidationErrors.length > 0 ? (
+            <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
+              <div className="text-sm font-medium text-destructive">{t('common.cannotSave')}</div>
+              <ul className="mt-2 list-inside list-disc text-sm text-destructive/90">
+                {blockingValidationErrors.map((error) => (
+                  <li key={`${error.field}-${error.message}`}>{error.message}</li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
               title={String(request.title || '').trim() || '—'}
@@ -325,7 +337,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                         size="sm"
                         icon={ExternalLink}
                         className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-contacts')}
-                        onClick={() => openContactForView(linkedContact)}
+                        onClick={() => setViewingContact(linkedContact)}
                       >
                         {t('contacts.quickInfo.openContact')}
                       </Button>
@@ -404,73 +416,15 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                       : t('requests.sourceInternal')}
                   </Badge>
                 </div>
-                {teamLabel && linkedTeam ? (
-                  <div className={DETAIL_PROP_ROW_CLASS}>
-                    <span className="text-sm text-slate-500 dark:text-slate-400">
-                      {t('requests.view.team')}
-                    </span>
-                    <div
-                      className={cn(
-                        DETAIL_SURFACE_ROW_CLASS,
-                        'plugin-teams max-w-[240px] transition-colors hover:bg-muted/70',
-                      )}
-                    >
-                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                        {teamLabel}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        icon={ExternalLink}
-                        className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-teams')}
-                        onClick={() => setShowTeamQuickInfo(true)}
-                      >
-                        {t('contacts.openTeam')}
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </DetailSection>
           </Card>
 
-          {assignedContacts.length > 0 && (
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('requests.view.assignees')}
-                icon={Users}
-                subtleTitle
-                className="p-6"
-              >
-                <div className="space-y-1.5">
-                  {assignedContacts.map((c: any) => (
-                    <div
-                      key={c.id}
-                      className={cn(
-                        DETAIL_SURFACE_ROW_CLASS,
-                        'plugin-contacts transition-colors hover:bg-muted/70',
-                      )}
-                    >
-                      <span className="truncate text-xs text-muted-foreground">
-                        {c.companyName ?? `Contact ${c.id}`}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        icon={ExternalLink}
-                        className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-contacts')}
-                        onClick={() => openContactForView(c)}
-                      >
-                        {t('contacts.quickInfo.openContact')}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </DetailSection>
-            </Card>
-          )}
+          <RequestAssigneeSelect request={request} onAssigneeChange={handleAssigneeChange} />
+
+          {hasTeamsPlugin ? (
+            <RequestAssignedTeamSelect request={request} onTeamChange={handleAssignedTeamChange} />
+          ) : null}
 
           {request.internalNotes?.trim() && (
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -488,14 +442,27 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
         </div>
       </DetailLayout>
 
-      <AssignmentQuickInfoDialog
-        isOpen={showTeamQuickInfo && linkedTeam !== null}
-        title={teamLabel || linkedTeam?.name || ''}
-        icon={Users}
-        details={teamQuickInfoDetails}
-        openLabel={t('contacts.openTeam')}
-        onClose={() => setShowTeamQuickInfo(false)}
-        onOpen={openLinkedTeam}
+      <ContactQuickInfoDialog
+        isOpen={viewingContact !== null}
+        contact={viewingContact}
+        onClose={() => setViewingContact(null)}
+        onOpenContact={() => {
+          if (viewingContact) {
+            navigateToContact(viewingContact);
+          }
+        }}
+        badges={
+          viewingContact ? (
+            <span
+              className={cn(
+                CONTACT_TYPE_BADGE_CLASS,
+                CONTACT_TYPE_COLORS[viewingContact.contactType],
+              )}
+            >
+              {t(`contacts.type.${viewingContact.contactType}`)}
+            </span>
+          ) : null
+        }
       />
 
       <ConfirmDialog

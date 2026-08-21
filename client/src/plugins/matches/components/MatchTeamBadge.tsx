@@ -5,6 +5,7 @@ import { buildSlug } from '@/core/utils/slugUtils';
 import { SeriesTeamBadge } from '@/plugins/teams/components/ResponsibleRow';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import { TEAM_COLORS, type TeamColor } from '@/plugins/teams/types/teams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -33,7 +34,9 @@ export function MatchTeamBadge({
   const color: TeamColor | null =
     team.color && TEAM_COLORS.includes(team.color as TeamColor) ? (team.color as TeamColor) : null;
 
-  const badge = <SeriesTeamBadge label={team.name} color={color} size={size} />;
+  const badge = (
+    <SeriesTeamBadge label={formatTeamLabel(team) || team.name} color={color} size={size} />
+  );
 
   if (!linkable) {
     return badge;

@@ -24,8 +24,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
-import { nextListTableSort } from '@/core/list/listViewMode';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
+import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -38,6 +39,7 @@ import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useRequests } from '../hooks/useRequests';
 import { useRequestTeams } from '../hooks/useRequestTeams';
@@ -76,6 +78,7 @@ import { RequestBulkStatusDialog } from './RequestBulkStatusDialog';
 import { RequestListItem } from './RequestListItem';
 import { RequestListTable } from './RequestListTable';
 import { RequestQuickAdd } from './RequestQuickAdd';
+import { RequestQuickContextPanel } from './RequestQuickContextPanel';
 import { RequestsSettingsView } from './RequestsSettingsView';
 
 type TypeFilter = 'all' | string;
@@ -103,6 +106,7 @@ export function RequestList() {
     requestsContentView,
     openRequestPanel,
     openRequestForView,
+    openRequestForEdit,
     openRequestSettings,
     closeRequestSettingsView,
     selectedRequestIds,
@@ -154,7 +158,7 @@ export function RequestList() {
   const teamById = useMemo(() => {
     const map = new Map<number, string>();
     for (const team of teams) {
-      map.set(Number(team.id), team.name);
+      map.set(Number(team.id), formatTeamLabel(team) || team.name);
     }
     return map;
   }, [teams]);
@@ -264,8 +268,24 @@ export function RequestList() {
     }
   };
 
+  const {
+    previewItem: previewRequest,
+    setPreviewItem: setPreviewRequest,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'requests',
+    items: requests,
+    getItemId: (request) => String(request.id),
+  });
+
   const handleOpenForView = (request: Request) => {
-    attemptNavigation(() => openRequestForView(request));
+    markPendingAndOpen(request, () => attemptNavigation(() => openRequestForView(request)));
+  };
+
+  const handleRowActivate = (request: Request) => {
+    activateRow(request, (item) => attemptNavigation(() => openRequestForView(item)));
   };
 
   const handleListStatusChange = useCallback(
@@ -607,75 +627,105 @@ export function RequestList() {
             }
           />
 
-          {sorted.length === 0 ? (
-            <ListEmptyState
-              message={requests.length === 0 ? t('requests.noYet') : t('requests.noMatchTitle')}
-              createLabel={requests.length === 0 ? t('requests.addRequest') : undefined}
-              onCreate={
-                requests.length === 0
-                  ? () => attemptNavigation(() => openRequestPanel(null))
-                  : undefined
-              }
-            />
-          ) : isTableView ? (
-            <RequestListTable
-              requests={sorted}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={handleOpenForView}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={handleHeaderCheckboxChange}
-              recentlyQuickAddedId={recentlyQuickAddedId}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {sorted.map((request, index) => {
-                const requestIsSelected = isSelected(request.id);
-                return (
-                  <RequestListItem
-                    key={request.id}
-                    request={request}
-                    selected={requestIsSelected}
-                    highlighted={recentlyQuickAddedId === String(request.id)}
-                    teamName={request.teamId ? teamById.get(request.teamId) || null : null}
-                    assignedNames={getAssignedNames(request)}
-                    onClick={() => handleOpenForView(request)}
-                    onStatusChange={(status) => void handleListStatusChange(request, status)}
-                    onPriorityChange={(priority) =>
-                      void handleListPriorityChange(request, priority)
-                    }
-                    columnCount={columnCount}
-                    checkbox={
-                      <input
-                        type="checkbox"
-                        checked={requestIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(request.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={requestIsSelected ? 'Unselect request' : 'Select request'}
+          <div className="flex items-start gap-4">
+            {showQuickContext && previewRequest ? (
+              <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+                <RequestQuickContextPanel
+                  request={previewRequest}
+                  onClose={() => setPreviewRequest(null)}
+                  onOpenFullProfile={() => handleOpenForView(previewRequest)}
+                  onEdit={() => {
+                    markPendingAndOpen(previewRequest, () =>
+                      attemptNavigation(() => openRequestForEdit(previewRequest)),
+                    );
+                  }}
+                  onStatusChange={(status) => void handleListStatusChange(previewRequest, status)}
+                  onPriorityChange={(priority) =>
+                    void handleListPriorityChange(previewRequest, priority)
+                  }
+                />
+              </aside>
+            ) : null}
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              {sorted.length === 0 ? (
+                <ListEmptyState
+                  message={requests.length === 0 ? t('requests.noYet') : t('requests.noMatchTitle')}
+                  createLabel={requests.length === 0 ? t('requests.addRequest') : undefined}
+                  onCreate={
+                    requests.length === 0
+                      ? () => attemptNavigation(() => openRequestPanel(null))
+                      : undefined
+                  }
+                />
+              ) : isTableView ? (
+                <RequestListTable
+                  requests={sorted}
+                  primarySort={primarySort}
+                  sortOrder={sortOrder}
+                  onSort={handleTableSort}
+                  isSelected={isSelected}
+                  onRowClick={handleRowActivate}
+                  onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                  onCheckboxChange={onVisibleRowCheckboxChange}
+                  allVisibleSelected={allVisibleSelected}
+                  onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                  recentlyQuickAddedId={recentlyQuickAddedId}
+                  selectionEnabled
+                  activeRequestId={previewRequest?.id ?? null}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'grid gap-3',
+                    columnCount === 1 && 'grid-cols-1',
+                    columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                    columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                  )}
+                >
+                  {sorted.map((request, index) => {
+                    const requestIsSelected = isSelected(request.id);
+                    return (
+                      <RequestListItem
+                        key={request.id}
+                        request={request}
+                        selected={requestIsSelected}
+                        highlighted={recentlyQuickAddedId === String(request.id)}
+                        active={
+                          previewRequest != null && String(previewRequest.id) === String(request.id)
+                        }
+                        teamName={request.teamId ? teamById.get(request.teamId) || null : null}
+                        assignedNames={getAssignedNames(request)}
+                        onClick={() => handleRowActivate(request)}
+                        onStatusChange={(status) => void handleListStatusChange(request, status)}
+                        onPriorityChange={(priority) =>
+                          void handleListPriorityChange(request, priority)
+                        }
+                        columnCount={columnCount}
+                        checkbox={
+                          <input
+                            type="checkbox"
+                            checked={requestIsSelected}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(request.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 cursor-pointer"
+                            aria-label={requestIsSelected ? 'Unselect request' : 'Select request'}
+                          />
+                        }
                       />
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
+                    );
+                  })}
+                </div>
+              )}
 
-          <ListFooterBar
-            meta={t('requests.showingCount', { shown: sorted.length, total: requests.length })}
-          />
+              <ListFooterBar
+                meta={t('requests.showingCount', {
+                  shown: sorted.length,
+                  total: requests.length,
+                })}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

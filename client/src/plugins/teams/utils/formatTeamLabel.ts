@@ -1,4 +1,8 @@
-/** Label for team selects / schedule: "Flickor 2017 · F9". */
+/** Label for team selects / lists / schedule: age group (e.g. F10), falling back to name. */
 export function formatTeamLabel(team: { name?: string | null; age_group?: string | null }): string {
-  return [team.name?.trim(), team.age_group?.trim()].filter(Boolean).join(' · ');
+  const age = team.age_group?.trim();
+  if (age) {
+    return age;
+  }
+  return team.name?.trim() || '';
 }

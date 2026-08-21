@@ -46,3 +46,10 @@ export function mergeContactTag(existingTags: string[] | null | undefined, tag: 
   }
   return [...current, trimmed];
 }
+
+/** Remove a tag from an existing list. Returns the same array reference if unchanged. */
+export function omitContactTag(existingTags: string[] | null | undefined, tag: string): string[] {
+  const current = Array.isArray(existingTags) ? existingTags : [];
+  const next = current.filter((item) => item !== tag);
+  return next.length === current.length ? current : next;
+}

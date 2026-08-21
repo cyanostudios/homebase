@@ -15,7 +15,19 @@ describe('ContactList table view wiring', () => {
   test('table renders sortable headers and checkbox column', () => {
     expect(tableSrc).toMatch(/rowBorders=\{false\}/);
     expect(tableSrc).toMatch(/onSort\(col\.field\)/);
-    expect(tableSrc).toMatch(/className="w-12"/);
+    expect(tableSrc).toMatch(/w-8/);
     expect(tableSrc).toMatch(/SORTABLE_COLUMNS/);
+    expect(tableSrc).not.toMatch(/contacts\.table\.updated/);
+  });
+
+  test('list split view previews contacts on wide screens without opening the global panel', () => {
+    expect(listSrc).toMatch(/previewContact/);
+    expect(listSrc).toMatch(/ContactQuickContextPanel/);
+    expect(listSrc).toMatch(/handleRowActivate/);
+    expect(listSrc).toMatch(/isCompactViewport/);
+    expect(listSrc).toMatch(/activeContactId/);
+    expect(listSrc).not.toMatch(/bulkSelectionEnabled/);
+    expect(tableSrc).toMatch(/activeContactId/);
+    expect(tableSrc).toMatch(/selectionEnabled/);
   });
 });

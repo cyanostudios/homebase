@@ -14,6 +14,7 @@ import { resolveSlug } from '@/core/utils/slugUtils';
 import { teamsApi } from '../api/teamsApi';
 import type { TeamPayload } from '../api/teamsApi';
 import type { Team, TeamValidationError, TrainingTime } from '../types/teams';
+import { formatTeamLabel } from '../utils/formatTeamLabel';
 
 import { TeamsContext } from './TeamContext';
 import type { TeamsContextType } from './TeamContext';
@@ -349,7 +350,10 @@ export function TeamProvider({
   const teamsOrderedByName = useMemo(
     () =>
       [...teams].sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+        formatTeamLabel(a).localeCompare(formatTeamLabel(b), undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        }),
       ),
     [teams],
   );

@@ -6,6 +6,7 @@ import { isOpenRequestStatus } from '@/plugins/requests/types/requests';
 import type { ResponsibleRole } from '../types/teams';
 import { getDisplaySeriesTeams, isTeamOnBreak } from '../types/teams';
 import type { TeamStatsData } from '../types/teamStats';
+import { formatTeamLabel } from '../utils/formatTeamLabel';
 
 import { useTeams } from './useTeams';
 
@@ -81,7 +82,7 @@ export function useTeamStats(includeRequests: boolean): TeamStatsData {
 
     let requestsStats: TeamStatsData['requests'] = null;
     if (includeRequests) {
-      const teamNameById = new Map(teams.map((t) => [Number(t.id), t.name]));
+      const teamNameById = new Map(teams.map((t) => [Number(t.id), formatTeamLabel(t) || t.name]));
       const requestCounts = new Map<number, { open: number; total: number }>();
       let unlinked = 0;
       const requestByStatus = {

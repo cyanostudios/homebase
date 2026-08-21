@@ -456,6 +456,7 @@
       "company": "Företag",
       "private": "Privat"
     },
+    "deletedContact": "Borttagen",
     "stats": {
       "total": "Totalt",
       "companies": "Företag",
@@ -579,6 +580,27 @@
       "copyToClipboard": "Kopiera till urklipp",
       "copiedToClipboard": "Kopierat till urklipp"
     },
+    "quickContext": {
+      "eyebrow": "Vald kontakt",
+      "title": "Snabbkontext",
+      "openFullProfile": "Öppna full profil",
+      "addTag": "Lägg till tagg...",
+      "noMoreTags": "Inga fler taggar att lägga till",
+      "removeTag": "Ta bort tagg {{tag}}",
+      "noTags": "Inga taggar",
+      "noNotes": "Inga anteckningar",
+      "linked": "Kopplat",
+      "linkedHint": "Klicka för att öppna",
+      "noLinked": "Inget kopplat till denna kontakt",
+      "moreLinked_one": "{{count}} till kopplat objekt",
+      "moreLinked_other": "{{count}} fler kopplade objekt",
+      "matches": "Matcher",
+      "estimates": "Offerter",
+      "change": "Ändra"
+    },
+    "dashboardWidget": {
+      "open": "Öppna Contacts"
+    },
     "settingsSubtitle": "Hantera vy, taggar och import.",
     "settingsCategories": {
       "view": "Vy",
@@ -622,8 +644,10 @@
     "taskContent": "Uppgiftsinnehåll",
     "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvariga. Vill du kasta dem?",
     "assignee": "Ansvarig",
+    "noAssigneesYet": "Inga ansvariga ännu.",
     "addAssigneePlaceholder": "Lägg till ansvarig…",
     "assignedTeam": "Tilldelat lag",
+    "noAssignedTeamYet": "Inget lag tilldelat ännu.",
     "addAssignedTeamPlaceholder": "Lägg till lag…",
     "removeAssignedTeam": "Ta bort tilldelat lag",
     "assignedTeamReplaceHint": "Ta bort laget för att tilldela ett annat",
@@ -654,6 +678,14 @@
       "view": "Vy",
       "viewDescription": "Standardkolumner för uppgiftskort.",
       "importDescription": "Importera uppgifter från CSV eller Excel."
+    },
+    "quickContext": {
+      "eyebrow": "Vald uppgift",
+      "title": "Snabbkontext",
+      "openFullProfile": "Öppna hela uppgiften",
+      "mentionsHint": "Klicka för att öppna",
+      "readMore": "Läs mer",
+      "showLess": "Visa mindre"
     }
   },
   "notes": {
@@ -705,7 +737,16 @@
       "view": "Vy",
       "viewDescription": "Standardkolumner för anteckningskort.",
       "importDescription": "Importera anteckningar från CSV eller Excel."
-    }
+    },
+    "quickContext": {
+      "eyebrow": "Vald anteckning",
+      "title": "Snabbkontext",
+      "openFullProfile": "Öppna hela anteckningen",
+      "mentionsHint": "Klicka för att öppna",
+      "readMore": "Läs mer",
+      "showLess": "Visa mindre"
+    },
+    "attachmentsAfterSave": "Spara anteckningen först för att ladda upp bilagor."
   },
   "invoices": {
     "listDescription": "Granska utkast, betalningar och förfallna belopp.",
@@ -757,6 +798,13 @@
     "activity": "Aktivitet",
     "pricingSummary": "Prisöversikt",
     "lineItemsCount": "Rader ({{count}})",
+    "quickInfo": {
+      "items": "Rader",
+      "itemsCount_one": "{{count}} rad",
+      "itemsCount_other": "{{count}} rader",
+      "amountExclTax": "Belopp exkl. moms",
+      "amountInclTax": "Belopp inkl. moms"
+    },
     "markAsSentTitle": "Markera offert som skickad?",
     "markAsSentMessage": "Offert {{number}}. Detta ändrar status till \"Skickad\" och visar att offerten har skickats till kunden. Du kan ändra tillbaka till \"Utkast\" när som helst.",
     "markAsSent": "Markera som skickad",
@@ -2152,6 +2200,27 @@
     "trainingAfterBreak": "Träning om {{count}} dagar",
     "nextMatchMeta": "Nästa match: {{when}} · {{teams}}",
     "dashboardActive": "{{count}} aktiva",
+    "stats": {
+      "total": "Lag"
+    },
+    "quickContext": {
+      "eyebrow": "Valt lag",
+      "title": "Snabbkontext",
+      "openFullProfile": "Öppna full profil",
+      "nextTraining": "Nästa träning",
+      "noTraining": "Ingen träning inlagd",
+      "nextMatch": "Nästa match",
+      "requests": "Förfrågningar",
+      "responsibles": "Ansvariga",
+      "notes": "Anteckningar",
+      "responsibleCount_one": "{{count}} ansvarig",
+      "responsibleCount_other": "{{count}} ansvariga",
+      "noteCount_one": "{{count}} anteckning",
+      "noteCount_other": "{{count}} anteckningar"
+    },
+    "dashboardWidget": {
+      "open": "Öppna Lag"
+    },
     "activity": "Aktivitet",
     "quickActions": "Snabbåtgärder",
     "status": {
@@ -2549,7 +2618,22 @@
       "addTypePlaceholder": "Ny typnamn...",
       "noTypes": "Inga typer konfigurerade.",
       "confirmRemove": "Ta bort denna typ?"
-    }
+    },
+    "quickContext": {
+      "eyebrow": "Valt ärende",
+      "title": "Snabbkontext",
+      "openFullProfile": "Öppna hela ärendet",
+      "mentionsHint": "Klicka för att öppna"
+    },
+    "noAssigneesYet": "Inga tilldelade ännu.",
+    "removeAssignee": "Ta bort tilldelad",
+    "assignedTeam": "Tilldelat lag",
+    "noAssignedTeamYet": "Inget lag tilldelat ännu.",
+    "addAssignedTeamPlaceholder": "Lägg till lag…",
+    "removeAssignedTeam": "Ta bort tilldelat lag",
+    "assignedTeamReplaceHint": "Ta bort laget för att tilldela ett annat",
+    "noTeamsToAssign": "Inga lag tillgängliga",
+    "assignedTeamOrphan": "Lag #{{id}} (saknas)"
   },
   "schedule": {
     "title": "Schema",

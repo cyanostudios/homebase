@@ -462,6 +462,7 @@
       "company": "Company",
       "private": "Private"
     },
+    "deletedContact": "Deleted",
     "stats": {
       "total": "Total",
       "companies": "Companies",
@@ -585,6 +586,27 @@
       "copyToClipboard": "Copy to clipboard",
       "copiedToClipboard": "Copied to clipboard"
     },
+    "quickContext": {
+      "eyebrow": "Selected contact",
+      "title": "Quick context",
+      "openFullProfile": "Open full profile",
+      "addTag": "Add a tag...",
+      "noMoreTags": "No more tags to add",
+      "removeTag": "Remove tag {{tag}}",
+      "noTags": "No tags",
+      "noNotes": "No notes",
+      "linked": "Linked",
+      "linkedHint": "Click to open",
+      "noLinked": "Nothing linked to this contact",
+      "moreLinked_one": "{{count}} more linked item",
+      "moreLinked_other": "{{count}} more linked items",
+      "matches": "Matches",
+      "estimates": "Estimates",
+      "change": "Change"
+    },
+    "dashboardWidget": {
+      "open": "Open Contacts"
+    },
     "settingsSubtitle": "Manage view, tags, and import.",
     "settingsCategories": {
       "view": "View",
@@ -628,9 +650,11 @@
     "taskContent": "Task Content",
     "quickEditDiscardMessage": "You have unsaved changes to status, priority, due date or assignees. Do you want to discard them?",
     "assignee": "Assignee",
+    "noAssigneesYet": "No assignees yet.",
     "addAssigneePlaceholder": "Add assignee…",
     "removeAssignee": "Remove assignee",
     "assignedTeam": "Assigned team",
+    "noAssignedTeamYet": "No team assigned yet.",
     "addAssignedTeamPlaceholder": "Add team…",
     "removeAssignedTeam": "Remove assigned team",
     "assignedTeamReplaceHint": "Remove team to assign another",
@@ -660,6 +684,14 @@
       "view": "View",
       "viewDescription": "Default column layout for task cards.",
       "importDescription": "Import tasks from CSV or Excel."
+    },
+    "quickContext": {
+      "eyebrow": "Selected task",
+      "title": "Quick context",
+      "openFullProfile": "Open full task",
+      "mentionsHint": "Click to open",
+      "readMore": "Read more",
+      "showLess": "Show less"
     }
   },
   "notes": {
@@ -711,7 +743,16 @@
       "view": "View",
       "viewDescription": "Default column layout for note cards.",
       "importDescription": "Import notes from CSV or Excel."
-    }
+    },
+    "quickContext": {
+      "eyebrow": "Selected note",
+      "title": "Quick context",
+      "openFullProfile": "Open full note",
+      "mentionsHint": "Click to open",
+      "readMore": "Read more",
+      "showLess": "Show less"
+    },
+    "attachmentsAfterSave": "Save the note first to upload attachments."
   },
   "invoices": {
     "listDescription": "Review drafts, payments, and overdue balances.",
@@ -763,6 +804,13 @@
     "activity": "Activity",
     "pricingSummary": "Pricing Summary",
     "lineItemsCount": "Line Items ({{count}})",
+    "quickInfo": {
+      "items": "Items",
+      "itemsCount_one": "{{count}} item",
+      "itemsCount_other": "{{count}} items",
+      "amountExclTax": "Amount excl. tax",
+      "amountInclTax": "Amount incl. tax"
+    },
     "markAsSentTitle": "Mark estimate as sent?",
     "markAsSentMessage": "Estimate {{number}}. This will change the status to \"Sent\" and indicate that the estimate has been delivered to the customer. You can change it back to \"Draft\" at any time if needed.",
     "markAsSent": "Mark as Sent",
@@ -2158,6 +2206,27 @@
     "trainingAfterBreak": "Training in {{count}} days",
     "nextMatchMeta": "Next match: {{when}} · {{teams}}",
     "dashboardActive": "{{count}} active",
+    "stats": {
+      "total": "Teams"
+    },
+    "quickContext": {
+      "eyebrow": "Selected team",
+      "title": "Quick context",
+      "openFullProfile": "Open full profile",
+      "nextTraining": "Next training",
+      "noTraining": "No training scheduled",
+      "nextMatch": "Next match",
+      "requests": "Requests",
+      "responsibles": "Responsibles",
+      "notes": "Notes",
+      "responsibleCount_one": "{{count}} responsible",
+      "responsibleCount_other": "{{count}} responsibles",
+      "noteCount_one": "{{count}} note",
+      "noteCount_other": "{{count}} notes"
+    },
+    "dashboardWidget": {
+      "open": "Open Teams"
+    },
     "activity": "Activity",
     "quickActions": "Quick actions",
     "status": {
@@ -2555,7 +2624,22 @@
       "addTypePlaceholder": "New type label...",
       "noTypes": "No types configured.",
       "confirmRemove": "Remove this type?"
-    }
+    },
+    "quickContext": {
+      "eyebrow": "Selected request",
+      "title": "Quick context",
+      "openFullProfile": "Open full request",
+      "mentionsHint": "Click to open"
+    },
+    "noAssigneesYet": "No assignees yet.",
+    "removeAssignee": "Remove assignee",
+    "assignedTeam": "Assigned team",
+    "noAssignedTeamYet": "No team assigned yet.",
+    "addAssignedTeamPlaceholder": "Add team…",
+    "removeAssignedTeam": "Remove assigned team",
+    "assignedTeamReplaceHint": "Remove team to assign another",
+    "noTeamsToAssign": "No teams available",
+    "assignedTeamOrphan": "Team #{{id}} (missing)"
   },
   "schedule": {
     "title": "Schedule",

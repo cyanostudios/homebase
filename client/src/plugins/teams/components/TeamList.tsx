@@ -38,13 +38,15 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
 import type { Match } from '@/plugins/matches/types/match';
 
 import { useTeams } from '../hooks/useTeams';
+import type { Team } from '../types/teams';
 import { isTeamOnBreak, TEAM_GENDERS, type TeamGender } from '../types/teams';
 import {
   getInitialTeamColumnCount,
@@ -74,6 +76,7 @@ import {
 
 import { TeamCard } from './TeamCard';
 import { TeamListTable } from './TeamListTable';
+import { TeamQuickContextPanel } from './TeamQuickContextPanel';
 import { TeamsBulkCreateView } from './TeamsBulkCreateView';
 import { TeamsSettingsView } from './TeamsSettingsView';
 import { TeamsStatisticsView } from './TeamsStatisticsView';
@@ -83,8 +86,8 @@ type SortOrder = TeamSortOrder;
 type GenderFilter = 'all' | TeamGender;
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
-  { value: 'name', label: 'Name' },
   { value: 'age_group', label: 'Age group' },
+  { value: 'name', label: 'Name' },
   { value: 'gender', label: 'Gender' },
   { value: 'status', label: 'Status' },
   { value: 'player_count', label: 'Players' },
@@ -105,6 +108,7 @@ export function TeamList() {
     openTeamBulkCreate,
     closeTeamBulkCreate,
     openTeamForView,
+    openTeamForEdit,
     selectedTeamIds,
     mergeIntoTeamSelection,
     selectAllTeams,
@@ -117,6 +121,7 @@ export function TeamList() {
   } = useTeams();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
   const enabledPlugins = useEnabledPlugins();
   const hasMatchesPlugin = enabledPlugins.has('matches');
   const { matches } = useMatches();
@@ -125,12 +130,13 @@ export function TeamList() {
   const [activeFilters, setActiveFilters] = useState<TeamListFilterSelection>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [activeSeason, setActiveSeason] = useState<string>('');
-  const [primarySort, setPrimarySort] = useState<SortField>('name');
+  const [primarySort, setPrimarySort] = useState<SortField>('age_group');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [columnCount, setColumnCountState] = useState<TeamColumnCount>(getInitialTeamColumnCount);
   const [listViewMode, setListViewModeState] = useState<TeamListViewMode>(
     getInitialTeamListViewMode,
   );
+  const [previewTeam, setPreviewTeam] = useState<Team | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,6 +231,32 @@ export function TeamList() {
 
     return [...filtered].sort((a, b) => compareTeamsByField(a, b, primarySort, sortOrder));
   }, [teams, search, genderFilter, activeFilters, t, primarySort, sortOrder]);
+
+  useEffect(() => {
+    if (!previewTeam) {
+      return;
+    }
+    const next = teams.find((team) => String(team.id) === String(previewTeam.id));
+    if (!next) {
+      setPreviewTeam(null);
+      return;
+    }
+    if (next !== previewTeam) {
+      setPreviewTeam(next);
+    }
+  }, [teams, previewTeam]);
+
+  const handleOpenForView = (team: Team) => attemptNavigation(() => openTeamForView(team));
+
+  const handleRowActivate = (team: Team) => {
+    if (isCompactViewport) {
+      handleOpenForView(team);
+      return;
+    }
+    setPreviewTeam(team);
+  };
+
+  const showQuickContext = Boolean(previewTeam) && !isCompactViewport;
 
   const isFilterActive = (filter: TeamListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: TeamListFilter) => {
@@ -496,178 +528,199 @@ export function TeamList() {
           itemLabel={selectedCount === 1 ? t('teams.itemSingular') : t('teams.itemPlural')}
         />
 
-        <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={filteredAndSorted.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                Select all
-              </Button>
-            }
-            search={
-              <div className="relative w-full max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('teams.searchPlaceholder', { count: teams.length })}
-                  className="h-8 bg-background pl-9 text-xs"
-                />
-              </div>
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`teams.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
+        <div className="flex items-start gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <ListToolbar
+              selectedCount={selectedCount}
+              showSelectAll={filteredAndSorted.length > 0}
+              selectAll={
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearTeamSelection}
                   type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
                   variant="ghost"
                   size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  icon={CheckSquare}
+                  onClick={handleHeaderCheckboxChange}
                 >
-                  {t('common.delete')}
+                  Select all
                 </Button>
-              </>
-            }
-          />
-
-          {filteredAndSorted.length === 0 ? (
-            <ListEmptyState
-              message={teams.length === 0 ? t('teams.noYet') : t('teams.noMatch')}
-              createLabel={teams.length === 0 ? t('teams.addTeam') : undefined}
-              onCreate={
-                teams.length === 0 ? () => attemptNavigation(() => openTeamPanel(null)) : undefined
+              }
+              search={
+                <div className="relative w-full max-w-md">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t('teams.searchPlaceholder', { count: teams.length })}
+                    className="h-8 bg-background pl-9 text-xs"
+                  />
+                </div>
+              }
+              trailing={
+                <>
+                  {!isTableView ? (
+                    <div className="mr-1 flex items-center gap-1">
+                      <Select
+                        value={primarySort}
+                        onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                      >
+                        <SelectTrigger
+                          className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                          aria-label="Sort by"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent
+                          position="item-aligned"
+                          className="rounded-xl border-border/50 shadow-xl"
+                        >
+                          {SORT_FIELD_OPTIONS.map((option) => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              className="rounded-md text-xs"
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 px-0 text-xs"
+                        onClick={toggleSortOrder}
+                        aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                        title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                      >
+                        {sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  ) : null}
+                  <ListColumnLayoutToggle
+                    columnCount={columnCount}
+                    listViewMode={listViewMode}
+                    onSelectColumns={setColumnCount}
+                    onSelectTable={() => setListViewMode('table')}
+                    columnAriaLabel={(count) => t(`teams.columns${count}`)}
+                    tableAriaLabel={t('common.tableView')}
+                  />
+                </>
+              }
+              bulkActions={
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearTeamSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
               }
             />
-          ) : isTableView ? (
-            <TeamListTable
-              teams={filteredAndSorted}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={(team) => attemptNavigation(() => openTeamForView(team))}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={handleHeaderCheckboxChange}
-              recentlyDuplicatedTeamId={recentlyDuplicatedTeamId}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((team, index) => (
-                <TeamCard
-                  key={team.id}
-                  team={team}
-                  selected={isSelected(team.id)}
-                  highlighted={recentlyDuplicatedTeamId === String(team.id)}
-                  onClick={() => attemptNavigation(() => openTeamForView(team))}
-                  columnCount={columnCount}
-                  nextMatch={nextMatchByTeamId.get(String(team.id)) ?? null}
-                  checkbox={
-                    <input
-                      type="checkbox"
-                      checked={isSelected(team.id)}
-                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                      onChange={() => onVisibleRowCheckboxChange(team.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="h-4 w-4 flex-shrink-0 cursor-pointer"
-                    />
-                  }
-                />
-              ))}
-            </div>
-          )}
 
-          <ListFooterBar
-            meta={t('teams.showingCount', {
-              shown: filteredAndSorted.length,
-              total: teams.length,
-            })}
-          />
+            {filteredAndSorted.length === 0 ? (
+              <ListEmptyState
+                message={teams.length === 0 ? t('teams.noYet') : t('teams.noMatch')}
+                createLabel={teams.length === 0 ? t('teams.addTeam') : undefined}
+                onCreate={
+                  teams.length === 0
+                    ? () => attemptNavigation(() => openTeamPanel(null))
+                    : undefined
+                }
+              />
+            ) : isTableView ? (
+              <TeamListTable
+                teams={filteredAndSorted}
+                primarySort={primarySort}
+                sortOrder={sortOrder}
+                onSort={handleTableSort}
+                isSelected={isSelected}
+                onRowClick={handleRowActivate}
+                onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                onCheckboxChange={onVisibleRowCheckboxChange}
+                allVisibleSelected={allVisibleSelected}
+                onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                recentlyDuplicatedTeamId={recentlyDuplicatedTeamId}
+                activeTeamId={previewTeam?.id ?? null}
+              />
+            ) : (
+              <div
+                className={cn(
+                  'grid gap-3',
+                  columnCount === 1 && 'grid-cols-1',
+                  columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                  columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                )}
+              >
+                {filteredAndSorted.map((team, index) => (
+                  <TeamCard
+                    key={team.id}
+                    team={team}
+                    selected={isSelected(team.id)}
+                    highlighted={recentlyDuplicatedTeamId === String(team.id)}
+                    active={
+                      previewTeam !== null &&
+                      previewTeam !== undefined &&
+                      String(previewTeam.id) === String(team.id)
+                    }
+                    onClick={() => handleRowActivate(team)}
+                    columnCount={columnCount}
+                    nextMatch={nextMatchByTeamId.get(String(team.id)) ?? null}
+                    checkbox={
+                      <input
+                        type="checkbox"
+                        checked={isSelected(team.id)}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                        onChange={() => onVisibleRowCheckboxChange(team.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 flex-shrink-0 cursor-pointer"
+                      />
+                    }
+                  />
+                ))}
+              </div>
+            )}
+
+            <ListFooterBar
+              meta={t('teams.showingCount', {
+                shown: filteredAndSorted.length,
+                total: teams.length,
+              })}
+            />
+          </div>
+          {showQuickContext && previewTeam ? (
+            <aside className="w-[min(100%,28rem)] shrink-0 lg:sticky lg:top-4">
+              <TeamQuickContextPanel
+                team={previewTeam}
+                nextMatch={nextMatchByTeamId.get(String(previewTeam.id)) ?? null}
+                onClose={() => setPreviewTeam(null)}
+                onOpenFullProfile={() => handleOpenForView(previewTeam)}
+                onEdit={() => attemptNavigation(() => openTeamForEdit(previewTeam))}
+              />
+            </aside>
+          ) : null}
         </div>
       </div>
     </div>

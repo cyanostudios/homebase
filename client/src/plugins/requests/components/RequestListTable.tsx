@@ -29,6 +29,9 @@ export type RequestListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyQuickAddedId: string | null;
+  /** When false, the selection checkbox column is hidden (e.g. quick context open). */
+  selectionEnabled?: boolean;
+  activeRequestId?: string | number | null;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -50,6 +53,8 @@ export function RequestListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyQuickAddedId,
+  selectionEnabled = true,
+  activeRequestId = null,
 }: RequestListTableProps) {
   const { t } = useTranslation();
 
@@ -129,16 +134,23 @@ export function RequestListTable({
       rowClassName={(request) =>
         recentlyQuickAddedId === String(request.id) ? 'bg-green-50 dark:bg-green-950/30' : undefined
       }
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      isRowActive={(request) =>
+        activeRequestId != null && String(request.id) === String(activeRequestId)
+      }
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
       pluginName="requests"
       dataListItem={(request) => request}
     />

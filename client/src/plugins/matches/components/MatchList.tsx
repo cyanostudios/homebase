@@ -35,6 +35,7 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useMatches } from '../hooks/useMatches';
 import { type Match } from '../types/match';
@@ -200,7 +201,7 @@ export function MatchList() {
   const teamNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const team of teams) {
-      map.set(String(team.id), team.name ?? '');
+      map.set(String(team.id), formatTeamLabel(team) || team.name || '');
     }
     return map;
   }, [teams]);

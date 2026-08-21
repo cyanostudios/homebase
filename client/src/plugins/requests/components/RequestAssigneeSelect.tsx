@@ -8,8 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
@@ -20,22 +20,22 @@ import {
   type Contact,
 } from '@/plugins/contacts/types/contacts';
 
-import { useTasks } from '../hooks/useTasks';
+import { useRequests } from '../hooks/useRequests';
 
-interface TaskAssigneeSelectProps {
-  task: any;
+interface RequestAssigneeSelectProps {
+  request: { assignedToIds?: string[] | null };
   onAssigneeChange: (contactIds: string[]) => void;
 }
 
 /**
- * Assignee picker: Contacts Linked-style tiles + search-to-add (same pattern as SlotView add).
+ * Assignee picker: Contacts Linked-style tiles + search-to-add (same pattern as Tasks).
  * Tile click → contact quick-info popup, then navigate on confirm.
  */
-export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelectProps) {
+export function RequestAssigneeSelect({ request, onAssigneeChange }: RequestAssigneeSelectProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { contacts } = useContacts();
-  const { closeTaskPanel } = useTasks();
+  const { closeRequestPanel } = useRequests();
   const [contactSearch, setContactSearch] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
@@ -46,14 +46,11 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
   );
 
   const assignedIds = useMemo(() => {
-    if (Array.isArray(task?.assignedToIds)) {
-      return task.assignedToIds.map((id: any) => String(id));
-    }
-    if (task?.assignedTo !== null && task?.assignedTo !== undefined && task.assignedTo !== '') {
-      return [String(task.assignedTo)];
+    if (Array.isArray(request?.assignedToIds)) {
+      return request.assignedToIds.map((id: any) => String(id));
     }
     return [];
-  }, [task?.assignedTo, task?.assignedToIds]);
+  }, [request?.assignedToIds]);
 
   const addableContacts = useMemo(() => {
     return assignableContacts.filter((c) => !assignedIds.includes(String(c.id)));
@@ -83,7 +80,7 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
   const openPopover = showSuggestions && addableContacts.length > 0;
 
   const navigateToContact = (contact: Contact) => {
-    closeTaskPanel();
+    closeRequestPanel();
     setViewingContact(null);
     navigate(`/contacts/${buildSlug(contact, contacts, 'companyName')}`);
   };
@@ -103,7 +100,7 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
             placeholder={
               addableContacts.length === 0
                 ? t('slots.noMoreToAdd')
-                : t('tasks.addAssigneePlaceholder')
+                : t('requests.form.addAssigneePlaceholder')
             }
             className="h-9 bg-background pl-9 text-xs"
             disabled={addableContacts.length === 0}
@@ -144,7 +141,9 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
           })
         ) : (
           <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
-            {contactSearch.trim() ? t('common.noResults') : t('tasks.addAssigneePlaceholder')}
+            {contactSearch.trim()
+              ? t('common.noResults')
+              : t('requests.form.addAssigneePlaceholder')}
           </div>
         )}
       </PopoverContent>
@@ -157,9 +156,9 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
         <DetailSection
           title={
             <span className="inline-flex items-baseline gap-2">
-              <span>{t('tasks.assignee')}</span>
+              <span>{t('requests.form.assignees')}</span>
               <span className="text-xs font-normal normal-case tracking-normal text-muted-foreground">
-                {t('tasks.quickContext.mentionsHint')}
+                {t('requests.quickContext.mentionsHint')}
               </span>
             </span>
           }
@@ -200,14 +199,14 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
                           ),
                         );
                       }}
-                      aria-label={`${t('tasks.removeAssignee')} ${name}`}
+                      aria-label={`${t('requests.removeAssignee')} ${name}`}
                     />
                   </div>
                 );
               })}
             </QuickContextLinkTileGrid>
           ) : (
-            <p className="text-xs text-muted-foreground">{t('tasks.noAssigneesYet')}</p>
+            <p className="text-xs text-muted-foreground">{t('requests.noAssigneesYet')}</p>
           )}
         </DetailSection>
       </Card>

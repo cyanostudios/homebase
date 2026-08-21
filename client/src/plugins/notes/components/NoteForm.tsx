@@ -199,7 +199,133 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
     return <NoteSettingsForm ref={ref} onCancel={onCancel} />;
   }
 
-  const formSidebar = currentNote ? (
+  const focusModeToggle = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      icon={focusMode ? Minimize2 : Maximize2}
+      className={DETAIL_ENTITY_LINK_TRIGGER_CLASS}
+      aria-pressed={focusMode}
+      title={t('notes.focusModeHint')}
+      onClick={() => setFocusMode((open) => !open)}
+    >
+      {focusMode ? t('notes.exitFocusMode') : t('notes.focusMode')}
+    </Button>
+  );
+
+  const contentColumn = (
+    <div className="space-y-4">
+      {hasBlockingErrors && (
+        <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
+          <div className="text-sm text-destructive font-medium">{t('common.cannotSave')}</div>
+          <ul className="list-disc list-inside mt-2 text-sm text-destructive/90">
+            {validationErrors
+              .filter((error) => !error.message.includes('Warning'))
+              .map((error) => (
+                <li key={`${error.field}-${error.message}`}>{error.message}</li>
+              ))}
+          </ul>
+        </Card>
+      )}
+
+      <Card
+        padding="none"
+        className={cn(
+          DETAIL_VIEW_CARD_CLASS,
+          focusMode && 'relative z-50 mx-auto w-full max-w-[1080px] shadow-lg',
+        )}
+      >
+        <DetailSection
+          title={t('notes.noteContent')}
+          iconPlugin="notes"
+          className="p-6"
+          action={focusModeToggle}
+        >
+          <div
+            className={cn(
+              'space-y-4',
+              focusMode && '[&_.rich-text-editor]:min-h-[min(70vh,560px)]',
+            )}
+          >
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <Label htmlFor="note-title">{t('notes.title')}</Label>
+                <label
+                  htmlFor="note-show-title-in-content"
+                  className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground"
+                >
+                  <input
+                    id="note-show-title-in-content"
+                    type="checkbox"
+                    checked={formData.showTitleInContent}
+                    onChange={(e) => updateField('showTitleInContent', e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-input"
+                  />
+                  {t('notes.showTitleInContent')}
+                </label>
+              </div>
+              <Input
+                id="note-title"
+                type="text"
+                value={formData.title}
+                onChange={(e) => updateField('title', e.target.value)}
+                placeholder={t('notes.titlePlaceholder')}
+                className={getFieldError('title') ? 'border-red-500' : ''}
+                required
+              />
+              {getFieldError('title') && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {getFieldError('title')?.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label className="mb-1">{t('notes.content')}</Label>
+              <React.Suspense
+                fallback={
+                  <textarea
+                    className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled
+                  />
+                }
+              >
+                <RichTextEditor
+                  value={formData.content}
+                  onChange={handleContentChange}
+                  placeholder={t('notes.contentPlaceholder')}
+                  className={getFieldError('content') ? 'border-red-500' : ''}
+                />
+              </React.Suspense>
+              {getFieldError('content') && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {getFieldError('content')?.message}
+                </p>
+              )}
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+    </div>
+  );
+
+  const attachmentsSection =
+    hasFilesPlugin && currentNote ? (
+      <FileAttachmentsSection pluginName="notes" entityId={currentNote.id} />
+    ) : hasFilesPlugin ? (
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('files.attachmentsTitle')}
+          iconPlugin="files"
+          subtleTitle
+          className="p-4"
+        >
+          <p className="text-xs text-muted-foreground">{t('notes.attachmentsAfterSave')}</p>
+        </DetailSection>
+      </Card>
+    ) : null;
+
+  const metaSection = (
     <div className="space-y-4">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
@@ -214,27 +340,37 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
             <div className={DETAIL_INFO_ROW_CLASS}>
               <span className="text-slate-500 dark:text-slate-400">ID</span>
               <span className="font-mono font-semibold text-foreground">
-                {formatDisplayNumber('notes', currentNote.id)}
+                {currentNote ? formatDisplayNumber('notes', currentNote.id) : '—'}
               </span>
             </div>
             <div className={DETAIL_INFO_ROW_CLASS}>
               <span className="text-slate-500 dark:text-slate-400">Created</span>
               <span className="font-mono font-semibold text-foreground">
-                {currentNote.createdAt ? new Date(currentNote.createdAt).toLocaleDateString() : '—'}
+                {currentNote?.createdAt
+                  ? new Date(currentNote.createdAt).toLocaleDateString()
+                  : '—'}
               </span>
             </div>
             <div className={DETAIL_INFO_ROW_CLASS}>
               <span className="text-slate-500 dark:text-slate-400">Updated</span>
               <span className="font-mono font-semibold text-foreground">
-                {currentNote.updatedAt ? new Date(currentNote.updatedAt).toLocaleDateString() : '—'}
+                {currentNote?.updatedAt
+                  ? new Date(currentNote.updatedAt).toLocaleDateString()
+                  : '—'}
               </span>
             </div>
           </div>
         </DetailSection>
       </Card>
-      <DetailActivityLog entityType="note" entityId={currentNote.id} title={t('notes.activity')} />
+      {currentNote ? (
+        <DetailActivityLog
+          entityType="note"
+          entityId={currentNote.id}
+          title={t('notes.activity')}
+        />
+      ) : null}
     </div>
-  ) : undefined;
+  );
 
   return (
     <>
@@ -248,123 +384,20 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
       ) : null}
 
       <div className="plugin-notes">
-        <DetailLayout sidebar={focusMode ? undefined : formSidebar}>
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSubmit();
-            }}
-          >
-            {hasBlockingErrors && (
-              <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
-                <div className="text-sm text-destructive font-medium">{t('common.cannotSave')}</div>
-                <ul className="list-disc list-inside mt-2 text-sm text-destructive/90">
-                  {validationErrors
-                    .filter((error) => !error.message.includes('Warning'))
-                    .map((error) => (
-                      <li key={`${error.field}-${error.message}`}>{error.message}</li>
-                    ))}
-                </ul>
-              </Card>
-            )}
-
-            <Card
-              padding="none"
-              className={cn(
-                DETAIL_VIEW_CARD_CLASS,
-                focusMode && 'relative z-50 mx-auto w-full max-w-[1080px] shadow-lg',
-              )}
-            >
-              <DetailSection
-                title={t('notes.noteContent')}
-                iconPlugin="notes"
-                className="p-6"
-                action={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={focusMode ? Minimize2 : Maximize2}
-                    className={DETAIL_ENTITY_LINK_TRIGGER_CLASS}
-                    aria-pressed={focusMode}
-                    title={t('notes.focusModeHint')}
-                    onClick={() => setFocusMode((open) => !open)}
-                  >
-                    {focusMode ? t('notes.exitFocusMode') : t('notes.focusMode')}
-                  </Button>
-                }
-              >
-                <div
-                  className={cn(
-                    'space-y-4',
-                    focusMode && '[&_.rich-text-editor]:min-h-[min(70vh,560px)]',
-                  )}
-                >
-                  <div>
-                    <div className="mb-1 flex items-center justify-between gap-3">
-                      <Label htmlFor="note-title">{t('notes.title')}</Label>
-                      <label
-                        htmlFor="note-show-title-in-content"
-                        className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground"
-                      >
-                        <input
-                          id="note-show-title-in-content"
-                          type="checkbox"
-                          checked={formData.showTitleInContent}
-                          onChange={(e) => updateField('showTitleInContent', e.target.checked)}
-                          className="h-3.5 w-3.5 rounded border-input"
-                        />
-                        {t('notes.showTitleInContent')}
-                      </label>
-                    </div>
-                    <Input
-                      id="note-title"
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => updateField('title', e.target.value)}
-                      placeholder={t('notes.titlePlaceholder')}
-                      className={getFieldError('title') ? 'border-red-500' : ''}
-                      required
-                    />
-                    {getFieldError('title') && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {getFieldError('title')?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label className="mb-1">{t('notes.content')}</Label>
-                    <React.Suspense
-                      fallback={
-                        <textarea
-                          className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          disabled
-                        />
-                      }
-                    >
-                      <RichTextEditor
-                        value={formData.content}
-                        onChange={handleContentChange}
-                        placeholder={t('notes.contentPlaceholder')}
-                        className={getFieldError('content') ? 'border-red-500' : ''}
-                      />
-                    </React.Suspense>
-                    {getFieldError('content') && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {getFieldError('content')?.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-
-            {!focusMode && hasFilesPlugin && currentNote ? (
-              <FileAttachmentsSection pluginName="notes" entityId={currentNote.id} />
-            ) : null}
-          </form>
-        </DetailLayout>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+        >
+          <DetailLayout sidebar={focusMode ? undefined : metaSection}>
+            <div className="space-y-4">
+              {contentColumn}
+              {!focusMode ? attachmentsSection : null}
+            </div>
+          </DetailLayout>
+        </form>
       </div>
 
       <ConfirmDialog

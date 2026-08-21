@@ -4,13 +4,35 @@ import type { CreateTaskShareRequest, PublicTask, Task, TaskShare } from '../typ
 
 class TasksApi {
   private normalizeAssignedToIds(task: any): string[] {
-    if (Array.isArray(task?.assigned_to_ids)) {
-      return task.assigned_to_ids.map((id: any) => String(id));
+    const raw = task?.assigned_to_ids ?? task?.assignedToIds;
+    if (Array.isArray(raw)) {
+      return raw.map((id: any) => String(id));
+    }
+    if (typeof raw === 'string' && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.map((id: any) => String(id));
+        }
+      } catch {
+        // fall through to assigned_to
+      }
     }
     if (task?.assigned_to !== null && task?.assigned_to !== undefined && task?.assigned_to !== '') {
       return [String(task.assigned_to)];
     }
+    if (task?.assignedTo !== null && task?.assignedTo !== undefined && task?.assignedTo !== '') {
+      return [String(task.assignedTo)];
+    }
     return [];
+  }
+
+  private normalizeAssignedToIdForRequest(id: unknown): number | null {
+    if (id === null || id === undefined || id === '') {
+      return null;
+    }
+    const parsed = Number.parseInt(String(id), 10);
+    return Number.isNaN(parsed) ? null : parsed;
   }
 
   private normalizeTeamId(task: any): string | null {
@@ -107,8 +129,9 @@ class TasksApi {
         ? [String(assignedTo)]
         : [];
     requestBody.assigned_to_ids = normalizedAssignedToIds;
-    if (normalizedAssignedToIds.length > 0) {
-      requestBody.assigned_to = normalizedAssignedToIds[0];
+    const primaryAssignee = this.normalizeAssignedToIdForRequest(normalizedAssignedToIds[0]);
+    if (primaryAssignee !== null) {
+      requestBody.assigned_to = primaryAssignee;
     }
     if (createdFromNote) {
       requestBody.created_from_note = createdFromNote;
@@ -129,12 +152,13 @@ class TasksApi {
       : assignedTo
         ? [String(assignedTo)]
         : [];
+    const primaryAssignee = this.normalizeAssignedToIdForRequest(normalizedAssignedToIds[0]);
     const task = await this.request(`/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
         ...rest,
         due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : dueDate || null,
-        assigned_to: normalizedAssignedToIds[0] || null,
+        assigned_to: primaryAssignee,
         assigned_to_ids: normalizedAssignedToIds,
         team_id: this.normalizeTeamIdForRequest(teamId !== undefined ? teamId : team_id),
         created_from_note: createdFromNote || null,

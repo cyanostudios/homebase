@@ -91,7 +91,7 @@ function aggregateExternalTeams(games) {
 async function listOccupiedExternalTeamIds(req) {
   const db = Database.get(req);
   const rows = await db.query(
-    `SELECT id, name, external_team_id
+    `SELECT id, name, age_group, external_team_id
      FROM teams
      WHERE external_team_id IS NOT NULL
        AND TRIM(external_team_id) <> ''`,
@@ -105,7 +105,8 @@ async function listOccupiedExternalTeamIds(req) {
       return {
         externalTeamId,
         teamId: String(row.id),
-        teamName: String(row.name || '').trim() || String(row.id),
+        teamName:
+          String(row.age_group || '').trim() || String(row.name || '').trim() || String(row.id),
       };
     })
     .filter(Boolean);

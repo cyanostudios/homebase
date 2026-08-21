@@ -68,6 +68,7 @@ export function TaskListItem({
   task,
   selected,
   highlighted,
+  active,
   onClick,
   checkbox,
   assignedNames = [],
@@ -78,6 +79,7 @@ export function TaskListItem({
   task: Task;
   selected?: boolean;
   highlighted?: boolean;
+  active?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
   assignedNames?: string[];
@@ -141,6 +143,7 @@ export function TaskListItem({
         'group cursor-pointer overflow-hidden p-0 transition-all',
         DETAIL_VIEW_CARD_CLASS,
         highlighted && 'bg-green-50 dark:bg-green-950/30',
+        active && 'bg-primary/5 ring-1 ring-primary/40',
         selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
       )}
       onClick={(e) => {
@@ -158,12 +161,13 @@ export function TaskListItem({
       data-plugin-name="tasks"
       role="button"
       tabIndex={0}
+      aria-current={active ? 'true' : undefined}
       aria-label={`Open task ${task.title}`}
     >
       <div className="flex flex-col gap-2 p-4">
+        {checkbox ? <div className="flex">{checkbox}</div> : null}
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
             <Badge
               variant="outline"
               className={cn(BADGE_CLASS, TASK_PRIORITY_COLORS[task.priority])}

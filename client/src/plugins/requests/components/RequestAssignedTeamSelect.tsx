@@ -8,40 +8,45 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { buildSlug } from '@/core/utils/slugUtils';
 import {
   AssignmentQuickInfoDialog,
   type AssignmentQuickInfoDetail,
 } from '@/plugins/contacts/components/AssignmentQuickInfoDialog';
-import { useTeams } from '@/plugins/teams/hooks/useTeams';
 import type { Team } from '@/plugins/teams/types/teams';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
-import { useTasks } from '../hooks/useTasks';
+import { useRequests } from '../hooks/useRequests';
+import { useRequestTeams } from '../hooks/useRequestTeams';
 
-interface TaskAssignedTeamSelectProps {
-  task: { teamId?: string | null };
+interface RequestAssignedTeamSelectProps {
+  request: { teamId?: string | number | null };
   onTeamChange: (teamId: string | null) => void;
 }
 
 /**
- * Assigned-team picker: Contacts Linked-style tile + search-to-add (single team).
- * Tile click → team quick-info popup, then navigate on confirm.
+ * Assigned-team picker: Contacts Linked-style tile + search-to-add (single team, same
+ * pattern as Tasks). Tile click → team quick-info popup, then navigate on confirm.
  */
-export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamSelectProps) {
+export function RequestAssignedTeamSelect({
+  request,
+  onTeamChange,
+}: RequestAssignedTeamSelectProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { teams } = useTeams();
-  const { closeTaskPanel } = useTasks();
+  const teams = useRequestTeams();
+  const { closeRequestPanel } = useRequests();
   const [teamSearch, setTeamSearch] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showTeamQuickInfo, setShowTeamQuickInfo] = useState(false);
 
   const assignedTeamId =
-    task?.teamId !== null && task?.teamId !== undefined && String(task.teamId).trim() !== ''
-      ? String(task.teamId)
+    request?.teamId !== null &&
+    request?.teamId !== undefined &&
+    String(request.teamId).trim() !== ''
+      ? String(request.teamId)
       : null;
 
   const assignedTeam = useMemo(
@@ -110,10 +115,12 @@ export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamS
 
   const openPopover = showSuggestions && addableTeams.length > 0;
   const orphanLabel =
-    assignedTeamId && !assignedTeam ? t('tasks.assignedTeamOrphan', { id: assignedTeamId }) : null;
+    assignedTeamId && !assignedTeam
+      ? t('requests.assignedTeamOrphan', { id: assignedTeamId })
+      : null;
 
   const openAssignedTeam = (team: Team) => {
-    closeTaskPanel();
+    closeRequestPanel();
     setShowTeamQuickInfo(false);
     navigate(`/teams/${buildSlug(team, teams, 'name')}`);
   };
@@ -132,10 +139,10 @@ export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamS
             onFocus={() => setShowSuggestions(true)}
             placeholder={
               assignedTeamId
-                ? t('tasks.assignedTeamReplaceHint')
+                ? t('requests.assignedTeamReplaceHint')
                 : addableTeams.length === 0
-                  ? t('tasks.noTeamsToAssign')
-                  : t('tasks.addAssignedTeamPlaceholder')
+                  ? t('requests.noTeamsToAssign')
+                  : t('requests.addAssignedTeamPlaceholder')
             }
             className="h-9 bg-background pl-9 text-xs"
             disabled={addableTeams.length === 0}
@@ -179,7 +186,7 @@ export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamS
           })
         ) : (
           <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
-            {teamSearch.trim() ? t('common.noResults') : t('tasks.addAssignedTeamPlaceholder')}
+            {teamSearch.trim() ? t('common.noResults') : t('requests.addAssignedTeamPlaceholder')}
           </div>
         )}
       </PopoverContent>
@@ -192,9 +199,9 @@ export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamS
         <DetailSection
           title={
             <span className="inline-flex items-baseline gap-2">
-              <span>{t('tasks.assignedTeam')}</span>
+              <span>{t('requests.assignedTeam')}</span>
               <span className="text-xs font-normal normal-case tracking-normal text-muted-foreground">
-                {t('tasks.quickContext.mentionsHint')}
+                {t('requests.quickContext.mentionsHint')}
               </span>
             </span>
           }
@@ -232,12 +239,12 @@ export function TaskAssignedTeamSelect({ task, onTeamChange }: TaskAssignedTeamS
                     event.stopPropagation();
                     onTeamChange(null);
                   }}
-                  aria-label={t('tasks.removeAssignedTeam')}
+                  aria-label={t('requests.removeAssignedTeam')}
                 />
               </div>
             </QuickContextLinkTileGrid>
           ) : (
-            <p className="text-xs text-muted-foreground">{t('tasks.noAssignedTeamYet')}</p>
+            <p className="text-xs text-muted-foreground">{t('requests.noAssignedTeamYet')}</p>
           )}
         </DetailSection>
       </Card>

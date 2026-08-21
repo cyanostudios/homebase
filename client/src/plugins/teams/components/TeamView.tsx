@@ -69,6 +69,7 @@ import {
   TEAM_COLOR_GRADIENTS,
   TEAM_HEADER_BADGE_CLASS,
 } from '../types/teams';
+import { formatTeamLabel } from '../utils/formatTeamLabel';
 
 import { ResponsibleContactDialog } from './ResponsibleContactDialog';
 import { ResponsibleRow, SeriesTeamBadge } from './ResponsibleRow';
@@ -422,6 +423,8 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
     return null;
   }
 
+  const teamLabel = formatTeamLabel(team) || team.name;
+
   const persistTeam = async (patch: Partial<Team>) => {
     await saveTeam(
       {
@@ -694,7 +697,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="truncate text-2xl font-bold tracking-tight">{team.name}</h2>
+                <h2 className="truncate text-2xl font-bold tracking-tight">{teamLabel}</h2>
                 <p
                   className={cn(
                     'mt-0.5 text-sm font-semibold',
@@ -702,7 +705,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                   )}
                 >
                   {[
-                    team.age_group,
+                    team.name?.trim() && team.name.trim() !== teamLabel ? team.name.trim() : null,
                     team.gender ? t(`teams.gender.${team.gender}`) : null,
                     team.playing_format,
                   ]
@@ -884,7 +887,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
           {hasMatchesPlugin && activeTab === 'statistics' && (
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection title={t('teams.tabs.statistics')} className="p-4">
-                <TeamMatchStatsSection teamId={team.id} teamName={team.name} />
+                <TeamMatchStatsSection teamId={team.id} teamName={teamLabel} />
               </DetailSection>
             </Card>
           )}
@@ -893,7 +896,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
       <ConfirmDialog
         isOpen={showDelete}
         title={t('teams.view.deleteTeam')}
-        message={t('teams.view.deleteConfirm', { name: team.name })}
+        message={t('teams.view.deleteConfirm', { name: teamLabel })}
         confirmText={t('common.delete')}
         cancelText={t('common.cancel')}
         onConfirm={async () => {

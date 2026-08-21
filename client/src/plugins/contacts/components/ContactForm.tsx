@@ -1,4 +1,19 @@
-import { Building, Info, Plus, SlidersHorizontal, Tag, Trash2, User, X } from 'lucide-react';
+import {
+  Building,
+  Globe,
+  Hash,
+  Mail,
+  MapPin,
+  Phone as PhoneIcon,
+  Plus,
+  SlidersHorizontal,
+  StickyNote,
+  Tag,
+  Trash2,
+  User,
+  Users,
+  X,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,15 +30,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import {
+  DETAIL_PROP_ROW_CLASS as PROP_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -32,7 +48,8 @@ import { useContacts } from '../hooks/useContacts';
 import { COMPANY_TYPE_OPTIONS } from '../types/contacts';
 
 import { ContactSettingsForm } from './ContactSettingsForm';
-
+const FACT_LABEL_CLASS =
+  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 interface ContactPerson {
   id: string;
   name: string;
@@ -51,6 +68,14 @@ interface Address {
   region: string;
   country: string;
   email: string;
+}
+
+function contactInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+  }
+  return name.trim().slice(0, 2).toUpperCase() || '—';
 }
 
 interface ContactFormProps {
@@ -355,51 +380,358 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
     markDirty();
   };
 
-  const formSidebar = currentContact ? (
+  const isCompanyType = formData.contactType === 'company';
+  const avatarClass = isCompanyType
+    ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200'
+    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200';
+
+  const formLeftSidebar = (
     <div className="space-y-4">
+      <Card
+        padding="none"
+        className={cn(
+          DETAIL_VIEW_CARD_CLASS,
+          'flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden',
+        )}
+      >
+        <div className="border-b border-border/50 px-4 py-2.5">
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+                avatarClass,
+              )}
+              aria-hidden
+            >
+              {contactInitials(formData.companyName || '—')}
+            </div>
+            <div className="min-w-0 flex-1">
+              <Input
+                id="companyName"
+                type="text"
+                value={formData.companyName}
+                onChange={(e) => updateField('companyName', e.target.value)}
+                placeholder={isCompanyType ? 'Company Name *' : 'Full Name *'}
+                className={cn(
+                  'h-9 text-lg font-semibold tracking-tight',
+                  getFieldError('companyName') && 'border-red-500',
+                )}
+                required
+              />
+              {getFieldError('companyName') ? (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {getFieldError('companyName')?.message}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={formData.contactType === 'company' ? 'default' : 'outline'}
+              onClick={() => updateField('contactType', 'company')}
+              className="h-9 text-xs"
+              icon={Building}
+            >
+              Company
+            </Button>
+            <Button
+              type="button"
+              variant={formData.contactType === 'private' ? 'default' : 'outline'}
+              onClick={() => updateField('contactType', 'private')}
+              className="h-9 text-xs"
+              icon={User}
+            >
+              Private
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div>
+              <Label htmlFor="contactNumber" className={FACT_LABEL_CLASS}>
+                <Hash className="h-3 w-3" />
+                {currentContact ? 'Contact Number *' : 'Contact Number'}
+              </Label>
+              {currentContact ? (
+                <Input
+                  id="contactNumber"
+                  type="text"
+                  value={formData.contactNumber}
+                  onChange={(e) => updateField('contactNumber', e.target.value)}
+                  placeholder="e.g. 01"
+                  className={cn('h-9 text-sm', getFieldError('contactNumber') && 'border-red-500')}
+                  required
+                />
+              ) : (
+                <Input
+                  id="contactNumber"
+                  type="text"
+                  value={formData.contactNumber}
+                  readOnly
+                  placeholder="Assigned on save"
+                  className="h-9 cursor-not-allowed bg-muted text-sm text-muted-foreground"
+                />
+              )}
+              {getFieldError('contactNumber') ? (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {getFieldError('contactNumber')?.message}
+                </p>
+              ) : null}
+            </div>
+
+            {isCompanyType ? (
+              <div>
+                <Label htmlFor="companyType" className={FACT_LABEL_CLASS}>
+                  Company type
+                </Label>
+                <NativeSelect
+                  id="companyType"
+                  value={formData.companyType}
+                  onChange={(e) => updateField('companyType', e.target.value)}
+                  className="h-9 w-full text-sm"
+                >
+                  {COMPANY_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="personalNumber" className={FACT_LABEL_CLASS}>
+                  Personal Number
+                </Label>
+                <Input
+                  id="personalNumber"
+                  type="text"
+                  value={formData.personalNumber}
+                  onChange={(e) => updateField('personalNumber', e.target.value)}
+                  className={cn('h-9 text-sm', getFieldError('personalNumber') && 'border-red-500')}
+                />
+              </div>
+            )}
+
+            {isCompanyType ? (
+              <>
+                <div>
+                  <Label htmlFor="organizationNumber" className={FACT_LABEL_CLASS}>
+                    Organization Number
+                  </Label>
+                  <Input
+                    id="organizationNumber"
+                    type="text"
+                    value={formData.organizationNumber}
+                    onChange={(e) => updateField('organizationNumber', e.target.value)}
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vatNumber" className={FACT_LABEL_CLASS}>
+                    VAT Number
+                  </Label>
+                  <Input
+                    id="vatNumber"
+                    type="text"
+                    value={formData.vatNumber}
+                    onChange={(e) => updateField('vatNumber', e.target.value)}
+                    className="h-9 text-sm"
+                  />
+                </div>
+              </>
+            ) : null}
+
+            <div>
+              <Label htmlFor="email" className={FACT_LABEL_CLASS}>
+                <Mail className="h-3 w-3" />
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => updateField('email', e.target.value)}
+                className={cn('h-9 text-sm', getFieldError('email') && 'border-yellow-500')}
+              />
+            </div>
+            <div>
+              <Label htmlFor="website" className={FACT_LABEL_CLASS}>
+                <Globe className="h-3 w-3" />
+                Website
+              </Label>
+              <Input
+                id="website"
+                type="text"
+                value={formData.website}
+                onChange={(e) => updateField('website', e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone" className={FACT_LABEL_CLASS}>
+                <PhoneIcon className="h-3 w-3" />
+                Phone 1
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => updateField('phone', e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone2" className={FACT_LABEL_CLASS}>
+                <PhoneIcon className="h-3 w-3" />
+                Phone 2
+              </Label>
+              <Input
+                id="phone2"
+                type="tel"
+                value={formData.phone2}
+                onChange={(e) => updateField('phone2', e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="notes" className={FACT_LABEL_CLASS}>
+              <StickyNote className="h-3 w-3" />
+              Notes
+            </Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => updateField('notes', e.target.value)}
+              rows={4}
+              className="text-sm"
+            />
+          </div>
+        </div>
+      </Card>
+
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('contacts.information')}
-          icon={Info}
-          iconPlugin="contacts"
-          className="p-4"
-          collapsible
-        >
-          <div className="space-y-4 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">ID</span>
-              <span className="font-mono font-medium">
-                {formatDisplayNumber('contacts', currentContact.id)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Created</span>
-              <span className="font-medium">
-                {currentContact.createdAt
-                  ? new Date(currentContact.createdAt).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Updated</span>
-              <span className="font-medium">
-                {currentContact.updatedAt
-                  ? new Date(currentContact.updatedAt).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
+        <DetailSection title="Addresses" icon={MapPin} subtleTitle className="p-6">
+          <div className="space-y-4">
+            <Button type="button" onClick={addAddress} variant="secondary" icon={Plus} size="sm">
+              Add Address
+            </Button>
+            {formData.addresses.length === 0 ? (
+              <p className="text-xs italic text-muted-foreground">No addresses added yet.</p>
+            ) : (
+              formData.addresses.map((address) => (
+                <div key={address.id} className="space-y-4 rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{address.type || 'Address'}</span>
+                    <Button
+                      type="button"
+                      onClick={() => removeAddress(address.id)}
+                      variant="ghost"
+                      icon={Trash2}
+                      size="sm"
+                      className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    >
+                      <span className="sr-only">Remove</span>
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label className={FACT_LABEL_CLASS}>Type</Label>
+                      <NativeSelect
+                        value={address.type}
+                        onChange={(e) => updateAddress(address.id, 'type', e.target.value)}
+                        className="h-10 text-sm"
+                      >
+                        <option value="Main Office">Main Office</option>
+                        <option value="Billing Address">Billing Address</option>
+                        <option value="Shipping Address">Shipping Address</option>
+                        <option value="Branch Office">Branch Office</option>
+                        <option value="Home Address">Home Address</option>
+                        <option value="Other">Other</option>
+                      </NativeSelect>
+                    </div>
+                    <div>
+                      <Label className={FACT_LABEL_CLASS}>Email</Label>
+                      <Input
+                        type="email"
+                        value={address.email}
+                        onChange={(e) => updateAddress(address.id, 'email', e.target.value)}
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label className={FACT_LABEL_CLASS}>Address Line 1</Label>
+                      <Input
+                        value={address.addressLine1}
+                        onChange={(e) => updateAddress(address.id, 'addressLine1', e.target.value)}
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label className={FACT_LABEL_CLASS}>Address Line 2</Label>
+                      <Input
+                        value={address.addressLine2}
+                        onChange={(e) => updateAddress(address.id, 'addressLine2', e.target.value)}
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className={FACT_LABEL_CLASS}>Postal Code</Label>
+                      <Input
+                        value={address.postalCode}
+                        onChange={(e) => updateAddress(address.id, 'postalCode', e.target.value)}
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className={FACT_LABEL_CLASS}>City</Label>
+                      <Input
+                        value={address.city}
+                        onChange={(e) => updateAddress(address.id, 'city', e.target.value)}
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className={FACT_LABEL_CLASS}>Region</Label>
+                      <Input
+                        value={address.region}
+                        onChange={(e) => updateAddress(address.id, 'region', e.target.value)}
+                        className="h-10 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className={FACT_LABEL_CLASS}>Country</Label>
+                      <NativeSelect
+                        value={address.country}
+                        onChange={(e) => updateAddress(address.id, 'country', e.target.value)}
+                        className="h-10 text-sm"
+                      >
+                        <option value="Sweden">Sweden</option>
+                        <option value="Norway">Norway</option>
+                        <option value="Denmark">Denmark</option>
+                        <option value="Finland">Finland</option>
+                      </NativeSelect>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </DetailSection>
       </Card>
     </div>
-  ) : undefined;
+  );
 
   return (
     <>
       <div className="plugin-contacts">
-        <DetailLayout sidebar={formSidebar}>
+        <DetailLayout leftSidebar={formLeftSidebar}>
           <form
-            className="space-y-6"
+            className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
               handleSubmit();
@@ -420,367 +752,109 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
-                title={t('contacts.contactContent')}
-                iconPlugin="contacts"
+                title={t('contacts.contactProperties')}
+                icon={SlidersHorizontal}
+                subtleTitle
                 className="p-6"
               >
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <Label
-                        htmlFor="contactNumber"
-                        className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                      >
-                        {currentContact ? 'Contact Number *' : 'Contact Number'}
-                      </Label>
-                      {currentContact ? (
-                        <Input
-                          id="contactNumber"
-                          type="text"
-                          value={formData.contactNumber}
-                          onChange={(e) => updateField('contactNumber', e.target.value)}
-                          placeholder="e.g. 01"
-                          className={cn(
-                            'h-10 text-sm',
-                            getFieldError('contactNumber') && 'border-red-500',
-                          )}
-                          required
-                        />
-                      ) : (
-                        <Input
-                          id="contactNumber"
-                          type="text"
-                          value={formData.contactNumber}
-                          readOnly
-                          placeholder="Assigned automatically on save"
-                          className="h-10 bg-muted text-sm text-muted-foreground cursor-not-allowed"
-                        />
-                      )}
-                      {getFieldError('contactNumber') && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {getFieldError('contactNumber')?.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                        Contact Type
-                      </Label>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Button
-                          type="button"
-                          variant={formData.contactType === 'company' ? 'default' : 'outline'}
-                          onClick={() => updateField('contactType', 'company')}
-                          className="h-10 text-sm"
-                          icon={Building}
-                        >
-                          Company
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={formData.contactType === 'private' ? 'default' : 'outline'}
-                          onClick={() => updateField('contactType', 'private')}
-                          className="h-10 text-sm"
-                          icon={User}
-                        >
-                          Private
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <Label
-                        htmlFor="companyName"
-                        className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                      >
-                        {formData.contactType === 'company' ? 'Company Name *' : 'Full Name *'}
-                      </Label>
-                      <Input
-                        id="companyName"
-                        type="text"
-                        value={formData.companyName}
-                        onChange={(e) => updateField('companyName', e.target.value)}
-                        className={cn(
-                          'h-10 text-sm',
-                          getFieldError('companyName') && 'border-red-500',
-                        )}
-                        required
-                      />
-                    </div>
-
+                <div>
+                  <div className={PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Tax rate</span>
                     {formData.contactType === 'private' ? (
-                      <div>
-                        <Label
-                          htmlFor="personalNumber"
-                          className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                        >
-                          Personal Number
-                        </Label>
-                        <Input
-                          id="personalNumber"
-                          type="text"
-                          value={formData.personalNumber}
-                          onChange={(e) => updateField('personalNumber', e.target.value)}
-                          className={cn(
-                            'h-10 text-sm',
-                            getFieldError('personalNumber') && 'border-red-500',
-                          )}
-                        />
-                      </div>
-                    ) : null}
-
-                    {formData.contactType === 'company' ? (
-                      <>
-                        <div>
-                          <Label
-                            htmlFor="organizationNumber"
-                            className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                          >
-                            Organization Number
-                          </Label>
-                          <Input
-                            id="organizationNumber"
-                            type="text"
-                            value={formData.organizationNumber}
-                            onChange={(e) => updateField('organizationNumber', e.target.value)}
-                            className="h-10 text-sm"
-                          />
-                        </div>
-
-                        <div>
-                          <Label
-                            htmlFor="vatNumber"
-                            className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                          >
-                            VAT Number
-                          </Label>
-                          <Input
-                            id="vatNumber"
-                            type="text"
-                            value={formData.vatNumber}
-                            onChange={(e) => updateField('vatNumber', e.target.value)}
-                            className="h-10 text-sm"
-                          />
-                        </div>
-                      </>
-                    ) : null}
-
-                    <div>
-                      <Label
-                        htmlFor="email"
-                        className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
+                      <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                        0% (Tax Free)
+                      </Badge>
+                    ) : (
+                      <NativeSelect
+                        id="taxRate"
+                        value={formData.taxRate}
+                        onChange={(e) => updateField('taxRate', e.target.value)}
+                        className="h-9 w-full max-w-[180px] text-sm"
                       >
-                        Email
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => updateField('email', e.target.value)}
-                        className={cn(
-                          'h-10 text-sm',
-                          getFieldError('email') && 'border-yellow-500',
-                        )}
-                      />
-                    </div>
-
-                    <div>
-                      <Label
-                        htmlFor="website"
-                        className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                      >
-                        Website
-                      </Label>
-                      <Input
-                        id="website"
-                        type="text"
-                        value={formData.website}
-                        onChange={(e) => updateField('website', e.target.value)}
-                        className="h-10 text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <Label
-                        htmlFor="phone"
-                        className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                      >
-                        Phone 1
-                      </Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => updateField('phone', e.target.value)}
-                        className="h-10 text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <Label
-                        htmlFor="phone2"
-                        className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
-                      >
-                        Phone 2
-                      </Label>
-                      <Input
-                        id="phone2"
-                        type="tel"
-                        value={formData.phone2}
-                        onChange={(e) => updateField('phone2', e.target.value)}
-                        className="h-10 text-sm"
-                      />
-                    </div>
+                        <option value="0">0% (Tax Free)</option>
+                        <option value="6">6% (Reduced)</option>
+                        <option value="12">12% (Reduced)</option>
+                        <option value="25">25% (Standard)</option>
+                      </NativeSelect>
+                    )}
                   </div>
 
-                  <div>
-                    <Label
-                      htmlFor="notes"
-                      className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5"
+                  <div className={PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      Payment terms
+                    </span>
+                    <NativeSelect
+                      id="paymentTerms"
+                      value={formData.paymentTerms}
+                      onChange={(e) => updateField('paymentTerms', e.target.value)}
+                      className="h-9 w-full max-w-[180px] text-sm"
                     >
-                      Notes
-                    </Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => updateField('notes', e.target.value)}
-                      rows={4}
-                      className="text-sm"
-                    />
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <div className="space-y-2 p-6">
-                <div className="mb-1 flex min-w-0 items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="truncate text-sm font-semibold text-foreground">
-                    {t('contacts.contactProperties')}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                  {formData.contactType === 'company' ? (
-                    <div className="rounded-lg border border-border p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="text-sm font-medium">Company type</div>
-                        <NativeSelect
-                          id="companyType"
-                          value={formData.companyType}
-                          onChange={(e) => updateField('companyType', e.target.value)}
-                          className="h-10 max-w-[180px] text-sm"
-                        >
-                          {COMPANY_TYPE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="text-sm font-medium">Tax Rate (%)</div>
-                      {formData.contactType === 'private' ? (
-                        <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
-                          0% (Tax Free)
-                        </Badge>
-                      ) : (
-                        <NativeSelect
-                          id="taxRate"
-                          value={formData.taxRate}
-                          onChange={(e) => updateField('taxRate', e.target.value)}
-                          className="h-10 max-w-[180px] text-sm"
-                        >
-                          <option value="0">0% (Tax Free)</option>
-                          <option value="6">6% (Reduced)</option>
-                          <option value="12">12% (Reduced)</option>
-                          <option value="25">25% (Standard)</option>
-                        </NativeSelect>
-                      )}
-                    </div>
+                      <option value="0">Immediate</option>
+                      <option value="15">15 days</option>
+                      <option value="30">30 days</option>
+                      <option value="60">60 days</option>
+                    </NativeSelect>
                   </div>
 
-                  <div className="rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="text-sm font-medium">Terms (days)</div>
-                      <NativeSelect
-                        id="paymentTerms"
-                        value={formData.paymentTerms}
-                        onChange={(e) => updateField('paymentTerms', e.target.value)}
-                        className="h-10 max-w-[180px] text-sm"
-                      >
-                        <option value="0">Immediate</option>
-                        <option value="15">15 days</option>
-                        <option value="30">30 days</option>
-                        <option value="60">60 days</option>
-                      </NativeSelect>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="text-sm font-medium">Currency</div>
-                      <NativeSelect
-                        id="currency"
-                        value={formData.currency}
-                        onChange={(e) => updateField('currency', e.target.value)}
-                        className="h-10 max-w-[180px] text-sm"
-                      >
-                        <option value="SEK">SEK (Kronor)</option>
-                        <option value="EUR">EUR (Euro)</option>
-                        <option value="USD">USD (Dollar)</option>
-                        <option value="NOK">NOK (Kroner)</option>
-                        <option value="DKK">DKK (Kroner)</option>
-                      </NativeSelect>
-                    </div>
+                  <div className={PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Currency</span>
+                    <NativeSelect
+                      id="currency"
+                      value={formData.currency}
+                      onChange={(e) => updateField('currency', e.target.value)}
+                      className="h-9 w-full max-w-[180px] text-sm"
+                    >
+                      <option value="SEK">SEK (Kronor)</option>
+                      <option value="EUR">EUR (Euro)</option>
+                      <option value="USD">USD (Dollar)</option>
+                      <option value="NOK">NOK (Kroner)</option>
+                      <option value="DKK">DKK (Kroner)</option>
+                    </NativeSelect>
                   </div>
 
                   {formData.contactType === 'company' ? (
-                    <div className="rounded-lg border border-border p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="text-sm font-medium">F-Tax</div>
-                        <NativeSelect
-                          id="fTax"
-                          value={formData.fTax || 'yes'}
-                          onChange={(e) => updateField('fTax', e.target.value)}
-                          className="h-10 max-w-[180px] text-sm"
-                        >
-                          <option value="yes">Yes</option>
-                          <option value="no">No</option>
-                        </NativeSelect>
-                      </div>
+                    <div className={PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">F-tax</span>
+                      <NativeSelect
+                        id="fTax"
+                        value={formData.fTax || 'yes'}
+                        onChange={(e) => updateField('fTax', e.target.value)}
+                        className="h-9 w-full max-w-[180px] text-sm"
+                      >
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                      </NativeSelect>
                     </div>
                   ) : null}
 
-                  <div className="rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="text-sm font-medium">Assignable</div>
-                      <div className="flex h-10 items-center gap-2">
-                        <Switch
-                          id="isAssignable"
-                          checked={formData.isAssignable}
-                          onCheckedChange={(checked) => updateField('isAssignable', checked)}
-                        />
-                        <Label htmlFor="isAssignable" className="text-xs font-medium">
-                          {formData.isAssignable ? 'Yes' : 'No'}
-                        </Label>
-                      </div>
+                  <div className={PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Assignable</span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'h-2 w-2 shrink-0 rounded-full',
+                          formData.isAssignable ? 'bg-emerald-500' : 'bg-red-500',
+                        )}
+                        aria-hidden
+                      />
+                      <Select
+                        value={formData.isAssignable ? 'yes' : 'no'}
+                        onValueChange={(value) => updateField('isAssignable', value === 'yes')}
+                      >
+                        <SelectTrigger className="h-8 w-[180px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">{t('contacts.assignableYes')}</SelectItem>
+                          <SelectItem value="no">{t('contacts.assignableNo')}</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-border p-4 md:col-span-2">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="text-sm font-medium">Tags</div>
+                  <div className={cn(PROP_ROW_CLASS, 'sm:items-start')}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Tags</span>
+                    <div className="flex min-w-0 flex-col items-stretch gap-1.5 sm:max-w-[70%] sm:items-end">
                       <Select
                         value={tagToAdd || '__add_tag__'}
                         onValueChange={(value) => {
@@ -790,7 +864,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                         }}
                         disabled={addableTags.length === 0}
                       >
-                        <SelectTrigger className="h-10 w-[180px] text-sm">
+                        <SelectTrigger className="h-8 w-full text-xs sm:w-[160px]">
                           <SelectValue placeholder="Add a tag..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -804,178 +878,38 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                           ))}
                         </SelectContent>
                       </Select>
+                      {(formData.tags as string[]).length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                          {(formData.tags as string[]).map((item) => (
+                            <Badge
+                              key={item}
+                              className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                            >
+                              <Tag className="h-3 w-3" />
+                              {item}
+                              <button
+                                type="button"
+                                className="rounded p-0.5 hover:bg-muted"
+                                onClick={() => removeTag(item)}
+                                aria-label={`Remove tag ${item}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No tags</span>
+                      )}
                     </div>
-                    {(formData.tags as string[]).length > 0 ? (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {(formData.tags as string[]).map((item) => (
-                          <Badge
-                            key={item}
-                            variant="secondary"
-                            className="flex items-center gap-1 text-xs"
-                          >
-                            <Tag className="h-3 w-3" />
-                            {item}
-                            <button
-                              type="button"
-                              className="rounded p-0.5 hover:bg-muted"
-                              onClick={() => removeTag(item)}
-                              aria-label={`Remove tag ${item}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection title="Addresses" className="p-6">
-                <div className="space-y-4">
-                  <Button
-                    type="button"
-                    onClick={addAddress}
-                    variant="secondary"
-                    icon={Plus}
-                    size="sm"
-                  >
-                    Add Address
-                  </Button>
-                  {formData.addresses.length === 0 ? (
-                    <p className="text-xs italic text-muted-foreground">No addresses added yet.</p>
-                  ) : (
-                    formData.addresses.map((address) => (
-                      <div
-                        key={address.id}
-                        className="rounded-lg border border-border p-4 space-y-4"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{address.type || 'Address'}</span>
-                          <Button
-                            type="button"
-                            onClick={() => removeAddress(address.id)}
-                            variant="ghost"
-                            icon={Trash2}
-                            size="sm"
-                            className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                          >
-                            <span className="sr-only">Remove</span>
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <div>
-                            <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Type
-                            </Label>
-                            <NativeSelect
-                              value={address.type}
-                              onChange={(e) => updateAddress(address.id, 'type', e.target.value)}
-                              className="h-10 text-sm"
-                            >
-                              <option value="Main Office">Main Office</option>
-                              <option value="Billing Address">Billing Address</option>
-                              <option value="Shipping Address">Shipping Address</option>
-                              <option value="Branch Office">Branch Office</option>
-                              <option value="Home Address">Home Address</option>
-                              <option value="Other">Other</option>
-                            </NativeSelect>
-                          </div>
-                          <div>
-                            <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Email
-                            </Label>
-                            <Input
-                              type="email"
-                              value={address.email}
-                              onChange={(e) => updateAddress(address.id, 'email', e.target.value)}
-                              className="h-10 text-sm"
-                            />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Address Line 1
-                            </Label>
-                            <Input
-                              value={address.addressLine1}
-                              onChange={(e) =>
-                                updateAddress(address.id, 'addressLine1', e.target.value)
-                              }
-                              className="h-10 text-sm"
-                            />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Address Line 2
-                            </Label>
-                            <Input
-                              value={address.addressLine2}
-                              onChange={(e) =>
-                                updateAddress(address.id, 'addressLine2', e.target.value)
-                              }
-                              className="h-10 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Postal Code
-                            </Label>
-                            <Input
-                              value={address.postalCode}
-                              onChange={(e) =>
-                                updateAddress(address.id, 'postalCode', e.target.value)
-                              }
-                              className="h-10 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              City
-                            </Label>
-                            <Input
-                              value={address.city}
-                              onChange={(e) => updateAddress(address.id, 'city', e.target.value)}
-                              className="h-10 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Region
-                            </Label>
-                            <Input
-                              value={address.region}
-                              onChange={(e) => updateAddress(address.id, 'region', e.target.value)}
-                              className="h-10 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                              Country
-                            </Label>
-                            <NativeSelect
-                              value={address.country}
-                              onChange={(e) => updateAddress(address.id, 'country', e.target.value)}
-                              className="h-10 text-sm"
-                            >
-                              <option value="Sweden">Sweden</option>
-                              <option value="Norway">Norway</option>
-                              <option value="Denmark">Denmark</option>
-                              <option value="Finland">Finland</option>
-                            </NativeSelect>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
                 </div>
               </DetailSection>
             </Card>
 
-            {formData.contactType === 'company' && (
+            {formData.contactType === 'company' ? (
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection title="Contact Persons" className="p-6">
+                <DetailSection title="Contact Persons" icon={Users} subtleTitle className="p-6">
                   <div className="space-y-4">
                     <Button
                       type="button"
@@ -994,7 +928,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                       formData.contactPersons.map((person) => (
                         <div
                           key={person.id}
-                          className="rounded-lg border border-border p-4 space-y-4"
+                          className="space-y-4 rounded-lg border border-border p-4"
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">{person.name || 'Person'}</span>
@@ -1011,9 +945,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="sm:col-span-2">
-                              <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                                Name
-                              </Label>
+                              <Label className={FACT_LABEL_CLASS}>Name</Label>
                               <Input
                                 value={person.name}
                                 onChange={(e) =>
@@ -1023,9 +955,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                               />
                             </div>
                             <div>
-                              <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                                Title
-                              </Label>
+                              <Label className={FACT_LABEL_CLASS}>Title</Label>
                               <Input
                                 value={person.title}
                                 onChange={(e) =>
@@ -1035,9 +965,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                               />
                             </div>
                             <div>
-                              <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                                Email
-                              </Label>
+                              <Label className={FACT_LABEL_CLASS}>Email</Label>
                               <Input
                                 type="email"
                                 value={person.email}
@@ -1048,9 +976,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                               />
                             </div>
                             <div>
-                              <Label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-                                Phone
-                              </Label>
+                              <Label className={FACT_LABEL_CLASS}>Phone</Label>
                               <Input
                                 type="tel"
                                 value={person.phone}
@@ -1067,7 +993,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                   </div>
                 </DetailSection>
               </Card>
-            )}
+            ) : null}
           </form>
         </DetailLayout>
       </div>

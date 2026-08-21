@@ -65,4 +65,12 @@ export const LIST_FILTER_CHIP_LG_ACTIVE_CLASS =
 
 /** Dashboard plugin widget card — same surface/hover language as select-style filter chips. */
 export const DASHBOARD_WIDGET_CARD_CLASS =
-  'relative flex min-h-[160px] cursor-pointer flex-col rounded-md border-0 bg-white p-4 shadow-none transition-colors hover:bg-primary/10 dark:bg-slate-950';
+  'relative flex min-h-[160px] cursor-pointer flex-col rounded-xl border-0 bg-white p-4 shadow-sm transition-shadow hover:bg-primary/10 hover:shadow-md dark:bg-slate-950';
+
+/** Icon chip backgrounds for dashboard widget headers, cycled by plugin index. */
+export const DASHBOARD_WIDGET_ICON_CHIP_CLASSES = [
+  'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+  'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+  'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
+  'bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300',
+] as const;

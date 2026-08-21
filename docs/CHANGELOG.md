@@ -4,6 +4,175 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-21 – Requests: assignee/team quick-info popup + dedicated picker components (Tasks parity)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Requests får samma assignee/team-mönster som Tasks fick tidigare samma dag: klickbara tiles med förhandsgranskning innan navigering, dedikerade återanvändbara picker-komponenter (list, small view, full view och edit), samt synlig felvisning vid misslyckad sparning.
+
+**Nytt:**
+
+- `RequestAssigneeSelect.tsx` och `RequestAssignedTeamSelect.tsx` (speglar `TaskAssigneeSelect`/`TaskAssignedTeamSelect`) — tile-grid + sök-för-att-lägga-till, klick öppnar `ContactQuickInfoDialog` / `AssignmentQuickInfoDialog` innan navigering. Används i **både** `RequestView` (full view) och `RequestForm` (edit), samma återanvändning som Tasks.
+- `RequestView`: assignee/team redigerbara direkt i full view (var tidigare read-only, kunde bara ändras via edit-formuläret). Sparas **omedelbart** via `saveRequest` + nya `buildRequestAssigneesSavePayload` / `buildRequestTeamSavePayload`. Misslyckad sparning visar samma blocking `validationErrors`-kort som Tasks/TaskForm.
+- Länkad kontakt (submitter) i `RequestView` öppnar nu samma `ContactQuickInfoDialog`-förhandsgranskning istället för att navigera direkt.
+- `RequestQuickContextPanel`: assignee- och team-tiles är nu klickbara med samma quick-info-dialoger som i Tasks. List-varianten fick även inline status/priority-redigering (`RequestStatusSelect`/`RequestPrioritySelect` `compact`), wired från `RequestList`.
+
+**Medveten avvikelse från Tasks-mönstret (motiverad):** Tasks status/priority/due date använder en `quickEditDraft` + header **Update**-knapp eftersom de sparas tillsammans med assignee/team i en delad payload (bakåtkompatibilitetskrav i `plugins/tasks/model.js`, som kräver hela posten vid varje skrivning). Requests-backend (`plugins/requests/model.js`) stödjer redan riktiga partiella uppdateringar (fält som saknas i payloaden bevaras), så status/priority i `RequestView` fortsätter sparas **omedelbart** utan draft-lager — samma funktionalitet (autospar), men utan onödigt extra klick. Ingen `quickEditDraft`/discard-dialog introducerades för Requests.
+
+---
+
+## 2026-08-21 – Tasks: multi-assignee save root-cause fix (missing tenant migration)
+
+**Status:** Implementerat + migrerat lokalt. **Ej prod-release.**
+
+**Root cause:** `server/migrations/039-tasks-add-assigned-to-ids.sql` fanns i repo men nya migrationsfiler appliceras bara automatiskt när en tenant **skapas** — befintliga tenants (t.ex. lokal dev-user) fick aldrig kolumnen `assigned_to_ids`. Modellen (`plugins/tasks/model.js`) hade en fallback som tyst hoppade över `assigned_to_ids`-skrivningar när kolumnen saknades (för att inte krascha), vilket gjorde att endast **första** assignee (legacy `assigned_to`) sparades — oavsett om man sparade via quick-edit eller full edit-mode, eftersom båda vägarna går genom samma `create`/`update`.
+
+**Fixar:**
+
+- Nytt migrationsscript `scripts/run-tasks-assigned-to-ids-migration.js` (+ `npm run migrate:tasks-assigned-to-ids`) som applicerar `039` på alla befintliga tenants, enligt samma mönster som `run-tasks-team-id-migration.js`. Körd lokalt.
+- **Bugfix i `plugins/tasks/model.js`:** "stöds kolumnen"-cachen var tidigare en **modulnivå-global** (`let _supportsAssignedToIds`), delad mellan alla tenants i samma serverprocess. Om _en_ tenant saknade kolumnen inaktiverades multi-assignee **permanent för alla tenants** i den processen. Cachen är nu per tenant-pool (`WeakMap` keyed på `req.tenantPool`).
+- **Kvarstår innan release:** kör `npm run migrate:tasks-assigned-to-ids` mot produktions-DB (main + varje tenant) innan release, annars kvarstår samma bugg i prod.
+
+---
+
+## 2026-08-21 – Tasks/Notes/Requests quick context + detail-layout
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Contacts-mönstret (list-quick-context, 3-kolumners full view, 2-kolumners edit) portat till Tasks, Notes och Requests. Delad hook `useQuickContextPreview`.
+
+### Tasks – assignee/team persistens + quick-info (QA-fix)
+
+- **Assignee** och **assigned team** i full view sparas **omedelbart** via `saveTask` / `buildTaskListQuickFieldsSavePayload` (samma mönster som list-inline status). Status, priority och due date kvarstår som draft + header **Update**.
+- Misslyckad assignee/team-save visar blocking `validationErrors` i TaskView (samma cannot-save-kort som TaskForm).
+- API/model: `assigned_to` skickas/lagras som INT; `assigned_to_ids` oförändrat (multi).
+- Tile-klick på assignee/team/mentions → **quick-info-popup** först (`ContactQuickInfoDialog` / `AssignmentQuickInfoDialog`), sedan navigering — i både full view och list quick context.
+
+### Tasks (Notes-polish, Contacts 3-kolumners full view)
+
+- Full view: **tre kolumner** som Contacts — col1 content (titel + Updated + edit), col2 properties/assignees/team/mentions/share, col3 actions/export/info/activity
+- Mentions som `QuickContextLinkTile` i main
+- List-quick-context: Updated under header, content-preview 1200 tecken + Read more/Show less, klickbara assignee/team/mentions med popup
+- Edit deep-link: `tasksDeepLinkPathSyncedRef` sätts före navigate (samma fix som Notes/Contacts)
+
+### Notes full view (uppdaterad)
+
+- Kolumn 1: note content (titel + liten **Updated**-text under header + body); fokusläge oförändrat
+- Kolumn 2: attachments (+ share); mentions som linked-liknande tile-kort (`QuickContextLinkTile`), klick öppnar contact quick info
+- Kolumn 3: quick actions / export / information / activity (oförändrad)
+- List-quick-context oförändrad (lilla vyn)
+
+### Beteende
+
+**List (lilla view)**
+
+- `TaskQuickContextPanel` / `NoteQuickContextPanel` / `RequestQuickContextPanel` vid radval på bred skärm; compact öppnar fortsatt full vy
+- Panelbredd: `min(100%, 36rem)`; sticky aside
+- Header: open (`ExternalLink`) + edit + close; footer-CTA öppnar full vy
+- När lilla vyn är öppen: bulk av — selection rensas, Select all döljs, list-/tabellcheckboxar döljs
+- Aktiv rad markeras (`bg-primary/5 ring-primary/40`)
+- Vid stängning av full view återställs tidigare vald rad i quick context (pending store per plugin)
+
+**Full view**
+
+- `DetailLayout` med `leftSidebar` (content) + main + `sidebar` → tre kolumner på desktop (Tasks)
+
+**Edit / create**
+
+- `DetailLayout` med `leftSidebar` (content) + main (properties/assignees/team) → två kolumner; assignees sparas med form Save/Update
+
+**Plugin-specifikt i quick context**
+
+- Tasks: status, priority, due date (list editable); assignees/team/mentions som klickbara tiles → popup
+- Notes: updated, content excerpt; list-only mentioned contacts → popup
+- Requests: type, priority, submitter, team; list-only assignees
+
+### Begränsningar / residual risk (Security)
+
+- `assigned_to_ids` valideras server-side som array (max 50), **inte** per-element som tenant-ägda contact-IDs eller `isAssignable`. UI filtrerar assignable; authenticated användare kan fortfarande skriva junk-ID:n till **egna** tasks (ingen cross-tenant IDOR via `user_id`-scoped update). Förbättring utanför denna epic.
+- Security accepterade inga residualrisker som kräver separat TPM-beslut för denna leverans.
+
+### Filer (nyckel)
+
+- `client/src/core/hooks/useQuickContextPreview.ts` (ny)
+- `*QuickContextPanel.tsx` under tasks/notes/requests
+- `TaskView` / `TaskAssigneeSelect` / `TaskAssignedTeamSelect` / `tasksApi` / `taskListSave` / `plugins/tasks/model.js`
+- List/View/Form + ListItem/ListTable per plugin; i18n `*.quickContext.*` (en/sv)
+
+---
+
+## 2026-08-21 – Contacts/Teams quick context + detail-layout (uppdaterad)
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Ej prod-release.**
+
+**Sammanfattning:** Contacts och Teams har quick-context i listvyn (desktop split). Contact **full view** är tre kolumner; Contact **edit/create** är två kolumner (samma bredd/layout-familj som Add, utan Information-sidokolumn).
+
+### Beteende (verifierat)
+
+**List (lilla view)**
+
+- `ContactQuickContextPanel` / `TeamQuickContextPanel` vid radval på bred skärm; compact öppnar fortsatt full vy
+- Panelbredd: `min(100%, 36rem)`
+- Header: open-ikon (`ExternalLink`) + edit + close; open öppnar full profil (samma som footer-CTA)
+- Contact quick context: samma faktafält som full view kolumn 1; Assignable = grön/röd prick bredvid typ-badge
+- Company: org.nummer kopierbart via `ContactCopyableLink`
+- **Notes**, **Linked** (`hideWhenEmpty`) och **Time log** visas endast när det finns innehåll (inga tomma sektioner / “No …”-texter)
+- Tags-sektion finns kvar i list (även utan tags)
+- Edit-ikon öppnar **edit** (deep-link synkas så view inte skriver över edit-läge)
+- Vid stängning av Contact full profile återställs tidigare vald kontakt i quick context
+- När lilla vyn är öppen: bulk av — selection rensas, Select all döljs, list-/tabellcheckboxar döljs (`bulkSelectionEnabled` / `selectionEnabled`)
+- Listkort: checkbox i fast vänstergutter (döljs helt när bulk är av)
+
+**Contact full view**
+
+- Kolumn 1: `ContactQuickContextPanel` (`variant="full"`) + Addresses (om finns); notes-sektion döljs om tom
+- Kolumn 2: Properties (inkl. Assignable-dropdown + Tags), Contact Persons, Linked (empty-state behålls här)
+- Kolumn 3: Quick actions, Export, Time log (amber), Information, Activity
+- Panelheader: namn + typ-badge + org/personnummer · e-post · telefon 1 + Time logged-badge vid behov
+- Linked-tiles: pluginnamn + statusbadge (statusfärg); titel under; `QuickContextLinkTile`
+
+**Contact edit / create**
+
+- `DetailLayout` med `leftSidebar` endast (ingen Information-sidokolumn) → två lika kolumner på desktop
+- Kolumn 1: identitet + Company/Private + facts (inkl. contact #, company type/org/VAT m.m.) + notes + Addresses
+- Kolumn 2: Properties (Assignable + Tags), Contact Persons (företag); **ingen** Linked-sektion i edit
+- Contact Content-kortet borttaget (fälten ligger i kolumn 1)
+
+**Övrigt**
+
+- `DetailLayout`: `leftSidebar`; 3-kolumn `1fr / 1fr / 280px` när sidokolumn finns; annars `1fr / 1fr`
+- Teametiketter: åldersgrupp först (fallback namn) via `formatTeamLabel`
+
+### Säkerhet (residual)
+
+- PII i quick context/header inom autentiserad contacts-plugin (samma trust boundary som full view).
+- Org.nummer (och övriga copybara fält) kan kopieras till systemclipboard via explicit användaråtgärd. Security Approved.
+
+### Begränsningar
+
+- Lokal tills explicit release-beslut. Local-first.
+- Linked i list/full view kan göra flera parallella plugin-reads per kontakt.
+- Linked med `hideWhenEmpty` syns först efter load (kan “poppa in” när data finns).
+
+### Källor
+
+- `client/src/plugins/contacts/components/ContactView.tsx`
+- `client/src/plugins/contacts/components/ContactForm.tsx`
+- `client/src/plugins/contacts/components/ContactQuickContextPanel.tsx`
+- `client/src/plugins/contacts/components/ContactLinkedItemsSection.tsx`
+- `client/src/plugins/contacts/components/ContactList.tsx` / `ContactListItem.tsx` / `ContactListTable.tsx`
+- `client/src/core/ui/QuickContextLinkTile.tsx` / `DetailLayout.tsx`
+- `client/src/plugins/contacts/context/ContactProvider.tsx`
+- QA / Security Output Contracts (delta efter initial 2026-08-21-post)
+
+---
+
+## 2026-08-19 – Contacts/Teams quick context + 3-kolumnslayout _(ersatt av 2026-08-21)_
+
+**Status:** Superseded av posten 2026-08-21 (edit-layout och övriga beteenden korrigerade där).
+
+---
+
 ## 2026-08-18 – Guides production worker: UI-switch parkerar poll
 
 **Status:** Implementerat lokalt. **Ej prod-release.**
@@ -3304,18 +3473,19 @@ _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slo
 
 ### Tasks: quick-edit (status, priority, due date, assignee)
 
+> **Uppdatering 2026-08-21:** Assignee och assigned team sparas **omedelbart** i full view (se epic ovan). Status, priority och due date följer fortfarande draft + header **Update** som beskrivs här.
+
 - **Quick-edit i task view**  
-  I task detail view kan användaren ändra status, priority, due date och assignee. Ändringarna sparas inte förrän användaren klickar **Update**.
+  I task detail view kan användaren ändra status, priority och due date. Dessa ändringar sparas inte förrän användaren klickar **Update**. Assignee/team: omedelbar `saveTask`.
   - **TaskContext:**
-    - `quickEditDraft` – lokal state för ändringar.
-    - `setQuickEditField('status' | 'priority' | 'dueDate' | 'assignedTo', value)`.
+    - `quickEditDraft` – lokal state för ändringar (status/priority/dueDate; assignee/team kan finnas tillfälligt vid optimistic UI).
+    - `setQuickEditField('status' | 'priority' | 'dueDate' | 'assignedToIds' | 'teamId', value)`.
     - `hasQuickEditChanges` – true när draft skiljer sig från sparad task.
     - `onApplyQuickEdit()` – bygger payload från task + draft, anropar `saveTask`, rensar draft.
-    - Draft rensas vid panel-close och vid byte av task (view/edit).
-  - **TaskView:** Status, priority, due date, assignee använder `displayTask` (task + draft) och uppdaterar bara draft (inga direkta save-anrop).
-  - **PanelFooter (view mode, tasks):**
-    - Knapp **Update** (grön) visas när `hasQuickEditChanges`.
-    - Update placerad bredvid Edit (ordning: Close, Edit, Update).
+    - Draft rensas vid panel-close, lyckad save av öppen task, och vid byte av task (view/edit).
+  - **TaskView:** Status, priority, due date uppdaterar draft; assignee/team anropar `saveTask` direkt. Blocking validation errors visas i view vid misslyckad assignee/team-save.
+  - **Panel header (view mode, tasks):**
+    - Knapp **Update** (grön) visas när `hasQuickEditChanges` (typiskt status/priority/due).
 
 - **Close med osparade quick-edit-ändringar**  
   Vid Close med osparade quick-edit-ändringar visas en bekräftelsedialog.
@@ -3328,9 +3498,9 @@ _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slo
 ### UI: gröna Update-knappar
 
 - **Update-knappen grön**
-  - Tasks quick-edit **Update** i panel footer: `bg-green-600 hover:bg-green-700 text-white border-none`.
+  - Tasks quick-edit **Update** i panel **header** (view): `bg-green-600 hover:bg-green-700 text-white border-none`.
   - Form footer **Save/Update** (Contacts, Notes, Tasks m.fl.): samma gröna styling så att både "Save" och "Update" är gröna i alla plugins.
 
 ---
 
-**Senast uppdaterad:** 2026-07-07
+**Senast uppdaterad:** 2026-08-21

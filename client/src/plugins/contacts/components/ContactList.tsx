@@ -15,7 +15,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ import { ListToolbar } from '@/core/ui/ListToolbar';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
@@ -76,6 +77,7 @@ import { ContactBulkAssignableDialog } from './ContactBulkAssignableDialog';
 import { ContactBulkTagsDialog } from './ContactBulkTagsDialog';
 import { ContactListItem } from './ContactListItem';
 import { ContactListTable } from './ContactListTable';
+import { ContactQuickContextPanel } from './ContactQuickContextPanel';
 import { ContactSettingsView, type ContactSettingsCategory } from './ContactSettingsView';
 
 type SortField = ContactSortField;
@@ -93,6 +95,11 @@ const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'time', label: 'Time' },
 ];
 
+// Remembers which contact was open in the full-profile view (module-scoped since
+// ContactList unmounts while the full profile panel is shown). Consumed once on the
+// next mount so closing the full profile brings back the same contact's quick context.
+let pendingQuickContextContactId: string | null = null;
+
 export const ContactList: React.FC = () => {
   const { t } = useTranslation();
   const {
@@ -100,6 +107,7 @@ export const ContactList: React.FC = () => {
     contactsContentView,
     openContactForView,
     openContactPanel,
+    openContactForEdit,
     openContactSettings,
     closeContactSettingsView,
     deleteContacts,
@@ -119,6 +127,7 @@ export const ContactList: React.FC = () => {
   const { getSettings, updateSettings, settingsVersion, user } = useApp();
   const activeTimeTrackingContactId = useOptionalActiveTimeTrackingContactId();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const canSendEmail =
@@ -142,6 +151,22 @@ export const ContactList: React.FC = () => {
   );
   const [activeFilters, setActiveFilters] = useState<ContactListFilterSelection>([]);
   const [settingsCategory, setSettingsCategory] = useState<ContactSettingsCategory>('view');
+  const [previewContact, setPreviewContact] = useState<Contact | null>(null);
+  const restoredPendingContactRef = useRef(false);
+
+  useEffect(() => {
+    if (restoredPendingContactRef.current || !pendingQuickContextContactId) {
+      return;
+    }
+    const restored = contacts.find(
+      (contact) => String(contact.id) === pendingQuickContextContactId,
+    );
+    if (restored) {
+      setPreviewContact(restored);
+      restoredPendingContactRef.current = true;
+      pendingQuickContextContactId = null;
+    }
+  }, [contacts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -256,6 +281,20 @@ export const ContactList: React.FC = () => {
     contactIdsWithTimeEntries,
   ]);
 
+  useEffect(() => {
+    if (!previewContact) {
+      return;
+    }
+    const next = contacts.find((contact) => String(contact.id) === String(previewContact.id));
+    if (!next) {
+      setPreviewContact(null);
+      return;
+    }
+    if (next !== previewContact) {
+      setPreviewContact(next);
+    }
+  }, [contacts, previewContact]);
+
   const visibleContactIds = useMemo(
     () => sortedContacts.map((contact) => String(contact.id)),
     [sortedContacts],
@@ -339,7 +378,21 @@ export const ContactList: React.FC = () => {
     }
   };
 
-  const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
+  const handleOpenForView = (contact: Contact) => {
+    // Remember the contact so closing the full profile restores its quick context card.
+    pendingQuickContextContactId = String(contact.id);
+    attemptNavigation(() => openContactForView(contact));
+  };
+
+  const handleRowActivate = (contact: Contact) => {
+    if (isCompactViewport) {
+      handleOpenForView(contact);
+      return;
+    }
+    setPreviewContact(contact);
+  };
+
+  const showQuickContext = Boolean(previewContact) && !isCompactViewport;
 
   const bulkMessageRecipients = useMemo(
     () =>
@@ -693,81 +746,104 @@ export const ContactList: React.FC = () => {
             }
           />
 
-          {sortedContacts.length === 0 ? (
-            <ListEmptyState
-              message={searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
-              createLabel={!searchTerm ? t('contacts.addContact') : undefined}
-              onCreate={
-                !searchTerm ? () => attemptNavigation(() => openContactPanel(null)) : undefined
-              }
-            />
-          ) : isTableView ? (
-            <ContactListTable
-              contacts={sortedContacts}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={handleOpenForView}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={handleHeaderCheckboxChange}
-              activeTimeTrackingContactId={activeTimeTrackingContactId}
-              contactIdsWithTimeEntries={contactIdsWithTimeEntries}
-              recentlyDuplicatedContactId={recentlyDuplicatedContactId}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {sortedContacts.map((contact, index) => {
-                const contactIsSelected = isSelected(contact.id);
-                const timeTrackingActiveHere =
-                  activeTimeTrackingContactId !== null &&
-                  String(contact.id) === activeTimeTrackingContactId;
-                const hasTimeLogged =
-                  contactIdsWithTimeEntries.has(contact.id) ||
-                  contactIdsWithTimeEntries.has(String(contact.id));
-                return (
-                  <ContactListItem
-                    key={contact.id}
-                    contact={contact}
-                    selected={contactIsSelected}
-                    highlighted={recentlyDuplicatedContactId === String(contact.id)}
-                    onClick={() => handleOpenForView(contact)}
-                    hasTimeLogged={hasTimeLogged}
-                    timeTrackingActive={timeTrackingActiveHere}
-                    columnCount={columnCount}
-                    checkbox={
-                      <input
-                        type="checkbox"
-                        checked={contactIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(contact.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+          <div className="flex items-start gap-4">
+            {showQuickContext && previewContact ? (
+              <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+                <ContactQuickContextPanel
+                  contact={previewContact}
+                  availableTags={availableTags}
+                  onClose={() => setPreviewContact(null)}
+                  onOpenFullProfile={() => handleOpenForView(previewContact)}
+                  onEdit={() => {
+                    pendingQuickContextContactId = String(previewContact.id);
+                    attemptNavigation(() => openContactForEdit(previewContact));
+                  }}
+                />
+              </aside>
+            ) : null}
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              {sortedContacts.length === 0 ? (
+                <ListEmptyState
+                  message={searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
+                  createLabel={!searchTerm ? t('contacts.addContact') : undefined}
+                  onCreate={
+                    !searchTerm ? () => attemptNavigation(() => openContactPanel(null)) : undefined
+                  }
+                />
+              ) : isTableView ? (
+                <ContactListTable
+                  contacts={sortedContacts}
+                  primarySort={primarySort}
+                  sortOrder={sortOrder}
+                  onSort={handleTableSort}
+                  isSelected={isSelected}
+                  onRowClick={handleRowActivate}
+                  onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                  onCheckboxChange={onVisibleRowCheckboxChange}
+                  allVisibleSelected={allVisibleSelected}
+                  onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                  selectionEnabled
+                  activeTimeTrackingContactId={activeTimeTrackingContactId}
+                  contactIdsWithTimeEntries={contactIdsWithTimeEntries}
+                  recentlyDuplicatedContactId={recentlyDuplicatedContactId}
+                  activeContactId={previewContact?.id ?? null}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'grid gap-3',
+                    columnCount === 1 && 'grid-cols-1',
+                    columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                    columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                  )}
+                >
+                  {sortedContacts.map((contact, index) => {
+                    const contactIsSelected = isSelected(contact.id);
+                    const timeTrackingActiveHere =
+                      activeTimeTrackingContactId !== null &&
+                      String(contact.id) === activeTimeTrackingContactId;
+                    const hasTimeLogged =
+                      contactIdsWithTimeEntries.has(contact.id) ||
+                      contactIdsWithTimeEntries.has(String(contact.id));
+                    return (
+                      <ContactListItem
+                        key={contact.id}
+                        contact={contact}
+                        selected={contactIsSelected}
+                        highlighted={recentlyDuplicatedContactId === String(contact.id)}
+                        active={
+                          previewContact != null && String(previewContact.id) === String(contact.id)
+                        }
+                        onClick={() => handleRowActivate(contact)}
+                        hasTimeLogged={hasTimeLogged}
+                        timeTrackingActive={timeTrackingActiveHere}
+                        columnCount={columnCount}
+                        checkbox={
+                          <input
+                            type="checkbox"
+                            checked={contactIsSelected}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(contact.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 cursor-pointer"
+                            aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                          />
+                        }
                       />
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
+                    );
+                  })}
+                </div>
+              )}
 
-          <ListFooterBar
-            meta={
-              <>
-                Showing {sortedContacts.length} of {contacts.length} Contacts
-              </>
-            }
-          />
+              <ListFooterBar
+                meta={
+                  <>
+                    Showing {sortedContacts.length} of {contacts.length} Contacts
+                  </>
+                }
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

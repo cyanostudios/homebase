@@ -14,7 +14,7 @@ import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
-import { resolveSlug } from '@/core/utils/slugUtils';
+import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { taskShareApi, tasksApi } from '../api/tasksApi';
@@ -172,6 +172,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return errors;
   }, []);
 
+  const tasksDeepLinkPathSyncedRef = useRef<string | null>(null);
+
   const openTaskPanel = useCallback(
     (task: Task | null) => {
       clearTaskSelectionCore();
@@ -182,6 +184,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([]);
       onCloseOtherPanels();
       if (task) {
+        const slug = buildSlug(task, tasks, 'title');
+        tasksDeepLinkPathSyncedRef.current = `/tasks/${slug}`;
         navigateToItem(task, tasks, 'title');
       }
     },
@@ -198,6 +202,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([]);
       setQuickEditDraft(null);
       onCloseOtherPanels();
+      const slug = buildSlug(task, tasks, 'title');
+      tasksDeepLinkPathSyncedRef.current = `/tasks/${slug}`;
       navigateToItem(task, tasks, 'title');
     },
     [onCloseOtherPanels, clearTaskSelectionCore, navigateToItem, tasks, setValidationErrors],
@@ -233,7 +239,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openTaskForViewRef.current = openTaskForView;
   }, [openTaskForView]);
 
-  const tasksDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (tasks.length === 0) {
       return;
@@ -404,7 +409,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             currentTask.dueDate !== null &&
             currentTask.dueDate !== undefined &&
             new Date(merged.dueDate).getTime() === new Date(currentTask.dueDate).getTime());
-        const currentAssignedToIds = currentTask.assignedToIds ?? [];
+        const currentAssignedToIds =
+          currentTask.assignedToIds ??
+          (currentTask.assignedTo ? [String(currentTask.assignedTo)] : []);
         const sameAssignee =
           JSON.stringify((merged.assignedToIds ?? []).map(String).sort()) ===
           JSON.stringify(currentAssignedToIds.map(String).sort());

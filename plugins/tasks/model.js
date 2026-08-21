@@ -27,10 +27,23 @@ function isMissingAssignedToIdsColumnError(err) {
   return combined.includes('assigned_to_ids') && combined.includes('does not exist');
 }
 
-// Module-level cache: null=unknown, true=column exists, false=column missing.
-// Avoids querying information_schema (which is incompatible with tenant-isolated
-// db.query) on every operation. Resolved on first actual write attempt.
-let _supportsAssignedToIds = null;
+// Per-tenant-pool cache: avoids querying information_schema (which is incompatible
+// with tenant-isolated db.query) on every operation. Resolved on first actual write
+// attempt per tenant. Keyed by req.tenantPool (stable per tenant for the process
+// lifetime) rather than a single module-level flag, since tenants live in separate
+// databases/schemas and one tenant missing the column must not disable multi-assignee
+// support for every other tenant sharing this server process.
+const _assignedToIdsSupportByPool = new WeakMap();
+
+function supportsAssignedToIds(pool) {
+  if (!pool) return null;
+  return _assignedToIdsSupportByPool.has(pool) ? _assignedToIdsSupportByPool.get(pool) : null;
+}
+
+function setSupportsAssignedToIds(pool, value) {
+  if (!pool) return;
+  _assignedToIdsSupportByPool.set(pool, value);
+}
 
 class TaskModel {
   constructor() {
@@ -101,6 +114,15 @@ class TaskModel {
         : assigned_to
           ? [String(assigned_to)]
           : [];
+      const primaryAssigneeRaw = normalizedAssignedToIds[0] || assigned_to || null;
+      const primaryAssigneeParsed =
+        primaryAssigneeRaw === null || primaryAssigneeRaw === undefined || primaryAssigneeRaw === ''
+          ? null
+          : Number.parseInt(String(primaryAssigneeRaw), 10);
+      const primaryAssignee =
+        primaryAssigneeParsed !== null && !Number.isNaN(primaryAssigneeParsed)
+          ? primaryAssigneeParsed
+          : null;
       const normalizedTeamId =
         team_id === null || team_id === undefined || team_id === ''
           ? null
@@ -115,22 +137,23 @@ class TaskModel {
         status: status || 'not started',
         priority: priority ?? 'Medium',
         due_date: due_date || null,
-        assigned_to: normalizedAssignedToIds[0] || assigned_to || null,
+        assigned_to: primaryAssignee,
         created_from_note: created_from_note || null,
         team_id: teamIdValue,
       };
 
       let result;
-      if (_supportsAssignedToIds !== false) {
+      const pool = req.tenantPool;
+      if (supportsAssignedToIds(pool) !== false) {
         try {
           result = await db.insert('tasks', {
             ...basePayload,
             assigned_to_ids: JSON.stringify(normalizedAssignedToIds),
           });
-          _supportsAssignedToIds = true;
+          setSupportsAssignedToIds(pool, true);
         } catch (colError) {
           if (isMissingAssignedToIdsColumnError(colError)) {
-            _supportsAssignedToIds = false;
+            setSupportsAssignedToIds(pool, false);
             result = await db.insert('tasks', basePayload);
           } else {
             throw colError;
@@ -187,6 +210,15 @@ class TaskModel {
         : assigned_to
           ? [String(assigned_to)]
           : [];
+      const primaryAssigneeRaw = normalizedAssignedToIds[0] || assigned_to || null;
+      const primaryAssigneeParsed =
+        primaryAssigneeRaw === null || primaryAssigneeRaw === undefined || primaryAssigneeRaw === ''
+          ? null
+          : Number.parseInt(String(primaryAssigneeRaw), 10);
+      const primaryAssignee =
+        primaryAssigneeParsed !== null && !Number.isNaN(primaryAssigneeParsed)
+          ? primaryAssigneeParsed
+          : null;
       const normalizedTeamId =
         team_id === null || team_id === undefined || team_id === ''
           ? null
@@ -201,21 +233,22 @@ class TaskModel {
         status: status || 'not started',
         priority: priority ?? 'Medium',
         due_date: due_date || null,
-        assigned_to: normalizedAssignedToIds[0] || assigned_to || null,
+        assigned_to: primaryAssignee,
         team_id: teamIdValue,
       };
 
       let result;
-      if (_supportsAssignedToIds !== false) {
+      const pool = req.tenantPool;
+      if (supportsAssignedToIds(pool) !== false) {
         try {
           result = await db.update('tasks', taskId, {
             ...basePayload,
             assigned_to_ids: JSON.stringify(normalizedAssignedToIds),
           });
-          _supportsAssignedToIds = true;
+          setSupportsAssignedToIds(pool, true);
         } catch (colError) {
           if (isMissingAssignedToIdsColumnError(colError)) {
-            _supportsAssignedToIds = false;
+            setSupportsAssignedToIds(pool, false);
             result = await db.update('tasks', taskId, basePayload);
           } else {
             throw colError;

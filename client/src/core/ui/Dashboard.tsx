@@ -4,7 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import type { NavPage } from '@/core/navigation/navTypes';
-import { DASHBOARD_WIDGET_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DASHBOARD_WIDGET_CARD_CLASS,
+  DASHBOARD_WIDGET_ICON_CHIP_CLASSES,
+} from '@/core/ui/detailViewCardStyles';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
 
@@ -49,9 +52,9 @@ export function Dashboard({ onPageChange }: DashboardProps) {
           {widgets.map((plugin, index) => {
             const WidgetComponent = plugin.dashboardWidget!;
             const label = plugin.navigation?.label ?? plugin.name;
-            const dotClassName = ['bg-blue-500', 'bg-amber-500', 'bg-emerald-500', 'bg-orange-500'][
-              index % 4
-            ];
+            const chipClassName =
+              DASHBOARD_WIDGET_ICON_CHIP_CLASSES[index % DASHBOARD_WIDGET_ICON_CHIP_CLASSES.length];
+            const PluginIcon = plugin.navigation?.icon;
             return (
               <Card
                 key={plugin.name}
@@ -72,11 +75,23 @@ export function Dashboard({ onPageChange }: DashboardProps) {
                   }
                 }}
               >
-                <div className="mb-2 flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 transition-colors group-hover:text-primary dark:text-slate-500">
-                  <span
-                    className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dotClassName)}
-                    aria-hidden
-                  />
+                <div className="mb-2 flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 transition-colors group-hover:text-primary dark:text-slate-500">
+                  {PluginIcon ? (
+                    <span
+                      className={cn(
+                        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
+                        chipClassName,
+                      )}
+                      aria-hidden
+                    >
+                      <PluginIcon className="h-3.5 w-3.5" />
+                    </span>
+                  ) : (
+                    <span
+                      className={cn('h-1.5 w-1.5 shrink-0 rounded-full', chipClassName)}
+                      aria-hidden
+                    />
+                  )}
                   <span className="line-clamp-1 underline decoration-border group-hover:decoration-primary">
                     {label}
                   </span>

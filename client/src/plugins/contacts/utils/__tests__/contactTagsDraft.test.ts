@@ -2,6 +2,7 @@ import {
   buildContactTagsSavePayload,
   hasContactTagsDraftChanges,
   mergeContactTag,
+  omitContactTag,
   resolveContactDisplayTags,
 } from '../contactTagsDraft';
 
@@ -34,5 +35,11 @@ describe('contactTagsDraft', () => {
     expect(mergeContactTag(['a'], 'b')).toEqual(['a', 'b']);
     expect(mergeContactTag(undefined, '  x  ')).toEqual(['x']);
     expect(mergeContactTag(['a'], '   ')).toEqual(['a']);
+  });
+
+  it('omitContactTag removes a matching tag without mutating others', () => {
+    expect(omitContactTag(['a', 'b'], 'a')).toEqual(['b']);
+    expect(omitContactTag(['a'], 'missing')).toEqual(['a']);
+    expect(omitContactTag(undefined, 'a')).toEqual([]);
   });
 });

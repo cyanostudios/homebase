@@ -24,19 +24,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { exportItems } from '@/core/utils/exportUtils';
-import { stripHtml } from '@/core/utils/textUtils';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { exportItems } from '@/core/utils/exportUtils';
+import { stripHtml } from '@/core/utils/textUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useNotes } from '../hooks/useNotes';
+import type { Note } from '../types/notes';
 import {
   getInitialNoteColumnCount,
   NOTES_COLUMN_COUNT_STORAGE_KEY,
@@ -71,6 +73,7 @@ import {
 import { NoteListItem } from './NoteListItem';
 import { NoteListTable } from './NoteListTable';
 import { NoteQuickAdd } from './NoteQuickAdd';
+import { NoteQuickContextPanel } from './NoteQuickContextPanel';
 import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsView';
 
 type SortField = NoteSortField;
@@ -89,6 +92,7 @@ export const NoteList: React.FC = () => {
     notes,
     notesContentView,
     openNoteForView,
+    openNoteForEdit,
     openNoteSettings,
     closeNoteSettingsView,
     deleteNotes,
@@ -292,10 +296,24 @@ export const NoteList: React.FC = () => {
     }
   };
 
-  const handleOpenForView = (note: (typeof notes)[0]) => {
-    attemptNavigation(() => {
-      openNoteForView(note);
-    });
+  const {
+    previewItem: previewNote,
+    setPreviewItem: setPreviewNote,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'notes',
+    items: notes,
+    getItemId: (note) => String(note.id),
+  });
+
+  const handleOpenForView = (note: Note) => {
+    markPendingAndOpen(note, () => attemptNavigation(() => openNoteForView(note)));
+  };
+
+  const handleRowActivate = (note: Note) => {
+    activateRow(note, (item) => attemptNavigation(() => openNoteForView(item)));
   };
 
   const handleQuickCreate = useCallback(
@@ -554,73 +572,94 @@ export const NoteList: React.FC = () => {
             }
           />
 
-          {sortedNotes.length === 0 ? (
-            <ListEmptyState
-              message={searchTerm ? t('notes.noMatch') : t('notes.noYet')}
-              createLabel={!searchTerm ? t('notes.addNote') : undefined}
-              onCreate={
-                !searchTerm ? () => attemptNavigation(() => openNotePanel(null)) : undefined
-              }
-            />
-          ) : isTableView ? (
-            <NoteListTable
-              notes={sortedNotes}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={handleOpenForView}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={onToggleAllVisible}
-              recentlyDuplicatedNoteId={recentlyDuplicatedNoteId}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {sortedNotes.map((note, index) => {
-                const noteIsSelected = isSelected(note.id);
-                return (
-                  <NoteListItem
-                    key={note.id}
-                    note={note}
-                    selected={noteIsSelected}
-                    highlighted={recentlyDuplicatedNoteId === String(note.id)}
-                    onClick={() => handleOpenForView(note)}
-                    columnCount={columnCount}
-                    checkbox={
-                      <input
-                        type="checkbox"
-                        checked={noteIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(note.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={
-                          noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
+          <div className="flex items-start gap-4">
+            {showQuickContext && previewNote ? (
+              <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+                <NoteQuickContextPanel
+                  note={previewNote}
+                  onClose={() => setPreviewNote(null)}
+                  onOpenFullProfile={() => handleOpenForView(previewNote)}
+                  onEdit={() => {
+                    markPendingAndOpen(previewNote, () =>
+                      attemptNavigation(() => openNoteForEdit(previewNote)),
+                    );
+                  }}
+                />
+              </aside>
+            ) : null}
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              {sortedNotes.length === 0 ? (
+                <ListEmptyState
+                  message={searchTerm ? t('notes.noMatch') : t('notes.noYet')}
+                  createLabel={!searchTerm ? t('notes.addNote') : undefined}
+                  onCreate={
+                    !searchTerm ? () => attemptNavigation(() => openNotePanel(null)) : undefined
+                  }
+                />
+              ) : isTableView ? (
+                <NoteListTable
+                  notes={sortedNotes}
+                  primarySort={primarySort}
+                  sortOrder={sortOrder}
+                  onSort={handleTableSort}
+                  isSelected={isSelected}
+                  onRowClick={handleRowActivate}
+                  onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                  onCheckboxChange={onVisibleRowCheckboxChange}
+                  allVisibleSelected={allVisibleSelected}
+                  onHeaderCheckboxChange={onToggleAllVisible}
+                  recentlyDuplicatedNoteId={recentlyDuplicatedNoteId}
+                  selectionEnabled
+                  activeNoteId={previewNote?.id ?? null}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'grid gap-3',
+                    columnCount === 1 && 'grid-cols-1',
+                    columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                    columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                  )}
+                >
+                  {sortedNotes.map((note, index) => {
+                    const noteIsSelected = isSelected(note.id);
+                    return (
+                      <NoteListItem
+                        key={note.id}
+                        note={note}
+                        selected={noteIsSelected}
+                        highlighted={recentlyDuplicatedNoteId === String(note.id)}
+                        active={previewNote != null && String(previewNote.id) === String(note.id)}
+                        onClick={() => handleRowActivate(note)}
+                        columnCount={columnCount}
+                        checkbox={
+                          <input
+                            type="checkbox"
+                            checked={noteIsSelected}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(note.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 cursor-pointer"
+                            aria-label={
+                              noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
+                            }
+                          />
                         }
                       />
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
+                    );
+                  })}
+                </div>
+              )}
 
-          <ListFooterBar
-            meta={
-              <>
-                Showing {sortedNotes.length} of {notes.length} Notes
-              </>
-            }
-          />
+              <ListFooterBar
+                meta={
+                  <>
+                    Showing {sortedNotes.length} of {notes.length} Notes
+                  </>
+                }
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

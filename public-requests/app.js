@@ -29,7 +29,7 @@ async function loadTeams() {
       teams.forEach((team) => {
         const opt = document.createElement('option');
         opt.value = team.id;
-        opt.textContent = team.name + (team.age_group ? ` (${team.age_group})` : '');
+        opt.textContent = (team.age_group && String(team.age_group).trim()) || team.name;
         teamSelect.appendChild(opt);
       });
     }

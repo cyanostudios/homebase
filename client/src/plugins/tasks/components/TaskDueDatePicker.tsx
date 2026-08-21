@@ -11,12 +11,15 @@ interface TaskDueDatePickerProps {
   task: any;
   onDueDateChange: (date: Date | null) => void;
   hideInlineLabel?: boolean;
+  /** Smaller trigger for inline lists / quick context. */
+  compact?: boolean;
 }
 
 export function TaskDueDatePicker({
   task,
   onDueDateChange,
   hideInlineLabel = false,
+  compact = false,
 }: TaskDueDatePickerProps) {
   const [open, setOpen] = useState(false);
 
@@ -33,10 +36,15 @@ export function TaskDueDatePicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex h-9 w-[180px] cursor-pointer items-center justify-between rounded-md border border-border/50 bg-background px-2 text-xs font-medium transition-colors hover:bg-accent/50"
+          className={cn(
+            'flex cursor-pointer items-center justify-between rounded-md border border-border/50 bg-background px-2 text-xs font-medium transition-colors hover:bg-accent/50',
+            compact ? 'h-8 min-h-8 w-[130px] sm:h-7' : 'h-9 w-[180px]',
+          )}
         >
-          <span className={cn(!task.dueDate && 'text-muted-foreground')}>{displayDate}</span>
-          <CalendarIcon className="h-3 w-3 text-muted-foreground opacity-50" />
+          <span className={cn('truncate', !task.dueDate && 'text-muted-foreground')}>
+            {displayDate}
+          </span>
+          <CalendarIcon className="h-3 w-3 shrink-0 text-muted-foreground opacity-50" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-0">

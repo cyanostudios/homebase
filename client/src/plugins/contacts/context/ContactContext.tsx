@@ -42,6 +42,8 @@ export interface ContactContextType {
   onApplyTagsEdit: () => Promise<void>;
   /** Add a tag to a contact (keeps existing tags). Used by bulk tag dialog. */
   applyTagToContact: (contact: Contact, tag: string) => Promise<boolean>;
+  /** Remove a single tag from a contact. Used by the list quick-context panel. */
+  removeTagFromContact: (contact: Contact, tag: string) => Promise<boolean>;
   /** Remove all tags from a contact. Used by bulk clear tags. */
   clearTagsFromContact: (contact: Contact) => Promise<boolean>;
   /** Set assignable flag on a contact. Used by bulk assignable dialog. */
@@ -130,6 +132,7 @@ const EMPTY_CONTACT_CONTEXT: ContactContextType = {
   hasTagsChanges: false,
   onApplyTagsEdit: async () => {},
   applyTagToContact: async () => false,
+  removeTagFromContact: async () => false,
   clearTagsFromContact: async () => false,
   setContactAssignable: async () => false,
   showDiscardTagsDialog: false,

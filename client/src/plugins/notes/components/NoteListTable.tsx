@@ -18,6 +18,9 @@ export type NoteListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedNoteId: string | null;
+  /** When false, the selection checkbox column is hidden (e.g. quick context open). */
+  selectionEnabled?: boolean;
+  activeNoteId?: string | number | null;
 };
 
 export function NoteListTable({
@@ -32,6 +35,8 @@ export function NoteListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedNoteId,
+  selectionEnabled = true,
+  activeNoteId = null,
 }: NoteListTableProps) {
   const { t } = useTranslation();
 
@@ -40,7 +45,9 @@ export function NoteListTable({
       {
         field: 'title' as const,
         header: t('notes.title'),
-        cell: (note: Note) => <span className="font-medium text-foreground">{note.title}</span>,
+        cell: (note: Note) => (
+          <span className="font-medium leading-4 text-foreground">{note.title}</span>
+        ),
       },
       {
         field: 'mentions' as const,
@@ -91,16 +98,21 @@ export function NoteListTable({
           ? 'bg-green-50 dark:bg-green-950/30'
           : undefined
       }
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      isRowActive={(note) => activeNoteId != null && String(note.id) === String(activeNoteId)}
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
       pluginName="notes"
       dataListItem={(note) => note}
     />

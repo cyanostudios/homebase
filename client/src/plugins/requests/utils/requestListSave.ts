@@ -36,3 +36,29 @@ export function buildRequestListPrioritySavePayload(
     priority: newPriority,
   };
 }
+
+/**
+ * Minimal payload for immediate assignee changes via saveRequest.
+ * The backend preserves all other fields when omitted from the payload, so unlike Tasks
+ * (whose model always requires the full record) Requests only need to send what changed.
+ */
+export function buildRequestAssigneesSavePayload(
+  request: Pick<Request, 'title'>,
+  assignedToIds: string[],
+): RequestPayload {
+  return {
+    title: request.title,
+    assigned_to_ids: assignedToIds.map(String),
+  };
+}
+
+/** Minimal payload for immediate assigned-team changes via saveRequest. */
+export function buildRequestTeamSavePayload(
+  request: Pick<Request, 'title'>,
+  teamId: string | null,
+): RequestPayload {
+  return {
+    title: request.title,
+    team_id: teamId ? Number(teamId) : null,
+  };
+}

@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 import { formatMatchDateTime, type Match } from '@/plugins/matches/types/match';
 
 import type { Team, TrainingTime } from '../types/teams';
-import type { TeamColumnCount } from '../utils/teamColumnCount';
 import {
   TEAM_COLOR_GRADIENTS,
   TEAM_STATUS_BADGES,
@@ -21,6 +20,9 @@ import {
   teamColorGradientTextClass,
   WEEK_DAYS,
 } from '../types/teams';
+import { formatTeamLabel } from '../utils/formatTeamLabel';
+import type { TeamColumnCount } from '../utils/teamColumnCount';
+
 import { TeamSeriesTeamBadges } from './TeamSeriesTeamBadges';
 /** Picks the next training relative to today's weekday (wraps around the week). */
 function getNextTraining(team: Team): TrainingTime | null {
@@ -57,6 +59,7 @@ export function TeamCard({
   checkbox,
   columnCount = 1,
   nextMatch = null,
+  active = false,
 }: {
   team: Team;
   selected?: boolean;
@@ -66,6 +69,7 @@ export function TeamCard({
   /** When 1, stats and next training sit near the top; 2/3 keep them below. */
   columnCount?: TeamColumnCount;
   nextMatch?: Match | null;
+  active?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   useTimeFormat();
@@ -75,8 +79,15 @@ export function TeamCard({
   const daysUntilTrainingAfterBreak = getDaysUntilTrainingAfterBreak(team);
   const breakTrainingUrgent =
     daysUntilTrainingAfterBreak !== null && daysUntilTrainingAfterBreak < 7;
+  const title = formatTeamLabel(team) || team.name;
   const metaLine =
-    [team.age_group, genderLabel, team.playing_format].filter(Boolean).join(' · ') || '—';
+    [
+      team.name?.trim() && team.name.trim() !== title ? team.name.trim() : null,
+      genderLabel,
+      team.playing_format,
+    ]
+      .filter(Boolean)
+      .join(' · ') || '—';
   const metaOnTop = columnCount === 1;
   const seriesTeamsMeta = <TeamSeriesTeamBadges team={team} />;
 
@@ -146,7 +157,9 @@ export function TeamCard({
         selected
           ? 'bg-plugin-subtle ring-1 border-plugin-subtle'
           : cn('hover:border-plugin-subtle', DETAIL_LIST_ITEM_HOVER_CLASS),
+        active && 'bg-primary/5 ring-1 ring-primary/40',
       )}
+      aria-current={active ? 'true' : undefined}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
           return;
@@ -169,7 +182,7 @@ export function TeamCard({
               {(team.age_group || team.name).slice(0, 3).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <h3 className={cn('truncate', DETAIL_LIST_ITEM_TITLE_CLASS)}>{team.name}</h3>
+              <h3 className={cn('truncate', DETAIL_LIST_ITEM_TITLE_CLASS)}>{title}</h3>
               <p className="truncate text-xs text-muted-foreground">{metaLine}</p>
             </div>
           </div>

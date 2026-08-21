@@ -138,6 +138,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return errors;
   }, []);
 
+  // Skip deep-link → view when we already opened edit/create for this path (Contacts pattern).
+  const notesDeepLinkPathSyncedRef = useRef<string | null>(null);
+
   const openNotePanel = useCallback(
     (note: Note | null) => {
       clearNoteSelectionCore();
@@ -148,6 +151,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([]);
       onCloseOtherPanels();
       if (note) {
+        const slug = buildSlug(note, notes, 'title');
+        notesDeepLinkPathSyncedRef.current = `/notes/${slug}`;
         navigateToItem(note, notes, 'title');
       }
     },
@@ -163,6 +168,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setIsNotePanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      const slug = buildSlug(note, notes, 'title');
+      notesDeepLinkPathSyncedRef.current = `/notes/${slug}`;
       navigateToItem(note, notes, 'title');
     },
     [onCloseOtherPanels, clearNoteSelectionCore, navigateToItem, notes, setValidationErrors],
@@ -201,7 +208,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openNoteForViewRef.current = openNoteForView;
   }, [openNoteForView]);
 
-  const notesDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (notes.length === 0) {
       return;

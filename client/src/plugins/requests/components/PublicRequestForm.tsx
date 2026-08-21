@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
+
 import { requestsApi } from '../api/requestsApi';
 import type { PublicTeam } from '../types/requests';
 import { DEFAULT_REQUEST_TYPES } from '../types/requests';
@@ -443,8 +445,7 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
                         <option value="">{t('teamPlaceholder')}</option>
                         {teams.map((team) => (
                           <option key={team.id} value={team.id}>
-                            {team.name}
-                            {team.age_group ? ` (${team.age_group})` : ''}
+                            {formatTeamLabel(team) || team.name}
                           </option>
                         ))}
                       </select>

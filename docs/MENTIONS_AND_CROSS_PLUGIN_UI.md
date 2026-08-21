@@ -1,6 +1,6 @@
 # Mentions and Cross-Plugin UI
 
-**Last Updated:** July 2026
+**Last Updated:** August 2026
 
 This document describes the core @-mention system, cross-plugin navigation patterns, and how plugins link to each other without tight coupling.
 
@@ -146,13 +146,13 @@ Optional: a separate row action (e.g. “Open team”) may still navigate immedi
 
 ### Existing dialogs (reuse these)
 
-| Dialog                      | Entity                     | Used from (examples)                                       |
-| --------------------------- | -------------------------- | ---------------------------------------------------------- |
-| `ContactQuickInfoDialog`    | Contact                    | `NoteView` mentions, `ResponsibleContactDialog` (TeamView) |
-| `AssignmentQuickInfoDialog` | Team / task / slot preview | `ContactView` related cards                                |
-| `MatchQuickInfoDialog`      | Match                      | `TeamMatchesSection`                                       |
-| `RequestQuickInfoDialog`    | Request                    | `TeamRequestsSection` (Teams plugin)                       |
-| `ScheduleSlotDetailDialog`  | Schedule slot              | Schedule grid / list slot click                            |
+| Dialog                      | Entity                     | Used from (examples)                                                                                                                                                                                                                                                              |
+| --------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ContactQuickInfoDialog`    | Contact                    | `NoteView` / `NoteQuickContextPanel` mentions; `TaskView` / `TaskAssigneeSelect` / `TaskQuickContextPanel` assignees & mentions; `RequestView` / `RequestAssigneeSelect` / `RequestQuickContextPanel` assignees & linked submitter contact; `ResponsibleContactDialog` (TeamView) |
+| `AssignmentQuickInfoDialog` | Team / task / slot preview | `ContactView` related cards; `TaskAssignedTeamSelect` / `TaskQuickContextPanel` assigned team; `RequestAssignedTeamSelect` / `RequestQuickContextPanel` assigned team                                                                                                             |
+| `MatchQuickInfoDialog`      | Match                      | `TeamMatchesSection`                                                                                                                                                                                                                                                              |
+| `RequestQuickInfoDialog`    | Request                    | `TeamRequestsSection` (Teams plugin)                                                                                                                                                                                                                                              |
+| `ScheduleSlotDetailDialog`  | Schedule slot              | Schedule grid / list slot click                                                                                                                                                                                                                                                   |
 
 ### Anti-patterns
 

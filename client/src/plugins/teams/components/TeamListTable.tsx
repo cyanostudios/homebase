@@ -7,11 +7,12 @@ import {
   type SortableListTableColumn,
   type SortableListTableSelection,
 } from '@/core/ui/SortableListTable';
-import { formatDate } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
 
 import { isTeamOnBreak, TEAM_STATUS_BADGES, type Team, type TeamStatus } from '../types/teams';
+import { formatTeamLabel } from '../utils/formatTeamLabel';
 import type { TeamSortField, TeamSortOrder } from '../utils/teamListSort';
+
 import { TeamSeriesTeamBadges } from './TeamSeriesTeamBadges';
 
 type TeamTableColumnField = TeamSortField | 'series_teams';
@@ -28,6 +29,7 @@ export type TeamListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedTeamId?: string | null;
+  activeTeamId?: string | number | null;
 };
 
 export function TeamListTable({
@@ -42,22 +44,23 @@ export function TeamListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedTeamId = null,
+  activeTeamId = null,
 }: TeamListTableProps) {
   const { t } = useTranslation();
 
   const columns = useMemo(
     (): SortableListTableColumn<Team, TeamTableColumnField>[] => [
       {
-        field: 'name',
-        header: t('teams.table.name'),
-        cell: (team) => <span className="font-medium text-foreground">{team.name}</span>,
-      },
-      {
         field: 'age_group',
         header: t('teams.table.age'),
         cell: (team) => (
-          <span className="text-xs text-muted-foreground">{team.age_group || '—'}</span>
+          <span className="font-medium text-foreground">{formatTeamLabel(team) || '—'}</span>
         ),
+      },
+      {
+        field: 'name',
+        header: t('teams.table.name'),
+        cell: (team) => <span className="text-xs text-muted-foreground">{team.name || '—'}</span>,
       },
       {
         field: 'gender',
@@ -106,16 +109,6 @@ export function TeamListTable({
           <span className="text-xs tabular-nums text-muted-foreground">{team.player_count}</span>
         ),
       },
-      {
-        field: 'updated_at',
-        header: t('teams.table.updated'),
-        className: 'hidden lg:table-cell',
-        cell: (team) => (
-          <span className="text-xs text-muted-foreground">
-            {team.updated_at ? formatDate(team.updated_at) : '—'}
-          </span>
-        ),
-      },
     ],
     [t],
   );
@@ -144,7 +137,12 @@ export function TeamListTable({
         onSort(field);
       }}
       onRowClick={onRowClick}
-      rowAriaLabel={(team) => t('teams.openTeam', { name: team.name })}
+      rowAriaLabel={(team) => t('teams.openTeam', { name: formatTeamLabel(team) || team.name })}
+      isRowActive={(team) =>
+        activeTeamId !== null &&
+        activeTeamId !== undefined &&
+        String(team.id) === String(activeTeamId)
+      }
       rowClassName={(team) =>
         recentlyDuplicatedTeamId === String(team.id)
           ? 'bg-green-50 dark:bg-green-950/30'

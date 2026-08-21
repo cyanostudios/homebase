@@ -26,6 +26,7 @@ export function NoteListItem({
   note,
   selected,
   highlighted,
+  active,
   onClick,
   checkbox,
   columnCount = 1,
@@ -33,6 +34,7 @@ export function NoteListItem({
   note: Note;
   selected?: boolean;
   highlighted?: boolean;
+  active?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
   /** When 1, meta sits on the top row; 2/3 keep meta below title/excerpt. */
@@ -83,6 +85,7 @@ export function NoteListItem({
         'group cursor-pointer overflow-hidden p-0 transition-all',
         DETAIL_VIEW_CARD_CLASS,
         highlighted && 'bg-green-50 dark:bg-green-950/30',
+        active && 'bg-primary/5 ring-1 ring-primary/40',
         selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
       )}
       onClick={(e) => {
@@ -96,13 +99,12 @@ export function NoteListItem({
       data-plugin-name="notes"
       role="button"
       tabIndex={0}
+      aria-current={active ? 'true' : undefined}
       aria-label={`Open note ${note.title}`}
     >
       <div className="flex flex-col gap-2 p-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {checkbox}
-          {metaOnTop ? metaRow : null}
-        </div>
+        {checkbox ? <div className="flex">{checkbox}</div> : null}
+        {metaOnTop ? metaRow : null}
 
         <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>{note.title}</h3>
 

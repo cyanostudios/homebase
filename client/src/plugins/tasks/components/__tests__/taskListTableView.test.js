@@ -15,7 +15,7 @@ describe('TaskList table view wiring', () => {
   test('table uses SortableListTable with sortable columns and selection', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
     expect(tableSrc).toMatch(/onSort=\{onSort\}/);
-    expect(tableSrc).toMatch(/selection=\{\{/);
+    expect(tableSrc).toMatch(/selection=\{/);
     expect(tableSrc).toMatch(/field: 'title'/);
     expect(tableSrc).toMatch(/field: 'status'/);
     expect(tableSrc).toMatch(/field: 'priority'/);

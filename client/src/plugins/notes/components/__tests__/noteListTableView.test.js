@@ -15,7 +15,7 @@ describe('NoteList table view wiring', () => {
   test('table uses SortableListTable with sortable columns and selection', () => {
     expect(tableSrc).toMatch(/SortableListTable/);
     expect(tableSrc).toMatch(/onSort=\{onSort\}/);
-    expect(tableSrc).toMatch(/selection=\{\{/);
+    expect(tableSrc).toMatch(/selection=\{/);
     expect(tableSrc).toMatch(/field: 'title'/);
     expect(tableSrc).toMatch(/field: 'mentions'/);
     expect(tableSrc).toMatch(/field: 'updatedAt'/);

@@ -1,4 +1,15 @@
-import { Copy, Download, Edit, Info, Maximize2, Minimize2, Trash2, Users, Zap } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  Edit,
+  Info,
+  Link2,
+  Maximize2,
+  Minimize2,
+  Trash2,
+  Users,
+  Zap,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -17,15 +28,19 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
-import { ContactAssignmentRow } from '@/plugins/contacts/components/ContactAssignmentRow';
 import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
-import type { Contact } from '@/plugins/contacts/types/contacts';
+import {
+  CONTACT_TYPE_BADGE_CLASS,
+  CONTACT_TYPE_COLORS,
+  type Contact,
+} from '@/plugins/contacts/types/contacts';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import type { Note } from '@/plugins/notes/types/notes';
@@ -336,14 +351,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     setViewingContact(contact);
   };
 
-  const openMentionContact = (contactId: string) => {
-    const contact = contactById.get(String(contactId));
-    if (!contact) {
-      return;
-    }
-    navigateToContact(contact);
-  };
-
   const uniqueMentions = useMemo((): Array<{ contactId: string; contactName?: string }> => {
     const raw = (note?.mentions || []) as Array<{ contactId: string; contactName?: string }>;
     return Array.from(new Map(raw.map((m) => [m.contactId, m])).values());
@@ -368,6 +375,22 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     </Button>
   );
 
+  const contentHeaderActions = (
+    <div className="flex shrink-0 items-center gap-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        icon={Edit}
+        className="h-8 w-8 shrink-0 p-0"
+        onClick={() => openNoteForEdit(note)}
+        aria-label={t('common.edit')}
+        title={t('common.edit')}
+      />
+      {focusModeToggle}
+    </div>
+  );
+
   const noteContent = (
     <RichTextContent
       content={note.content}
@@ -375,6 +398,110 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       onMentionClick={handleContactClick}
     />
   );
+
+  const updatedLabel = note.updatedAt
+    ? new Date(note.updatedAt).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+
+  const contentColumn = (
+    <Card
+      padding="none"
+      className={cn(
+        DETAIL_VIEW_CARD_CLASS,
+        focusMode && 'relative z-50 mx-auto w-full max-w-[1080px] shadow-lg',
+      )}
+    >
+      {note.showTitleInContent !== false ? (
+        <DetailSection
+          title={(note.title || '').trim() || '—'}
+          iconPlugin="notes"
+          className="p-6"
+          prominentTitle
+          action={contentHeaderActions}
+        >
+          {updatedLabel ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          ) : null}
+          <div className={cn(focusMode && 'min-h-[min(70vh,560px)]')}>{noteContent}</div>
+        </DetailSection>
+      ) : (
+        <div className="p-6">
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              {updatedLabel ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('common.updated')} {updatedLabel}
+                </p>
+              ) : null}
+            </div>
+            {contentHeaderActions}
+          </div>
+          <div className={cn(focusMode && 'min-h-[min(70vh,560px)]')}>{noteContent}</div>
+        </div>
+      )}
+    </Card>
+  );
+
+  const mentionsCard =
+    uniqueMentions.length > 0 ? (
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={
+            <span className="inline-flex items-baseline gap-2">
+              <span>{t('notes.mentionedContacts')}</span>
+              <span className="text-xs font-normal normal-case tracking-normal text-muted-foreground">
+                {t('notes.quickContext.mentionsHint')}
+              </span>
+            </span>
+          }
+          icon={Link2}
+          iconPlugin="contacts"
+          subtleTitle
+          className="p-6"
+        >
+          <QuickContextLinkTileGrid>
+            {uniqueMentions.map((mention) => {
+              const contactData = contactById.get(String(mention.contactId));
+              const isDeleted = !contactData;
+              const name = contactData?.companyName ?? mention.contactName ?? mention.contactId;
+              const typeKey = contactData?.contactType === 'private' ? 'private' : 'company';
+              return (
+                <QuickContextLinkTile
+                  key={`mention-${mention.contactId}`}
+                  label={t('nav.contact')}
+                  meta={isDeleted ? t('contacts.deletedContact') : t(`contacts.type.${typeKey}`)}
+                  metaClassName={
+                    isDeleted
+                      ? 'border-transparent bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                      : CONTACT_TYPE_COLORS[typeKey]
+                  }
+                  icon={Users}
+                  iconClassName={isDeleted ? 'text-slate-400' : 'text-sky-600'}
+                  onClick={
+                    contactData
+                      ? () => {
+                          setViewingContact(contactData);
+                        }
+                      : undefined
+                  }
+                  className={isDeleted ? 'opacity-70' : undefined}
+                >
+                  {name}
+                </QuickContextLinkTile>
+              );
+            })}
+          </QuickContextLinkTileGrid>
+        </DetailSection>
+      </Card>
+    ) : null;
 
   const sidebar = (
     <div className="space-y-4">
@@ -449,101 +576,16 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
       <DetailLayout sidebar={focusMode ? undefined : sidebar}>
         <div className="space-y-4">
-          <Card
-            padding="none"
-            className={cn(
-              DETAIL_VIEW_CARD_CLASS,
-              focusMode && 'relative z-50 mx-auto w-full max-w-[1080px] shadow-lg',
-            )}
-          >
-            {note.showTitleInContent !== false ? (
-              <DetailSection
-                title={(note.title || '').trim() || '—'}
-                iconPlugin="notes"
-                className="p-6"
-                prominentTitle
-                action={focusModeToggle}
-              >
-                <div className={cn(focusMode && 'min-h-[min(70vh,560px)]')}>{noteContent}</div>
-              </DetailSection>
-            ) : (
-              <div className="p-6">
-                <div className="mb-3 flex justify-end">{focusModeToggle}</div>
-                <div className={cn(focusMode && 'min-h-[min(70vh,560px)]')}>{noteContent}</div>
-              </div>
-            )}
-          </Card>
-
-          {!focusMode && hasFilesPlugin ? (
-            <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
+          {contentColumn}
+          {!focusMode ? (
+            <>
+              {hasFilesPlugin ? (
+                <FileAttachmentsSection pluginName="notes" entityId={note.id} readOnly />
+              ) : null}
+              {mentionsCard}
+              <NoteShareBlock note={note} />
+            </>
           ) : null}
-
-          {!focusMode && uniqueMentions.length > 0 ? (
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection
-                title={t('notes.mentionedContacts')}
-                icon={Users}
-                iconPlugin="contacts"
-                subtleTitle
-                className="p-4"
-              >
-                <div className="plugin-contacts space-y-2">
-                  {uniqueMentions.map((mention) => {
-                    const contactData = contactById.get(String(mention.contactId));
-                    const name =
-                      contactData?.companyName ?? mention.contactName ?? mention.contactId;
-                    const typeKey = contactData?.contactType === 'private' ? 'private' : 'company';
-                    const phone = contactData?.phone || contactData?.phone2;
-                    const email = contactData?.email?.trim();
-
-                    return (
-                      <ContactAssignmentRow
-                        key={`mention-${mention.contactId}`}
-                        title={name}
-                        badges={[
-                          {
-                            label: t(`contacts.type.${typeKey}`),
-                            className:
-                              typeKey === 'private'
-                                ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
-                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-                          },
-                        ]}
-                        meta={
-                          <>
-                            {phone ? (
-                              <span className="truncate text-xs text-muted-foreground">
-                                {phone}
-                              </span>
-                            ) : null}
-                            {email ? (
-                              <span className="truncate text-xs text-muted-foreground">
-                                {email}
-                              </span>
-                            ) : null}
-                          </>
-                        }
-                        actionLabel={t('notes.openContact')}
-                        pluginClass="plugin-contacts"
-                        onTitleClick={() => {
-                          if (contactData) {
-                            setViewingContact(contactData);
-                          }
-                        }}
-                        onOpen={() => {
-                          if (contactData) {
-                            openMentionContact(mention.contactId);
-                          }
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              </DetailSection>
-            </Card>
-          ) : null}
-
-          {!focusMode ? <NoteShareBlock note={note} /> : null}
         </div>
       </DetailLayout>
 
@@ -560,15 +602,11 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
           viewingContact ? (
             <span
               className={cn(
-                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
-                viewingContact.contactType === 'private'
-                  ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
-                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                CONTACT_TYPE_BADGE_CLASS,
+                CONTACT_TYPE_COLORS[viewingContact.contactType],
               )}
             >
-              {t(
-                `contacts.type.${viewingContact.contactType === 'private' ? 'private' : 'company'}`,
-              )}
+              {t(`contacts.type.${viewingContact.contactType}`)}
             </span>
           ) : null
         }

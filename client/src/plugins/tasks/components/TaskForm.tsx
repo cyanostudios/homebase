@@ -10,7 +10,11 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_INFO_ROW_CLASS,
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -218,45 +222,104 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
     return date.toISOString().split('T')[0];
   };
 
-  const formSidebar = currentTask ? (
+  const formLeftSidebar = (
     <div className="space-y-4">
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
-          title={t('tasks.information')}
-          icon={Info}
+          title={t('tasks.taskContent')}
           iconPlugin="tasks"
-          className="p-4"
-          collapsible
+          className="p-6"
+          prominentTitle
         >
-          <div className="space-y-4 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">ID</span>
-              <span className="font-mono font-medium">
-                {formatDisplayNumber('tasks', currentTask.id)}
-              </span>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="task-title" className="mb-1">
+                Title
+              </Label>
+              <Input
+                id="task-title"
+                type="text"
+                value={formData.title}
+                onChange={(e) => updateField('title', e.target.value)}
+                placeholder={t('tasks.titlePlaceholder')}
+                className={getFieldError('title') ? 'border-red-500' : ''}
+                required
+              />
+              {getFieldError('title') && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {getFieldError('title')?.message}
+                </p>
+              )}
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Created</span>
-              <span className="font-medium">
-                {currentTask.createdAt ? new Date(currentTask.createdAt).toLocaleDateString() : '—'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Updated</span>
-              <span className="font-medium">
-                {currentTask.updatedAt ? new Date(currentTask.updatedAt).toLocaleDateString() : '—'}
-              </span>
+            <div>
+              <Label className="mb-1">Description</Label>
+              <React.Suspense
+                fallback={
+                  <textarea
+                    className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled
+                  />
+                }
+              >
+                <RichTextEditor
+                  value={formData.content}
+                  onChange={handleContentChange}
+                  placeholder={t('tasks.contentPlaceholder')}
+                  className={getFieldError('content') ? 'border-red-500' : ''}
+                />
+              </React.Suspense>
+              {getFieldError('content') && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {getFieldError('content')?.message}
+                </p>
+              )}
             </div>
           </div>
         </DetailSection>
       </Card>
+      {currentTask ? (
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('tasks.information')}
+            icon={Info}
+            iconPlugin="tasks"
+            className="p-4"
+            collapsible
+          >
+            <div>
+              <div className={DETAIL_INFO_ROW_CLASS}>
+                <span className="text-slate-500 dark:text-slate-400">ID</span>
+                <span className="font-mono font-semibold text-foreground">
+                  {formatDisplayNumber('tasks', currentTask.id)}
+                </span>
+              </div>
+              <div className={DETAIL_INFO_ROW_CLASS}>
+                <span className="text-slate-500 dark:text-slate-400">Created</span>
+                <span className="font-mono font-semibold text-foreground">
+                  {currentTask.createdAt
+                    ? new Date(currentTask.createdAt).toLocaleDateString()
+                    : '—'}
+                </span>
+              </div>
+              <div className={DETAIL_INFO_ROW_CLASS}>
+                <span className="text-slate-500 dark:text-slate-400">Updated</span>
+                <span className="font-mono font-semibold text-foreground">
+                  {currentTask.updatedAt
+                    ? new Date(currentTask.updatedAt).toLocaleDateString()
+                    : '—'}
+                </span>
+              </div>
+            </div>
+          </DetailSection>
+        </Card>
+      ) : null}
     </div>
-  ) : undefined;
+  );
 
   return (
     <>
       <div className="plugin-tasks">
-        <DetailLayout sidebar={formSidebar}>
+        <DetailLayout leftSidebar={formLeftSidebar}>
           <form
             className="space-y-6"
             onSubmit={(e) => {
@@ -278,68 +341,17 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
             )}
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection title={t('tasks.taskContent')} iconPlugin="tasks" className="p-6">
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="task-title" className="mb-1">
-                      Title
-                    </Label>
-                    <Input
-                      id="task-title"
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => updateField('title', e.target.value)}
-                      placeholder={t('tasks.titlePlaceholder')}
-                      className={getFieldError('title') ? 'border-red-500' : ''}
-                      required
-                    />
-                    {getFieldError('title') && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {getFieldError('title')?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label className="mb-1">Description</Label>
-                    <React.Suspense
-                      fallback={
-                        <textarea
-                          className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          disabled
-                        />
-                      }
-                    >
-                      <RichTextEditor
-                        value={formData.content}
-                        onChange={handleContentChange}
-                        placeholder={t('tasks.contentPlaceholder')}
-                        className={getFieldError('content') ? 'border-red-500' : ''}
-                      />
-                    </React.Suspense>
-                    {getFieldError('content') && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {getFieldError('content')?.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <div className="space-y-2 p-6">
-                <div className="mb-1 flex min-w-0 items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="truncate text-sm font-semibold text-foreground">
-                    {t('tasks.taskProperties')}
-                  </span>
-                </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">Status</div>
+              <DetailSection
+                title={t('tasks.taskProperties')}
+                icon={SlidersHorizontal}
+                subtleTitle
+                className="p-6"
+              >
+                <div>
+                  <div className={DETAIL_PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      {t('tasks.propertyStatus')}
+                    </span>
                     <NativeSelect
                       id="task-status"
                       className="h-9 max-w-[180px] text-xs"
@@ -353,11 +365,10 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                       ))}
                     </NativeSelect>
                   </div>
-                </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">Priority</div>
+                  <div className={DETAIL_PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      {t('tasks.propertyPriority')}
+                    </span>
                     <NativeSelect
                       id="task-priority"
                       className="h-9 max-w-[180px] text-xs"
@@ -371,11 +382,10 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                       ))}
                     </NativeSelect>
                   </div>
-                </div>
-
-                <div className="rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-sm font-medium">Due Date</div>
+                  <div className={DETAIL_PROP_ROW_CLASS}>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      {t('tasks.propertyDueDate')}
+                    </span>
                     <Input
                       id="task-due-date"
                       type="date"
@@ -385,7 +395,7 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
                     />
                   </div>
                 </div>
-              </div>
+              </DetailSection>
             </Card>
 
             <TaskAssigneeSelect

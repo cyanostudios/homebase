@@ -23,6 +23,9 @@ export type TaskListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedTaskId: string | null;
+  /** When false, the selection checkbox column is hidden (e.g. quick context open). */
+  selectionEnabled?: boolean;
+  activeTaskId?: string | number | null;
 };
 
 export function TaskListTable({
@@ -37,6 +40,8 @@ export function TaskListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedTaskId,
+  selectionEnabled = true,
+  activeTaskId = null,
 }: TaskListTableProps) {
   const { t } = useTranslation();
 
@@ -45,7 +50,9 @@ export function TaskListTable({
       {
         field: 'title' as const,
         header: t('tasks.title'),
-        cell: (task: Task) => <span className="font-medium text-foreground">{task.title}</span>,
+        cell: (task: Task) => (
+          <span className="font-medium leading-4 text-foreground">{task.title}</span>
+        ),
       },
       {
         field: 'status' as const,
@@ -109,16 +116,21 @@ export function TaskListTable({
           ? 'bg-green-50 dark:bg-green-950/30'
           : undefined
       }
-      selection={{
-        isSelected,
-        onCheckboxMouseDown,
-        onCheckboxChange,
-        allVisibleSelected,
-        onHeaderCheckboxChange,
-        selectAllAriaLabel: t('common.selectAllVisible'),
-        selectRowAriaLabel: (selected) =>
-          selected ? t('common.unselectRow') : t('common.selectRow'),
-      }}
+      isRowActive={(task) => activeTaskId != null && String(task.id) === String(activeTaskId)}
+      selection={
+        selectionEnabled
+          ? {
+              isSelected,
+              onCheckboxMouseDown,
+              onCheckboxChange,
+              allVisibleSelected,
+              onHeaderCheckboxChange,
+              selectAllAriaLabel: t('common.selectAllVisible'),
+              selectRowAriaLabel: (selected) =>
+                selected ? t('common.unselectRow') : t('common.selectRow'),
+            }
+          : undefined
+      }
       pluginName="tasks"
       dataListItem={(task) => task}
     />

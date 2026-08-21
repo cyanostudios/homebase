@@ -443,7 +443,7 @@ export function computeDayLayout(slots: ScheduleSlot[], dayColumnOrder?: string[
 export function buildScheduleEventPayload(
   teamId: string,
   training: TrainingTime,
-  teams: Pick<Team, 'id' | 'name'>[],
+  teams: Pick<Team, 'id' | 'name' | 'age_group'>[],
   noTeamTitle = 'No team',
 ) {
   const resolvedTeamId = !teamId || teamId === SCHEDULE_NO_TEAM_VALUE ? '' : teamId;
@@ -451,7 +451,7 @@ export function buildScheduleEventPayload(
     ? teams.find((item) => String(item.id) === resolvedTeamId)
     : undefined;
   return {
-    title: team?.name ?? noTeamTitle,
+    title: (team ? formatTeamLabel(team) : '') || noTeamTitle,
     event_type: 'recurring' as const,
     day: training.day,
     start_time: training.startTime,

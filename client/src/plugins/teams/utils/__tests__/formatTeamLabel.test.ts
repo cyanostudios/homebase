@@ -1,8 +1,8 @@
 import { formatTeamLabel } from '../formatTeamLabel';
 
 describe('formatTeamLabel', () => {
-  it('joins name and age group with a middle dot', () => {
-    expect(formatTeamLabel({ name: 'Flickor 2017', age_group: 'F9' })).toBe('Flickor 2017 · F9');
+  it('returns age group when present', () => {
+    expect(formatTeamLabel({ name: 'Flickor 2016', age_group: 'F10' })).toBe('F10');
   });
 
   it('returns only name when age group is missing', () => {

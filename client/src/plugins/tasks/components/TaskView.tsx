@@ -2,42 +2,49 @@ import {
   Copy,
   Download,
   Edit,
-  ExternalLink,
   Info,
+  Link2,
   SlidersHorizontal,
   Trash2,
   Users,
   Zap,
 } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { apiFetch } from '@/core/api/apiFetch';
-import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
-  DETAIL_ENTITY_LINK_TRIGGER_CLASS,
   DETAIL_INFO_ROW_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
-  DETAIL_SURFACE_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { buildSlug } from '@/core/utils/slugUtils';
 import type { ExportFormat } from '@/core/utils/exportUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
+import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import {
+  CONTACT_TYPE_BADGE_CLASS,
+  CONTACT_TYPE_COLORS,
+  type Contact,
+} from '@/plugins/contacts/types/contacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 import { useTasks } from '../hooks/useTasks';
+import { buildTaskListQuickFieldsSavePayload } from '../utils/taskListSave';
 
 import { TaskAssignedTeamSelect } from './TaskAssignedTeamSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
@@ -236,11 +243,15 @@ function TaskExportOptionsCard({
 
 export function TaskView({ task }: TaskViewProps) {
   const { t } = useTranslation();
-  const { openContactForView } = useContacts();
+  const navigate = useNavigate();
+  const { contacts } = useContacts();
   const {
     closeTaskPanel,
     openTaskForEdit,
     deleteTask,
+    saveTask,
+    validationErrors,
+    clearValidationErrors,
     getDuplicateConfig,
     executeDuplicate,
     setRecentlyDuplicatedTaskId,
@@ -255,42 +266,14 @@ export function TaskView({ task }: TaskViewProps) {
     onDiscardQuickEditAndClose,
   } = useTasks();
   const { openNoteForView } = useNotes();
-  const { refreshData } = useApp();
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null);
 
-  const [mentionContactsData, setMentionContactsData] = useState<{ [key: string]: any }>({});
   const [sourceNote, setSourceNote] = useState<any>(null);
   const [noteLoaded, setNoteLoaded] = useState(false);
   const [showDeleteTaskConfirm, setShowDeleteTaskConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-
-  useEffect(() => {
-    const fetchMentionContactsData = async () => {
-      if (!task?.mentions || task.mentions.length === 0) {
-        return;
-      }
-
-      try {
-        const response = await apiFetch('/api/contacts');
-        if (response.ok) {
-          const contactsData = await response.json();
-          const mentionContactsMap: { [key: string]: any } = {};
-          task.mentions.forEach((mention: any) => {
-            const contact = contactsData.find((c: any) => c.id === mention.contactId);
-            if (contact) {
-              mentionContactsMap[mention.contactId] = contact;
-            }
-          });
-          setMentionContactsData(mentionContactsMap);
-        }
-      } catch (error) {
-        console.error('Failed to load contact data:', error);
-      }
-    };
-
-    fetchMentionContactsData();
-  }, [task?.mentions]);
 
   useEffect(() => {
     const fetchSourceNote = async () => {
@@ -319,30 +302,26 @@ export function TaskView({ task }: TaskViewProps) {
     fetchSourceNote();
   }, [task?.createdFromNote]);
 
-  const handleContactClick = async (contactId: string) => {
-    await refreshData();
-    try {
-      const response = await apiFetch('/api/contacts');
-      if (response.ok) {
-        const contactsData = await response.json();
-        const contact = contactsData.find((c: any) => c.id === contactId);
-
-        if (contact) {
-          const transformedContact = {
-            ...contact,
-            createdAt: new Date(contact.createdAt),
-            updatedAt: new Date(contact.updatedAt),
-          };
-
-          closeTaskPanel();
-          openContactForView(transformedContact);
-        } else {
-          console.error('Contact not found:', contactId);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load contact data:', error);
+  const contactById = useMemo(() => {
+    const map = new Map<string, Contact>();
+    for (const contact of contacts) {
+      map.set(String(contact.id), contact);
     }
+    return map;
+  }, [contacts]);
+
+  const navigateToContact = (contact: Contact) => {
+    closeTaskPanel();
+    setViewingContact(null);
+    navigate(`/contacts/${buildSlug(contact, contacts, 'companyName')}`);
+  };
+
+  const handleContactClick = (contactId: string) => {
+    const contact = contactById.get(String(contactId));
+    if (!contact) {
+      return;
+    }
+    setViewingContact(contact);
   };
 
   const handleNoteClick = async () => {
@@ -364,6 +343,9 @@ export function TaskView({ task }: TaskViewProps) {
 
   const handleStatusChange = (newStatus: string) => {
     setQuickEditField('status', newStatus);
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
   };
 
   // Display task merges saved task with quick-edit draft (status, priority, dueDate, assignee)
@@ -374,27 +356,108 @@ export function TaskView({ task }: TaskViewProps) {
 
   const handlePriorityChange = (newPriority: string) => {
     setQuickEditField('priority', newPriority);
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
   };
 
   const handleDueDateChange = (newDate: Date | null) => {
     setQuickEditField('dueDate', newDate);
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
   };
 
-  const handleAssigneeChange = (newAssigneeIds: string[]) => {
+  const handleAssigneeChange = async (newAssigneeIds: string[]) => {
+    if (!task?.id) {
+      return;
+    }
+    // Optimistic UI via draft; persist immediately (same as list status/priority).
     setQuickEditField('assignedToIds', newAssigneeIds);
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    await saveTask(
+      buildTaskListQuickFieldsSavePayload(task, { assignedToIds: newAssigneeIds }, quickEditDraft),
+      task.id,
+    );
   };
 
-  const handleAssignedTeamChange = (teamId: string | null) => {
+  const handleAssignedTeamChange = async (teamId: string | null) => {
+    if (!task?.id) {
+      return;
+    }
     setQuickEditField('teamId', teamId);
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    await saveTask(buildTaskListQuickFieldsSavePayload(task, { teamId }, quickEditDraft), task.id);
   };
+
+  const blockingValidationErrors = validationErrors.filter(
+    (error) => !String(error.message || '').includes('Warning'),
+  );
+
+  const uniqueMentions = useMemo(() => {
+    const raw = (task?.mentions || []) as Array<{
+      contactId: string;
+      contactName?: string;
+      companyName?: string;
+    }>;
+    return Array.from(new Map(raw.map((m) => [m.contactId, m])).values());
+  }, [task?.mentions]);
+
+  const updatedLabel = task?.updatedAt
+    ? new Date(task.updatedAt).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
 
   if (!task) {
     return null;
   }
 
+  const contentColumn = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={String((displayTask ?? task)?.title || '').trim() || '—'}
+        className="p-6"
+        prominentTitle
+        action={
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={Edit}
+            className="h-8 w-8 shrink-0 p-0"
+            onClick={() => openTaskForEdit(task)}
+            aria-label={t('common.edit')}
+            title={t('common.edit')}
+          />
+        }
+      >
+        {updatedLabel ? (
+          <p className="mb-3 text-xs text-muted-foreground">
+            {t('common.updated')} {updatedLabel}
+          </p>
+        ) : null}
+        <RichTextContent
+          content={task.content}
+          mentions={task.mentions}
+          onMentionClick={handleContactClick}
+        />
+      </DetailSection>
+    </Card>
+  );
+
   return (
     <>
       <DetailLayout
+        leftSidebar={contentColumn}
         sidebar={
           <div className="space-y-6">
             <TaskQuickActionsCard
@@ -410,54 +473,6 @@ export function TaskView({ task }: TaskViewProps) {
               onExportItem={onExportItem}
               shareActions={exportShareActions}
             />
-
-            {task.mentions && task.mentions.length > 0 && (
-              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                <DetailSection
-                  title={t('tasks.mentionedContacts')}
-                  icon={Users}
-                  iconPlugin="tasks"
-                  subtleTitle
-                  className="p-4"
-                >
-                  <div className="space-y-1.5">
-                    {(() => {
-                      const uniqueMentions = Array.from(
-                        new Map((task.mentions || []).map((m: any) => [m.contactId, m])).values(),
-                      );
-                      return uniqueMentions.map((mention: any) => {
-                        const contactData = mentionContactsData[mention.contactId] as
-                          | { id: string | number; companyName?: string }
-                          | undefined;
-                        const name =
-                          contactData?.companyName ?? mention.contactName ?? mention.contactId;
-
-                        return (
-                          <div
-                            key={`mention-${mention.contactId}`}
-                            className={cn(DETAIL_SURFACE_ROW_CLASS, 'plugin-contacts')}
-                          >
-                            <span className="truncate text-xs text-muted-foreground">{name}</span>
-                            {contactData ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                icon={ExternalLink}
-                                className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-contacts')}
-                                onClick={() => handleContactClick(mention.contactId)}
-                              >
-                                {t('contacts.quickInfo.openContact')}
-                              </Button>
-                            ) : null}
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </DetailSection>
-              </Card>
-            )}
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
               <DetailSection
@@ -520,19 +535,16 @@ export function TaskView({ task }: TaskViewProps) {
         }
       >
         <div className="space-y-6">
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={String((displayTask ?? task)?.title || '').trim() || '—'}
-              className="p-6"
-              prominentTitle
-            >
-              <RichTextContent
-                content={task.content}
-                mentions={task.mentions}
-                onMentionClick={handleContactClick}
-              />
-            </DetailSection>
-          </Card>
+          {blockingValidationErrors.length > 0 ? (
+            <Card className="border-destructive/50 bg-destructive/5 p-4 shadow-none">
+              <div className="text-sm font-medium text-destructive">{t('common.cannotSave')}</div>
+              <ul className="mt-2 list-inside list-disc text-sm text-destructive/90">
+                {blockingValidationErrors.map((error) => (
+                  <li key={`${error.field}-${error.message}`}>{error.message}</li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
 
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
@@ -587,9 +599,87 @@ export function TaskView({ task }: TaskViewProps) {
             />
           ) : null}
 
+          {uniqueMentions.length > 0 ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={
+                  <span className="inline-flex items-baseline gap-2">
+                    <span>{t('tasks.mentionedContacts')}</span>
+                    <span className="text-xs font-normal normal-case tracking-normal text-muted-foreground">
+                      {t('tasks.quickContext.mentionsHint')}
+                    </span>
+                  </span>
+                }
+                icon={Link2}
+                iconPlugin="contacts"
+                subtleTitle
+                className="p-6"
+              >
+                <QuickContextLinkTileGrid>
+                  {uniqueMentions.map((mention) => {
+                    const contactData = contactById.get(String(mention.contactId));
+                    const name =
+                      contactData?.companyName ??
+                      mention.contactName ??
+                      mention.companyName ??
+                      mention.contactId;
+                    const typeKey = contactData?.contactType === 'private' ? 'private' : 'company';
+                    const isDeleted = !contactData;
+                    return (
+                      <QuickContextLinkTile
+                        key={`mention-${mention.contactId}`}
+                        label={t('nav.contact')}
+                        meta={
+                          isDeleted ? t('contacts.deletedContact') : t(`contacts.type.${typeKey}`)
+                        }
+                        metaClassName={
+                          isDeleted
+                            ? 'border-transparent bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                            : CONTACT_TYPE_COLORS[typeKey]
+                        }
+                        icon={Users}
+                        iconClassName={isDeleted ? 'text-slate-400' : 'text-sky-600'}
+                        onClick={
+                          contactData ? () => handleContactClick(mention.contactId) : undefined
+                        }
+                        className={isDeleted ? 'opacity-70' : undefined}
+                      >
+                        {name}
+                      </QuickContextLinkTile>
+                    );
+                  })}
+                </QuickContextLinkTileGrid>
+              </DetailSection>
+            </Card>
+          ) : null}
+
           <TaskShareBlock task={task} />
         </div>
       </DetailLayout>
+
+      <ContactQuickInfoDialog
+        isOpen={viewingContact !== null}
+        contact={viewingContact}
+        onClose={() => setViewingContact(null)}
+        onOpenContact={() => {
+          if (viewingContact) {
+            navigateToContact(viewingContact);
+          }
+        }}
+        badges={
+          viewingContact ? (
+            <span
+              className={cn(
+                CONTACT_TYPE_BADGE_CLASS,
+                CONTACT_TYPE_COLORS[viewingContact.contactType],
+              )}
+            >
+              {t(`contacts.type.${viewingContact.contactType}`)}
+            </span>
+          ) : null
+        }
+      />
+
       <ConfirmDialog
         isOpen={showDeleteTaskConfirm}
         title={t('dialog.deleteItem', { label: t('nav.task') })}

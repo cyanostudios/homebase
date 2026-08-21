@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
@@ -57,7 +58,7 @@ import {
   type TaskListFilter,
   type TaskListFilterSelection,
 } from '../utils/taskListFilter';
-import { buildTaskListStatusSavePayload } from '../utils/taskListSave';
+import { buildTaskListQuickFieldsSavePayload } from '../utils/taskListSave';
 import {
   compareTasksByField,
   isTaskStringSortField,
@@ -76,6 +77,7 @@ import { TaskBulkStatusDialog } from './TaskBulkStatusDialog';
 import { TaskListItem } from './TaskListItem';
 import { TaskListTable } from './TaskListTable';
 import { TaskQuickAdd } from './TaskQuickAdd';
+import { TaskQuickContextPanel } from './TaskQuickContextPanel';
 import { TaskSettingsView, type TaskSettingsCategory } from './TaskSettingsView';
 
 type SortField = TaskSortField;
@@ -96,6 +98,7 @@ export function TaskList() {
     tasks,
     tasksContentView,
     openTaskForView,
+    openTaskForEdit,
     openTaskPanel,
     openTaskSettings,
     closeTaskSettingsView,
@@ -378,20 +381,59 @@ export function TaskList() {
     }
   };
 
-  const handleOpenForView = (task: any) => {
-    attemptNavigation(() => openTaskForView(task));
+  const {
+    previewItem: previewTask,
+    setPreviewItem: setPreviewTask,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'tasks',
+    items: tasks,
+    getItemId: (task) => String(task.id),
+  });
+
+  const handleOpenForView = (task: Task) => {
+    markPendingAndOpen(task, () => attemptNavigation(() => openTaskForView(task)));
   };
 
-  const handleListStatusChange = useCallback(
-    async (task: Task, newStatus: string) => {
-      if (task.status === newStatus) {
+  const handleRowActivate = (task: Task) => {
+    activateRow(task, (item) => attemptNavigation(() => openTaskForView(item)));
+  };
+
+  const handleListQuickFieldChange = useCallback(
+    async (
+      task: Task,
+      patch: Partial<{ status: string; priority: string; dueDate: Date | null }>,
+    ) => {
+      if (
+        patch.status !== undefined &&
+        task.status === patch.status &&
+        patch.priority === undefined &&
+        patch.dueDate === undefined
+      ) {
+        return;
+      }
+      if (
+        patch.priority !== undefined &&
+        task.priority === patch.priority &&
+        patch.status === undefined &&
+        patch.dueDate === undefined
+      ) {
         return;
       }
       const isCurrent = currentTask?.id === task.id;
       const draft = isCurrent ? quickEditDraft : null;
-      await saveTask(buildTaskListStatusSavePayload(task, newStatus, draft), task.id);
+      await saveTask(buildTaskListQuickFieldsSavePayload(task, patch, draft), task.id);
     },
     [currentTask?.id, quickEditDraft, saveTask],
+  );
+
+  const handleListStatusChange = useCallback(
+    async (task: Task, newStatus: string) => {
+      await handleListQuickFieldChange(task, { status: newStatus });
+    },
+    [handleListQuickFieldChange],
   );
 
   const handleQuickCreate = useCallback(
@@ -668,75 +710,103 @@ export function TaskList() {
             }
           />
 
-          {sortedTasks.length === 0 ? (
-            <ListEmptyState
-              message={searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
-              createLabel={!searchTerm ? t('tasks.addTask') : undefined}
-              onCreate={
-                !searchTerm ? () => attemptNavigation(() => openTaskPanel(null)) : undefined
-              }
-            />
-          ) : isTableView ? (
-            <TaskListTable
-              tasks={sortedTasks}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={handleOpenForView}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={handleHeaderCheckboxChange}
-              recentlyDuplicatedTaskId={recentlyDuplicatedTaskId}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {sortedTasks.map((task, index) => {
-                const taskIsSelected = isSelected(task.id);
-                const assignedContacts = getAssignedContacts(task);
-                return (
-                  <TaskListItem
-                    key={task.id}
-                    task={task}
-                    selected={taskIsSelected}
-                    highlighted={recentlyDuplicatedTaskId === String(task.id)}
-                    onClick={() => handleOpenForView(task)}
-                    assignedNames={assignedContacts.map((c) => c.companyName)}
-                    assignedTeamName={getAssignedTeamName(task)}
-                    onStatusChange={(status) => handleListStatusChange(task, status)}
-                    columnCount={columnCount}
-                    checkbox={
-                      <input
-                        type="checkbox"
-                        checked={taskIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(task.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+          <div className="flex items-start gap-4">
+            {showQuickContext && previewTask ? (
+              <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+                <TaskQuickContextPanel
+                  task={previewTask}
+                  onClose={() => setPreviewTask(null)}
+                  onOpenFullProfile={() => handleOpenForView(previewTask)}
+                  onEdit={() => {
+                    markPendingAndOpen(previewTask, () =>
+                      attemptNavigation(() => openTaskForEdit(previewTask)),
+                    );
+                  }}
+                  onStatusChange={(status) => handleListQuickFieldChange(previewTask, { status })}
+                  onPriorityChange={(priority) =>
+                    handleListQuickFieldChange(previewTask, { priority })
+                  }
+                  onDueDateChange={(dueDate) =>
+                    handleListQuickFieldChange(previewTask, { dueDate })
+                  }
+                />
+              </aside>
+            ) : null}
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              {sortedTasks.length === 0 ? (
+                <ListEmptyState
+                  message={searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
+                  createLabel={!searchTerm ? t('tasks.addTask') : undefined}
+                  onCreate={
+                    !searchTerm ? () => attemptNavigation(() => openTaskPanel(null)) : undefined
+                  }
+                />
+              ) : isTableView ? (
+                <TaskListTable
+                  tasks={sortedTasks}
+                  primarySort={primarySort}
+                  sortOrder={sortOrder}
+                  onSort={handleTableSort}
+                  isSelected={isSelected}
+                  onRowClick={handleRowActivate}
+                  onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                  onCheckboxChange={onVisibleRowCheckboxChange}
+                  allVisibleSelected={allVisibleSelected}
+                  onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                  recentlyDuplicatedTaskId={recentlyDuplicatedTaskId}
+                  selectionEnabled
+                  activeTaskId={previewTask?.id ?? null}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'grid gap-3',
+                    columnCount === 1 && 'grid-cols-1',
+                    columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                    columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                  )}
+                >
+                  {sortedTasks.map((task, index) => {
+                    const taskIsSelected = isSelected(task.id);
+                    const assignedContacts = getAssignedContacts(task);
+                    return (
+                      <TaskListItem
+                        key={task.id}
+                        task={task}
+                        selected={taskIsSelected}
+                        highlighted={recentlyDuplicatedTaskId === String(task.id)}
+                        active={previewTask != null && String(previewTask.id) === String(task.id)}
+                        onClick={() => handleRowActivate(task)}
+                        assignedNames={assignedContacts.map((c) => c.companyName)}
+                        assignedTeamName={getAssignedTeamName(task)}
+                        onStatusChange={(status) => handleListStatusChange(task, status)}
+                        columnCount={columnCount}
+                        checkbox={
+                          <input
+                            type="checkbox"
+                            checked={taskIsSelected}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(task.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 cursor-pointer"
+                            aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+                          />
+                        }
                       />
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
+                    );
+                  })}
+                </div>
+              )}
 
-          <ListFooterBar
-            meta={
-              <>
-                Showing {sortedTasks.length} of {tasks.length} Tasks
-              </>
-            }
-          />
+              <ListFooterBar
+                meta={
+                  <>
+                    Showing {sortedTasks.length} of {tasks.length} Tasks
+                  </>
+                }
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

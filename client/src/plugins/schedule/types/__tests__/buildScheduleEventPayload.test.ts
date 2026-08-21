@@ -9,12 +9,12 @@ const training: TrainingTime = {
   location: 'Pitch A',
 };
 
-const teams = [{ id: '10', name: 'Flickor 2017' }];
+const teams = [{ id: '10', name: 'Flickor 2017', age_group: 'F9' }];
 
 describe('buildScheduleEventPayload', () => {
-  it('sets team_id and title from team when teamId is set', () => {
+  it('sets team_id and title from team age group when teamId is set', () => {
     expect(buildScheduleEventPayload('10', training, teams, 'No team')).toEqual({
-      title: 'Flickor 2017',
+      title: 'F9',
       event_type: 'recurring',
       day: 'monday',
       start_time: '17:00',
@@ -24,6 +24,17 @@ describe('buildScheduleEventPayload', () => {
       team_id: 10,
       counts_toward_capacity: true,
     });
+  });
+
+  it('falls back to team name when age group is missing', () => {
+    expect(
+      buildScheduleEventPayload(
+        '10',
+        training,
+        [{ id: '10', name: 'Flickor 2017', age_group: null }],
+        'No team',
+      ).title,
+    ).toBe('Flickor 2017');
   });
 
   it('clears team_id and uses no-team title for sentinel / empty', () => {

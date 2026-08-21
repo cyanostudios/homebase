@@ -684,6 +684,8 @@ const handleDiscardChanges = () => {
 
 ## Plugin-specifik Close-hantering (Tasks quick-edit)
 
+> **Note (2026-08-21):** Assignee och assigned team i Task full view sparas **omedelbart** (`saveTask`). Draft + Close-discard gäller främst status / priority / due date. Se `docs/CHANGELOG.md` (Tasks/Notes/Requests quick context).
+
 ### Close med "osparade ändringar" – plugin tillhandahåller getCloseHandler
 
 ❌ **What we did (that didn't work):**
@@ -930,6 +932,19 @@ useEffect(() => {
 
 ---
 
-**Senast uppdaterad:** 2026-06  
+## Requests-parity med Tasks: kontrollera backend-beteendet innan du kopierar mönstret rakt av
+
+❌ **Risken vi undvek:**  
+Task-mönstret för assignee/team-save använder en `quickEditDraft` + header **Update**-knapp för status/priority/due date, eftersom `plugins/tasks/model.js` kräver **hela posten** vid varje `update` (bakåtkompatibilitet). Att kopiera det mönstret rakt av till Requests hade introducerat en onödig extra klick-interaktion.
+
+✅ **What we do now:**  
+Läste `plugins/requests/model.js` innan implementation: dess `update`-metod bevarar redan befintliga fältvärden när en nyckel är `undefined` i payloaden — dvs. riktiga partiella uppdateringar stöds. Därför kunde `buildRequestAssigneesSavePayload` / `buildRequestTeamSavePayload` skicka **minimal payload** (`{ title, assigned_to_ids }` respektive `{ title, team_id }`) och status/priority i `RequestView` fortsätter sparas **omedelbart** utan draft-lager — samma UX-resultat (autospar) som innan, bara med de nya klickbara assignee/team-tiles och quick-info-popups adderade ovanpå.
+
+💡 **Why (lesson learned):**  
+"Samma design och funktionalitet som X" betyder inte "kopiera X:s implementation rakt av". Läs det faktiska backend-kontraktet för varje plugin innan du portar ett UI-mönster mellan plugins — två plugins kan se identiska ut i UI men ha olika sparbeteende under huven, och att blint kopiera kan introducera onödig komplexitet (eller tvärtom dölja en verklig begränsning).
+
+---
+
+**Senast uppdaterad:** 2026-08  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt. Valfria fält: använd optional({ values: 'falsy' }) i express-validator så att tom sträng inte triggar formatvalidering. Flex-scroll: min-h-0 på flex-barn så att bara scroll-området rullar. Discard changes i edit: anropa onCancel() explicit för att växla tillbaka till view. Plugin-specifik close: exponera getCloseHandler(defaultClose) från context och använd i createPanelFooter. Quick-edit "Discard": kasta bara draft, anropa inte panel-close om användaren ska stanna i detail view. **Auth/tenant:** När nya sökvägar (tabeller/kolumner) införs för tenant-context: kör legacy-sökvägen (som fungerar i nuvarande schema) först så att inloggning inte bryts. **Duplicate/deep-link:** Deep-link-effekten ska bero på `location.pathname`, inte `[items]`-arrayen, annars nollsätts `recentlyDuplicatedId` vid varje listuppdatering. `setRecentlyDuplicated*Id` måste destruktureras i View-komponenten. `closePanel()` måste anropas FÖRE `setRecentlyDuplicatedId`. `onDuplicate` öppnar dialog, anropar inte `executeDuplicate` direkt.
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt. Valfria fält: använd optional({ values: 'falsy' }) i express-validator så att tom sträng inte triggar formatvalidering. Flex-scroll: min-h-0 på flex-barn så att bara scroll-området rullar. Discard changes i edit: anropa onCancel() explicit för att växla tillbaka till view. Plugin-specifik close: exponera getCloseHandler(defaultClose) från context och använd i createPanelFooter. Quick-edit "Discard": kasta bara draft, anropa inte panel-close om användaren ska stanna i detail view. **Auth/tenant:** När nya sökvägar (tabeller/kolumner) införs för tenant-context: kör legacy-sökvägen (som fungerar i nuvarande schema) först så att inloggning inte bryts. **Duplicate/deep-link:** Deep-link-effekten ska bero på `location.pathname`, inte `[items]`-arrayen, annars nollsätts `recentlyDuplicatedId` vid varje listuppdatering. `setRecentlyDuplicated*Id` måste destruktureras i View-komponenten. `closePanel()` måste anropas FÖRE `setRecentlyDuplicatedId`. `onDuplicate` öppnar dialog, anropar inte `executeDuplicate` direkt. **Cross-plugin UI-parity:** läs backend-modellens faktiska update-beteende (full record vs. partiell) innan du portar ett UI-mönster (t.ex. quickEditDraft) rakt av mellan plugins.

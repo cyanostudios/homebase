@@ -27,12 +27,9 @@ const SORTABLE_COLUMNS: {
 }[] = [
   { field: 'name', labelKey: 'contacts.table.name' },
   { field: 'type', labelKey: 'contacts.table.type' },
-  { field: 'email', labelKey: 'contacts.table.email', className: 'hidden sm:table-cell' },
-  { field: 'phone', labelKey: 'contacts.table.phone', className: 'hidden md:table-cell' },
   { field: 'tags', labelKey: 'contacts.table.tags', className: 'hidden lg:table-cell' },
   { field: 'assignable', labelKey: 'contacts.table.assignable' },
   { field: 'time', labelKey: 'contacts.table.time', className: 'hidden md:table-cell' },
-  { field: 'updatedAt', labelKey: 'contacts.table.updated', className: 'hidden lg:table-cell' },
 ];
 
 export type ContactListTableProps = {
@@ -46,9 +43,12 @@ export type ContactListTableProps = {
   onCheckboxChange: (id: string) => void;
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
+  /** When false, the selection checkbox column is hidden (e.g. quick context open). */
+  selectionEnabled?: boolean;
   activeTimeTrackingContactId: string | null;
   contactIdsWithTimeEntries: ReadonlySet<string | number>;
   recentlyDuplicatedContactId: string | null;
+  activeContactId?: string | number | null;
 };
 
 export function ContactListTable({
@@ -62,9 +62,11 @@ export function ContactListTable({
   onCheckboxChange,
   allVisibleSelected,
   onHeaderCheckboxChange,
+  selectionEnabled = true,
   activeTimeTrackingContactId,
   contactIdsWithTimeEntries,
   recentlyDuplicatedContactId,
+  activeContactId = null,
 }: ContactListTableProps) {
   const { t } = useTranslation();
 
@@ -82,15 +84,17 @@ export function ContactListTable({
       <Table rowBorders={false}>
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
-            <TableHead className="w-12">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={onHeaderCheckboxChange}
-                className="h-4 w-4 cursor-pointer"
-                aria-label={t('contacts.selectAllVisible')}
-              />
-            </TableHead>
+            {selectionEnabled ? (
+              <TableHead className="w-8 px-3 pr-1">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={onHeaderCheckboxChange}
+                  className="h-4 w-4 cursor-pointer align-middle"
+                  aria-label={t('contacts.selectAllVisible')}
+                />
+              </TableHead>
+            ) : null}
             {SORTABLE_COLUMNS.map((col) => (
               <TableHead
                 key={col.field}
@@ -107,7 +111,7 @@ export function ContactListTable({
                     : 'none'
                 }
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 leading-4">
                   <span>{t(col.labelKey)}</span>
                   {sortIcon(col.field)}
                 </div>
@@ -119,10 +123,6 @@ export function ContactListTable({
           {contacts.map((contact, index) => {
             const selected = isSelected(String(contact.id));
             const tags = Array.isArray(contact.tags) ? contact.tags.filter(Boolean) : [];
-            const phone = (contact.phone?.trim() || contact.phone2?.trim() || '').trim();
-            const updatedLabel = contact.updatedAt
-              ? new Date(contact.updatedAt).toLocaleDateString()
-              : '—';
             const timeTrackingActive =
               activeTimeTrackingContactId !== null &&
               String(contact.id) === activeTimeTrackingContactId;
@@ -130,6 +130,8 @@ export function ContactListTable({
               contactIdsWithTimeEntries.has(contact.id) ||
               contactIdsWithTimeEntries.has(String(contact.id));
             const highlighted = recentlyDuplicatedContactId === String(contact.id);
+            const active =
+              activeContactId != null && String(contact.id) === String(activeContactId);
 
             return (
               <TableRow
@@ -138,28 +140,34 @@ export function ContactListTable({
                   'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/80',
                   selected && 'bg-plugin-subtle ring-1 border-plugin-subtle',
                   highlighted && 'bg-green-50 dark:bg-green-950/30',
+                  active && 'bg-primary/5 ring-1 ring-primary/40',
                 )}
+                aria-current={active ? 'true' : undefined}
                 onClick={() => onRowClick(contact)}
                 data-list-item={JSON.stringify(contact)}
                 data-plugin-name="contacts"
                 role="button"
                 aria-label={t('contacts.openContact', { name: contact.companyName })}
               >
-                <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onMouseDown={(e) => onCheckboxMouseDown(e, index)}
-                    onChange={() => onCheckboxChange(String(contact.id))}
-                    onClick={(e) => e.stopPropagation()}
-                    className="h-4 w-4 cursor-pointer"
-                    aria-label={
-                      selected ? t('contacts.unselectContact') : t('contacts.selectContact')
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <span className="font-medium text-foreground">{contact.companyName}</span>
+                {selectionEnabled ? (
+                  <TableCell className="w-8 px-3 py-4 pr-1" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onMouseDown={(e) => onCheckboxMouseDown(e, index)}
+                      onChange={() => onCheckboxChange(String(contact.id))}
+                      onClick={(e) => e.stopPropagation()}
+                      className="relative -top-[2px] h-4 w-4 cursor-pointer align-middle"
+                      aria-label={
+                        selected ? t('contacts.unselectContact') : t('contacts.selectContact')
+                      }
+                    />
+                  </TableCell>
+                ) : null}
+                <TableCell className={selectionEnabled ? 'pl-2' : undefined}>
+                  <span className="font-medium leading-4 text-foreground">
+                    {contact.companyName}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Badge
@@ -171,12 +179,6 @@ export function ContactListTable({
                   >
                     {t(`contacts.type.${contact.contactType}`)}
                   </Badge>
-                </TableCell>
-                <TableCell className="hidden text-xs text-muted-foreground sm:table-cell">
-                  <span className="truncate">{contact.email || '—'}</span>
-                </TableCell>
-                <TableCell className="hidden text-xs tabular-nums text-muted-foreground md:table-cell">
-                  {phone || '—'}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   {tags.length === 0 ? (
@@ -238,9 +240,6 @@ export function ContactListTable({
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
-                </TableCell>
-                <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
-                  {updatedLabel}
                 </TableCell>
               </TableRow>
             );
