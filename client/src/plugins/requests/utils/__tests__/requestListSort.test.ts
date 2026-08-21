@@ -8,6 +8,7 @@ const base = {
   source: 'internal' as const,
   created_at: '2026-07-01T00:00:00.000Z',
   updated_at: '2026-07-10T08:00:00.000Z',
+  responseDueAt: '2026-07-08T00:00:00.000Z' as string | null,
 };
 
 describe('requestListSort', () => {
@@ -36,5 +37,17 @@ describe('requestListSort', () => {
   it('isRequestStringSortField', () => {
     expect(isRequestStringSortField('title')).toBe(true);
     expect(isRequestStringSortField('updated_at')).toBe(false);
+    expect(isRequestStringSortField('responseDueAt')).toBe(false);
+  });
+
+  it('sorts by responseDueAt with nulls last when ascending', () => {
+    expect(
+      compareRequestsByField(
+        { ...base, responseDueAt: '2026-08-01T00:00:00.000Z' },
+        { ...base, responseDueAt: null },
+        'responseDueAt',
+        'asc',
+      ),
+    ).toBeLessThan(0);
   });
 });

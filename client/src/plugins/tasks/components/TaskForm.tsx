@@ -1,4 +1,4 @@
-import { Info, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -10,12 +10,7 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import {
-  DETAIL_INFO_ROW_CLASS,
-  DETAIL_PROP_ROW_CLASS,
-  DETAIL_VIEW_CARD_CLASS,
-} from '@/core/ui/detailViewCardStyles';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -277,42 +272,6 @@ export const TaskForm = React.forwardRef<PanelFormHandle, TaskFormProps>(functio
           </div>
         </DetailSection>
       </Card>
-      {currentTask ? (
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <DetailSection
-            title={t('tasks.information')}
-            icon={Info}
-            iconPlugin="tasks"
-            className="p-4"
-            collapsible
-          >
-            <div>
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">ID</span>
-                <span className="font-mono font-semibold text-foreground">
-                  {formatDisplayNumber('tasks', currentTask.id)}
-                </span>
-              </div>
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">Created</span>
-                <span className="font-mono font-semibold text-foreground">
-                  {currentTask.createdAt
-                    ? new Date(currentTask.createdAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-              <div className={DETAIL_INFO_ROW_CLASS}>
-                <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                <span className="font-mono font-semibold text-foreground">
-                  {currentTask.updatedAt
-                    ? new Date(currentTask.updatedAt).toLocaleDateString()
-                    : '—'}
-                </span>
-              </div>
-            </div>
-          </DetailSection>
-        </Card>
-      ) : null}
     </div>
   );
 

@@ -9,7 +9,10 @@ import {
   REQUEST_PRIORITY_COLORS,
   REQUEST_SOURCE_COLORS,
   REQUEST_STATUS_COLORS,
+  RESPONSE_DUE_URGENCY_COLORS,
   formatRequestStatusForDisplay,
+  getDaysUntilResponseDue,
+  getResponseDueUrgency,
   getTypeLabel,
   type Request,
 } from '../types/requests';
@@ -34,11 +37,23 @@ export type RequestListTableProps = {
   activeRequestId?: string | number | null;
 };
 
-function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return '—';
+function responseDueStatusLabel(
+  daysLeft: number | null,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  if (daysLeft === null) {
+    return t('requests.responseDue.unknown');
   }
-  return new Date(value).toLocaleDateString();
+  if (daysLeft < 0) {
+    return t('requests.responseDue.overdue', { count: Math.abs(daysLeft) });
+  }
+  if (daysLeft === 0) {
+    return t('requests.responseDue.today');
+  }
+  if (daysLeft === 1) {
+    return t('requests.responseDue.oneDay');
+  }
+  return t('requests.responseDue.daysLeft', { count: daysLeft });
 }
 
 export function RequestListTable({
@@ -108,14 +123,24 @@ export function RequestListTable({
         ),
       },
       {
-        field: 'updated_at',
-        header: t('common.updated'),
+        field: 'responseDueAt',
+        header: t('requests.responseDue.label'),
         className: 'hidden lg:table-cell',
-        cell: (request) => (
-          <span className="text-xs text-muted-foreground">
-            {formatDate(request.updated_at || request.created_at)}
-          </span>
-        ),
+        cell: (request) => {
+          const daysLeft = getDaysUntilResponseDue(request.responseDueAt);
+          const urgency = getResponseDueUrgency(daysLeft);
+          return (
+            <Badge
+              variant="outline"
+              className={cn(
+                'h-5 border-transparent px-1.5 text-[10px] font-medium',
+                RESPONSE_DUE_URGENCY_COLORS[urgency],
+              )}
+            >
+              {responseDueStatusLabel(daysLeft, t)}
+            </Badge>
+          );
+        },
       },
     ],
     [t],

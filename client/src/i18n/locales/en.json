@@ -6,6 +6,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "search": "Search",
+    "clearSearch": "Clear search",
     "loading": "Loading...",
     "checking": "Checking…",
     "saving": "Saving...",
@@ -2629,7 +2630,19 @@
       "eyebrow": "Selected request",
       "title": "Quick context",
       "openFullProfile": "Open full request",
-      "mentionsHint": "Click to open"
+      "mentionsHint": "Click to open",
+      "readMore": "Read more",
+      "showLess": "Show less"
+    },
+    "responseDue": {
+      "label": "Response due",
+      "daysUnit": "days",
+      "daysAria": "Response window in days from submission",
+      "unknown": "—",
+      "today": "Due today",
+      "oneDay": "1 day left",
+      "daysLeft": "{{count}} days left",
+      "overdue": "Overdue {{count}}d"
     },
     "noAssigneesYet": "No assignees yet.",
     "removeAssignee": "Remove assignee",

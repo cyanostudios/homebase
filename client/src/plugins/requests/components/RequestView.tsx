@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   Edit,
   ExternalLink,
   Info,
@@ -23,7 +24,9 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
+  DETAIL_FIELD_VALUE_CLASS,
   DETAIL_INFO_ROW_CLASS,
+  DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_PROP_ROW_CLASS,
   DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_SURFACE_ROW_CLASS,
@@ -33,6 +36,11 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
+import {
+  ContactCopyableLink,
+  mailtoHref,
+  telHref,
+} from '@/plugins/contacts/components/ContactCopyableLink';
 import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import {
@@ -44,22 +52,28 @@ import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmen
 
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
-import { REQUEST_SOURCE_COLORS, formatSubmittedDateWithAge, getTypeLabel } from '../types/requests';
+import { REQUEST_SOURCE_COLORS, formatSubmittedDateWithAge } from '../types/requests';
 import {
   buildRequestAssigneesSavePayload,
+  buildRequestResponseDueSavePayload,
   buildRequestTeamSavePayload,
+  buildRequestTypeSavePayload,
 } from '../utils/requestListSave';
 
 import { RequestAssignedTeamSelect } from './RequestAssignedTeamSelect';
 import { RequestAssigneeSelect } from './RequestAssigneeSelect';
 import { RequestPrioritySelect } from './RequestPrioritySelect';
-import { RequestQuickContextPanel } from './RequestQuickContextPanel';
+import { RequestResponseDueControl } from './RequestResponseDueControl';
 import { RequestStatusSelect } from './RequestStatusSelect';
+import { RequestTypeSelect } from './RequestTypeSelect';
 
 interface RequestViewProps {
   request?: Request | null;
   item?: Request | null;
 }
+
+const FACT_LABEL_CLASS =
+  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
 function RequestQuickActionsCard({
   request,
@@ -139,6 +153,8 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
     return contacts.find((c) => String(c.id) === request.contactId) ?? null;
   }, [request?.contactId, contacts]);
 
+  const submitterPhone = linkedContact?.phone?.trim() || linkedContact?.phone2?.trim() || '';
+
   const navigateToContact = (contact: Contact) => {
     closeRequestPanel();
     setViewingContact(null);
@@ -167,6 +183,20 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
     await saveRequest({ title: request.title, priority: newPriority }, request.id);
   };
 
+  const handleTypeChange = async (newType: string) => {
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    await saveRequest(buildRequestTypeSavePayload(request, newType), request.id);
+  };
+
+  const handleResponseDueChange = async (_days: number, responseDueAt: string) => {
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    await saveRequest(buildRequestResponseDueSavePayload(request, responseDueAt), request.id);
+  };
+
   const handleAssigneeChange = async (newAssigneeIds: string[]) => {
     if (!request?.id) {
       return;
@@ -187,16 +217,152 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
     await saveRequest(buildRequestTeamSavePayload(request, teamId), request.id);
   };
 
+  const updatedLabel = request.updated_at
+    ? new Date(request.updated_at).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+
+  const contentColumn = (
+    <div className="space-y-6">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={String(request.title || '').trim() || '—'}
+          className="p-6"
+          prominentTitle
+          action={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={Edit}
+              className="h-8 w-8 shrink-0 p-0"
+              onClick={() => openRequestForEdit(request)}
+              aria-label={t('common.edit')}
+              title={t('common.edit')}
+            />
+          }
+        >
+          {updatedLabel ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          ) : null}
+          <p className="whitespace-pre-wrap text-sm text-foreground">
+            {request.description?.trim() || '—'}
+          </p>
+        </DetailSection>
+      </Card>
+
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('requests.view.submitter')}
+          icon={User}
+          iconPlugin="requests"
+          subtleTitle
+          className="p-6"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div>
+                <div className={FACT_LABEL_CLASS}>
+                  <User className="h-3 w-3" />
+                  {t('requests.form.submitterName')}
+                </div>
+                <div className={DETAIL_FIELD_VALUE_CLASS}>
+                  {request.submitterName?.trim() || '—'}
+                </div>
+              </div>
+              <div>
+                <div className={FACT_LABEL_CLASS}>
+                  <CalendarDays className="h-3 w-3" />
+                  {t('requests.view.submittedOn')}
+                </div>
+                <div className={DETAIL_FIELD_VALUE_CLASS}>
+                  {formatSubmittedDateWithAge(request.created_at, t) ?? '—'}
+                </div>
+              </div>
+              <div>
+                <div className={FACT_LABEL_CLASS}>
+                  <Mail className="h-3 w-3" />
+                  {t('requests.form.submitterEmail')}
+                </div>
+                <ContactCopyableLink
+                  value={request.submitterEmail}
+                  href={mailtoHref(request.submitterEmail)}
+                />
+              </div>
+              <div>
+                <div className={FACT_LABEL_CLASS}>
+                  <Phone className="h-3 w-3" />
+                  {t('requests.view.phone')}
+                </div>
+                <ContactCopyableLink value={submitterPhone} href={telHref(submitterPhone)} />
+              </div>
+            </div>
+
+            <div className={DETAIL_PROP_ROW_CLASS}>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {t('requests.view.linkedContact')}
+              </span>
+              {linkedContact ? (
+                <div
+                  className={cn(
+                    DETAIL_SURFACE_ROW_CLASS,
+                    'plugin-contacts max-w-[240px] transition-colors hover:bg-muted/70',
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                    {linkedContact.companyName ?? `Contact ${linkedContact.id}`}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={ExternalLink}
+                    className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-contacts')}
+                    onClick={() => setViewingContact(linkedContact)}
+                  >
+                    {t('contacts.quickInfo.openContact')}
+                  </Button>
+                </div>
+              ) : (
+                <span className="text-sm font-medium text-foreground">—</span>
+              )}
+            </div>
+
+            {request.internalNotes?.trim() ? (
+              <div>
+                <div className="mb-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    {t('requests.view.internalNotes')}
+                  </span>
+                </div>
+                <div className={DETAIL_NOTE_CALLOUT_CLASS}>
+                  <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                    {request.internalNotes}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </DetailSection>
+      </Card>
+
+      {hasFilesPlugin ? (
+        <FileAttachmentsSection pluginName="requests" entityId={request.id} readOnly />
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <DetailLayout
-        leftSidebar={
-          <RequestQuickContextPanel
-            request={request}
-            onEdit={() => openRequestForEdit(request)}
-            variant="full"
-          />
-        }
+        leftSidebar={contentColumn}
         sidebar={
           <div className="space-y-6">
             <RequestQuickActionsCard
@@ -266,106 +432,6 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
 
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection
-              title={String(request.title || '').trim() || '—'}
-              className="p-6"
-              prominentTitle
-            >
-              <p className="whitespace-pre-wrap text-sm text-foreground">
-                {request.description?.trim() || '—'}
-              </p>
-            </DetailSection>
-          </Card>
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('requests.view.submitter')}
-              icon={User}
-              iconPlugin="requests"
-              subtleTitle
-              className="p-6"
-            >
-              <div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.form.submitterName')}
-                  </span>
-                  <span className="max-w-[220px] truncate text-sm font-medium text-foreground">
-                    {request.submitterName?.trim() || '—'}
-                  </span>
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.form.submitterEmail')}
-                  </span>
-                  {request.submitterEmail?.trim() ? (
-                    <a
-                      href={`mailto:${request.submitterEmail.trim()}`}
-                      className="inline-flex max-w-[220px] items-center gap-1.5 truncate text-sm font-medium text-foreground hover:text-plugin hover:underline"
-                    >
-                      <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      {request.submitterEmail.trim()}
-                    </a>
-                  ) : (
-                    <span className="text-sm font-medium text-foreground">—</span>
-                  )}
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.view.submittedOn')}
-                  </span>
-                  <span className="text-sm font-medium text-foreground">
-                    {formatSubmittedDateWithAge(request.created_at, t) ?? '—'}
-                  </span>
-                </div>
-                <div className={DETAIL_PROP_ROW_CLASS}>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {t('requests.view.linkedContact')}
-                  </span>
-                  {linkedContact ? (
-                    <div
-                      className={cn(
-                        DETAIL_SURFACE_ROW_CLASS,
-                        'plugin-contacts max-w-[240px] transition-colors hover:bg-muted/70',
-                      )}
-                    >
-                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                        {linkedContact.companyName ?? `Contact ${linkedContact.id}`}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        icon={ExternalLink}
-                        className={cn(DETAIL_ENTITY_LINK_TRIGGER_CLASS, 'plugin-contacts')}
-                        onClick={() => setViewingContact(linkedContact)}
-                      >
-                        {t('contacts.quickInfo.openContact')}
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-sm font-medium text-foreground">—</span>
-                  )}
-                </div>
-                {linkedContact && (linkedContact.phone || (linkedContact as any).phone2) && (
-                  <div className={DETAIL_PROP_ROW_CLASS}>
-                    <span className="text-sm text-slate-500 dark:text-slate-400">
-                      {t('requests.view.phone')}
-                    </span>
-                    <a
-                      href={`tel:${(linkedContact.phone || (linkedContact as any).phone2).replace(/\s/g, '')}`}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-plugin hover:underline"
-                    >
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      {linkedContact.phone || (linkedContact as any).phone2}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </DetailSection>
-          </Card>
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
               title={t('requests.view.properties')}
               icon={SlidersHorizontal}
               subtleTitle
@@ -376,9 +442,11 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     {t('requests.form.requestType')}
                   </span>
-                  <span className="text-sm font-medium text-foreground">
-                    {getTypeLabel(request.requestType, t)}
-                  </span>
+                  <RequestTypeSelect
+                    request={request}
+                    onTypeChange={handleTypeChange}
+                    hideInlineLabel
+                  />
                 </div>
                 <div className={DETAIL_PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
@@ -397,6 +465,16 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                   <RequestPrioritySelect
                     request={request}
                     onPriorityChange={handlePriorityChange}
+                    hideInlineLabel
+                  />
+                </div>
+                <div className={DETAIL_PROP_ROW_CLASS}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {t('requests.responseDue.label')}
+                  </span>
+                  <RequestResponseDueControl
+                    request={request}
+                    onDaysChange={handleResponseDueChange}
                     hideInlineLabel
                   />
                 </div>
@@ -424,20 +502,6 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
 
           {hasTeamsPlugin ? (
             <RequestAssignedTeamSelect request={request} onTeamChange={handleAssignedTeamChange} />
-          ) : null}
-
-          {request.internalNotes?.trim() && (
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection title={t('requests.view.internalNotes')} className="p-6" subtleTitle>
-                <p className="whitespace-pre-wrap text-sm text-foreground">
-                  {request.internalNotes}
-                </p>
-              </DetailSection>
-            </Card>
-          )}
-
-          {hasFilesPlugin ? (
-            <FileAttachmentsSection pluginName="requests" entityId={request.id} readOnly />
           ) : null}
         </div>
       </DetailLayout>

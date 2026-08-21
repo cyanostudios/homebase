@@ -35,6 +35,7 @@ function rowToRequest(row: Record<string, unknown>): Request {
     assignedToIds,
     internalNotes: (row.internalNotes ?? row.internal_notes) as string | null,
     source: ((row.source as string) ?? 'internal') as Request['source'],
+    responseDueAt: ((row.responseDueAt ?? row.response_due_at) as string | null) ?? null,
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
   };
@@ -53,6 +54,7 @@ export interface RequestPayload {
   assigned_to_ids?: string[];
   internal_notes?: string | null;
   source?: Request['source'];
+  response_due_at?: string | null;
 }
 
 export interface PublicRequestPayload {

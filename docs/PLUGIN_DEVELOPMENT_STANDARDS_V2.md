@@ -180,7 +180,7 @@ När en plugin stödjer manuell tabellimport (inte FOGIS/cups-style API-import):
 
 Use the same UI components and styling as other plugins so list views and toolbars look and behave the same across the app. **New plugins** start from `templates/plugin-frontend-template` (card-column shell). Canonical rules: [UI_AND_UX_STANDARDS_V3.md](UI_AND_UX_STANDARDS_V3.md) §0.1.
 
-- **Toolbar:** Shared `ListToolbar` (`@/core/ui/ListToolbar`): idle = Select all + search + sort + `ListColumnLayoutToggle` (**1 / 2 / 3 / table**); selection = bulk actions replace that row. Do **not** use legacy `ContentToolbar` header injection, and do **not** use an in-card grid/list toggle (`viewMode`).
+- **Toolbar:** Shared `ListToolbar` (`@/core/ui/ListToolbar`): idle = Select all + optional `beforeSearch` + `ListSearchInput` (clear X) + sort + `ListColumnLayoutToggle` (**1 / 2 / 3 / table**); selection = bulk actions replace that row. Do **not** use legacy `ContentToolbar` header injection, and do **not** use an in-card grid/list toggle (`viewMode`).
 - **Toolbar buttons:** Use the shared `Button` from `@/components/ui/button` with:
   - `variant="ghost"` or `variant="secondary"` for secondary actions (e.g. Settings).
   - `size="sm"`.

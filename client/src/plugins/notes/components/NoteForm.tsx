@@ -1,4 +1,4 @@
-import { Info, Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -14,13 +14,11 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_ENTITY_LINK_TRIGGER_CLASS,
-  DETAIL_INFO_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 const RichTextEditor = React.lazy(() =>
   import('@/core/ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
 );
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -325,52 +323,11 @@ export const NoteForm = React.forwardRef<PanelFormHandle, NoteFormProps>(functio
       </Card>
     ) : null;
 
-  const metaSection = (
+  const metaSection = currentNote ? (
     <div className="space-y-4">
-      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-        <DetailSection
-          title={t('notes.information')}
-          icon={Info}
-          iconPlugin="notes"
-          subtleTitle
-          className="p-4"
-          collapsible
-        >
-          <div>
-            <div className={DETAIL_INFO_ROW_CLASS}>
-              <span className="text-slate-500 dark:text-slate-400">ID</span>
-              <span className="font-mono font-semibold text-foreground">
-                {currentNote ? formatDisplayNumber('notes', currentNote.id) : '—'}
-              </span>
-            </div>
-            <div className={DETAIL_INFO_ROW_CLASS}>
-              <span className="text-slate-500 dark:text-slate-400">Created</span>
-              <span className="font-mono font-semibold text-foreground">
-                {currentNote?.createdAt
-                  ? new Date(currentNote.createdAt).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
-            <div className={DETAIL_INFO_ROW_CLASS}>
-              <span className="text-slate-500 dark:text-slate-400">Updated</span>
-              <span className="font-mono font-semibold text-foreground">
-                {currentNote?.updatedAt
-                  ? new Date(currentNote.updatedAt).toLocaleDateString()
-                  : '—'}
-              </span>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
-      {currentNote ? (
-        <DetailActivityLog
-          entityType="note"
-          entityId={currentNote.id}
-          title={t('notes.activity')}
-        />
-      ) : null}
+      <DetailActivityLog entityType="note" entityId={currentNote.id} title={t('notes.activity')} />
     </div>
-  );
+  ) : undefined;
 
   return (
     <>

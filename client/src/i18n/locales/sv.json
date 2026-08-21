@@ -6,6 +6,7 @@
     "delete": "Ta bort",
     "edit": "Redigera",
     "search": "Sök",
+    "clearSearch": "Rensa sökning",
     "loading": "Laddar...",
     "checking": "Kontrollerar …",
     "saving": "Sparar...",
@@ -2623,7 +2624,19 @@
       "eyebrow": "Valt ärende",
       "title": "Snabbkontext",
       "openFullProfile": "Öppna hela ärendet",
-      "mentionsHint": "Klicka för att öppna"
+      "mentionsHint": "Klicka för att öppna",
+      "readMore": "Läs mer",
+      "showLess": "Visa mindre"
+    },
+    "responseDue": {
+      "label": "Svarsdatum",
+      "daysUnit": "dagar",
+      "daysAria": "Svarsfönster i dagar från inlämning",
+      "unknown": "—",
+      "today": "Förfaller idag",
+      "oneDay": "1 dag kvar",
+      "daysLeft": "{{count}} dagar kvar",
+      "overdue": "Försenad {{count}}d"
     },
     "noAssigneesYet": "Inga tilldelade ännu.",
     "removeAssignee": "Ta bort tilldelad",

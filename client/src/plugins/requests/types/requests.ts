@@ -41,6 +41,8 @@ export interface Request {
   assignedToIds: string[];
   internalNotes: string | null;
   source: RequestSource;
+  /** ISO timestamptz — default created + 7 days. */
+  responseDueAt: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -172,4 +174,77 @@ export function formatSubmittedDateWithAge(
     return dateStr;
   }
   return `${dateStr} (${ageStr})`;
+}
+
+/**
+ * Whole calendar days until response due (negative = overdue).
+ * Uses local midnight comparison so "1 day left" means tomorrow's calendar day.
+ */
+export function getDaysUntilResponseDue(iso: string | null | undefined): number | null {
+  const date = parseRequestDate(iso ?? undefined);
+  if (!date) {
+    return null;
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(date);
+  due.setHours(0, 0, 0, 0);
+  return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export type ResponseDueUrgency = 'green' | 'yellow' | 'red';
+
+/**
+ * Urgency colors for svarsdatum:
+ * - green: 7+ days left
+ * - yellow: 2–6 days left (inkl. när den är nere på 3)
+ * - red: ≤1 day left or overdue
+ */
+export function getResponseDueUrgency(daysLeft: number | null): ResponseDueUrgency {
+  if (daysLeft === null) {
+    return 'green';
+  }
+  if (daysLeft >= 7) {
+    return 'green';
+  }
+  if (daysLeft >= 2) {
+    return 'yellow';
+  }
+  return 'red';
+}
+
+export const RESPONSE_DUE_URGENCY_COLORS: Record<ResponseDueUrgency, string> = {
+  green: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
+  yellow: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+  red: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
+};
+
+/** Build ISO due date = submission date + N calendar days (SLA window). */
+export function responseDueAtFromDays(days: number, createdAt: string | null | undefined): string {
+  const safeDays = Number.isFinite(days) ? Math.max(0, Math.floor(days)) : 7;
+  const base = parseRequestDate(createdAt ?? undefined) ?? new Date();
+  const due = new Date(base);
+  due.setHours(12, 0, 0, 0);
+  due.setDate(due.getDate() + safeDays);
+  return due.toISOString();
+}
+
+/**
+ * Configured SLA length in whole calendar days: responseDueAt − created_at.
+ * This is what the user edits (e.g. submitted 14d ago + SLA 21 → 7 days left → green).
+ */
+export function getResponseDueSlaDays(
+  createdAt: string | null | undefined,
+  responseDueAt: string | null | undefined,
+): number | null {
+  const created = parseRequestDate(createdAt ?? undefined);
+  const due = parseRequestDate(responseDueAt ?? undefined);
+  if (!created || !due) {
+    return null;
+  }
+  const start = new Date(created);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(due);
+  end.setHours(0, 0, 0, 0);
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 }

@@ -2,7 +2,9 @@ import {
   buildRequestAssigneesSavePayload,
   buildRequestListPrioritySavePayload,
   buildRequestListStatusSavePayload,
+  buildRequestResponseDueSavePayload,
   buildRequestTeamSavePayload,
+  buildRequestTypeSavePayload,
   shouldApplyOpenRequestSaveEffects,
 } from '../requestListSave';
 
@@ -40,6 +42,26 @@ describe('buildRequestListPrioritySavePayload', () => {
     expect(buildRequestListPrioritySavePayload({ title: 'Pitch booking' }, 'High')).toEqual({
       title: 'Pitch booking',
       priority: 'High',
+    });
+  });
+});
+
+describe('buildRequestTypeSavePayload', () => {
+  it('applies new request type and keeps title', () => {
+    expect(buildRequestTypeSavePayload({ title: 'Pitch booking' }, 'person_registration')).toEqual({
+      title: 'Pitch booking',
+      request_type: 'person_registration',
+    });
+  });
+});
+
+describe('buildRequestResponseDueSavePayload', () => {
+  it('applies response due ISO and keeps title', () => {
+    expect(
+      buildRequestResponseDueSavePayload({ title: 'Pitch booking' }, '2026-08-28T12:00:00.000Z'),
+    ).toEqual({
+      title: 'Pitch booking',
+      response_due_at: '2026-08-28T12:00:00.000Z',
     });
   });
 });

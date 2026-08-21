@@ -4,9 +4,75 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
-## 2026-08-21 – Requests: assignee/team quick-info popup + dedicated picker components (Tasks parity)
+## 2026-08-21 – Edit mode: ingen Information-kort (Tasks/Notes/Requests)
 
 **Status:** Implementerat lokalt. **Ej prod-release.**
+
+Information-kortet (ID/Created/Updated) visas inte längre i edit-formulären för **Tasks**, **Notes** och **Requests** — endast i full view. Notes behåller Activity i edit-sidokolumnen när noten sparats.
+
+---
+
+## 2026-08-21 – Requests: internal notes samma placering som Contacts notes
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+Internal notes följer Contacts-mönstret: **vänster identitets-/fakta-stack** (efter submitter-fakta), amber `DETAIL_NOTE_CALLOUT_CLASS` i lilla preview + full view; i edit textarea i submitter-kortet (vänster). Inte längre eget kort efter assignees i main.
+
+---
+
+## 2026-08-21 – Requests edit: samma kortlayout som full view (Tasks-parity)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+`RequestForm` (2 kolumner) speglar nu samma kortplacering och chrome som `RequestView` / `TaskForm`: **vänster** = details (titel + beskrivning, `p-6`/`prominentTitle`) + submitter (`subtleTitle`) + Information (vid edit); **main** = properties med `DETAIL_PROP_ROW_CLASS` (type/status/priority/response due/source) → assignees → team → notes → files. Validation = destructive Card. Tidigare låg properties till vänster och submitter i main med `p-4`.
+
+---
+
+## 2026-08-21 – Listor: gemensam sök med clear (X) + ListToolbar `beforeSearch`
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sökfält:** Delad `ListSearchInput` (`@/core/ui/ListSearchInput`) i list-toolbars (card-column-plugins + Mail/Pulse provider-/historikvyer m.fl.). När fältet har text visas **X** (`common.clearSearch`) som rensar sökningen. Samma clear-mönster i `ContentToolbar` där den används.
+
+**ListToolbar:** Valfri slot `beforeSearch` — kontroll **direkt före** sökfältet (högergrupp: `beforeSearch` → search → trailing). Requests använder den för **Rensa filter** (`common.clearFilters`) till vänster om sökfältet.
+
+---
+
+## 2026-08-21 – Requests: Svarsdatum (response due) med färgkodad SLA
+
+**Status:** Implementerat lokalt + migrerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Fält:** `response_due_at` (TIMESTAMPTZ) på `requests`. Default vid create (intern + public) = nu + 7 dagar. Befintliga rader backfylls till `created_at + 7 days` via migration `135-requests-add-response-due-at.sql` (`npm run migrate:requests-response-due`).
+
+**UI:** Properties-rad + quick-context — redigerbart antal dagar (SLA från inlämning). Badge-färg:
+
+- **grön** ≥ 7 dagar kvar
+- **gul** 2–6 dagar (inkl. när den är nere på 3)
+- **röd** ≤ 1 dag eller försenad
+
+Ändring av dagar sätter nytt `response_due_at` = **created_at + N** (SLA från inlämning, inte från idag). Exempel: inlämnad för 14 dagar sedan + SLA 21 → 7 dagar kvar → grön.
+
+**Tabellvy:** Kolumnen **Updated** ersatt med **Response due** — endast urgencyn/badge (ingen datumrad). Kolumnen är sorterbar (`responseDueAt`); sort-dropdown i kortvy inkluderar samma fält.
+
+**Kända begränsningar (Security):** Ogiltigt `response_due_at` i update-payload kan rensa fältet (`null`) i stället för 400; backend har ingen övre gräns motsvarande klientens 0–3650 dagar. Migration scripts följer befintligt `search_path`-mönster (operator-only).
+
+**Kvarstår innan release:** kör `npm run migrate:requests-response-due` mot prod (main + tenants).
+
+---
+
+## 2026-08-21 – Requests full view: titel + content i kolumn 1 (Tasks-parity)
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+`RequestView` full view speglar nu `TaskView`: **kolumn 1** = titel + beskrivning (+ Updated + edit) och submitter-kortet under; **kolumn 2** = properties, assignees, team, internal notes, bilagor; **kolumn 3** = quick actions, information, activity. Quick-context-panelen används bara i listans lilla förhandsgranskning, inte som leftSidebar i full view.
+
+**Edit deep-link:** `requestsDeepLinkPathSyncedRef` sätts före `navigateToItem` i `openRequestPanel` / `openRequestForEdit` (samma mönster som Tasks/Contacts), så listans edit-ikon inte skrivs över till view av URL-sync.
+
+---
+
+## 2026-08-21 – Requests: assignee/team quick-info popup + dedicated picker components (Tasks parity)
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
 
 **Sammanfattning:** Requests får samma assignee/team-mönster som Tasks fick tidigare samma dag: klickbara tiles med förhandsgranskning innan navigering, dedikerade återanvändbara picker-komponenter (list, small view, full view och edit), samt synlig felvisning vid misslyckad sparning.
 

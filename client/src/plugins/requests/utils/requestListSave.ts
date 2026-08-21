@@ -37,6 +37,17 @@ export function buildRequestListPrioritySavePayload(
   };
 }
 
+/** Minimal payload for immediate request-type changes via saveRequest. */
+export function buildRequestTypeSavePayload(
+  request: Pick<Request, 'title'>,
+  requestType: string,
+): RequestPayload {
+  return {
+    title: request.title,
+    request_type: requestType,
+  };
+}
+
 /**
  * Minimal payload for immediate assignee changes via saveRequest.
  * The backend preserves all other fields when omitted from the payload, so unlike Tasks
@@ -60,5 +71,16 @@ export function buildRequestTeamSavePayload(
   return {
     title: request.title,
     team_id: teamId ? Number(teamId) : null,
+  };
+}
+
+/** Minimal payload for immediate response-due (svarsdatum) changes via saveRequest. */
+export function buildRequestResponseDueSavePayload(
+  request: Pick<Request, 'title'>,
+  responseDueAt: string,
+): RequestPayload {
+  return {
+    title: request.title,
+    response_due_at: responseDueAt,
   };
 }

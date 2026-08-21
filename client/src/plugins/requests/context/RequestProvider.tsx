@@ -122,6 +122,8 @@ export function RequestProvider({
     return () => unregisterPanelCloseFunction('requests');
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeRequestPanel]);
 
+  const requestsDeepLinkPathSyncedRef = useRef<string | null>(null);
+
   const openRequestPanel = useCallback(
     (request: Request | null) => {
       clearRequestSelection();
@@ -131,6 +133,8 @@ export function RequestProvider({
       setValidationErrors([]);
       onCloseOtherPanels();
       if (request) {
+        const slug = buildSlug(request, requests, 'title');
+        requestsDeepLinkPathSyncedRef.current = `/requests/${slug}`;
         navigateToItem(request, requests, 'title');
       }
     },
@@ -144,6 +148,8 @@ export function RequestProvider({
       setIsRequestPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      const slug = buildSlug(request, requests, 'title');
+      requestsDeepLinkPathSyncedRef.current = `/requests/${slug}`;
       navigateToItem(request, requests, 'title');
     },
     [navigateToItem, requests, onCloseOtherPanels, setValidationErrors],
@@ -169,7 +175,6 @@ export function RequestProvider({
     openRequestForViewRef.current = openRequestForView;
   }, [openRequestForView]);
 
-  const requestsDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!requests.length) {
       return;

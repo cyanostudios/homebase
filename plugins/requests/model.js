@@ -33,6 +33,27 @@ function sanitizeAssignedToIds(value) {
     .slice(0, 50);
 }
 
+/** Default SLA: 7 calendar days from now (end of local day not required — store ISO timestamptz). */
+function defaultResponseDueAt(fromDate = new Date()) {
+  const due = new Date(fromDate.getTime());
+  due.setUTCDate(due.getUTCDate() + 7);
+  return due.toISOString();
+}
+
+function sanitizeResponseDueAt(value) {
+  if (value === null) {
+    return null;
+  }
+  if (value === undefined) {
+    return undefined;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  return date.toISOString();
+}
+
 function stableJson(value) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') {
@@ -59,6 +80,7 @@ class RequestModel {
       contact_id: 'Contact',
       assigned_to_ids: 'Assignees',
       internal_notes: 'Internal notes',
+      response_due_at: 'Response due',
     };
     const changed = [];
 
@@ -113,6 +135,13 @@ class RequestModel {
       const next = (requestData.internal_notes || '').trim();
       const prev = (existing.internal_notes || '').trim();
       if (next !== prev) changed.push(labels.internal_notes);
+    }
+    if ('response_due_at' in requestData) {
+      const next = sanitizeResponseDueAt(requestData.response_due_at);
+      const prev = existing.response_due_at
+        ? new Date(existing.response_due_at).toISOString()
+        : null;
+      if (next !== undefined && next !== prev) changed.push(labels.response_due_at);
     }
 
     return changed.length === 0 ? null : changed.join(', ');
@@ -187,6 +216,7 @@ class RequestModel {
         assigned_to_ids,
         internal_notes,
         source,
+        response_due_at,
       } = requestData;
 
       const trimmedTitle = (title || '').toString().trim();
@@ -194,6 +224,7 @@ class RequestModel {
         throw new AppError('Request title is required', 400, AppError.CODES.VALIDATION_ERROR);
       }
 
+      const sanitizedDue = sanitizeResponseDueAt(response_due_at);
       const result = await db.insert('requests', {
         title: trimmedTitle.slice(0, 500),
         description: description ? description.trim().slice(0, 10000) : null,
@@ -207,6 +238,7 @@ class RequestModel {
         assigned_to_ids: JSON.stringify(sanitizeAssignedToIds(assigned_to_ids)),
         internal_notes: internal_notes ? internal_notes.trim().slice(0, 10000) : null,
         source: REQUEST_SOURCES.includes(source) ? source : 'internal',
+        response_due_at: sanitizedDue !== undefined ? sanitizedDue : defaultResponseDueAt(),
       });
 
       Logger.info('Request created', { requestId: result.id });
@@ -230,8 +262,8 @@ class RequestModel {
 
       const result = await pool.query(
         `INSERT INTO requests
-          (title, description, request_type, team_id, submitter_name, submitter_email, source, status, priority)
-         VALUES ($1, $2, $3, $4, $5, $6, 'external', 'not started', 'Medium')
+          (title, description, request_type, team_id, submitter_name, submitter_email, source, status, priority, response_due_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'external', 'not started', 'Medium', $7)
          RETURNING *`,
         [
           trimmedTitle.slice(0, 500),
@@ -240,6 +272,7 @@ class RequestModel {
           team_id ? parseInt(team_id, 10) : null,
           submitter_name ? submitter_name.trim().slice(0, 255) : null,
           submitter_email ? submitter_email.trim().slice(0, 255) : null,
+          defaultResponseDueAt(),
         ],
       );
 
@@ -295,6 +328,7 @@ class RequestModel {
         contact_id,
         assigned_to_ids,
         internal_notes,
+        response_due_at,
       } = requestData;
 
       const trimmedTitle = (title || current.title || '').toString().trim();
@@ -355,13 +389,17 @@ class RequestModel {
         assigned_to_ids:
           assigned_to_ids !== undefined
             ? JSON.stringify(sanitizeAssignedToIds(assigned_to_ids))
-            : current.assigned_to_ids,
+            : JSON.stringify(sanitizeAssignedToIds(current.assigned_to_ids)),
         internal_notes:
           internal_notes !== undefined
             ? internal_notes
               ? internal_notes.trim().slice(0, 10000)
               : null
             : (current.internal_notes ?? null),
+        response_due_at:
+          response_due_at !== undefined
+            ? (sanitizeResponseDueAt(response_due_at) ?? null)
+            : (current.response_due_at ?? null),
       });
 
       Logger.info('Request updated', { requestId });
@@ -419,6 +457,7 @@ class RequestModel {
       assignedToIds: parseJsonArray(row.assigned_to_ids),
       internalNotes: row.internal_notes ?? null,
       source: row.source || 'internal',
+      responseDueAt: row.response_due_at ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

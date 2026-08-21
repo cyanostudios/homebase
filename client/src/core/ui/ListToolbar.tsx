@@ -11,6 +11,8 @@ export interface ListToolbarProps {
   selectAll?: React.ReactNode;
   /** Idle-only controls beside select-all (e.g. Quick task / Quick note). */
   leadingActions?: React.ReactNode;
+  /** Idle-only control immediately before the search field (e.g. Clear filters). */
+  beforeSearch?: React.ReactNode;
   search: React.ReactNode;
   /** Sort + column toggles (idle only). */
   trailing: React.ReactNode;
@@ -36,6 +38,7 @@ export function ListToolbar({
   showSelectAll = false,
   selectAll,
   leadingActions,
+  beforeSearch,
   search,
   trailing,
   bulkActions,
@@ -63,6 +66,7 @@ export function ListToolbar({
             {leadingActions}
           </div>
           <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:flex-nowrap">
+            {beforeSearch ? <div className="flex shrink-0 items-center">{beforeSearch}</div> : null}
             <div className="min-w-0 w-full max-w-sm sm:w-56 md:w-64">{search}</div>
             <div className="flex shrink-0 items-center gap-1">{trailing}</div>
           </div>

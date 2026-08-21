@@ -1,11 +1,10 @@
-import { ArrowLeft, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -17,6 +16,7 @@ import {
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
@@ -261,17 +261,13 @@ export const MailHistoryView: React.FC = () => {
 
         <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
           <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
-            <div className="relative w-full max-w-sm md:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder={t('mail.searchPlaceholder', {
-                  defaultValue: 'Search by recipient or subject...',
-                })}
-                className="h-8 bg-background pl-9 text-xs"
-              />
-            </div>
+            <ListSearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder={t('mail.searchPlaceholder', {
+                defaultValue: 'Search by recipient or subject...',
+              })}
+            />
           </div>
           {loading && mailHistory.length === 0 ? (
             <Card className="shadow-none">

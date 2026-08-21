@@ -19,6 +19,7 @@ describe('RequestList table view wiring', () => {
     expect(tableSrc).toMatch(/title/);
     expect(tableSrc).toMatch(/priority/);
     expect(tableSrc).toMatch(/source/);
-    expect(tableSrc).toMatch(/updated_at/);
+    expect(tableSrc).toMatch(/responseDueAt/);
+    expect(tableSrc).not.toMatch(/field: 'updated_at'/);
   });
 });

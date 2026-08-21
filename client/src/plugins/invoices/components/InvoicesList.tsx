@@ -1,13 +1,13 @@
-import { Plus, Search, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { Plus, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { GroupedList } from '@/core/ui/GroupedList';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
@@ -413,15 +413,11 @@ export function InvoicesList() {
 
         <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
           <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
-            <div className="relative w-full max-w-sm md:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={t('invoices.searchPlaceholder')}
-                className="h-8 bg-background pl-9 text-xs"
-              />
-            </div>
+            <ListSearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder={t('invoices.searchPlaceholder')}
+            />
           </div>
           <GroupedList
             items={sortedInvoices}

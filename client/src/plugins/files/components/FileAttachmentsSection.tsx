@@ -51,8 +51,8 @@ export interface FileAttachmentsSectionProps {
 }
 
 /**
- * Attachments block: section header like Contacts/Slots properties; add row uses same
- * `grid md:grid-cols-2` + bordered cells as Contacts contact properties.
+ * Attachments block: section header like Contacts/Slots properties.
+ * Upload and From library each get a full-width row (stacked).
  */
 export function FileAttachmentsSection({
   pluginName,
@@ -189,12 +189,7 @@ export function FileAttachmentsSection({
         ) : null}
 
         {!readOnly ? (
-          <div
-            className={cn(
-              'grid grid-cols-1 gap-2 md:grid-cols-2',
-              disabled && 'pointer-events-none opacity-50',
-            )}
-          >
+          <div className={cn('space-y-2', disabled && 'pointer-events-none opacity-50')}>
             <div className="rounded-lg border border-border p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-0.5">
@@ -230,7 +225,7 @@ export function FileAttachmentsSection({
                   onOpenChange={setFilePickerOpen}
                 >
                   <PopoverAnchor asChild>
-                    <div className="relative w-full min-w-0 max-w-[180px] shrink-0">
+                    <div className="relative w-full min-w-0 max-w-[220px] shrink-0">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         value={fileSearch}

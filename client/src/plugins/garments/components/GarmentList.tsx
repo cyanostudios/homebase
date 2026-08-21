@@ -4,7 +4,6 @@ import {
   CheckSquare,
   Package,
   Plus,
-  Search,
   Settings,
   Shirt,
   Trash2,
@@ -15,7 +14,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -31,6 +29,7 @@ import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -402,17 +401,13 @@ export const GarmentList: React.FC = () => {
               </Button>
             }
             search={
-              <div className="relative w-full max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder={
-                    isInventory ? t('garments.searchInventory') : t('garments.searchLists')
-                  }
-                  className="h-8 bg-background pl-9 text-xs"
-                />
-              </div>
+              <ListSearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={
+                  isInventory ? t('garments.searchInventory') : t('garments.searchLists')
+                }
+              />
             }
             trailing={
               <>

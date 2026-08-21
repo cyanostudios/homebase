@@ -4,7 +4,6 @@ import {
   ArrowUp,
   Inbox,
   Plus,
-  Search,
   Settings,
   SlidersHorizontal,
   Trash2,
@@ -15,7 +14,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -37,6 +35,7 @@ import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
@@ -61,6 +60,8 @@ import {
 import {
   buildRequestListPrioritySavePayload,
   buildRequestListStatusSavePayload,
+  buildRequestResponseDueSavePayload,
+  buildRequestTypeSavePayload,
 } from '../utils/requestListSave';
 import {
   compareRequestsByField,
@@ -88,6 +89,7 @@ type SortOrder = RequestSortOrder;
 
 const SORT_FIELD_OPTIONS: { value: SortField; labelKey: string }[] = [
   { value: 'updated_at', labelKey: 'common.updated' },
+  { value: 'responseDueAt', labelKey: 'requests.responseDue.label' },
   { value: 'created_at', labelKey: 'requests.view.created' },
   { value: 'title', labelKey: 'requests.form.title' },
   { value: 'status', labelKey: 'requests.form.status' },
@@ -308,6 +310,26 @@ export function RequestList() {
     [saveRequest],
   );
 
+  const handleListTypeChange = useCallback(
+    async (request: Request, newType: string) => {
+      if (request.requestType === newType) {
+        return;
+      }
+      await saveRequest(buildRequestTypeSavePayload(request, newType), request.id);
+    },
+    [saveRequest],
+  );
+
+  const handleListResponseDueChange = useCallback(
+    async (request: Request, _days: number, responseDueAt: string) => {
+      if (request.responseDueAt === responseDueAt) {
+        return;
+      }
+      await saveRequest(buildRequestResponseDueSavePayload(request, responseDueAt), request.id);
+    },
+    [saveRequest],
+  );
+
   const handleQuickCreate = useCallback(
     async (title: string) => {
       const request = await createRequest({ title });
@@ -512,30 +534,28 @@ export function RequestList() {
               )
             }
             search={
-              <div className="relative w-full max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('requests.searchPlaceholder', { count: requests.length })}
-                  className="h-8 bg-background pl-9 text-xs"
-                />
-              </div>
+              <ListSearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder={t('requests.searchPlaceholder', { count: requests.length })}
+              />
+            }
+            beforeSearch={
+              hasActiveFilters ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={XCircle}
+                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  onClick={clearAllFilters}
+                >
+                  {t('common.clearFilters')}
+                </Button>
+              ) : null
             }
             trailing={
               <>
-                {hasActiveFilters && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={XCircle}
-                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                    onClick={clearAllFilters}
-                  >
-                    {t('common.clearFilters')}
-                  </Button>
-                )}
                 {!isTableView ? (
                   <div className="mr-1 flex items-center gap-1">
                     <Select
@@ -642,6 +662,12 @@ export function RequestList() {
                   onStatusChange={(status) => void handleListStatusChange(previewRequest, status)}
                   onPriorityChange={(priority) =>
                     void handleListPriorityChange(previewRequest, priority)
+                  }
+                  onTypeChange={(requestType) =>
+                    void handleListTypeChange(previewRequest, requestType)
+                  }
+                  onResponseDueChange={(days, responseDueAt) =>
+                    void handleListResponseDueChange(previewRequest, days, responseDueAt)
                   }
                 />
               </aside>

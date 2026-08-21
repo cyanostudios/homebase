@@ -7,7 +7,8 @@ export type RequestSortField =
   | 'type'
   | 'source'
   | 'updated_at'
-  | 'created_at';
+  | 'created_at'
+  | 'responseDueAt';
 export type RequestSortOrder = 'asc' | 'desc';
 
 const STRING_SORT_FIELDS: RequestSortField[] = ['title', 'status', 'priority', 'type', 'source'];
@@ -24,7 +25,14 @@ export function isRequestStringSortField(field: RequestSortField): boolean {
 
 type RequestSortable = Pick<
   Request,
-  'title' | 'status' | 'priority' | 'requestType' | 'source' | 'updated_at' | 'created_at'
+  | 'title'
+  | 'status'
+  | 'priority'
+  | 'requestType'
+  | 'source'
+  | 'updated_at'
+  | 'created_at'
+  | 'responseDueAt'
 >;
 
 function toSortTime(value: Date | string): number {
@@ -79,6 +87,9 @@ export function compareRequestsByField(
       order,
       toSortTime,
     );
+  }
+  if (field === 'responseDueAt') {
+    return compareNullableTimes(a.responseDueAt, b.responseDueAt, order, toSortTime);
   }
 
   let aValue: string;

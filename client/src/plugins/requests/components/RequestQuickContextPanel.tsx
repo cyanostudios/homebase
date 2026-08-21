@@ -1,4 +1,15 @@
-import { Edit, ExternalLink, Flag, Inbox, Trophy, User, Users, X } from 'lucide-react';
+import {
+  CalendarDays,
+  Edit,
+  ExternalLink,
+  Flag,
+  Mail,
+  Phone,
+  Trophy,
+  User,
+  Users,
+  X,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +18,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  DETAIL_FIELD_VALUE_CLASS,
+  DETAIL_PROP_ROW_CLASS,
+  DETAIL_NOTE_CALLOUT_CLASS,
+  DETAIL_VIEW_CARD_CLASS,
+} from '@/core/ui/detailViewCardStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { buildSlug } from '@/core/utils/slugUtils';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -16,6 +32,11 @@ import {
   AssignmentQuickInfoDialog,
   type AssignmentQuickInfoDetail,
 } from '@/plugins/contacts/components/AssignmentQuickInfoDialog';
+import {
+  ContactCopyableLink,
+  mailtoHref,
+  telHref,
+} from '@/plugins/contacts/components/ContactCopyableLink';
 import { ContactQuickInfoDialog } from '@/plugins/contacts/components/ContactQuickInfoDialog';
 import {
   CONTACT_TYPE_BADGE_CLASS,
@@ -31,13 +52,21 @@ import {
   REQUEST_PRIORITY_COLORS,
   REQUEST_STATUS_COLORS,
   formatRequestStatusForDisplay,
-  getTypeLabel,
+  formatSubmittedDateWithAge,
 } from '../types/requests';
 
 import { RequestPrioritySelect } from './RequestPrioritySelect';
+import { RequestResponseDueControl } from './RequestResponseDueControl';
 import { RequestStatusSelect } from './RequestStatusSelect';
+import { RequestTypeSelect } from './RequestTypeSelect';
 
 const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+
+const FACT_LABEL_CLASS =
+  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
+
+/** Visible plain-text budget in list quick context (same as Tasks/Notes). */
+const LIST_CONTENT_PREVIEW_CHARS = 1200;
 
 function requestInitials(title: string): string {
   const parts = title.trim().split(/\s+/).filter(Boolean);
@@ -47,6 +76,23 @@ function requestInitials(title: string): string {
   return title.trim().slice(0, 2).toUpperCase() || '—';
 }
 
+function truncatePlainText(
+  content: string,
+  maxChars: number,
+): { text: string; truncated: boolean } {
+  const plain = content.trim();
+  if (!plain) {
+    return { text: '', truncated: false };
+  }
+  if (plain.length <= maxChars) {
+    return { text: plain, truncated: false };
+  }
+  const slice = plain.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(' ');
+  const cut = lastSpace > maxChars * 0.6 ? lastSpace : maxChars;
+  return { text: `${plain.slice(0, cut).trimEnd()}…`, truncated: true };
+}
+
 export function RequestQuickContextPanel({
   request,
   onClose,
@@ -54,6 +100,8 @@ export function RequestQuickContextPanel({
   onEdit,
   onStatusChange,
   onPriorityChange,
+  onTypeChange,
+  onResponseDueChange,
   variant = 'list',
 }: {
   request: Request;
@@ -62,21 +110,27 @@ export function RequestQuickContextPanel({
   onEdit: () => void;
   onStatusChange?: (status: RequestStatus) => void;
   onPriorityChange?: (priority: RequestPriority) => void;
+  onTypeChange?: (requestType: string) => void;
+  onResponseDueChange?: (days: number, responseDueAt: string) => void;
   /** `list` = small preview beside the list; `full` = first column in full detail view. */
   variant?: 'list' | 'full';
 }) {
   const isFullView = variant === 'full';
-  const canQuickEdit = !isFullView && Boolean(onStatusChange && onPriorityChange);
+  const canQuickEdit =
+    !isFullView &&
+    Boolean(onStatusChange && onPriorityChange && onTypeChange && onResponseDueChange);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { contacts } = useApp();
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const { teams } = useTeams();
+  const [contentExpanded, setContentExpanded] = useState(false);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
   const [showTeamQuickInfo, setShowTeamQuickInfo] = useState(false);
 
   useEffect(() => {
+    setContentExpanded(false);
     setViewingContact(null);
     setShowTeamQuickInfo(false);
   }, [request.id]);
@@ -87,6 +141,18 @@ export function RequestQuickContextPanel({
       .map((id) => contacts?.find((c: { id: string | number }) => String(c.id) === String(id)))
       .filter((contact): contact is Contact => Boolean(contact));
   }, [contacts, request.assignedToIds]);
+
+  const linkedContact = useMemo(() => {
+    if (!request.contactId) {
+      return null;
+    }
+    return (
+      contacts?.find((c: { id: string | number }) => String(c.id) === String(request.contactId)) ??
+      null
+    );
+  }, [contacts, request.contactId]);
+
+  const submitterPhone = linkedContact?.phone?.trim() || linkedContact?.phone2?.trim() || '';
 
   const assignedTeam = useMemo((): Team | null => {
     if (!hasTeamsPlugin || request.teamId == null) {
@@ -141,6 +207,28 @@ export function RequestQuickContextPanel({
     setShowTeamQuickInfo(false);
     navigate(`/teams/${buildSlug(team, teams, 'name')}`);
   };
+
+  const updatedLabel = request.updated_at
+    ? new Date(request.updated_at).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+
+  const contentPreview = useMemo(() => {
+    if (!request.description?.trim()) {
+      return { text: '', truncated: false };
+    }
+    return truncatePlainText(request.description, LIST_CONTENT_PREVIEW_CHARS);
+  }, [request.description]);
+
+  const displayedContent = contentExpanded
+    ? request.description?.trim() || ''
+    : contentPreview.text;
+  const showReadMoreToggle = contentPreview.truncated && !isFullView;
 
   const identityHeader = (
     <div className="flex items-center gap-3">
@@ -200,28 +288,108 @@ export function RequestQuickContextPanel({
         padding="none"
         className={cn(
           DETAIL_VIEW_CARD_CLASS,
-          'flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden',
+          'flex max-h-[calc(100vh-8rem)] min-w-0 flex-col overflow-hidden',
         )}
       >
         <div className="border-b border-border/50 px-4 py-2.5">{identityHeader}</div>
 
         <div
           className={cn(
-            'min-h-0 flex-1 overflow-y-auto px-4 py-4',
+            'min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4',
             isFullView ? 'space-y-4' : 'space-y-6',
           )}
         >
-          <QuickContextLinkTileGrid>
-            <QuickContextLinkTile label={t('requests.form.requestType')} icon={Inbox}>
-              {getTypeLabel(request.requestType, t)}
-            </QuickContextLinkTile>
-            <QuickContextLinkTile label={t('requests.form.submitterName')} icon={User}>
-              {request.submitterName?.trim() || '—'}
-            </QuickContextLinkTile>
-          </QuickContextLinkTileGrid>
+          {updatedLabel ? (
+            <p className="text-xs text-muted-foreground">
+              {t('common.updated')} {updatedLabel}
+            </p>
+          ) : null}
+
+          {!isFullView && displayedContent ? (
+            <div className="min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere]">
+              <p className="whitespace-pre-wrap text-sm text-foreground">{displayedContent}</p>
+              {showReadMoreToggle ? (
+                <button
+                  type="button"
+                  className="mt-2 text-xs font-medium text-primary hover:underline"
+                  onClick={() => setContentExpanded((open) => !open)}
+                >
+                  {contentExpanded
+                    ? t('requests.quickContext.showLess')
+                    : t('requests.quickContext.readMore')}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!isFullView ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div>
+                <div className={FACT_LABEL_CLASS}>
+                  <User className="h-3 w-3" />
+                  {t('requests.form.submitterName')}
+                </div>
+                <div className={DETAIL_FIELD_VALUE_CLASS}>
+                  {request.submitterName?.trim() || '—'}
+                </div>
+              </div>
+              <div>
+                <div className={FACT_LABEL_CLASS}>
+                  <CalendarDays className="h-3 w-3" />
+                  {t('requests.view.submittedOn')}
+                </div>
+                <div className={DETAIL_FIELD_VALUE_CLASS}>
+                  {formatSubmittedDateWithAge(request.created_at, t) ?? '—'}
+                </div>
+              </div>
+              <div>
+                <div className={FACT_LABEL_CLASS}>
+                  <Mail className="h-3 w-3" />
+                  {t('requests.form.submitterEmail')}
+                </div>
+                <ContactCopyableLink
+                  value={request.submitterEmail}
+                  href={mailtoHref(request.submitterEmail)}
+                />
+              </div>
+              <div>
+                <div className={FACT_LABEL_CLASS}>
+                  <Phone className="h-3 w-3" />
+                  {t('requests.view.phone')}
+                </div>
+                <ContactCopyableLink value={submitterPhone} href={telHref(submitterPhone)} />
+              </div>
+            </div>
+          ) : null}
+
+          {request.internalNotes?.trim() ? (
+            <div>
+              <div className="mb-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                  {t('requests.view.internalNotes')}
+                </span>
+              </div>
+              <div className={DETAIL_NOTE_CALLOUT_CLASS}>
+                <p className="whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-200">
+                  {request.internalNotes}
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           {canQuickEdit ? (
             <div>
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('requests.form.requestType')}
+                </span>
+                <RequestTypeSelect
+                  request={request}
+                  onTypeChange={onTypeChange!}
+                  hideInlineLabel
+                  compact
+                />
+              </div>
               <div className={DETAIL_PROP_ROW_CLASS}>
                 <span className="text-sm text-slate-500 dark:text-slate-400">
                   {t('requests.form.status')}
@@ -240,6 +408,17 @@ export function RequestQuickContextPanel({
                 <RequestPrioritySelect
                   request={request}
                   onPriorityChange={onPriorityChange!}
+                  hideInlineLabel
+                  compact
+                />
+              </div>
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('requests.responseDue.label')}
+                </span>
+                <RequestResponseDueControl
+                  request={request}
+                  onDaysChange={onResponseDueChange!}
                   hideInlineLabel
                   compact
                 />
