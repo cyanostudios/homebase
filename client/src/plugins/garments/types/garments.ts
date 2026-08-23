@@ -58,13 +58,39 @@ export interface GarmentPersonPayload {
   sortOrder?: number;
 }
 
+export interface InventoryVariant {
+  id: string;
+  itemId: string;
+  sku: string;
+  color: string;
+  size: string;
+  quantity: number;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface InventoryVariantPayload {
+  id?: string;
+  sku?: string;
+  color?: string;
+  size?: string;
+  quantity?: number;
+  sortOrder?: number;
+}
+
 export interface InventoryItem {
   id: string;
   articleName: string;
   brand: string;
-  size: string;
-  quantity: number;
+  description: string | null;
+  material: string;
+  purchasePrice: number | null;
+  currency: string;
   comment: string | null;
+  variants: InventoryVariant[];
+  totalQuantity: number;
+  variantCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,9 +98,12 @@ export interface InventoryItem {
 export interface InventoryItemPayload {
   articleName: string;
   brand?: string;
-  size?: string;
-  quantity?: number;
+  description?: string | null;
+  material?: string;
+  purchasePrice?: number | null;
+  currency?: string;
   comment?: string | null;
+  variants?: InventoryVariantPayload[];
 }
 
 export interface GarmentShare {

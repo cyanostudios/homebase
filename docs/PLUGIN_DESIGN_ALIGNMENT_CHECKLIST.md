@@ -3,12 +3,15 @@
 **Referensplugin:** `slots` (primär), `notes` och `tasks` (sekundära)  
 **Princip:** Kopiera exakt. Ta bort gammal kod. Inga workarounds.
 
+**Kompletterande guide (quick context, full view, view/edit-sync, dialoger):** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) — canonical referens för list-side preview är garments inventory.
+
 ## Official Template Rule
 
 - New plugins must be generated from:
   - `templates/plugin-frontend-template`
   - `templates/plugin-backend-template`
 - The templates are the source of truth for Contract v2 panel wiring **and** the card-column list shell (`ListToolbar`, `1 | 2 | 3 | table`, `*ListItem` / `*ListTable`). List visual rules live in `UI_AND_UX_STANDARDS_V3.md` §0.1 — do not copy the legacy in-card grid/list toggle.
+- **Before implementing List / QuickContext / View / Form:** read **`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** (mandatory) — quick context, full view, view/edit sync, buttons, and default dialogs.
 - Integration steps are tracked in `NEW_PLUGIN_INTEGRATION_CHECKLIST.md`.
 
 ---

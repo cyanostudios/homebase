@@ -44,8 +44,24 @@ export interface GarmentContextType {
   deleteGarment: (id: string) => Promise<void>;
   deleteGarments: (ids: string[]) => Promise<void>;
   saveInventoryItem: (data: InventoryItemPayload) => Promise<boolean>;
+  /** Update a single variant quantity without opening the form panel. */
+  updateInventoryVariantQuantity: (
+    itemId: string,
+    variantId: string,
+    quantity: number,
+  ) => Promise<boolean>;
   deleteInventoryItem: (id: string) => Promise<void>;
   deleteInventoryItems: (ids: string[]) => Promise<void>;
+
+  getDuplicateConfig: (
+    item: InventoryItem | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
+  executeDuplicate: (
+    item: InventoryItem,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
+  recentlyDuplicatedInventoryId: string | null;
+  setRecentlyDuplicatedInventoryId: (id: string | null) => void;
 
   refreshGarmentList: (listId: string) => Promise<GarmentList | null>;
   addPerson: (listId: string, data: GarmentPersonPayload) => Promise<GarmentPerson | null>;
@@ -68,6 +84,13 @@ export interface GarmentContextType {
   getPanelSubtitle: (mode: string, item: GarmentList | InventoryItem | null) => React.ReactNode;
   getDeleteMessage: (item: GarmentList | InventoryItem | null) => string;
   clearValidationErrors: () => void;
+
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 export const GarmentContext = createContext<GarmentContextType | undefined>(undefined);
@@ -106,8 +129,13 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   deleteGarment: async () => {},
   deleteGarments: async () => {},
   saveInventoryItem: async () => false,
+  updateInventoryVariantQuantity: async () => false,
   deleteInventoryItem: async () => {},
   deleteInventoryItems: async () => {},
+  getDuplicateConfig: () => null,
+  executeDuplicate: async () => ({ closePanel: () => {} }),
+  recentlyDuplicatedInventoryId: null,
+  setRecentlyDuplicatedInventoryId: () => {},
   refreshGarmentList: async () => null,
   addPerson: async () => null,
   updatePerson: async () => null,
@@ -123,6 +151,12 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   getPanelSubtitle: () => null,
   getDeleteMessage: () => '',
   clearValidationErrors: () => {},
+  navigateToPrevItem: () => {},
+  navigateToNextItem: () => {},
+  hasPrevItem: false,
+  hasNextItem: false,
+  currentItemIndex: 0,
+  totalItems: 0,
 };
 
 export function GarmentNullProvider({ children }: { children: React.ReactNode }) {

@@ -3,6 +3,9 @@
 ## 131–133 – Garments plugin (Kläder) (aug 2026)
 
 - **`131-garments.sql`** — tenant-DB: `garment_lists`, `garment_list_persons`, `garment_list_shares`, `garment_inventory_items`.
+- **`136-garment-inventory-product-fields.sql`** — tenant-DB: inventory product fields (`sku`, `color`, `description`, `material`, `purchase_price`, `currency`) + unique index includes `color`.
+- **`137-garment-inventory-variants.sql`** — tenant-DB: child table `garment_inventory_variants` (sku/color/size/quantity per variant); drops those columns from items; item unique on `(user_id, article_name, brand)`. Truncates inventory testdata.
+- **`138-garment-inventory-variant-sku-unique.sql`** — tenant-DB: unique non-empty `sku` per item (`item_id`, lower(sku)).
 - **`132-grant-garments-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Grant plugin `garments` in `tenant_plugin_access` / `user_plugin_access`. Alternative: `npm run set:tenant-plugins -- --enable=garments`.
 - **`133-public-share-routing-garment-list.sql`** — **`MAIN_DB_ONLY`**. Widen `public_share_routing.resource_type` CHECK to include `garment_list`.
 

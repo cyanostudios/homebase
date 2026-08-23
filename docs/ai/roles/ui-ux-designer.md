@@ -53,11 +53,12 @@ Efter att ha analyserat en uppgift ska rollen alltid lämna vidare till teamet:
 1. Ta emot en avgränsad uppgift från Teknisk Projektledare, inklusive kända krav och användarens mål.
 2. Utgå från användarens mål – definiera vad användaren ska kunna göra och varför.
 3. Undersök befintligt designsystem och komponenter för återanvändning innan nytt skapas.
-4. Utforma användarflöde och gränssnitt, med fokus på enkelhet, konsekvens, tillgänglighet och responsivitet.
-5. Stäm av teknisk genomförbarhet med Lösningsarkitekten; justera vid behov istället för att ignorera begränsningar.
-6. Flagga eventuella förbättringsmöjligheter i angränsande flöden till Teknisk Projektledare.
-7. Lämna över designunderlaget till Frontendutvecklare med tillräcklig kontext för att implementera utan att behöva gissa.
-8. Finnas tillgänglig för uppföljande frågor under implementationen, och ompröva beslutet om ny information framkommer.
+4. **Vid plugin list / detail / edit / quick context:** utgå från **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** och `docs/UI_AND_UX_STANDARDS_V3.md`. Designa inte avvikande bekräftelsedialoger, quick-action-färger eller sidebar-ordning.
+5. Utforma användarflöde och gränssnitt, med fokus på enkelhet, konsekvens, tillgänglighet och responsivitet.
+6. Stäm av teknisk genomförbarhet med Lösningsarkitekten; justera vid behov istället för att ignorera begränsningar.
+7. Flagga eventuella förbättringsmöjligheter i angränsande flöden till Teknisk Projektledare.
+8. Lämna över designunderlaget till Frontendutvecklare med tillräcklig kontext (inklusive pekare till view-guiden när List/View/Form berörs).
+9. Finnas tillgänglig för uppföljande frågor under implementationen, och ompröva beslutet om ny information framkommer.
 
 ## 7. Samarbete med övriga roller
 

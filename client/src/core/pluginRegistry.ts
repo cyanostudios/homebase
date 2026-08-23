@@ -14,7 +14,6 @@ import {
   MapPin,
   ListOrdered,
   Sparkles,
-  Shirt,
 } from 'lucide-react';
 import React from 'react';
 
@@ -150,6 +149,7 @@ import { useMatches } from '@/plugins/matches/hooks/useMatches';
 // Garments
 import { GarmentNullProvider } from '@/plugins/garments/context/GarmentContext';
 import { useGarments } from '@/plugins/garments/hooks/useGarments';
+import { garmentsNavigation } from '@/plugins/garments/navigation';
 // Notes
 import { NoteNullProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
@@ -766,12 +766,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       Form: GarmentForm,
       View: GarmentView,
     },
-    navigation: {
-      category: 'Sport',
-      label: 'Kläder',
-      icon: Shirt,
-      order: 2,
-    },
+    navigation: garmentsNavigation,
     displayPrefix: 'GRM',
     contentFlush: true,
     slugField: 'name',

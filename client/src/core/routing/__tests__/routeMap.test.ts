@@ -32,6 +32,15 @@ describe('pathToNavPage', () => {
     expect(pathToNavPage('/clubdesk/opening-checklist')).toBe('clubdesk-guides');
   });
 
+  it('maps garments sub-routes without colliding with list slugs', () => {
+    expect(pathToNavPage('/garments/inventory')).toBe('garments-inventory');
+  });
+
+  it('maps garments list and list slug to Lists tab', () => {
+    expect(pathToNavPage('/garments')).toBe('garments-lists');
+    expect(pathToNavPage('/garments/u15-home')).toBe('garments-lists');
+  });
+
   it('maps settings', () => {
     expect(pathToNavPage('/settings')).toBe('settings');
   });

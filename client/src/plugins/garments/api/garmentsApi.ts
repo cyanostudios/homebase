@@ -9,6 +9,7 @@ import type {
   GarmentShare,
   InventoryItem,
   InventoryItemPayload,
+  InventoryVariant,
   PublicGarmentList,
   ValidationError,
 } from '../types/garments';
@@ -29,8 +30,7 @@ function mapValidationDetails(err: ApiError): ApiError {
     err.errors = [
       {
         field: 'articleName',
-        message:
-          err.message || 'An inventory item with this article, brand and size already exists',
+        message: err.message || 'An inventory item with this article and brand already exists',
       },
     ];
   }
@@ -180,6 +180,13 @@ class GarmentsApi {
 
   deleteInventoryItem(id: string) {
     return apiRequest<{ deleted: boolean }>(`/inventory/${id}`, { method: 'DELETE' });
+  }
+
+  updateInventoryVariantQuantity(itemId: string, variantId: string, quantity: number) {
+    return apiRequest<InventoryVariant>(`/inventory/${itemId}/variants/${variantId}/quantity`, {
+      method: 'PATCH',
+      body: JSON.stringify({ quantity }),
+    });
   }
 }
 

@@ -157,15 +157,16 @@ Pre-commit: **lint-staged** runs `eslint --fix --quiet` and Prettier on staged T
 
 Följ canonical checklistor — duplicera inte steg här.
 
-| Steg                         | Dokument / plats                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Backend + frontend mallar    | [`templates/README.md`](../templates/README.md)                                                                                                  |
-| Publik SEO-sajt (PHP/Caddy)  | [`templates/public-app/`](../templates/public-app/), [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md)                                          |
-| Integration (obligatorisk)   | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)                                                                     |
-| Design & panel-konventioner  | [`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`](PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md), [`PLUGIN_RUNTIME_CONVENTIONS.md`](PLUGIN_RUNTIME_CONVENTIONS.md) |
-| Kodstandard                  | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                                       |
-| Arkitektur (Action Registry) | [`PLUGIN_ARCHITECTURE_V3.md`](PLUGIN_ARCHITECTURE_V3.md)                                                                                         |
-| UI-listor                    | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0                                                                                      |
+| Steg                                           | Dokument / plats                                                                                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend + frontend mallar                      | [`templates/README.md`](../templates/README.md)                                                                                                  |
+| Publik SEO-sajt (PHP/Caddy)                    | [`templates/public-app/`](../templates/public-app/), [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md)                                          |
+| Integration (obligatorisk)                     | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)                                                                     |
+| View / quick context / dialoger (obligatorisk) | [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)                                                                     |
+| Design & panel-konventioner                    | [`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`](PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md), [`PLUGIN_RUNTIME_CONVENTIONS.md`](PLUGIN_RUNTIME_CONVENTIONS.md) |
+| Kodstandard                                    | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                                       |
+| Arkitektur (Action Registry)                   | [`PLUGIN_ARCHITECTURE_V3.md`](PLUGIN_ARCHITECTURE_V3.md)                                                                                         |
+| UI-listor                                      | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0                                                                                      |
 
 **Backend SDK:** plugins importerar endast från `@homebase/core` (`Database.get(req)`, `Logger.get()`). Se [`packages/core/README.md`](../packages/core/README.md).
 

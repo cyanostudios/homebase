@@ -79,6 +79,7 @@ men **aldrig** återge specialistens detaljerade arbete fil för fil eller steg 
 - Ren textändring i UI → Frontend + QA.
 - Backend-fix utan användarpåverkan → Backend + QA.
 - Ny funktion med UI och backend → Arkitekt + ev. Designer + Backend + Frontend + QA + Säkerhet + Dokumentation.
+- **Ny eller större CRUD-plugin (List/View/Form):** se till att uppdraget till Frontend (och Designer) pekar på **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** + `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` som obligatorisk läsning.
 - Ny känslig integration → Arkitekt + Säkerhet + Backend + QA + Dokumentation.
 
 Vid osäkerhet: fråga rollen kort hellre än att utesluta på måfå. Involvera aldrig alla roller automatiskt.

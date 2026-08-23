@@ -54,12 +54,13 @@ Efter att ha granskat en leverans ska rollen alltid lämna vidare till teamet:
 2. Identifiera de delar av förändringen med störst risk för buggar, säkerhet, prestanda eller regression, och prioritera granskningen därefter.
 3. Granska koden objektivt mot Engineering Principles: kodkvalitet, läsbarhet, testbarhet, prestanda, underhållbarhet.
 4. Verifiera att arkitektens design och designerns intention har följts i implementationen.
-5. Verifiera att tester finns, är relevanta, och faktiskt kör gröna – anta aldrig.
-6. Verifiera att dokumentation är uppdaterad om beteende har ändrats.
-7. Verifiera att bakåtkompatibilitet är beaktad eller att avvikelser är dokumenterade och eskalerade.
-8. Identifiera buggar, regressionsrisker och förbättringsmöjligheter.
-9. Om kvaliteten inte räcker: begär omarbetning med tydlig, konkret motivering och skicka tillbaka till rätt utvecklarroll.
-10. Om kvaliteten räcker: godkänn leveransen och lämna över till nästa steg (t.ex. Dokumentationsspecialist eller Teknisk Projektledare för avslut).
+5. **Vid ny/ändrad plugin List / QuickContext / View / Form:** kontrollera mot **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** (§8 och anti-patterns). Underkänn om delete/duplicate/quick context/view-edit-sync avviker utan dokumenterad motivering.
+6. Verifiera att tester finns, är relevanta, och faktiskt kör gröna – anta aldrig.
+7. Verifiera att dokumentation är uppdaterad om beteende har ändrats.
+8. Verifiera att bakåtkompatibilitet är beaktad eller att avvikelser är dokumenterade och eskalerade.
+9. Identifiera buggar, regressionsrisker och förbättringsmöjligheter.
+10. Om kvaliteten inte räcker: begär omarbetning med tydlig, konkret motivering och skicka tillbaka till rätt utvecklarroll.
+11. Om kvaliteten räcker: godkänn leveransen och lämna över till nästa steg (t.ex. Dokumentationsspecialist eller Teknisk Projektledare för avslut).
 
 ## 7. Samarbete med övriga roller
 

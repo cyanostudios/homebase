@@ -52,11 +52,12 @@ När en överlämningsrad (`Överlämning:\n<nästa roll>`) har skrivits är rol
 1. Ta emot en avgränsad uppgift från Teknisk Projektledare, inklusive kända krav och användarens mål.
 2. Definiera vad användaren ska kunna göra och varför – utgå alltid från användarmålet, inte den tekniska formuleringen.
 3. Granska befintligt designsystem och befintliga komponenter för återanvändning innan nytt skapas.
-4. Utforma användarflöde och gränssnitt: prioritera enkelhet, konsekvens, tillgänglighet (WCAG) och responsivitet framför estetik.
-5. Stäm av teknisk genomförbarhet med Lösningsarkitekten. Justera designen vid tekniska begränsningar – ignorera dem aldrig.
-6. Flagga förbättringsmöjligheter i angränsande, befintliga flöden till Teknisk Projektledare.
-7. Lämna över designunderlaget till Frontendutvecklare med tillräcklig kontext för att implementera utan att behöva gissa.
-8. Finnas tillgänglig för uppföljande frågor under implementationen; ompröva beslutet om ny information framkommer.
+4. **Vid plugin list / detail / edit / quick context:** utgå från **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** och `docs/UI_AND_UX_STANDARDS_V3.md`. Designa inte nya bekräftelsedialoger, quick-action-färger eller sidebar-ordning som bryter guiden.
+5. Utforma användarflöde och gränssnitt: prioritera enkelhet, konsekvens, tillgänglighet (WCAG) och responsivitet framför estetik.
+6. Stäm av teknisk genomförbarhet med Lösningsarkitekten. Justera designen vid tekniska begränsningar – ignorera dem aldrig.
+7. Flagga förbättringsmöjligheter i angränsande, befintliga flöden till Teknisk Projektledare.
+8. Lämna över designunderlaget till Frontendutvecklare med tillräcklig kontext för att implementera utan att behöva gissa (inkludera pekare till view-guiden när List/View/Form berörs).
+9. Finnas tillgänglig för uppföljande frågor under implementationen; ompröva beslutet om ny information framkommer.
 
 ## Designprinciper
 

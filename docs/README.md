@@ -10,23 +10,24 @@
 
 ## Snabbstart (ny utvecklare)
 
-| Ämne                                              | Dokument                                                                                                                                                   |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup, struktur, kommandon                        | [`DEVELOPMENT_GUIDE_V2.md`](DEVELOPMENT_GUIDE_V2.md)                                                                                                       |
-| Core services (`ServiceManager`)                  | [`CORE_SERVICES_ARCHITECTURE.md`](CORE_SERVICES_ARCHITECTURE.md)                                                                                           |
-| Client/server-översikt                            | [`CORE_ARCHITECTURE_V2.md`](CORE_ARCHITECTURE_V2.md)                                                                                                       |
-| Plugin-arkitektur (Action Registry)               | [`PLUGIN_ARCHITECTURE_V3.md`](PLUGIN_ARCHITECTURE_V3.md)                                                                                                   |
-| Ny plugin (checklista)                            | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)                                                                               |
-| Plugin-standarder (obligatoriskt)                 | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                                                 |
-| UI/UX (V3 + list shell v3.6)                      | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                                                                                                   |
-| Cross-plugin navigation (URL) + entity quick-info | [`MENTIONS_AND_CROSS_PLUGIN_UI.md`](MENTIONS_AND_CROSS_PLUGIN_UI.md) § Entity quick-info popup, § Cross-plugin URL navigation                              |
-| Säkerhet, CSRF, `apiFetch`                        | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                                         |
-| Deploy (allmänt)                                  | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                                                                                                     |
-| Local ↔ prod parity                              | [`LOCAL_PROD_PARITY.md`](LOCAL_PROD_PARITY.md)                                                                                                             |
-| Railway Homebase                                  | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md) (§5–7: CSRF, rate limit, konsol)                                                                  |
-| Cupappen (separat Railway + R2)                   | [`CUPPAPPEN_PATHS_AND_STORAGE.md`](CUPPAPPEN_PATHS_AND_STORAGE.md), [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md)                   |
-| Public app template (nya sajter)                  | [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md), [`PUBLIC_APP_DESIGN.md`](PUBLIC_APP_DESIGN.md), [`../templates/public-app/`](../templates/public-app/) |
-| Bundle-analys                                     | [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md)                                                                                               |
+| Ämne                                                 | Dokument                                                                                                                                                   |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup, struktur, kommandon                           | [`DEVELOPMENT_GUIDE_V2.md`](DEVELOPMENT_GUIDE_V2.md)                                                                                                       |
+| Core services (`ServiceManager`)                     | [`CORE_SERVICES_ARCHITECTURE.md`](CORE_SERVICES_ARCHITECTURE.md)                                                                                           |
+| Client/server-översikt                               | [`CORE_ARCHITECTURE_V2.md`](CORE_ARCHITECTURE_V2.md)                                                                                                       |
+| Plugin-arkitektur (Action Registry)                  | [`PLUGIN_ARCHITECTURE_V3.md`](PLUGIN_ARCHITECTURE_V3.md)                                                                                                   |
+| Ny plugin (checklista)                               | [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)                                                                               |
+| Plugin List/View/Form / quick context (obligatorisk) | [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)                                                                               |
+| Plugin-standarder (obligatoriskt)                    | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                                                 |
+| UI/UX (V3 + list shell v3.6)                         | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                                                                                                   |
+| Cross-plugin navigation (URL) + entity quick-info    | [`MENTIONS_AND_CROSS_PLUGIN_UI.md`](MENTIONS_AND_CROSS_PLUGIN_UI.md) § Entity quick-info popup, § Cross-plugin URL navigation                              |
+| Säkerhet, CSRF, `apiFetch`                           | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                                         |
+| Deploy (allmänt)                                     | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                                                                                                     |
+| Local ↔ prod parity                                 | [`LOCAL_PROD_PARITY.md`](LOCAL_PROD_PARITY.md)                                                                                                             |
+| Railway Homebase                                     | [`RAILWAY_HOMEBASE_SETUP.md`](RAILWAY_HOMEBASE_SETUP.md) (§5–7: CSRF, rate limit, konsol)                                                                  |
+| Cupappen (separat Railway + R2)                      | [`CUPPAPPEN_PATHS_AND_STORAGE.md`](CUPPAPPEN_PATHS_AND_STORAGE.md), [`CUPPAPPEN_RAILWAY_OPERATIONS.md`](CUPPAPPEN_RAILWAY_OPERATIONS.md)                   |
+| Public app template (nya sajter)                     | [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md), [`PUBLIC_APP_DESIGN.md`](PUBLIC_APP_DESIGN.md), [`../templates/public-app/`](../templates/public-app/) |
+| Bundle-analys                                        | [`FRONTEND_BUNDLE_ANALYSIS.md`](FRONTEND_BUNDLE_ANALYSIS.md)                                                                                               |
 
 ## AI-utvecklingsteam (`docs/ai/`)
 
@@ -47,6 +48,7 @@ Cursor-baserat utvecklingsteam med roller, beslutsgrindar och Output Contract. *
 - **Engångs-migreringsskript (arkiv):** `../scripts/archive/README.md`
 - **Plugin runtime (panel/hook-namn):** `PLUGIN_RUNTIME_CONVENTIONS.md`
 - **Design-alignment (kopiera från slots/notes):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
+- **Quick context + full view / edit / dialogs:** `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`
 - **Mentions & cross-plugin UI:** `MENTIONS_AND_CROSS_PLUGIN_UI.md`
 - **Tenant / RBAC:** `TENANT_USERS_AND_RBAC.md`
 - **Local/prod parity:** `LOCAL_PROD_PARITY.md`

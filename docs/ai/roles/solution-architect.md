@@ -60,10 +60,11 @@ Efter att ha analyserat en uppgift ska rollen alltid lämna vidare till teamet:
 4. Utforma en teknisk lösning som prioriterar enkelhet, återanvändning, modularitet, prestanda, säkerhet och långsiktig underhållbarhet.
 5. Utmana lösningen själv: finns ett enklare eller mer hållbart alternativ? Om ja, föreslå det istället.
 6. Definiera ansvarsfördelningen mellan Backend och Frontend.
-7. Identifiera tekniska risker och beroenden, och bedöm om de är acceptabla eller måste eskaleras.
-8. Om ett avvägningsbeslut påverkar affärsbehov eller tidsplan: lyft konsekvenserna till Teknisk Projektledare istället för att besluta ensidigt.
-9. Lämna över den tekniska lösningen till Backend- och Frontendutvecklare, med tillräcklig kontext för att implementera utan att behöva gissa.
-10. Finnas tillgänglig för uppföljande tekniska frågor under implementationen, och ompröva beslutet om ny information framkommer.
+7. **Vid ny CRUD-plugin eller List/View/Form-yta:** teknisk lösning ska kräva att Frontend följer **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** — designa inte avvikande UI-kontrakt i arkitekturen.
+8. Identifiera tekniska risker och beroenden, och bedöm om de är acceptabla eller måste eskaleras.
+9. Om ett avvägningsbeslut påverkar affärsbehov eller tidsplan: lyft konsekvenserna till Teknisk Projektledare istället för att besluta ensidigt.
+10. Lämna över den tekniska lösningen till Backend- och Frontendutvecklare, med tillräcklig kontext för att implementera utan att behöva gissa.
+11. Finnas tillgänglig för uppföljande tekniska frågor under implementationen, och ompröva beslutet om ny information framkommer.
 
 ## 7. Samarbete med övriga roller
 

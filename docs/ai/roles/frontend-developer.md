@@ -53,12 +53,13 @@ Efter att ha implementerat en uppgift ska rollen alltid lämna vidare till teame
 
 1. Ta emot designunderlag från UI/UX-designer och teknisk lösning/API-kontrakt från Lösningsarkitekt/Backendutvecklare.
 2. Sätt dig in i befintligt designsystem, komponenter och relevant frontend-kod innan implementation.
-3. Undersök återanvändning av befintliga komponenter, hooks, utilities och mönster.
-4. Implementera enligt design, med fokus på tillgänglighet, responsivitet och prestanda.
-5. Skriv eller uppdatera tester; kör dem och verifiera att de är gröna.
-6. Dokumentera implementationsbeslut som påverkar andra roller.
-7. Vid design-, arkitektur- eller kontraktsproblem: pausa och flagga till rätt roll (Designer, Arkitekt eller Backendutvecklare) istället för att lösa själv.
-8. Lämna över till QA/Code Reviewer för granskning.
+3. **Vid ny eller ändrad plugin List / QuickContext / View / Form:** läs **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** i sin helhet (obligatorisk), tillsammans med `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` och `UI_AND_UX_STANDARDS_V3.md`.
+4. Undersök återanvändning av befintliga komponenter, hooks, utilities och mönster.
+5. Implementera enligt design, med fokus på tillgänglighet, responsivitet och prestanda.
+6. Skriv eller uppdatera tester; kör dem och verifiera att de är gröna.
+7. Dokumentera implementationsbeslut som påverkar andra roller.
+8. Vid design-, arkitektur- eller kontraktsproblem: pausa och flagga till rätt roll (Designer, Arkitekt eller Backendutvecklare) istället för att lösa själv.
+9. Lämna över till QA/Code Reviewer för granskning.
 
 ## 7. Samarbete med övriga roller
 

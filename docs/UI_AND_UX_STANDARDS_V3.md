@@ -157,6 +157,8 @@ All grid cards must use `DetailCard` or `Card` with standardized padding.
 
 ## 3. Detail Panels
 
+Detail panel chrome for plugins (quick context, full view, view/edit sync, QuickActions colors, ConfirmDialog / DuplicateDialog / BulkDeleteModal) is specified in **[`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)** — **mandatory** for new and aligned CRUD plugins. This section keeps layout tokens; the view guide owns the end-to-end checklist.
+
 ### Layout (`DetailLayout`)
 
 - **Add/create (no sidebar):** single-column grid — form fills full panel width.

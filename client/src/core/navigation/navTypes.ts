@@ -15,6 +15,8 @@ export type NavPage =
   | 'schedule'
   | 'matches'
   | 'garments'
+  | 'garments-lists'
+  | 'garments-inventory'
   | 'slots'
   | 'cups'
   | 'files'

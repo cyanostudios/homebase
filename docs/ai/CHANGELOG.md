@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Plugin View Implementation Guide — obligatorisk läsning (2026-08-23)
+
+`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` inkopplad som obligatorisk läsning för ny/ändrad plugin UI (List/QuickContext/View/Form). Rollbeskrivningar och Cursor-regler uppdaterade för Frontend, UI/UX, QA; TPM och Solution Architect pekar på guiden vid ny CRUD-plugin. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Garments personblock UX — QA/Security docs sync (2026-08-17)
 
 Docs efter **QA Approved** + **Security Approved** för tvåradiga personblock i Kläder-listdetalj och publik share-vy. Residualklass oförändrad mot [`security/GARMENTS_PUBLIC_SHARE_ETAPP1.md`](security/GARMENTS_PUBLIC_SHARE_ETAPP1.md) (minderåriga PII på token-länk). ADR [`adr/GARMENTS_PLUGIN_ETAPP1.md`](adr/GARMENTS_PLUGIN_ETAPP1.md) tillagd UX-sektion. Operator: [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md). **Local-first; ej prod-release.**

@@ -11,7 +11,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -38,6 +39,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   variant = 'warning',
   confirmDisabled = false,
 }) => {
+  const isDanger = variant === 'danger';
+
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
       <AlertDialogContent>
@@ -45,7 +48,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <div className="flex items-center gap-3">
             <AlertTriangle
               className={`w-6 h-6 flex-shrink-0 ${
-                variant === 'danger' ? 'text-destructive' : 'text-yellow-500'
+                isDanger ? 'text-destructive' : 'text-yellow-500'
               }`}
             />
             <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -60,14 +63,21 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               </Button>
             </AlertDialogCancel>
           ) : null}
-          <AlertDialogAction asChild>
-            <Button
-              variant={variant === 'danger' ? 'destructive' : 'default'}
-              onClick={onConfirm}
-              disabled={confirmDisabled}
-            >
-              {confirmText}
-            </Button>
+          {/*
+            Pass destructive styles via className (twMerge in AlertDialogAction)
+            instead of asChild+Button — otherwise Action's default primary classes
+            win and the Delete button stays non-red.
+          */}
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={confirmDisabled}
+            className={cn(
+              buttonVariants({
+                variant: isDanger ? 'destructive' : 'default',
+              }),
+            )}
+          >
+            {confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

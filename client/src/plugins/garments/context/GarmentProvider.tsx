@@ -4,7 +4,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
+import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
+import { GARMENTS_SUBPAGE_SET } from '@/core/routing/garmentsRoutes';
+import { pathToNavPage } from '@/core/routing/routeMap';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { garmentShareApi, garmentsApi } from '../api/garmentsApi';
@@ -21,6 +25,10 @@ import type {
   ValidationError,
 } from '../types/garments';
 import { createDefaultCheckboxColumns } from '../utils/defaultCheckboxTemplate';
+import {
+  buildDuplicatedItemVariantPayloads,
+  validateInventoryPayload,
+} from '../utils/inventoryValidation';
 
 import { GarmentContext, type GarmentContextType } from './GarmentContext';
 
@@ -63,6 +71,9 @@ export function GarmentProvider({
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [garmentsContentView, setGarmentsContentView] = useState<GarmentsContentView>('lists');
   const [isSaving, setIsSaving] = useState(false);
+  const [recentlyDuplicatedInventoryId, setRecentlyDuplicatedInventoryId] = useState<string | null>(
+    null,
+  );
 
   const [garmentShareExistingShare, setGarmentShareExistingShare] = useState<GarmentShare | null>(
     null,
@@ -100,20 +111,47 @@ export function GarmentProvider({
   }, [isAuthenticated, setValidationErrors, t]);
 
   useEffect(() => {
-    if (!location.pathname.startsWith('/garments') && garmentsContentView !== 'lists') {
-      setGarmentsContentView('lists');
+    if (!location.pathname.startsWith('/garments')) {
+      if (garmentsContentView !== 'lists') {
+        setGarmentsContentView('lists');
+      }
+      return;
+    }
+    if (garmentsContentView === 'settings') {
+      return;
+    }
+    const page = pathToNavPage(location.pathname);
+    const nextView = page === 'garments-inventory' ? 'inventory' : 'lists';
+    if (garmentsContentView !== nextView) {
+      setGarmentsContentView(nextView);
     }
   }, [location.pathname, garmentsContentView]);
 
   const closeGarmentPanel = useCallback(() => {
+    const returnToInventory =
+      panelKind === 'inventory' ||
+      garmentsContentView === 'inventory' ||
+      location.pathname.startsWith('/garments/inventory');
     setIsGarmentPanelOpen(false);
     setCurrentGarment(null);
     setCurrentInventoryItem(null);
     setPanelMode('create');
     setPanelKind('list');
     clearValidationErrors();
-    navigateToBase();
-  }, [clearValidationErrors, navigateToBase]);
+    if (returnToInventory) {
+      setGarmentsContentView('inventory');
+      navigate('/garments/inventory');
+    } else {
+      navigateToBase();
+    }
+  }, [
+    clearValidationErrors,
+    garmentsContentView,
+    location.pathname,
+    navigate,
+    navigateToBase,
+    panelKind,
+  ]);
 
   useEffect(() => {
     registerPanelCloseFunction('garments', closeGarmentPanel);
@@ -122,6 +160,7 @@ export function GarmentProvider({
 
   const openGarmentPanel = useCallback(
     (list: GarmentList | null) => {
+      setRecentlyDuplicatedInventoryId(null);
       setPanelKind('list');
       setCurrentInventoryItem(null);
       setCurrentGarment(list);
@@ -138,6 +177,7 @@ export function GarmentProvider({
 
   const openGarmentForEdit = useCallback(
     (list: GarmentList) => {
+      setRecentlyDuplicatedInventoryId(null);
       if (panelKind === 'inventory' && currentInventoryItem) {
         setPanelMode('edit');
         setIsGarmentPanelOpen(true);
@@ -167,6 +207,7 @@ export function GarmentProvider({
   const openGarmentForViewRef = useRef<(list: GarmentList) => void>(() => {});
   const openGarmentForView = useCallback(
     (list: GarmentList) => {
+      setRecentlyDuplicatedInventoryId(null);
       if (
         panelKind === 'inventory' &&
         currentInventoryItem &&
@@ -214,6 +255,7 @@ export function GarmentProvider({
 
   const openInventoryPanel = useCallback(
     (item: InventoryItem | null) => {
+      setRecentlyDuplicatedInventoryId(null);
       setPanelKind('inventory');
       setCurrentInventoryItem(item);
       setCurrentGarment(item ? inventoryProxyList(item) : null);
@@ -227,6 +269,7 @@ export function GarmentProvider({
 
   const openInventoryForEdit = useCallback(
     (item: InventoryItem) => {
+      setRecentlyDuplicatedInventoryId(null);
       setPanelKind('inventory');
       setCurrentInventoryItem(item);
       setCurrentGarment(inventoryProxyList(item));
@@ -240,6 +283,7 @@ export function GarmentProvider({
 
   const openInventoryForView = useCallback(
     (item: InventoryItem) => {
+      setRecentlyDuplicatedInventoryId(null);
       setPanelKind('inventory');
       setCurrentInventoryItem(item);
       setCurrentGarment(inventoryProxyList(item));
@@ -250,6 +294,18 @@ export function GarmentProvider({
     },
     [clearValidationErrors, onCloseOtherPanels],
   );
+
+  const listNav = usePluginNavigation(
+    garmentLists,
+    panelKind === 'list' ? currentGarment : null,
+    openGarmentForView,
+  );
+  const inventoryNav = usePluginNavigation(
+    inventoryItems,
+    panelKind === 'inventory' ? currentInventoryItem : null,
+    openInventoryForView,
+  );
+  const nav = panelKind === 'inventory' ? inventoryNav : listNav;
 
   const deepLinkSyncedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -269,6 +325,10 @@ export function GarmentProvider({
     if (deepLinkSyncedRef.current === pathKey) {
       return;
     }
+    if (GARMENTS_SUBPAGE_SET.has(slug)) {
+      deepLinkSyncedRef.current = pathKey;
+      return;
+    }
     const item = resolveSlug(slug, garmentLists, 'name');
     deepLinkSyncedRef.current = pathKey;
     if (item) {
@@ -281,16 +341,19 @@ export function GarmentProvider({
   }, []);
 
   const closeGarmentSettingsView = useCallback(() => {
-    setGarmentsContentView('lists');
-  }, []);
+    const page = pathToNavPage(location.pathname);
+    setGarmentsContentView(page === 'garments-inventory' ? 'inventory' : 'lists');
+  }, [location.pathname]);
 
   const openGarmentsInventory = useCallback(() => {
     setGarmentsContentView('inventory');
-  }, []);
+    navigate('/garments/inventory');
+  }, [navigate]);
 
   const openGarmentsLists = useCallback(() => {
     setGarmentsContentView('lists');
-  }, []);
+    navigate('/garments');
+  }, [navigate]);
 
   const validateList = useCallback(
     (data: GarmentListPayload): ValidationError[] => {
@@ -304,27 +367,108 @@ export function GarmentProvider({
   );
 
   const validateInventory = useCallback(
-    (data: InventoryItemPayload): ValidationError[] => {
-      const errors: ValidationError[] = [];
-      if (!data.articleName.trim()) {
-        errors.push({ field: 'articleName', message: t('garments.articleNameRequired') });
-      }
-      if (data.quantity != null && (Number.isNaN(data.quantity) || data.quantity < 0)) {
-        errors.push({ field: 'quantity', message: t('garments.quantityInvalid') });
-      }
-      return errors;
-    },
+    (data: InventoryItemPayload) =>
+      validateInventoryPayload(data, {
+        articleNameRequired: t('garments.articleNameRequired'),
+        purchasePriceInvalid: t('garments.purchasePriceInvalid'),
+        quantityInvalid: t('garments.quantityInvalid'),
+        variantDuplicate: t('garments.variantDuplicate'),
+        variantSkuDuplicate: t('garments.variantSkuDuplicate'),
+      }),
     [t],
+  );
+
+  const applyInventoryItemUpdate = useCallback((saved: InventoryItem) => {
+    setInventoryItems((prev) => prev.map((i) => (i.id === saved.id ? saved : i)));
+    setCurrentInventoryItem((current) => (current && current.id === saved.id ? saved : current));
+    setCurrentGarment((current) =>
+      current && String(current.id) === String(saved.id) ? inventoryProxyList(saved) : current,
+    );
+  }, []);
+
+  const updateInventoryVariantQuantity = useCallback(
+    async (itemId: string, variantId: string, quantity: number): Promise<boolean> => {
+      const nextQty = Math.max(0, Math.floor(Number(quantity)));
+      if (Number.isNaN(nextQty) || nextQty < 0) {
+        return false;
+      }
+      const existing = inventoryItems.find((i) => String(i.id) === String(itemId));
+      if (!existing) {
+        return false;
+      }
+      const currentVariant = (existing.variants || []).find(
+        (v) => String(v.id) === String(variantId),
+      );
+      if (currentVariant && currentVariant.quantity === nextQty) {
+        return true;
+      }
+      try {
+        setIsSaving(true);
+        const variant = await garmentsApi.updateInventoryVariantQuantity(
+          itemId,
+          variantId,
+          nextQty,
+        );
+        const patchItem = (item: InventoryItem): InventoryItem => {
+          if (String(item.id) !== String(itemId)) {
+            return item;
+          }
+          const variants = (item.variants || []).map((row) =>
+            String(row.id) === String(variantId) ? variant : row,
+          );
+          const totalQuantity = variants.reduce((sum, row) => sum + (row.quantity || 0), 0);
+          return {
+            ...item,
+            variants,
+            totalQuantity,
+            variantCount: variants.length,
+            updatedAt: new Date().toISOString(),
+          };
+        };
+        setInventoryItems((prev) => prev.map(patchItem));
+        setCurrentInventoryItem((current) => (current ? patchItem(current) : current));
+        return true;
+      } catch (err) {
+        console.error('Failed to update inventory variant quantity:', err);
+        setValidationErrors([{ field: 'quantity', message: t('garments.quantityUpdateFailed') }]);
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [inventoryItems, setValidationErrors, t],
   );
 
   const saveInventoryItem = useCallback(
     async (raw: InventoryItemPayload): Promise<boolean> => {
+      const purchaseRaw = raw.purchasePrice;
+      let purchasePrice: number | null = null;
+      if (purchaseRaw !== undefined && purchaseRaw !== null && String(purchaseRaw) !== '') {
+        const num =
+          typeof purchaseRaw === 'number'
+            ? purchaseRaw
+            : parseFloat(String(purchaseRaw).replace(',', '.'));
+        purchasePrice = Number.isNaN(num) ? null : num;
+      }
+      const variants = Array.isArray(raw.variants)
+        ? raw.variants.map((variant, index) => ({
+            id: variant.id,
+            sku: (variant.sku ?? '').trim(),
+            color: (variant.color ?? '').trim(),
+            size: (variant.size ?? '').trim(),
+            quantity: variant.quantity != null ? Number(variant.quantity) : 0,
+            sortOrder: variant.sortOrder ?? index,
+          }))
+        : [];
       const payload: InventoryItemPayload = {
         articleName: raw.articleName.trim(),
         brand: (raw.brand ?? '').trim(),
-        size: (raw.size ?? '').trim(),
-        quantity: raw.quantity != null ? Number(raw.quantity) : 0,
+        description: raw.description?.trim() ? raw.description.trim() : null,
+        material: (raw.material ?? '').trim(),
+        purchasePrice,
+        currency: (raw.currency ?? 'SEK').trim() || 'SEK',
         comment: raw.comment?.trim() ? raw.comment.trim() : null,
+        variants,
       };
       const errors = validateInventory(payload);
       setValidationErrors(errors);
@@ -335,9 +479,7 @@ export function GarmentProvider({
         setIsSaving(true);
         if (currentInventoryItem) {
           const saved = await garmentsApi.updateInventoryItem(currentInventoryItem.id, payload);
-          setInventoryItems((prev) => prev.map((i) => (i.id === saved.id ? saved : i)));
-          setCurrentInventoryItem(saved);
-          setCurrentGarment(inventoryProxyList(saved));
+          applyInventoryItemUpdate(saved);
           setPanelMode('view');
         } else {
           const saved = await garmentsApi.createInventoryItem(payload);
@@ -360,6 +502,7 @@ export function GarmentProvider({
       }
     },
     [
+      applyInventoryItemUpdate,
       clearValidationErrors,
       closeGarmentPanel,
       currentInventoryItem,
@@ -368,6 +511,38 @@ export function GarmentProvider({
       validateInventory,
     ],
   );
+
+  const createInventoryDuplicate = useCallback(
+    async (item: InventoryItem, newName: string): Promise<InventoryItem> => {
+      const nextName =
+        (newName ?? '').trim() || item.articleName?.trim() || t('garments.inventoryItem');
+      const payload: InventoryItemPayload = {
+        articleName: nextName,
+        brand: item.brand ?? '',
+        description: item.description,
+        material: item.material ?? '',
+        purchasePrice: item.purchasePrice,
+        currency: item.currency || 'SEK',
+        comment: item.comment,
+        variants: buildDuplicatedItemVariantPayloads(item.variants || []),
+      };
+      const created = await garmentsApi.createInventoryItem(payload);
+      setInventoryItems((prev) => [created, ...prev]);
+      setGarmentsContentView('inventory');
+      navigate('/garments/inventory');
+      return created;
+    },
+    [navigate, t],
+  );
+
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: InventoryItem) =>
+      `Copy of ${item.articleName?.trim() || t('garments.inventoryItem')}`,
+    nameLabel: t('garments.articleName'),
+    confirmOnly: false,
+    createDuplicate: createInventoryDuplicate,
+    closePanel: closeGarmentPanel,
+  });
 
   const saveGarment = useCallback(
     async (raw: GarmentListPayload | InventoryItemPayload): Promise<boolean> => {
@@ -710,8 +885,13 @@ export function GarmentProvider({
       deleteGarment,
       deleteGarments,
       saveInventoryItem,
+      updateInventoryVariantQuantity,
       deleteInventoryItem,
       deleteInventoryItems,
+      getDuplicateConfig,
+      executeDuplicate,
+      recentlyDuplicatedInventoryId,
+      setRecentlyDuplicatedInventoryId,
       refreshGarmentList,
       addPerson,
       updatePerson,
@@ -727,6 +907,12 @@ export function GarmentProvider({
       getPanelSubtitle,
       getDeleteMessage,
       clearValidationErrors,
+      navigateToPrevItem: nav.navigateToPrevItem,
+      navigateToNextItem: nav.navigateToNextItem,
+      hasPrevItem: nav.hasPrevItem,
+      hasNextItem: nav.hasNextItem,
+      currentItemIndex: nav.currentItemIndex,
+      totalItems: nav.totalItems,
     }),
     [
       isGarmentPanelOpen,
@@ -754,8 +940,12 @@ export function GarmentProvider({
       deleteGarment,
       deleteGarments,
       saveInventoryItem,
+      updateInventoryVariantQuantity,
       deleteInventoryItem,
       deleteInventoryItems,
+      getDuplicateConfig,
+      executeDuplicate,
+      recentlyDuplicatedInventoryId,
       refreshGarmentList,
       addPerson,
       updatePerson,
@@ -770,6 +960,12 @@ export function GarmentProvider({
       getPanelSubtitle,
       getDeleteMessage,
       clearValidationErrors,
+      nav.navigateToPrevItem,
+      nav.navigateToNextItem,
+      nav.hasPrevItem,
+      nav.hasNextItem,
+      nav.currentItemIndex,
+      nav.totalItems,
     ],
   );
 

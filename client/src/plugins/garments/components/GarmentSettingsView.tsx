@@ -1,3 +1,4 @@
+import { Columns3, LayoutList } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -106,7 +107,12 @@ export function GarmentSettingsView({ inlineTrailing }: GarmentSettingsViewProps
         ) : null
       }
     >
-      <DetailSection title={t('common.defaultListView')} className="pt-0">
+      <DetailSection
+        title={t('common.defaultListView')}
+        icon={LayoutList}
+        subtleTitle
+        className="pt-0"
+      >
         <div className="flex flex-wrap items-center gap-2">
           {VIEW_MODE_OPTIONS.map((mode) => {
             const isActive = listViewMode === mode;
@@ -131,7 +137,7 @@ export function GarmentSettingsView({ inlineTrailing }: GarmentSettingsViewProps
         <p className="mt-2 text-sm text-muted-foreground">{t('common.listViewHelp')}</p>
       </DetailSection>
       {listViewMode === 'cards' ? (
-        <DetailSection title={t('garments.defaultColumns')}>
+        <DetailSection title={t('garments.defaultColumns')} icon={Columns3} subtleTitle>
           <div className="flex flex-wrap items-center gap-2">
             {COLUMN_OPTIONS.map((count) => {
               const isActive = columnCount === count;

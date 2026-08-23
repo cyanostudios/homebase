@@ -24,6 +24,7 @@ import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import { isClubdeskSubRoute } from '@/core/routing/clubdeskRoutes';
+import { isGarmentsSubRoute } from '@/core/routing/garmentsRoutes';
 import { isInvoicesSubRoute } from '@/core/routing/invoicesRoutes';
 import { navPageToPath, pathToNavPage } from '@/core/routing/routeMap';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
@@ -283,7 +284,9 @@ export function AppContent() {
 
     const isInvoicesSubRouteMatch = isInvoicesSubRoute(pluginName, itemSlug);
     const isClubdeskSubRouteMatch = isClubdeskSubRoute(pluginName, itemSlug);
-    const isNamedPluginSubRoute = isInvoicesSubRouteMatch || isClubdeskSubRouteMatch;
+    const isGarmentsSubRouteMatch = isGarmentsSubRoute(pluginName, itemSlug);
+    const isNamedPluginSubRoute =
+      isInvoicesSubRouteMatch || isClubdeskSubRouteMatch || isGarmentsSubRouteMatch;
     // Price list item URLs: /clubdesk/price-list/:slug — provider-owned deep link, panel must stay open
     const isClubdeskPriceListItemPath =
       pluginName === 'clubdesk' && itemSlug === 'price-list' && parts.length >= 3;

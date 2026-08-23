@@ -83,8 +83,15 @@ AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayNam
 const AlertDialogAction = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Action>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Action ref={ref} className={cn(buttonVariants(), className)} {...props} />
+>(({ className, asChild, ...props }, ref) => (
+  <AlertDialogPrimitive.Action
+    ref={ref}
+    asChild={asChild}
+    // When asChild, skip default primary styles so the child Button's variant
+    // (e.g. destructive/red Delete) is not overridden by string-joined classes.
+    className={asChild ? className : cn(buttonVariants(), className)}
+    {...props}
+  />
 ));
 AlertDialogAction.displayName = AlertDialogPrimitive.Action.displayName;
 

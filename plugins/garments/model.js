@@ -606,10 +606,29 @@ class GarmentsModel {
     try {
       const db = Database.get(req);
       const rows = await db.query(
-        `SELECT * FROM garment_inventory_items ORDER BY article_name ASC, brand ASC, size ASC`,
+        `SELECT * FROM garment_inventory_items ORDER BY article_name ASC, brand ASC`,
         [],
       );
-      return rows.map((row) => this.transformInventoryRow(row));
+      const items = rows.map((row) => this.transformInventoryRow(row));
+      if (!items.length) return items;
+
+      const pool = this._pool(req);
+      const ids = items.map((item) => parseInt(item.id, 10));
+      const variantResult = await pool.query(
+        `
+        SELECT * FROM garment_inventory_variants
+        WHERE item_id = ANY($1::int[])
+        ORDER BY sort_order ASC, id ASC
+        `,
+        [ids],
+      );
+      const byItem = new Map();
+      for (const row of variantResult.rows) {
+        const key = String(row.item_id);
+        if (!byItem.has(key)) byItem.set(key, []);
+        byItem.get(key).push(this.transformVariantRow(row));
+      }
+      return items.map((item) => this.attachVariants(item, byItem.get(item.id) || []));
     } catch (error) {
       Logger.error('Failed to fetch garment inventory', error);
       throw new AppError('Failed to fetch inventory', 500, AppError.CODES.DATABASE_ERROR);
@@ -623,26 +642,110 @@ class GarmentsModel {
       if (Number.isNaN(id)) return null;
       const rows = await db.query(`SELECT * FROM garment_inventory_items WHERE id = $1`, [id]);
       if (!rows.length) return null;
-      return this.transformInventoryRow(rows[0]);
+      const item = this.transformInventoryRow(rows[0]);
+      const variants = await this.getVariantsForItem(req, id);
+      return this.attachVariants(item, variants);
     } catch (error) {
       Logger.error('Failed to get inventory item', error, { itemId });
       throw new AppError('Failed to get inventory item', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
+  async getVariantsForItem(req, itemId) {
+    const pool = this._pool(req);
+    const id = parseInt(String(itemId), 10);
+    const result = await pool.query(
+      `
+      SELECT * FROM garment_inventory_variants
+      WHERE item_id = $1
+      ORDER BY sort_order ASC, id ASC
+      `,
+      [id],
+    );
+    return result.rows.map((row) => this.transformVariantRow(row));
+  }
+
+  normalizePurchasePrice(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const num = typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'));
+    if (Number.isNaN(num) || num < 0) return null;
+    return Math.round(num * 100) / 100;
+  }
+
+  normalizeCurrency(value) {
+    const code = String(value ?? 'SEK')
+      .trim()
+      .toUpperCase();
+    if (!code || code.length > 10) return 'SEK';
+    return code;
+  }
+
+  normalizeVariantInput(data, sortOrderFallback = 0) {
+    return {
+      sku: String(data.sku ?? '').trim(),
+      color: String(data.color ?? '').trim(),
+      size: String(data.size ?? '').trim(),
+      quantity: Math.max(0, parseInt(String(data.quantity ?? 0), 10) || 0),
+      sortOrder:
+        data.sortOrder != null || data.sort_order != null
+          ? parseInt(String(data.sortOrder ?? data.sort_order), 10) || 0
+          : sortOrderFallback,
+    };
+  }
+
+  assertNoDuplicateVariants(variants) {
+    const seenColorSize = new Set();
+    const seenSku = new Set();
+    for (const variant of variants) {
+      const colorSizeKey = `${String(variant.color || '').toLowerCase()}|${String(variant.size || '').toLowerCase()}`;
+      if (seenColorSize.has(colorSizeKey)) {
+        throw new AppError(
+          'A variant with this color and size already exists on this item',
+          409,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+      seenColorSize.add(colorSizeKey);
+
+      const skuKey = String(variant.sku || '')
+        .trim()
+        .toLowerCase();
+      if (skuKey) {
+        if (seenSku.has(skuKey)) {
+          throw new AppError(
+            'A variant with this article number already exists on this item',
+            409,
+            AppError.CODES.VALIDATION_ERROR,
+          );
+        }
+        seenSku.add(skuKey);
+      }
+    }
+  }
+
   async createInventoryItem(req, data) {
     try {
       const db = Database.get(req);
+      const description =
+        data.description !== undefined ? String(data.description ?? '').trim() || null : null;
+      const comment = data.comment !== undefined ? String(data.comment ?? '').trim() || null : null;
       const record = await db.insert('garment_inventory_items', {
         article_name: String(data.articleName ?? data.article_name ?? '').trim(),
         brand: String(data.brand ?? '').trim(),
-        size: String(data.size ?? '').trim(),
-        quantity: Math.max(0, parseInt(String(data.quantity ?? 0), 10) || 0),
-        comment: data.comment ?? null,
+        description,
+        material: String(data.material ?? '').trim(),
+        purchase_price: this.normalizePurchasePrice(data.purchasePrice ?? data.purchase_price),
+        currency: this.normalizeCurrency(data.currency),
+        comment,
       });
-      return this.transformInventoryRow(record);
+      const itemId = record.id;
+      if (Array.isArray(data.variants)) {
+        await this.syncInventoryVariants(req, itemId, data.variants);
+      }
+      return this.getInventoryById(req, itemId);
     } catch (error) {
       if (error?.code === '23505') throw error;
+      if (error instanceof AppError) throw error;
       Logger.error('Failed to create inventory item', error);
       throw new AppError('Failed to create inventory item', 500, AppError.CODES.DATABASE_ERROR);
     }
@@ -656,37 +759,309 @@ class GarmentsModel {
       if (!existing) {
         throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
       }
-      const rows = await db.query(
+
+      const nextArticleName =
+        data.articleName !== undefined || data.article_name !== undefined
+          ? String(data.articleName ?? data.article_name ?? '').trim()
+          : existing.articleName;
+      const nextBrand = data.brand !== undefined ? String(data.brand ?? '').trim() : existing.brand;
+      const nextDescription =
+        data.description !== undefined
+          ? String(data.description ?? '').trim() || null
+          : existing.description;
+      const nextMaterial =
+        data.material !== undefined ? String(data.material ?? '').trim() : existing.material;
+      const nextPurchasePrice =
+        data.purchasePrice !== undefined || data.purchase_price !== undefined
+          ? this.normalizePurchasePrice(data.purchasePrice ?? data.purchase_price)
+          : existing.purchasePrice;
+      const nextCurrency =
+        data.currency !== undefined
+          ? this.normalizeCurrency(data.currency)
+          : existing.currency || 'SEK';
+      const nextComment =
+        data.comment !== undefined ? String(data.comment ?? '').trim() || null : existing.comment;
+
+      await db.query(
         `
         UPDATE garment_inventory_items SET
           article_name = $1,
           brand = $2,
-          size = $3,
-          quantity = $4,
-          comment = $5,
+          description = $3,
+          material = $4,
+          purchase_price = $5,
+          currency = $6,
+          comment = $7,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $6
+        WHERE id = $8
         RETURNING *
         `,
         [
-          data.articleName !== undefined || data.article_name !== undefined
-            ? String(data.articleName ?? data.article_name ?? '').trim()
-            : existing.articleName,
-          data.brand !== undefined ? String(data.brand ?? '').trim() : existing.brand,
-          data.size !== undefined ? String(data.size ?? '').trim() : existing.size,
-          data.quantity !== undefined
-            ? Math.max(0, parseInt(String(data.quantity), 10) || 0)
-            : existing.quantity,
-          data.comment !== undefined ? data.comment : existing.comment,
+          nextArticleName,
+          nextBrand,
+          nextDescription,
+          nextMaterial,
+          nextPurchasePrice,
+          nextCurrency,
+          nextComment,
           id,
         ],
       );
-      return this.transformInventoryRow(rows[0]);
+
+      if (Array.isArray(data.variants)) {
+        await this.syncInventoryVariants(req, id, data.variants);
+      }
+
+      return this.getInventoryById(req, id);
     } catch (error) {
       if (error instanceof AppError) throw error;
       if (error?.code === '23505') throw error;
       Logger.error('Failed to update inventory item', error, { itemId });
       throw new AppError('Failed to update inventory item', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async syncInventoryVariants(req, itemId, variantsInput) {
+    const pool = this._pool(req);
+    const id = parseInt(String(itemId), 10);
+    const normalized = (Array.isArray(variantsInput) ? variantsInput : []).map((row, index) => {
+      const base = this.normalizeVariantInput(row, index);
+      const rowId =
+        row.id != null && String(row.id).trim() !== '' ? parseInt(String(row.id), 10) : null;
+      return {
+        id: Number.isNaN(rowId) ? null : rowId,
+        ...base,
+      };
+    });
+    this.assertNoDuplicateVariants(normalized);
+
+    const existing = await this.getVariantsForItem(req, id);
+    const keepIds = new Set(normalized.filter((v) => v.id != null).map((v) => String(v.id)));
+    for (const old of existing) {
+      if (!keepIds.has(String(old.id))) {
+        await pool.query(`DELETE FROM garment_inventory_variants WHERE id = $1 AND item_id = $2`, [
+          parseInt(old.id, 10),
+          id,
+        ]);
+      }
+    }
+
+    for (let i = 0; i < normalized.length; i += 1) {
+      const variant = normalized[i];
+      if (variant.id != null) {
+        const rows = await pool.query(
+          `
+          UPDATE garment_inventory_variants SET
+            sku = $1,
+            color = $2,
+            size = $3,
+            quantity = $4,
+            sort_order = $5,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $6 AND item_id = $7
+          RETURNING id
+          `,
+          [variant.sku, variant.color, variant.size, variant.quantity, i, variant.id, id],
+        );
+        if (!rows.rows.length) {
+          await pool.query(
+            `
+            INSERT INTO garment_inventory_variants (item_id, sku, color, size, quantity, sort_order)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            `,
+            [id, variant.sku, variant.color, variant.size, variant.quantity, i],
+          );
+        }
+      } else {
+        await pool.query(
+          `
+          INSERT INTO garment_inventory_variants (item_id, sku, color, size, quantity, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          `,
+          [id, variant.sku, variant.color, variant.size, variant.quantity, i],
+        );
+      }
+    }
+
+    await pool.query(
+      `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id],
+    );
+  }
+
+  async createInventoryVariant(req, itemId, data) {
+    try {
+      const id = parseInt(String(itemId), 10);
+      const item = await this.getInventoryById(req, id);
+      if (!item) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const pool = this._pool(req);
+      const maxOrder = await pool.query(
+        `SELECT COALESCE(MAX(sort_order), -1) AS m FROM garment_inventory_variants WHERE item_id = $1`,
+        [id],
+      );
+      const variant = this.normalizeVariantInput(data, (maxOrder.rows[0]?.m ?? -1) + 1);
+      const existing = await this.getVariantsForItem(req, id);
+      this.assertNoDuplicateVariants([...existing, variant]);
+      const result = await pool.query(
+        `
+        INSERT INTO garment_inventory_variants (item_id, sku, color, size, quantity, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+        `,
+        [id, variant.sku, variant.color, variant.size, variant.quantity, variant.sortOrder],
+      );
+      await pool.query(
+        `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [id],
+      );
+      return this.transformVariantRow(result.rows[0]);
+    } catch (error) {
+      if (error?.code === '23505') throw error;
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to create inventory variant', error, { itemId });
+      throw new AppError('Failed to create variant', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updateInventoryVariant(req, itemId, variantId, data) {
+    try {
+      const lid = parseInt(String(itemId), 10);
+      const vid = parseInt(String(variantId), 10);
+      const item = await this.getInventoryById(req, lid);
+      if (!item) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const pool = this._pool(req);
+      const existingResult = await pool.query(
+        `SELECT * FROM garment_inventory_variants WHERE id = $1 AND item_id = $2`,
+        [vid, lid],
+      );
+      if (!existingResult.rows.length) {
+        throw new AppError('Variant not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const existing = existingResult.rows[0];
+      const nextSku = data.sku !== undefined ? String(data.sku ?? '').trim() : (existing.sku ?? '');
+      const nextColor =
+        data.color !== undefined ? String(data.color ?? '').trim() : (existing.color ?? '');
+      const nextSize =
+        data.size !== undefined ? String(data.size ?? '').trim() : (existing.size ?? '');
+      const nextQuantity =
+        data.quantity !== undefined
+          ? Math.max(0, parseInt(String(data.quantity), 10) || 0)
+          : existing.quantity;
+      const nextSort =
+        data.sortOrder !== undefined || data.sort_order !== undefined
+          ? parseInt(String(data.sortOrder ?? data.sort_order), 10) || 0
+          : existing.sort_order;
+
+      // Only re-check uniqueness when identity fields change — quantity-only
+      // updates must not fail because of pre-existing duplicate SKUs/color-size.
+      const touchesIdentity =
+        data.sku !== undefined || data.color !== undefined || data.size !== undefined;
+      if (touchesIdentity) {
+        const siblings = (await this.getVariantsForItem(req, lid)).map((row) =>
+          String(row.id) === String(vid)
+            ? {
+                sku: nextSku,
+                color: nextColor,
+                size: nextSize,
+                quantity: nextQuantity,
+                sortOrder: nextSort,
+              }
+            : row,
+        );
+        this.assertNoDuplicateVariants(siblings);
+      }
+
+      const rows = await pool.query(
+        `
+        UPDATE garment_inventory_variants SET
+          sku = $1,
+          color = $2,
+          size = $3,
+          quantity = $4,
+          sort_order = $5,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $6 AND item_id = $7
+        RETURNING *
+        `,
+        [nextSku, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
+      );
+      await pool.query(
+        `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [lid],
+      );
+      return this.transformVariantRow(rows.rows[0]);
+    } catch (error) {
+      if (error?.code === '23505') throw error;
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update inventory variant', error, { itemId, variantId });
+      throw new AppError('Failed to update variant', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updateInventoryVariantQuantity(req, itemId, variantId, quantity) {
+    try {
+      const lid = parseInt(String(itemId), 10);
+      const vid = parseInt(String(variantId), 10);
+      const nextQuantity = Math.max(0, parseInt(String(quantity), 10) || 0);
+      const item = await this.getInventoryById(req, lid);
+      if (!item) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const pool = this._pool(req);
+      const rows = await pool.query(
+        `
+        UPDATE garment_inventory_variants SET
+          quantity = $1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2 AND item_id = $3
+        RETURNING *
+        `,
+        [nextQuantity, vid, lid],
+      );
+      if (!rows.rows.length) {
+        throw new AppError('Variant not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      await pool.query(
+        `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [lid],
+      );
+      return this.transformVariantRow(rows.rows[0]);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to update inventory variant quantity', error, { itemId, variantId });
+      throw new AppError('Failed to update variant quantity', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async deleteInventoryVariant(req, itemId, variantId) {
+    try {
+      const pool = this._pool(req);
+      const lid = parseInt(String(itemId), 10);
+      const vid = parseInt(String(variantId), 10);
+      const item = await this.getInventoryById(req, lid);
+      if (!item) {
+        throw new AppError('Inventory item not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const rows = await pool.query(
+        `DELETE FROM garment_inventory_variants WHERE id = $1 AND item_id = $2 RETURNING id`,
+        [vid, lid],
+      );
+      if (!rows.rows.length) {
+        throw new AppError('Variant not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      await pool.query(
+        `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [lid],
+      );
+      return { id: String(vid) };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to delete inventory variant', error, { itemId, variantId });
+      throw new AppError('Failed to delete variant', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -755,14 +1130,50 @@ class GarmentsModel {
     };
   }
 
+  transformVariantRow(row) {
+    return {
+      id: String(row.id),
+      itemId: String(row.item_id),
+      sku: row.sku ?? '',
+      color: row.color ?? '',
+      size: row.size ?? '',
+      quantity: row.quantity != null ? Number(row.quantity) : 0,
+      sortOrder: row.sort_order != null ? Number(row.sort_order) : 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  attachVariants(item, variants) {
+    const list = Array.isArray(variants) ? variants : [];
+    const totalQuantity = list.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0);
+    return {
+      ...item,
+      variants: list,
+      totalQuantity,
+      variantCount: list.length,
+    };
+  }
+
   transformInventoryRow(row) {
+    const purchaseRaw = row.purchase_price;
+    let purchasePrice = null;
+    if (purchaseRaw !== undefined && purchaseRaw !== null && purchaseRaw !== '') {
+      const num = typeof purchaseRaw === 'number' ? purchaseRaw : parseFloat(String(purchaseRaw));
+      purchasePrice = Number.isNaN(num) ? null : num;
+    }
     return {
       id: String(row.id),
       articleName: row.article_name ?? '',
       brand: row.brand ?? '',
-      size: row.size ?? '',
-      quantity: row.quantity != null ? Number(row.quantity) : 0,
+      description: row.description ?? null,
+      material: row.material ?? '',
+      purchasePrice,
+      currency: row.currency ?? 'SEK',
       comment: row.comment ?? null,
+      variants: [],
+      totalQuantity: 0,
+      variantCount: 0,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

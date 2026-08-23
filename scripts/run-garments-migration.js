@@ -10,7 +10,12 @@ const dotenv = require('dotenv');
 dotenv.config({ path: '.env.local' });
 dotenv.config({ path: '.env' });
 
-const TENANT_MIGRATIONS = [path.join(__dirname, '../server/migrations/131-garments.sql')];
+const TENANT_MIGRATIONS = [
+  path.join(__dirname, '../server/migrations/131-garments.sql'),
+  path.join(__dirname, '../server/migrations/136-garment-inventory-product-fields.sql'),
+  path.join(__dirname, '../server/migrations/137-garment-inventory-variants.sql'),
+  path.join(__dirname, '../server/migrations/138-garment-inventory-variant-sku-unique.sql'),
+];
 const MAIN_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/132-grant-garments-plugin-access.sql'),
   path.join(__dirname, '../server/migrations/133-public-share-routing-garment-list.sql'),

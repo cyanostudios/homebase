@@ -13,15 +13,27 @@ import { cn } from '@/lib/utils';
 import type { InventoryItem } from '../types/garments';
 import type { GarmentColumnCount } from '../utils/garmentColumnCount';
 
+function truncateComment(content: string, maxLength = 150): string {
+  const plain = content.trim();
+  if (plain.length <= maxLength) {
+    return plain;
+  }
+  return `${plain.substring(0, maxLength)}…`;
+}
+
 export function InventoryListItem({
   item,
   selected,
+  highlighted,
+  active,
   onClick,
   checkbox,
   columnCount = 1,
 }: {
   item: InventoryItem;
   selected?: boolean;
+  highlighted?: boolean;
+  active?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
   columnCount?: GarmentColumnCount;
@@ -29,6 +41,11 @@ export function InventoryListItem({
   const { t } = useTranslation();
   const metaOnTop = columnCount === 1;
   const updatedLabel = formatDate(item.updatedAt) || null;
+  const excerpt = item.description?.trim()
+    ? truncateComment(item.description)
+    : item.comment
+      ? truncateComment(item.comment)
+      : '';
 
   const metaRow = (
     <div
@@ -37,14 +54,22 @@ export function InventoryListItem({
         !metaOnTop && 'mt-0.5 pt-0.5',
       )}
     >
-      {[item.brand, item.size, t('garments.qty', { count: item.quantity })]
+      {[
+        item.brand,
+        t('garments.variantCountLabel', { count: item.variantCount ?? item.variants?.length ?? 0 }),
+        t('garments.qty', { count: item.totalQuantity ?? 0 }),
+      ]
         .filter(Boolean)
         .map((part) => (
           <span key={String(part)} className="truncate">
             {part}
           </span>
         ))}
-      {updatedLabel ? <span className="truncate">{updatedLabel}</span> : null}
+      {updatedLabel ? (
+        <span className="truncate">
+          {t('common.updated')}: {updatedLabel}
+        </span>
+      ) : null}
     </div>
   );
 
@@ -60,6 +85,8 @@ export function InventoryListItem({
       className={cn(
         'group cursor-pointer overflow-hidden p-0 transition-all',
         DETAIL_VIEW_CARD_CLASS,
+        highlighted && 'bg-green-50 dark:bg-green-950/30',
+        active && 'bg-primary/5 ring-1 ring-primary/40',
         selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
       )}
       onClick={(e) => {
@@ -73,18 +100,23 @@ export function InventoryListItem({
       data-plugin-name="garments"
       role="button"
       tabIndex={0}
+      aria-current={active ? 'true' : undefined}
       aria-label={t('garments.openInventory', { name: item.articleName || item.id })}
     >
       <div className="flex flex-col gap-2 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
-            {metaOnTop ? metaRow : null}
-          </div>
-        </div>
+        {checkbox ? <div className="flex">{checkbox}</div> : null}
+        {metaOnTop ? metaRow : null}
+
         <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>
           {item.articleName || '—'}
         </h3>
+
+        {excerpt ? (
+          <p className="line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">
+            {excerpt}
+          </p>
+        ) : null}
+
         {!metaOnTop ? metaRow : null}
       </div>
     </Card>

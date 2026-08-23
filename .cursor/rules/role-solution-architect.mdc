@@ -55,9 +55,10 @@ När en överlämningsrad (`Överlämning:\n<nästa roll>`) har skrivits är rol
 4. Utforma en teknisk lösning som prioriterar (i ordning): enkelhet → återanvändning → modularitet → prestanda → säkerhet → underhållbarhet.
 5. Utmana lösningen själv: finns ett enklare eller mer hållbart alternativ? Om ja – föreslå det istället.
 6. Definiera ansvarsfördelningen mellan Backend och Frontend tydligt och otvetydigt.
-7. Identifiera tekniska risker och beroenden. Bedöm om de är acceptabla eller måste eskaleras.
-8. Om ett avvägningsbeslut påverkar affärsbehov eller tidsplan: lyft konsekvenserna till Teknisk Projektledare – besluta aldrig ensidigt.
-9. Lämna över till Backend- och/eller Frontendutvecklare med tillräcklig kontext för att implementera utan att behöva gissa.
+7. **Vid ny CRUD-plugin eller List/View/Form-yta:** teknisk lösning ska kräva att Frontend följer **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** (quick context, full view, dialoger) — designa inte avvikande UI-kontrakt i arkitekturen.
+8. Identifiera tekniska risker och beroenden. Bedöm om de är acceptabla eller måste eskaleras.
+9. Om ett avvägningsbeslut påverkar affärsbehov eller tidsplan: lyft konsekvenserna till Teknisk Projektledare – besluta aldrig ensidigt.
+10. Lämna över till Backend- och/eller Frontendutvecklare med tillräcklig kontext för att implementera utan att behöva gissa.
 
 ## Absoluta begränsningar
 

@@ -22,6 +22,10 @@ export type InventoryListTableProps = {
   onCheckboxChange: (id: string) => void;
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
+  /** When false, the selection checkbox column is hidden (e.g. quick context open). */
+  selectionEnabled?: boolean;
+  activeInventoryId?: string | number | null;
+  recentlyDuplicatedInventoryId?: string | null;
 };
 
 export function InventoryListTable({
@@ -35,6 +39,9 @@ export function InventoryListTable({
   onCheckboxChange,
   allVisibleSelected,
   onHeaderCheckboxChange,
+  selectionEnabled = true,
+  activeInventoryId = null,
+  recentlyDuplicatedInventoryId = null,
 }: InventoryListTableProps) {
   const { t } = useTranslation();
 
@@ -54,20 +61,24 @@ export function InventoryListTable({
         cell: (item) => <span className="text-xs text-muted-foreground">{item.brand || '—'}</span>,
       },
       {
-        field: 'size',
-        header: t('garments.size'),
+        field: 'variantCount',
+        header: t('garments.variantCount'),
         className: 'hidden md:table-cell',
-        cell: (item) => <span className="text-xs text-muted-foreground">{item.size || '—'}</span>,
+        cell: (item) => (
+          <span className="text-xs text-foreground">
+            {item.variantCount ?? item.variants?.length ?? 0}
+          </span>
+        ),
       },
       {
-        field: 'quantity',
-        header: t('garments.quantity'),
-        cell: (item) => <span className="text-xs text-foreground">{item.quantity}</span>,
+        field: 'totalQuantity',
+        header: t('garments.totalQuantity'),
+        cell: (item) => <span className="text-xs text-foreground">{item.totalQuantity ?? 0}</span>,
       },
       {
         field: 'updatedAt',
         header: t('common.updated'),
-        className: 'hidden lg:table-cell',
+        className: 'hidden xl:table-cell',
         cell: (item) => (
           <span className="text-xs text-muted-foreground">{formatDate(item.updatedAt) || '—'}</span>
         ),
@@ -76,15 +87,18 @@ export function InventoryListTable({
     [t],
   );
 
-  const selection: SortableListTableSelection = {
-    isSelected,
-    onCheckboxMouseDown,
-    onCheckboxChange,
-    allVisibleSelected,
-    onHeaderCheckboxChange,
-    selectAllAriaLabel: t('common.selectAllVisible'),
-    selectRowAriaLabel: (selected) => (selected ? t('common.unselectRow') : t('common.selectRow')),
-  };
+  const selection: SortableListTableSelection | undefined = selectionEnabled
+    ? {
+        isSelected,
+        onCheckboxMouseDown,
+        onCheckboxChange,
+        allVisibleSelected,
+        onHeaderCheckboxChange,
+        selectAllAriaLabel: t('common.selectAllVisible'),
+        selectRowAriaLabel: (selected) =>
+          selected ? t('common.unselectRow') : t('common.selectRow'),
+      }
+    : undefined;
 
   return (
     <SortableListTable
@@ -96,6 +110,14 @@ export function InventoryListTable({
       onSort={onSort}
       onRowClick={onRowClick}
       rowAriaLabel={(item) => t('garments.openInventory', { name: item.articleName || item.id })}
+      isRowActive={(item) =>
+        activeInventoryId !== null && String(item.id) === String(activeInventoryId)
+      }
+      rowClassName={(item) =>
+        recentlyDuplicatedInventoryId === String(item.id)
+          ? 'bg-green-50 dark:bg-green-950/30'
+          : undefined
+      }
       selection={selection}
       pluginName="garments"
       dataListItem={(item) => item}

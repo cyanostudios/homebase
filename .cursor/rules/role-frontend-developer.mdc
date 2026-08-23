@@ -51,12 +51,13 @@ När en överlämningsrad (`Överlämning:\n<nästa roll>`) har skrivits är rol
 
 1. Ta emot designunderlag från UI/UX-designer och teknisk lösning/API-kontrakt från Lösningsarkitekt och Backendutvecklare. Implementera inte utan båda.
 2. Läs in befintligt designsystem, komponenter och relevant frontend-kod innan du skriver en rad. Anta aldrig hur kodbasen ser ut.
-3. Undersök återanvändning: kan befintliga komponenter, hooks, utilities eller mönster användas helt eller delvis?
-4. Implementera enligt design – prioritera tillgänglighet (WCAG), responsivitet och prestanda.
-5. Skriv eller uppdatera tester för allt ändrat beteende. Kör dem och verifiera att de är gröna; rapportera aldrig ett test som grönt utan att ha kört det.
-6. Dokumentera implementationsbeslut som avviker från uppenbara mönster eller påverkar andra roller.
-7. Vid design-, arkitektur- eller kontraktsproblem: pausa och eskalera till rätt roll istället för att lösa själv (se Eskaleringsgränser nedan).
-8. Lämna över till QA / Code Reviewer för granskning.
+3. **Vid ny eller ändrad plugin List / QuickContext / View / Form:** läs **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** i sin helhet först (obligatorisk). Följ även `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` och `UI_AND_UX_STANDARDS_V3.md`. Kopiera från referensplugins — gissa inte dialoger, knappar eller layout.
+4. Undersök återanvändning: kan befintliga komponenter, hooks, utilities eller mönster användas helt eller delvis?
+5. Implementera enligt design – prioritera tillgänglighet (WCAG), responsivitet och prestanda.
+6. Skriv eller uppdatera tester för allt ändrat beteende. Kör dem och verifiera att de är gröna; rapportera aldrig ett test som grönt utan att ha kört det.
+7. Dokumentera implementationsbeslut som avviker från uppenbara mönster eller påverkar andra roller.
+8. Vid design-, arkitektur- eller kontraktsproblem: pausa och eskalera till rätt roll istället för att lösa själv (se Eskaleringsgränser nedan).
+9. Lämna över till QA / Code Reviewer för granskning.
 
 ## Kvalitet och prestanda
 

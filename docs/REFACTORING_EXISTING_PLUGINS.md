@@ -19,6 +19,7 @@
 - **HTTP:** muterande anrop via `apiFetch` (CSRF när `ENABLE_CSRF=true`).
 - **Plugin-API:** föredra `createApiClient('/<plugin>')` från `client/src/core/api/createApiClient.ts` (se `CLEANUP_DEFERRED_RISKS.md` för plugins som ännu inte migrerats).
 - **Panel:** `PLUGIN_RUNTIME_CONVENTIONS.md` + inline Save/Cancel på create/edit (`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12).
+- **List / view / form / dialoger:** `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` (obligatorisk vid alignment).
 
 ### Core services (vad som faktiskt finns)
 
@@ -28,8 +29,8 @@ Filer, mail och cups hanterar storage/e-post i **plugin-specifik kod** eller egn
 
 ## När du ändå refaktorerar ett plugin
 
-1. Läs **`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`** och **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`**.
-2. Kör `npm run check`, `npm test`, manuell smoke (list/create/edit/view/settings).
+1. Läs **`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`**, **`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** och **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`**.
+2. Kör `npm run check`, `npm test`, manuell smoke (list/create/edit/view/settings) plus view-guiden §8.
 3. Dokumentera beteendeförändringar i **`CHANGELOG.md`**.
 
 ## Historik

@@ -74,6 +74,7 @@ Rollen avgör aktivt, från fall till fall, vilka av de övriga specialisterna (
 Exempel:
 
 - En ren textändring i UI kräver kanske bara Frontend + QA.
+- **Ny eller större CRUD-plugin (List/View/Form):** uppdrag till Frontend (och Designer) ska peka på **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** + `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` som obligatorisk läsning.
 - En ny känslig integration kräver Arkitekt + Säkerhet + Backend, och troligen QA och Dokumentation i slutet.
 
 Vid osäkerhet om en roll behövs: fråga den rollen kort, snarare än att gissa och utesluta eller inkludera på måfå.

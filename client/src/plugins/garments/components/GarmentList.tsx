@@ -1,15 +1,4 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  CheckSquare,
-  Package,
-  Plus,
-  Settings,
-  Shirt,
-  Trash2,
-  X,
-  XCircle,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, CheckSquare, Plus, Settings, Trash2, X, XCircle } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -22,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
@@ -66,6 +56,7 @@ import { GarmentListTable } from './GarmentListTable';
 import { GarmentSettingsView } from './GarmentSettingsView';
 import { InventoryListItem } from './InventoryListItem';
 import { InventoryListTable } from './InventoryListTable';
+import { InventoryQuickContextPanel } from './InventoryQuickContextPanel';
 
 const LIST_SORT_OPTIONS: { value: GarmentSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -78,7 +69,8 @@ const INVENTORY_SORT_OPTIONS: { value: InventorySortField; labelKey: string }[] 
   { value: 'updatedAt', labelKey: 'common.updated' },
   { value: 'articleName', labelKey: 'garments.articleName' },
   { value: 'brand', labelKey: 'garments.brand' },
-  { value: 'quantity', labelKey: 'garments.quantity' },
+  { value: 'totalQuantity', labelKey: 'garments.totalQuantity' },
+  { value: 'variantCount', labelKey: 'garments.variantCount' },
 ];
 
 export const GarmentList: React.FC = () => {
@@ -91,12 +83,14 @@ export const GarmentList: React.FC = () => {
     openGarmentForView,
     openInventoryPanel,
     openInventoryForView,
+    openInventoryForEdit,
+    updateInventoryVariantQuantity,
+    isSaving,
     openGarmentsSettings,
     closeGarmentSettingsView,
-    openGarmentsInventory,
-    openGarmentsLists,
     deleteGarments,
     deleteInventoryItems,
+    recentlyDuplicatedInventoryId,
   } = useGarments();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -117,10 +111,28 @@ export const GarmentList: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const {
+    previewItem: previewInventory,
+    setPreviewItem: setPreviewInventory,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'garments-inventory',
+    items: inventoryItems,
+    getItemId: (item) => String(item.id),
+  });
+
   useEffect(() => {
     setSelectedIds([]);
     setSearchTerm('');
   }, [garmentsContentView]);
+
+  useEffect(() => {
+    if (!isInventory) {
+      setPreviewInventory(null);
+    }
+  }, [isInventory, setPreviewInventory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -288,8 +300,12 @@ export const GarmentList: React.FC = () => {
     attemptNavigation(() => openGarmentForView(list));
   };
 
-  const handleOpenInventory = (item: InventoryItem) => {
-    attemptNavigation(() => openInventoryForView(item));
+  const handleOpenInventoryForView = (item: InventoryItem) => {
+    markPendingAndOpen(item, () => attemptNavigation(() => openInventoryForView(item)));
+  };
+
+  const handleRowActivate = (item: InventoryItem) => {
+    activateRow(item, (next) => attemptNavigation(() => openInventoryForView(next)));
   };
 
   if (garmentsContentView === 'settings') {
@@ -323,7 +339,9 @@ export const GarmentList: React.FC = () => {
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.garments')}</h2>
+            <h2 className="truncate text-xl font-semibold tracking-tight">
+              {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
+            </h2>
             <p className="text-sm text-muted-foreground">
               {isInventory
                 ? t('garments.inventoryCount', { count: totalCount })
@@ -331,24 +349,6 @@ export const GarmentList: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1">
-            <Button
-              variant={garmentsContentView === 'lists' ? 'secondary' : 'ghost'}
-              size="sm"
-              icon={Shirt}
-              className="h-9 px-2.5 text-xs"
-              onClick={openGarmentsLists}
-            >
-              {t('garments.listsTab')}
-            </Button>
-            <Button
-              variant={isInventory ? 'secondary' : 'ghost'}
-              size="sm"
-              icon={Package}
-              className="h-9 px-2.5 text-xs"
-              onClick={openGarmentsInventory}
-            >
-              {t('garments.inventoryTab')}
-            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -522,81 +522,113 @@ export const GarmentList: React.FC = () => {
             }
           />
 
-          {filteredCount === 0 ? (
-            <ListEmptyState
-              message={
-                searchTerm
-                  ? t('garments.noSearchResults')
-                  : isInventory
-                    ? t('garments.noInventoryYet')
-                    : t('garments.noListsYet')
-              }
-              createLabel={
-                !searchTerm
-                  ? isInventory
-                    ? t('garments.addInventory')
-                    : t('garments.addList')
-                  : undefined
-              }
-              onCreate={
-                !searchTerm
-                  ? () =>
-                      attemptNavigation(() =>
-                        isInventory ? openInventoryPanel(null) : openGarmentPanel(null),
-                      )
-                  : undefined
-              }
-            />
-          ) : isInventory ? (
-            isTableView ? (
-              <InventoryListTable
-                items={filteredInventory}
-                primarySort={inventorySort}
-                sortOrder={sortOrder}
-                onSort={handleTableSortInventory}
-                isSelected={isSelected}
-                onRowClick={handleOpenInventory}
-                onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-                onCheckboxChange={onVisibleRowCheckboxChange}
-                allVisibleSelected={allVisibleSelected}
-                onHeaderCheckboxChange={handleHeaderCheckboxChange}
-              />
-            ) : (
-              <div
-                className={cn(
-                  'grid gap-3',
-                  columnCount === 1 && 'grid-cols-1',
-                  columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                  columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-                )}
-              >
-                {filteredInventory.map((item, index) => {
-                  const itemIsSelected = isSelected(String(item.id));
-                  return (
-                    <InventoryListItem
-                      key={item.id}
-                      item={item}
-                      selected={itemIsSelected}
-                      onClick={() => handleOpenInventory(item)}
-                      columnCount={columnCount}
-                      checkbox={
-                        <input
-                          type="checkbox"
-                          checked={itemIsSelected}
-                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                          onChange={() => onVisibleRowCheckboxChange(String(item.id))}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={
-                            itemIsSelected ? t('common.unselectRow') : t('common.selectRow')
+          {isInventory ? (
+            <div className="flex items-start gap-4">
+              {showQuickContext && previewInventory ? (
+                <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+                  <InventoryQuickContextPanel
+                    item={previewInventory}
+                    onClose={() => setPreviewInventory(null)}
+                    onOpenFullProfile={() => handleOpenInventoryForView(previewInventory)}
+                    onEdit={() => {
+                      markPendingAndOpen(previewInventory, () =>
+                        attemptNavigation(() => openInventoryForEdit(previewInventory)),
+                      );
+                    }}
+                    onVariantQuantityChange={async (variantId, quantity) => {
+                      await updateInventoryVariantQuantity(
+                        previewInventory.id,
+                        variantId,
+                        quantity,
+                      );
+                    }}
+                    quantitySaving={isSaving}
+                  />
+                </aside>
+              ) : null}
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                {filteredCount === 0 ? (
+                  <ListEmptyState
+                    message={
+                      searchTerm ? t('garments.noSearchResults') : t('garments.noInventoryYet')
+                    }
+                    createLabel={!searchTerm ? t('garments.addInventory') : undefined}
+                    onCreate={
+                      !searchTerm
+                        ? () => attemptNavigation(() => openInventoryPanel(null))
+                        : undefined
+                    }
+                  />
+                ) : isTableView ? (
+                  <InventoryListTable
+                    items={filteredInventory}
+                    primarySort={inventorySort}
+                    sortOrder={sortOrder}
+                    onSort={handleTableSortInventory}
+                    isSelected={isSelected}
+                    onRowClick={handleRowActivate}
+                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                    onCheckboxChange={onVisibleRowCheckboxChange}
+                    allVisibleSelected={allVisibleSelected}
+                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                    selectionEnabled
+                    activeInventoryId={previewInventory?.id ?? null}
+                    recentlyDuplicatedInventoryId={recentlyDuplicatedInventoryId}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      'grid gap-3',
+                      columnCount === 1 && 'grid-cols-1',
+                      columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                      columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                    )}
+                  >
+                    {filteredInventory.map((item, index) => {
+                      const itemIsSelected = isSelected(String(item.id));
+                      return (
+                        <InventoryListItem
+                          key={item.id}
+                          item={item}
+                          selected={itemIsSelected}
+                          highlighted={recentlyDuplicatedInventoryId === String(item.id)}
+                          active={
+                            previewInventory !== null &&
+                            String(previewInventory.id) === String(item.id)
+                          }
+                          onClick={() => handleRowActivate(item)}
+                          columnCount={columnCount}
+                          checkbox={
+                            <input
+                              type="checkbox"
+                              checked={itemIsSelected}
+                              onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                              onChange={() => onVisibleRowCheckboxChange(String(item.id))}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-4 w-4 cursor-pointer"
+                              aria-label={
+                                itemIsSelected ? t('common.unselectRow') : t('common.selectRow')
+                              }
+                            />
                           }
                         />
-                      }
-                    />
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
+                <ListFooterBar
+                  meta={<>{t('garments.showingOf', { shown: filteredCount, total: totalCount })}</>}
+                />
               </div>
-            )
+            </div>
+          ) : filteredCount === 0 ? (
+            <ListEmptyState
+              message={searchTerm ? t('garments.noSearchResults') : t('garments.noListsYet')}
+              createLabel={!searchTerm ? t('garments.addList') : undefined}
+              onCreate={
+                !searchTerm ? () => attemptNavigation(() => openGarmentPanel(null)) : undefined
+              }
+            />
           ) : isTableView ? (
             <GarmentListTable
               items={filteredLists}
@@ -647,9 +679,11 @@ export const GarmentList: React.FC = () => {
             </div>
           )}
 
-          <ListFooterBar
-            meta={<>{t('garments.showingOf', { shown: filteredCount, total: totalCount })}</>}
-          />
+          {!isInventory ? (
+            <ListFooterBar
+              meta={<>{t('garments.showingOf', { shown: filteredCount, total: totalCount })}</>}
+            />
+          ) : null}
         </div>
       </div>
     </div>

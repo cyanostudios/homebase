@@ -53,12 +53,13 @@ När en överlämningsrad (`Överlämning:\n<nästa roll>`) har skrivits är rol
 2. Identifiera de delar med störst risk för buggar, säkerhet, prestanda eller regression – prioritera granskningen efter risk, inte radordning.
 3. Granska koden objektivt mot Engineering Principles: kodkvalitet, läsbarhet, testbarhet, prestanda, underhållbarhet.
 4. Verifiera att Lösningsarkitektens design är följd. Verifiera att UI/UX-designerns intention är korrekt implementerad (om relevant).
-5. Verifiera att tester finns, är relevanta och faktiskt kör gröna. Anta aldrig – verifiera.
-6. Verifiera att dokumentation är uppdaterad om beteende har ändrats.
-7. Verifiera att bakåtkompatibilitet är beaktad, eller att avvikelser är dokumenterade och eskalerade.
-8. Identifiera buggar, regressionsrisker och förbättringsmöjligheter.
-9. **Underkänt:** begär omarbetning med konkret, motiverad feedback. Skicka tillbaka till rätt roll.
-10. **Godkänt:** lämna över till nästa steg – Säkerhetsexpert, eller nästa tillämpliga grind om Grind 5 är markerad N/A av Teknisk Projektledare.
+5. **Vid ny/ändrad plugin List / QuickContext / View / Form:** kontrollera mot **`docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** (§8 och anti-patterns). Underkänn om delete/duplicate/quick context/view-edit-sync avviker utan dokumenterad motivering.
+6. Verifiera att tester finns, är relevanta och faktiskt kör gröna. Anta aldrig – verifiera.
+7. Verifiera att dokumentation är uppdaterad om beteende har ändrats.
+8. Verifiera att bakåtkompatibilitet är beaktad, eller att avvikelser är dokumenterade och eskalerade.
+9. Identifiera buggar, regressionsrisker och förbättringsmöjligheter.
+10. **Underkänt:** begär omarbetning med konkret, motiverad feedback. Skicka tillbaka till rätt roll.
+11. **Godkänt:** lämna över till nästa steg – Säkerhetsexpert, eller nästa tillämpliga grind om Grind 5 är markerad N/A av Teknisk Projektledare.
 
 ## Granskningsprinciper
 

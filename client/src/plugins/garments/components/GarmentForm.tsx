@@ -1,4 +1,4 @@
-import { Check, Info, X } from 'lucide-react';
+import { Check, Copy, Info, Layers, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -34,7 +34,9 @@ import type {
   GarmentListPayload,
   InventoryItem,
   InventoryItemPayload,
+  InventoryVariantPayload,
 } from '../types/garments';
+import { buildDuplicatedVariantPayload } from '../utils/inventoryValidation';
 
 interface GarmentFormProps {
   currentGarment?: GarmentList | null;
@@ -42,6 +44,10 @@ interface GarmentFormProps {
   onSave: (data: GarmentListPayload | InventoryItemPayload) => Promise<boolean> | boolean;
   onCancel: () => void;
   isSubmitting?: boolean;
+}
+
+function emptyVariant(): InventoryVariantPayload {
+  return { sku: '', color: '', size: '', quantity: 0 };
 }
 
 export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(function GarmentForm(
@@ -89,10 +95,14 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
   const [inventoryForm, setInventoryForm] = useState<InventoryItemPayload>({
     articleName: '',
     brand: '',
-    size: '',
-    quantity: 0,
+    description: null,
+    material: '',
+    purchasePrice: null,
+    currency: 'SEK',
     comment: null,
+    variants: [],
   });
+  const [pendingDeleteVariantIndex, setPendingDeleteVariantIndex] = useState<number | null>(null);
 
   const isCurrentlySubmitting = externalIsSubmitting || isSaving || isSubmitting;
   const formKey = isInventory
@@ -109,9 +119,12 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     setInventoryForm({
       articleName: '',
       brand: '',
-      size: '',
-      quantity: 0,
+      description: null,
+      material: '',
+      purchasePrice: null,
+      currency: 'SEK',
       comment: null,
+      variants: [],
     });
     markClean();
   }, [markClean]);
@@ -122,9 +135,19 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
         setInventoryForm({
           articleName: currentInventoryItem.articleName,
           brand: currentInventoryItem.brand,
-          size: currentInventoryItem.size,
-          quantity: currentInventoryItem.quantity,
+          description: currentInventoryItem.description,
+          material: currentInventoryItem.material ?? '',
+          purchasePrice: currentInventoryItem.purchasePrice,
+          currency: currentInventoryItem.currency || 'SEK',
           comment: currentInventoryItem.comment,
+          variants: (currentInventoryItem.variants || []).map((variant) => ({
+            id: variant.id,
+            sku: variant.sku ?? '',
+            color: variant.color ?? '',
+            size: variant.size ?? '',
+            quantity: variant.quantity ?? 0,
+            sortOrder: variant.sortOrder,
+          })),
         });
         markClean();
       } else {
@@ -205,9 +228,53 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
 
   const updateInventoryField = (
     field: keyof InventoryItemPayload,
-    value: string | number | null,
+    value: string | number | null | InventoryVariantPayload[],
   ) => {
     setInventoryForm((prev) => ({ ...prev, [field]: value }));
+    markDirty();
+    clearValidationErrors();
+  };
+
+  const addVariant = () => {
+    setInventoryForm((prev) => ({
+      ...prev,
+      variants: [...(prev.variants || []), emptyVariant()],
+    }));
+    markDirty();
+    clearValidationErrors();
+  };
+
+  const updateVariant = (index: number, patch: Partial<InventoryVariantPayload>) => {
+    setInventoryForm((prev) => ({
+      ...prev,
+      variants: (prev.variants || []).map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    }));
+    markDirty();
+    clearValidationErrors();
+  };
+
+  const removeVariant = (index: number) => {
+    setInventoryForm((prev) => ({
+      ...prev,
+      variants: (prev.variants || []).filter((_, i) => i !== index),
+    }));
+    markDirty();
+    clearValidationErrors();
+  };
+
+  /** Insert a copy of the variant immediately after it (no id — treated as new on save). */
+  const duplicateVariant = (index: number) => {
+    setInventoryForm((prev) => {
+      const variants = prev.variants || [];
+      const source = variants[index];
+      if (!source) {
+        return prev;
+      }
+      const copy: InventoryVariantPayload = buildDuplicatedVariantPayload(source);
+      const next = [...variants];
+      next.splice(index + 1, 0, copy);
+      return { ...prev, variants: next };
+    });
     markDirty();
     clearValidationErrors();
   };
@@ -222,7 +289,6 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
         <DetailSection
           title={t('garments.information')}
           icon={Info}
-          iconPlugin="garments"
           subtleTitle
           className="p-4"
           collapsible
@@ -256,10 +322,302 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     </div>
   ) : undefined;
 
+  const inventoryVariantTotal = (inventoryForm.variants || []).reduce(
+    (sum, row) => sum + (Number(row.quantity) || 0),
+    0,
+  );
+  const inventoryVariantCount = (inventoryForm.variants || []).length;
+  const articleInitials = (inventoryForm.articleName || '—').trim().slice(0, 2).toUpperCase();
+
+  const inventoryLeftSidebar = (
+    <div className="space-y-4">
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <div className="border-b border-border/50 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"
+              aria-hidden
+            >
+              {articleInitials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <Input
+                id="garment-article"
+                value={inventoryForm.articleName}
+                onChange={(e) => updateInventoryField('articleName', e.target.value)}
+                placeholder={t('garments.articleName')}
+                className={cn(
+                  'h-9 text-lg font-semibold tracking-tight',
+                  getFieldError('articleName') && 'border-destructive',
+                )}
+              />
+              {getFieldError('articleName') ? (
+                <p className="mt-1 text-sm text-destructive">
+                  {getFieldError('articleName')?.message}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <DetailSection
+          title={t('garments.details')}
+          icon={SlidersHorizontal}
+          subtleTitle
+          className="p-4"
+        >
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="garment-brand">{t('garments.brand')}</Label>
+              <Input
+                id="garment-brand"
+                value={inventoryForm.brand ?? ''}
+                onChange={(e) => updateInventoryField('brand', e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="garment-price">{t('garments.purchasePrice')}</Label>
+                <Input
+                  id="garment-price"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={inventoryForm.purchasePrice ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    updateInventoryField('purchasePrice', raw === '' ? null : Number(raw));
+                  }}
+                  className={cn(getFieldError('purchasePrice') && 'border-destructive')}
+                />
+                {getFieldError('purchasePrice') ? (
+                  <p className="mt-1 text-sm text-destructive">
+                    {getFieldError('purchasePrice')?.message}
+                  </p>
+                ) : null}
+              </div>
+              <div>
+                <Label htmlFor="garment-currency">{t('garments.currency')}</Label>
+                <Input
+                  id="garment-currency"
+                  value={inventoryForm.currency ?? 'SEK'}
+                  onChange={(e) => updateInventoryField('currency', e.target.value)}
+                  maxLength={10}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="garment-material">{t('garments.material')}</Label>
+              <Input
+                id="garment-material"
+                value={inventoryForm.material ?? ''}
+                onChange={(e) => updateInventoryField('material', e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {t('garments.totalQuantity')}
+                </span>
+                <div className="font-medium text-foreground">{inventoryVariantTotal}</div>
+              </div>
+              <div>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {t('garments.variantCount')}
+                </span>
+                <div className="font-medium text-foreground">{inventoryVariantCount}</div>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="garment-description">{t('garments.description')}</Label>
+              <Textarea
+                id="garment-description"
+                value={inventoryForm.description ?? ''}
+                onChange={(e) => updateInventoryField('description', e.target.value)}
+                rows={4}
+              />
+            </div>
+            <div>
+              <Label htmlFor="garment-inv-comment">{t('garments.comment')}</Label>
+              <Textarea
+                id="garment-inv-comment"
+                value={inventoryForm.comment ?? ''}
+                onChange={(e) => updateInventoryField('comment', e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+    </div>
+  );
+
+  const listDetailsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection
+        title={t('garments.details')}
+        icon={SlidersHorizontal}
+        subtleTitle
+        className="p-6"
+      >
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="garment-name">{t('garments.name')}</Label>
+            <Input
+              id="garment-name"
+              value={listForm.name}
+              onChange={(e) => updateListField('name', e.target.value)}
+              className={cn(getFieldError('name') && 'border-destructive')}
+            />
+            {getFieldError('name') ? (
+              <p className="mt-1 text-sm text-destructive">{getFieldError('name')?.message}</p>
+            ) : null}
+          </div>
+          {hasTeams ? (
+            <div>
+              <Label htmlFor="garment-team">{t('garments.team')}</Label>
+              <Select
+                value={listForm.teamId ?? '__none__'}
+                onValueChange={(value) =>
+                  updateListField('teamId', value === '__none__' ? null : value)
+                }
+              >
+                <SelectTrigger id="garment-team" className="h-9">
+                  <SelectValue placeholder={t('garments.teamNone')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t('garments.teamNone')}</SelectItem>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={String(team.id)}>
+                      {formatTeamLabel(team)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          {!currentList ? (
+            <p className="text-sm text-muted-foreground">{t('garments.defaultCheckboxesHint')}</p>
+          ) : null}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const variantsCard = (
+    <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+      <DetailSection title={t('garments.variants')} icon={Layers} subtleTitle className="p-6">
+        <p className="mb-3 text-xs text-muted-foreground">{t('garments.variantsHelp')}</p>
+        {getFieldError('variants') ? (
+          <p className="mb-2 text-sm text-destructive">{getFieldError('variants')?.message}</p>
+        ) : null}
+        <div className="space-y-2">
+          {(inventoryForm.variants || []).map((variant, index) => (
+            <div
+              key={variant.id ?? `new-${index}`}
+              className="flex flex-col gap-2 rounded-lg border border-border/60 p-2 sm:flex-row sm:items-end"
+            >
+              <div className="min-w-0 flex-1">
+                <Label className="text-[11px]">{t('garments.sku')}</Label>
+                <Input
+                  value={variant.sku ?? ''}
+                  onChange={(e) => updateVariant(index, { sku: e.target.value })}
+                  placeholder={t('garments.skuPlaceholder')}
+                  className={cn(getFieldError(`variants.${index}.sku`) && 'border-destructive')}
+                />
+              </div>
+              <div className="w-full sm:w-28">
+                <Label className="text-[11px]">{t('garments.color')}</Label>
+                <Input
+                  value={variant.color ?? ''}
+                  onChange={(e) => updateVariant(index, { color: e.target.value })}
+                  placeholder={t('garments.colorPlaceholder')}
+                />
+              </div>
+              <div className="w-full sm:w-24">
+                <Label className="text-[11px]">{t('garments.size')}</Label>
+                <Input
+                  value={variant.size ?? ''}
+                  onChange={(e) => updateVariant(index, { size: e.target.value })}
+                  placeholder={t('garments.sizePlaceholder')}
+                />
+              </div>
+              <div className="w-full sm:w-24">
+                <Label className="text-[11px]">{t('garments.quantity')}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={variant.quantity ?? 0}
+                  onChange={(e) => updateVariant(index, { quantity: Number(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={Copy}
+                  className="h-9 w-9 p-0 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30"
+                  onClick={() => duplicateVariant(index)}
+                  aria-label={t('garments.duplicateVariant')}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={Trash2}
+                  className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                  onClick={() => setPendingDeleteVariantIndex(index)}
+                  aria-label={t('garments.removeVariant')}
+                />
+              </div>
+            </div>
+          ))}
+          <Button type="button" variant="secondary" size="sm" icon={Plus} onClick={addVariant}>
+            {t('garments.addVariant')}
+          </Button>
+        </div>
+      </DetailSection>
+    </Card>
+  );
+
+  const formActions = (
+    <div className="flex justify-end gap-2 border-t border-border pt-4">
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        icon={X}
+        onClick={handleCancel}
+        disabled={isCurrentlySubmitting}
+        className="h-9 px-3 text-xs"
+      >
+        {t('common.cancel')}
+      </Button>
+      <Button
+        type="button"
+        variant="primary"
+        size="sm"
+        icon={Check}
+        onClick={() => void handleSubmit()}
+        disabled={hasBlockingErrors || isCurrentlySubmitting}
+        className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
+      >
+        {isCurrentlySubmitting
+          ? t('common.saving')
+          : panelMode === 'edit'
+            ? t('common.update')
+            : t('common.save')}
+      </Button>
+    </div>
+  );
+
   return (
     <>
       <div className="plugin-garments">
-        <DetailLayout sidebar={formSidebar}>
+        <DetailLayout
+          leftSidebar={isInventory ? inventoryLeftSidebar : undefined}
+          sidebar={isInventory ? undefined : formSidebar}
+        >
           <form
             className="space-y-4"
             onSubmit={(e) => {
@@ -280,150 +638,27 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
               </Card>
             )}
 
-            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-              <DetailSection title={t('garments.details')} iconPlugin="garments" className="p-6">
-                {isInventory ? (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="garment-article">{t('garments.articleName')}</Label>
-                      <Input
-                        id="garment-article"
-                        value={inventoryForm.articleName}
-                        onChange={(e) => updateInventoryField('articleName', e.target.value)}
-                        className={cn(getFieldError('articleName') && 'border-destructive')}
-                      />
-                      {getFieldError('articleName') && (
-                        <p className="mt-1 text-sm text-destructive">
-                          {getFieldError('articleName')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <Label htmlFor="garment-brand">{t('garments.brand')}</Label>
-                        <Input
-                          id="garment-brand"
-                          value={inventoryForm.brand ?? ''}
-                          onChange={(e) => updateInventoryField('brand', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="garment-size">{t('garments.size')}</Label>
-                        <Input
-                          id="garment-size"
-                          value={inventoryForm.size ?? ''}
-                          onChange={(e) => updateInventoryField('size', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="garment-qty">{t('garments.quantity')}</Label>
-                      <Input
-                        id="garment-qty"
-                        type="number"
-                        min={0}
-                        value={inventoryForm.quantity ?? 0}
-                        onChange={(e) =>
-                          updateInventoryField('quantity', Number(e.target.value) || 0)
-                        }
-                        className={cn(getFieldError('quantity') && 'border-destructive')}
-                      />
-                      {getFieldError('quantity') && (
-                        <p className="mt-1 text-sm text-destructive">
-                          {getFieldError('quantity')?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="garment-inv-comment">{t('garments.comment')}</Label>
-                      <Textarea
-                        id="garment-inv-comment"
-                        value={inventoryForm.comment ?? ''}
-                        onChange={(e) => updateInventoryField('comment', e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="garment-name">{t('garments.name')}</Label>
-                      <Input
-                        id="garment-name"
-                        value={listForm.name}
-                        onChange={(e) => updateListField('name', e.target.value)}
-                        className={cn(getFieldError('name') && 'border-destructive')}
-                      />
-                      {getFieldError('name') && (
-                        <p className="mt-1 text-sm text-destructive">
-                          {getFieldError('name')?.message}
-                        </p>
-                      )}
-                    </div>
-                    {hasTeams ? (
-                      <div>
-                        <Label htmlFor="garment-team">{t('garments.team')}</Label>
-                        <Select
-                          value={listForm.teamId ?? '__none__'}
-                          onValueChange={(value) =>
-                            updateListField('teamId', value === '__none__' ? null : value)
-                          }
-                        >
-                          <SelectTrigger id="garment-team" className="h-9">
-                            <SelectValue placeholder={t('garments.teamNone')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">{t('garments.teamNone')}</SelectItem>
-                            {teams.map((team) => (
-                              <SelectItem key={team.id} value={String(team.id)}>
-                                {formatTeamLabel(team)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ) : null}
-                    {!currentList ? (
-                      <p className="text-sm text-muted-foreground">
-                        {t('garments.defaultCheckboxesHint')}
-                      </p>
-                    ) : null}
-                  </div>
-                )}
-              </DetailSection>
-            </Card>
-
-            <div className="flex justify-end gap-2 border-t border-border pt-4">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                onClick={handleCancel}
-                disabled={isCurrentlySubmitting}
-                className="h-9 px-3 text-xs"
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                icon={Check}
-                onClick={() => void handleSubmit()}
-                disabled={hasBlockingErrors || isCurrentlySubmitting}
-                className="h-9 px-3 text-xs bg-green-600 hover:bg-green-700 text-white border-none"
-              >
-                {isCurrentlySubmitting
-                  ? t('common.saving')
-                  : panelMode === 'edit'
-                    ? t('common.update')
-                    : t('common.save')}
-              </Button>
-            </div>
+            {isInventory ? variantsCard : listDetailsCard}
+            {formActions}
           </form>
         </DetailLayout>
       </div>
+
+      <ConfirmDialog
+        isOpen={pendingDeleteVariantIndex !== null}
+        title={t('garments.deleteVariant')}
+        message={t('garments.deleteVariantConfirm')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        onConfirm={() => {
+          if (pendingDeleteVariantIndex !== null) {
+            removeVariant(pendingDeleteVariantIndex);
+          }
+          setPendingDeleteVariantIndex(null);
+        }}
+        onCancel={() => setPendingDeleteVariantIndex(null)}
+        variant="danger"
+      />
 
       <ConfirmDialog
         isOpen={showWarning}

@@ -7,9 +7,23 @@ class GarmentsController {
 
   mapUniqueViolation(error) {
     if (error?.code !== '23505') return null;
+    const constraint = String(error?.constraint || error?.detail || error?.message || '');
+    // Check SKU before generic "variants" — sku unique index name contains both.
+    if (/sku/i.test(constraint)) {
+      return {
+        field: 'variants',
+        message: 'A variant with this article number already exists on this item',
+      };
+    }
+    if (/variants/i.test(constraint) || /color/i.test(constraint)) {
+      return {
+        field: 'variants',
+        message: 'A variant with this color and size already exists on this item',
+      };
+    }
     return {
       field: 'articleName',
-      message: 'An inventory item with this article, brand and size already exists',
+      message: 'An inventory item with this article and brand already exists',
     };
   }
 
@@ -195,6 +209,60 @@ class GarmentsController {
   async deleteInventoryItem(req, res, next) {
     try {
       await this.model.deleteInventoryItem(req, req.params.id);
+      res.json({ deleted: true });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createInventoryVariant(req, res, next) {
+    try {
+      const variant = await this.model.createInventoryVariant(req, req.params.id, req.body);
+      res.json(variant);
+    } catch (error) {
+      const mapped = this.mapUniqueViolation(error);
+      if (mapped) {
+        return res.status(409).json({ errors: [mapped] });
+      }
+      next(error);
+    }
+  }
+
+  async updateInventoryVariant(req, res, next) {
+    try {
+      const variant = await this.model.updateInventoryVariant(
+        req,
+        req.params.id,
+        req.params.variantId,
+        req.body,
+      );
+      res.json(variant);
+    } catch (error) {
+      const mapped = this.mapUniqueViolation(error);
+      if (mapped) {
+        return res.status(409).json({ errors: [mapped] });
+      }
+      next(error);
+    }
+  }
+
+  async updateInventoryVariantQuantity(req, res, next) {
+    try {
+      const variant = await this.model.updateInventoryVariantQuantity(
+        req,
+        req.params.id,
+        req.params.variantId,
+        req.body.quantity,
+      );
+      res.json(variant);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteInventoryVariant(req, res, next) {
+    try {
+      await this.model.deleteInventoryVariant(req, req.params.id, req.params.variantId);
       res.json({ deleted: true });
     } catch (error) {
       next(error);

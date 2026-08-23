@@ -13,11 +13,21 @@ export function inventoryItemMatchesSearch(item: InventoryItem, searchTerm: stri
   if (!needle) {
     return true;
   }
-  return (
+  if (
     item.articleName.toLowerCase().includes(needle) ||
     item.brand.toLowerCase().includes(needle) ||
-    item.size.toLowerCase().includes(needle) ||
+    (item.material || '').toLowerCase().includes(needle) ||
+    (item.description || '').toLowerCase().includes(needle) ||
+    (item.comment || '').toLowerCase().includes(needle) ||
     String(item.id).toLowerCase().includes(needle)
+  ) {
+    return true;
+  }
+  return (item.variants || []).some(
+    (variant) =>
+      (variant.sku || '').toLowerCase().includes(needle) ||
+      (variant.color || '').toLowerCase().includes(needle) ||
+      (variant.size || '').toLowerCase().includes(needle),
   );
 }
 

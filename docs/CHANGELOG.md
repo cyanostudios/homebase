@@ -4,6 +4,107 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-23 – Docs: Plugin View Implementation Guide (obligatorisk)
+
+**Status:** Dokumenterat. **Ej prod-release.**
+
+**Sammanfattning:** Ny guide [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) för quick context, full view, view/edit-sync, knappar och default-dialoger. Inkopplad som **obligatorisk läsning** i ny-plugin-checklista, templates, utvecklingsguide, plugin-standarder, UI-standarder, refactoring-referens, samt Frontend / UI/UX / QA Cursor-regler och rollbeskrivningar.
+
+---
+
+## 2026-08-23 – Kläder: sidebar-flikar Lists + Inventory
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Kläder använder samma **sidebar-submenu + URL**-uppdelning som Clubdesk. Listor = `/garments`, inventarie = `/garments/inventory`. In-page list/inventory-knappar borttagna.
+
+---
+
+## 2026-08-23 – Inventarie: artikel + variant-repeater
+
+**Status:** Implementerat lokalt. **QA Approved.** **Ej prod-release.**
+
+**Sammanfattning:** Inventarie är nu **en artikel (item)** med produktinfo och **flera varianter** (färg och/eller storlek + eget SKU + antal) via repeater. Antal per variant kan ändras i lilla quick-context, full vy och edit-formulär.
+
+**Datamodell**
+
+- `garment_inventory_items` — produktfält (namn, märke, beskrivning, material, inköpspris, valuta, kommentar)
+- `garment_inventory_variants` — child-rader (`sku`, `color`, `size`, `quantity`, `sort_order`), unik per `(item_id, color, size)`; icke-tomt `sku` unikt per item (case-insensitive, migration `138`)
+- Artikel-unikhet: `(user_id, article_name, brand)`
+- Lokal testdata nollställdes i migrationen (ingen bevarande)
+
+**API**
+
+- Item create/update accepterar `variants[]` (sync create/update/delete)
+- Nästlade: `POST/PUT/DELETE /inventory/:id/variants[/:variantId]`
+- Snabb antal: `PATCH /inventory/:id/variants/:variantId/quantity`
+
+**UI**
+
+- Form: Teams-lik repeater (lägg till/ta bort variant-rad)
+- Lilla + full: variantlista med +/- antal per rad
+- Lista/tabell: aggregerat totalt antal + antal varianter
+- Fullvy Quick Actions: **Duplicate** via plattformsmönster (`usePluginDuplicate` + `DuplicateDialog`); kopierar artikel + varianter, highlight i listan
+
+**Migration:** `137-garment-inventory-variants.sql` + `138-garment-inventory-variant-sku-unique.sql` (via `npm run migrate:garments`)
+
+**Utanför scope:** försäljningspris, klädlistor-fliken, bild/streckkod, prod.
+
+**Säkerhet (lätt granskning):** Variant-CRUD kräver ägd parent-item via befintlig inventory-gate; ingen ny extern integration; child-tabell utan `user_id` skyddas via `item_id` + ownership-check.
+
+---
+
+## 2026-08-22 – Inventarie: produktfält + Contacts-layout
+
+**Status:** Implementerat lokalt. **QA Approved.** **Ej prod-release.**
+
+**Sammanfattning:** Inventarieartiklar har vanliga produktfält (art.nr, färg, beskrivning, material, inköpspris) och visas i Contacts-lik layout (lilla quick-context + 3-kolumners full vy). Endast namn obligatoriskt.
+
+**Fält (valfria utom namn)**
+
+- Befintliga: `articleName`, `brand`, `size`, `quantity`, `comment`
+- Nya: `sku`, `color`, `description`, `material`, `purchasePrice`, `currency` (default SEK)
+- Unikhet per användare: `(article_name, brand, color, size)` så samma namn+märke kan finnas i flera färg/storlek-rader
+
+**Layout**
+
+- Lilla list-panelen: fact-grid med märke, art.nr, färg, storlek, antal, inköpspris; beskrivning/kommentar som callout
+- **Antal redigerbart i lilla vyn** (+/− och sifferfält) utan att öppna formuläret
+- Full vy: 3 kolumner — vänster quick-context `variant="full"`, main beskrivning + property-rader, höger actions + information
+- Form: samma fält; endast namn required; tydlig hint att varje rad = en storlek/färg + antal
+
+**Migration:** `136-garment-inventory-product-fields.sql` (körs via `npm run migrate:garments`)
+
+**Utanför scope:** variant-tabell (parent+barn), försäljningspris, klädlistor-fliken, prod.
+
+---
+
+## 2026-08-22 – Garments inventory: listvy + lilla detail
+
+**Status:** Implementerat lokalt. **QA Approved.** **Ej prod-release.**
+
+**Sammanfattning:** Inventarie-fliken i Kläder följer samma list-split som Tasks/Notes/Contacts/Requests. Radklick på bred skärm öppnar sticky quick-context till vänster; compact öppnar fortsatt full vy.
+
+**List (lilla view)**
+
+- `InventoryQuickContextPanel` vid radval på bred skärm (`useQuickContextPreview`, `storeKey: 'garments-inventory'`)
+- Panelbredd: `min(100%, 36rem)`; sticky aside
+- Header: initialer-avatar, öppna (`ExternalLink`) + edit + close; footer-CTA öppnar full vy
+- Fakta: märke, storlek, antal; kommentar som amber-callout när den finns
+- Aktiv rad markeras (`bg-primary/5 ring-primary/40`) i kort- och tabellvy
+- Vid stängning av full view återställs tidigare vald rad i quick context
+- Byte till Listor/Settings rensar preview
+
+**Utanför denna omgång:** klädlistor-fliken, 3-kolumners full view, edit-layout, inline-redigering i lilla vyn.
+
+**Filer (nyckel)**
+
+- `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx` (ny)
+- `GarmentList.tsx` / `InventoryListItem.tsx` / `InventoryListTable.tsx`
+- i18n `garments.quickContext.*` (en/sv)
+
+---
+
 ## 2026-08-21 – Requests: ingen Clear filters-knapp (samma som övriga listor)
 
 **Status:** Implementerat lokalt. **Ej prod-release.**

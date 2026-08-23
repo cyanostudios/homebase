@@ -1,5 +1,6 @@
 import type { NavPage } from '@/core/navigation/navTypes';
 import { CLUBDESK_SUBPAGE_SET } from '@/core/routing/clubdeskRoutes';
+import { GARMENTS_SUBPAGE_SET } from '@/core/routing/garmentsRoutes';
 import { INVOICES_SUBPAGE_SET } from '@/core/routing/invoicesRoutes';
 
 /**
@@ -17,6 +18,8 @@ export const navPageToPath: Record<NavPage, string> = {
   schedule: '/schedule',
   matches: '/matches',
   garments: '/garments',
+  'garments-lists': '/garments',
+  'garments-inventory': '/garments/inventory',
   slots: '/slots',
   cups: '/cups',
   estimates: '/estimates',
@@ -40,7 +43,7 @@ export const navPageToPath: Record<NavPage, string> = {
 
 /**
  * Derives the active NavPage from a URL pathname.
- * Handles invoices / clubdesk sub-routes and tolerates trailing slashes.
+ * Handles invoices / clubdesk / garments sub-routes and tolerates trailing slashes.
  */
 export function pathToNavPage(pathname: string): NavPage {
   const clean = pathname.replace(/\/+$/, '') || '/';
@@ -65,6 +68,14 @@ export function pathToNavPage(pathname: string): NavPage {
     }
     // Bare /clubdesk and /clubdesk/:guideSlug both belong to the Guides tab.
     return 'clubdesk-guides';
+  }
+
+  if (plugin === 'garments') {
+    if (sub && GARMENTS_SUBPAGE_SET.has(sub)) {
+      return `garments-${sub}` as NavPage;
+    }
+    // Bare /garments and /garments/:listSlug both belong to the Lists tab.
+    return 'garments-lists';
   }
 
   return plugin || 'dashboard';

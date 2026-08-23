@@ -2,6 +2,8 @@
 
 Use when creating a plugin from `templates/plugin-frontend-template` and `templates/plugin-backend-template`. Canonical naming for panels and hooks: **`PLUGIN_RUNTIME_CONVENTIONS.md`**. Design rules (inline Save/Cancel, settings footer): **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`**, **`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`**.
 
+**Obligatorisk UI-läsning innan List / View / Form:** **[`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)** — quick context, full detail, view/edit-sync, knappar/rubriker, delete/duplicate/bulk/unsaved dialoger. Definition of Done i den guiden (§8) gäller tillsammans med §6 nedan.
+
 **Related (not this checklist):** Cupappen-class public SEO sites use [`templates/public-app/`](../templates/public-app/) + [`PUBLIC_APP_TEMPLATE.md`](PUBLIC_APP_TEMPLATE.md). Optional companion Node API: `plugins/public-<name>/` (copy `plugins/public-cups/`). **Concrete Etapp 1 examples:** `plugins/instructions` + public companion — see [`ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md`](ai/adr/INSTRUCTIONS_PLUGIN_ETAPP1.md); Clubdesk admin + public companion — [`ai/adr/CLUBDESK_PLUGIN_ETAPP1.md`](ai/adr/CLUBDESK_PLUGIN_ETAPP1.md) + [`ai/adr/CLUBDESK_PUBLIC_COMPANION.md`](ai/adr/CLUBDESK_PUBLIC_COMPANION.md); Garments (Kläder) lists + inventory + Notes-style share — [`ai/adr/GARMENTS_PLUGIN_ETAPP1.md`](ai/adr/GARMENTS_PLUGIN_ETAPP1.md) + [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md).
 
 ---
@@ -43,9 +45,11 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 
 ## 3) Panel contract (mandatory)
 
+- **Read first:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) (all sections) — do not invent quick-context, detail sidebar order, button colors, or confirm dialogs.
 - Context + hook expose the patterns in **`PLUGIN_RUNTIME_CONVENTIONS.md`** (e.g. `is{Singular}PanelOpen`, `current{Singular}`, `panelMode`, `save{Singular}`, `close{Singular}Panel`, open helpers).
-- **Create / edit `*Form.tsx`:** implement **`PanelFormHandle`** (`forwardRef` + `useImperativeHandle`) plus **inline Save/Cancel**. Match view chrome: `DETAIL_VIEW_CARD_CLASS`, no `PANEL_MAX_WIDTH`, no `md:-mx-6` bleed (`UI_AND_UX_STANDARDS_V3.md` §3.2). Do **not** use `window.submit*Form` globals (see golden template + **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`** §12).
-- **View:** use `DetailLayout` with quick actions, `ConfirmDialog` before delete (§7 of the design checklist), collapsible Information `DetailSection`, and **`DetailActivityLog`** when the backend exposes the standard activity pattern (same idea as contacts, notes, tasks, slots, matches).
+- **Create / edit `*Form.tsx`:** implement **`PanelFormHandle`** (`forwardRef` + `useImperativeHandle`) plus **inline Save/Cancel**. Match view chrome: `DETAIL_VIEW_CARD_CLASS`, no `PANEL_MAX_WIDTH`, no `md:-mx-6` bleed (`UI_AND_UX_STANDARDS_V3.md` §3.2). Do **not** use `window.submit*Form` globals (see golden template + **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`** §12 + view guide §3).
+- **View:** use `DetailLayout` with quick actions, `ConfirmDialog` before delete (§7 of the design checklist / view guide §5), collapsible Information `DetailSection`, and **`DetailActivityLog`** when the backend exposes the standard activity pattern (same idea as contacts, notes, tasks, slots, matches). Follow sidebar order in the view guide §2.
+- **Quick context (when the entity warrants a list-side preview):** implement `*QuickContextPanel` + `useQuickContextPreview` per view guide §1 (reference: garments inventory). No delete/duplicate inside the panel.
 - **Tabular import (optional):** If the plugin needs CSV/Excel/paste import, wire Settings → core `ImportWizard` + plugin `import*` returning `{ successCount, failureCount }`, and offer `downloadImportCsvTemplate` with an example row — see `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §5 and ADR `ai/adr/TABULAR_IMPORT_EXPORT.md`. Do not create a separate import plugin. Domän/API imports stay plugin-local.
 
 **Reference plugins (2026-06):**
@@ -83,12 +87,13 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 
 - `npm run lint` passes.
 - `npm run build` passes.
+- **[`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) §8** verification checklist completed (quick context if applicable, full view actions/dialogs, view/edit sync, i18n).
 - Manual smoke test:
   - list loads (cards 1/2/3 and table)
   - empty list shows short `No X yet` + Create button that opens create
   - search/filter with no results shows match copy **without** Create
   - create works
-  - edit works
-  - view shows correct details; delete asks for confirmation
+  - edit works and matches view chrome
+  - view shows correct details; delete asks for confirmation (`ConfirmDialog` danger); duplicate (if supported) uses `DuplicateDialog` + list highlight
   - settings save/close works via dirty header Save (`listViewMode` / `columnCount`)
   - tenant without plugin access sees no broken hooks / no stray panel state

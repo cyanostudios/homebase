@@ -25,6 +25,7 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
   - `DetailLayout` main + sidebar
   - `DetailSection` for grouped content
   - `ConfirmDialog` for destructive actions
+- **List quick context, full view, view/edit sync, headers/buttons, and default dialogs** are specified in **`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`** — **mandatory reading** before implementing or aligning `*List` / `*QuickContextPanel` / `*View` / `*Form`. Do not invent alternate panel or confirm patterns.
 
 See `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` for the exact integration flow.
 
