@@ -34,6 +34,8 @@ import {
 interface ImportWizardProps {
   isOpen: boolean;
   onClose: () => void;
+  /** When set, shows a Back button that returns to the parent flow without closing it. */
+  onBack?: () => void;
   onImport: (data: Record<string, string>[]) => Promise<ImportResult | void>;
   schema: ImportSchema;
   title: string;
@@ -58,6 +60,7 @@ function isCsvFile(file: File): boolean {
 export const ImportWizard: React.FC<ImportWizardProps> = ({
   isOpen,
   onClose,
+  onBack,
   onImport,
   schema,
   title,
@@ -98,6 +101,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
   const handleOnClose = () => {
     onClose();
+    setTimeout(resetState, 300);
+  };
+
+  const handleOnBack = () => {
+    onBack?.();
     setTimeout(resetState, 300);
   };
 
@@ -451,7 +459,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
         <AlertDialogFooter>
           {step !== 'result' && (
-            <AlertDialogCancel onClick={handleOnClose}>{t('common.cancel')}</AlertDialogCancel>
+            <>
+              {onBack && step === 'source' ? (
+                <Button type="button" variant="ghost" onClick={handleOnBack}>
+                  {t('common.back')}
+                </Button>
+              ) : null}
+              <AlertDialogCancel onClick={handleOnClose}>{t('common.cancel')}</AlertDialogCancel>
+            </>
           )}
 
           {step === 'source' && sourceMode === 'paste' && (

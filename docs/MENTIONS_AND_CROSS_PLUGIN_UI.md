@@ -95,6 +95,7 @@ AppContext provides getters so **ContactView** can show related entities without
 | Matches   | `matches`   | `getMatchesForContact`                                                                            | `openMatchForView` after `closeContactPanel()`                                                                                                              |
 | Slots     | `slots`     | `getSlotsForContact`                                                                              | `navigate('/slots/…')` after `closeContactPanel()`                                                                                                          |
 | Estimates | `estimates` | `getEstimatesForContact`                                                                          | Name → `AssignmentQuickInfoDialog`; Open → `navigate('/estimates/…')` after `closeContactPanel()` (provider also hardens `openEstimateForView` cross-route) |
+| Garments  | `garments`  | `garmentsApi.getListsForContact` (`garment_list_persons.contact_id`)                              | Name → `AssignmentQuickInfoDialog`; Open → `openGarmentForView` (Linked tiles in `ContactLinkedItemsSection`)                                               |
 
 Name click on assignment rows (teams/tasks/slots/notes/estimates) opens `AssignmentQuickInfoDialog` (preview + Open).
 

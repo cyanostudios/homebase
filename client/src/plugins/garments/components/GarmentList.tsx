@@ -91,6 +91,7 @@ export const GarmentList: React.FC = () => {
     deleteGarments,
     deleteInventoryItems,
     recentlyDuplicatedInventoryId,
+    recentlyDuplicatedListId,
   } = useGarments();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -641,6 +642,7 @@ export const GarmentList: React.FC = () => {
               onCheckboxChange={onVisibleRowCheckboxChange}
               allVisibleSelected={allVisibleSelected}
               onHeaderCheckboxChange={handleHeaderCheckboxChange}
+              recentlyDuplicatedListId={recentlyDuplicatedListId}
             />
           ) : (
             <div
@@ -658,6 +660,7 @@ export const GarmentList: React.FC = () => {
                     key={item.id}
                     item={item}
                     selected={itemIsSelected}
+                    highlighted={recentlyDuplicatedListId === String(item.id)}
                     onClick={() => handleOpenList(item)}
                     columnCount={columnCount}
                     checkbox={

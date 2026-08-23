@@ -12,6 +12,8 @@ export interface ValidationError {
 export interface GarmentCheckboxColumn {
   id: string;
   label: string;
+  /** Category grouping for spreadsheet headers, e.g. Shorts | Shirt | Socks */
+  group?: string;
   sortOrder: number;
 }
 
@@ -40,7 +42,12 @@ export interface GarmentPerson {
   shortsSize: string | null;
   socksSize: string | null;
   jerseyNumber: string | null;
+  /** Name printed on the jersey / shirt. */
+  jerseyName: string | null;
+  initials: string | null;
   comment: string | null;
+  /** Linked Contacts id when imported/linked from Contacts. */
+  contactId: string | null;
   checkboxValues: Record<string, boolean>;
   sortOrder: number;
   createdAt?: string;
@@ -53,7 +60,10 @@ export interface GarmentPersonPayload {
   shortsSize?: string | null;
   socksSize?: string | null;
   jerseyNumber?: string | null;
+  jerseyName?: string | null;
+  initials?: string | null;
   comment?: string | null;
+  contactId?: string | null;
   checkboxValues?: Record<string, boolean>;
   sortOrder?: number;
 }

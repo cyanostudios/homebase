@@ -22,6 +22,7 @@ export type GarmentListTableProps = {
   onCheckboxChange: (id: string) => void;
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
+  recentlyDuplicatedListId?: string | null;
 };
 
 export function GarmentListTable({
@@ -35,6 +36,7 @@ export function GarmentListTable({
   onCheckboxChange,
   allVisibleSelected,
   onHeaderCheckboxChange,
+  recentlyDuplicatedListId = null,
 }: GarmentListTableProps) {
   const { t } = useTranslation();
 
@@ -87,6 +89,11 @@ export function GarmentListTable({
       onSort={onSort}
       onRowClick={onRowClick}
       rowAriaLabel={(item) => t('garments.openList', { name: item.name || item.id })}
+      rowClassName={(item) =>
+        recentlyDuplicatedListId === String(item.id)
+          ? 'bg-green-50 dark:bg-green-950/30'
+          : undefined
+      }
       selection={selection}
       pluginName="garments"
       dataListItem={(item) => item}

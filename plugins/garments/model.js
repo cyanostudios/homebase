@@ -36,7 +36,12 @@ function normalizeCheckboxColumns(raw) {
           : typeof col.sortOrder === 'number'
             ? col.sortOrder
             : index;
-      return { id, label, sortOrder };
+      const groupRaw = col.group != null ? String(col.group).trim() : '';
+      const normalized = { id, label, sortOrder };
+      if (groupRaw) {
+        normalized.group = groupRaw;
+      }
+      return normalized;
     })
     .filter(Boolean);
 }
@@ -51,6 +56,15 @@ function normalizeCheckboxValues(raw, allowedIds) {
     }
   }
   return out;
+}
+
+function parseOptionalContactId(data) {
+  const raw = data?.contactId ?? data?.contact_id;
+  if (raw === null || raw === undefined || raw === '') {
+    return null;
+  }
+  const n = parseInt(String(raw), 10);
+  return Number.isFinite(n) ? n : null;
 }
 
 class GarmentsModel {
@@ -91,6 +105,37 @@ class GarmentsModel {
       return rows.map((row) => this.transformListRow(row));
     } catch (error) {
       Logger.error('Failed to fetch garment lists', error);
+      throw new AppError('Failed to fetch lists', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /** Distinct garment lists that include a person row linked to the given contact. */
+  async getListsForContact(req, contactId) {
+    try {
+      const db = Database.get(req);
+      const cid = parseInt(String(contactId), 10);
+      if (Number.isNaN(cid)) {
+        return [];
+      }
+      const rows = await db.query(
+        `
+        SELECT
+          gl.*,
+          (SELECT COUNT(*)::int FROM garment_list_persons p WHERE p.list_id = gl.id) AS person_count
+        FROM garment_lists gl
+        WHERE gl.user_id = $1
+          AND EXISTS (
+            SELECT 1
+            FROM garment_list_persons glp
+            WHERE glp.list_id = gl.id AND glp.contact_id = $2
+          )
+        ORDER BY gl.updated_at DESC
+        `,
+        [db.getUserId(), cid],
+      );
+      return rows.map((row) => this.transformListRow(row));
+    } catch (error) {
+      Logger.error('Failed to fetch garment lists for contact', error, { contactId });
       throw new AppError('Failed to fetch lists', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -318,13 +363,14 @@ class GarmentsModel {
         data.sortOrder != null
           ? parseInt(String(data.sortOrder), 10)
           : (maxOrder.rows[0]?.m ?? -1) + 1;
+      const contactId = parseOptionalContactId(data);
 
       const record = await pool.query(
         `
         INSERT INTO garment_list_persons (
           list_id, name, shirt_size, shorts_size, socks_size, jersey_number,
-          comment, checkbox_values, sort_order
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9)
+          jersey_name, initials, comment, checkbox_values, sort_order, contact_id
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
         RETURNING *
         `,
         [
@@ -334,9 +380,12 @@ class GarmentsModel {
           data.shortsSize ?? data.shorts_size ?? null,
           data.socksSize ?? data.socks_size ?? null,
           data.jerseyNumber ?? data.jersey_number ?? null,
+          data.jerseyName ?? data.jersey_name ?? null,
+          data.initials ?? null,
           data.comment ?? null,
           JSON.stringify(checkboxValues),
           sortOrder,
+          contactId,
         ],
       );
       await pool.query(`UPDATE garment_lists SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [
@@ -373,6 +422,13 @@ class GarmentsModel {
           ? normalizeCheckboxValues(data.checkboxValues ?? data.checkbox_values, allowedIds)
           : normalizeCheckboxValues(existing.checkbox_values, allowedIds);
 
+      const contactId =
+        data.contactId !== undefined || data.contact_id !== undefined
+          ? parseOptionalContactId(data)
+          : existing.contact_id != null
+            ? Number(existing.contact_id)
+            : null;
+
       const rows = await pool.query(
         `
         UPDATE garment_list_persons SET
@@ -381,11 +437,14 @@ class GarmentsModel {
           shorts_size = $3,
           socks_size = $4,
           jersey_number = $5,
-          comment = $6,
-          checkbox_values = $7::jsonb,
-          sort_order = $8,
+          jersey_name = $6,
+          initials = $7,
+          comment = $8,
+          checkbox_values = $9::jsonb,
+          sort_order = $10,
+          contact_id = $11,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $9 AND list_id = $10
+        WHERE id = $12 AND list_id = $13
         RETURNING *
         `,
         [
@@ -410,6 +469,12 @@ class GarmentsModel {
             : data.jersey_number !== undefined
               ? data.jersey_number
               : existing.jersey_number,
+          data.jerseyName !== undefined
+            ? data.jerseyName
+            : data.jersey_name !== undefined
+              ? data.jersey_name
+              : existing.jersey_name,
+          data.initials !== undefined ? data.initials : existing.initials,
           data.comment !== undefined ? data.comment : existing.comment,
           JSON.stringify(checkboxValues),
           data.sortOrder !== undefined
@@ -417,6 +482,7 @@ class GarmentsModel {
             : data.sort_order !== undefined
               ? parseInt(String(data.sort_order), 10)
               : existing.sort_order,
+          contactId,
           pid,
           lid,
         ],
@@ -1110,7 +1176,10 @@ class GarmentsModel {
       shortsSize: row.shorts_size ?? null,
       socksSize: row.socks_size ?? null,
       jerseyNumber: row.jersey_number ?? null,
+      jerseyName: row.jersey_name ?? null,
+      initials: row.initials ?? null,
       comment: row.comment ?? null,
+      contactId: row.contact_id != null ? String(row.contact_id) : null,
       checkboxValues: normalizeCheckboxValues(row.checkbox_values, ids),
       sortOrder: row.sort_order != null ? Number(row.sort_order) : 0,
       createdAt: row.created_at,

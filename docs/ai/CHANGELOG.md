@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Garments inventory SKU / panel polish — QA/Security docs sync (2026-08-23)
+
+Docs efter **QA Approved** + **Security Approved** för inventarie: SKU-unikhet (migration `138`), quantity-only PATCH, close→`/garments/inventory`, prev/next, duplicate rensar art.nr. Operator: [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md). Residual: applicera `138` i målmiljö; nested `variants[]` fältvalidering som hardening. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Plugin View Implementation Guide — obligatorisk läsning (2026-08-23)
 
 `docs/PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` inkopplad som obligatorisk läsning för ny/ändrad plugin UI (List/QuickContext/View/Form). Rollbeskrivningar och Cursor-regler uppdaterade för Frontend, UI/UX, QA; TPM och Solution Architect pekar på guiden vid ny CRUD-plugin. **Local-first; ej prod-release.**

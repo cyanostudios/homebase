@@ -4,6 +4,64 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-23 – Contacts Linked: Garments-listor
+
+**Status:** Implementerat lokalt. **Ej QA/Security.** **Ej prod-release.**
+
+**Sammanfattning:** Personrader på klädlistor kan länkas till Contacts via `contact_id`. Import **From Contacts** sparar länken. Kontaktens **Linked**-sektion visar berörda Garments-listor (tile → quick-info → Open).
+
+**Migration:** `143-garment-list-persons-contact-id.sql` (via `npm run migrate:garments`)
+
+---
+
+## 2026-08-23 – Kläder listor: spreadsheet-tabell (Notes-layout)
+
+**Status:** Implementerat lokalt. **Ej QA/Security.** **Ej prod-release.**
+
+**Sammanfattning:** List-fullvy följer Notes-mönster (namn + personmatris i huvudkort; snabbåtgärder/info i sidebar). Personer visas som kalkylblad med fasta kryssrutor.
+
+**Beteende (verifierat lokalt via tester)**
+
+- Betalt + Blankett Fogis = **per person** (inte per plagg)
+- Shorts / Tröja / Strumpor × Beställt, Levererat, Utdelat (9 plaggkolumner) → **11 kolumner totalt** i datamodellen
+- UI: personrad collapsible; plagg som underrader under namnet; delade kolumner Beställt / Levererat / Utdelat
+- Persontextfält: **Namn på tröja** (`jersey_name`) + **Initialer** (`initials`) — migration `141`
+- Synligt arbetsspråk **engelska**: nav/tab "Garments", kolumnetiketter Paid/Fogis form/Ordered…; UI översätter via kolumn-id (`checkboxColumnI18n`); migration `142`
+- **Import names** via plattformens `ImportWizard` på list-fullvy (endast `name` → personer på öppen lista)
+- Stabila kolumn-ID:n (`person_betalt`, `shorts_bestallt`, …); `group` endast på plaggkolumner
+- Migration `140` sätter om `checkbox_columns` (ersätter tidigare 15-kolumnsmall från `139`)
+- Admin: spreadsheet `<table>`; public share behåller `PersonBlock`
+- List Duplicate i Quick Actions (kopierar personer + kolumner)
+
+**Operator:** [`docs/GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md)
+
+---
+
+## 2026-08-23 – Inventarie: SKU-unikhet, close→inventory, prev/next, duplicate-rensning
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Ej prod-release.**
+
+**Sammanfattning:** Uppföljning av inventarie-modellen med unik art.nr (SKU) per artikel, korrekt stängning till inventarielistan, plattforms-prev/next i fullvy, samt rensning av art.nr vid duplicering.
+
+**Beteende (verifierat)**
+
+- Icke-tomt art.nr unikt per artikel (skiftlägesokänsligt); tomma art.nr tillåtna på flera rader
+- Färg+storlek fortfarande unikt per artikel
+- DB: migration `138-garment-inventory-variant-sku-unique.sql`; 23505 för SKU-index mappas till art.nr-fel (inte färg/storlek)
+- `PATCH …/quantity` uppdaterar endast antal (ingen unikhetsomkörning)
+- Stäng panel från inventory → `/garments/inventory`
+- Fullvy prev/next via `usePluginNavigation` (listor respektive inventarie)
+- Duplicera artikel: rensar alla variant-SKU; duplicera variant-rad: rensar SKU + storlek
+
+**Begränsningar / residualer**
+
+- Migration `138` måste köras i målmiljö innan prod förlitar sig på DB-unikhet
+- Nested `variants[]` på item create/update saknar samma fältvalidering som `/variants`-routes (Security: icke-blockerande hardening)
+
+**Operator:** [`docs/GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md)
+
+---
+
 ## 2026-08-23 – Docs: Plugin View Implementation Guide (obligatorisk)
 
 **Status:** Dokumenterat. **Ej prod-release.**
@@ -22,14 +80,15 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-08-23 – Inventarie: artikel + variant-repeater
 
-**Status:** Implementerat lokalt. **QA Approved.** **Ej prod-release.**
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved** (uppföljning 2026-08-23: SKU-unikhet + panelbeteende). **Ej prod-release.**
 
-**Sammanfattning:** Inventarie är nu **en artikel (item)** med produktinfo och **flera varianter** (färg och/eller storlek + eget SKU + antal) via repeater. Antal per variant kan ändras i lilla quick-context, full vy och edit-formulär.
+**Sammanfattning:** Inventarie är **en artikel (item)** med produktinfo och **flera varianter** (färg och/eller storlek + eget SKU + antal) via repeater. Antal per variant kan ändras i lilla quick-context, full vy och edit-formulär. Se även uppföljningsposten _SKU-unikhet, close→inventory…_ samma datum.
 
 **Datamodell**
 
 - `garment_inventory_items` — produktfält (namn, märke, beskrivning, material, inköpspris, valuta, kommentar)
 - `garment_inventory_variants` — child-rader (`sku`, `color`, `size`, `quantity`, `sort_order`), unik per `(item_id, color, size)`; icke-tomt `sku` unikt per item (case-insensitive, migration `138`)
+- Unikhetsfel (23505): SKU-index mappas till art.nr-meddelande; color/size-index till färg/storlek (inte blandat)
 - Artikel-unikhet: `(user_id, article_name, brand)`
 - Lokal testdata nollställdes i migrationen (ingen bevarande)
 

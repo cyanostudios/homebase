@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/core/api/AppContext';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
-import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { GARMENTS_SUBPAGE_SET } from '@/core/routing/garmentsRoutes';
@@ -31,6 +30,10 @@ import {
 } from '../utils/inventoryValidation';
 
 import { GarmentContext, type GarmentContextType } from './GarmentContext';
+
+function isInventoryItem(item: GarmentList | InventoryItem): item is InventoryItem {
+  return 'articleName' in item;
+}
 
 interface GarmentProviderProps {
   children: ReactNode;
@@ -74,6 +77,7 @@ export function GarmentProvider({
   const [recentlyDuplicatedInventoryId, setRecentlyDuplicatedInventoryId] = useState<string | null>(
     null,
   );
+  const [recentlyDuplicatedListId, setRecentlyDuplicatedListId] = useState<string | null>(null);
 
   const [garmentShareExistingShare, setGarmentShareExistingShare] = useState<GarmentShare | null>(
     null,
@@ -161,6 +165,7 @@ export function GarmentProvider({
   const openGarmentPanel = useCallback(
     (list: GarmentList | null) => {
       setRecentlyDuplicatedInventoryId(null);
+      setRecentlyDuplicatedListId(null);
       setPanelKind('list');
       setCurrentInventoryItem(null);
       setCurrentGarment(list);
@@ -178,6 +183,7 @@ export function GarmentProvider({
   const openGarmentForEdit = useCallback(
     (list: GarmentList) => {
       setRecentlyDuplicatedInventoryId(null);
+      setRecentlyDuplicatedListId(null);
       if (panelKind === 'inventory' && currentInventoryItem) {
         setPanelMode('edit');
         setIsGarmentPanelOpen(true);
@@ -208,6 +214,7 @@ export function GarmentProvider({
   const openGarmentForView = useCallback(
     (list: GarmentList) => {
       setRecentlyDuplicatedInventoryId(null);
+      setRecentlyDuplicatedListId(null);
       if (
         panelKind === 'inventory' &&
         currentInventoryItem &&
@@ -256,6 +263,7 @@ export function GarmentProvider({
   const openInventoryPanel = useCallback(
     (item: InventoryItem | null) => {
       setRecentlyDuplicatedInventoryId(null);
+      setRecentlyDuplicatedListId(null);
       setPanelKind('inventory');
       setCurrentInventoryItem(item);
       setCurrentGarment(item ? inventoryProxyList(item) : null);
@@ -270,6 +278,7 @@ export function GarmentProvider({
   const openInventoryForEdit = useCallback(
     (item: InventoryItem) => {
       setRecentlyDuplicatedInventoryId(null);
+      setRecentlyDuplicatedListId(null);
       setPanelKind('inventory');
       setCurrentInventoryItem(item);
       setCurrentGarment(inventoryProxyList(item));
@@ -284,6 +293,7 @@ export function GarmentProvider({
   const openInventoryForView = useCallback(
     (item: InventoryItem) => {
       setRecentlyDuplicatedInventoryId(null);
+      setRecentlyDuplicatedListId(null);
       setPanelKind('inventory');
       setCurrentInventoryItem(item);
       setCurrentGarment(inventoryProxyList(item));
@@ -535,14 +545,79 @@ export function GarmentProvider({
     [navigate, t],
   );
 
-  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
-    getDefaultName: (item: InventoryItem) =>
-      `Copy of ${item.articleName?.trim() || t('garments.inventoryItem')}`,
-    nameLabel: t('garments.articleName'),
-    confirmOnly: false,
-    createDuplicate: createInventoryDuplicate,
-    closePanel: closeGarmentPanel,
-  });
+  const createListDuplicate = useCallback(
+    async (item: GarmentList, newName: string): Promise<GarmentList> => {
+      const nextName = (newName ?? '').trim() || item.name?.trim() || t('garments.list');
+      const source =
+        item.persons && item.persons.length > 0
+          ? item
+          : ((await garmentsApi.getList(item.id)) ?? item);
+      const created = await garmentsApi.createList({
+        name: nextName,
+        teamId: source.teamId ?? null,
+        checkboxColumns:
+          source.checkboxColumns?.length > 0
+            ? source.checkboxColumns
+            : createDefaultCheckboxColumns(),
+      });
+      for (const person of source.persons ?? []) {
+        await garmentsApi.createPerson(created.id, {
+          name: person.name,
+          shirtSize: person.shirtSize,
+          shortsSize: person.shortsSize,
+          socksSize: person.socksSize,
+          jerseyNumber: person.jerseyNumber,
+          jerseyName: person.jerseyName,
+          initials: person.initials,
+          comment: person.comment,
+          contactId: person.contactId,
+          checkboxValues: person.checkboxValues ?? {},
+          sortOrder: person.sortOrder,
+        });
+      }
+      const full = (await garmentsApi.getList(created.id)) ?? created;
+      setGarmentLists((prev) => [full, ...prev]);
+      setGarmentsContentView('lists');
+      navigate('/garments');
+      return full;
+    },
+    [navigate, t],
+  );
+
+  const getDuplicateConfig = useCallback(
+    (item: GarmentList | InventoryItem | null) => {
+      if (!item) {
+        return null;
+      }
+      if (isInventoryItem(item)) {
+        return {
+          defaultName: `Copy of ${item.articleName?.trim() || t('garments.inventoryItem')}`,
+          nameLabel: t('garments.articleName'),
+          confirmOnly: false,
+        };
+      }
+      return {
+        defaultName: `Copy of ${item.name?.trim() || t('garments.list')}`,
+        nameLabel: t('garments.name'),
+        confirmOnly: false,
+      };
+    },
+    [t],
+  );
+
+  const executeDuplicate = useCallback(
+    async (
+      item: GarmentList | InventoryItem,
+      newName: string,
+    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const created = isInventoryItem(item)
+        ? await createInventoryDuplicate(item, newName)
+        : await createListDuplicate(item, newName);
+      const highlightId = created?.id != null ? String(created.id) : undefined;
+      return { closePanel: closeGarmentPanel, highlightId };
+    },
+    [closeGarmentPanel, createInventoryDuplicate, createListDuplicate],
+  );
 
   const saveGarment = useCallback(
     async (raw: GarmentListPayload | InventoryItemPayload): Promise<boolean> => {
@@ -730,6 +805,43 @@ export function GarmentProvider({
     [refreshGarmentList],
   );
 
+  const importPersons = useCallback(
+    async (
+      listId: string,
+      data: Record<string, string>[],
+    ): Promise<{ successCount: number; failureCount: number }> => {
+      let successCount = 0;
+      let failureCount = 0;
+      for (const row of data) {
+        const name = String(row.name ?? '').trim();
+        if (!name) {
+          failureCount += 1;
+          continue;
+        }
+        const contactIdRaw = row.contactId ?? row.contact_id;
+        const contactId =
+          contactIdRaw != null && String(contactIdRaw).trim() !== ''
+            ? String(contactIdRaw).trim()
+            : undefined;
+        try {
+          await garmentsApi.createPerson(listId, {
+            name,
+            ...(contactId ? { contactId } : {}),
+          });
+          successCount += 1;
+        } catch (err) {
+          console.error('Failed to import person:', err);
+          failureCount += 1;
+        }
+      }
+      if (successCount > 0) {
+        await refreshGarmentList(listId);
+      }
+      return { successCount, failureCount };
+    },
+    [refreshGarmentList],
+  );
+
   useEffect(() => {
     if (panelMode === 'view' && panelKind === 'list' && currentGarment?.id) {
       let cancelled = false;
@@ -892,10 +1004,13 @@ export function GarmentProvider({
       executeDuplicate,
       recentlyDuplicatedInventoryId,
       setRecentlyDuplicatedInventoryId,
+      recentlyDuplicatedListId,
+      setRecentlyDuplicatedListId,
       refreshGarmentList,
       addPerson,
       updatePerson,
       deletePerson,
+      importPersons,
       garmentShareExistingShare,
       garmentShareShowDialog,
       setGarmentShareShowDialog,
@@ -946,10 +1061,12 @@ export function GarmentProvider({
       getDuplicateConfig,
       executeDuplicate,
       recentlyDuplicatedInventoryId,
+      recentlyDuplicatedListId,
       refreshGarmentList,
       addPerson,
       updatePerson,
       deletePerson,
+      importPersons,
       garmentShareExistingShare,
       garmentShareShowDialog,
       garmentShareIsCreatingShare,

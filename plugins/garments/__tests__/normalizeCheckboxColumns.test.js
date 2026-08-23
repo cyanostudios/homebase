@@ -11,7 +11,7 @@ describe('GarmentsModel transforms', () => {
       name: 'P2015',
       team_id: 5,
       checkbox_columns: JSON.stringify([
-        { id: 'a', label: 'Betalt', sortOrder: 0 },
+        { id: 'a', label: 'Betalt', group: 'Shorts', sortOrder: 0 },
         { id: 'b', label: 'Tröja Beställt', sort_order: 1 },
       ]),
       person_count: 3,
@@ -22,8 +22,14 @@ describe('GarmentsModel transforms', () => {
     expect(list.teamId).toBe('5');
     expect(list.personCount).toBe(3);
     expect(list.checkboxColumns).toHaveLength(2);
-    expect(list.checkboxColumns[0]).toEqual({ id: 'a', label: 'Betalt', sortOrder: 0 });
+    expect(list.checkboxColumns[0]).toEqual({
+      id: 'a',
+      label: 'Betalt',
+      group: 'Shorts',
+      sortOrder: 0,
+    });
     expect(list.checkboxColumns[1].sortOrder).toBe(1);
+    expect(list.checkboxColumns[1].group).toBeUndefined();
   });
 
   it('transforms person and filters checkbox values to allowed ids', () => {
@@ -36,7 +42,10 @@ describe('GarmentsModel transforms', () => {
         shorts_size: null,
         socks_size: '2',
         jersey_number: '7',
+        jersey_name: 'ANDERSSON',
+        initials: 'KA',
         comment: 'note',
+        contact_id: 42,
         checkbox_values: { a: true, stale: true },
         sort_order: 0,
         created_at: null,
@@ -47,6 +56,9 @@ describe('GarmentsModel transforms', () => {
     expect(person.checkboxValues).toEqual({ a: true });
     expect(person.shirtSize).toBe('152');
     expect(person.jerseyNumber).toBe('7');
+    expect(person.jerseyName).toBe('ANDERSSON');
+    expect(person.initials).toBe('KA');
+    expect(person.contactId).toBe('42');
   });
 
   it('transforms inventory row with embedded variants defaults', () => {

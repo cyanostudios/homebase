@@ -4,7 +4,7 @@ import { PluginNavigationConfig } from '@/core/pluginRegistry';
 
 export const garmentsNavigation: PluginNavigationConfig = {
   category: 'Sport',
-  label: 'Kläder',
+  label: 'Garments',
   icon: Shirt,
   order: 2,
   submenu: [

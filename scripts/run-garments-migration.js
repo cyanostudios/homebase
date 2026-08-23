@@ -15,6 +15,11 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/136-garment-inventory-product-fields.sql'),
   path.join(__dirname, '../server/migrations/137-garment-inventory-variants.sql'),
   path.join(__dirname, '../server/migrations/138-garment-inventory-variant-sku-unique.sql'),
+  path.join(__dirname, '../server/migrations/139-garments-grouped-checkbox-columns.sql'),
+  path.join(__dirname, '../server/migrations/140-garments-person-level-checkbox-columns.sql'),
+  path.join(__dirname, '../server/migrations/141-garment-list-persons-jersey-name-initials.sql'),
+  path.join(__dirname, '../server/migrations/142-garments-checkbox-columns-english-labels.sql'),
+  path.join(__dirname, '../server/migrations/143-garment-list-persons-contact-id.sql'),
 ];
 const MAIN_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/132-grant-garments-plugin-access.sql'),

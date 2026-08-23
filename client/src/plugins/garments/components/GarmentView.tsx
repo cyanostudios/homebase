@@ -6,6 +6,7 @@ import {
   Share2,
   SlidersHorizontal,
   Trash2,
+  Upload,
   Users,
   Zap,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 import { useGarments } from '../hooks/useGarments';
 import type { GarmentList, InventoryItem } from '../types/garments';
 
+import { GarmentPersonImportDialog } from './GarmentPersonImportDialog';
 import { GarmentShareBlock } from './GarmentShareBlock';
 import { VariantQuantityEditor } from './InventoryQuickContextPanel';
 import { PersonMatrix } from './PersonMatrix';
@@ -348,9 +350,15 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
     getDeleteMessage,
     handleGarmentShareClick,
     garmentShareIsCreatingShare,
+    getDuplicateConfig,
+    executeDuplicate,
+    setRecentlyDuplicatedListId,
+    importPersons,
   } = useGarments();
   const { teams } = useTeams();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   if (panelKind === 'inventory') {
     if (!currentInventoryItem) {
@@ -364,6 +372,7 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
     return null;
   }
 
+  const canDuplicate = Boolean(getDuplicateConfig(list));
   const matchedTeam = list.teamId
     ? teams.find((team) => String(team.id) === String(list.teamId))
     : undefined;
@@ -387,7 +396,12 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    icon={Edit}
+                    icon={(props) => (
+                      <Edit
+                        {...props}
+                        className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
+                      />
+                    )}
                     className={cn(DETAIL_QUICK_ACTION_ROW_CLASS)}
                     onClick={() => openGarmentForEdit(list)}
                   >
@@ -397,7 +411,27 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    icon={Share2}
+                    icon={(props) => (
+                      <Upload
+                        {...props}
+                        className={cn(props.className, 'text-emerald-600 dark:text-emerald-400')}
+                      />
+                    )}
+                    className={cn(DETAIL_QUICK_ACTION_ROW_CLASS)}
+                    onClick={() => setIsImportDialogOpen(true)}
+                  >
+                    {t('garments.importPersons')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={(props) => (
+                      <Share2
+                        {...props}
+                        className={cn(props.className, 'text-violet-600 dark:text-violet-400')}
+                      />
+                    )}
                     className={cn(DETAIL_QUICK_ACTION_ROW_CLASS)}
                     disabled={garmentShareIsCreatingShare}
                     onClick={() => void handleGarmentShareClick(list)}
@@ -406,12 +440,34 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                       ? t('garments.creatingShare')
                       : t('garments.shareList')}
                   </Button>
+                  {canDuplicate ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      icon={(props) => (
+                        <Copy
+                          {...props}
+                          className={cn(props.className, 'text-green-600 dark:text-green-400')}
+                        />
+                      )}
+                      className={DETAIL_QUICK_ACTION_ROW_CLASS}
+                      onClick={() => setShowDuplicateDialog(true)}
+                    >
+                      {t('common.duplicate')}
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    icon={Trash2}
-                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    icon={(props) => (
+                      <Trash2
+                        {...props}
+                        className={cn(props.className, 'text-red-600 dark:text-red-400')}
+                      />
+                    )}
+                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
                     onClick={() => setShowDeleteConfirm(true)}
                   >
                     {t('common.delete')}
@@ -434,6 +490,14 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                       {formatDisplayNumber('garments', list.id)}
                     </span>
                   </div>
+                  {teamLabel ? (
+                    <div className={DETAIL_INFO_ROW_CLASS}>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {t('garments.team')}
+                      </span>
+                      <span className="font-semibold text-foreground">{teamLabel}</span>
+                    </div>
+                  ) : null}
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
@@ -458,26 +522,11 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
       >
         <div className="space-y-4">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('garments.details')}
-              icon={SlidersHorizontal}
-              subtleTitle
-              className="p-6"
-            >
-              <div className="space-y-1">
-                <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.name')}</div>
-                <div className="text-lg font-semibold">{list.name}</div>
-              </div>
-              {teamLabel ? (
-                <div className="border-t border-border/50 pt-4 mt-4">
-                  <div className={DETAIL_FIELD_LABEL_CLASS}>{t('garments.team')}</div>
-                  <div className="text-sm">{teamLabel}</div>
-                </div>
-              ) : null}
-            </DetailSection>
-          </Card>
-
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <div className="border-b border-border/50 px-6 py-4">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                {list.name || '—'}
+              </h2>
+            </div>
             <DetailSection title={t('garments.persons')} icon={Users} subtleTitle className="p-6">
               <PersonMatrix list={list} />
             </DetailSection>
@@ -499,6 +548,34 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
         }}
         onCancel={() => setShowDeleteConfirm(false)}
         variant="danger"
+      />
+
+      <DuplicateDialog
+        isOpen={showDuplicateDialog}
+        onConfirm={(newName) => {
+          executeDuplicate(list, newName)
+            .then(({ closePanel, highlightId }) => {
+              closePanel();
+              if (highlightId) {
+                setRecentlyDuplicatedListId(highlightId);
+              }
+              setShowDuplicateDialog(false);
+            })
+            .catch(() => {
+              setShowDuplicateDialog(false);
+            });
+        }}
+        onCancel={() => setShowDuplicateDialog(false)}
+        defaultName={getDuplicateConfig(list)?.defaultName ?? ''}
+        nameLabel={getDuplicateConfig(list)?.nameLabel ?? t('garments.name')}
+        confirmOnly={Boolean(getDuplicateConfig(list)?.confirmOnly)}
+      />
+
+      <GarmentPersonImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        listId={list.id}
+        onImportRows={importPersons}
       />
     </>
   );

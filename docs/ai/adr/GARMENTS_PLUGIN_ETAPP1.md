@@ -12,7 +12,7 @@
 
 3. **Lists schema (tenant DB, migration 131)** — Tables:
    - `garment_lists` — `user_id`, `name`, optional `team_id` → `teams(id) ON DELETE SET NULL`, `checkbox_columns JSONB` (array of `{ id, label, sort_order }`), timestamps.
-   - `garment_list_persons` — free-text `name` (no contacts FK), `shirt_size` / `shorts_size` / `socks_size`, `jersey_number`, `comment`, `checkbox_values JSONB` map `{ [columnId]: boolean }`, `sort_order`, FK `list_id` CASCADE.
+   - `garment_list_persons` — free-text `name`, optional `contact_id` → `contacts(id)` ON DELETE SET NULL (migration **143**; set when importing From Contacts), `shirt_size` / `shorts_size` / `socks_size`, `jersey_number`, `jersey_name`, `initials`, `comment`, `checkbox_values JSONB` map `{ [columnId]: boolean }`, `sort_order`, FK `list_id` CASCADE.
    - `garment_list_shares` — mirror [`067-note-shares.sql`](../../../server/migrations/067-note-shares.sql).
 
 4. **Checkbox columns = JSONB** — Admin-defined columns on the list; person booleans keyed by column `id`. On column remove, backend strips keys from all persons in one transaction. Default Excel-inspired template on new list is a **UX decision** (frontend sends default `checkbox_columns` on create).
@@ -41,10 +41,13 @@
 - Leader login / role-specific public access
 - Editable public share links
 - Stock decrement / handout linkage
-- Excel/CSV import
-- Contacts link on person rows
 - Public SEO companion
 - Production deploy without explicit release decision
+
+## Later additions (post–etapp 1)
+
+- CSV/Excel / Contacts import for person names (`contact_id` when From Contacts)
+- Contacts **Linked** tiles for garment lists (`GET /garments/lists/for-contact/:contactId`)
 
 ## Configuration (local)
 

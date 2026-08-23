@@ -36,6 +36,15 @@ class GarmentsController {
     }
   }
 
+  async getListsForContact(req, res, next) {
+    try {
+      const lists = await this.model.getListsForContact(req, req.params.contactId);
+      res.json(lists);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getList(req, res, next) {
     try {
       const list = await this.model.getListById(req, req.params.id);

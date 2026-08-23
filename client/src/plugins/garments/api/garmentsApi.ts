@@ -74,6 +74,10 @@ class GarmentsApi {
     return apiRequest<GarmentList[]>(`/lists${qs}`);
   }
 
+  getListsForContact(contactId: string) {
+    return apiRequest<GarmentList[]>(`/lists/for-contact/${encodeURIComponent(contactId)}`);
+  }
+
   getList(id: string) {
     return apiRequest<GarmentList>(`/lists/${id}`);
   }

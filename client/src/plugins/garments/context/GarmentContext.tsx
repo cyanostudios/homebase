@@ -54,14 +54,16 @@ export interface GarmentContextType {
   deleteInventoryItems: (ids: string[]) => Promise<void>;
 
   getDuplicateConfig: (
-    item: InventoryItem | null,
+    item: GarmentList | InventoryItem | null,
   ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
   executeDuplicate: (
-    item: InventoryItem,
+    item: GarmentList | InventoryItem,
     newName: string,
   ) => Promise<{ closePanel: () => void; highlightId?: string }>;
   recentlyDuplicatedInventoryId: string | null;
   setRecentlyDuplicatedInventoryId: (id: string | null) => void;
+  recentlyDuplicatedListId: string | null;
+  setRecentlyDuplicatedListId: (id: string | null) => void;
 
   refreshGarmentList: (listId: string) => Promise<GarmentList | null>;
   addPerson: (listId: string, data: GarmentPersonPayload) => Promise<GarmentPerson | null>;
@@ -71,6 +73,11 @@ export interface GarmentContextType {
     data: GarmentPersonPayload,
   ) => Promise<GarmentPerson | null>;
   deletePerson: (listId: string, personId: string) => Promise<void>;
+  /** Import person names into an existing list (platform ImportWizard). */
+  importPersons: (
+    listId: string,
+    data: Record<string, string>[],
+  ) => Promise<{ successCount: number; failureCount: number }>;
 
   garmentShareExistingShare: GarmentShare | null;
   garmentShareShowDialog: boolean;
@@ -136,10 +143,13 @@ const EMPTY_GARMENT_CONTEXT: GarmentContextType = {
   executeDuplicate: async () => ({ closePanel: () => {} }),
   recentlyDuplicatedInventoryId: null,
   setRecentlyDuplicatedInventoryId: () => {},
+  recentlyDuplicatedListId: null,
+  setRecentlyDuplicatedListId: () => {},
   refreshGarmentList: async () => null,
   addPerson: async () => null,
   updatePerson: async () => null,
   deletePerson: async () => {},
+  importPersons: async () => ({ successCount: 0, failureCount: 0 }),
   garmentShareExistingShare: null,
   garmentShareShowDialog: false,
   setGarmentShareShowDialog: () => {},

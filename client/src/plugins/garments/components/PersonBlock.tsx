@@ -8,6 +8,7 @@ import { DETAIL_LIST_ITEM_HOVER_CLASS } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 
 import type { GarmentCheckboxColumn, GarmentPerson } from '../types/garments';
+import { translateCheckboxColumnLabel } from '../utils/checkboxColumnI18n';
 
 function SizeField({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -211,7 +212,7 @@ export function PersonBlock({
                   onChange={() => onToggleCheckbox(col.id)}
                   className="h-4 w-4 cursor-pointer"
                 />
-                <span>{col.label}</span>
+                <span>{translateCheckboxColumnLabel(t, col)}</span>
               </label>
             ))}
           </div>

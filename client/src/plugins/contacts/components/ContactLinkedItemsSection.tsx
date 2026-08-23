@@ -4,6 +4,7 @@ import {
   FileText,
   Flag,
   Hash,
+  Shirt,
   StickyNote,
   Store,
   Trophy,
@@ -27,6 +28,9 @@ import {
   formatEstimateStatusForDisplay,
 } from '@/plugins/estimates/types/estimate';
 import type { Estimate } from '@/plugins/estimates/types/estimate';
+import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
+import { useGarments } from '@/plugins/garments/hooks/useGarments';
+import type { GarmentList } from '@/plugins/garments/types/garments';
 import { MatchQuickInfoDialog } from '@/plugins/matches/components/MatchQuickInfoDialog';
 import type { Match } from '@/plugins/matches/types/match';
 import type { Note } from '@/plugins/notes/types/notes';
@@ -118,6 +122,7 @@ export function ContactLinkedItemsSection({
   const navigate = useNavigate();
   const enabledPlugins = useEnabledPlugins();
   const { teams } = useTeams();
+  const { openGarmentForView } = useGarments();
   const {
     getMatchesForContact,
     getEstimatesForContact,
@@ -137,6 +142,7 @@ export function ContactLinkedItemsSection({
   const [linkedMatches, setLinkedMatches] = useState<Match[] | null>(null);
   const [linkedEstimates, setLinkedEstimates] = useState<Estimate[] | null>(null);
   const [linkedSlots, setLinkedSlots] = useState<Slot[] | null>(null);
+  const [linkedGarmentLists, setLinkedGarmentLists] = useState<GarmentList[] | null>(null);
   const [preview, setPreview] = useState<LinkedPreview | null>(null);
 
   const hasTasksPlugin = enabledPlugins.has('tasks');
@@ -145,13 +151,15 @@ export function ContactLinkedItemsSection({
   const hasEstimatesPlugin = enabledPlugins.has('estimates');
   const hasTeamsPlugin = enabledPlugins.has('teams');
   const hasSlotsPlugin = enabledPlugins.has('slots');
+  const hasGarmentsPlugin = enabledPlugins.has('garments');
   const showLinkedSection =
     hasTasksPlugin ||
     hasNotesPlugin ||
     hasMatchesPlugin ||
     hasEstimatesPlugin ||
     hasTeamsPlugin ||
-    hasSlotsPlugin;
+    hasSlotsPlugin ||
+    hasGarmentsPlugin;
 
   const teamAssignments = useMemo(() => {
     if (!hasTeamsPlugin || !contact?.id) {
@@ -168,32 +176,37 @@ export function ContactLinkedItemsSection({
       setLinkedMatches(null);
       setLinkedEstimates(null);
       setLinkedSlots(null);
+      setLinkedGarmentLists(null);
       return;
     }
 
     const contactId = String(contact.id);
 
     void (async () => {
-      const [tasksAssigned, tasksMentioned, notes, matches, estimates, slots] = await Promise.all([
-        hasTasksPlugin && getTasksForContact
-          ? getTasksForContact(contactId)
-          : Promise.resolve([] as Task[]),
-        hasTasksPlugin && getTasksWithMentionsForContact
-          ? getTasksWithMentionsForContact(contactId)
-          : Promise.resolve([] as Task[]),
-        hasNotesPlugin && getNotesForContact
-          ? getNotesForContact(contactId)
-          : Promise.resolve([] as Note[]),
-        hasMatchesPlugin && getMatchesForContact
-          ? getMatchesForContact(contactId)
-          : Promise.resolve([] as Match[]),
-        hasEstimatesPlugin && getEstimatesForContact
-          ? getEstimatesForContact(contactId)
-          : Promise.resolve([] as Estimate[]),
-        hasSlotsPlugin && getSlotsForContact
-          ? getSlotsForContact(contactId)
-          : Promise.resolve([] as Slot[]),
-      ]);
+      const [tasksAssigned, tasksMentioned, notes, matches, estimates, slots, garmentLists] =
+        await Promise.all([
+          hasTasksPlugin && getTasksForContact
+            ? getTasksForContact(contactId)
+            : Promise.resolve([] as Task[]),
+          hasTasksPlugin && getTasksWithMentionsForContact
+            ? getTasksWithMentionsForContact(contactId)
+            : Promise.resolve([] as Task[]),
+          hasNotesPlugin && getNotesForContact
+            ? getNotesForContact(contactId)
+            : Promise.resolve([] as Note[]),
+          hasMatchesPlugin && getMatchesForContact
+            ? getMatchesForContact(contactId)
+            : Promise.resolve([] as Match[]),
+          hasEstimatesPlugin && getEstimatesForContact
+            ? getEstimatesForContact(contactId)
+            : Promise.resolve([] as Estimate[]),
+          hasSlotsPlugin && getSlotsForContact
+            ? getSlotsForContact(contactId)
+            : Promise.resolve([] as Slot[]),
+          hasGarmentsPlugin
+            ? garmentsApi.getListsForContact(contactId).catch(() => [] as GarmentList[])
+            : Promise.resolve([] as GarmentList[]),
+        ]);
 
       if (cancelled) {
         return;
@@ -208,6 +221,7 @@ export function ContactLinkedItemsSection({
       setLinkedMatches(matches);
       setLinkedEstimates(estimates);
       setLinkedSlots(slots);
+      setLinkedGarmentLists(garmentLists);
     })();
 
     return () => {
@@ -221,6 +235,7 @@ export function ContactLinkedItemsSection({
     hasMatchesPlugin,
     hasEstimatesPlugin,
     hasSlotsPlugin,
+    hasGarmentsPlugin,
     getNotesForContact,
     getTasksForContact,
     getTasksWithMentionsForContact,
@@ -510,6 +525,43 @@ export function ContactLinkedItemsSection({
       });
     }
 
+    for (const list of linkedGarmentLists ?? []) {
+      const listTitle = list.name?.trim() || t('garments.list');
+      items.push({
+        key: `garment-list-${list.id}`,
+        label: t('nav.garments'),
+        meta:
+          list.personCount != null
+            ? t('garments.personCount', { count: list.personCount })
+            : undefined,
+        text: listTitle,
+        icon: Shirt,
+        iconClassName: 'text-rose-600',
+        onPreview: () => {
+          setPreview({
+            kind: 'generic',
+            title: listTitle,
+            icon: Shirt,
+            details:
+              list.personCount != null
+                ? [
+                    {
+                      icon: Users,
+                      label: t('garments.persons'),
+                      value: t('garments.personCount', { count: list.personCount }),
+                    },
+                  ]
+                : [],
+            openLabel: t('contacts.openGarmentList'),
+            onOpen: () => {
+              setPreview(null);
+              openGarmentForView(list);
+            },
+          });
+        },
+      });
+    }
+
     return items;
   }, [
     linkedTasks,
@@ -518,11 +570,13 @@ export function ContactLinkedItemsSection({
     linkedMatches,
     linkedSlots,
     linkedEstimates,
+    linkedGarmentLists,
     openTaskForView,
     openNoteForView,
     openMatchForView,
     openSlotForView,
     openEstimateForView,
+    openGarmentForView,
     teams,
     t,
   ]);
@@ -536,7 +590,8 @@ export function ContactLinkedItemsSection({
     (hasNotesPlugin && linkedNotes === null) ||
     (hasMatchesPlugin && linkedMatches === null) ||
     (hasEstimatesPlugin && linkedEstimates === null) ||
-    (hasSlotsPlugin && linkedSlots === null);
+    (hasSlotsPlugin && linkedSlots === null) ||
+    (hasGarmentsPlugin && linkedGarmentLists === null);
 
   if (hideWhenEmpty && (isLinkedLoading || linkedItems.length === 0)) {
     return null;

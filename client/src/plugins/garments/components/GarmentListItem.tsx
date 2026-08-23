@@ -16,12 +16,14 @@ import type { GarmentColumnCount } from '../utils/garmentColumnCount';
 export function GarmentListItem({
   item,
   selected,
+  highlighted,
   onClick,
   checkbox,
   columnCount = 1,
 }: {
   item: GarmentList;
   selected?: boolean;
+  highlighted?: boolean;
   onClick: () => void;
   checkbox?: React.ReactNode;
   columnCount?: GarmentColumnCount;
@@ -56,6 +58,7 @@ export function GarmentListItem({
         'group cursor-pointer overflow-hidden p-0 transition-all',
         DETAIL_VIEW_CARD_CLASS,
         selected ? 'bg-plugin-subtle ring-1 border-plugin-subtle' : DETAIL_LIST_ITEM_HOVER_CLASS,
+        highlighted && 'bg-green-50 dark:bg-green-950/30',
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('input[type="checkbox"], button')) {

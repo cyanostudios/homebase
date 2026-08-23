@@ -20,6 +20,20 @@ function optionalTeamIdBody() {
     .withMessage('teamId must be a numeric id or null');
 }
 
+function optionalContactIdBody() {
+  return body('contactId')
+    .optional({ values: 'null' })
+    .customSanitizer((value) => {
+      if (value === null || value === undefined || value === '') return null;
+      return String(value);
+    })
+    .custom((value) => {
+      if (value === null) return true;
+      return /^\d+$/.test(String(value));
+    })
+    .withMessage('contactId must be a numeric id or null');
+}
+
 function checkboxColumnsBody() {
   return body('checkboxColumns')
     .optional()
@@ -175,6 +189,14 @@ function createGarmentsRoutes(controller, context) {
   // Lists
   router.get('/lists', gate, (req, res, next) => controller.getLists(req, res, next));
 
+  router.get(
+    '/lists/for-contact/:contactId',
+    gate,
+    commonRules.id('contactId'),
+    validateRequest,
+    (req, res, next) => controller.getListsForContact(req, res, next),
+  );
+
   router.post(
     '/lists',
     gate,
@@ -226,6 +248,8 @@ function createGarmentsRoutes(controller, context) {
     commonRules.optionalString('shortsSize', 50),
     commonRules.optionalString('socksSize', 50),
     commonRules.optionalString('jerseyNumber', 20),
+    commonRules.optionalString('jerseyName', 100),
+    commonRules.optionalString('initials', 20),
     body('comment')
       .optional({ values: 'falsy' })
       .isString()
@@ -233,6 +257,7 @@ function createGarmentsRoutes(controller, context) {
       .withMessage('comment must not exceed 2000 characters'),
     body('checkboxValues').optional().isObject(),
     body('sortOrder').optional().isInt({ min: 0 }),
+    optionalContactIdBody(),
     validateRequest,
     (req, res, next) => controller.createPerson(req, res, next),
   );
@@ -248,6 +273,8 @@ function createGarmentsRoutes(controller, context) {
     commonRules.optionalString('shortsSize', 50),
     commonRules.optionalString('socksSize', 50),
     commonRules.optionalString('jerseyNumber', 20),
+    commonRules.optionalString('jerseyName', 100),
+    commonRules.optionalString('initials', 20),
     body('comment')
       .optional({ values: 'falsy' })
       .isString()
@@ -255,6 +282,7 @@ function createGarmentsRoutes(controller, context) {
       .withMessage('comment must not exceed 2000 characters'),
     body('checkboxValues').optional().isObject(),
     body('sortOrder').optional().isInt({ min: 0 }),
+    optionalContactIdBody(),
     validateRequest,
     (req, res, next) => controller.updatePerson(req, res, next),
   );

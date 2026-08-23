@@ -81,3 +81,76 @@ export function toggleCheckboxValue(
     [columnId]: !values?.[columnId],
   };
 }
+
+/** Set many checkbox keys to the same boolean (master row → all garments). */
+export function setCheckboxValuesForIds(
+  values: Record<string, boolean> | undefined,
+  columnIds: string[],
+  checked: boolean,
+): Record<string, boolean> {
+  const next = { ...(values ?? {}) };
+  for (const id of columnIds) {
+    next[id] = checked;
+  }
+  return next;
+}
+
+/** Master checkbox state for a status across garment groups. */
+export function getMasterCheckboxState(
+  values: Record<string, boolean> | undefined,
+  columnIds: string[],
+): { checked: boolean; indeterminate: boolean } {
+  if (columnIds.length === 0) {
+    return { checked: false, indeterminate: false };
+  }
+  const filled = columnIds.filter((id) => Boolean(values?.[id])).length;
+  if (filled === 0) {
+    return { checked: false, indeterminate: false };
+  }
+  if (filled === columnIds.length) {
+    return { checked: true, indeterminate: false };
+  }
+  return { checked: false, indeterminate: true };
+}
+
+export type PersonCompletionStatus = 'empty' | 'partial' | 'complete';
+
+/**
+ * Traffic-light completion for a person row:
+ * - empty: nothing filled → red
+ * - partial: some fields/checkboxes filled → amber
+ * - complete: jersey name, initials, and all list checkbox columns filled → green
+ */
+export function getPersonCompletionStatus(input: {
+  jerseyName?: string | null;
+  initials?: string | null;
+  checkboxValues?: Record<string, boolean>;
+  checkboxColumnIds: string[];
+}): PersonCompletionStatus {
+  const checks: boolean[] = [
+    Boolean((input.jerseyName ?? '').trim()),
+    Boolean((input.initials ?? '').trim()),
+    ...input.checkboxColumnIds.map((id) => Boolean(input.checkboxValues?.[id])),
+  ];
+  if (checks.length === 0) {
+    return 'empty';
+  }
+  const filled = checks.filter(Boolean).length;
+  if (filled === 0) {
+    return 'empty';
+  }
+  if (filled === checks.length) {
+    return 'complete';
+  }
+  return 'partial';
+}
+
+export function personCompletionDotClass(status: PersonCompletionStatus): string {
+  if (status === 'complete') {
+    return 'bg-emerald-500';
+  }
+  if (status === 'partial') {
+    return 'bg-amber-500';
+  }
+  return 'bg-red-500';
+}
