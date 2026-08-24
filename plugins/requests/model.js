@@ -217,12 +217,28 @@ class RequestModel {
         internal_notes,
         source,
         response_due_at,
+        plugin_target,
+        plugin_target_id,
+        extra_data,
       } = requestData;
 
       const trimmedTitle = (title || '').toString().trim();
       if (!trimmedTitle) {
         throw new AppError('Request title is required', 400, AppError.CODES.VALIDATION_ERROR);
       }
+
+      const pluginTarget =
+        plugin_target != null && String(plugin_target).trim()
+          ? String(plugin_target).trim().slice(0, 50)
+          : null;
+      const pluginTargetId =
+        plugin_target_id != null && String(plugin_target_id).trim()
+          ? String(plugin_target_id).trim().slice(0, 50)
+          : null;
+      const extraDataJson =
+        extra_data != null && typeof extra_data === 'object' && !Array.isArray(extra_data)
+          ? JSON.stringify(extra_data)
+          : null;
 
       const sanitizedDue = sanitizeResponseDueAt(response_due_at);
       const result = await db.insert('requests', {
@@ -239,6 +255,9 @@ class RequestModel {
         internal_notes: internal_notes ? internal_notes.trim().slice(0, 10000) : null,
         source: REQUEST_SOURCES.includes(source) ? source : 'internal',
         response_due_at: sanitizedDue !== undefined ? sanitizedDue : defaultResponseDueAt(),
+        plugin_target: pluginTarget,
+        plugin_target_id: pluginTargetId,
+        extra_data: extraDataJson,
       });
 
       Logger.info('Request created', { requestId: result.id });
@@ -252,20 +271,54 @@ class RequestModel {
 
   async createPublic(pool, requestData) {
     try {
-      const { title, description, request_type, team_id, submitter_name, submitter_email } =
-        requestData;
+      const {
+        user_id,
+        title,
+        description,
+        request_type,
+        team_id,
+        submitter_name,
+        submitter_email,
+        plugin_target,
+        plugin_target_id,
+        extra_data,
+      } = requestData;
 
       const trimmedTitle = (title || '').toString().trim();
       if (!trimmedTitle) {
         throw new AppError('Request title is required', 400, AppError.CODES.VALIDATION_ERROR);
       }
 
+      const userId = user_id != null ? parseInt(user_id, 10) : NaN;
+      if (!Number.isFinite(userId) || userId <= 0) {
+        throw new AppError(
+          'Public requests owner user_id is required',
+          503,
+          AppError.CODES.SERVICE_UNAVAILABLE,
+        );
+      }
+
+      const pluginTarget =
+        plugin_target != null && String(plugin_target).trim()
+          ? String(plugin_target).trim().slice(0, 50)
+          : null;
+      const pluginTargetId =
+        plugin_target_id != null && String(plugin_target_id).trim()
+          ? String(plugin_target_id).trim().slice(0, 50)
+          : null;
+      const extraDataJson =
+        extra_data != null && typeof extra_data === 'object' && !Array.isArray(extra_data)
+          ? JSON.stringify(extra_data)
+          : null;
+
       const result = await pool.query(
         `INSERT INTO requests
-          (title, description, request_type, team_id, submitter_name, submitter_email, source, status, priority, response_due_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'external', 'not started', 'Medium', $7)
+          (user_id, title, description, request_type, team_id, submitter_name, submitter_email, source, status, priority, response_due_at,
+           plugin_target, plugin_target_id, extra_data)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'external', 'not started', 'Medium', $8, $9, $10, $11::jsonb)
          RETURNING *`,
         [
+          userId,
           trimmedTitle.slice(0, 500),
           description ? description.trim().slice(0, 10000) : null,
           sanitizeRequestType(request_type),
@@ -273,6 +326,9 @@ class RequestModel {
           submitter_name ? submitter_name.trim().slice(0, 255) : null,
           submitter_email ? submitter_email.trim().slice(0, 255) : null,
           defaultResponseDueAt(),
+          pluginTarget,
+          pluginTargetId,
+          extraDataJson,
         ],
       );
 
@@ -282,6 +338,46 @@ class RequestModel {
       Logger.error('Failed to create public request', error);
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to create request', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * Mark request as routed to a plugin entity and set status completed.
+   * Only updates when not already routed (idempotency guard).
+   */
+  async markPluginRouted(req, requestId, { entityId }) {
+    try {
+      const db = Database.get(req);
+      const entityIdStr = entityId != null ? String(entityId).trim().slice(0, 50) : '';
+      if (!entityIdStr) {
+        throw new AppError('Routed entity id is required', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+
+      const rows = await db.query(
+        `UPDATE requests SET
+           plugin_routed_at = CURRENT_TIMESTAMP,
+           plugin_routed_entity_id = $2,
+           status = 'completed',
+           updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+           AND plugin_routed_entity_id IS NULL
+         RETURNING *`,
+        [requestId, entityIdStr],
+      );
+
+      if (!rows || rows.length === 0) {
+        const existing = await db.query('SELECT * FROM requests WHERE id = $1', [requestId]);
+        if (!existing || existing.length === 0) {
+          throw new AppError('Request not found', 404, AppError.CODES.NOT_FOUND);
+        }
+        throw new AppError('Request already routed', 409, AppError.CODES.CONFLICT);
+      }
+
+      return this.transformRow(rows[0]);
+    } catch (error) {
+      Logger.error('Failed to mark request plugin-routed', error, { requestId });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to update request', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -329,6 +425,9 @@ class RequestModel {
         assigned_to_ids,
         internal_notes,
         response_due_at,
+        plugin_target,
+        plugin_target_id,
+        extra_data,
       } = requestData;
 
       const trimmedTitle = (title || current.title || '').toString().trim();
@@ -338,7 +437,10 @@ class RequestModel {
 
       const changeSummary = RequestModel.getChangeSummary(current, requestData);
 
-      const result = await db.update('requests', requestId, {
+      const alreadyRouted =
+        current.plugin_routed_at != null || current.plugin_routed_entity_id != null;
+
+      const updatePayload = {
         title: trimmedTitle.slice(0, 500),
         description:
           description !== undefined
@@ -400,7 +502,24 @@ class RequestModel {
           response_due_at !== undefined
             ? (sanitizeResponseDueAt(response_due_at) ?? null)
             : (current.response_due_at ?? null),
-      });
+      };
+
+      if (!alreadyRouted && plugin_target !== undefined) {
+        updatePayload.plugin_target =
+          plugin_target != null && String(plugin_target).trim()
+            ? String(plugin_target).trim().slice(0, 50)
+            : null;
+        updatePayload.plugin_target_id =
+          plugin_target_id != null && String(plugin_target_id).trim()
+            ? String(plugin_target_id).trim().slice(0, 50)
+            : null;
+        updatePayload.extra_data =
+          extra_data != null && typeof extra_data === 'object' && !Array.isArray(extra_data)
+            ? JSON.stringify(extra_data)
+            : null;
+      }
+
+      const result = await db.update('requests', requestId, updatePayload);
 
       Logger.info('Request updated', { requestId });
       const request = this.transformRow(result);
@@ -443,6 +562,18 @@ class RequestModel {
   }
 
   transformRow(row) {
+    let extraData = row.extra_data ?? null;
+    if (typeof extraData === 'string') {
+      try {
+        extraData = JSON.parse(extraData);
+      } catch {
+        extraData = null;
+      }
+    }
+    if (extraData != null && (typeof extraData !== 'object' || Array.isArray(extraData))) {
+      extraData = null;
+    }
+
     return {
       id: row.id.toString(),
       title: row.title || '',
@@ -458,6 +589,12 @@ class RequestModel {
       internalNotes: row.internal_notes ?? null,
       source: row.source || 'internal',
       responseDueAt: row.response_due_at ?? null,
+      pluginTarget: row.plugin_target ?? null,
+      pluginTargetId: row.plugin_target_id != null ? String(row.plugin_target_id) : null,
+      extraData,
+      pluginRoutedAt: row.plugin_routed_at ?? null,
+      pluginRoutedEntityId:
+        row.plugin_routed_entity_id != null ? String(row.plugin_routed_entity_id) : null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

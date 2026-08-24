@@ -6,7 +6,7 @@ import {
 } from '../publicBranding';
 
 describe('normalizePublicBranding', () => {
-  it('maps name, logoUrl, website, email, and requestTypes from a valid payload', () => {
+  it('maps name, logoUrl, website, email, and legacy string requestTypes', () => {
     expect(
       normalizePublicBranding({
         name: 'Homebase FC',
@@ -20,11 +20,42 @@ describe('normalizePublicBranding', () => {
       logoUrl: 'https://example.com/logo.png',
       website: 'https://example.com',
       email: 'info@example.com',
-      requestTypes: ['general', 'Kläder', 'other'],
+      requestTypes: [{ key: 'general' }, { key: 'Kläder' }, { key: 'other' }],
     });
   });
 
-  it('filters non-strings and blank requestTypes entries', () => {
+  it('maps object requestTypes with plugin and intakeSchema and strips targetListId', () => {
+    expect(
+      normalizePublicBranding({
+        name: 'Club',
+        logoUrl: '',
+        website: '',
+        email: '',
+        requestTypes: [
+          {
+            key: 'Kläder',
+            plugin: 'garments',
+            targetListId: 'should-not-appear',
+            intakeSchema: [{ key: 'name', required: true }, { key: 'shirtSize' }],
+          },
+        ],
+      }),
+    ).toEqual({
+      name: 'Club',
+      logoUrl: '',
+      website: '',
+      email: '',
+      requestTypes: [
+        {
+          key: 'Kläder',
+          plugin: 'garments',
+          intakeSchema: [{ key: 'name', required: true }, { key: 'shirtSize' }],
+        },
+      ],
+    });
+  });
+
+  it('filters blank and invalid requestTypes entries', () => {
     expect(
       normalizePublicBranding({
         name: 'Club',
@@ -38,7 +69,7 @@ describe('normalizePublicBranding', () => {
       logoUrl: 'https://example.com/a.png',
       website: 'example.com',
       email: 'a@b.se',
-      requestTypes: ['general', 'Kläder'],
+      requestTypes: [{ key: 'general' }, { key: 'Kläder' }],
     });
   });
 
@@ -90,11 +121,14 @@ describe('normalizePublicBranding', () => {
 
 describe('resolvePublicRequestTypes', () => {
   it('uses settings types when non-empty', () => {
-    expect(resolvePublicRequestTypes(['Kläder', 'other'])).toEqual(['Kläder', 'other']);
+    expect(resolvePublicRequestTypes([{ key: 'Kläder' }, { key: 'other' }])).toEqual([
+      { key: 'Kläder' },
+      { key: 'other' },
+    ]);
   });
 
   it('falls back to DEFAULT_REQUEST_TYPES when empty', () => {
-    expect(resolvePublicRequestTypes([])).toEqual([...DEFAULT_REQUEST_TYPES]);
+    expect(resolvePublicRequestTypes([])).toEqual(DEFAULT_REQUEST_TYPES.map((key) => ({ key })));
   });
 });
 

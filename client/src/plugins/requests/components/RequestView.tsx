@@ -1,8 +1,10 @@
 import {
   CalendarDays,
+  ClipboardList,
   Edit,
   ExternalLink,
   Info,
+  ListPlus,
   Mail,
   Phone,
   SlidersHorizontal,
@@ -10,7 +12,7 @@ import {
   User,
   Zap,
 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -49,16 +51,18 @@ import {
   type Contact,
 } from '@/plugins/contacts/types/contacts';
 import { FileAttachmentsSection } from '@/plugins/files/components/FileAttachmentsSection';
+import { garmentsApi } from '@/plugins/garments/api/garmentsApi';
 
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
-import { REQUEST_SOURCE_COLORS, formatSubmittedDateWithAge } from '../types/requests';
+import { REQUEST_SOURCE_COLORS, formatSubmittedDateWithAge, getTypeLabel } from '../types/requests';
 import {
   buildRequestAssigneesSavePayload,
   buildRequestResponseDueSavePayload,
   buildRequestTeamSavePayload,
   buildRequestTypeSavePayload,
 } from '../utils/requestListSave';
+import { findRequestTypeConfig, intakeFieldLabelKey } from '../utils/requestTypeConfig';
 
 import { RequestAssignedTeamSelect } from './RequestAssignedTeamSelect';
 import { RequestAssigneeSelect } from './RequestAssigneeSelect';
@@ -79,10 +83,18 @@ function RequestQuickActionsCard({
   request,
   onEdit,
   onDeleteClick,
+  canSendToList,
+  onSendToListClick,
+  sentToListName,
+  sendError,
 }: {
   request: Request;
   onEdit: (request: Request) => void;
   onDeleteClick: () => void;
+  canSendToList: boolean;
+  onSendToListClick: () => void;
+  sentToListName: string | null;
+  sendError: string | null;
 }) {
   const { t } = useTranslation();
 
@@ -105,6 +117,33 @@ function RequestQuickActionsCard({
           >
             {t('common.edit')}
           </Button>
+          {canSendToList ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={(props) => (
+                <ListPlus
+                  {...props}
+                  className={cn(props.className, 'text-emerald-600 dark:text-emerald-400')}
+                />
+              )}
+              className={DETAIL_QUICK_ACTION_ROW_CLASS}
+              onClick={onSendToListClick}
+            >
+              {t('requests.view.sendToList')}
+            </Button>
+          ) : null}
+          {sentToListName ? (
+            <p className="px-3 py-1 text-xs text-muted-foreground">
+              {t('requests.view.sendToListSuccess', { listName: sentToListName })}
+            </p>
+          ) : null}
+          {sendError ? (
+            <p role="alert" className="px-3 py-1 text-xs text-destructive">
+              {sendError}
+            </p>
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -134,6 +173,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
   const enabledPlugins = useEnabledPlugins();
   const hasTeamsPlugin = enabledPlugins.has('teams');
+  const garmentsEnabled = enabledPlugins.has('garments');
   const {
     openRequestForEdit,
     deleteRequest,
@@ -141,9 +181,15 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
     closeRequestPanel,
     validationErrors,
     clearValidationErrors,
+    sendRequestToList,
+    requestTypes,
   } = useRequests();
   const { contacts } = useContacts();
   const [showDelete, setShowDelete] = useState(false);
+  const [showSendToList, setShowSendToList] = useState(false);
+  const [isSendingToList, setIsSendingToList] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [targetListName, setTargetListName] = useState<string | null>(null);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
 
   const linkedContact = useMemo(() => {
@@ -154,6 +200,74 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
   }, [request?.contactId, contacts]);
 
   const submitterPhone = linkedContact?.phone?.trim() || linkedContact?.phone2?.trim() || '';
+
+  const typeConfig = useMemo(
+    () => (request ? findRequestTypeConfig(requestTypes, request.requestType) : null),
+    [request, requestTypes],
+  );
+
+  const isGarmentsLinked =
+    request?.pluginTarget === 'garments' || typeConfig?.plugin === 'garments';
+
+  const canSendToList = Boolean(
+    garmentsEnabled &&
+      request &&
+      request.pluginTarget === 'garments' &&
+      !request.pluginRoutedAt &&
+      !request.pluginRoutedEntityId,
+  );
+
+  const extraDataEntries = useMemo(() => {
+    if (!request?.extraData) {
+      return [];
+    }
+    const schemaOrder =
+      typeConfig?.intakeSchema?.map((field) => field.key) ?? Object.keys(request.extraData);
+    const seen = new Set<string>();
+    const ordered: Array<{ key: string; value: string }> = [];
+    for (const key of schemaOrder) {
+      const value = request.extraData[key];
+      if (value === null || value === undefined || String(value).trim() === '') {
+        continue;
+      }
+      seen.add(key);
+      ordered.push({ key, value: String(value) });
+    }
+    for (const [key, value] of Object.entries(request.extraData)) {
+      if (seen.has(key) || !String(value || '').trim()) {
+        continue;
+      }
+      ordered.push({ key, value: String(value) });
+    }
+    return ordered;
+  }, [request?.extraData, typeConfig?.intakeSchema]);
+
+  const showSubmittedDetails = Boolean(
+    request && (extraDataEntries.length > 0 || isGarmentsLinked),
+  );
+
+  useEffect(() => {
+    if (!request?.pluginTargetId || !garmentsEnabled) {
+      setTargetListName(null);
+      return;
+    }
+    let cancelled = false;
+    garmentsApi
+      .getList(String(request.pluginTargetId))
+      .then((list) => {
+        if (!cancelled) {
+          setTargetListName(list.name);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTargetListName(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [request?.pluginTargetId, garmentsEnabled]);
 
   const navigateToContact = (contact: Contact) => {
     closeRequestPanel();
@@ -217,6 +331,24 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
     await saveRequest(buildRequestTeamSavePayload(request, teamId), request.id);
   };
 
+  const handleSendToListConfirm = async () => {
+    setIsSendingToList(true);
+    setSendError(null);
+    try {
+      await sendRequestToList(request.id);
+      setShowSendToList(false);
+    } catch (error: unknown) {
+      setShowSendToList(false);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t('requests.view.sendToListError');
+      setSendError(message);
+    } finally {
+      setIsSendingToList(false);
+    }
+  };
+
   const updatedLabel = request.updated_at
     ? new Date(request.updated_at).toLocaleString(undefined, {
         day: 'numeric',
@@ -226,6 +358,12 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
         minute: '2-digit',
       })
     : null;
+
+  const listDisplayName =
+    targetListName ||
+    (request.pluginTargetId
+      ? t('requests.view.unknownList', { id: request.pluginTargetId })
+      : t('requests.settings.targetListMissing'));
 
   const contentColumn = (
     <div className="space-y-6">
@@ -247,16 +385,56 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
             />
           }
         >
-          {updatedLabel ? (
-            <p className="mb-3 text-xs text-muted-foreground">
-              {t('common.updated')} {updatedLabel}
-            </p>
-          ) : null}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Badge
+              variant="outline"
+              className="border-0 rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground"
+            >
+              {getTypeLabel(request.requestType, t)}
+            </Badge>
+            {updatedLabel ? (
+              <span className="text-xs text-muted-foreground">
+                {t('common.updated')} {updatedLabel}
+              </span>
+            ) : null}
+          </div>
           <p className="whitespace-pre-wrap text-sm text-foreground">
             {request.description?.trim() || '—'}
           </p>
         </DetailSection>
       </Card>
+
+      {showSubmittedDetails ? (
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('requests.view.submittedDetails')}
+            icon={ClipboardList}
+            iconPlugin="requests"
+            subtleTitle
+            className="p-6"
+          >
+            {extraDataEntries.length > 0 ? (
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                {extraDataEntries.map(({ key, value }) => (
+                  <div key={key}>
+                    <div className={FACT_LABEL_CLASS}>{t(intakeFieldLabelKey(key))}</div>
+                    <div className={DETAIL_FIELD_VALUE_CLASS}>{value || '—'}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t('requests.view.noSubmittedDetails')}
+              </p>
+            )}
+            {request.pluginRoutedAt && listDisplayName ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {t('requests.view.sendToListSuccess', { listName: listDisplayName })}
+              </p>
+            ) : null}
+          </DetailSection>
+        </Card>
+      ) : null}
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
@@ -369,6 +547,15 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
               request={request}
               onEdit={openRequestForEdit}
               onDeleteClick={() => setShowDelete(true)}
+              canSendToList={canSendToList}
+              onSendToListClick={() => {
+                setSendError(null);
+                setShowSendToList(true);
+              }}
+              sentToListName={
+                request.pluginRoutedAt || request.pluginRoutedEntityId ? listDisplayName : null
+              }
+              sendError={sendError}
             />
 
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
@@ -541,6 +728,24 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
         }}
         onCancel={() => setShowDelete(false)}
         variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={showSendToList}
+        title={t('requests.view.sendToListConfirmTitle')}
+        message={t('requests.view.sendToListConfirm', { listName: listDisplayName })}
+        confirmText={t('requests.view.sendToListConfirmAction')}
+        cancelText={t('common.cancel')}
+        onConfirm={() => {
+          void handleSendToListConfirm();
+        }}
+        onCancel={() => {
+          if (!isSendingToList) {
+            setShowSendToList(false);
+          }
+        }}
+        variant="warning"
+        confirmDisabled={isSendingToList}
       />
     </>
   );

@@ -5,6 +5,7 @@ import {
   Flag,
   Mail,
   Phone,
+  Tag,
   Trophy,
   User,
   Users,
@@ -53,6 +54,7 @@ import {
   REQUEST_STATUS_COLORS,
   formatRequestStatusForDisplay,
   formatSubmittedDateWithAge,
+  getTypeLabel,
 } from '../types/requests';
 
 import { RequestPrioritySelect } from './RequestPrioritySelect';
@@ -239,9 +241,15 @@ export function RequestQuickContextPanel({
         {requestInitials(request.title)}
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <h3 className="truncate text-lg font-semibold tracking-tight text-foreground">
+        <h3 className="min-w-0 truncate text-lg font-semibold tracking-tight text-foreground">
           {request.title || '—'}
         </h3>
+        <Badge
+          variant="outline"
+          className={cn('shrink-0', BADGE_CLASS, 'bg-muted text-muted-foreground')}
+        >
+          {getTypeLabel(request.requestType, t)}
+        </Badge>
         <Badge className={cn('shrink-0', BADGE_CLASS, REQUEST_STATUS_COLORS[request.status])}>
           {formatRequestStatusForDisplay(request.status, t)}
         </Badge>
@@ -426,6 +434,14 @@ export function RequestQuickContextPanel({
             </div>
           ) : (
             <QuickContextLinkTileGrid>
+              <QuickContextLinkTile label={t('requests.form.requestType')} icon={Tag}>
+                <Badge
+                  variant="outline"
+                  className={cn(BADGE_CLASS, 'bg-muted text-muted-foreground')}
+                >
+                  {getTypeLabel(request.requestType, t)}
+                </Badge>
+              </QuickContextLinkTile>
               <QuickContextLinkTile label={t('requests.form.priority')} icon={Flag}>
                 <Badge className={cn(BADGE_CLASS, REQUEST_PRIORITY_COLORS[request.priority])}>
                   {request.priority}

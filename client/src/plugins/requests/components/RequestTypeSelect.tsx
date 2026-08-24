@@ -31,11 +31,12 @@ export function RequestTypeSelect({
   const { requestTypes } = useRequests();
 
   const options = React.useMemo(() => {
+    const keys = requestTypes.map((type) => type.key);
     const current = String(request.requestType || '').trim();
-    if (current && !requestTypes.includes(current)) {
-      return [current, ...requestTypes];
+    if (current && !keys.includes(current)) {
+      return [current, ...keys];
     }
-    return requestTypes;
+    return keys;
   }, [request.requestType, requestTypes]);
 
   const selectEl = (
@@ -53,9 +54,13 @@ export function RequestTypeSelect({
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="min-w-[180px] rounded-xl border-border/50 shadow-xl">
-        {options.map((type) => (
-          <SelectItem key={type} value={type} className="rounded-md py-2 text-xs focus:bg-accent">
-            {getTypeLabel(type, t)}
+        {options.map((typeKey) => (
+          <SelectItem
+            key={typeKey}
+            value={typeKey}
+            className="rounded-md py-2 text-xs focus:bg-accent"
+          >
+            {getTypeLabel(typeKey, t)}
           </SelectItem>
         ))}
       </SelectContent>

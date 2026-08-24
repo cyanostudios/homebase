@@ -34,8 +34,8 @@ import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
+import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
@@ -440,20 +440,21 @@ export function RequestList() {
         {requestTypes.length > 0 && (
           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
             {requestTypes.map((type) => {
-              const isActive = typeFilter === type;
+              const typeKey = type.key;
+              const isActive = typeFilter === typeKey;
               return (
                 <Button
-                  key={type}
+                  key={typeKey}
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setTypeFilter(isActive ? 'all' : type)}
+                  onClick={() => setTypeFilter(isActive ? 'all' : typeKey)}
                   className={cn(isActive ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS)}
                 >
                   <Inbox className="h-3.5 w-3.5" />
                   <span>
-                    {getTypeLabel(type, t)}{' '}
-                    <span className="tabular-nums font-semibold">({typeCounts[type] ?? 0})</span>
+                    {getTypeLabel(typeKey, t)}{' '}
+                    <span className="tabular-nums font-semibold">({typeCounts[typeKey] ?? 0})</span>
                   </span>
                 </Button>
               );

@@ -1,4 +1,4 @@
-import { Search, SlidersHorizontal, StickyNote, User } from 'lucide-react';
+import { Search, ClipboardList, SlidersHorizontal, StickyNote, User } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -23,6 +23,7 @@ import type { RequestPayload } from '../api/requestsApi';
 import { useRequests } from '../hooks/useRequests';
 import type { Request } from '../types/requests';
 import { REQUEST_SOURCE_COLORS, responseDueAtFromDays } from '../types/requests';
+import { findRequestTypeConfig, intakeFieldLabelKey } from '../utils/requestTypeConfig';
 
 import { RequestAssignedTeamSelect } from './RequestAssignedTeamSelect';
 import { RequestAssigneeSelect } from './RequestAssigneeSelect';
@@ -46,7 +47,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
   ref,
 ) {
   const { t } = useTranslation();
-  const { validationErrors, clearValidationErrors } = useRequests();
+  const { validationErrors, clearValidationErrors, requestTypes } = useRequests();
   const { contacts, user } = useApp();
   const hasFilesPlugin = (user?.plugins ?? []).includes('files');
   const enabledPlugins = useEnabledPlugins();
@@ -72,6 +73,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
     internalNotes: '',
     responseDueAt: responseDueAtFromDays(7, createCreatedAtRef.current),
   });
+  const [extraData, setExtraData] = useState<Record<string, string>>({});
 
   const [contactSearch, setContactSearch] = useState('');
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
@@ -94,6 +96,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           item.responseDueAt ||
           responseDueAtFromDays(7, item.created_at || createCreatedAtRef.current),
       });
+      setExtraData(item.extraData ? { ...item.extraData } : {});
     } else {
       createCreatedAtRef.current = new Date().toISOString();
       setForm({
@@ -110,13 +113,43 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
         internalNotes: '',
         responseDueAt: responseDueAtFromDays(7, createCreatedAtRef.current),
       });
+      setExtraData({});
     }
     markClean();
   }, [item?.id, markClean]);
 
+  const typeConfig = useMemo(
+    () => findRequestTypeConfig(requestTypes, form.requestType),
+    [requestTypes, form.requestType],
+  );
+  const intakeSchema =
+    typeConfig?.plugin === 'garments' && Array.isArray(typeConfig.intakeSchema)
+      ? typeConfig.intakeSchema
+      : null;
+  const showPluginIntake = Boolean(intakeSchema && intakeSchema.length > 0);
+
   const updateForm = useCallback(
     <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
+      markDirty();
+      clearValidationErrors();
+    },
+    [markDirty, clearValidationErrors],
+  );
+
+  const handleTypeChange = useCallback(
+    (requestType: string) => {
+      setForm((prev) => ({ ...prev, requestType }));
+      setExtraData({});
+      markDirty();
+      clearValidationErrors();
+    },
+    [markDirty, clearValidationErrors],
+  );
+
+  const updateExtraField = useCallback(
+    (key: string, value: string) => {
+      setExtraData((prev) => ({ ...prev, [key]: value }));
       markDirty();
       clearValidationErrors();
     },
@@ -155,6 +188,14 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
   );
 
   const handleSubmit = useCallback(async () => {
+    const payloadExtra = showPluginIntake
+      ? Object.fromEntries(
+          Object.entries(extraData)
+            .map(([key, value]) => [key, value.trim()] as const)
+            .filter(([, value]) => value.length > 0),
+        )
+      : null;
+
     const payload: RequestPayload = {
       title: form.title.trim(),
       description: form.description.trim() || null,
@@ -168,13 +209,14 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
       assigned_to_ids: form.assignedToIds,
       internal_notes: form.internalNotes.trim() || null,
       response_due_at: form.responseDueAt || null,
+      extra_data: showPluginIntake ? (payloadExtra ?? {}) : null,
     };
     const success = await onSave(payload);
     if (success) {
       markClean();
     }
     return success;
-  }, [form, onSave, markClean]);
+  }, [form, extraData, showPluginIntake, onSave, markClean]);
 
   const handleCancel = useCallback(() => {
     attemptAction(onCancel);
@@ -243,6 +285,54 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
           </div>
         </DetailSection>
       </Card>
+
+      {showPluginIntake && intakeSchema ? (
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('requests.form.pluginDetails')}
+            icon={ClipboardList}
+            iconPlugin="requests"
+            subtleTitle
+            className="p-6"
+          >
+            <p className="mb-4 text-xs text-muted-foreground">
+              {t('requests.form.pluginDetailsHint')}
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {intakeSchema.map((field) => {
+                const required = field.required === true;
+                const isComment = field.key === 'comment';
+                return (
+                  <div key={field.key} className={cn('space-y-1', isComment && 'sm:col-span-2')}>
+                    <Label className="text-xs">
+                      {t(intakeFieldLabelKey(field.key))}
+                      {required ? <span className="text-red-500"> *</span> : null}
+                    </Label>
+                    {isComment ? (
+                      <Textarea
+                        value={extraData[field.key] || ''}
+                        onChange={(e) => updateExtraField(field.key, e.target.value)}
+                        rows={3}
+                        required={required}
+                        aria-required={required}
+                        className="text-sm"
+                      />
+                    ) : (
+                      <Input
+                        value={extraData[field.key] || ''}
+                        onChange={(e) => updateExtraField(field.key, e.target.value)}
+                        required={required}
+                        aria-required={required}
+                        className="text-sm"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </DetailSection>
+        </Card>
+      ) : null}
 
       <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <DetailSection
@@ -413,7 +503,7 @@ export const RequestForm = React.forwardRef<PanelFormHandle, RequestFormProps>(f
                   </span>
                   <RequestTypeSelect
                     request={formRequestStub}
-                    onTypeChange={(requestType) => updateForm('requestType', requestType)}
+                    onTypeChange={handleTypeChange}
                     hideInlineLabel
                   />
                 </div>

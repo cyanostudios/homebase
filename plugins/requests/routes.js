@@ -29,6 +29,15 @@ function createRequestRoutes(controller, context) {
   // Authenticated routes
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
+  router.post(
+    '/:id/send-to-list',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.sendToList(req, res),
+  );
+
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res),
   );

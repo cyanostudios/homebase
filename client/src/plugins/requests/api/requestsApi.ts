@@ -5,6 +5,27 @@ import { normalizePublicBranding, type PublicBranding } from '../utils/publicBra
 
 export type { PublicBranding };
 
+function parseExtraData(raw: unknown): Record<string, string> | null {
+  let value = raw;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const out: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof entry === 'string' && entry.trim()) {
+      out[key] = entry;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 function rowToRequest(row: Record<string, unknown>): Request {
   let assignedToIds: string[] = [];
   const raw = row.assignedToIds ?? row.assigned_to_ids;
@@ -27,15 +48,32 @@ function rowToRequest(row: Record<string, unknown>): Request {
     status: (row.status as Request['status']) ?? 'not started',
     priority: (row.priority as Request['priority']) ?? 'Medium',
     teamId:
-      row.teamId != null ? Number(row.teamId) : row.team_id != null ? Number(row.team_id) : null,
+      row.teamId !== null && row.teamId !== undefined
+        ? Number(row.teamId)
+        : row.team_id !== null && row.team_id !== undefined
+          ? Number(row.team_id)
+          : null,
     submitterName: (row.submitterName ?? row.submitter_name) as string | null,
     submitterEmail: (row.submitterEmail ?? row.submitter_email) as string | null,
-    contactId:
-      (row.contactId ?? row.contact_id) != null ? String(row.contactId ?? row.contact_id) : null,
+    contactId: (() => {
+      const rawContact = row.contactId ?? row.contact_id;
+      return rawContact !== null && rawContact !== undefined ? String(rawContact) : null;
+    })(),
     assignedToIds,
     internalNotes: (row.internalNotes ?? row.internal_notes) as string | null,
     source: ((row.source as string) ?? 'internal') as Request['source'],
     responseDueAt: ((row.responseDueAt ?? row.response_due_at) as string | null) ?? null,
+    pluginTarget: ((row.pluginTarget ?? row.plugin_target) as string | null) ?? null,
+    pluginTargetId: (() => {
+      const rawId = row.pluginTargetId ?? row.plugin_target_id;
+      return rawId !== null && rawId !== undefined ? String(rawId) : null;
+    })(),
+    extraData: parseExtraData(row.extraData ?? row.extra_data),
+    pluginRoutedAt: ((row.pluginRoutedAt ?? row.plugin_routed_at) as string | null) ?? null,
+    pluginRoutedEntityId: (() => {
+      const rawEntity = row.pluginRoutedEntityId ?? row.plugin_routed_entity_id;
+      return rawEntity !== null && rawEntity !== undefined ? String(rawEntity) : null;
+    })(),
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
   };
@@ -55,6 +93,7 @@ export interface RequestPayload {
   internal_notes?: string | null;
   source?: Request['source'];
   response_due_at?: string | null;
+  extra_data?: Record<string, string> | null;
 }
 
 export interface PublicRequestPayload {
@@ -64,6 +103,12 @@ export interface PublicRequestPayload {
   team_id?: number | null;
   submitter_name?: string;
   submitter_email?: string;
+  extra_data?: Record<string, string>;
+}
+
+export interface SendToListResult {
+  request: Request;
+  person: Record<string, unknown>;
 }
 
 class RequestsApi {
@@ -78,7 +123,7 @@ class RequestsApi {
       ? '?' +
         new URLSearchParams(
           Object.entries(params)
-            .filter(([, v]) => v != null)
+            .filter(([, v]) => v !== null && v !== undefined)
             .map(([k, v]) => [k, String(v)]),
         ).toString()
       : '';
@@ -105,6 +150,14 @@ class RequestsApi {
     await this.request(`/${id}`, { method: 'DELETE' });
   }
 
+  async sendToList(id: string): Promise<SendToListResult> {
+    const result = await this.request(`/${id}/send-to-list`, { method: 'POST' });
+    return {
+      request: rowToRequest(result.request as Record<string, unknown>),
+      person: (result.person as Record<string, unknown>) ?? {},
+    };
+  }
+
   async publicGetTeams(): Promise<PublicTeam[]> {
     const rows = await this.request('/public/teams');
     return rows || [];
@@ -115,7 +168,7 @@ class RequestsApi {
     return normalizePublicBranding(row);
   }
 
-  async publicSubmit(data: PublicRequestPayload): Promise<{ success: boolean; request: Request }> {
+  async publicSubmit(data: PublicRequestPayload): Promise<{ success: boolean }> {
     const result = await this.request('/public/submit', {
       method: 'POST',
       body: JSON.stringify(data),

@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Request plugin routing (Requests → Garments) — docs sync (2026-08-23)
+
+Docs efter **QA Approved** + **Security Approved** + TPM-acceptans av residualer **S3 / S4 / S5** för hybrid request→garments routing. ADR [`adr/REQUEST_PLUGIN_ROUTING.md`](adr/REQUEST_PLUGIN_ROUTING.md). Operator: [`REQUESTS_PLUGIN.md`](../REQUESTS_PLUGIN.md), cross-ref [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md). Migration `144`; `npm run migrate:requests-plugin-routing`. Publik submit svarar `{ success: true }` endast. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Garments inventory SKU / panel polish — QA/Security docs sync (2026-08-23)
 
 Docs efter **QA Approved** + **Security Approved** för inventarie: SKU-unikhet (migration `138`), quantity-only PATCH, close→`/garments/inventory`, prev/next, duplicate rensar art.nr. Operator: [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md). Residual: applicera `138` i målmiljö; nested `variants[]` fältvalidering som hardening. **Local-first; ej prod-release.**

@@ -2598,7 +2598,9 @@
       "searchContact": "Search contacts...",
       "addAssigneePlaceholder": "Search and add assignee...",
       "internalNotesPlaceholder": "Internal notes (not visible to submitter)...",
-      "attachmentsAfterSave": "Save the request first to upload attachments."
+      "attachmentsAfterSave": "Save the request first to upload attachments.",
+      "pluginDetails": "Plugin details",
+      "pluginDetailsHint": "These fields are used when sending this request to the linked list."
     },
     "view": {
       "information": "Information",
@@ -2618,7 +2620,17 @@
       "team": "Team",
       "deleteRequest": "Delete request",
       "deleteConfirm": "Delete \"{{title}}\"? This action cannot be undone.",
-      "openContact": "Open contact: {{name}}"
+      "openContact": "Open contact: {{name}}",
+      "submittedDetails": "Submitted details",
+      "noSubmittedDetails": "No kit details submitted",
+      "sendToList": "Send to list",
+      "sendToListConfirmTitle": "Send to list?",
+      "sendToListConfirm": "Send this request to \"{{listName}}\"? A person will be created from the submitted details, and the request will be marked completed.",
+      "sendToListConfirmAction": "Send",
+      "sendToListSuccess": "Sent to {{listName}}",
+      "sendToListError": "Could not send to list. Try again.",
+      "openTargetList": "Open list",
+      "unknownList": "List #{{id}}"
     },
     "settings": {
       "title": "Requests settings",
@@ -2628,7 +2640,29 @@
       "addType": "Add",
       "addTypePlaceholder": "New type label...",
       "noTypes": "No types configured.",
-      "confirmRemove": "Remove this type?"
+      "confirmRemove": "Remove this type?",
+      "linkSection": "Plugin link",
+      "destination": "Destination",
+      "linkNone": "None",
+      "linkGarments": "Garments",
+      "linkedToGarments": "Linked to Garments",
+      "targetList": "Target list",
+      "targetListPlaceholder": "Select a list…",
+      "targetListEmpty": "Create a garments list first.",
+      "targetListMissing": "List unavailable (removed)",
+      "targetListMissingHint": "Choose another list before submitters can be routed.",
+      "intakeFieldsHint": "Fields collected on the public form",
+      "linkHint": "Submitters fill these fields; staff can send the request to this list.",
+      "teamLists": "Team lists",
+      "otherLists": "Other lists",
+      "unlinkConfirm": "Remove Garments link for this type?",
+      "saveError": "Could not save request types. Try again."
+    },
+    "public": {
+      "intakeStepTitle": "Tell us about the person",
+      "intakeStepSubtitle": "Sizes and jersey details help us prepare the kit list.",
+      "intakeNameHint": "Name of the person on the kit list",
+      "contactStepPrefillHint": "Used if we need to reach you"
     },
     "quickContext": {
       "eyebrow": "Selected request",

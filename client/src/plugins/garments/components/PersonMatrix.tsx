@@ -195,6 +195,7 @@ export function PersonMatrix({
       personFieldPayload(person, {
         ...editDraft,
         name: (editDraft.name ?? '').trim(),
+        jerseyNumber: (editDraft.jerseyNumber ?? '').trim() || null,
         jerseyName: (editDraft.jerseyName ?? '').trim() || null,
         initials: (editDraft.initials ?? '').trim() || null,
       }),
@@ -204,7 +205,7 @@ export function PersonMatrix({
 
   const saveTextField = async (
     person: GarmentPerson,
-    field: 'jerseyName' | 'initials' | GarmentSizeField,
+    field: 'jerseyName' | 'jerseyNumber' | 'initials' | GarmentSizeField,
     raw: string,
   ) => {
     if (readOnly) {
@@ -304,8 +305,11 @@ export function PersonMatrix({
                 <th className="border-r border-border px-1.5 py-2 text-center text-[11px] font-medium leading-tight text-muted-foreground">
                   {t('garments.jerseyName')}
                 </th>
-                <th className="border-r border-border px-1.5 py-2 text-center text-[11px] font-medium leading-tight text-muted-foreground">
+                <th className="w-11 border-r border-border px-0.5 py-2 text-center text-[11px] font-medium leading-tight text-muted-foreground">
                   {t('garments.initials')}
+                </th>
+                <th className="w-12 border-r border-border px-0.5 py-2 text-center text-[11px] font-medium leading-tight text-muted-foreground">
+                  {t('garments.jerseyNumber')}
                 </th>
                 {personColumns.map((col) => (
                   <th
@@ -437,9 +441,9 @@ export function PersonMatrix({
                           />
                         )}
                       </td>
-                      <td className="border-r border-border/50 px-1 py-1.5">
+                      <td className="w-11 border-r border-border/50 px-0.5 py-1.5">
                         {readOnly ? (
-                          <span className="block truncate px-1 text-xs">
+                          <span className="block truncate px-0.5 text-center text-xs">
                             {person.initials?.trim() || '—'}
                           </span>
                         ) : isEditing ? (
@@ -449,7 +453,7 @@ export function PersonMatrix({
                               setEditDraft((prev) => ({ ...prev, initials: e.target.value }))
                             }
                             aria-label={t('garments.initials')}
-                            className="h-8 w-16 text-xs"
+                            className="h-8 w-full px-1 text-center text-xs"
                           />
                         ) : (
                           <Input
@@ -457,7 +461,44 @@ export function PersonMatrix({
                             key={`${person.id}-initials-${person.initials ?? ''}`}
                             onBlur={(e) => void saveTextField(person, 'initials', e.target.value)}
                             aria-label={t('garments.initials')}
-                            className="h-8 w-16 text-xs"
+                            className="h-8 w-full px-1 text-center text-xs"
+                          />
+                        )}
+                      </td>
+                      <td className="w-12 border-r border-border/50 px-0.5 py-1.5">
+                        {readOnly ? (
+                          <span
+                            className={cn(
+                              'block truncate px-0.5 text-center text-xs font-medium',
+                              jerseyDup && 'text-amber-700 dark:text-amber-300',
+                            )}
+                          >
+                            {person.jerseyNumber?.trim() || '—'}
+                          </span>
+                        ) : isEditing ? (
+                          <Input
+                            value={editDraft.jerseyNumber ?? ''}
+                            onChange={(e) =>
+                              setEditDraft((prev) => ({ ...prev, jerseyNumber: e.target.value }))
+                            }
+                            aria-label={t('garments.jerseyNumber')}
+                            className={cn(
+                              'h-8 w-full px-1 text-center text-xs',
+                              jerseyDup && 'border-amber-400',
+                            )}
+                          />
+                        ) : (
+                          <Input
+                            defaultValue={person.jerseyNumber ?? ''}
+                            key={`${person.id}-jerseyNumber-${person.jerseyNumber ?? ''}`}
+                            onBlur={(e) =>
+                              void saveTextField(person, 'jerseyNumber', e.target.value)
+                            }
+                            aria-label={t('garments.jerseyNumber')}
+                            className={cn(
+                              'h-8 w-full px-1 text-center text-xs',
+                              jerseyDup && 'border-amber-400',
+                            )}
                           />
                         )}
                       </td>
@@ -558,7 +599,8 @@ export function PersonMatrix({
                                 {translateCheckboxGroupLabel(t, group)}
                               </td>
                               <td className="border-r border-border/40 px-1 py-1.5" />
-                              <td className="border-r border-border/40 px-1 py-1.5" />
+                              <td className="border-r border-border/40 px-0.5 py-1.5" />
+                              <td className="border-r border-border/40 px-0.5 py-1.5" />
                               {personColumns.map((col) => (
                                 <td
                                   key={`${person.id}-${group}-${col.id}`}

@@ -14,8 +14,12 @@ import type { RequestPayload } from '../api/requestsApi';
 import { DEFAULT_REQUEST_TYPES } from '../types/requests';
 import type { Request, RequestValidationError } from '../types/requests';
 import { shouldApplyOpenRequestSaveEffects } from '../utils/requestListSave';
+import { coerceRequestTypes, type RequestTypeConfig } from '../utils/requestTypeConfig';
 
 const REQUESTS_SETTINGS_KEY = 'requests';
+const DEFAULT_REQUEST_TYPE_CONFIGS: RequestTypeConfig[] = DEFAULT_REQUEST_TYPES.map((key) => ({
+  key,
+}));
 
 import { RequestsContext } from './RequestContext';
 import type { RequestsContextType } from './RequestContext';
@@ -43,21 +47,27 @@ export function RequestProvider({
   const [requests, setRequests] = useState<Request[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [requestsContentView, setRequestsContentView] = useState<'list' | 'settings'>('list');
-  const [requestTypes, setRequestTypes] = useState<string[]>(DEFAULT_REQUEST_TYPES);
+  const [requestTypes, setRequestTypes] = useState<RequestTypeConfig[]>(
+    DEFAULT_REQUEST_TYPE_CONFIGS,
+  );
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
     getSettings(REQUESTS_SETTINGS_KEY).then((s: any) => {
-      if (Array.isArray(s?.requestTypes) && s.requestTypes.length > 0) {
-        setRequestTypes(s.requestTypes);
+      const coerced = coerceRequestTypes(s?.requestTypes);
+      if (coerced.length > 0) {
+        setRequestTypes(coerced);
       }
     });
   }, [isAuthenticated, getSettings]);
 
   const saveRequestTypes = useCallback(
-    async (types: string[]) => {
-      setRequestTypes(types);
-      await updateSettings(REQUESTS_SETTINGS_KEY, { requestTypes: types });
+    async (types: RequestTypeConfig[]) => {
+      const coerced = coerceRequestTypes(types);
+      setRequestTypes(coerced);
+      await updateSettings(REQUESTS_SETTINGS_KEY, { requestTypes: coerced });
     },
     [updateSettings],
   );
@@ -202,7 +212,7 @@ export function RequestProvider({
   const createRequest = useCallback(
     async (data: RequestPayload): Promise<Request> => {
       const created = await requestsApi.createRequest({
-        request_type: requestTypes[0] ?? DEFAULT_REQUEST_TYPES[0],
+        request_type: requestTypes[0]?.key ?? DEFAULT_REQUEST_TYPES[0],
         status: 'not started',
         priority: 'Medium',
         source: 'internal',
@@ -280,6 +290,18 @@ export function RequestProvider({
     [clearRequestSelection, closeRequestPanel, currentRequest],
   );
 
+  const sendRequestToList = useCallback(
+    async (id: string): Promise<Request> => {
+      const { request: updated } = await requestsApi.sendToList(id);
+      setRequests((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      if (currentRequest?.id === id) {
+        setCurrentRequest(updated);
+      }
+      return updated;
+    },
+    [currentRequest],
+  );
+
   const getDeleteMessage = useCallback(
     (item: Request | null) =>
       `Delete "${item?.title || 'this request'}"? This action cannot be undone.`,
@@ -324,6 +346,7 @@ export function RequestProvider({
     createRequest,
     deleteRequest,
     deleteRequests,
+    sendRequestToList,
     selectedRequestIds,
     toggleRequestSelected,
     selectAllRequests,

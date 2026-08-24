@@ -32,6 +32,7 @@ Sidebar submenu (Clubdesk-style), URL-driven:
 - **Duplicate article:** copies variants’ color/size/qty; **clears all SKUs** on the copy.
 - **Duplicate variant row (form):** clears **SKU and size** (keeps color) so the new row is immediately saveable.
 - Closing inventory create/edit/view navigates to **`/garments/inventory`**, not `/garments`.
+- Leaving an open **list** via the sidebar (Inventory or another plugin) navigates in **one click**. Panel close does not bounce back to the lists index.
 
 ### Migrations (inventory)
 
@@ -87,6 +88,12 @@ Public person blocks keep the older **two-row** `PersonBlock` layout, **read-onl
 ## Teams
 
 When both `teams` and `garments` are enabled, Team detail has a **Kläder** tab listing lists for that team.
+
+## Requests → list intake (cross-plugin)
+
+Requests can link a request type to a **garment list** and an intake field allowlist. Public `/public/request` collects `extra_data`; staff **Send to list** creates a `garment_list_person` via the requests plugin adapter (no auto-routing). Migration **`144`** on the requests table; runner `npm run migrate:requests-plugin-routing`.
+
+Operator detail: [`REQUESTS_PLUGIN.md`](REQUESTS_PLUGIN.md). ADR: [`docs/ai/adr/REQUEST_PLUGIN_ROUTING.md`](ai/adr/REQUEST_PLUGIN_ROUTING.md).
 
 ## Security residuals
 

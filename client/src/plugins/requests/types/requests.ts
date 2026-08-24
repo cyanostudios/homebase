@@ -43,6 +43,16 @@ export interface Request {
   source: RequestSource;
   /** ISO timestamptz — default created + 7 days. */
   responseDueAt: string | null;
+  /** Snapshot plugin target at submit (e.g. garments). */
+  pluginTarget: string | null;
+  /** Snapshot target list/entity id (never shown on public form). */
+  pluginTargetId: string | null;
+  /** Validated intake payload from public submit. */
+  extraData: Record<string, string> | null;
+  /** When staff successfully routed to plugin target. */
+  pluginRoutedAt: string | null;
+  /** Created entity id after routing (e.g. garment person id). */
+  pluginRoutedEntityId: string | null;
   created_at: string;
   updated_at: string;
 }

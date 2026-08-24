@@ -4,6 +4,43 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-23 – Garments: sidofältsnavigering från öppen lista
+
+**Status:** Implementerat lokalt. **Ej QA/Security.** **Ej prod-release.**
+
+**Sammanfattning:** Från en öppen klädlista räckte ett klick i sidofältet (Inventory eller annat plugin) inte – panel-close navigerade tillbaka till listindex och åt upp destinationen. Close navigerar nu bara när URL:en fortfarande är ett list-item.
+
+**Beteende**
+
+- Öppen lista + klick **Inventory** → `/garments/inventory` (ett klick)
+- Öppen lista + klick annat plugin → det pluginet (ett klick)
+- Stäng lista via X → `/garments` som tidigare
+- Stäng inventory-panel via X → kvar på `/garments/inventory` som tidigare
+
+---
+
+## 2026-08-23 – Requests → Garments: hybrid plugin routing
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** TPM accepterade residualer **S3 / S4 / S5**. **Ej prod-release.**
+
+**Sammanfattning:** Request-typer kan länkas till Garments (mål-lista + intake-schema från allowlist). Publik formulär visar intake-fält; submit sparar `extra_data` + snapshot av mål; svar är endast `{ success: true }`. Personal **Send to list** skapar `garment_list_person` och markerar request `completed`. Ingen auto-routing.
+
+**Beteende (verifierat)**
+
+- Settings: `RequestTypeConfig` (`key`, `plugin?: 'garments'`, `targetListId`, `intakeSchema`); legacy `string[]` coercas
+- Publik branding: `{ key, plugin?, intakeSchema? }` — aldrig `targetListId`
+- `POST /api/requests/public/submit` + `extra_data`; server ignorerar klient-`plugin_target*`
+- `POST /api/requests/:id/send-to-list` (CSRF, garments-access); 409 om redan routad
+- Adapter-registry: `plugins/requests/pluginTargets/`
+
+**Migration:** `144-requests-plugin-routing.sql` via `npm run migrate:requests-plugin-routing`
+
+**Operator / ADR:** [`REQUESTS_PLUGIN.md`](REQUESTS_PLUGIN.md), [`GARMENTS_PLUGIN.md`](GARMENTS_PLUGIN.md), [`ai/adr/REQUEST_PLUGIN_ROUTING.md`](ai/adr/REQUEST_PLUGIN_ROUTING.md)
+
+**Residualer (TPM-accepterade):** S3 non-atomic send; S4 unencrypted `extra_data`; S5 public description sanitizer optional
+
+---
+
 ## 2026-08-23 – Contacts Linked: Garments-listor
 
 **Status:** Implementerat lokalt. **Ej QA/Security.** **Ej prod-release.**

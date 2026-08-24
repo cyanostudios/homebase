@@ -6,7 +6,7 @@ import { useApp } from '@/core/api/AppContext';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
-import { GARMENTS_SUBPAGE_SET } from '@/core/routing/garmentsRoutes';
+import { GARMENTS_SUBPAGE_SET, resolveGarmentPanelClosePath } from '@/core/routing/garmentsRoutes';
 import { pathToNavPage } from '@/core/routing/routeMap';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
@@ -61,7 +61,7 @@ export function GarmentProvider({
   const location = useLocation();
   const navigate = useNavigate();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
-  const { navigateToItem, navigateToBase } = useItemUrl('/garments');
+  const { navigateToItem } = useItemUrl('/garments');
 
   const [isGarmentPanelOpen, setIsGarmentPanelOpen] = useState(false);
   const [currentGarment, setCurrentGarment] = useState<GarmentList | null>(null);
@@ -132,10 +132,13 @@ export function GarmentProvider({
   }, [location.pathname, garmentsContentView]);
 
   const closeGarmentPanel = useCallback(() => {
+    // Prefer window.location: handlePageChange navigates first, then closes
+    // panels in the same tick — React's location is still the list item URL.
+    const pathname = window.location.pathname;
     const returnToInventory =
       panelKind === 'inventory' ||
       garmentsContentView === 'inventory' ||
-      location.pathname.startsWith('/garments/inventory');
+      pathname.startsWith('/garments/inventory');
     setIsGarmentPanelOpen(false);
     setCurrentGarment(null);
     setCurrentInventoryItem(null);
@@ -144,18 +147,12 @@ export function GarmentProvider({
     clearValidationErrors();
     if (returnToInventory) {
       setGarmentsContentView('inventory');
-      navigate('/garments/inventory');
-    } else {
-      navigateToBase();
     }
-  }, [
-    clearValidationErrors,
-    garmentsContentView,
-    location.pathname,
-    navigate,
-    navigateToBase,
-    panelKind,
-  ]);
+    const target = resolveGarmentPanelClosePath(pathname, { returnToInventory });
+    if (target) {
+      navigate(target);
+    }
+  }, [clearValidationErrors, garmentsContentView, navigate, panelKind]);
 
   useEffect(() => {
     registerPanelCloseFunction('garments', closeGarmentPanel);

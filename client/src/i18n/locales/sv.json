@@ -2592,7 +2592,9 @@
       "searchContact": "Sök kontakter...",
       "addAssigneePlaceholder": "Sök och lägg till tilldelad...",
       "internalNotesPlaceholder": "Interna anteckningar (ej synliga för inlämnaren)...",
-      "attachmentsAfterSave": "Spara ärendet först för att kunna ladda upp bilagor."
+      "attachmentsAfterSave": "Spara ärendet först för att kunna ladda upp bilagor.",
+      "pluginDetails": "Pluginuppgifter",
+      "pluginDetailsHint": "Dessa fält används när ärendet skickas till den kopplade listan."
     },
     "view": {
       "information": "Information",
@@ -2612,7 +2614,17 @@
       "team": "Lag",
       "deleteRequest": "Radera ärende",
       "deleteConfirm": "Radera \"{{title}}\"? Åtgärden kan inte ångras.",
-      "openContact": "Öppna kontakt: {{name}}"
+      "openContact": "Öppna kontakt: {{name}}",
+      "submittedDetails": "Inskickade uppgifter",
+      "noSubmittedDetails": "Inga kläduppgifter inskickade",
+      "sendToList": "Skicka till lista",
+      "sendToListConfirmTitle": "Skicka till lista?",
+      "sendToListConfirm": "Skicka ärendet till \"{{listName}}\"? En person skapas från inskickade uppgifter och ärendet markeras som klart.",
+      "sendToListConfirmAction": "Skicka",
+      "sendToListSuccess": "Skickad till {{listName}}",
+      "sendToListError": "Kunde inte skicka till listan. Försök igen.",
+      "openTargetList": "Öppna lista",
+      "unknownList": "Lista #{{id}}"
     },
     "settings": {
       "title": "Ärendeinställningar",
@@ -2622,7 +2634,29 @@
       "addType": "Lägg till",
       "addTypePlaceholder": "Ny typnamn...",
       "noTypes": "Inga typer konfigurerade.",
-      "confirmRemove": "Ta bort denna typ?"
+      "confirmRemove": "Ta bort denna typ?",
+      "linkSection": "Koppling till plugin",
+      "destination": "Destination",
+      "linkNone": "Ingen",
+      "linkGarments": "Kläder",
+      "linkedToGarments": "Kopplad till Kläder",
+      "targetList": "Mållista",
+      "targetListPlaceholder": "Välj en lista…",
+      "targetListEmpty": "Skapa en klädlista först.",
+      "targetListMissing": "Listan saknas (borttagen)",
+      "targetListMissingHint": "Välj en annan lista innan inskickare kan routas.",
+      "intakeFieldsHint": "Fält som samlas in i det publika formuläret",
+      "linkHint": "Inskickare fyller i dessa fält; personal kan skicka ärendet till listan.",
+      "teamLists": "Laglistor",
+      "otherLists": "Övriga listor",
+      "unlinkConfirm": "Ta bort klädkopplingen för den här typen?",
+      "saveError": "Kunde inte spara ärendetyper. Försök igen."
+    },
+    "public": {
+      "intakeStepTitle": "Berätta om personen",
+      "intakeStepSubtitle": "Storlekar och tröjuppgifter hjälper oss förbereda klädlistan.",
+      "intakeNameHint": "Namn på personen i klädlistan",
+      "contactStepPrefillHint": "Används om vi behöver nå dig"
     },
     "quickContext": {
       "eyebrow": "Valt ärende",

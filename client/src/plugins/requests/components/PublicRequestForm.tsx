@@ -12,14 +12,14 @@ import {
   UserPlus,
   type LucideIcon,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { requestsApi } from '../api/requestsApi';
 import type { PublicTeam } from '../types/requests';
-import { DEFAULT_REQUEST_TYPES } from '../types/requests';
 import { resolvePublicRequestTypes, resolvePublicWebsiteHref } from '../utils/publicBranding';
+import type { PublicRequestType } from '../utils/requestTypeConfig';
 
 type Step = 1 | 2 | 3;
 
@@ -77,7 +77,9 @@ const BUILTIN_TYPE_META: Record<string, TypeMeta> = {
 };
 
 function resolveTypeMeta(type: string): TypeMeta {
-  if (BUILTIN_TYPE_META[type]) return BUILTIN_TYPE_META[type];
+  if (BUILTIN_TYPE_META[type]) {
+    return BUILTIN_TYPE_META[type];
+  }
   return {
     icon: Tag,
     labelEn: type,
@@ -89,6 +91,17 @@ function resolveTypeMeta(type: string): TypeMeta {
 
 const fieldClassName =
   'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500';
+
+const INTAKE_LABELS: Record<string, { en: string; sv: string }> = {
+  name: { en: 'Name', sv: 'Namn' },
+  shirtSize: { en: 'Shirt', sv: 'Tröja' },
+  shortsSize: { en: 'Shorts', sv: 'Shorts' },
+  socksSize: { en: 'Socks', sv: 'Strumpor' },
+  jerseyNumber: { en: 'No.', sv: 'Nr' },
+  jerseyName: { en: 'Name on jersey', sv: 'Namn på tröja' },
+  initials: { en: 'Initials', sv: 'Initialer' },
+  comment: { en: 'Comment', sv: 'Kommentar' },
+};
 
 interface PublicRequestFormProps {
   lang?: 'en' | 'sv';
@@ -106,6 +119,10 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
       step1Subtitle: 'Välj det alternativ som bäst beskriver ditt ärende.',
       step2Title: 'Berätta mer',
       step2Subtitle: 'En kort rubrik räcker — beskrivningen är valfri.',
+      intakeStepTitle: 'Berätta om personen',
+      intakeStepSubtitle: 'Storlekar och tröjuppgifter hjälper oss förbereda klädlistan.',
+      intakeNameHint: 'Namn på personen i klädlistan',
+      contactStepPrefillHint: 'Används om vi behöver nå dig',
       step3Title: 'Hur når vi dig?',
       step3Subtitle: 'Valfritt, men underlättar om vi behöver kontakta dig.',
       team: 'Gäller lag (valfritt)',
@@ -125,6 +142,7 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
       errorGeneral: 'Något gick fel. Försök igen.',
       requiredTitle: 'Rubrik är obligatorisk.',
       requiredType: 'Välj ett alternativ för att fortsätta.',
+      requiredIntake: 'Fyll i obligatoriska fält.',
       toWebsite: 'To website',
       contactEmail: 'Email',
     };
@@ -137,6 +155,10 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
       step1Subtitle: 'Pick the option that best describes your request.',
       step2Title: 'Tell us more',
       step2Subtitle: 'A short title is enough — description is optional.',
+      intakeStepTitle: 'Tell us about the person',
+      intakeStepSubtitle: 'Sizes and jersey details help us prepare the kit list.',
+      intakeNameHint: 'Name of the person on the kit list',
+      contactStepPrefillHint: 'Used if we need to reach you',
       step3Title: 'How can we reach you?',
       step3Subtitle: 'Optional, but helpful if we need to contact you.',
       team: 'Related team (optional)',
@@ -156,15 +178,24 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
       errorGeneral: 'Something went wrong. Please try again.',
       requiredTitle: 'Title is required.',
       requiredType: 'Select an option to continue.',
+      requiredIntake: 'Please fill in required fields.',
       toWebsite: 'To website',
       contactEmail: 'Email',
     };
     return (lang === 'sv' ? sv : en)[key] || key;
   };
 
+  const intakeLabel = (fieldKey: string): string => {
+    const labels = INTAKE_LABELS[fieldKey];
+    if (!labels) {
+      return fieldKey;
+    }
+    return lang === 'sv' ? labels.sv : labels.en;
+  };
+
   const [step, setStep] = useState<Step>(1);
   const [teams, setTeams] = useState<PublicTeam[]>([]);
-  const [requestTypes, setRequestTypes] = useState<string[]>(DEFAULT_REQUEST_TYPES);
+  const [requestTypes, setRequestTypes] = useState<PublicRequestType[]>([]);
   const [branding, setBranding] = useState<{
     name: string;
     logoUrl: string;
@@ -184,10 +215,12 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
     name: '',
     email: '',
   });
+  const [extraData, setExtraData] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const prefilledSubmitterFromIntake = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -198,11 +231,13 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
         logoUrl: '',
         website: '',
         email: '',
-        requestTypes: [] as string[],
+        requestTypes: [] as PublicRequestType[],
       })),
     ])
       .then(([list, brand]) => {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         setTeams(list);
         setBranding({
           name: brand.name,
@@ -213,20 +248,68 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
         setRequestTypes(resolvePublicRequestTypes(brand.requestTypes));
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const selectedType = useMemo(
+    () => requestTypes.find((type) => type.key === form.requestType) ?? null,
+    [requestTypes, form.requestType],
+  );
+
+  const isGarmentsIntake =
+    selectedType?.plugin === 'garments' &&
+    Array.isArray(selectedType.intakeSchema) &&
+    selectedType.intakeSchema.length > 0;
+
+  const intakeSchema = isGarmentsIntake ? selectedType!.intakeSchema! : [];
+
+  const derivedTitle = useMemo(() => {
+    if (!isGarmentsIntake) {
+      return form.title.trim();
+    }
+    const name = (extraData.name || '').trim();
+    const jersey = (extraData.jerseyNumber || '').trim();
+    if (name && jersey) {
+      return `${name} (#${jersey})`;
+    }
+    return name;
+  }, [isGarmentsIntake, form.title, extraData.name, extraData.jerseyNumber]);
+
   const canProceedStep1 = Boolean(form.requestType);
-  const canProceedStep2 = Boolean(form.title.trim());
+  const canProceedStep2 = isGarmentsIntake
+    ? intakeSchema.every((field) => {
+        if (field.required !== true) {
+          return true;
+        }
+        return Boolean((extraData[field.key] || '').trim());
+      }) && Boolean(derivedTitle)
+    : Boolean(form.title.trim());
+
+  const selectRequestType = (typeKey: string) => {
+    setError('');
+    setForm((prev) => ({
+      ...prev,
+      requestType: typeKey,
+      title: '',
+      description: '',
+    }));
+    setExtraData({});
+    prefilledSubmitterFromIntake.current = false;
+  };
 
   const goBack = () => {
     setError('');
-    if (step === 2) setStep(1);
-    else if (step === 3) setStep(2);
+    if (step === 2) {
+      setStep(1);
+    } else if (step === 3) {
+      setStep(2);
+    }
   };
 
   const goNext = () => {
@@ -241,8 +324,18 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
     }
     if (step === 2) {
       if (!canProceedStep2) {
-        setError(t('requiredTitle'));
+        setError(isGarmentsIntake ? t('requiredIntake') : t('requiredTitle'));
         return;
+      }
+      if (isGarmentsIntake && !prefilledSubmitterFromIntake.current) {
+        const intakeName = (extraData.name || '').trim();
+        if (intakeName) {
+          setForm((prev) => ({
+            ...prev,
+            name: prev.name.trim() ? prev.name : intakeName,
+          }));
+          prefilledSubmitterFromIntake.current = true;
+        }
       }
       setStep(3);
     }
@@ -256,20 +349,29 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
       setStep(1);
       return;
     }
-    if (!form.title.trim()) {
-      setError(t('requiredTitle'));
+    if (!canProceedStep2) {
+      setError(isGarmentsIntake ? t('requiredIntake') : t('requiredTitle'));
       setStep(2);
       return;
     }
     setIsSubmitting(true);
     try {
+      const payloadExtra: Record<string, string> | undefined = isGarmentsIntake
+        ? Object.fromEntries(
+            Object.entries(extraData)
+              .map(([key, value]) => [key, value.trim()])
+              .filter(([, value]) => Boolean(value)),
+          )
+        : undefined;
+
       await requestsApi.publicSubmit({
-        title: form.title.trim(),
-        description: form.description.trim() || undefined,
+        title: derivedTitle,
+        description: isGarmentsIntake ? undefined : form.description.trim() || undefined,
         request_type: form.requestType,
         team_id: form.teamId ? Number(form.teamId) : null,
         submitter_name: form.name.trim() || undefined,
         submitter_email: form.email.trim() || undefined,
+        extra_data: payloadExtra && Object.keys(payloadExtra).length > 0 ? payloadExtra : undefined,
       });
       setSubmitted(true);
       onSuccess?.();
@@ -280,9 +382,22 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
     }
   };
 
-  const stepTitle = step === 1 ? t('step1Title') : step === 2 ? t('step2Title') : t('step3Title');
+  const stepTitle =
+    step === 1
+      ? t('step1Title')
+      : step === 2
+        ? isGarmentsIntake
+          ? t('intakeStepTitle')
+          : t('step2Title')
+        : t('step3Title');
   const stepSubtitle =
-    step === 1 ? t('step1Subtitle') : step === 2 ? t('step2Subtitle') : t('step3Subtitle');
+    step === 1
+      ? t('step1Subtitle')
+      : step === 2
+        ? isGarmentsIntake
+          ? t('intakeStepSubtitle')
+          : t('step2Subtitle')
+        : t('step3Subtitle');
   const websiteHref = resolvePublicWebsiteHref(branding.website);
   const showContactMeta = Boolean(websiteHref || branding.email.trim());
 
@@ -369,21 +484,18 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
               {step === 1 && (
                 <div className="space-y-2.5" role="radiogroup" aria-label={t('step1Title')}>
                   {requestTypes.map((type) => {
-                    const meta = resolveTypeMeta(type);
+                    const meta = resolveTypeMeta(type.key);
                     const Icon = meta.icon;
-                    const selected = form.requestType === type;
+                    const selected = form.requestType === type.key;
                     const label = lang === 'sv' ? meta.labelSv : meta.labelEn;
                     const desc = lang === 'sv' ? meta.descSv : meta.descEn;
                     return (
                       <button
-                        key={type}
+                        key={type.key}
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        onClick={() => {
-                          setError('');
-                          setForm((p) => ({ ...p, requestType: type }));
-                        }}
+                        onClick={() => selectRequestType(type.key)}
                         className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors ${
                           selected
                             ? 'border-violet-600 bg-violet-50 ring-2 ring-violet-600'
@@ -452,33 +564,80 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
                     </div>
                   )}
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground">
-                      {t('subject')} <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={form.title}
-                      onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                      placeholder={t('subjectPlaceholder')}
-                      required
-                      autoFocus={isLoading || teams.length === 0}
-                      className={fieldClassName}
-                    />
-                  </div>
+                  {isGarmentsIntake ? (
+                    intakeSchema.map((field, index) => {
+                      const required = field.required === true;
+                      const isComment = field.key === 'comment';
+                      const isName = field.key === 'name';
+                      return (
+                        <div key={field.key} className="space-y-1.5">
+                          <label className="text-xs font-semibold text-muted-foreground">
+                            {intakeLabel(field.key)}
+                            {required ? <span className="text-red-500"> *</span> : null}
+                          </label>
+                          {isName ? (
+                            <p className="text-[11px] text-muted-foreground">
+                              {t('intakeNameHint')}
+                            </p>
+                          ) : null}
+                          {isComment ? (
+                            <textarea
+                              value={extraData[field.key] || ''}
+                              onChange={(e) =>
+                                setExtraData((prev) => ({ ...prev, [field.key]: e.target.value }))
+                              }
+                              rows={3}
+                              aria-required={required}
+                              autoFocus={index === 0 && (isLoading || teams.length === 0)}
+                              className={fieldClassName}
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={extraData[field.key] || ''}
+                              onChange={(e) =>
+                                setExtraData((prev) => ({ ...prev, [field.key]: e.target.value }))
+                              }
+                              required={required}
+                              aria-required={required}
+                              autoFocus={index === 0 && (isLoading || teams.length === 0)}
+                              className={fieldClassName}
+                            />
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          {t('subject')} <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={form.title}
+                          onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                          placeholder={t('subjectPlaceholder')}
+                          required
+                          autoFocus={isLoading || teams.length === 0}
+                          className={fieldClassName}
+                        />
+                      </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground">
-                      {t('description')}
-                    </label>
-                    <textarea
-                      value={form.description}
-                      onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                      placeholder={t('descriptionPlaceholder')}
-                      rows={4}
-                      className={fieldClassName}
-                    />
-                  </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          {t('description')}
+                        </label>
+                        <textarea
+                          value={form.description}
+                          onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                          placeholder={t('descriptionPlaceholder')}
+                          rows={4}
+                          className={fieldClassName}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -488,6 +647,11 @@ export function PublicRequestForm({ lang = 'sv', onSuccess }: PublicRequestFormP
                     <label className="text-xs font-semibold text-muted-foreground">
                       {t('name')}
                     </label>
+                    {isGarmentsIntake ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        {t('contactStepPrefillHint')}
+                      </p>
+                    ) : null}
                     <input
                       type="text"
                       value={form.name}

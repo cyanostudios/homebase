@@ -3,6 +3,11 @@ import React, { createContext, useContext } from 'react';
 import type { RequestPayload } from '../api/requestsApi';
 import { DEFAULT_REQUEST_TYPES } from '../types/requests';
 import type { Request, RequestValidationError } from '../types/requests';
+import type { RequestTypeConfig } from '../utils/requestTypeConfig';
+
+const DEFAULT_REQUEST_TYPE_CONFIGS: RequestTypeConfig[] = DEFAULT_REQUEST_TYPES.map((key) => ({
+  key,
+}));
 
 export type RequestsContextType = {
   isRequestPanelOpen: boolean;
@@ -11,8 +16,8 @@ export type RequestsContextType = {
   validationErrors: RequestValidationError[];
   requests: Request[];
   requestsContentView: 'list' | 'settings';
-  requestTypes: string[];
-  saveRequestTypes: (types: string[]) => Promise<void>;
+  requestTypes: RequestTypeConfig[];
+  saveRequestTypes: (types: RequestTypeConfig[]) => Promise<void>;
   isSaving: boolean;
   refreshRequests: () => Promise<void>;
 
@@ -26,6 +31,8 @@ export type RequestsContextType = {
   createRequest: (data: RequestPayload) => Promise<Request>;
   deleteRequest: (id: string) => Promise<void>;
   deleteRequests: (ids: string[]) => Promise<void>;
+  /** Route garments-linked request to target list; updates local state. */
+  sendRequestToList: (id: string) => Promise<Request>;
 
   selectedRequestIds: string[];
   toggleRequestSelected: (id: string) => void;
@@ -63,7 +70,7 @@ const EMPTY_REQUESTS_CONTEXT: RequestsContextType = {
   validationErrors: [],
   requests: [],
   requestsContentView: 'list',
-  requestTypes: DEFAULT_REQUEST_TYPES,
+  requestTypes: DEFAULT_REQUEST_TYPE_CONFIGS,
   saveRequestTypes: async () => {},
   isSaving: false,
   refreshRequests: async () => {},
@@ -77,6 +84,7 @@ const EMPTY_REQUESTS_CONTEXT: RequestsContextType = {
   createRequest: async () => ({}) as Request,
   deleteRequest: async () => {},
   deleteRequests: async () => {},
+  sendRequestToList: async () => ({}) as Request,
   selectedRequestIds: [],
   toggleRequestSelected: () => {},
   selectAllRequests: () => {},
