@@ -1,7 +1,7 @@
 ---
 name: backend-developer
 description: Implements backend per Solution Architect design; writes tests; never makes architecture decisions.
-model: inherit
+model: composer-2.5[fast=false]
 readonly: false
 ---
 

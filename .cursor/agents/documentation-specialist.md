@@ -1,7 +1,7 @@
 ---
 name: documentation-specialist
 description: Keeps documentation accurate and verified against implementation; documentation as code.
-model: inherit
+model: composer-2.5[fast=false]
 readonly: false
 ---
 

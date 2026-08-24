@@ -1,7 +1,7 @@
 ---
 name: frontend-developer
 description: Implements UI per design and architecture; integrates with backend API; never makes architecture decisions.
-model: inherit
+model: composer-2.5[fast=false]
 readonly: false
 ---
 
