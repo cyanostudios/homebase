@@ -20,6 +20,7 @@
 | Plugin List/View/Form / quick context (obligatorisk) | [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)                                                                               |
 | Plugin-standarder (obligatoriskt)                    | [`PLUGIN_DEVELOPMENT_STANDARDS_V2.md`](PLUGIN_DEVELOPMENT_STANDARDS_V2.md)                                                                                 |
 | UI/UX (V3 + list shell v3.6)                         | [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md)                                                                                                   |
+| Home dashboard (KPI / snabbåtgärder / diagram)       | [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md)                                                                                                                   |
 | Cross-plugin navigation (URL) + entity quick-info    | [`MENTIONS_AND_CROSS_PLUGIN_UI.md`](MENTIONS_AND_CROSS_PLUGIN_UI.md) § Entity quick-info popup, § Cross-plugin URL navigation                              |
 | Säkerhet, CSRF, `apiFetch`                           | [`SECURITY_GUIDELINES.md`](SECURITY_GUIDELINES.md)                                                                                                         |
 | Deploy (allmänt)                                     | [`DEPLOYMENT_V2.md`](DEPLOYMENT_V2.md)                                                                                                                     |
@@ -57,6 +58,7 @@ Cursor-baserat utvecklingsteam med roller, beslutsgrindar och Output Contract. *
 - **Cups distriktskatalog / onboarding:** `CUPS_DISTRICT_SOURCE_CATALOG.md`
 - **Cupappen drift (Docker, CUPS_DB_URL):** `CUPPAPPEN_RAILWAY_OPERATIONS.md`
 - **Public app template (nya SEO-sajter):** `PUBLIC_APP_TEMPLATE.md`, design: `PUBLIC_APP_DESIGN.md`
+- **Home dashboard (v1):** [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md)
 - **Lessons learned / agent-regler:** `LESSONS_LEARNED.md`
 
 ## Kod som dokumentationen ska matcha
@@ -72,6 +74,7 @@ Cursor-baserat utvecklingsteam med roller, beslutsgrindar och Output Contract. *
 | ESLint                             | `eslint.config.cjs` (flat config)                                                                                                                                                                                                                                                                    |
 | Prod build + SPA                   | `npm run build` → `dist/public/`                                                                                                                                                                                                                                                                     |
 | Plugin routes                      | `client/src/core/routing/routeMap.ts` (`/teams`, `/requests`, `/schedule`, …)                                                                                                                                                                                                                        |
+| Home dashboard                     | `client/src/core/ui/Dashboard.tsx` + `client/src/core/ui/dashboard/*` — [`HOME_DASHBOARD.md`](./HOME_DASHBOARD.md)                                                                                                                                                                                   |
 | Public request form                | SPA `/public/request` → `PublicRequestForm`; API `/api/requests/public/{teams,branding,submit}` + env `PUBLIC_REQUESTS_USER_ID`; optional garments intake via type link — [`REQUESTS_PLUGIN.md`](./REQUESTS_PLUGIN.md), ADR [`ai/adr/REQUEST_PLUGIN_ROUTING.md`](./ai/adr/REQUEST_PLUGIN_ROUTING.md) |
 | Requests / Garments operator notes | [`REQUESTS_PLUGIN.md`](./REQUESTS_PLUGIN.md), [`GARMENTS_PLUGIN.md`](./GARMENTS_PLUGIN.md)                                                                                                                                                                                                           |
 | Railway                            | `railway.toml`, `nixpacks.toml`                                                                                                                                                                                                                                                                      |
