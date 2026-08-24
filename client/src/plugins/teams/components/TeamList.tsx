@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
@@ -39,7 +40,6 @@ import { ListToolbar } from '@/core/ui/ListToolbar';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
 import type { Match } from '@/plugins/matches/types/match';
@@ -120,7 +120,6 @@ export function TeamList() {
   } = useTeams();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
-  const isCompactViewport = useMediaQuery('(max-width: 1023px)');
   const enabledPlugins = useEnabledPlugins();
   const hasMatchesPlugin = enabledPlugins.has('matches');
   const { matches } = useMatches();
@@ -135,7 +134,18 @@ export function TeamList() {
   const [listViewMode, setListViewModeState] = useState<TeamListViewMode>(
     getInitialTeamListViewMode,
   );
-  const [previewTeam, setPreviewTeam] = useState<Team | null>(null);
+
+  const {
+    previewItem: previewTeam,
+    setPreviewItem: setPreviewTeam,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'teams',
+    items: teams,
+    getItemId: (team) => String(team.id),
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -231,31 +241,13 @@ export function TeamList() {
     return [...filtered].sort((a, b) => compareTeamsByField(a, b, primarySort, sortOrder));
   }, [teams, search, genderFilter, activeFilters, t, primarySort, sortOrder]);
 
-  useEffect(() => {
-    if (!previewTeam) {
-      return;
-    }
-    const next = teams.find((team) => String(team.id) === String(previewTeam.id));
-    if (!next) {
-      setPreviewTeam(null);
-      return;
-    }
-    if (next !== previewTeam) {
-      setPreviewTeam(next);
-    }
-  }, [teams, previewTeam]);
-
-  const handleOpenForView = (team: Team) => attemptNavigation(() => openTeamForView(team));
-
-  const handleRowActivate = (team: Team) => {
-    if (isCompactViewport) {
-      handleOpenForView(team);
-      return;
-    }
-    setPreviewTeam(team);
+  const handleOpenForView = (team: Team) => {
+    markPendingAndOpen(team, () => attemptNavigation(() => openTeamForView(team)));
   };
 
-  const showQuickContext = Boolean(previewTeam) && !isCompactViewport;
+  const handleRowActivate = (team: Team) => {
+    activateRow(team, (item) => attemptNavigation(() => openTeamForView(item)));
+  };
 
   const isFilterActive = (filter: TeamListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: TeamListFilter) => {
@@ -528,6 +520,21 @@ export function TeamList() {
         />
 
         <div className="flex items-start gap-4">
+          {showQuickContext && previewTeam ? (
+            <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+              <TeamQuickContextPanel
+                team={previewTeam}
+                nextMatch={nextMatchByTeamId.get(String(previewTeam.id)) ?? null}
+                onClose={() => setPreviewTeam(null)}
+                onOpenFullProfile={() => handleOpenForView(previewTeam)}
+                onEdit={() => {
+                  markPendingAndOpen(previewTeam, () =>
+                    attemptNavigation(() => openTeamForEdit(previewTeam)),
+                  );
+                }}
+              />
+            </aside>
+          ) : null}
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <ListToolbar
               selectedCount={selectedCount}
@@ -705,17 +712,6 @@ export function TeamList() {
               })}
             />
           </div>
-          {showQuickContext && previewTeam ? (
-            <aside className="w-[min(100%,28rem)] shrink-0 lg:sticky lg:top-4">
-              <TeamQuickContextPanel
-                team={previewTeam}
-                nextMatch={nextMatchByTeamId.get(String(previewTeam.id)) ?? null}
-                onClose={() => setPreviewTeam(null)}
-                onOpenFullProfile={() => handleOpenForView(previewTeam)}
-                onEdit={() => attemptNavigation(() => openTeamForEdit(previewTeam))}
-              />
-            </aside>
-          ) : null}
         </div>
       </div>
     </div>

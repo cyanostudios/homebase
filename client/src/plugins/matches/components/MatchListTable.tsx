@@ -22,6 +22,7 @@ export type MatchListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedMatchId: string | null;
+  activeMatchId?: string | number | null;
 };
 
 function formatStart(value: string | null | undefined): string {
@@ -43,6 +44,7 @@ export function MatchListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedMatchId,
+  activeMatchId = null,
 }: MatchListTableProps) {
   useTimeFormat();
   const { t } = useTranslation();
@@ -116,6 +118,7 @@ export function MatchListTable({
           ? 'bg-green-50 dark:bg-green-950/30'
           : undefined
       }
+      isRowActive={(match) => activeMatchId != null && String(match.id) === String(activeMatchId)}
       selection={{
         isSelected,
         onCheckboxMouseDown,

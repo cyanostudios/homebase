@@ -247,6 +247,12 @@
     "deleteSlotFailed": "Could not delete slot",
     "deleteSlotsFailed": "Could not delete selected slots",
     "loadFailed": "Failed to load slots",
+    "quickContext": {
+      "openFullProfile": "Open full slot",
+      "contacts": "Contacts",
+      "readMore": "Read more",
+      "showLess": "Show less"
+    },
     "slotDatePassed": "This slot’s date has passed and is not visible for bookings",
     "visibleDisabledPast": "Past slots are not shown for public booking; visibility cannot be changed",
     "descriptionLabel": "Description",
@@ -329,6 +335,10 @@
     "statusFinished": "Finished",
     "statusDatePassed": "Past due",
     "openMatch": "Open match",
+    "quickContext": {
+      "openFullProfile": "Open full match",
+      "contacts": "Contacts"
+    },
     "resultText": "Result text",
     "team": "Team",
     "dateLabel": "Date",

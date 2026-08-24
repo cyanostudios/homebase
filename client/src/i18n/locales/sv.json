@@ -247,6 +247,12 @@
     "deleteSlotFailed": "Kunde inte ta bort sloten",
     "deleteSlotsFailed": "Kunde inte ta bort valda slots",
     "loadFailed": "Kunde inte ladda slots",
+    "quickContext": {
+      "openFullProfile": "Öppna hela sloten",
+      "contacts": "Kontakter",
+      "readMore": "Läs mer",
+      "showLess": "Visa mindre"
+    },
     "slotDatePassed": "Datumet för denna slot har passerat och visas inte för bokningar",
     "visibleDisabledPast": "Passerade slots visas inte för publik bokning; synlighet kan inte ändras",
     "descriptionLabel": "Beskrivning",
@@ -329,6 +335,10 @@
     "statusFinished": "Spelad",
     "statusDatePassed": "Datum passerat",
     "openMatch": "Öppna match",
+    "quickContext": {
+      "openFullProfile": "Öppna hela matchen",
+      "contacts": "Kontakter"
+    },
     "resultText": "Resultattext",
     "team": "Lag",
     "dateLabel": "Datum",

@@ -27,6 +27,7 @@ export type SlotListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyDuplicatedSlotId: string | null;
+  activeSlotId?: string | number | null;
 };
 
 export function SlotListTable({
@@ -41,6 +42,7 @@ export function SlotListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyDuplicatedSlotId,
+  activeSlotId = null,
 }: SlotListTableProps) {
   const { t } = useTranslation();
 
@@ -138,6 +140,7 @@ export function SlotListTable({
           ? 'bg-green-50 dark:bg-green-950/30'
           : undefined
       }
+      isRowActive={(slot) => activeSlotId != null && String(slot.id) === String(activeSlotId)}
       selection={{
         isSelected,
         onCheckboxMouseDown,

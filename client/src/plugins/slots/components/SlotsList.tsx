@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
@@ -84,6 +85,7 @@ import {
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import { SlotListItem } from './SlotListItem';
 import { SlotListTable } from './SlotListTable';
+import { SlotQuickContextPanel } from './SlotQuickContextPanel';
 import { SlotsSettingsView } from './SlotsSettingsView';
 
 type SortField = SlotSortField;
@@ -105,6 +107,7 @@ export function SlotsList() {
     slots,
     slotsContentView,
     openSlotForView,
+    openSlotForEdit,
     openSlotSettings,
     closeSlotSettingsView,
     deleteSlots,
@@ -279,7 +282,25 @@ export function SlotsList() {
 
   const isTableView = listViewMode === 'table';
 
-  const handleOpenForView = (slot: Slot) => attemptNavigation(() => openSlotForView(slot));
+  const {
+    previewItem: previewSlot,
+    setPreviewItem: setPreviewSlot,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'slots',
+    items: slots,
+    getItemId: (slot) => String(slot.id),
+  });
+
+  const handleOpenForView = (slot: Slot) => {
+    markPendingAndOpen(slot, () => attemptNavigation(() => openSlotForView(slot)));
+  };
+
+  const handleRowActivate = (slot: Slot) => {
+    activateRow(slot, (item) => attemptNavigation(() => openSlotForView(item)));
+  };
 
   const handleBulkDelete = useCallback(async () => {
     setDeleting(true);
@@ -508,218 +529,236 @@ export function SlotsList() {
           isLoading={deleting}
         />
 
-        <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={filteredAndSorted.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={onToggleAllVisible}
-              >
-                {t('common.selectAll')}
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('slots.searchPlaceholder', { count: slots.length })}
+        <div className="flex items-start gap-4">
+          {showQuickContext && previewSlot ? (
+            <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+              <SlotQuickContextPanel
+                slot={previewSlot}
+                onClose={() => setPreviewSlot(null)}
+                onOpenFullProfile={() => handleOpenForView(previewSlot)}
+                onEdit={() => {
+                  markPendingAndOpen(previewSlot, () =>
+                    attemptNavigation(() => openSlotForEdit(previewSlot)),
+                  );
+                }}
               />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
+            </aside>
+          ) : null}
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <ListToolbar
+              selectedCount={selectedCount}
+              showSelectAll={filteredAndSorted.length > 0}
+              selectAll={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  icon={CheckSquare}
+                  onClick={onToggleAllVisible}
+                >
+                  {t('common.selectAll')}
+                </Button>
+              }
+              search={
+                <ListSearchInput
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder={t('slots.searchPlaceholder', { count: slots.length })}
+                />
+              }
+              trailing={
+                <>
+                  {!isTableView ? (
+                    <div className="mr-1 flex items-center gap-1">
+                      <Select
+                        value={primarySort}
+                        onValueChange={(value) => handlePrimarySortChange(value as SortField)}
                       >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
+                        <SelectTrigger
+                          className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                          aria-label="Sort by"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent
+                          position="item-aligned"
+                          className="rounded-xl border-border/50 shadow-xl"
+                        >
+                          {SORT_FIELD_OPTIONS.map((option) => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              className="rounded-md text-xs"
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 px-0 text-xs"
+                        onClick={toggleSortOrder}
+                        aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                        title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                       >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        {sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  ) : null}
+                  <ListColumnLayoutToggle
+                    columnCount={columnCount}
+                    listViewMode={listViewMode}
+                    onSelectColumns={setColumnCount}
+                    onSelectTable={() => setListViewMode('table')}
+                    columnAriaLabel={(count) => t(`slots.columns${count}`)}
+                    tableAriaLabel={t('common.tableView')}
+                  />
+                </>
+              }
+              bulkActions={
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearSlotSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  {canSendMessages ? (
                     <Button
-                      type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                      icon={MessageSquare}
+                      onClick={openBulkMessageDialog}
+                      className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
                     >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
+                      {t('bulk.sendMessageTitle')}
                     </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`slots.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearSlotSelection}
-                  type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                {canSendMessages ? (
+                  ) : null}
+                  {canSendEmail ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Mail}
+                      onClick={openBulkEmailDialog}
+                      className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                    >
+                      {t('bulk.sendEmailTitle')}
+                    </Button>
+                  ) : null}
                   <Button
                     variant="ghost"
                     size="sm"
-                    icon={MessageSquare}
-                    onClick={openBulkMessageDialog}
+                    icon={SlidersHorizontal}
+                    onClick={() => setShowBulkPropertiesDialog(true)}
                     className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
                   >
-                    {t('bulk.sendMessageTitle')}
+                    {t('slots.properties')}
                   </Button>
-                ) : null}
-                {canSendEmail ? (
                   <Button
                     variant="ghost"
                     size="sm"
-                    icon={Mail}
-                    onClick={openBulkEmailDialog}
+                    icon={FileSpreadsheet}
+                    onClick={handleBulkExportCSV}
                     className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
                   >
-                    {t('bulk.sendEmailTitle')}
+                    {t('common.exportCsv')}
                   </Button>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={SlidersHorizontal}
-                  onClick={() => setShowBulkPropertiesDialog(true)}
-                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                >
-                  {t('slots.properties')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={FileSpreadsheet}
-                  onClick={handleBulkExportCSV}
-                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                >
-                  {t('common.exportCsv')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                >
-                  {t('common.delete')}
-                </Button>
-              </>
-            }
-          />
-
-          {filteredAndSorted.length === 0 ? (
-            <ListEmptyState
-              message={searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
-              createLabel={!searchTerm ? t('slots.addSlot') : undefined}
-              onCreate={
-                !searchTerm ? () => attemptNavigation(() => openSlotPanel(null)) : undefined
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
               }
             />
-          ) : isTableView ? (
-            <SlotListTable
-              slots={filteredAndSorted}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={handleOpenForView}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={onToggleAllVisible}
-              recentlyDuplicatedSlotId={recentlyDuplicatedSlotId}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((slot, index) => {
-                const selected = isSelected(slot.id);
-                return (
-                  <SlotListItem
-                    key={slot.id}
-                    slot={slot}
-                    selected={selected}
-                    highlighted={recentlyDuplicatedSlotId === String(slot.id)}
-                    onClick={() => handleOpenForView(slot)}
-                    columnCount={columnCount}
-                    checkbox={
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(slot.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={selected ? t('common.deselect') : t('common.select')}
-                      />
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
 
-          <ListFooterBar
-            meta={
-              <>
-                Showing {filteredAndSorted.length} of {slots.length} Slots
-              </>
-            }
-          />
+            {filteredAndSorted.length === 0 ? (
+              <ListEmptyState
+                message={searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
+                createLabel={!searchTerm ? t('slots.addSlot') : undefined}
+                onCreate={
+                  !searchTerm ? () => attemptNavigation(() => openSlotPanel(null)) : undefined
+                }
+              />
+            ) : isTableView ? (
+              <SlotListTable
+                slots={filteredAndSorted}
+                primarySort={primarySort}
+                sortOrder={sortOrder}
+                onSort={handleTableSort}
+                isSelected={isSelected}
+                onRowClick={handleRowActivate}
+                activeSlotId={previewSlot?.id ?? null}
+                onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                onCheckboxChange={onVisibleRowCheckboxChange}
+                allVisibleSelected={allVisibleSelected}
+                onHeaderCheckboxChange={onToggleAllVisible}
+                recentlyDuplicatedSlotId={recentlyDuplicatedSlotId}
+              />
+            ) : (
+              <div
+                className={cn(
+                  'grid gap-3',
+                  columnCount === 1 && 'grid-cols-1',
+                  columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                  columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                )}
+              >
+                {filteredAndSorted.map((slot, index) => {
+                  const selected = isSelected(slot.id);
+                  return (
+                    <SlotListItem
+                      key={slot.id}
+                      slot={slot}
+                      selected={selected}
+                      highlighted={recentlyDuplicatedSlotId === String(slot.id)}
+                      active={previewSlot !== null && String(previewSlot.id) === String(slot.id)}
+                      onClick={() => handleRowActivate(slot)}
+                      columnCount={columnCount}
+                      checkbox={
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(slot.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 cursor-pointer"
+                          aria-label={selected ? t('common.deselect') : t('common.select')}
+                        />
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            <ListFooterBar
+              meta={
+                <>
+                  Showing {filteredAndSorted.length} of {slots.length} Slots
+                </>
+              }
+            />
+          </div>
         </div>
       </div>
     </div>

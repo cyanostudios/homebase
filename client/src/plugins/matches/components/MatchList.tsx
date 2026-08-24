@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { nextListTableSort } from '@/core/list/listViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
@@ -69,6 +70,7 @@ import {
 
 import { MatchListItem } from './MatchListItem';
 import { MatchListTable } from './MatchListTable';
+import { MatchQuickContextPanel } from './MatchQuickContextPanel';
 import { MatchSettingsView, type MatchSettingsCategory } from './MatchSettingsView';
 import { MatchesStatisticsView } from './MatchesStatisticsView';
 
@@ -93,6 +95,7 @@ export function MatchList() {
     matchesContentView,
     openMatchPanel,
     openMatchForView,
+    openMatchForEdit,
     openMatchSettings,
     closeMatchSettingsView,
     openMatchStatistics,
@@ -278,7 +281,25 @@ export function MatchList() {
     }
   };
 
-  const handleOpenForView = (match: Match) => attemptNavigation(() => openMatchForView(match));
+  const {
+    previewItem: previewMatch,
+    setPreviewItem: setPreviewMatch,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'matches',
+    items: matches,
+    getItemId: (match) => String(match.id),
+  });
+
+  const handleOpenForView = (match: Match) => {
+    markPendingAndOpen(match, () => attemptNavigation(() => openMatchForView(match)));
+  };
+
+  const handleRowActivate = (match: Match) => {
+    activateRow(match, (item) => attemptNavigation(() => openMatchForView(item)));
+  };
 
   const handleBulkDelete = async () => {
     if (selectedMatchIds.length === 0) {
@@ -439,178 +460,196 @@ export function MatchList() {
           isLoading={deleting}
         />
 
-        <div className="flex flex-col gap-3">
-          <ListToolbar
-            selectedCount={selectedCount}
-            showSelectAll={filteredAndSorted.length > 0}
-            selectAll={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
-                icon={CheckSquare}
-                onClick={handleHeaderCheckboxChange}
-              >
-                Select all
-              </Button>
-            }
-            search={
-              <ListSearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t('matches.searchPlaceholder', { count: matches.length })}
+        <div className="flex items-start gap-4">
+          {showQuickContext && previewMatch ? (
+            <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+              <MatchQuickContextPanel
+                match={previewMatch}
+                onClose={() => setPreviewMatch(null)}
+                onOpenFullProfile={() => handleOpenForView(previewMatch)}
+                onEdit={() => {
+                  markPendingAndOpen(previewMatch, () =>
+                    attemptNavigation(() => openMatchForEdit(previewMatch)),
+                  );
+                }}
               />
-            }
-            trailing={
-              <>
-                {!isTableView ? (
-                  <div className="mr-1 flex items-center gap-1">
-                    <Select
-                      value={primarySort}
-                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
-                        aria-label="Sort by"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="item-aligned"
-                        className="rounded-xl border-border/50 shadow-xl"
-                      >
-                        {SORT_FIELD_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="rounded-md text-xs"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 px-0 text-xs"
-                      onClick={toggleSortOrder}
-                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                    >
-                      {sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                ) : null}
-                <ListColumnLayoutToggle
-                  columnCount={columnCount}
-                  listViewMode={listViewMode}
-                  onSelectColumns={setColumnCount}
-                  onSelectTable={() => setListViewMode('table')}
-                  columnAriaLabel={(count) => t(`matches.columns${count}`)}
-                  tableAriaLabel={t('common.tableView')}
-                />
-              </>
-            }
-            bulkActions={
-              <>
+            </aside>
+          ) : null}
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <ListToolbar
+              selectedCount={selectedCount}
+              showSelectAll={filteredAndSorted.length > 0}
+              selectAll={
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={XCircle}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
-                  onClick={clearMatchSelection}
                   type="button"
-                >
-                  {t('common.clearSelection')}
-                </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  {t('bulk.selected', { count: selectedCount })}
-                </span>
-                <Button
                   variant="ghost"
                   size="sm"
-                  icon={Trash2}
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                  icon={CheckSquare}
+                  onClick={handleHeaderCheckboxChange}
                 >
-                  {t('common.delete')}
+                  Select all
                 </Button>
-              </>
-            }
-          />
-
-          {filteredAndSorted.length === 0 ? (
-            <ListEmptyState
-              message={searchTerm ? t('matches.noMatch') : t('matches.noYet')}
-              createLabel={!searchTerm ? t('matches.addMatch') : undefined}
-              onCreate={
-                !searchTerm ? () => attemptNavigation(() => openMatchPanel(null)) : undefined
+              }
+              search={
+                <ListSearchInput
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder={t('matches.searchPlaceholder', { count: matches.length })}
+                />
+              }
+              trailing={
+                <>
+                  {!isTableView ? (
+                    <div className="mr-1 flex items-center gap-1">
+                      <Select
+                        value={primarySort}
+                        onValueChange={(value) => handlePrimarySortChange(value as SortField)}
+                      >
+                        <SelectTrigger
+                          className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                          aria-label="Sort by"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent
+                          position="item-aligned"
+                          className="rounded-xl border-border/50 shadow-xl"
+                        >
+                          {SORT_FIELD_OPTIONS.map((option) => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              className="rounded-md text-xs"
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 px-0 text-xs"
+                        onClick={toggleSortOrder}
+                        aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                        title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                      >
+                        {sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  ) : null}
+                  <ListColumnLayoutToggle
+                    columnCount={columnCount}
+                    listViewMode={listViewMode}
+                    onSelectColumns={setColumnCount}
+                    onSelectTable={() => setListViewMode('table')}
+                    columnAriaLabel={(count) => t(`matches.columns${count}`)}
+                    tableAriaLabel={t('common.tableView')}
+                  />
+                </>
+              }
+              bulkActions={
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={XCircle}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                    onClick={clearMatchSelection}
+                    type="button"
+                  >
+                    {t('common.clearSelection')}
+                  </Button>
+                  <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                    {t('bulk.selected', { count: selectedCount })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setShowBulkDeleteModal(true)}
+                    className="h-9 px-3 text-xs text-red-600 underline decoration-red-600/50 hover:bg-red-50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
               }
             />
-          ) : isTableView ? (
-            <MatchListTable
-              matches={filteredAndSorted}
-              primarySort={primarySort}
-              sortOrder={sortOrder}
-              onSort={handleTableSort}
-              isSelected={isSelected}
-              onRowClick={handleOpenForView}
-              onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
-              onCheckboxChange={onVisibleRowCheckboxChange}
-              allVisibleSelected={allVisibleSelected}
-              onHeaderCheckboxChange={handleHeaderCheckboxChange}
-              recentlyDuplicatedMatchId={recentlyDuplicatedMatchId}
-            />
-          ) : (
-            <div
-              className={cn(
-                'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
-              )}
-            >
-              {filteredAndSorted.map((match, index) => {
-                const matchIsSelected = isSelected(match.id);
-                return (
-                  <MatchListItem
-                    key={match.id}
-                    match={match}
-                    selected={matchIsSelected}
-                    highlighted={recentlyDuplicatedMatchId === String(match.id)}
-                    columnCount={columnCount}
-                    onClick={() => handleOpenForView(match)}
-                    checkbox={
-                      <input
-                        type="checkbox"
-                        checked={matchIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
-                        onChange={() => onVisibleRowCheckboxChange(match.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label={matchIsSelected ? 'Unselect match' : 'Select match'}
-                      />
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
 
-          <ListFooterBar
-            meta={
-              <>
-                Showing {filteredAndSorted.length} of {matches.length} Matches
-              </>
-            }
-          />
+            {filteredAndSorted.length === 0 ? (
+              <ListEmptyState
+                message={searchTerm ? t('matches.noMatch') : t('matches.noYet')}
+                createLabel={!searchTerm ? t('matches.addMatch') : undefined}
+                onCreate={
+                  !searchTerm ? () => attemptNavigation(() => openMatchPanel(null)) : undefined
+                }
+              />
+            ) : isTableView ? (
+              <MatchListTable
+                matches={filteredAndSorted}
+                primarySort={primarySort}
+                sortOrder={sortOrder}
+                onSort={handleTableSort}
+                isSelected={isSelected}
+                onRowClick={handleRowActivate}
+                activeMatchId={previewMatch?.id ?? null}
+                onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                onCheckboxChange={onVisibleRowCheckboxChange}
+                allVisibleSelected={allVisibleSelected}
+                onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                recentlyDuplicatedMatchId={recentlyDuplicatedMatchId}
+              />
+            ) : (
+              <div
+                className={cn(
+                  'grid gap-3',
+                  columnCount === 1 && 'grid-cols-1',
+                  columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                  columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                )}
+              >
+                {filteredAndSorted.map((match, index) => {
+                  const matchIsSelected = isSelected(match.id);
+                  return (
+                    <MatchListItem
+                      key={match.id}
+                      match={match}
+                      selected={matchIsSelected}
+                      highlighted={recentlyDuplicatedMatchId === String(match.id)}
+                      columnCount={columnCount}
+                      active={previewMatch !== null && String(previewMatch.id) === String(match.id)}
+                      onClick={() => handleRowActivate(match)}
+                      checkbox={
+                        <input
+                          type="checkbox"
+                          checked={matchIsSelected}
+                          onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                          onChange={() => onVisibleRowCheckboxChange(match.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 cursor-pointer"
+                          aria-label={matchIsSelected ? 'Unselect match' : 'Select match'}
+                        />
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            <ListFooterBar
+              meta={
+                <>
+                  Showing {filteredAndSorted.length} of {matches.length} Matches
+                </>
+              }
+            />
+          </div>
         </div>
       </div>
     </div>

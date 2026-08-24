@@ -40,7 +40,7 @@ describe('TeamList table view wiring', () => {
     expect(listSrc).toMatch(/previewTeam/);
     expect(listSrc).toMatch(/TeamQuickContextPanel/);
     expect(listSrc).toMatch(/handleRowActivate/);
-    expect(listSrc).toMatch(/isCompactViewport/);
+    expect(listSrc).toMatch(/useQuickContextPreview/);
     expect(listSrc).toMatch(/activeTeamId/);
     expect(tableSrc).toMatch(/activeTeamId/);
     expect(cardSrc).toMatch(/active/);
