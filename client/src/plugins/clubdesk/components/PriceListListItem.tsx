@@ -18,6 +18,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { PublicationStatus } from '../types/clubdesk';
 import type { ClubdeskPriceList } from '../types/priceList';
@@ -121,7 +122,7 @@ export function PriceListListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex min-w-0 items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             <Badge
               variant={isPublished ? 'default' : 'secondary'}
               className={cn(

@@ -103,7 +103,11 @@ export const RichTextContent: React.FC<RichTextContentProps> = ({
 
   if (!isHtml(text)) {
     // Legacy plain-text content – use the existing mention renderer
-    return <MentionContent content={text} mentions={mentions} onMentionClick={onMentionClick} />;
+    return (
+      <div className="min-w-0 max-w-full overflow-x-hidden break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
+        <MentionContent content={text} mentions={mentions} onMentionClick={onMentionClick} />
+      </div>
+    );
   }
 
   const sanitized = DOMPurify.sanitize(text, {
@@ -114,7 +118,7 @@ export const RichTextContent: React.FC<RichTextContentProps> = ({
   return (
     <div
       ref={ref}
-      className="rich-text-content text-sm leading-relaxed"
+      className="rich-text-content min-w-0 max-w-full overflow-x-hidden break-words text-sm leading-relaxed [overflow-wrap:anywhere]"
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );

@@ -18,7 +18,7 @@ import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -148,10 +148,10 @@ export const MailHistoryView: React.FC = () => {
   };
 
   return (
-    <div className="plugin-mail min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
+    <div className="plugin-mail min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
+      <div className="space-y-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">
               {t('mail.historyTitle', { defaultValue: 'Mail history' })}
             </h2>
@@ -204,7 +204,7 @@ export const MailHistoryView: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
           <ListFilterStatCard
             label="Total"
             value={stats.total}
@@ -267,6 +267,7 @@ export const MailHistoryView: React.FC = () => {
               placeholder={t('mail.searchPlaceholder', {
                 defaultValue: 'Search by recipient or subject...',
               })}
+              className="hidden md:block"
             />
           </div>
           {loading && mailHistory.length === 0 ? (
@@ -286,7 +287,7 @@ export const MailHistoryView: React.FC = () => {
               <Table rowBorders={false}>
                 <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
                   <TableRow>
-                    <TableHead className="w-12 text-xs">
+                    <TableHead className="hidden w-12 text-xs md:table-cell">
                       <input
                         ref={headerCheckboxRef}
                         type="checkbox"
@@ -319,7 +320,10 @@ export const MailHistoryView: React.FC = () => {
                         isSelected(entry.id) && 'bg-plugin-subtle',
                       )}
                     >
-                      <TableCell className="w-12 text-xs" onClick={(e) => e.stopPropagation()}>
+                      <TableCell
+                        className="hidden w-12 text-xs md:table-cell"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           className="h-4 w-4 cursor-pointer"

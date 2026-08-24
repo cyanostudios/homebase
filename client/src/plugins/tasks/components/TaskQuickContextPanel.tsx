@@ -298,7 +298,7 @@ export function TaskQuickContextPanel({
         variant="ghost"
         size="sm"
         icon={Edit}
-        className="h-8 w-8 shrink-0 p-0"
+        className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
         onClick={onEdit}
         aria-label={t('common.edit')}
         title={t('common.edit')}
@@ -319,18 +319,12 @@ export function TaskQuickContextPanel({
 
   return (
     <>
-      <Card
-        padding="none"
-        className={cn(
-          DETAIL_VIEW_CARD_CLASS,
-          'flex max-h-[calc(100vh-8rem)] min-w-0 flex-col overflow-hidden',
-        )}
-      >
+      <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex min-w-0 flex-col')}>
         <div className="border-b border-border/50 px-4 py-2.5">{identityHeader}</div>
 
         <div
           className={cn(
-            'min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4',
+            'min-w-0 overflow-x-hidden px-4 py-4',
             isFullView ? 'space-y-4' : 'space-y-6',
           )}
         >

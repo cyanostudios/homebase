@@ -1,4 +1,4 @@
-import { CheckSquare, ArrowDown, ArrowUp, Plus, Settings, Trash2, X, XCircle } from 'lucide-react';
+import { CheckSquare, ArrowDown, ArrowUp, Plus, Settings, Trash2, XCircle } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,12 +13,18 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -91,6 +97,11 @@ export const FileList: React.FC = () => {
   } = useFiles();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openFilePanel(null)),
+    onSettings: () => openFileSettings(),
+  });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
@@ -177,7 +188,9 @@ export const FileList: React.FC = () => {
     [primarySort, sortOrder],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const filteredAndSorted = useMemo(() => {
     const byFilter = files.filter((item: any) => fileMatchesListFilters(item, activeFilters));
@@ -264,39 +277,26 @@ export const FileList: React.FC = () => {
     return (
       <div className="plugin-files min-h-full bg-background">
         <div className="px-6 py-4">
-          <FileSettingsView
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeFileSettingsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
-          />
+          <FileSettingsView onClose={closeFileSettingsView} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="plugin-files min-h-full bg-background px-6 py-4">
+    <div className="plugin-files min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.files')}</h2>
             <p className="text-sm text-muted-foreground">{t('files.listDescription')}</p>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
             <Button
               variant="ghost"
               size="sm"
               icon={Settings}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={() => openFileSettings()}
               title={t('common.settings')}
             >
@@ -306,7 +306,7 @@ export const FileList: React.FC = () => {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openFilePanel(null))}
             >
               {t('files.addFile')}
@@ -314,7 +314,7 @@ export const FileList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
           <ListFilterStatCard
             label="Total"
             value={stats.total}
@@ -355,7 +355,7 @@ export const FileList: React.FC = () => {
           warningMessage={t('files.bulkDeleteWarning')}
         />
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 md:gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={filteredAndSorted.length > 0}
@@ -487,9 +487,9 @@ export const FileList: React.FC = () => {
             <div
               className={cn(
                 'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                effectiveColumnCount === 1 && 'grid-cols-1',
+                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
               )}
             >
               {filteredAndSorted.map((file: any, index: number) => {
@@ -500,7 +500,7 @@ export const FileList: React.FC = () => {
                     file={file}
                     selected={fileIsSelected}
                     onClick={() => handleOpenForView(file)}
-                    columnCount={columnCount}
+                    columnCount={effectiveCardColumnCount}
                     checkbox={
                       <input
                         type="checkbox"

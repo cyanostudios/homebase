@@ -7,7 +7,6 @@ import {
   Plus,
   Settings,
   Trash2,
-  X,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -23,13 +22,19 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -102,6 +107,11 @@ export function EstimateList() {
   } = useEstimates();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openEstimatePanel(null)),
+    onSettings: () => openEstimateSettings(),
+  });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -181,7 +191,9 @@ export function EstimateList() {
     [primarySort, sortOrder],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const sortedEstimates = useMemo(() => {
     const byFilter = estimates.filter((estimate) =>
@@ -347,40 +359,27 @@ export function EstimateList() {
     return (
       <div className="plugin-estimates min-h-full bg-background">
         <div className="px-6 py-4">
-          <EstimateSettingsView
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeEstimateSettingsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
-          />
+          <EstimateSettingsView onClose={closeEstimateSettingsView} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="plugin-estimates min-h-full bg-background px-6 py-4">
+    <div className="plugin-estimates min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.estimates')}</h2>
             <p className="text-sm text-muted-foreground">{t('estimates.listDescription')}</p>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
             <Button
               variant="ghost"
               size="sm"
               icon={Settings}
               onClick={() => openEstimateSettings()}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               title={t('common.settings')}
             >
               {t('common.settings')}
@@ -389,7 +388,7 @@ export function EstimateList() {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openEstimatePanel(null))}
             >
               {t('estimates.addEstimate')}
@@ -397,7 +396,7 @@ export function EstimateList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
           <ListFilterStatCard
             label="Total"
             value={stats.total}
@@ -437,7 +436,7 @@ export function EstimateList() {
           isLoading={deleting}
         />
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 md:gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={sortedEstimates.length > 0}
@@ -588,9 +587,9 @@ export function EstimateList() {
             <div
               className={cn(
                 'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                effectiveColumnCount === 1 && 'grid-cols-1',
+                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
               )}
             >
               {sortedEstimates.map((estimate, index) => {
@@ -601,7 +600,7 @@ export function EstimateList() {
                     estimate={estimate}
                     selected={estimateIsSelected}
                     highlighted={recentlyDuplicatedEstimateId === String(estimate.id)}
-                    columnCount={columnCount}
+                    columnCount={effectiveCardColumnCount}
                     onClick={() => handleOpenForView(estimate)}
                     onStatusChange={(status) => handleListStatusChange(estimate, status)}
                     checkbox={

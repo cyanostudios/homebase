@@ -1,4 +1,6 @@
+import { Info } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,7 +11,8 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { filesApi } from '@/plugins/files/api/filesApi';
 
@@ -40,6 +43,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
   { currentCup, currentItem, onSave, onCancel },
   ref,
 ) {
+  const { t } = useTranslation();
   const { validationErrors, clearValidationErrors } = useCups();
   const item = currentCup ?? currentItem ?? null;
   const [form, setForm] = useState({
@@ -139,11 +143,35 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
 
   return (
     <>
-      <DetailLayout>
+      <DetailLayout
+        sidebar={
+          item ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('cups.information', { defaultValue: 'Information' })}
+                icon={Info}
+                iconPlugin="cups"
+                subtleTitle
+                className="p-4"
+                collapsible
+              >
+                <div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">ID</span>
+                    <span className="font-mono font-semibold text-foreground">
+                      {formatDisplayNumber('cups', item.id)}
+                    </span>
+                  </div>
+                </div>
+              </DetailSection>
+            </Card>
+          ) : undefined
+        }
+      >
         <div className="space-y-3">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title="Cup details" className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="md:col-span-2">
                   <Label>Name</Label>
                   <Input

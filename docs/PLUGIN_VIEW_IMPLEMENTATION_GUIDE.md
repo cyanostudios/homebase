@@ -75,10 +75,10 @@ Do **not** put Delete / Duplicate / Export in the quick context panel.
 ### Layout structure
 
 ```
-Card (DETAIL_VIEW_CARD_CLASS, max-h, flex-col, overflow-hidden)
+Card (DETAIL_VIEW_CARD_CLASS, flex-col; natural height — no max-h / no internal scroll)
 ├── Header row (border-b, px-4 py-2.5)
 │     initials avatar | title | ExternalLink? | Edit | X?
-├── Scrollable body (px-4 py-4)
+├── Body (px-4 py-4) — grows with content; list scrollport sticks the aside (`lg:sticky lg:top-4 self-start`)
 │     updated timestamp
 │     2×2 fact grid (uppercase labels)
 │     domain list / inline editors
@@ -203,7 +203,7 @@ const { previewItem, setPreviewItem, showQuickContext, markPendingAndOpen, activ
 ```tsx
 <div className="flex items-start gap-4">
   {showQuickContext && previewItem ? (
-    <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+    <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
       <MyPluginQuickContextPanel
         item={previewItem}
         onClose={() => setPreviewItem(null)}
@@ -264,6 +264,8 @@ Full view renders inside core `DetailPanel` (wired by `AppContent` + `pluginRegi
 | `leftSidebar`     | Identity header + details/properties cards            |
 | `children` (main) | Primary working content when a third column is needed |
 | `sidebar`         | Actions, metadata, activity                           |
+
+Desktop columns share the same top edge (`items-start`); sticky preview belongs on the **list** quick-context aside, not on `DetailLayout` columns. On phone, column 3 (`sidebar` / `rightSidebar`) stacks last via `order-*`.
 
 Do **not** put primary content properties only in the right sidebar — see §6 in `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`.
 
@@ -333,15 +335,17 @@ Sidebar spacing: `space-y-4` (slots/garments) or `space-y-6` (tasks) — stay co
 
 ### Shared rules
 
-| Rule                              | Detail                                                                          |
-| --------------------------------- | ------------------------------------------------------------------------------- |
-| Same `DetailLayout`               | Same column structure as view (main + optional sidebar)                         |
-| Same card tokens                  | `DETAIL_VIEW_CARD_CLASS` per section                                            |
-| Same section titles/icons/order   | Details, variants, description, etc.                                            |
-| No bleed shell                    | No `md:-mx-6`, no extra outer padding — content sits in DetailPanel `px-6 py-4` |
-| No `PANEL_MAX_WIDTH` on form main | Avoid constraining create/edit differently from view                            |
-| Edit sidebar                      | Information card (ID/dates) only — **no** QuickActionsCard in edit              |
-| Create                            | Typically single column (no sidebar)                                            |
+| Rule                                 | Detail                                                                                                                                                        |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Same `DetailLayout`                  | Same column structure as view (main + optional sidebar)                                                                                                       |
+| Same card tokens                     | `DETAIL_VIEW_CARD_CLASS` per section                                                                                                                          |
+| Same section titles/icons/order      | Details, variants, description, etc.                                                                                                                          |
+| No bleed shell                       | No `md:-mx-6`, no extra outer padding — content sits in DetailPanel (`px-2 sm:px-3` phone / `px-6` pad/desktop)                                               |
+| No `PANEL_MAX_WIDTH` on form main    | Avoid constraining create/edit differently from view                                                                                                          |
+| No nested max-h scroll in form cards | Phone/desktop: form cards grow with content (same as view); page scroll only — do not use `max-h-[calc(100vh-…)]` + inner `overflow-y-auto` on identity cards |
+| Edit sidebar                         | Information card (ID/dates) only — **no** QuickActionsCard in edit                                                                                            |
+| Create                               | Typically single column (no sidebar)                                                                                                                          |
+| Field grids on phone                 | Prefer `grid-cols-1 … sm:grid-cols-2` / `md:grid-cols-2` so edit matches view stacking                                                                        |
 
 ### Inline Save / Cancel (required)
 

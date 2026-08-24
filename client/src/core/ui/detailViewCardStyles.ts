@@ -19,7 +19,7 @@ export const DETAIL_FIELD_LABEL_ICON_CLASS = 'h-3 w-3 shrink-0';
 export const DETAIL_FIELD_VALUE_CLASS = 'text-[14px] font-medium text-foreground';
 
 export const DETAIL_PROP_ROW_CLASS =
-  'flex flex-col gap-2 py-3 border-b border-border/50 last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-0';
+  'flex items-center justify-between gap-3 py-3 border-b border-border/50 last:border-0';
 
 export const DETAIL_NOTE_CALLOUT_CLASS = 'rounded-md bg-amber-50/70 p-3.5 dark:bg-amber-950/20';
 

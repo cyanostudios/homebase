@@ -61,7 +61,7 @@ export function CupListTable({
       {
         field: 'ingest',
         header: t('cups.columnDistrict'),
-        className: 'hidden sm:table-cell',
+        className: 'hidden md:table-cell',
         cell: (cup) => {
           const title = ingestTitleForCup(cup.ingest_source_id).trim();
           return (

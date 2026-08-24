@@ -13,7 +13,7 @@ export interface ItemNavigationProps {
 }
 
 const PAGER_BTN_CLASS =
-  'inline-flex h-7 w-7 items-center justify-center rounded-[6px] text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent';
+  'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent';
 
 export function ItemNavigation({
   onPrev,
@@ -36,7 +36,7 @@ export function ItemNavigation({
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
-      <span className="px-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">
+      <span className="min-w-0 flex-1 px-1.5 text-center text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-400 sm:flex-none">
         {label}
       </span>
       <button

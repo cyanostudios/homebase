@@ -11,7 +11,6 @@ import {
   Settings,
   Tag,
   UserCheck,
-  X,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -28,14 +27,20 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useOptionalActiveTimeTrackingContactId } from '@/core/widgets/time-tracking/TimeTrackingActivityContext';
@@ -126,6 +131,12 @@ export const ContactList: React.FC = () => {
   const { getSettings, updateSettings, settingsVersion, user } = useApp();
   const activeTimeTrackingContactId = useOptionalActiveTimeTrackingContactId();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openContactPanel(null)),
+    onSettings: () => openContactSettings(),
+  });
+
   const isCompactViewport = useMediaQuery('(max-width: 1023px)');
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
@@ -237,7 +248,9 @@ export const ContactList: React.FC = () => {
     [primarySort, sortOrder],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const sortedContacts = useMemo(() => {
     const timeCtx = {
@@ -444,23 +457,12 @@ export const ContactList: React.FC = () => {
   if (contactsContentView === 'settings') {
     return (
       <div className="plugin-contacts min-h-full bg-background">
-        <div className="px-6 py-4">
+        <div className="px-4 py-4 md:px-6">
           <ContactSettingsView
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
             renderCategoryButtonsInline
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeContactSettingsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
+            onClose={closeContactSettingsView}
           />
         </div>
       </div>
@@ -468,19 +470,19 @@ export const ContactList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-contacts min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+    <div className="plugin-contacts min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
+      <div className="space-y-3">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.contacts')}</h2>
             <p className="text-sm text-muted-foreground">{t('contacts.description')}</p>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
             <Button
               variant="ghost"
               size="sm"
               icon={Settings}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={() => openContactSettings()}
               title={t('contacts.settings')}
             >
@@ -490,7 +492,7 @@ export const ContactList: React.FC = () => {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openContactPanel(null))}
             >
               {t('contacts.addContact')}
@@ -498,7 +500,12 @@ export const ContactList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <div
+          className={cn(
+            LIST_FILTER_STAT_ROW_CLASS,
+            'md:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-5',
+          )}
+        >
           <ListFilterStatCard
             label={t('contacts.stats.total')}
             value={stats.total}
@@ -576,7 +583,7 @@ export const ContactList: React.FC = () => {
           onSuccess={clearContactSelection}
         />
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 md:gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={sortedContacts.length > 0}
@@ -743,7 +750,7 @@ export const ContactList: React.FC = () => {
 
           <div className="flex items-start gap-4">
             {showQuickContext && previewContact ? (
-              <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+              <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
                 <ContactQuickContextPanel
                   contact={previewContact}
                   availableTags={availableTags}
@@ -787,9 +794,9 @@ export const ContactList: React.FC = () => {
                 <div
                   className={cn(
                     'grid gap-3',
-                    columnCount === 1 && 'grid-cols-1',
-                    columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                    columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                    effectiveColumnCount === 1 && 'grid-cols-1',
+                    effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                    effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
                   )}
                 >
                   {sortedContacts.map((contact, index) => {
@@ -812,7 +819,7 @@ export const ContactList: React.FC = () => {
                         onClick={() => handleRowActivate(contact)}
                         hasTimeLogged={hasTimeLogged}
                         timeTrackingActive={timeTrackingActiveHere}
-                        columnCount={columnCount}
+                        columnCount={effectiveCardColumnCount}
                         checkbox={
                           <input
                             type="checkbox"

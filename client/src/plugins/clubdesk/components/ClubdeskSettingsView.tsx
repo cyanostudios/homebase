@@ -37,13 +37,13 @@ interface ClubdeskSettingsViewProps {
   onSelectedTabChange?: (tab: ClubdeskSettingsTab) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderTabButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 export function ClubdeskSettingsView({
   selectedTab,
   onSelectedTabChange,
-  inlineTrailing,
+  onClose,
 }: ClubdeskSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
@@ -145,7 +145,9 @@ export function ClubdeskSettingsView({
       categories={shellCategories}
       activeCategory={activeTab}
       onCategoryChange={(id) => setActiveTab(id as ClubdeskSettingsTab)}
-      trailing={inlineTrailing}
+      onClose={onClose}
+      onSave={isDirty ? () => void save() : undefined}
+      isSaving={isSaving}
       saveAction={
         isDirty ? (
           <SettingsHeaderSaveButton onClick={() => void save()} isSaving={isSaving} />

@@ -7,7 +7,9 @@
     "delete": "Delete",
     "edit": "Edit",
     "search": "Search",
+    "add": "Add",
     "clearSearch": "Clear search",
+    "mobileActions": "Mobile actions",
     "loading": "Loading...",
     "checking": "Checking…",
     "saving": "Saving...",
@@ -360,6 +362,7 @@
     "formatRequired": "A valid format is required for {{sport}}",
     "homeTeamLabel": "Home team",
     "awayTeamLabel": "Away team",
+    "matchupLabel": "Match",
     "created": "Created",
     "updated": "Updated",
     "timeLabel": "Time",
@@ -2469,7 +2472,52 @@
   },
   "dashboard": {
     "description": "A quick overview of your enabled plugins—open one below or from the sidebar.",
-    "noWidgets": "No widgets available. Enable plugins to see widgets here."
+    "noWidgets": "No widgets available. Enable plugins to see widgets here.",
+    "open": "Open →",
+    "quickActions": "Quick actions",
+    "upcomingActivity": "Upcoming activity",
+    "bookableSlots": "Bookable slots",
+    "teamsWithTraining": "Teams with training",
+    "sessionsPerWeek": "{{count}} sessions/week",
+    "taskStatus": "Task status",
+    "invoiceStatus": "Invoice status",
+    "teamStatus": "Team status",
+    "kpi": {
+      "openRequests": "Open requests",
+      "requestsSubtext": "{{total}} total",
+      "requestsSubtextExternal": "{{total}} total, {{external}} external",
+      "activeTasks": "Active tasks",
+      "tasksSubtext": "{{completed}} completed of {{total}}",
+      "upcomingMatches": "Upcoming matches",
+      "nextMatch": "Next: {{date}}",
+      "noUpcomingMatches": "No upcoming matches",
+      "teamsTotal": "Teams total",
+      "teamsSubtext": "{{active}} active, {{onBreak}} on break"
+    },
+    "actions": {
+      "requests": "Requests",
+      "tasks": "Tasks",
+      "matches": "Matches",
+      "schedule": "Schedule",
+      "slots": "Bookable slots"
+    },
+    "legend": {
+      "notStarted": "{{count}} not started",
+      "inProgress": "{{count}} in progress",
+      "completed": "{{count}} completed",
+      "active": "{{count}} active",
+      "onBreak": "{{count}} on break",
+      "dormant": "{{count}} dormant",
+      "draft": "{{count}} draft",
+      "sent": "{{count}} sent",
+      "paid": "{{count}} paid",
+      "overdue": "{{count}} overdue",
+      "invoicesTotal": "{{count}} invoices total"
+    },
+    "aria": {
+      "taskStatusChart": "Task status",
+      "teamStatusChart": "Team status"
+    }
   },
   "dialog": {
     "unsavedChanges": "Unsaved changes",

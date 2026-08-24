@@ -408,7 +408,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                         <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
                           {address.type || 'Address'}
                         </Badge>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                        <div className="grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-4">
                           {address.addressLine1 ? (
                             <div className="col-span-2">
                               <div className={FIELD_LABEL_CLASS}>Address</div>
@@ -558,7 +558,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         }
       >
         <div className="space-y-4">
-          {/* Contact Properties — divider list with colored pills */}
+          {/* Contact Properties — label + value on one row, plain text */}
           <Card padding="none" className={CARD_CLASS}>
             <DetailSection
               title={t('contacts.contactProperties')}
@@ -569,66 +569,51 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
               <div>
                 <div className={PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">Tax rate</span>
-                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                  <span className={cn(FIELD_VALUE_CLASS, 'text-right')}>
                     {isCompany ? (contact.taxRate ? `${contact.taxRate}%` : '—') : '0%'}
-                  </Badge>
+                  </span>
                 </div>
                 <div className={PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">Payment terms</span>
-                  <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                  <span className={cn(FIELD_VALUE_CLASS, 'text-right')}>
                     {contact.paymentTerms ? `${contact.paymentTerms} days` : '—'}
-                  </Badge>
+                  </span>
                 </div>
                 <div className={PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">Currency</span>
-                  <Badge className="border-0 rounded-md bg-indigo-50 text-indigo-700 font-semibold dark:bg-indigo-950/40 dark:text-indigo-300">
+                  <span className={cn(FIELD_VALUE_CLASS, 'text-right')}>
                     {contact.currency || '—'}
-                  </Badge>
+                  </span>
                 </div>
                 {isCompany ? (
                   <div className={PROP_ROW_CLASS}>
                     <span className="text-sm text-slate-500 dark:text-slate-400">F-tax</span>
-                    {contact.fTax === 'yes' ? (
-                      <Badge className="border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300">
-                        Registered
-                      </Badge>
-                    ) : (
-                      <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
-                        No
-                      </Badge>
-                    )}
+                    <span className={cn(FIELD_VALUE_CLASS, 'text-right')}>
+                      {contact.fTax === 'yes' ? 'Registered' : 'No'}
+                    </span>
                   </div>
                 ) : null}
                 <div className={PROP_ROW_CLASS}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">Assignable</span>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'h-2 w-2 shrink-0 rounded-full',
-                        contact.isAssignable ? 'bg-emerald-500' : 'bg-red-500',
-                      )}
-                      aria-hidden
-                    />
-                    <Select
-                      value={contact.isAssignable ? 'yes' : 'no'}
-                      onValueChange={(value) => {
-                        void setContactAssignable(contact, value === 'yes');
-                      }}
-                    >
-                      <SelectTrigger className="h-8 w-[180px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="yes">{t('contacts.assignableYes')}</SelectItem>
-                        <SelectItem value="no">{t('contacts.assignableNo')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select
+                    value={contact.isAssignable ? 'yes' : 'no'}
+                    onValueChange={(value) => {
+                      void setContactAssignable(contact, value === 'yes');
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[180px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">{t('contacts.assignableYes')}</SelectItem>
+                      <SelectItem value="no">{t('contacts.assignableNo')}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 {/* Tags row — draft edit; header Update calls onApplyTagsEdit */}
-                <div className={cn(PROP_ROW_CLASS, 'sm:items-start')}>
+                <div className={cn(PROP_ROW_CLASS, 'items-start')}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">Tags</span>
-                  <div className="flex min-w-0 flex-col items-stretch gap-1.5 sm:items-end sm:max-w-[70%]">
+                  <div className="flex min-w-0 max-w-[70%] flex-col items-end gap-1.5">
                     <Select
                       value={tagToAdd || '__add_tag__'}
                       onValueChange={(value) => {
@@ -639,7 +624,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                       }}
                       disabled={addableTags.length === 0}
                     >
-                      <SelectTrigger className="h-8 w-full sm:w-[160px] text-xs">
+                      <SelectTrigger className="h-8 w-[160px] text-xs">
                         <SelectValue placeholder="Add a tag..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -655,11 +640,12 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     </Select>
                     {tagError ? <p className="text-xs text-destructive">{tagError}</p> : null}
                     {displayTags.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                      <div className="flex flex-wrap justify-end gap-1.5">
                         {displayTags.map((item: string) => (
                           <Badge
                             key={item}
-                            className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                            variant="outline"
+                            className="flex items-center gap-1 rounded-md border-border/60 bg-transparent text-xs font-medium text-foreground"
                           >
                             <Tag className="h-3 w-3" />
                             {item}
@@ -716,7 +702,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                           </div>
                         </div>
                         {person.email || person.phone ? (
-                          <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                          <div className="grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-8">
                             {person.email ? (
                               <div>
                                 <div className={FIELD_LABEL_CLASS}>Email</div>

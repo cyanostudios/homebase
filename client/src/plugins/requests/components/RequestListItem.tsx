@@ -11,6 +11,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { htmlToPlainTextWithBreaks } from '@/core/utils/textUtils';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { Request, RequestPriority, RequestStatus } from '../types/requests';
 import { REQUEST_SOURCE_COLORS, getTypeLabel } from '../types/requests';
@@ -128,7 +129,7 @@ export function RequestListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             <Badge variant="outline" className={cn(BADGE_CLASS, 'bg-muted text-muted-foreground')}>
               {typeLabel}
             </Badge>

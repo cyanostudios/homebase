@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
+import { useRegisterMobileSearch } from './MobileActionsContext';
+
 export interface ListSearchInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -13,7 +15,7 @@ export interface ListSearchInputProps {
   inputClassName?: string;
 }
 
-/** Shared list-toolbar search field with optional clear (X). */
+/** Shared list-toolbar search field with optional clear (X). Registers for mobile bottom-bar search. */
 export function ListSearchInput({
   value,
   onChange,
@@ -23,6 +25,8 @@ export function ListSearchInput({
 }: ListSearchInputProps) {
   const { t } = useTranslation();
   const hasValue = value.trim().length > 0;
+
+  useRegisterMobileSearch({ value, onChange, placeholder });
 
   return (
     <div className={cn('relative w-full max-w-md', className)}>

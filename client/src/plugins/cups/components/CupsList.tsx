@@ -8,7 +8,6 @@ import {
   Settings,
   SlidersHorizontal,
   Trash2,
-  X,
   XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -24,13 +23,19 @@ import {
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -113,6 +118,11 @@ export function CupsList() {
   } = useCups();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openCupPanel(null)),
+    onSettings: openCupSettings,
+  });
 
   const [search, setSearch] = useState('');
   const [primarySort, setPrimarySort] = useState<SortField>('updatedAt');
@@ -250,7 +260,9 @@ export function CupsList() {
     [primarySort, sortOrder],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const filtered = useMemo(() => {
     const todayStart = new Date();
@@ -429,18 +441,7 @@ export function CupsList() {
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
             renderCategoryButtonsInline
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeCupSettingsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
+            onClose={closeCupSettingsView}
           />
         </div>
       </div>
@@ -451,39 +452,26 @@ export function CupsList() {
     return (
       <div className="plugin-cups min-h-full bg-background">
         <div className="px-6 py-4">
-          <CupsStatisticsView
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeCupStatisticsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
-          />
+          <CupsStatisticsView onClose={closeCupStatisticsView} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="plugin-cups min-h-full bg-background px-6 py-4">
+    <div className="plugin-cups min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.cups')}</h2>
             <p className="text-sm text-muted-foreground">{t('cups.listDescription')}</p>
           </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1">
+          <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-2 md:w-auto md:gap-1">
             <Button
               variant="ghost"
               size="sm"
               icon={Download}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={openImportPicker}
             >
               {t('cups.importFromIngest')}
@@ -492,7 +480,7 @@ export function CupsList() {
               variant="ghost"
               size="sm"
               icon={BarChart2}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={() => openCupStatistics()}
               title={t('common.statistics')}
             >
@@ -502,7 +490,7 @@ export function CupsList() {
               variant="ghost"
               size="sm"
               icon={Settings}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={openCupSettings}
               title={t('common.settings')}
             >
@@ -512,7 +500,7 @@ export function CupsList() {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openCupPanel(null))}
             >
               {t('cups.addCup')}
@@ -522,8 +510,9 @@ export function CupsList() {
 
         <div
           className={cn(
-            'grid grid-cols-2 gap-3',
-            stats.removed > 0 ? 'md:grid-cols-5' : 'md:grid-cols-4',
+            LIST_FILTER_STAT_ROW_CLASS,
+            'md:grid-cols-2 md:gap-3',
+            stats.removed > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4',
           )}
         >
           <ListFilterStatCard
@@ -613,7 +602,7 @@ export function CupsList() {
           />
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 md:gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={filteredAndSorted.length > 0}
@@ -755,9 +744,9 @@ export function CupsList() {
             <div
               className={cn(
                 'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                effectiveColumnCount === 1 && 'grid-cols-1',
+                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
               )}
             >
               {filteredAndSorted.map((cup, index) => (
@@ -767,7 +756,7 @@ export function CupsList() {
                   selected={isSelected(cup.id)}
                   onClick={() => attemptNavigation(() => openCupForView(cup))}
                   ingestTitle={ingestTitleForCup(cup.ingest_source_id) || null}
-                  columnCount={columnCount}
+                  columnCount={effectiveCardColumnCount}
                   checkbox={
                     <input
                       type="checkbox"

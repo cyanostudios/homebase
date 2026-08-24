@@ -9,7 +9,6 @@ import {
   Settings,
   SlidersHorizontal,
   Trash2,
-  X,
   XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -29,13 +28,19 @@ import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelect
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { exportItems } from '@/core/utils/exportUtils';
 import { formatDateTime, formatDateTimeShort } from '@/core/utils/dateFormat';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -128,6 +133,11 @@ export function SlotsList() {
   const { contacts: hookContacts } = useContacts();
   const contacts = useMemo(() => appContacts ?? hookContacts ?? [], [appContacts, hookContacts]);
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openSlotPanel(null)),
+    onSettings: () => openSlotSettings(),
+  });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [primarySort, setPrimarySort] = useState<SortField>('slot_time');
@@ -280,7 +290,9 @@ export function SlotsList() {
     [primarySort, sortOrder],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const {
     previewItem: previewSlot,
@@ -405,18 +417,7 @@ export function SlotsList() {
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
             renderCategoryButtonsInline
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeSlotSettingsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
+            onClose={closeSlotSettingsView}
           />
         </div>
       </div>
@@ -424,19 +425,19 @@ export function SlotsList() {
   }
 
   return (
-    <div className="plugin-slots min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+    <div className="plugin-slots min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
+      <div className="space-y-3">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.slots')}</h2>
             <p className="text-sm text-muted-foreground">{t('slots.listDescription')}</p>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
             <Button
               variant="ghost"
               size="sm"
               icon={Settings}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={() => openSlotSettings()}
               title={t('slots.settings')}
             >
@@ -446,7 +447,7 @@ export function SlotsList() {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openSlotPanel(null))}
             >
               {t('slots.addSlot')}
@@ -454,7 +455,7 @@ export function SlotsList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
           <ListFilterStatCard
             label="Total"
             value={stats.total}
@@ -531,7 +532,7 @@ export function SlotsList() {
 
         <div className="flex items-start gap-4">
           {showQuickContext && previewSlot ? (
-            <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+            <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
               <SlotQuickContextPanel
                 slot={previewSlot}
                 onClose={() => setPreviewSlot(null)}
@@ -718,9 +719,9 @@ export function SlotsList() {
               <div
                 className={cn(
                   'grid gap-3',
-                  columnCount === 1 && 'grid-cols-1',
-                  columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                  columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                  effectiveColumnCount === 1 && 'grid-cols-1',
+                  effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                  effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
                 )}
               >
                 {filteredAndSorted.map((slot, index) => {
@@ -733,7 +734,7 @@ export function SlotsList() {
                       highlighted={recentlyDuplicatedSlotId === String(slot.id)}
                       active={previewSlot !== null && String(previewSlot.id) === String(slot.id)}
                       onClick={() => handleRowActivate(slot)}
-                      columnCount={columnCount}
+                      columnCount={effectiveCardColumnCount}
                       checkbox={
                         <input
                           type="checkbox"

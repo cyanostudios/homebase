@@ -58,7 +58,7 @@ export function renderDetailPanelHeaderRight({
 
   if (currentMode === 'view' && currentPluginContext && currentItem) {
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-1">
         {typeof currentPluginContext.navigateToPrevItem === 'function' &&
           typeof currentPluginContext.navigateToNextItem === 'function' &&
           currentPluginContext.totalItems > 1 &&
@@ -68,68 +68,71 @@ export function renderDetailPanelHeaderRight({
             hasPrev: currentPluginContext.hasPrevItem,
             hasNext: currentPluginContext.hasNextItem,
             label: `${currentPluginContext.currentItemIndex} / ${currentPluginContext.totalItems}`,
+            className: 'hidden md:inline-flex md:w-auto md:justify-center',
           })}
-        {hasViewQuickUpdate ? (
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
+          {hasViewQuickUpdate ? (
+            <Button
+              type="button"
+              onClick={() => {
+                if (
+                  pluginName === 'tasks' ||
+                  pluginName === 'estimates' ||
+                  pluginName === 'slots' ||
+                  pluginName === 'matches' ||
+                  pluginName === 'cups'
+                ) {
+                  currentPluginContext?.onApplyQuickEdit?.();
+                  return;
+                }
+                if (pluginName === 'contacts') {
+                  currentPluginContext?.onApplyTagsEdit?.();
+                }
+              }}
+              variant="primary"
+              size="sm"
+              icon={Check}
+              className="h-9 flex-1 px-3 text-xs border-none bg-green-600 text-white hover:bg-green-700 sm:flex-initial"
+            >
+              {t('common.update')}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handlers.handleEditItem}
+              variant="primary"
+              size="sm"
+              icon={Edit}
+              className="h-9 flex-1 px-3 text-xs sm:flex-initial"
+            >
+              {t('common.edit')}
+            </Button>
+          )}
           <Button
             type="button"
-            onClick={() => {
-              if (
-                pluginName === 'tasks' ||
-                pluginName === 'estimates' ||
-                pluginName === 'slots' ||
-                pluginName === 'matches' ||
-                pluginName === 'cups'
-              ) {
-                currentPluginContext?.onApplyQuickEdit?.();
-                return;
-              }
-              if (pluginName === 'contacts') {
-                currentPluginContext?.onApplyTagsEdit?.();
-              }
-            }}
-            variant="primary"
+            onClick={onDetailPanelClose}
+            variant="secondary"
             size="sm"
-            icon={Check}
-            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+            icon={X}
+            className="h-9 flex-1 px-3 text-xs sm:flex-initial"
           >
-            {t('common.update')}
+            {t('common.close')}
           </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={handlers.handleEditItem}
-            variant="primary"
-            size="sm"
-            icon={Edit}
-            className="h-9 text-xs px-3"
-          >
-            {t('common.edit')}
-          </Button>
-        )}
-        <Button
-          type="button"
-          onClick={onDetailPanelClose}
-          variant="secondary"
-          size="sm"
-          icon={X}
-          className="h-9 text-xs px-3"
-        >
-          {t('common.close')}
-        </Button>
+        </div>
       </div>
     );
   }
 
   if (currentMode === 'edit') {
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
         <Button
           type="button"
           onClick={handlers.handleCancelClick}
           variant="secondary"
           size="sm"
           icon={X}
-          className="h-9 text-xs px-3"
+          className="h-9 flex-1 px-3 text-xs sm:flex-initial"
         >
           {t('common.close')}
         </Button>
@@ -140,7 +143,7 @@ export function renderDetailPanelHeaderRight({
           size="sm"
           icon={Check}
           disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
-          className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+          className="h-9 flex-1 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:flex-initial"
         >
           {currentPluginContext?.isSaving ? t('common.saving') : t('common.update')}
         </Button>
@@ -150,14 +153,14 @@ export function renderDetailPanelHeaderRight({
 
   if (currentMode === 'create') {
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
         <Button
           type="button"
           onClick={handlers.handleCancelClick}
           variant="secondary"
           size="sm"
           icon={X}
-          className="h-9 text-xs px-3"
+          className="h-9 flex-1 px-3 text-xs sm:flex-initial"
         >
           {t('common.close')}
         </Button>
@@ -168,7 +171,7 @@ export function renderDetailPanelHeaderRight({
           size="sm"
           icon={Check}
           disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
-          className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+          className="h-9 flex-1 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:flex-initial"
         >
           {currentPluginContext?.isSaving ? t('common.saving') : t('common.save')}
         </Button>

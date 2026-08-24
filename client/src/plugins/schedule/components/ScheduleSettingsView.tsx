@@ -57,7 +57,7 @@ function ScheduleTitleWithLockStatus({
 }
 
 interface ScheduleSettingsViewProps {
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
   schedulePlans: SchedulePlansState;
   defaultScheduleDirty?: boolean;
   onDiscardDefaultChanges?: () => void;
@@ -238,7 +238,7 @@ function ScheduleAvailableHoursFields({
 }
 
 export function ScheduleSettingsView({
-  inlineTrailing,
+  onClose,
   schedulePlans,
   defaultScheduleDirty = false,
   onDiscardDefaultChanges,
@@ -525,7 +525,7 @@ export function ScheduleSettingsView({
         <PluginSettingsPageShell
           title={t('schedule.settings.title')}
           subtitle={t('schedule.settingsSubtitle')}
-          trailing={inlineTrailing}
+          onClose={onClose}
           wrapContentInCard={false}
         >
           <div className="space-y-4">

@@ -382,7 +382,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         variant="ghost"
         size="sm"
         icon={Edit}
-        className="h-8 w-8 shrink-0 p-0"
+        className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
         onClick={() => openNoteForEdit(note)}
         aria-label={t('common.edit')}
         title={t('common.edit')}
@@ -414,6 +414,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       padding="none"
       className={cn(
         DETAIL_VIEW_CARD_CLASS,
+        'min-w-0 overflow-x-hidden',
         focusMode && 'relative z-50 mx-auto w-full max-w-[1080px] shadow-lg',
       )}
     >
@@ -421,7 +422,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         <DetailSection
           title={(note.title || '').trim() || '—'}
           iconPlugin="notes"
-          className="p-6"
+          className="min-w-0 overflow-x-hidden p-6"
           prominentTitle
           action={contentHeaderActions}
         >
@@ -430,10 +431,17 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               {t('common.updated')} {updatedLabel}
             </p>
           ) : null}
-          <div className={cn(focusMode && 'min-h-[min(70vh,560px)]')}>{noteContent}</div>
+          <div
+            className={cn(
+              'min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden',
+              focusMode && 'min-h-[min(70vh,560px)]',
+            )}
+          >
+            {noteContent}
+          </div>
         </DetailSection>
       ) : (
-        <div className="p-6">
+        <div className="min-w-0 overflow-x-hidden p-6">
           <div className="mb-3 flex items-start justify-between gap-2">
             <div className="min-w-0">
               {updatedLabel ? (
@@ -444,7 +452,14 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
             </div>
             {contentHeaderActions}
           </div>
-          <div className={cn(focusMode && 'min-h-[min(70vh,560px)]')}>{noteContent}</div>
+          <div
+            className={cn(
+              'min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere] [&_.rich-text-content]:break-words [&_.rich-text-content]:[overflow-wrap:anywhere] [&_.rich-text-content_pre]:whitespace-pre-wrap [&_.rich-text-content_pre]:break-words [&_.rich-text-content_pre]:overflow-x-hidden',
+              focusMode && 'min-h-[min(70vh,560px)]',
+            )}
+          >
+            {noteContent}
+          </div>
         </div>
       )}
     </Card>
@@ -575,7 +590,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       ) : null}
 
       <DetailLayout sidebar={focusMode ? undefined : sidebar}>
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4 overflow-x-hidden">
           {contentColumn}
           {!focusMode ? (
             <>

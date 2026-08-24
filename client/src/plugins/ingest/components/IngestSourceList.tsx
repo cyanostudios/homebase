@@ -13,12 +13,18 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -70,6 +76,11 @@ export const IngestSourceList: React.FC = () => {
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openIngestPanel(null)),
+  });
+
   const {
     ingest,
     openIngestPanel,
@@ -162,7 +173,9 @@ export const IngestSourceList: React.FC = () => {
     [primarySort, sortOrder],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const filteredAndSorted = useMemo(() => {
     const byFilter = ingest.filter((s) => ingestMatchesListFilters(s, activeFilters));
@@ -239,10 +252,10 @@ export const IngestSourceList: React.FC = () => {
   const generalError = validationErrors.find((e) => e.field === 'general');
 
   return (
-    <div className="plugin-ingest min-h-full bg-background px-6 py-4">
+    <div className="plugin-ingest min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.ingest')}</h2>
             <p className="text-sm text-muted-foreground">{t('ingest.listDescription')}</p>
           </div>
@@ -257,7 +270,7 @@ export const IngestSourceList: React.FC = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
           <ListFilterStatCard
             label="Total"
             value={stats.total}
@@ -303,7 +316,7 @@ export const IngestSourceList: React.FC = () => {
           isLoading={deleting}
         />
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 md:gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={filteredAndSorted.length > 0}
@@ -437,9 +450,9 @@ export const IngestSourceList: React.FC = () => {
             <div
               className={cn(
                 'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                effectiveColumnCount === 1 && 'grid-cols-1',
+                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
               )}
             >
               {filteredAndSorted.map((source, index) => {
@@ -450,7 +463,7 @@ export const IngestSourceList: React.FC = () => {
                     source={source}
                     selected={sourceIsSelected}
                     onClick={() => handleOpenForView(source)}
-                    columnCount={columnCount}
+                    columnCount={effectiveCardColumnCount}
                     checkbox={
                       <input
                         type="checkbox"

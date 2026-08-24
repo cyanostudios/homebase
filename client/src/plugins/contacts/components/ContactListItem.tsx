@@ -10,6 +10,7 @@ import {
   DETAIL_LIST_ITEM_TITLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
@@ -109,7 +110,7 @@ export function ContactListItem({
       aria-label={`Open contact ${contact.companyName}`}
     >
       <div className="flex flex-col gap-2 p-4">
-        {checkbox ? <div className="flex">{checkbox}</div> : null}
+        <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge

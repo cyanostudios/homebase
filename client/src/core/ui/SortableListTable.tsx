@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ListTableSortIcon } from '@/core/ui/ListColumnLayoutToggle';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 export type SortableListTableColumn<TRow, TField extends string> = {
@@ -62,19 +63,22 @@ export function SortableListTable<TRow, TField extends string>({
   pluginName,
   dataListItem,
 }: SortableListTableProps<TRow, TField>) {
+  const isMobile = useIsMobile();
+  const effectiveSelection = isMobile ? undefined : selection;
+
   return (
     <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
       <Table rowBorders={false}>
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
-            {selection ? (
+            {effectiveSelection ? (
               <TableHead className="w-8 px-3 pr-1">
                 <input
                   type="checkbox"
-                  checked={selection.allVisibleSelected}
-                  onChange={selection.onHeaderCheckboxChange}
+                  checked={effectiveSelection.allVisibleSelected}
+                  onChange={effectiveSelection.onHeaderCheckboxChange}
                   className="h-4 w-4 cursor-pointer align-middle"
-                  aria-label={selection.selectAllAriaLabel}
+                  aria-label={effectiveSelection.selectAllAriaLabel}
                 />
               </TableHead>
             ) : null}
@@ -113,7 +117,7 @@ export function SortableListTable<TRow, TField extends string>({
         <TableBody>
           {rows.map((row, index) => {
             const id = getRowId(row);
-            const selected = selection ? selection.isSelected(id) : false;
+            const selected = effectiveSelection ? effectiveSelection.isSelected(id) : false;
             const active = isRowActive?.(row) ?? false;
             return (
               <TableRow
@@ -131,21 +135,21 @@ export function SortableListTable<TRow, TField extends string>({
                 role={onRowClick ? 'button' : undefined}
                 aria-label={rowAriaLabel?.(row)}
               >
-                {selection ? (
+                {effectiveSelection ? (
                   <TableCell className="w-8 px-3 py-4 pr-1" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selected}
-                      onMouseDown={(e) => selection.onCheckboxMouseDown(e, index)}
-                      onChange={() => selection.onCheckboxChange(id)}
+                      onMouseDown={(e) => effectiveSelection.onCheckboxMouseDown(e, index)}
+                      onChange={() => effectiveSelection.onCheckboxChange(id)}
                       onClick={(e) => e.stopPropagation()}
                       className="relative -top-[2px] h-4 w-4 cursor-pointer align-middle"
-                      aria-label={selection.selectRowAriaLabel(selected)}
+                      aria-label={effectiveSelection.selectRowAriaLabel(selected)}
                     />
                   </TableCell>
                 ) : null}
                 {columns.map((col, colIndex) => {
-                  const isFirstDataCol = Boolean(selection) && colIndex === 0;
+                  const isFirstDataCol = Boolean(effectiveSelection) && colIndex === 0;
                   return (
                     <TableCell
                       key={col.field}

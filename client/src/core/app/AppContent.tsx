@@ -258,19 +258,36 @@ export function AppContent() {
   const handlePageChange = useCallback(
     (page: NavPage) => {
       const path = navPageToPath[page];
+      const go = () => {
+        if (page === 'settings') {
+          const from = `${location.pathname}${location.search}`;
+          navigate(path, {
+            state: from !== path ? { from } : undefined,
+          });
+          return;
+        }
+        navigate(path);
+      };
       // In list view there is no active detail form, so navigation should be immediate.
       if (!isAnyPanelOpen) {
-        navigate(path);
+        go();
         return;
       }
 
       // Detail panel open: protect navigation with global unsaved-check, then hard-close panels.
       attemptNavigation(() => {
-        navigate(path);
+        go();
         closeOtherPanels();
       });
     },
-    [attemptNavigation, closeOtherPanels, isAnyPanelOpen, navigate],
+    [
+      attemptNavigation,
+      closeOtherPanels,
+      isAnyPanelOpen,
+      location.pathname,
+      location.search,
+      navigate,
+    ],
   );
 
   // URL → panel sync: back/forward button support.
@@ -485,6 +502,11 @@ export function AppContent() {
   const detailPanelSubtitle = panelTitles.getPanelSubtitle();
   const detailPanelContent = renderers.renderPanelContent();
   const detailPanelFooter = panelFooter;
+  const detailPanelContentKey = [
+    currentPlugin?.name ?? '',
+    currentMode,
+    currentItem?.id != null ? String(currentItem.id) : currentMode === 'create' ? 'new' : '',
+  ].join(':');
   const baseDetailPanelClose = handlers.getCloseHandler();
   const onDetailPanelClose =
     typeof currentPluginContext?.getCloseHandler === 'function' &&
@@ -535,6 +557,7 @@ export function AppContent() {
         detailPanelShowCloseButton={!useHeaderActionButtons}
         onDetailPanelClose={onDetailPanelClose}
         detailPanelPluginName={currentPlugin?.name}
+        detailPanelContentKey={detailPanelContentKey}
         contentFlush={currentPage === 'dashboard' || (currentPagePlugin?.contentFlush ?? false)}
       >
         {currentPage === 'dashboard' ? (

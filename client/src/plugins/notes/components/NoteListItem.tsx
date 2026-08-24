@@ -10,6 +10,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { htmlToPlainTextWithBreaks } from '@/core/utils/textUtils';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { Note } from '../types/notes';
 import type { NoteColumnCount } from '../utils/noteColumnCount';
@@ -103,7 +104,7 @@ export function NoteListItem({
       aria-label={`Open note ${note.title}`}
     >
       <div className="flex flex-col gap-2 p-4">
-        {checkbox ? <div className="flex">{checkbox}</div> : null}
+        <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
         {metaOnTop ? metaRow : null}
 
         <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>{note.title}</h3>

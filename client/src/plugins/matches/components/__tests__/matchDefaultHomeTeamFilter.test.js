@@ -20,7 +20,7 @@ describe('MatchList default home team filter wiring', () => {
     expect(listSrc).toMatch(/resolveMatchDefaultHomeTeam/);
     expect(listSrc).toMatch(/showHomeTeamFilter/);
     expect(listSrc).toMatch(/isFilterActive\('homeTeam'\)/);
-    expect(listSrc).toMatch(/md:grid-cols-5/);
+    expect(listSrc).toMatch(/lg:grid-cols-5/);
     expect(listSrc).toMatch(/toggleFilter\('homeTeam'\)/);
     expect(listSrc).toMatch(/toggleMatchListFilter/);
     expect(listSrc).toMatch(/matchMatchesListFilters/);

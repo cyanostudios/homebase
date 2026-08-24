@@ -1,6 +1,8 @@
+import { X } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -8,28 +10,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useMobileBarOverride } from '@/core/ui/MobileActionsContext';
 
 import { CupPageviewStats } from './stats/CupPageviewStats';
 
 const PERIOD_OPTIONS = [7, 30, 90] as const;
 
 interface CupsStatisticsViewProps {
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
-export function CupsStatisticsView({ inlineTrailing }: CupsStatisticsViewProps = {}) {
+export function CupsStatisticsView({ onClose }: CupsStatisticsViewProps = {}) {
   const { t } = useTranslation();
   const [days, setDays] = useState<number>(30);
+
+  useMobileBarOverride(onClose ? { onClose } : null);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-shrink-0 items-center justify-between gap-3">
-        <div className="mr-4 flex min-w-0 flex-1 items-center gap-4">
+        <div className="mr-4 hidden min-w-0 flex-1 items-center gap-4 md:flex">
           <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
             {t('cups.statistics.title')}
           </h2>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex w-full flex-shrink-0 items-center justify-end gap-2 md:w-auto">
           <Select
             value={String(days)}
             onValueChange={(value) => {
@@ -53,11 +58,24 @@ export function CupsStatisticsView({ inlineTrailing }: CupsStatisticsViewProps =
               ))}
             </SelectContent>
           </Select>
-          {inlineTrailing}
+          {onClose ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={X}
+              className="hidden h-9 px-3 text-xs md:inline-flex"
+              onClick={onClose}
+            >
+              {t('common.close')}
+            </Button>
+          ) : null}
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">{t('cups.statistics.description')}</p>
+      <p className="hidden text-sm text-muted-foreground md:block">
+        {t('cups.statistics.description')}
+      </p>
 
       <CupPageviewStats days={days} />
     </div>

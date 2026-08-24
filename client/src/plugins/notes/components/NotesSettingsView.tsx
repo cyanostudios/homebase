@@ -49,13 +49,13 @@ interface NotesSettingsViewProps {
   onSelectedCategoryChange?: (category: NotesSettingsCategory) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 export function NotesSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  inlineTrailing,
+  onClose,
 }: NotesSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
@@ -150,7 +150,9 @@ export function NotesSettingsView({
         categories={categories}
         activeCategory={activeCategory}
         onCategoryChange={(id) => setActiveCategory(id as NotesSettingsCategory)}
-        trailing={inlineTrailing}
+        onClose={onClose}
+        onSave={isDirty ? () => void handleSave() : undefined}
+        isSaving={isSaving}
         saveAction={
           isDirty ? (
             <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />

@@ -26,13 +26,13 @@ import {
 } from '../utils/estimateListViewMode';
 
 interface EstimateSettingsViewProps {
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 const COLUMN_OPTIONS: EstimateColumnCount[] = [1, 2, 3];
 const VIEW_MODE_OPTIONS: EstimateListViewMode[] = ['cards', 'table'];
 
-export function EstimateSettingsView({ inlineTrailing }: EstimateSettingsViewProps = {}) {
+export function EstimateSettingsView({ onClose }: EstimateSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
 
@@ -96,7 +96,9 @@ export function EstimateSettingsView({ inlineTrailing }: EstimateSettingsViewPro
     <PluginSettingsPageShell
       title={t('estimates.settingsTitle')}
       subtitle={t('estimates.settingsSubtitle')}
-      trailing={inlineTrailing}
+      onClose={onClose}
+      onSave={isDirty ? () => void handleSave() : undefined}
+      isSaving={isSaving}
       saveAction={
         isDirty ? (
           <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />

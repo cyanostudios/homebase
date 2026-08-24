@@ -8,17 +8,17 @@ import { PluginSettingsPageShell } from '@/core/ui/PluginSettingsPageShell';
 import { FileSettingsForm } from './FileSettingsForm';
 
 interface FileSettingsViewProps {
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
-export function FileSettingsView({ inlineTrailing }: FileSettingsViewProps = {}) {
+export function FileSettingsView({ onClose }: FileSettingsViewProps = {}) {
   const { t } = useTranslation();
 
   return (
     <PluginSettingsPageShell
       title={t('files.settingsTitle')}
       subtitle={t('files.settingsSubtitle')}
-      trailing={inlineTrailing}
+      onClose={onClose}
     >
       <FileSettingsForm />
     </PluginSettingsPageShell>

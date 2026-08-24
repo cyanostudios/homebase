@@ -1,9 +1,17 @@
 import { X } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { MAIN_CONTENT_SHELL_CLASS } from '@/core/ui/ContentSurface';
+import {
+  DETAIL_PANEL_BODY_DESKTOP_CLASS,
+  DETAIL_PANEL_HEADER_DESKTOP_CLASS,
+  MOBILE_FLOATING_CHROME_CLASS,
+  PLUGIN_PAGE_SUBTITLE_CLASS,
+  PLUGIN_PAGE_TITLE_CLASS,
+} from '@/core/ui/pluginPageStyles';
+import { cn } from '@/lib/utils';
 
 interface DetailPanelProps {
   isOpen: boolean;
@@ -18,6 +26,11 @@ interface DetailPanelProps {
   showCloseButton?: boolean;
   mode?: 'view' | 'create' | 'edit';
   isMobile?: boolean;
+  /**
+   * When this changes (plugin/mode/item), scroll content to top.
+   * Prefer over title — view mode often has an empty panel title.
+   */
+  contentKey?: string;
 }
 
 export function DetailPanel({
@@ -31,12 +44,13 @@ export function DetailPanel({
   showCloseButton = true,
   mode: _mode = 'view',
   isMobile = false,
+  contentKey,
 }: DetailPanelProps) {
   const hasTitle = typeof title === 'string' ? title.trim().length > 0 : Boolean(title);
   const hasSubtitle = Boolean(subtitle);
   const showTitleBlock = hasTitle || hasSubtitle;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const previousTitleRef = useRef<string>('');
+  const previousContentKeyRef = useRef<string>('');
   const previousOpenRef = useRef(false);
 
   // Handle ESC key to close panel
@@ -55,152 +69,165 @@ export function DetailPanel({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  // Scroll to top when panel opens or when title changes (e.g. switching items)
+  // Always land at top when opening detail or switching item/mode
   useEffect(() => {
     if (!isOpen) {
       previousOpenRef.current = false;
+      previousContentKeyRef.current = '';
       return;
     }
 
-    const titleKey = typeof title === 'string' ? title : '[node]';
+    const key = contentKey ?? (typeof title === 'string' ? title : '[node]');
     const justOpened = !previousOpenRef.current;
-    const titleChanged = previousTitleRef.current !== titleKey;
+    const keyChanged = previousContentKeyRef.current !== key;
     previousOpenRef.current = true;
-    previousTitleRef.current = titleKey;
+    previousContentKeyRef.current = key;
 
-    if (!justOpened && !titleChanged) {
+    if (!justOpened && !keyChanged) {
       return;
     }
 
-    // Run after layout so the scroll container and content exist
-    const raf = requestAnimationFrame(() => {
-      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [isOpen, title]);
+    const scrollToTop = () => {
+      const el = scrollContainerRef.current;
+      if (el) {
+        el.scrollTop = 0;
+        el.scrollTo({ top: 0, behavior: 'auto' });
+      }
+    };
 
-  // Mobile: Render as Sheet overlay
-  if (isMobile) {
-    return (
-      <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent
-          side="right"
-          showCloseButton={false}
-          className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full border-0 shadow-none bg-background"
+    scrollToTop();
+    const raf1 = requestAnimationFrame(() => {
+      scrollToTop();
+      requestAnimationFrame(scrollToTop);
+    });
+    const timeoutId = window.setTimeout(scrollToTop, 50);
+    return () => {
+      cancelAnimationFrame(raf1);
+      window.clearTimeout(timeoutId);
+    };
+  }, [isOpen, contentKey, title]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const hasBottomActions = isMobile && (Boolean(headerRight) || showCloseButton);
+
+  const titleNode = hasTitle ? (
+    typeof title === 'string' ? (
+      <h2 className={cn(PLUGIN_PAGE_TITLE_CLASS, isMobile && 'text-lg')}>
+        {title.length > 70 ? `${title.substring(0, 70)}...` : title}
+      </h2>
+    ) : (
+      <div className={cn(PLUGIN_PAGE_TITLE_CLASS, isMobile && 'text-lg')}>{title}</div>
+    )
+  ) : null;
+
+  const subtitleNode = subtitle ? (
+    <div className={cn(PLUGIN_PAGE_SUBTITLE_CLASS, 'min-w-0')}>
+      {typeof subtitle === 'string' ? <p className="truncate">{subtitle}</p> : subtitle}
+    </div>
+  ) : null;
+
+  return (
+    <div className={cn(MAIN_CONTENT_SHELL_CLASS, isMobile && 'relative min-h-0 flex-1')}>
+      {/* Fixed Header — on phone, primary actions float over content at the bottom */}
+      {(showTitleBlock || (!isMobile && (headerRight || showCloseButton))) && (
+        <div
+          className={cn(
+            isMobile
+              ? cn(
+                  'flex flex-shrink-0 items-start justify-between gap-4',
+                  showTitleBlock ? 'px-2 pb-2 pt-2 sm:px-3' : 'px-2 pb-0 pt-2 sm:px-3',
+                )
+              : showTitleBlock
+                ? DETAIL_PANEL_HEADER_DESKTOP_CLASS
+                : 'flex flex-shrink-0 items-start justify-between gap-4 px-6 py-2',
+          )}
         >
-          <SheetHeader
-            className={`px-6 pt-6 flex-shrink-0 flex flex-row items-start justify-between gap-4 ${showTitleBlock ? 'pb-4' : 'pb-2'}`}
-          >
+          <div className="min-w-0 flex-1 space-y-1 overflow-hidden">
             {showTitleBlock ? (
-              <div className="min-w-0 flex-1">
-                {hasTitle ? <SheetTitle className="text-left">{title}</SheetTitle> : null}
-                {subtitle && (
-                  <div className="text-sm text-muted-foreground text-left mt-2">
-                    {typeof subtitle === 'string' ? <p>{subtitle}</p> : subtitle}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="min-w-0 flex-1" />
-            )}
-            <div className="flex items-center gap-1 flex-shrink-0">
+              <>
+                {titleNode}
+                {subtitleNode}
+              </>
+            ) : null}
+          </div>
+          {!isMobile ? (
+            <div className="flex shrink-0 items-center gap-1">
               {headerRight}
               {showCloseButton && (
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
-                  className="h-8 w-8"
+                  className="h-8 w-8 flex-shrink-0"
                   aria-label="Close panel"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
-          </SheetHeader>
-
-          {/* Scrollable Content */}
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 min-h-0 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none"
-          >
-            {children}
-          </div>
-
-          {/* Fixed Footer */}
-          {footer && (
-            <div className="flex flex-shrink-0 flex-col gap-3 px-6 py-4 sm:flex-row sm:justify-end">
-              {footer}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
-  // Desktop: Render as div (existing behavior)
-  if (!isOpen) {
-    return null;
-  }
-
-  return (
-    <div className={MAIN_CONTENT_SHELL_CLASS}>
-      {/* Fixed Header */}
-      <div
-        className={`flex flex-shrink-0 items-center justify-between px-6 ${showTitleBlock ? 'py-4' : 'py-2'}`}
-      >
-        <div className="mr-4 flex min-w-0 flex-1 items-center gap-4">
-          {showTitleBlock ? (
-            <>
-              {hasTitle ? (
-                typeof title === 'string' ? (
-                  <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
-                    {title.length > 70 ? `${title.substring(0, 70)}...` : title}
-                  </h2>
-                ) : (
-                  <div className="min-w-0 shrink-0 text-lg font-semibold tracking-tight">
-                    {title}
-                  </div>
-                )
-              ) : null}
-              {subtitle && (
-                <div className="min-w-0 flex-1 text-sm text-muted-foreground">
-                  {typeof subtitle === 'string' ? <p className="truncate">{subtitle}</p> : subtitle}
-                </div>
-              )}
-            </>
           ) : null}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {headerRight}
-          {showCloseButton && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-8 w-8 flex-shrink-0"
-              aria-label="Close panel"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </div>
+      )}
 
-      {/* Scrollable Content */}
+      {/* Scrollable Content — fills panel; phone bottom actions float over it */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none"
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto overflow-x-hidden [&_.shadow-none]:border-none',
+          isMobile
+            ? cn(
+                'px-2 sm:px-3',
+                hasBottomActions ? 'pb-20' : 'pb-4',
+                showTitleBlock ? 'pt-3' : 'pt-1',
+              )
+            : DETAIL_PANEL_BODY_DESKTOP_CLASS,
+        )}
       >
         {children}
+        {footer && isMobile ? (
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">{footer}</div>
+        ) : null}
       </div>
 
-      {/* Fixed Footer */}
-      {footer && (
+      {/* Desktop/pad: optional plugin footer in flow */}
+      {footer && !isMobile ? (
         <div className="flex flex-shrink-0 flex-col gap-3 px-6 py-4 sm:flex-row sm:justify-end">
           {footer}
         </div>
-      )}
+      ) : null}
+
+      {/* Phone: Edit/Close fixed to viewport (portaled) — always visible while scrolling */}
+      {hasBottomActions && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">
+              <div
+                className={cn(
+                  'pointer-events-auto flex w-full items-center gap-2 px-2 py-2',
+                  MOBILE_FLOATING_CHROME_CLASS,
+                )}
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-2 [&_button]:shadow-sm">
+                  {headerRight}
+                </div>
+                {showCloseButton && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onClose}
+                    className="h-9 w-9 shrink-0 bg-background/80 shadow-sm"
+                    aria-label="Close panel"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

@@ -60,6 +60,7 @@ export function TeamListTable({
       {
         field: 'name',
         header: t('teams.table.name'),
+        className: 'hidden sm:table-cell',
         cell: (team) => <span className="text-xs text-muted-foreground">{team.name || '—'}</span>,
       },
       {

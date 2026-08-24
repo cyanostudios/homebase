@@ -7,7 +7,9 @@
     "delete": "Ta bort",
     "edit": "Redigera",
     "search": "Sök",
+    "add": "Lägg till",
     "clearSearch": "Rensa sökning",
+    "mobileActions": "Mobilåtgärder",
     "loading": "Laddar...",
     "checking": "Kontrollerar …",
     "saving": "Sparar...",
@@ -360,6 +362,7 @@
     "formatRequired": "Ett giltigt format krävs för {{sport}}",
     "homeTeamLabel": "Hemmalag",
     "awayTeamLabel": "Bortalag",
+    "matchupLabel": "Match",
     "created": "Skapad",
     "updated": "Uppdaterad",
     "timeLabel": "Tid",
@@ -2463,7 +2466,52 @@
   },
   "dashboard": {
     "description": "Snabb överblick över dina aktiverade plugins—öppna ett nedan eller från sidomenyn.",
-    "noWidgets": "Inga widgets tillgängliga. Aktivera plugins för att se widgetar här."
+    "noWidgets": "Inga widgets tillgängliga. Aktivera plugins för att se widgetar här.",
+    "open": "Öppna →",
+    "quickActions": "Snabbåtgärder",
+    "upcomingActivity": "Kommande aktivitet",
+    "bookableSlots": "Bokningsbara tider",
+    "teamsWithTraining": "Lag med träning",
+    "sessionsPerWeek": "{{count}} pass/v",
+    "taskStatus": "Uppgiftsstatus",
+    "invoiceStatus": "Fakturastatus",
+    "teamStatus": "Lagstatus",
+    "kpi": {
+      "openRequests": "Öppna förfrågningar",
+      "requestsSubtext": "{{total}} totalt",
+      "requestsSubtextExternal": "{{total}} totalt, {{external}} externa",
+      "activeTasks": "Aktiva uppgifter",
+      "tasksSubtext": "{{completed}} klara av {{total}}",
+      "upcomingMatches": "Kommande matcher",
+      "nextMatch": "Nästa: {{date}}",
+      "noUpcomingMatches": "Inga kommande matcher",
+      "teamsTotal": "Lag totalt",
+      "teamsSubtext": "{{active}} aktiva, {{onBreak}} på paus"
+    },
+    "actions": {
+      "requests": "Förfrågningar",
+      "tasks": "Uppgifter",
+      "matches": "Matcher",
+      "schedule": "Schema",
+      "slots": "Bokningsbara tider"
+    },
+    "legend": {
+      "notStarted": "{{count}} ej påbörjad",
+      "inProgress": "{{count}} pågående",
+      "completed": "{{count}} klar",
+      "active": "{{count}} aktiva",
+      "onBreak": "{{count}} på paus",
+      "dormant": "{{count}} vilande",
+      "draft": "{{count}} utkast",
+      "sent": "{{count}} skickade",
+      "paid": "{{count}} betalda",
+      "overdue": "{{count}} förfallna",
+      "invoicesTotal": "{{count}} fakturor totalt"
+    },
+    "aria": {
+      "taskStatusChart": "Uppgiftsstatus",
+      "teamStatusChart": "Lagstatus"
+    }
   },
   "dialog": {
     "unsavedChanges": "Osparade ändringar",

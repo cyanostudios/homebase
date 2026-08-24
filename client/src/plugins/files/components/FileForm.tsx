@@ -1,12 +1,16 @@
-// client/src/plugins/files/components/FileForm.tsx
-import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
+import { Upload, File as FileIcon, Trash2, AlertTriangle, Info } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
@@ -26,6 +30,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
   { currentItem, onSave, onCancel },
   ref,
 ) {
+  const { t } = useTranslation();
   const { validationErrors, clearValidationErrors, panelMode } = useFiles();
   const isEdit = !!currentItem; // edit-läge om vi har ett item
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -214,110 +219,139 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
 
   // ---------------- render ----------------
   if (isEdit) {
-    // ----- EDIT (rename only) -----
-    return (
-      <div className="p-6 space-y-6">
-        <DetailSection title="Rename File">
-          <p className="text-sm text-muted-foreground mb-4">
-            Ändra endast filnamnet. Själva filinnehållet hanteras via upload i Create-läget.
-          </p>
-          <div className="space-y-2">
-            <Label htmlFor="file-name">Name *</Label>
-            <Input
-              id="file-name"
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (hasAnyError) {
-                  clearValidationErrors();
-                }
-              }}
-              className={nameErrors.length ? 'border-destructive' : ''}
-              placeholder="document.pdf"
-            />
-            {nameErrors.length > 0 && (
-              <p className="text-sm text-destructive">{nameErrors.join(' • ')}</p>
-            )}
+    const editSidebar = (
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+        <DetailSection
+          title={t('files.viewInformation')}
+          icon={Info}
+          iconPlugin="files"
+          subtleTitle
+          className="p-4"
+          collapsible
+        >
+          <div>
+            <div className={DETAIL_INFO_ROW_CLASS}>
+              <span className="text-slate-500 dark:text-slate-400">{t('files.viewId')}</span>
+              <span className="font-mono font-semibold text-foreground">
+                {formatDisplayNumber('files', currentItem?.id)}
+              </span>
+            </div>
           </div>
         </DetailSection>
+      </Card>
+    );
+
+    return (
+      <div className="plugin-files">
+        <DetailLayout sidebar={editSidebar}>
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection title="Rename File" iconPlugin="files" className="p-6">
+              <p className="mb-4 text-sm text-muted-foreground">
+                Ändra endast filnamnet. Själva filinnehållet hanteras via upload i Create-läget.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="file-name">Name *</Label>
+                <Input
+                  id="file-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (hasAnyError) {
+                      clearValidationErrors();
+                    }
+                  }}
+                  className={nameErrors.length ? 'border-destructive' : ''}
+                  placeholder="document.pdf"
+                />
+                {nameErrors.length > 0 && (
+                  <p className="text-sm text-destructive">{nameErrors.join(' • ')}</p>
+                )}
+              </div>
+            </DetailSection>
+          </Card>
+        </DetailLayout>
       </div>
     );
   }
 
   // ----- CREATE (upload) -----
   return (
-    <div className="p-6 space-y-6">
-      <DetailSection title="Upload Files">
-        <p className="text-sm text-muted-foreground mb-4">
-          Dra & släpp filer eller klicka för att välja flera.
-        </p>
+    <div className="plugin-files">
+      <DetailLayout>
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection title="Upload Files" iconPlugin="files" className="p-6">
+            <p className="mb-4 text-sm text-muted-foreground">
+              Dra & släpp filer eller klicka för att välja flera.
+            </p>
 
-        {(filesErrors.length > 0 || generalErrors.length > 0) && (
-          <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <div>
-              {(filesErrors.length ? filesErrors : generalErrors).map((m) => (
-                <div key={String(m).slice(0, 80)}>{m}</div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div
-          role="button"
-          tabIndex={0}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          onDragEnter={onDragEnter}
-          onDragLeave={onDragLeave}
-          className={cn(
-            'border-2 border-dashed rounded-xl p-8 transition-colors cursor-pointer',
-            dragOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/20',
-            filesErrors.length && 'border-destructive/50 bg-destructive/5',
-          )}
-          onClick={pick}
-        >
-          <div className="flex flex-col items-center gap-3 text-center">
-            <Upload className="w-8 h-8 text-muted-foreground" />
-            <div className="text-sm text-muted-foreground">
-              Släpp filer här eller <span className="text-primary underline">välj filer</span>
-            </div>
-            <input ref={inputRef} type="file" multiple className="hidden" onChange={onChange} />
-          </div>
-        </div>
-
-        {items.length > 0 && (
-          <div className="mt-6 space-y-3">
-            <h4 className="font-medium text-sm">Filer i kö ({items.length})</h4>
-            <div className="divide-y divide-border rounded-lg border border-border bg-background">
-              {items.map(({ id, file }) => (
-                <div key={id} className="p-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <FileIcon className="w-5 h-5 text-muted-foreground shrink-0" />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{file.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {file.type || 'application/octet-stream'} • {sizeStr(file.size)}
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => remove(id)}
-                    title="Remove"
-                    className="h-8 text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Remove
-                  </Button>
+            {(filesErrors.length > 0 || generalErrors.length > 0) && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  {(filesErrors.length ? filesErrors : generalErrors).map((m) => (
+                    <div key={String(m).slice(0, 80)}>{m}</div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            <div
+              role="button"
+              tabIndex={0}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragEnter={onDragEnter}
+              onDragLeave={onDragLeave}
+              className={cn(
+                'cursor-pointer rounded-xl border-2 border-dashed p-8 transition-colors',
+                dragOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/20',
+                filesErrors.length && 'border-destructive/50 bg-destructive/5',
+              )}
+              onClick={pick}
+            >
+              <div className="flex flex-col items-center gap-3 text-center">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <div className="text-sm text-muted-foreground">
+                  Släpp filer här eller <span className="text-primary underline">välj filer</span>
+                </div>
+                <input ref={inputRef} type="file" multiple className="hidden" onChange={onChange} />
+              </div>
             </div>
-          </div>
-        )}
-      </DetailSection>
+
+            {items.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <h4 className="text-sm font-medium">Filer i kö ({items.length})</h4>
+                <div className="divide-y divide-border rounded-lg border border-border bg-background">
+                  {items.map(({ id, file }) => (
+                    <div key={id} className="flex items-center justify-between gap-3 p-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <FileIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">{file.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {file.type || 'application/octet-stream'} • {sizeStr(file.size)}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => remove(id)}
+                        title="Remove"
+                        className="h-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="mr-1 h-4 w-4" />
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </DetailSection>
+        </Card>
+      </DetailLayout>
     </div>
   );
 });

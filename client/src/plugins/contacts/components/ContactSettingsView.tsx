@@ -60,13 +60,13 @@ interface ContactSettingsViewProps {
   onSelectedCategoryChange?: (category: ContactSettingsCategory) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 export function ContactSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  inlineTrailing,
+  onClose,
 }: ContactSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
@@ -201,7 +201,9 @@ export function ContactSettingsView({
         categories={categories}
         activeCategory={activeCategory}
         onCategoryChange={(id) => setActiveCategory(id as ContactSettingsCategory)}
-        trailing={inlineTrailing}
+        onClose={onClose}
+        onSave={isDirty ? () => void handleSave() : undefined}
+        isSaving={isSaving}
         saveAction={
           isDirty ? (
             <SettingsHeaderSaveButton

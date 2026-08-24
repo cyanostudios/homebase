@@ -4,7 +4,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-const TILE_CLASS = 'rounded-xl bg-muted/40 px-3 py-2.5 text-left transition-colors';
+const TILE_CLASS = 'min-h-[4.5rem] rounded-xl bg-muted/40 px-3 py-3.5 text-left transition-colors';
 
 const TILE_LABEL_CLASS = 'text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 
@@ -82,5 +82,5 @@ export function QuickContextLinkTileGrid({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn('grid grid-cols-2 gap-2', className)}>{children}</div>;
+  return <div className={cn('grid grid-cols-1 gap-2 md:grid-cols-2', className)}>{children}</div>;
 }

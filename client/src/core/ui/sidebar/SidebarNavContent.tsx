@@ -30,7 +30,7 @@ export const SidebarNavContent = React.memo(function SidebarNavContent({
   onCategoryOpenChange,
 }: SidebarNavContentProps) {
   return (
-    <div className="flex-1 overflow-y-auto px-3 pt-4">
+    <div className="flex-1 overflow-y-auto px-3 pt-5">
       <div className="flex flex-col">
         {navCategories.map((category, index) => {
           const isCategoryOpen = openCategories.has(category.id);
@@ -39,23 +39,23 @@ export const SidebarNavContent = React.memo(function SidebarNavContent({
               key={category.id}
               open={isCategoryOpen}
               onOpenChange={(open) => onCategoryOpenChange(category.id, open)}
-              className={index > 0 ? 'mt-4 border-t border-border/50 pt-3' : undefined}
+              className={index > 0 ? 'mt-3 border-t border-border/50 pt-4' : undefined}
             >
               <CollapsibleTrigger asChild>
                 <Button
                   variant="ghost"
                   type="button"
-                  className="group mb-1 w-full flex h-auto items-center justify-between gap-2 rounded-md px-1.5 py-1 hover:bg-transparent dark:hover:bg-transparent"
+                  className="group mb-1.5 flex h-9 w-full items-center justify-between gap-2 rounded-md px-3 py-0 hover:bg-transparent dark:hover:bg-transparent"
                 >
                   <SubtleSectionHeading
                     title={category.title}
                     icon={category.icon}
-                    className="min-w-0 flex-1"
+                    className="min-w-0 flex-1 translate-y-px"
                   />
                   {isCategoryOpen ? (
-                    <ChevronDown className="h-3 w-3 shrink-0 text-slate-300 dark:text-slate-600 transition-colors group-hover:text-slate-400 dark:group-hover:text-slate-500" />
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 translate-y-px text-slate-300 transition-colors group-hover:text-slate-400 dark:text-slate-600 dark:group-hover:text-slate-500" />
                   ) : (
-                    <ChevronRight className="h-3 w-3 shrink-0 text-slate-300 dark:text-slate-600 transition-colors group-hover:text-slate-400 dark:group-hover:text-slate-500" />
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 translate-y-px text-slate-300 transition-colors group-hover:text-slate-400 dark:text-slate-600 dark:group-hover:text-slate-500" />
                   )}
                 </Button>
               </CollapsibleTrigger>

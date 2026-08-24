@@ -37,13 +37,13 @@ interface InstructionSettingsViewProps {
   onSelectedTabChange?: (tab: InstructionSettingsTab) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderTabButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 export function InstructionSettingsView({
   selectedTab,
   onSelectedTabChange,
-  inlineTrailing,
+  onClose,
 }: InstructionSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
@@ -145,7 +145,9 @@ export function InstructionSettingsView({
       categories={shellCategories}
       activeCategory={activeTab}
       onCategoryChange={(id) => setActiveTab(id as InstructionSettingsTab)}
-      trailing={inlineTrailing}
+      onClose={onClose}
+      onSave={isDirty ? () => void save() : undefined}
+      isSaving={isSaving}
       saveAction={
         isDirty ? (
           <SettingsHeaderSaveButton onClick={() => void save()} isSaving={isSaving} />

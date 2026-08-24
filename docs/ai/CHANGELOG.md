@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Mobile bottom bar — docs sync (2026-08-24)
+
+Docs efter **QA Approved** + **Security Approved** för mobil bottom bar (Search/Add/Settings), `MobileActionsContext`, list header hide under `md`, samt relaterade mobil list-overrides (`effectiveListViewMode`, filter-stat compact horizontal scroll on phone). Operator: `UI_AND_UX_STANDARDS_V3.md` §0.2; checklist + plugin standards uppdaterade. Search öppnas ovanför bottom bar (ingen `homebase:focus-search`). **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Security docs sync — batch homebase-v3.9 (2026-08-24)
 
 Efter **Security Approved** för batchen: produkt-changelog 2026-08-24-poster uppdaterade med Security-status; `REQUESTS_PLUGIN.md` § Unopened requests fick security-notis (**S-MV-1** info; **S3/S4/S5** cross-ref). Ingen ny oacceptabel risk. **Local-first; ej prod-release.**

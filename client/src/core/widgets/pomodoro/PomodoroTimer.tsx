@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Heading, Text } from '@/core/ui/Typography';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { pomodoroAudio } from './pomodoroAudio';
@@ -108,6 +109,8 @@ export function PomodoroTimer({
   };
 
   const colors = getSessionColor();
+  const isMobile = useIsMobile();
+  const showCompactTimer = isMobile || !settings.compactMode;
 
   const handlePillToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -126,7 +129,7 @@ export function PomodoroTimer({
   // Compact view för TopBar – samma pill-mönster som Time tracking (ikon + tid + play/pause)
   if (compact) {
     return (
-      <div className="relative flex items-center">
+      <div className="relative flex w-full min-w-0 items-center md:w-auto">
         <div
           role="button"
           tabIndex={0}
@@ -139,30 +142,35 @@ export function PomodoroTimer({
           }}
           aria-label="Toggle Pomodoro panel"
           title="Pomodoro"
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 font-mono text-slate-700 transition-colors hover:bg-slate-200 dark:bg-muted dark:text-slate-200 dark:hover:bg-muted/70"
+          className="inline-flex w-full min-h-9 cursor-pointer items-center justify-center gap-2 rounded-full bg-slate-100 px-3 py-2 font-mono text-slate-700 transition-colors hover:bg-slate-200 dark:bg-muted dark:text-slate-200 dark:hover:bg-muted/70 md:min-h-0 md:w-auto md:justify-start md:gap-1.5 md:px-2.5 md:py-1"
         >
-          <TomatoIcon className="h-3.5 w-3.5" />
-          {!settings.compactMode && (
-            <span className="min-w-[5ch] text-center text-xs font-medium tabular-nums">
+          <TomatoIcon className="h-4 w-4 shrink-0 md:h-3.5 md:w-3.5" />
+          {isMobile ? (
+            <span className="truncate font-sans text-xs font-semibold tracking-tight">
+              Pomodoro
+            </span>
+          ) : null}
+          {showCompactTimer ? (
+            <span className="min-w-[5ch] text-center text-xs font-medium tabular-nums md:text-xs">
               {timeDisplay}
             </span>
-          )}
+          ) : null}
           <button
             type="button"
             onClick={handlePlayPause}
             aria-label={state === 'running' ? 'Pause timer' : 'Start timer'}
             title={state === 'running' ? 'Pause timer' : 'Start timer'}
             className={cn(
-              'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors',
+              'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors md:h-4 md:w-4',
               state === 'running'
                 ? 'text-orange-500 hover:text-orange-600 dark:text-orange-400'
                 : 'text-emerald-500 hover:text-emerald-600 dark:text-emerald-400',
             )}
           >
             {state === 'running' ? (
-              <Pause className="h-3 w-3" strokeWidth={2.5} />
+              <Pause className="h-3.5 w-3.5 md:h-3 md:w-3" strokeWidth={2.5} />
             ) : (
-              <Play className="h-3 w-3 fill-current" />
+              <Play className="h-3.5 w-3.5 fill-current md:h-3 md:w-3" />
             )}
           </button>
         </div>

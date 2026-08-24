@@ -11,11 +11,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -65,6 +71,11 @@ export const AIProvidersList: React.FC = () => {
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openAIProviderPanel(null)),
+  });
+
   const {
     providers,
     loading,
@@ -132,7 +143,9 @@ export const AIProvidersList: React.FC = () => {
     [updateSettings],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const stats = useMemo(
     () => ({
@@ -207,21 +220,21 @@ export const AIProvidersList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-ai-providers min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+    <div className="plugin-ai-providers min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
+      <div className="space-y-3">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">
               {t('nav.ai-providers', { defaultValue: 'AI Providers' })}
             </h2>
             <p className="text-sm text-muted-foreground">{t('aiProviders.listDescription')}</p>
           </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+          <div className="flex w-full flex-shrink-0 flex-wrap items-center gap-2 md:w-auto">
             <Button
               variant="secondary"
               size="sm"
               icon={Route}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(openRoutingView)}
             >
               {t('aiProviders.routing.open', { defaultValue: 'Routing' })}
@@ -230,7 +243,7 @@ export const AIProvidersList: React.FC = () => {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openAIProviderPanel(null))}
             >
               {t('aiProviders.addProvider')}
@@ -238,7 +251,7 @@ export const AIProvidersList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
           <ListFilterStatCard
             label={t('aiProviders.filterAll', { defaultValue: 'Total' })}
             value={stats.total}
@@ -269,7 +282,7 @@ export const AIProvidersList: React.FC = () => {
           />
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 md:gap-3">
           <ListToolbar
             selectedCount={0}
             search={
@@ -368,9 +381,9 @@ export const AIProvidersList: React.FC = () => {
             <div
               className={cn(
                 'grid gap-3',
-                columnCount === 1 && 'grid-cols-1',
-                columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                effectiveColumnCount === 1 && 'grid-cols-1',
+                effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
               )}
             >
               {filteredAndSorted.map((provider) => (
@@ -379,7 +392,7 @@ export const AIProvidersList: React.FC = () => {
                   provider={provider}
                   title={providerTitle(t, provider)}
                   onClick={() => handleOpenForView(provider)}
-                  columnCount={columnCount}
+                  columnCount={effectiveCardColumnCount}
                 />
               ))}
             </div>

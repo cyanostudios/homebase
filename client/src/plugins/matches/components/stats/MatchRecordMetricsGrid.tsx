@@ -5,7 +5,7 @@ import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 
 import type { MatchRecordMetrics } from '../../types/matchStats';
 
-const STAT_GRID = 'mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5';
+const STAT_GRID = 'mt-3 grid grid-cols-1 gap-2 md:grid-cols-4 lg:grid-cols-5';
 
 export function MatchRecordMetricsGrid({ metrics }: { metrics: MatchRecordMetrics }) {
   const { t } = useTranslation();

@@ -12,7 +12,7 @@ import {
 } from '@/core/ui/sidebar/SidebarNavContent';
 import { SidebarAccountFooter } from '@/core/ui/sidebar/SidebarAccountFooter';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsDesktopLayout } from '@/hooks/useMediaQuery';
 import { toggleSetItem } from '@/lib/setUtils';
 
 export type { NavPage } from '@/core/navigation/navTypes';
@@ -33,7 +33,7 @@ export function Sidebar({
   const enabledPlugins = useEnabledPlugins();
   const { navBadges } = useApp();
   const { t, i18n } = useTranslation();
-  const isMobile = useIsMobile();
+  const isDesktopLayout = useIsDesktopLayout();
   const [userOpenSubmenus, setUserOpenSubmenus] = useState<Set<NavPage>>(() => new Set());
   const [userClosedSubmenus, setUserClosedSubmenus] = useState<Set<NavPage>>(() => new Set());
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
@@ -88,12 +88,12 @@ export function Sidebar({
 
   const handleNavigate = useCallback(
     (page: NavPage) => {
-      if (isMobile) {
+      if (!isDesktopLayout) {
         onMobileOpenChange(false);
       }
       onPageChange(page);
     },
-    [isMobile, onMobileOpenChange, onPageChange],
+    [isDesktopLayout, onMobileOpenChange, onPageChange],
   );
 
   const handleSubmenuOpenChange = useCallback((page: NavPage, open: boolean) => {
@@ -118,7 +118,7 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-10 hidden h-screen w-[252px] flex-shrink-0 bg-workspace md:flex">
+      <aside className="fixed left-0 top-0 z-10 hidden h-screen w-[252px] flex-shrink-0 bg-workspace lg:flex">
         <div className="flex h-full flex-col pt-14">
           <SidebarNavContent {...navContentProps} />
           <SidebarAccountFooter />

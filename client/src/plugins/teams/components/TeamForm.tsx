@@ -1,4 +1,4 @@
-import { Plus, Trash2, UserPlus, X } from 'lucide-react';
+import { Info, Plus, Trash2, UserPlus, X } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -18,7 +18,8 @@ import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
@@ -364,7 +365,31 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
 
   return (
     <>
-      <DetailLayout>
+      <DetailLayout
+        sidebar={
+          item ? (
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('teams.information', { defaultValue: 'Information' })}
+                icon={Info}
+                iconPlugin="teams"
+                subtleTitle
+                className="p-4"
+                collapsible
+              >
+                <div>
+                  <div className={DETAIL_INFO_ROW_CLASS}>
+                    <span className="text-slate-500 dark:text-slate-400">ID</span>
+                    <span className="font-mono font-semibold text-foreground">
+                      {formatDisplayNumber('teams', item.id)}
+                    </span>
+                  </div>
+                </div>
+              </DetailSection>
+            </Card>
+          ) : undefined
+        }
+      >
         <div className="space-y-3">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <DetailSection title={t('teams.form.detailsSection')} className="p-4">

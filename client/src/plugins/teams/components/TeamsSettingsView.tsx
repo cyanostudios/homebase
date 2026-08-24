@@ -27,10 +27,10 @@ import { TeamsVenuesSettingsSection } from './TeamsVenuesSettingsSection';
 const TEAMS_SETTINGS_KEY = 'teams';
 
 interface TeamsSettingsViewProps {
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
-export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {}) {
+export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
   const enabledPlugins = useEnabledPlugins();
@@ -169,7 +169,9 @@ export function TeamsSettingsView({ inlineTrailing }: TeamsSettingsViewProps = {
     <PluginSettingsPageShell
       title={t('teams.settings.title')}
       subtitle={t('teams.settingsSubtitle')}
-      trailing={inlineTrailing}
+      onClose={onClose}
+      onSave={isDirty ? () => void handleSave() : undefined}
+      isSaving={isSaving}
       wrapContentInCard={false}
       saveAction={
         isDirty ? (

@@ -1,12 +1,15 @@
 import type { AppIcon } from '@/types/icons';
 import React, { useState, useEffect, useCallback } from 'react';
 
-import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useViewportTier } from '@/hooks/useMediaQuery';
+import { cn } from '@/lib/utils';
 
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
 import { ContentSurface, MAIN_CONTENT_SHELL_CLASS } from './ContentSurface';
 import { DetailPanel } from './DetailPanel';
+import { MobileActionsProvider, useMobileSearchBar } from './MobileActionsContext';
+import { MobileBottomBar } from './MobileBottomBar';
 import { Sidebar } from './Sidebar';
 import type { NavPage } from '@/core/navigation/navTypes';
 import { TopBar } from './TopBar';
@@ -31,43 +34,49 @@ interface MainLayoutProps {
   detailPanelShowCloseButton?: boolean;
   onDetailPanelClose: () => void;
   detailPanelPluginName?: string;
+  /** Resets detail scroll when plugin/mode/item changes. */
+  detailPanelContentKey?: string;
   /** When true, list ContentSurface uses p-0 (like detail panel) so the plugin controls its own padding. */
   contentFlush?: boolean;
 }
 
-export function MainLayout({
-  children,
-  currentPage,
-  onPageChange,
-  contentTitle,
-  contentIcon,
-  contentActionLabel,
-  contentActionIcon,
-  contentActionVariant,
-  onContentAction,
-  detailPanelOpen,
-  detailPanelTitle,
-  detailPanelSubtitle,
-  detailPanelContent,
-  detailPanelFooter,
-  detailPanelHeaderRight,
-  detailPanelShowCloseButton = true,
-  onDetailPanelClose,
-  detailPanelPluginName,
-  contentFlush = false,
-}: MainLayoutProps) {
+function MainLayoutShell(props: MainLayoutProps) {
+  const {
+    children,
+    currentPage,
+    onPageChange,
+    contentTitle,
+    contentIcon,
+    contentActionLabel,
+    contentActionIcon,
+    contentActionVariant,
+    onContentAction,
+    detailPanelOpen,
+    detailPanelTitle,
+    detailPanelSubtitle,
+    detailPanelContent,
+    detailPanelFooter,
+    detailPanelHeaderRight,
+    detailPanelShowCloseButton = true,
+    onDetailPanelClose,
+    detailPanelPluginName,
+    detailPanelContentKey,
+    contentFlush = false,
+  } = props;
+
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
   const [headerTitleSuffix, setHeaderTitleSuffix] = useState<React.ReactNode>(null);
-  const isMobile = useIsMobile();
+  const viewportTier = useViewportTier();
+  const isPhone = viewportTier === 'phone';
+  const isPad = viewportTier === 'pad';
+  const { searchOpen } = useMobileSearchBar();
 
-  // Clear trailing and title suffix when page changes
   useEffect(() => {
     setHeaderTrailing(null);
     setHeaderTitleSuffix(null);
   }, [currentPage]);
 
-  // Navigation (including close behavior) is handled upstream in App.tsx.
   const handlePageChange = useCallback(
     (page: NavPage) => {
       onPageChange(page);
@@ -82,8 +91,67 @@ export function MainLayout({
     contentTitle || contentIcon || headerTitleSuffix || contentActionLabel || headerTrailing,
   );
 
+  const mobileListScrollPad =
+    isPhone && !detailPanelOpen ? (searchOpen ? 'pb-36' : 'pb-20') : undefined;
+
+  const listBody = (
+    <ContentLayoutProvider
+      onTrailingChange={setHeaderTrailing}
+      onTitleSuffixChange={setHeaderTitleSuffix}
+    >
+      {contentFlush && !shouldShowContentHeader ? (
+        <div className={cn('min-h-0 flex-1 overflow-y-auto', mobileListScrollPad)}>{children}</div>
+      ) : (
+        <div className="flex h-full flex-col gap-4">
+          {shouldShowContentHeader && (
+            <ContentHeader
+              title={contentTitle}
+              icon={contentIcon}
+              titleSuffix={headerTitleSuffix}
+              actionLabel={contentActionLabel}
+              actionIcon={contentActionIcon}
+              actionVariant={contentActionVariant}
+              onAction={onContentAction}
+              trailing={headerTrailing}
+            />
+          )}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto', mobileListScrollPad)}>
+              {children}
+            </div>
+          </div>
+        </div>
+      )}
+    </ContentLayoutProvider>
+  );
+
+  const listSurface = (
+    <ContentSurface
+      flush={contentFlush}
+      className={isPad && detailPanelOpen ? 'w-full' : undefined}
+    >
+      <div className={MAIN_CONTENT_SHELL_CLASS}>{listBody}</div>
+    </ContentSurface>
+  );
+
+  const detailInline = (
+    <DetailPanel
+      isOpen={detailPanelOpen}
+      onClose={onDetailPanelClose}
+      title={detailPanelTitle}
+      subtitle={detailPanelSubtitle}
+      footer={detailPanelFooter}
+      headerRight={detailPanelHeaderRight}
+      showCloseButton={detailPanelShowCloseButton}
+      contentKey={detailPanelContentKey}
+      isMobile={false}
+    >
+      <React.Fragment key={detailPanelContentKey ?? 'detail'}>{detailPanelContent}</React.Fragment>
+    </DetailPanel>
+  );
+
   return (
-    <div className="min-h-screen bg-workspace">
+    <div className="flex h-dvh flex-col bg-workspace">
       <Sidebar
         currentPage={currentPage}
         onPageChange={handlePageChange}
@@ -100,111 +168,71 @@ export function MainLayout({
         detailPanelPluginName={detailPanelOpen ? detailPanelPluginName : undefined}
       />
 
-      <main className="flex h-[calc(100vh-3.5rem)] pt-14 md:pl-[252px] md:pr-4 bg-workspace">
-        {/* Mobile: Show DetailPanel as overlay, hide list view when open */}
-        {/* Desktop: Show DetailPanel as column alongside list view */}
-        {isMobile ? (
-          <>
-            {/* Mobile: Always show list view when DetailPanel is closed */}
-            {!detailPanelOpen && (
-              <ContentSurface flush={contentFlush}>
-                <div className={MAIN_CONTENT_SHELL_CLASS}>
-                  <ContentLayoutProvider
-                    onTrailingChange={setHeaderTrailing}
-                    onTitleSuffixChange={setHeaderTitleSuffix}
-                  >
-                    {contentFlush && !shouldShowContentHeader ? (
-                      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-                    ) : (
-                      <div className="flex h-full flex-col gap-4">
-                        {shouldShowContentHeader && (
-                          <ContentHeader
-                            title={contentTitle}
-                            icon={contentIcon}
-                            titleSuffix={headerTitleSuffix}
-                            actionLabel={contentActionLabel}
-                            actionIcon={contentActionIcon}
-                            actionVariant={contentActionVariant}
-                            onAction={onContentAction}
-                            trailing={headerTrailing}
-                          />
-                        )}
-                        <div className="flex flex-1 flex-col overflow-hidden">
-                          <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>
-                        </div>
-                      </div>
-                    )}
-                  </ContentLayoutProvider>
-                </div>
-              </ContentSurface>
+      <main
+        className={cn(
+          'flex min-h-0 flex-1 overflow-hidden bg-workspace lg:pl-[252px]',
+          !isPhone && 'pr-4',
+        )}
+      >
+        {isPhone ? (
+          detailPanelOpen ? (
+            <ContentSurface flush className="flex min-h-0 w-full flex-1 flex-col">
+              <DetailPanel
+                isOpen={detailPanelOpen}
+                onClose={onDetailPanelClose}
+                title={detailPanelTitle}
+                subtitle={detailPanelSubtitle}
+                footer={detailPanelFooter}
+                headerRight={detailPanelHeaderRight}
+                showCloseButton={detailPanelShowCloseButton}
+                contentKey={detailPanelContentKey}
+                isMobile
+              >
+                <React.Fragment key={detailPanelContentKey ?? 'detail'}>
+                  {detailPanelContent}
+                </React.Fragment>
+              </DetailPanel>
+            </ContentSurface>
+          ) : (
+            listSurface
+          )
+        ) : isPad ? (
+          <div
+            className={cn(
+              'flex min-h-0 w-full flex-1',
+              detailPanelOpen ? 'flex-row gap-4' : undefined,
             )}
-            {/* Mobile: DetailPanel as Sheet overlay */}
-            <DetailPanel
-              isOpen={detailPanelOpen}
-              onClose={onDetailPanelClose}
-              title={detailPanelTitle}
-              subtitle={detailPanelSubtitle}
-              footer={detailPanelFooter}
-              headerRight={detailPanelHeaderRight}
-              showCloseButton={detailPanelShowCloseButton}
-              isMobile={isMobile}
+          >
+            <div
+              className={cn(
+                'min-h-0 min-w-0',
+                detailPanelOpen ? 'w-[38%] min-w-[280px] max-w-[42%] flex-none' : 'w-full flex-1',
+              )}
             >
-              {detailPanelContent}
-            </DetailPanel>
-          </>
+              {listSurface}
+            </div>
+            {detailPanelOpen ? (
+              <div className="min-h-0 min-w-0 flex-1">
+                <ContentSurface flush>{detailInline}</ContentSurface>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <>
-            {/* Desktop: Show DetailPanel as column when open, otherwise show list view */}
-            {detailPanelOpen ? (
-              <ContentSurface flush>
-                <DetailPanel
-                  isOpen={detailPanelOpen}
-                  onClose={onDetailPanelClose}
-                  title={detailPanelTitle}
-                  subtitle={detailPanelSubtitle}
-                  footer={detailPanelFooter}
-                  headerRight={detailPanelHeaderRight}
-                  showCloseButton={detailPanelShowCloseButton}
-                  isMobile={isMobile}
-                >
-                  {detailPanelContent}
-                </DetailPanel>
-              </ContentSurface>
-            ) : (
-              <ContentSurface flush={contentFlush}>
-                <div className={MAIN_CONTENT_SHELL_CLASS}>
-                  <ContentLayoutProvider
-                    onTrailingChange={setHeaderTrailing}
-                    onTitleSuffixChange={setHeaderTitleSuffix}
-                  >
-                    {contentFlush && !shouldShowContentHeader ? (
-                      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-                    ) : (
-                      <div className="flex h-full flex-col gap-4">
-                        {shouldShowContentHeader && (
-                          <ContentHeader
-                            title={contentTitle}
-                            icon={contentIcon}
-                            titleSuffix={headerTitleSuffix}
-                            actionLabel={contentActionLabel}
-                            actionIcon={contentActionIcon}
-                            actionVariant={contentActionVariant}
-                            onAction={onContentAction}
-                            trailing={headerTrailing}
-                          />
-                        )}
-                        <div className="flex flex-1 flex-col overflow-hidden">
-                          <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>
-                        </div>
-                      </div>
-                    )}
-                  </ContentLayoutProvider>
-                </div>
-              </ContentSurface>
-            )}
+            {detailPanelOpen ? <ContentSurface flush>{detailInline}</ContentSurface> : listSurface}
           </>
         )}
       </main>
+
+      <MobileBottomBar detailPanelOpen={detailPanelOpen} />
     </div>
+  );
+}
+
+export function MainLayout(props: MainLayoutProps) {
+  return (
+    <MobileActionsProvider>
+      <MainLayoutShell {...props} />
+    </MobileActionsProvider>
   );
 }

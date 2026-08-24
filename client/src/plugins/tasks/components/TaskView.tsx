@@ -433,7 +433,7 @@ export function TaskView({ task }: TaskViewProps) {
             variant="ghost"
             size="sm"
             icon={Edit}
-            className="h-8 w-8 shrink-0 p-0"
+            className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
             onClick={() => openTaskForEdit(task)}
             aria-label={t('common.edit')}
             title={t('common.edit')}

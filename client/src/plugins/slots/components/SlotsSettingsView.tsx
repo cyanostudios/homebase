@@ -30,13 +30,13 @@ interface SlotsSettingsViewProps {
   onSelectedCategoryChange?: (category: SlotsSettingsCategory) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 export function SlotsSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  inlineTrailing,
+  onClose,
 }: SlotsSettingsViewProps = {}) {
   const { t } = useTranslation();
   const {
@@ -109,7 +109,9 @@ export function SlotsSettingsView({
       categories={categories}
       activeCategory={activeCategory}
       onCategoryChange={(id) => setActiveCategory(id as SlotsSettingsCategory)}
-      trailing={inlineTrailing}
+      onClose={onClose}
+      onSave={isDirty ? () => void save() : undefined}
+      isSaving={isSaving}
       saveAction={
         isDirty ? (
           <SettingsHeaderSaveButton onClick={() => void save()} isSaving={isSaving} />

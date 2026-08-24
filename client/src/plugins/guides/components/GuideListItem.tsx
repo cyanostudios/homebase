@@ -11,6 +11,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { Guide } from '../types/guides';
 import { GUIDE_LIFECYCLE_COLORS } from '../types/guides';
@@ -84,7 +85,7 @@ export function GuideListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             <Badge className={GUIDE_LIFECYCLE_COLORS[guide.lifecycleStatus]}>
               {t(`guides.lifecycle.${guide.lifecycleStatus}`)}
             </Badge>

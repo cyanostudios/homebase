@@ -11,6 +11,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { formatDate, formatDateTimeShort } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { IngestSource } from '../types/ingest';
 import type { IngestColumnCount } from '../utils/ingestColumnCount';
@@ -107,7 +108,7 @@ export function IngestSourceListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             <Badge className={cn(BADGE_CLASS, statusBadgeClass(source.lastFetchStatus))}>
               {source.lastFetchStatus}
             </Badge>

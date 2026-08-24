@@ -11,6 +11,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { htmlToPlainTextWithBreaks } from '@/core/utils/textUtils';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { Task } from '../types/tasks';
 import { TASK_PRIORITY_COLORS } from '../types/tasks';
@@ -165,7 +166,7 @@ export function TaskListItem({
       aria-label={`Open task ${task.title}`}
     >
       <div className="flex flex-col gap-2 p-4">
-        {checkbox ? <div className="flex">{checkbox}</div> : null}
+        <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge

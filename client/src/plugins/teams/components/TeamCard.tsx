@@ -9,6 +9,7 @@ import {
   DETAIL_LIST_ITEM_TITLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 import { formatMatchDateTime, type Match } from '@/plugins/matches/types/match';
 
 import type { Team, TrainingTime } from '../types/teams';
@@ -171,7 +172,7 @@ export function TeamCard({
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             <div
               className={cn(
                 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-xs font-bold',

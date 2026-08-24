@@ -225,7 +225,7 @@ export const AIProvidersRouting: React.FC = () => {
   return (
     <div className="plugin-ai-providers min-h-full bg-background px-6 py-4">
       <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
           <div className="min-w-0">
             <h2 className="truncate text-xl font-semibold tracking-tight">
               {t('aiProviders.routing.title', { defaultValue: 'Provider routing' })}

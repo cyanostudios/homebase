@@ -9,6 +9,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { InventoryItem } from '../types/garments';
 import type { GarmentColumnCount } from '../utils/garmentColumnCount';
@@ -104,7 +105,7 @@ export function InventoryListItem({
       aria-label={t('garments.openInventory', { name: item.articleName || item.id })}
     >
       <div className="flex flex-col gap-2 p-4">
-        {checkbox ? <div className="flex">{checkbox}</div> : null}
+        <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
         {metaOnTop ? metaRow : null}
 
         <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>

@@ -6,7 +6,6 @@ import {
   Plus,
   Settings,
   Trash2,
-  X,
   XCircle,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -23,13 +22,19 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -114,6 +119,11 @@ export function MatchList() {
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openMatchPanel(null)),
+    onSettings: () => openMatchSettings(),
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -197,7 +207,9 @@ export function MatchList() {
     [primarySort, sortOrder],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
   const showHomeTeamFilter = defaultHomeTeam.length > 0;
 
   const teamNameById = useMemo(() => {
@@ -324,18 +336,7 @@ export function MatchList() {
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
             renderCategoryButtonsInline
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeMatchSettingsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
+            onClose={closeMatchSettingsView}
           />
         </div>
       </div>
@@ -346,39 +347,26 @@ export function MatchList() {
     return (
       <div className="plugin-matches min-h-full bg-background">
         <div className="px-6 py-4">
-          <MatchesStatisticsView
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeMatchStatisticsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
-          />
+          <MatchesStatisticsView onClose={closeMatchStatisticsView} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="plugin-matches min-h-full bg-background px-6 py-4">
+    <div className="plugin-matches min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.matches')}</h2>
             <p className="text-sm text-muted-foreground">{t('matches.listDescription')}</p>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
             <Button
               variant="ghost"
               size="sm"
               icon={Settings}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={() => openMatchSettings()}
               title={t('matches.settings')}
             >
@@ -388,7 +376,7 @@ export function MatchList() {
               variant="ghost"
               size="sm"
               icon={BarChart2}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={() => openMatchStatistics()}
               title={t('common.statistics')}
             >
@@ -398,7 +386,7 @@ export function MatchList() {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openMatchPanel(null))}
             >
               {t('matches.addMatch')}
@@ -408,8 +396,9 @@ export function MatchList() {
 
         <div
           className={cn(
-            'grid grid-cols-2 gap-2',
-            showHomeTeamFilter ? 'md:grid-cols-5' : 'md:grid-cols-4',
+            LIST_FILTER_STAT_ROW_CLASS,
+            'md:grid-cols-2 md:gap-2 lg:grid-cols-4',
+            showHomeTeamFilter && 'lg:grid-cols-5',
           )}
         >
           <ListFilterStatCard
@@ -462,7 +451,7 @@ export function MatchList() {
 
         <div className="flex items-start gap-4">
           {showQuickContext && previewMatch ? (
-            <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+            <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
               <MatchQuickContextPanel
                 match={previewMatch}
                 onClose={() => setPreviewMatch(null)}
@@ -609,9 +598,9 @@ export function MatchList() {
               <div
                 className={cn(
                   'grid gap-3',
-                  columnCount === 1 && 'grid-cols-1',
-                  columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                  columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                  effectiveColumnCount === 1 && 'grid-cols-1',
+                  effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                  effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
                 )}
               >
                 {filteredAndSorted.map((match, index) => {
@@ -622,7 +611,7 @@ export function MatchList() {
                       match={match}
                       selected={matchIsSelected}
                       highlighted={recentlyDuplicatedMatchId === String(match.id)}
-                      columnCount={columnCount}
+                      columnCount={effectiveCardColumnCount}
                       active={previewMatch !== null && String(previewMatch.id) === String(match.id)}
                       onClick={() => handleRowActivate(match)}
                       checkbox={

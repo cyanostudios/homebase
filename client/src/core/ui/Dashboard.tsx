@@ -1,15 +1,20 @@
-import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
-import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import type { NavPage } from '@/core/navigation/navTypes';
-import {
-  DASHBOARD_WIDGET_CARD_CLASS,
-  DASHBOARD_WIDGET_ICON_CHIP_CLASSES,
-} from '@/core/ui/detailViewCardStyles';
+import { DashboardActivityPanel } from '@/core/ui/dashboard/DashboardActivityPanel';
+import { DashboardChartsSection } from '@/core/ui/dashboard/DashboardChartsSection';
+import { DashboardKpiSection } from '@/core/ui/dashboard/DashboardKpiSection';
+import { DashboardQuickActions } from '@/core/ui/dashboard/DashboardQuickActions';
+import { DashboardSidebar } from '@/core/ui/dashboard/DashboardSidebar';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
-import { cn } from '@/lib/utils';
+import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
+import { useMatches } from '@/plugins/matches/hooks/useMatches';
+import { useRequests } from '@/plugins/requests/hooks/useRequests';
+import { useSchedulePlans } from '@/plugins/schedule/hooks/useSchedulePlans';
+import { useSlotsContext } from '@/plugins/slots/context/SlotsContext';
+import { useTasks } from '@/plugins/tasks/hooks/useTasks';
+import { useTeams } from '@/plugins/teams/hooks/useTeams';
 
 interface DashboardProps {
   onPageChange: (page: NavPage) => void;
@@ -17,98 +22,66 @@ interface DashboardProps {
 
 export function Dashboard({ onPageChange }: DashboardProps) {
   const enabledPlugins = useEnabledPlugins();
+  const has = (name: string) => enabledPlugins.has(name);
   const { t } = useTranslation();
 
-  const widgets = React.useMemo(
-    () => PLUGIN_REGISTRY.filter((p) => enabledPlugins.has(p.name) && p.dashboardWidget),
-    [enabledPlugins],
-  );
+  const { tasks } = useTasks();
+  const { requests } = useRequests();
+  const { teams } = useTeams();
+  const { matches } = useMatches();
+  const { plans } = useSchedulePlans();
+  const { invoices } = useInvoices();
+  const { slots } = useSlotsContext();
 
-  const pageHeader = (
-    <div className="min-w-0">
-      <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.dashboard')}</h2>
-      <p className="text-sm text-muted-foreground">{t('dashboard.description')}</p>
-    </div>
-  );
+  const showKpi = has('requests') || has('tasks') || has('matches') || has('teams');
+  const showQuickActions =
+    has('requests') || has('tasks') || has('matches') || has('schedule') || has('slots');
+  const showActivity = has('matches') || (has('schedule') && has('teams'));
+  const showSidebar = has('slots') || (has('schedule') && has('teams'));
+  const showCharts = has('tasks') || has('invoices') || has('teams');
+  const hasAnySection = showKpi || showQuickActions || showActivity || showSidebar || showCharts;
 
-  if (widgets.length === 0) {
-    return (
-      <div className="min-h-full bg-background px-6 py-4">
-        <div className="space-y-4">
-          {pageHeader}
+  const dataProps = {
+    has,
+    onPageChange,
+    tasks,
+    requests,
+    teams,
+    matches,
+    plans,
+    invoices,
+    slots,
+  };
+
+  return (
+    <div className="min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
+      <div className="mx-auto min-w-0 max-w-screen-2xl space-y-6">
+        <div className="min-w-0">
+          <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.dashboard')}</h2>
+          <p className="text-sm text-muted-foreground">{t('dashboard.description')}</p>
+        </div>
+
+        {!hasAnySection ? (
           <Card className="rounded-md border-0 bg-white p-6 text-center text-muted-foreground shadow-none dark:bg-slate-950">
             <p>{t('dashboard.noWidgets')}</p>
           </Card>
-        </div>
-      </div>
-    );
-  }
+        ) : (
+          <>
+            <DashboardKpiSection {...dataProps} />
 
-  return (
-    <div className="min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
-        {pageHeader}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {widgets.map((plugin, index) => {
-            const WidgetComponent = plugin.dashboardWidget!;
-            const label = plugin.navigation?.label ?? plugin.name;
-            const chipClassName =
-              DASHBOARD_WIDGET_ICON_CHIP_CLASSES[index % DASHBOARD_WIDGET_ICON_CHIP_CLASSES.length];
-            const PluginIcon = plugin.navigation?.icon;
-            return (
-              <Card
-                key={plugin.name}
-                className={cn(
-                  DASHBOARD_WIDGET_CARD_CLASS,
-                  'group',
-                  `plugin-${plugin.name} hover:plugin-${plugin.name}`,
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                )}
-                tabIndex={0}
-                role="button"
-                aria-label={label}
-                onClick={() => onPageChange(plugin.name as NavPage)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onPageChange(plugin.name as NavPage);
-                  }
-                }}
-              >
-                <div className="mb-2 flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 transition-colors group-hover:text-primary dark:text-slate-500">
-                  {PluginIcon ? (
-                    <span
-                      className={cn(
-                        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
-                        chipClassName,
-                      )}
-                      aria-hidden
-                    >
-                      <PluginIcon className="h-3.5 w-3.5" />
-                    </span>
-                  ) : (
-                    <span
-                      className={cn('h-1.5 w-1.5 shrink-0 rounded-full', chipClassName)}
-                      aria-hidden
-                    />
-                  )}
-                  <span className="line-clamp-1 underline decoration-border group-hover:decoration-primary">
-                    {label}
-                  </span>
-                </div>
-                <div
-                  className="flex min-h-0 flex-1 flex-col border-t border-border/50 pt-3"
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                >
-                  <React.Suspense fallback={null}>
-                    <WidgetComponent onOpenPlugin={() => onPageChange(plugin.name as NavPage)} />
-                  </React.Suspense>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="space-y-4 lg:col-span-2">
+                <DashboardQuickActions has={has} onPageChange={onPageChange} />
+                <DashboardActivityPanel {...dataProps} />
+              </div>
+              <div className="space-y-4">
+                <DashboardSidebar {...dataProps} />
+              </div>
+            </div>
+
+            <DashboardChartsSection {...dataProps} />
+          </>
+        )}
       </div>
     </div>
   );

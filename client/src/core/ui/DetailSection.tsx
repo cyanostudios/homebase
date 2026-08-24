@@ -46,7 +46,7 @@ export function SubtleSectionHeading({
       <Heading
         level={3}
         size="xs"
-        className="truncate uppercase tracking-[0.1em] font-bold text-slate-500 dark:text-slate-400"
+        className="truncate font-bold uppercase leading-none tracking-[0.1em] text-slate-500 dark:text-slate-400"
       >
         {title}
       </Heading>
@@ -120,12 +120,16 @@ export function DetailSection({
   if (!collapsible) {
     return (
       <section className={cn('space-y-3', className)}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
             {iconNode}
             {titleNode}
           </div>
-          {action}
+          {action ? (
+            <div className="flex min-w-0 w-full justify-end sm:block sm:w-auto sm:shrink-0">
+              {action}
+            </div>
+          ) : null}
         </div>
         {children}
       </section>
@@ -135,7 +139,7 @@ export function DetailSection({
   return (
     <section className={cn(className)}>
       <Collapsible open={open} onOpenChange={setOpen} className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CollapsibleTrigger asChild>
             <button
               type="button"
@@ -164,7 +168,7 @@ export function DetailSection({
           </CollapsibleTrigger>
           {action ? (
             <div
-              className="shrink-0"
+              className="flex min-w-0 w-full justify-end sm:block sm:w-auto sm:shrink-0"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
             >

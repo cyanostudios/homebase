@@ -387,13 +387,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
 
   const formLeftSidebar = (
     <div className="space-y-4">
-      <Card
-        padding="none"
-        className={cn(
-          DETAIL_VIEW_CARD_CLASS,
-          'flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden',
-        )}
-      >
+      <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
         <div className="border-b border-border/50 px-4 py-2.5">
           <div className="flex items-center gap-3">
             <div
@@ -427,7 +421,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        <div className="space-y-4 px-4 py-4">
           <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
@@ -449,7 +443,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">
             <div>
               <Label htmlFor="contactNumber" className={FACT_LABEL_CLASS}>
                 <Hash className="h-3 w-3" />

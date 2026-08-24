@@ -21,10 +21,10 @@ import {
 } from '../utils/requestTypeConfig';
 
 interface RequestsSettingsViewProps {
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
-export function RequestsSettingsView({ inlineTrailing }: RequestsSettingsViewProps = {}) {
+export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { requestTypes, saveRequestTypes } = useRequests();
   const enabledPlugins = useEnabledPlugins();
@@ -321,7 +321,7 @@ export function RequestsSettingsView({ inlineTrailing }: RequestsSettingsViewPro
     <PluginSettingsPageShell
       title={t('requests.settings.title')}
       subtitle={t('requests.settingsSubtitle')}
-      trailing={inlineTrailing}
+      onClose={onClose}
     >
       <DetailSection
         title={t('requests.settings.typesSection')}

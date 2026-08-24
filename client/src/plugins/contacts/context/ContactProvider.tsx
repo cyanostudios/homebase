@@ -1,9 +1,8 @@
-import { Mail, MessageCircle, Timer } from 'lucide-react';
+import { Mail, MessageCircle } from 'lucide-react';
 import React, { useCallback, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
@@ -16,10 +15,9 @@ import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
-import { cn } from '@/lib/utils';
 
 import { contactsApi } from '../api/contactsApi';
-import { Contact, CONTACT_TYPE_COLORS, ValidationError } from '../types/contacts';
+import { Contact, ValidationError } from '../types/contacts';
 import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
 import {
   buildContactTagsSavePayload,
@@ -752,39 +750,8 @@ export function ContactProvider({
       return null;
     }
     if (mode === 'view' && item) {
-      const isCompany = item.contactType === 'company';
-      const typeColor = isCompany ? CONTACT_TYPE_COLORS.company : CONTACT_TYPE_COLORS.private;
-      const orgOrPersonal = isCompany
-        ? item.organizationNumber?.trim() || null
-        : item.personalNumber?.trim() || null;
-      const email = item.email?.trim() || null;
-      const phone = item.phone?.trim() || null;
-      const hasTimeEntries =
-        contactIdsWithTimeEntries.has(item.id) || contactIdsWithTimeEntries.has(String(item.id));
-      const metaParts = [orgOrPersonal, email, phone].filter(Boolean);
-
-      return (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <Badge
-            variant="outline"
-            className={cn('text-[10px] px-1.5 h-5 shrink-0 font-medium border-0', typeColor)}
-          >
-            {t(`contacts.type.${item.contactType}`)}
-          </Badge>
-          {metaParts.length > 0 ? (
-            <span className="text-xs text-muted-foreground truncate">{metaParts.join(' · ')}</span>
-          ) : null}
-          {hasTimeEntries ? (
-            <Badge
-              variant="outline"
-              className="text-[10px] px-1.5 h-5 shrink-0 font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 dark:text-amber-300 border-amber-200/60"
-            >
-              <Timer className="h-2.5 w-2.5" aria-hidden />
-              Time logged
-            </Badge>
-          ) : null}
-        </div>
-      );
+      // Identity (name, type, org/meta) is shown in ContactQuickContextPanel.
+      return null;
     }
 
     switch (mode) {

@@ -19,13 +19,13 @@ interface GuideSettingsViewProps {
   onSelectedCategoryChange?: (category: GuideSettingsCategory) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 export function GuideSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  inlineTrailing,
+  onClose,
 }: GuideSettingsViewProps = {}) {
   const { t } = useTranslation();
 
@@ -60,7 +60,7 @@ export function GuideSettingsView({
       categories={categories}
       activeCategory={activeCategory}
       onCategoryChange={(id) => setActiveCategory(id as GuideSettingsCategory)}
-      trailing={inlineTrailing}
+      onClose={onClose}
     >
       {activeCategory === 'production' && <ProductionWorkerSettingsPanel />}
       {activeCategory === 'sources' && <ContentSourcesSettings />}

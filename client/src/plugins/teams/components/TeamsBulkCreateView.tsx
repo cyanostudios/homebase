@@ -1,4 +1,4 @@
-import { ListPlus, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ListPlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useMobileBarOverride } from '@/core/ui/MobileActionsContext';
 import { cn } from '@/lib/utils';
 
 import { teamsApi } from '../api/teamsApi';
@@ -43,10 +44,10 @@ function createEmptyRow(): BulkRow {
 }
 
 interface TeamsBulkCreateViewProps {
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
-export function TeamsBulkCreateView({ inlineTrailing }: TeamsBulkCreateViewProps = {}) {
+export function TeamsBulkCreateView({ onClose }: TeamsBulkCreateViewProps = {}) {
   const { t } = useTranslation();
   const { refreshTeams, closeTeamBulkCreate } = useTeams();
   const [rows, setRows] = useState<BulkRow[]>(() =>
@@ -56,6 +57,8 @@ export function TeamsBulkCreateView({ inlineTrailing }: TeamsBulkCreateViewProps
   const [doneMessage, setDoneMessage] = useState<string | null>(null);
 
   const validCount = useMemo(() => getNamedBulkRows(rows).length, [rows]);
+
+  useMobileBarOverride(onClose ? { onClose } : null);
 
   const updateRow = useCallback((id: string, patch: Partial<BulkRow>) => {
     setRows((prev) =>
@@ -126,7 +129,7 @@ export function TeamsBulkCreateView({ inlineTrailing }: TeamsBulkCreateViewProps
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-shrink-0 items-center justify-between gap-4">
+      <div className="hidden flex-shrink-0 items-center justify-between gap-4 md:flex">
         <div className="mr-4 flex min-w-0 flex-1 items-center gap-3">
           <ListPlus className="h-5 w-5 shrink-0 text-plugin" />
           <div className="min-w-0">
@@ -136,7 +139,20 @@ export function TeamsBulkCreateView({ inlineTrailing }: TeamsBulkCreateViewProps
             <p className="text-sm text-muted-foreground">{t('teams.bulkCreateDescription')}</p>
           </div>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-1">{inlineTrailing}</div>
+        {onClose ? (
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={X}
+              className="h-9 px-3 text-xs"
+              onClick={onClose}
+            >
+              {t('common.close')}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <Card padding="none" className="overflow-hidden border border-border/70 bg-card shadow-sm">

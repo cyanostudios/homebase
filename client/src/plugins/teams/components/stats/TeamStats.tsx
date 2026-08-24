@@ -7,7 +7,7 @@ import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 
 import { useTeamStats } from '../../hooks/useTeamStats';
 
-const STAT_GRID = 'mt-3 grid grid-cols-4 gap-2';
+const STAT_GRID = 'mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4';
 
 function RankRow({
   rank,

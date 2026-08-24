@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { GroupedList } from '@/core/ui/GroupedList';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -44,6 +45,11 @@ export function InvoicesList() {
     isSelected,
   } = useInvoices();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openInvoicesPanel(null)),
+  });
+
   const isMobile = useIsMobile();
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
@@ -297,10 +303,10 @@ export function InvoicesList() {
   };
 
   return (
-    <div className="plugin-invoices min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+    <div className="plugin-invoices min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
+      <div className="space-y-3">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.invoices')}</h2>
             <p className="text-sm text-muted-foreground">{t('invoices.listDescription')}</p>
           </div>
@@ -308,14 +314,14 @@ export function InvoicesList() {
             variant="primary"
             size="sm"
             icon={Plus}
-            className="h-9 px-3 text-xs"
+            className="h-9 w-full flex-1 px-3 text-xs md:w-auto md:flex-initial"
             onClick={() => attemptNavigation(() => openInvoicesPanel(null))}
           >
             {t('invoices.addInvoice')}
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
           <ListFilterStatCard
             label="Total"
             value={stats.total}
@@ -449,15 +455,17 @@ export function InvoicesList() {
                 >
                   {/* Rad 1: Checkbox + Invoice Number + Badges */}
                   <div className="flex items-center gap-2 mb-1.5">
-                    <input
-                      type="checkbox"
-                      checked={invoiceIsSelected}
-                      onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, idx)}
-                      onChange={() => onVisibleRowCheckboxChange(invoice.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="cursor-pointer flex-shrink-0 h-5 w-5 sm:h-4 sm:w-4"
-                      aria-label={invoiceIsSelected ? 'Unselect invoice' : 'Select invoice'}
-                    />
+                    <div className="hidden md:block">
+                      <input
+                        type="checkbox"
+                        checked={invoiceIsSelected}
+                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, idx)}
+                        onChange={() => onVisibleRowCheckboxChange(invoice.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer flex-shrink-0 h-5 w-5 sm:h-4 sm:w-4"
+                        aria-label={invoiceIsSelected ? 'Unselect invoice' : 'Select invoice'}
+                      />
+                    </div>
                     <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
                       {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
                     </div>

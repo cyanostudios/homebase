@@ -43,13 +43,13 @@ export type CupsSettingsCategory = 'view' | 'import' | 'appearance';
 export function CupsSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  inlineTrailing,
+  onClose,
 }: {
   selectedCategory?: CupsSettingsCategory;
   onSelectedCategoryChange?: (category: CupsSettingsCategory) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 } = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
@@ -297,7 +297,9 @@ export function CupsSettingsView({
         categories={categories}
         activeCategory={activeCategory}
         onCategoryChange={(id) => setActiveCategory(id as CupsSettingsCategory)}
-        trailing={inlineTrailing}
+        onClose={onClose}
+        onSave={isDirty ? () => void handleSave() : undefined}
+        isSaving={isSaving}
         saveAction={
           activeCategory === 'appearance' ? (
             appearanceDirty ? (

@@ -58,13 +58,13 @@ interface TaskSettingsViewProps {
   onSelectedCategoryChange?: (category: TaskSettingsCategory) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 export function TaskSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  inlineTrailing,
+  onClose,
 }: TaskSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
@@ -159,7 +159,9 @@ export function TaskSettingsView({
         categories={categories}
         activeCategory={activeCategory}
         onCategoryChange={(id) => setActiveCategory(id as TaskSettingsCategory)}
-        trailing={inlineTrailing}
+        onClose={onClose}
+        onSave={isDirty ? () => void handleSave() : undefined}
+        isSaving={isSaving}
         saveAction={
           isDirty ? (
             <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />

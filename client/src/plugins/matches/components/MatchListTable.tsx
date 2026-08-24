@@ -10,6 +10,8 @@ import type { MatchSortField, MatchSortOrder } from '../utils/matchListSort';
 
 import { MatchTeamBadge } from './MatchTeamBadge';
 
+type MatchTableColumnField = MatchSortField | 'matchup';
+
 export type MatchListTableProps = {
   matches: Match[];
   primarySort: MatchSortField;
@@ -49,8 +51,19 @@ export function MatchListTable({
   useTimeFormat();
   const { t } = useTranslation();
 
-  const columns = useMemo<SortableListTableColumn<Match, MatchSortField>[]>(
+  const columns = useMemo<SortableListTableColumn<Match, MatchTableColumnField>[]>(
     () => [
+      {
+        field: 'matchup',
+        header: t('matches.matchupLabel'),
+        className: 'md:hidden',
+        sortable: false,
+        cell: (match) => (
+          <span className="min-w-0 truncate font-medium text-foreground">
+            {match.home_team || '—'} – {match.away_team || '—'}
+          </span>
+        ),
+      },
       {
         field: 'start_time',
         header: t('matches.timeLabel'),
@@ -63,6 +76,7 @@ export function MatchListTable({
       {
         field: 'home_team',
         header: t('matches.homeTeamLabel'),
+        className: 'hidden md:table-cell',
         cell: (match) => (
           <span className="font-medium text-foreground">{match.home_team || '—'}</span>
         ),
@@ -70,6 +84,7 @@ export function MatchListTable({
       {
         field: 'away_team',
         header: t('matches.awayTeamLabel'),
+        className: 'hidden md:table-cell',
         cell: (match) => <span className="text-foreground">{match.away_team || '—'}</span>,
       },
       {
@@ -110,7 +125,12 @@ export function MatchListTable({
       getRowId={(match) => String(match.id)}
       primarySort={primarySort}
       sortOrder={sortOrder}
-      onSort={onSort}
+      onSort={(field) => {
+        if (field === 'matchup') {
+          return;
+        }
+        onSort(field);
+      }}
       onRowClick={onRowClick}
       rowAriaLabel={(_match) => t('matches.openMatch')}
       rowClassName={(match) =>

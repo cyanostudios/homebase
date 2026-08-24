@@ -4,6 +4,51 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-24 – Home dashboard redesign (v1)
+
+**Status:** Implementerat lokalt. **QA Approved.** Security **N/A** (klient-UI). **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Startsidan (`/` / dashboard) byter från ett plugin-widget-grid till en sektionsindelad översikt med KPI, snabbåtgärder, aktivitet/sidopanel och diagram — villkorligt per aktiverat plugin.
+
+**Beteende (verifierat)**
+
+- KPI: öppna requests, aktiva tasks, kommande matches, lag totalt
+- Snabbåtgärder: plugin-beroende navigation till requests/tasks/matches/schedule/slots
+- Aktivitet + sidebar: kommande matcher, lag med träning, bokningsbara slots
+- Diagram: tasks-donut, teams-donut, invoices stacked bar (pure SVG; inga nya paket)
+- Tom-vy via `dashboard.noWidgets` när ingen sektion kan visas; strängar via `dashboard.*` i18n
+- Data från befintliga hooks; ingen `/api/dashboard`
+
+**Begränsningar:** Ingen layout-konfiguration (drag-and-drop). **Cups-diagram på home dashboard deferred** (medvetet). Registry-fältet `dashboardWidget` / `*DashboardWidget.tsx` används inte av den nya shellen.
+
+**Operator:** [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md)
+
+---
+
+## 2026-08-24 – Mobile: bottom bar (Search / Add / Settings)
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** På mobil flyttas Search, Add och Settings till en fast bottom bar. Listans title/Add/Settings-header döljs under `md` så åtgärderna inte dupliceras.
+
+**Beteende (verifierat)**
+
+- `MobileBottomBar` (`md:hidden`): Search öppnar sökfält ovanför baren (list-sök dold i toolbar under `md`); Add/Settings via `useMobileActions` per plugin-lista; flytande translucent chrome (`bg-background/30` + blur, samma känsla som detail Edit/Close). I plugin-settings ersätter Close (+ Save vid dirty) Search/Add/Settings via `useMobileBarOverride`.
+- `MobileActionsProvider` i `MainLayout`; `main` har `pb-16 md:pb-0`; bar dold när detail panel är öppen
+- Card-column-listor: header `hidden md:flex`; Schedule behåller schema-väljare + dirty Save; Core Settings behåller Save (ingen Add/Settings-registrering)
+- Relaterat (samma mobilpass): filter-stat-kort synliga på phone som kompakta chips i horisontell scroll (`LIST_FILTER_STAT_ROW_CLASS`); full storlek + grid från `md`; listvy display-only override via `effectiveListViewMode.ts` (cards, 1 kolumn grid, column-2 kortinnehåll); `ListColumnLayoutToggle` dold på mobil
+- Mobil: ingen radmarkering/bulk (checkboxar + select-all + `BulkActionBar` dolda under `md`)
+- Full view / DetailPanel: desktop header matchar list (`px-6 py-4`, stacked `text-xl` title + subtitle, `gap-4` till Edit/Close); content `px-6`. Phone behåller tätare inset. Delade tokens i `pluginPageStyles.ts`. List-sidor normaliserade till `md:px-6 md:py-4`.
+- Full view / DetailPanel: mindre yttre horizontal inset på phone (`px-2 sm:px-3`) så korten blir bredare
+- Full view (phone): content fyller panelen; Edit/Close är `fixed` längst ner (portalerad) och syns alltid ovanpå scroll; panelrubrik döljs i view (finns i korten). Desktop behåller panelrubrik + header-padding (`py-4`) bredvid Edit/Close.
+- Desktop quick context: ingen intern scroll (växer med innehåll); sticky igen via bounded layout (`h-dvh` + list scrollport) + `lg:sticky self-start`
+
+**Operator:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.2; checklist [`NEW_PLUGIN_INTEGRATION_CHECKLIST.md`](NEW_PLUGIN_INTEGRATION_CHECKLIST.md)
+
+**Säkerhet (Security Approved):** Endast klient-UI; samma handlers som desktop-header. Informativ residual: document custom event kan fokusera sök om XSS redan finns (samma klass som övriga `homebase:*`-events).
+
+---
+
 ## 2026-08-24 – Requests: unopened indicator (badge + list highlight)
 
 **Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**

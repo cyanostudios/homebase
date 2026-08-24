@@ -44,11 +44,11 @@ export function DetailLayout({
         ? 'grid-cols-1 lg:grid-cols-[1fr_320px]'
         : 'grid-cols-1';
   return (
-    <div className={cn('grid gap-4', gridClassName ?? defaultGridColsClass, className)}>
-      {leftSidebar && <aside className="min-w-0 space-y-4 lg:sticky lg:top-4">{leftSidebar}</aside>}
-      <div className={cn('min-w-0 space-y-4', mainClassName)}>{children}</div>
-      {sidebar && <aside className="space-y-4 min-w-0">{sidebar}</aside>}
-      {rightSidebar && <aside className="space-y-4 min-w-0">{rightSidebar}</aside>}
+    <div className={cn('grid items-start gap-4', gridClassName ?? defaultGridColsClass, className)}>
+      {leftSidebar && <aside className="order-1 min-w-0 space-y-4">{leftSidebar}</aside>}
+      <div className={cn('order-2 min-w-0 space-y-4', mainClassName)}>{children}</div>
+      {sidebar && <aside className="order-3 min-w-0 space-y-4">{sidebar}</aside>}
+      {rightSidebar && <aside className="order-4 min-w-0 space-y-4">{rightSidebar}</aside>}
     </div>
   );
 }

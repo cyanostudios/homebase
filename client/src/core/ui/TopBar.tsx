@@ -6,6 +6,7 @@ import { useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getTopBarWidgets } from '@/core/widgets';
 import { useTheme } from '@/hooks/useTheme';
+import { cn } from '@/lib/utils';
 
 import type { NavPage } from '@/core/navigation/navTypes';
 import { TopBarBreadcrumbs } from './topbar/TopBarBreadcrumbs';
@@ -161,70 +162,119 @@ function TopBarInner({
     return m;
   }, [topBarWidgets, handleWidgetToggle]);
 
-  return (
-    <header className="fixed left-0 right-0 top-0 z-40 flex h-14 w-full bg-workspace">
-      <div className="flex h-full min-w-0 w-full items-center justify-between pl-3 pr-2 sm:pl-4 sm:pr-4 md:pl-4 md:pr-6">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden flex-shrink-0 h-7 w-7"
-            onClick={onOpenMobileNav}
-            aria-label="Open navigation"
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
+  const clockWidgets = useMemo(
+    () => topBarWidgets.filter((w) => w.id === 'clock'),
+    [topBarWidgets],
+  );
+  const toolWidgets = useMemo(
+    () => topBarWidgets.filter((w) => w.id === 'pomodoro' || w.id === 'time-tracking'),
+    [topBarWidgets],
+  );
+  const otherWidgets = useMemo(
+    () =>
+      topBarWidgets.filter(
+        (w) => w.id !== 'clock' && w.id !== 'pomodoro' && w.id !== 'time-tracking',
+      ),
+    [topBarWidgets],
+  );
 
-          <div className="mr-4 hidden flex-shrink-0 items-center gap-2 md:flex">
-            {organizationLogoUrl ? (
-              <img
-                src={organizationLogoUrl}
-                alt=""
-                className="h-8 w-8 rounded-md object-contain bg-muted/40"
-              />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <span className="text-xs font-bold">{brandInitial}</span>
-              </div>
-            )}
-            <span className="text-sm font-semibold">{brandName}</span>
+  const showMobileToolRow = toolWidgets.length > 0;
+
+  const renderWidgetList = (
+    widgets: typeof topBarWidgets,
+    className?: string,
+    itemClassName?: string,
+  ) => (
+    <div className={cn('flex items-center gap-1 sm:gap-2', className)}>
+      {widgets.map((widget) => {
+        const WidgetComponent = widget.component;
+        return (
+          <div key={widget.id} className={itemClassName}>
+            <WidgetComponent
+              compact={true}
+              isExpanded={openWidgetId === widget.id}
+              onToggle={widgetToggleById.get(widget.id)!}
+              onClose={handleCloseWidgetPanel}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <>
+      <header className="fixed left-0 right-0 top-0 z-40 flex w-full flex-col bg-workspace">
+        <div className="flex h-14 min-w-0 w-full items-center justify-between pl-3 pr-2 sm:pl-4 sm:pr-4 md:pl-4 md:pr-6">
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 flex-shrink-0 lg:hidden"
+              onClick={onOpenMobileNav}
+              aria-label="Open navigation"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+
+            <div className="mr-4 hidden flex-shrink-0 items-center gap-2 lg:flex">
+              {organizationLogoUrl ? (
+                <img
+                  src={organizationLogoUrl}
+                  alt=""
+                  className="h-8 w-8 rounded-md bg-muted/40 object-contain"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                  <span className="text-xs font-bold">{brandInitial}</span>
+                </div>
+              )}
+              <span className="text-sm font-semibold">{brandName}</span>
+            </div>
+
+            <TopBarBreadcrumbs
+              brandLabel={brandName}
+              activeBreadcrumbLabel={activeBreadcrumbLabel}
+              detailPanelTitle={detailPanelTitle}
+              onGoDashboard={handleGoDashboard}
+              onBreadcrumbPrimaryClick={handleBreadcrumbPrimaryClick}
+              onDetailChipClose={handleDetailChipClose}
+            />
           </div>
 
-          <TopBarBreadcrumbs
-            brandLabel={brandName}
-            activeBreadcrumbLabel={activeBreadcrumbLabel}
-            detailPanelTitle={detailPanelTitle}
-            onGoDashboard={handleGoDashboard}
-            onBreadcrumbPrimaryClick={handleBreadcrumbPrimaryClick}
-            onDetailChipClose={handleDetailChipClose}
-          />
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            {/* Mobile: clock (and any other non-tool widgets) stay in the top row */}
+            {renderWidgetList([...clockWidgets, ...otherWidgets], 'flex md:hidden')}
+            {/* Desktop: all widgets in the top row */}
+            {renderWidgetList(topBarWidgets, 'hidden md:flex')}
+            <TopBarUserMenu
+              user={user}
+              profileSettings={profileSettings}
+              onOpenSettings={handleOpenSettings}
+              theme={theme}
+              toggleTheme={toggleTheme}
+              onLogout={logout}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          {topBarWidgets.map((widget) => {
-            const WidgetComponent = widget.component;
-            return (
-              <WidgetComponent
-                key={widget.id}
-                compact={true}
-                isExpanded={openWidgetId === widget.id}
-                onToggle={widgetToggleById.get(widget.id)!}
-                onClose={handleCloseWidgetPanel}
-              />
-            );
-          })}
+        {showMobileToolRow ? (
+          <div className="flex h-12 items-center gap-2 border-t border-border/40 px-3 md:hidden sm:px-4">
+            {renderWidgetList(
+              toolWidgets,
+              'flex w-full min-w-0 gap-2',
+              'min-w-0 flex-1 [&>div]:w-full',
+            )}
+          </div>
+        ) : null}
+      </header>
 
-          <TopBarUserMenu
-            user={user}
-            profileSettings={profileSettings}
-            onOpenSettings={handleOpenSettings}
-            theme={theme}
-            toggleTheme={toggleTheme}
-            onLogout={logout}
-          />
-        </div>
-      </div>
-    </header>
+      {/* Flow spacer matching fixed header height */}
+      <div
+        className={cn('w-full shrink-0', showMobileToolRow ? 'h-[6.5rem] md:h-14' : 'h-14')}
+        aria-hidden
+      />
+    </>
   );
 }
 

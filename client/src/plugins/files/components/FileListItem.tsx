@@ -10,6 +10,7 @@ import {
   DETAIL_LIST_ITEM_TITLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { FileItem } from '../types/files';
 import type { FileColumnCount } from '../utils/fileColumnCount';
@@ -118,7 +119,7 @@ export function FileListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             {mimeLabel ? (
               <Badge
                 variant="outline"

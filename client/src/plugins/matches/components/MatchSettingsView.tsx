@@ -45,13 +45,13 @@ interface MatchSettingsViewProps {
   onSelectedCategoryChange?: (category: MatchSettingsCategory) => void;
   /** @deprecated Category cards replace header tab buttons. Kept for call-site compatibility. */
   renderCategoryButtonsInline?: boolean;
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
 export function MatchSettingsView({
   selectedCategory,
   onSelectedCategoryChange,
-  inlineTrailing,
+  onClose,
 }: MatchSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
@@ -224,7 +224,9 @@ export function MatchSettingsView({
       categories={categories}
       activeCategory={activeCategory}
       onCategoryChange={(id) => setActiveCategory(id as MatchSettingsCategory)}
-      trailing={inlineTrailing}
+      onClose={onClose}
+      onSave={isDirty ? () => void handleSave() : undefined}
+      isSaving={isSaving}
       saveAction={
         isDirty ? (
           <SettingsHeaderSaveButton

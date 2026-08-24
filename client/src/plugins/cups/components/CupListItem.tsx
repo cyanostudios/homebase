@@ -9,6 +9,7 @@ import {
   DETAIL_LIST_ITEM_TITLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { Cup } from '../types/cups';
 import type { CupColumnCount } from '../utils/cupColumnCount';
@@ -113,7 +114,7 @@ export function CupListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             <div className="min-w-0 flex-1">
               <h3 className={cn('line-clamp-2', DETAIL_LIST_ITEM_TITLE_CLASS)}>
                 {cup.name || '—'}

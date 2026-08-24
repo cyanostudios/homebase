@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
@@ -69,6 +70,8 @@ export function ContactListTable({
   activeContactId = null,
 }: ContactListTableProps) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
+  const selectionOn = selectionEnabled && !isMobile;
 
   const sortIcon = (field: ContactSortField) =>
     primarySort === field ? (
@@ -84,7 +87,7 @@ export function ContactListTable({
       <Table rowBorders={false}>
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
-            {selectionEnabled ? (
+            {selectionOn ? (
               <TableHead className="w-8 px-3 pr-1">
                 <input
                   type="checkbox"
@@ -149,7 +152,7 @@ export function ContactListTable({
                 role="button"
                 aria-label={t('contacts.openContact', { name: contact.companyName })}
               >
-                {selectionEnabled ? (
+                {selectionOn ? (
                   <TableCell className="w-8 px-3 py-4 pr-1" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
@@ -164,7 +167,7 @@ export function ContactListTable({
                     />
                   </TableCell>
                 ) : null}
-                <TableCell className={selectionEnabled ? 'pl-2' : undefined}>
+                <TableCell className={selectionOn ? 'pl-2' : undefined}>
                   <span className="font-medium leading-4 text-foreground">
                     {contact.companyName}
                   </span>

@@ -30,10 +30,10 @@ const VIEW_MODE_OPTIONS: GarmentListViewMode[] = ['cards', 'table'];
 const COLUMN_OPTIONS: GarmentColumnCount[] = [1, 2, 3];
 
 interface GarmentSettingsViewProps {
-  inlineTrailing?: React.ReactNode;
+  onClose?: () => void;
 }
 
-export function GarmentSettingsView({ inlineTrailing }: GarmentSettingsViewProps = {}) {
+export function GarmentSettingsView({ onClose }: GarmentSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const [listViewMode, setListViewMode] = useState<GarmentListViewMode>(
@@ -100,7 +100,9 @@ export function GarmentSettingsView({ inlineTrailing }: GarmentSettingsViewProps
     <PluginSettingsPageShell
       title={t('garments.settingsTitle')}
       subtitle={t('garments.settingsSubtitle')}
-      trailing={inlineTrailing}
+      onClose={onClose}
+      onSave={hasChanges ? () => void handleSave() : undefined}
+      isSaving={isSaving}
       saveAction={
         hasChanges ? (
           <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />

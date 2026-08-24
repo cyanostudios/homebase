@@ -58,6 +58,12 @@ export const createPanelTitles = (
       return '';
     }
 
+    // Phone full view: title lives inside view cards — no duplicate above Edit/Close.
+    // Desktop keeps the panel title next to the header actions.
+    if (currentMode === 'view' && isMobileView) {
+      return '';
+    }
+
     // Only Estimates uses custom title (JSX); all others use central title from item.
     if (currentPlugin.name === 'estimates' && pluginContext?.getPanelTitle) {
       return pluginContext.getPanelTitle(
@@ -83,7 +89,7 @@ export const createPanelTitles = (
       );
     }
 
-    // Central title from current item: order title → companyName/name → plugin display numbers → id.
+    // Desktop full view: central title from current item.
     if (currentMode === 'view' && currentItem) {
       const cfg = IMPORT_PLUGIN_CONFIG[currentPlugin.name];
       if (cfg?.getTitle) {
@@ -179,12 +185,17 @@ export const createPanelTitles = (
       return null;
     }
 
+    // Phone full view: subtitle lives inside view cards — no duplicate above actions.
+    if (currentMode === 'view' && isMobileView) {
+      return null;
+    }
+
     // Only plugins with rich subtitle (Contacts, Tasks, Estimates) implement getPanelSubtitle.
     if (pluginContext && typeof pluginContext.getPanelSubtitle === 'function') {
       return pluginContext.getPanelSubtitle(currentMode, currentItem);
     }
 
-    // import plugin panel subtitle (IMPORT_PLUGIN_CONFIG)
+    // Desktop import plugin panel subtitle
     if (currentMode === 'view' && currentItem) {
       const cfg = IMPORT_PLUGIN_CONFIG[currentPlugin.name];
       if (cfg?.getSubtitle) {

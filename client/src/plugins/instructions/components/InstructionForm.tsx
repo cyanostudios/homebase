@@ -38,7 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
-import { DetailLayout, PANEL_MAX_WIDTH } from '@/core/ui/DetailLayout';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 const RichTextEditor = React.lazy(() =>
@@ -523,7 +523,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
     return (
       <>
         <div className="plugin-instructions">
-          <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
+          <DetailLayout sidebar={formSidebar}>
             <form
               className="space-y-4"
               onSubmit={(e) => {

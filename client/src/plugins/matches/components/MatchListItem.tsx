@@ -11,6 +11,7 @@ import {
   DETAIL_LIST_ITEM_TITLE_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import { formatMatchDateTime, formatMatchScore, isMatchStarted, type Match } from '../types/match';
 import type { MatchColumnCount } from '../utils/matchColumnCount';
@@ -155,7 +156,7 @@ export function MatchListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             <MatchStatusBadges match={match} />
             <MatchScoreBadge match={match} />
             {match.team_id ? <MatchTeamBadge teamId={match.team_id} /> : null}

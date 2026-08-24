@@ -10,6 +10,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export const TopBarBreadcrumbs = React.memo(function TopBarBreadcrumbs({
   brandLabel = 'Homebase',
@@ -26,47 +27,51 @@ export const TopBarBreadcrumbs = React.memo(function TopBarBreadcrumbs({
   onBreadcrumbPrimaryClick: () => void;
   onDetailChipClose: (e: React.MouseEvent) => void;
 }) {
+  const hasDetail = Boolean(detailPanelTitle);
+
   return (
-    <Breadcrumb className="min-w-0 flex-1">
-      <BreadcrumbList className="flex-wrap">
-        <BreadcrumbItem className="hidden sm:inline-flex">
+    <Breadcrumb className="min-w-0 flex-1 overflow-hidden">
+      <BreadcrumbList className="flex-nowrap items-center gap-1 overflow-hidden sm:gap-1.5">
+        <BreadcrumbItem className="hidden sm:inline-flex shrink-0">
           <BreadcrumbLink asChild>
             <Button
               variant="link"
               type="button"
               onClick={onGoDashboard}
-              className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground hover:no-underline font-normal"
+              className="h-auto p-0 text-xs font-normal text-muted-foreground hover:text-foreground hover:no-underline"
             >
               {brandLabel}
             </Button>
           </BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbSeparator className="hidden sm:inline-flex" />
-        <BreadcrumbItem className="min-w-0">
-          <BreadcrumbPage className="flex items-center gap-1 sm:gap-2 min-w-0">
+        <BreadcrumbSeparator className="hidden shrink-0 sm:inline-flex" />
+        <BreadcrumbItem
+          className={cn('min-w-0', hasDetail ? 'hidden max-w-[30%] sm:inline-flex' : 'max-w-full')}
+        >
+          <BreadcrumbPage className="flex min-w-0 items-center gap-1 sm:gap-2">
             <BreadcrumbLink asChild>
               <Button
                 variant="link"
                 type="button"
                 onClick={onBreadcrumbPrimaryClick}
-                className="h-auto p-0 hover:no-underline truncate text-xs font-medium text-foreground min-w-0"
+                className="h-auto min-w-0 truncate p-0 text-sm font-semibold text-foreground hover:no-underline sm:text-xs sm:font-medium"
               >
                 {activeBreadcrumbLabel}
               </Button>
             </BreadcrumbLink>
           </BreadcrumbPage>
         </BreadcrumbItem>
-        {detailPanelTitle ? (
+        {hasDetail ? (
           <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem className="min-w-0">
-              <BreadcrumbPage className="inline-flex items-center gap-1 sm:gap-1.5 min-w-0 px-2 sm:px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
-                <span className="truncate max-w-[120px] sm:max-w-[220px]">{detailPanelTitle}</span>
+            <BreadcrumbSeparator className="hidden shrink-0 sm:inline-flex" />
+            <BreadcrumbItem className="min-w-0 max-w-full flex-1 sm:max-w-[min(100%,16rem)]">
+              <BreadcrumbPage className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary sm:gap-1.5 sm:px-2.5">
+                <span className="min-w-0 flex-1 truncate">{detailPanelTitle}</span>
                 <Button
                   variant="ghost"
                   type="button"
                   onClick={onDetailChipClose}
-                  className="h-5 w-5 p-0 hover:bg-primary/20 rounded-sm transition-colors flex-shrink-0"
+                  className="h-5 w-5 flex-shrink-0 rounded-sm p-0 transition-colors hover:bg-primary/20"
                   aria-label="Close detail panel"
                 >
                   <X className="h-3 w-3" />

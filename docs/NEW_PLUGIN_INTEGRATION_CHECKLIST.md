@@ -34,6 +34,7 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
   - Required: `name`, `Provider`, `hook`, `panelKey`, `components.List`, `components.Form`, `components.View`.
   - Usually: `providerLoader`, `NullProvider`, `navigation`.
   - Optional: `dashboardWidget`, `displayPrefix`, `contentFlush`, `slugField`, `contentViewKey`, `noPrimaryAction`, `getViewExtraProps`, `getFormExtraProps` (see JSDoc on `PluginRegistryEntry` in that file).
+  - **Home dashboard (v1):** den sammansatta startsidan (`client/src/core/ui/Dashboard.tsx` + `dashboard/*`) läser **inte** `dashboardWidget`. Nya översiktsytor läggs i core-dashboard-sektionerna (villkorligt via `useEnabledPlugins`). Se [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md). `dashboardWidget` / `*DashboardWidget.tsx` kan finnas kvar i registret men är legacy för den shellen.
 - **`panelKey`:** must match the boolean the hook exposes (e.g. `isContactPanelOpen`). Template plugin `your-items` uses `isYourItemPanelOpen` (`pluginSingular.ts`).
 - **`NullProvider`:** copy `YourItemsNullProvider` from the template context; register it as eager `Provider` / `NullProvider` with `providerLoader` for the real provider.
 - **Singular names:** ensure `pluginSingular.ts` rules fit your `name` (`contacts` → `contact`, `matches` → `match`, `your-items` → `yourItem`).
@@ -71,7 +72,8 @@ Use when creating a plugin from `templates/plugin-frontend-template` and `templa
 - Add keys under `client/src/i18n/locales/en.json` and `client/src/i18n/locales/sv.json`.
 - Full-page settings: include `settingsSubtitle` and, when using category cards, short `settingsCategories.*Description` (or equivalent) keys — see Core Settings / `PluginSettingsPageShell` pattern.
 - Prefer shared primitives: `DetailLayout`, `DetailSection`, `ConfirmDialog`, shared `Button`, `Input`, `Textarea`, `NativeSelect`.
-- **List empty state:** use `ListEmptyState` (`@/core/ui/ListEmptyState`). Add short `*.noYet` (`No X yet` / `Inga X ännu`) and `*.noMatch`; when the list is truly empty, pass `createLabel` + `onCreate` (same open-create handler as header Add). Do not put “Click Add…” prose in `noYet`. See `UI_AND_UX_STANDARDS_V3.md` §0.1 and `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §6.
+- **List empty state:** use `ListEmptyState` (`@/core/ui/ListEmptyState`). Add short `*.noYet` (`No X yet` / `Inga X ännu`) and `*.noMatch`; when the list is truly empty, pass `createLabel` + `onCreate` (same open-create handler as header Add / mobile bottom-bar Add). Do not put “Click Add…” prose in `noYet`. See `UI_AND_UX_STANDARDS_V3.md` §0.1 and `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §6.
+- **Mobile actions:** register `useMobileActions({ onAdd, onSettings? })` from `@/core/ui/MobileActionsContext` in the list component (before any early returns). Hide the desktop title/Add/Settings header on mobile (`hidden md:flex …`). See `UI_AND_UX_STANDARDS_V3.md` §0.2.
 
 ---
 

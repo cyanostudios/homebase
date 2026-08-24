@@ -374,7 +374,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 onChange={(e) => updateInventoryField('brand', e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="garment-price">{t('garments.purchasePrice')}</Label>
                 <Input
@@ -413,7 +413,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 onChange={(e) => updateInventoryField('material', e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div>
                 <span className="text-slate-500 dark:text-slate-400">
                   {t('garments.totalQuantity')}

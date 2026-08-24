@@ -9,6 +9,7 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 
 import type { Estimate } from '../types/estimate';
 import type { EstimateColumnCount } from '../utils/estimateColumnCount';
@@ -107,7 +108,7 @@ export function EstimateListItem({
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            {checkbox}
+            <ListSelectionCheckboxSlot>{checkbox}</ListSelectionCheckboxSlot>
             <span className="font-mono text-[10px] text-muted-foreground">
               {formatDisplayNumber('estimates', estimate.estimateNumber)}
             </span>

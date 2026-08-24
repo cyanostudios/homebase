@@ -7,7 +7,6 @@ import {
   Plus,
   Settings,
   Trash2,
-  X,
   XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -25,11 +24,17 @@ import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { exportItems } from '@/core/utils/exportUtils';
 import { stripHtml } from '@/core/utils/textUtils';
@@ -108,6 +113,12 @@ export const NoteList: React.FC = () => {
     createNote,
   } = useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openNotePanel(null)),
+    onSettings: () => openNoteSettings(),
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -187,7 +198,9 @@ export const NoteList: React.FC = () => {
     [primarySort, sortOrder],
   );
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const sortedNotes = useMemo(() => {
     const byFilter = notes.filter((note) => noteMatchesListFilters(note, activeFilters));
@@ -331,18 +344,7 @@ export const NoteList: React.FC = () => {
             selectedCategory={settingsCategory}
             onSelectedCategoryChange={setSettingsCategory}
             renderCategoryButtonsInline
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeNoteSettingsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
+            onClose={closeNoteSettingsView}
           />
         </div>
       </div>
@@ -350,19 +352,19 @@ export const NoteList: React.FC = () => {
   }
 
   return (
-    <div className="plugin-notes min-h-full bg-background px-6 py-4">
+    <div className="plugin-notes min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.notes')}</h2>
             <p className="text-sm text-muted-foreground">{t('notes.listDescription')}</p>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
             <Button
               variant="ghost"
               size="sm"
               icon={Settings}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={() => openNoteSettings()}
               title={t('notes.settings')}
             >
@@ -372,7 +374,7 @@ export const NoteList: React.FC = () => {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openNotePanel(null))}
             >
               {t('notes.addNote')}
@@ -380,7 +382,7 @@ export const NoteList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-2 lg:grid-cols-4')}>
           <ListFilterStatCard
             label="Total"
             value={stats.total}
@@ -419,7 +421,7 @@ export const NoteList: React.FC = () => {
           itemLabel="notes"
           isLoading={deleting}
         />
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 md:gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={sortedNotes.length > 0}
@@ -569,7 +571,7 @@ export const NoteList: React.FC = () => {
 
           <div className="flex items-start gap-4">
             {showQuickContext && previewNote ? (
-              <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+              <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
                 <NoteQuickContextPanel
                   note={previewNote}
                   onClose={() => setPreviewNote(null)}
@@ -611,9 +613,9 @@ export const NoteList: React.FC = () => {
                 <div
                   className={cn(
                     'grid gap-3',
-                    columnCount === 1 && 'grid-cols-1',
-                    columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                    columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                    effectiveColumnCount === 1 && 'grid-cols-1',
+                    effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                    effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
                   )}
                 >
                   {sortedNotes.map((note, index) => {
@@ -626,7 +628,7 @@ export const NoteList: React.FC = () => {
                         highlighted={recentlyDuplicatedNoteId === String(note.id)}
                         active={previewNote != null && String(previewNote.id) === String(note.id)}
                         onClick={() => handleRowActivate(note)}
-                        columnCount={columnCount}
+                        columnCount={effectiveCardColumnCount}
                         checkbox={
                           <input
                             type="checkbox"

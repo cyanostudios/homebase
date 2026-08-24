@@ -33,7 +33,7 @@ export function ContentHeader({
         <h1 className="text-lg md:text-xl font-semibold text-foreground">{title}</h1>
         {titleSuffix}
       </div>
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
         {trailing}
         {actionLabel && onAction && (
           <Button
@@ -43,8 +43,8 @@ export function ContentHeader({
             icon={ActionIcon}
             className={
               actionVariant === 'primary'
-                ? 'h-9 text-xs px-3 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white border-none'
-                : 'h-9 text-xs px-3 w-full md:w-auto'
+                ? 'h-9 w-full flex-1 px-3 text-xs border-none bg-green-600 text-white hover:bg-green-700 md:w-auto md:flex-initial'
+                : 'h-9 w-full flex-1 px-3 text-xs md:w-auto md:flex-initial'
             }
           >
             {actionLabel}

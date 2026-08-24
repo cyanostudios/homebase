@@ -125,95 +125,92 @@ export function ContactQuickContextPanel({
     : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200';
 
   const identityHeader = (
-    <div className="flex items-center gap-3">
+    <div className="flex items-start gap-3">
       <div
         className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+          'mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
           avatarClass,
         )}
         aria-hidden
       >
         {contactInitials(contact.companyName)}
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <h3 className="truncate text-lg font-semibold tracking-tight text-foreground">
+      <div className="min-w-0 flex-1">
+        <h3 className="break-words text-base font-semibold leading-snug tracking-tight text-foreground sm:text-lg">
           {contact.companyName}
         </h3>
-        <Badge
-          className={cn(
-            'shrink-0',
-            CONTACT_TYPE_BADGE_CLASS,
-            CONTACT_TYPE_COLORS[contact.contactType],
-          )}
-        >
-          {t(`contacts.type.${contact.contactType}`)}
-        </Badge>
-        {!isFullView ? (
-          <span
-            className={cn(
-              'h-2 w-2 shrink-0 rounded-full',
-              contact.isAssignable ? 'bg-emerald-500' : 'bg-red-500',
-            )}
-            title={contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')}
-            aria-label={
-              contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')
-            }
-          />
-        ) : null}
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Badge
+              className={cn(
+                'shrink-0',
+                CONTACT_TYPE_BADGE_CLASS,
+                CONTACT_TYPE_COLORS[contact.contactType],
+              )}
+            >
+              {t(`contacts.type.${contact.contactType}`)}
+            </Badge>
+            {!isFullView ? (
+              <span
+                className={cn(
+                  'h-2 w-2 shrink-0 rounded-full',
+                  contact.isAssignable ? 'bg-emerald-500' : 'bg-red-500',
+                )}
+                title={
+                  contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')
+                }
+                aria-label={
+                  contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')
+                }
+              />
+            ) : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {!isFullView && onOpenFullProfile ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={ExternalLink}
+                className="h-8 w-8 p-0"
+                onClick={onOpenFullProfile}
+                aria-label={t('contacts.quickContext.openFullProfile')}
+                title={t('contacts.quickContext.openFullProfile')}
+              />
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={Edit}
+              className="h-8 w-8 p-0 hidden md:inline-flex"
+              onClick={onEdit}
+              aria-label={t('contacts.edit')}
+              title={t('contacts.edit')}
+            />
+            {!isFullView && onClose ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={X}
+                className="h-8 w-8 p-0"
+                onClick={onClose}
+                aria-label={t('common.close')}
+              />
+            ) : null}
+          </div>
+        </div>
       </div>
-      {!isFullView && onOpenFullProfile ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          icon={ExternalLink}
-          className="h-8 w-8 shrink-0 p-0"
-          onClick={onOpenFullProfile}
-          aria-label={t('contacts.quickContext.openFullProfile')}
-          title={t('contacts.quickContext.openFullProfile')}
-        />
-      ) : null}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        icon={Edit}
-        className="h-8 w-8 shrink-0 p-0"
-        onClick={onEdit}
-        aria-label={t('contacts.edit')}
-        title={t('contacts.edit')}
-      />
-      {!isFullView && onClose ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          icon={X}
-          className="h-8 w-8 shrink-0 p-0"
-          onClick={onClose}
-          aria-label={t('common.close')}
-        />
-      ) : null}
     </div>
   );
 
   return (
-    <Card
-      padding="none"
-      className={cn(
-        DETAIL_VIEW_CARD_CLASS,
-        'flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden',
-      )}
-    >
-      <div className="border-b border-border/50 px-4 py-2.5">{identityHeader}</div>
+    <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
+      <div className="border-b border-border/50 px-4 py-3">{identityHeader}</div>
 
-      <div
-        className={cn(
-          'min-h-0 flex-1 overflow-y-auto px-4 py-4',
-          isFullView ? 'space-y-4' : 'space-y-6',
-        )}
-      >
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+      <div className={cn('px-4 py-4', isFullView ? 'space-y-4' : 'space-y-6')}>
+        <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">
           <div>
             <div className={FACT_LABEL_CLASS}>
               <Hash className="h-3 w-3" />

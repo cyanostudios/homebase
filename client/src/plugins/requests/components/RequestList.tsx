@@ -7,7 +7,6 @@ import {
   Settings,
   SlidersHorizontal,
   Trash2,
-  X,
   XCircle,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -25,6 +24,11 @@ import { useApp } from '@/core/api/AppContext';
 import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
 import { nextListTableSort } from '@/core/list/listViewMode';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
@@ -32,10 +36,11 @@ import {
 } from '@/core/ui/detailViewCardStyles';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { ListToolbar } from '@/core/ui/ListToolbar';
+import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
@@ -122,6 +127,12 @@ export function RequestList() {
     markRequestViewed,
   } = useRequests();
   const { attemptNavigation } = useGlobalNavigationGuard();
+
+  useMobileActions({
+    onAdd: () => attemptNavigation(() => openRequestPanel(null)),
+    onSettings: openRequestSettings,
+  });
+
   const [search, setSearch] = useState('');
   const [activeFilters, setActiveFilters] = useState<RequestListFilterSelection>(
     REQUEST_LIST_FILTER_INITIAL,
@@ -155,7 +166,9 @@ export function RequestList() {
     persistRequestListViewModeSession(mode);
   }, []);
 
-  const isTableView = listViewMode === 'table';
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const teamById = useMemo(() => {
     const map = new Map<number, string>();
@@ -359,42 +372,29 @@ export function RequestList() {
   if (requestsContentView === 'settings') {
     return (
       <div className="plugin-requests min-h-full bg-background">
-        <div className="px-6 py-4">
-          <RequestsSettingsView
-            inlineTrailing={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={X}
-                className="h-9 px-3 text-xs"
-                onClick={closeRequestSettingsView}
-              >
-                {t('common.close')}
-              </Button>
-            }
-          />
+        <div className="px-4 py-4 md:px-6">
+          <RequestsSettingsView onClose={closeRequestSettingsView} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="plugin-requests min-h-full bg-background px-6 py-4">
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+    <div className="plugin-requests min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
+      <div className="space-y-3">
+        <div className="hidden items-start justify-between gap-4 md:flex">
+          <div className="min-w-0 space-y-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.requests')}</h2>
             <p className="text-sm text-muted-foreground">
               {t('requests.listDescription', { count: requests.length })}
             </p>
           </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1">
+          <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-2 md:w-auto md:gap-1">
             <Button
               variant="ghost"
               size="sm"
               icon={Settings}
-              className="h-9 px-2.5 text-xs"
+              className="h-9 flex-1 md:flex-initial px-2.5 text-xs"
               onClick={openRequestSettings}
               title={t('common.settings')}
             >
@@ -404,7 +404,7 @@ export function RequestList() {
               variant="primary"
               size="sm"
               icon={Plus}
-              className="h-9 px-3 text-xs"
+              className="h-9 flex-1 md:flex-initial px-3 text-xs"
               onClick={() => attemptNavigation(() => openRequestPanel(null))}
             >
               {t('requests.addRequest')}
@@ -412,7 +412,7 @@ export function RequestList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className={cn(LIST_FILTER_STAT_ROW_CLASS, 'md:grid-cols-2 md:gap-3 lg:grid-cols-5')}>
           <ListFilterStatCard
             label={t('requests.filterAll')}
             value={stats.all}
@@ -492,7 +492,7 @@ export function RequestList() {
           onSuccess={clearRequestSelection}
         />
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 md:gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={sorted.length > 0}
@@ -633,7 +633,7 @@ export function RequestList() {
 
           <div className="flex items-start gap-4">
             {showQuickContext && previewRequest ? (
-              <aside className="w-[min(100%,36rem)] shrink-0 lg:sticky lg:top-4">
+              <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
                 <RequestQuickContextPanel
                   request={previewRequest}
                   onClose={() => setPreviewRequest(null)}
@@ -688,9 +688,9 @@ export function RequestList() {
                 <div
                   className={cn(
                     'grid gap-3',
-                    columnCount === 1 && 'grid-cols-1',
-                    columnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
-                    columnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
+                    effectiveColumnCount === 1 && 'grid-cols-1',
+                    effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                    effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-3',
                   )}
                 >
                   {sorted.map((request, index) => {
@@ -711,7 +711,7 @@ export function RequestList() {
                         onPriorityChange={(priority) =>
                           void handleListPriorityChange(request, priority)
                         }
-                        columnCount={columnCount}
+                        columnCount={effectiveCardColumnCount}
                         checkbox={
                           <input
                             type="checkbox"
