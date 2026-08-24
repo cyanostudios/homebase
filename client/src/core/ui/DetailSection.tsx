@@ -28,6 +28,32 @@ export type DetailSectionIconPlugin =
   | 'pulses'
   | 'mail';
 
+/** Uppercase section label + small icon — shared by DetailSection subtleTitle and sidebar nav categories. */
+export function SubtleSectionHeading({
+  title,
+  icon: Icon,
+  className,
+}: {
+  title: React.ReactNode;
+  icon?: AppIcon;
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex min-w-0 items-center gap-2', className)}>
+      {Icon ? (
+        <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden />
+      ) : null}
+      <Heading
+        level={3}
+        size="xs"
+        className="truncate uppercase tracking-[0.1em] font-bold text-slate-500 dark:text-slate-400"
+      >
+        {title}
+      </Heading>
+    </div>
+  );
+}
+
 interface DetailSectionProps {
   title: string | React.ReactNode;
   icon?: AppIcon;
@@ -67,26 +93,20 @@ export function DetailSection({
       ? `plugin-${iconPlugin} text-plugin`
       : 'text-muted-foreground';
 
-  const titleNode = (
-    <Heading
-      level={3}
-      size={prominentTitle ? '2xl' : subtleTitle ? 'xs' : 'sm'}
-      className={cn(
-        'truncate',
-        subtleTitle
-          ? 'uppercase tracking-[0.1em] font-bold text-slate-500 dark:text-slate-400'
-          : 'font-semibold text-foreground',
-      )}
-    >
+  const titleNode = prominentTitle ? (
+    <Heading level={3} size="2xl" className="truncate font-semibold text-foreground">
+      {title}
+    </Heading>
+  ) : subtleTitle ? (
+    <SubtleSectionHeading title={title} icon={Icon} className="min-w-0 flex-1" />
+  ) : (
+    <Heading level={3} size="sm" className="truncate font-semibold text-foreground">
       {title}
     </Heading>
   );
 
   const iconNode =
-    Icon &&
-    (subtleTitle ? (
-      <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden />
-    ) : (
+    Icon && !subtleTitle ? (
       <span
         className={cn(
           'flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80',
@@ -95,7 +115,7 @@ export function DetailSection({
       >
         <Icon className="h-3.5 w-3.5" aria-hidden />
       </span>
-    ));
+    ) : null;
 
   if (!collapsible) {
     return (

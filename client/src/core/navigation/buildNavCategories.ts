@@ -56,9 +56,10 @@ export function buildNavCategories(
     items.sort((a, b) => a.order - b.order);
   });
 
-  return NAV_CATEGORIES.filter(({ id }) => categoriesMap.has(id)).map(({ id, i18nKey }) => ({
+  return NAV_CATEGORIES.filter(({ id }) => categoriesMap.has(id)).map(({ id, i18nKey, icon }) => ({
     id,
     title: t(`nav.${i18nKey}`),
+    icon,
     items: categoriesMap.get(id)!,
   }));
 }

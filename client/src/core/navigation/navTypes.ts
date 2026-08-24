@@ -56,6 +56,8 @@ export type NavCategory = {
   id: string;
   /** Translated display title. */
   title: string;
+  /** Section icon — matches DetailSection subtleTitle (e.g. Contact Properties). */
+  icon: AppIcon;
   items: NavItemData[];
 };
 

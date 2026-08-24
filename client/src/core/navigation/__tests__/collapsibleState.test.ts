@@ -24,6 +24,7 @@ const navCategories: NavCategory[] = [
   {
     id: 'Business',
     title: 'Business',
+    icon: (() => null) as NavCategory['icon'],
     items: [invoicesItem],
   },
 ];
