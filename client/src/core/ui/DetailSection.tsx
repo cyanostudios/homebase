@@ -26,7 +26,8 @@ export type DetailSectionIconPlugin =
   | 'teams'
   | 'ai-providers'
   | 'pulses'
-  | 'mail';
+  | 'mail'
+  | 'cups';
 
 /** Uppercase section label + small icon — shared by DetailSection subtleTitle and sidebar nav categories. */
 export function SubtleSectionHeading({
