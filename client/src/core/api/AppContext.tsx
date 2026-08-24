@@ -31,6 +31,7 @@ import { pomodoroAudio } from '@/core/widgets/pomodoro/pomodoroAudio';
 import i18n from '@/i18n';
 import { filterSlotsForContact } from '@/plugins/slots/utils/slotContactUtils';
 import type { Contact, Estimate, Match, Note, Slot, Task } from '@/types/pluginTypes';
+import type { NavBadge, NavPage } from '@/core/navigation/navTypes';
 
 interface User {
   id: number;
@@ -146,6 +147,10 @@ interface AppContextType {
   /** Full shared account organization profile (sidebar footer, settings, etc.). */
   organizationProfile: OrganizationProfile;
   refreshOrganization: () => Promise<void>;
+
+  /** Dynamic sidebar badges set by plugins (e.g. unopened request count). */
+  navBadges: Partial<Record<NavPage, NavBadge>>;
+  setNavBadge: (page: NavPage, badge: NavBadge | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -636,6 +641,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const [settingsVersion, setSettingsVersion] = useState(0);
+  const [navBadges, setNavBadges] = useState<Partial<Record<NavPage, NavBadge>>>({});
+
+  const setNavBadge = useCallback((page: NavPage, badge: NavBadge | null) => {
+    setNavBadges((prev) => {
+      if (badge == null) {
+        if (!(page in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[page];
+        return next;
+      }
+      const existing = prev[page];
+      if (existing?.label === badge.label && existing?.variant === badge.variant) {
+        return prev;
+      }
+      return { ...prev, [page]: badge };
+    });
+  }, []);
 
   const updateSettings = useCallback(async (category: string, settings: any) => {
     try {
@@ -744,6 +768,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       organizationLogoUrl,
       organizationProfile,
       refreshOrganization,
+      navBadges,
+      setNavBadge,
     }),
     [
       user,
@@ -792,6 +818,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       organizationLogoUrl,
       organizationProfile,
       refreshOrganization,
+      navBadges,
+      setNavBadge,
     ],
   );
 

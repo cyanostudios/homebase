@@ -1,11 +1,18 @@
 import { NAV_CATEGORIES } from '@/core/navigation/categoryConfig';
 import { CORE_SIDEBAR_NAV_ITEMS } from '@/core/navigation/coreNavItems';
-import type { NavCategory, NavItemData, NavPage, NavTranslate } from '@/core/navigation/navTypes';
+import type {
+  NavBadge,
+  NavCategory,
+  NavItemData,
+  NavPage,
+  NavTranslate,
+} from '@/core/navigation/navTypes';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 
 export function buildNavCategories(
   enabledPlugins: ReadonlySet<string>,
   t: NavTranslate,
+  badgeOverrides?: Partial<Record<NavPage, NavBadge>>,
 ): NavCategory[] {
   const categoriesMap = new Map<string, NavItemData[]>();
 
@@ -47,7 +54,7 @@ export function buildNavCategories(
       icon,
       page: plugin.name as NavPage,
       order,
-      badge,
+      badge: badgeOverrides?.[plugin.name as NavPage] ?? badge,
       submenu: sortedSubmenu,
     });
   });

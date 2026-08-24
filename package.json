@@ -48,6 +48,7 @@
     "migrate:tasks-assigned-to-ids": "node scripts/run-tasks-assigned-to-ids-migration.js",
     "migrate:requests-response-due": "node scripts/run-requests-response-due-migration.js",
     "migrate:requests-plugin-routing": "node scripts/run-requests-plugin-routing-migration.js",
+    "migrate:requests-first-viewed-at": "node scripts/run-requests-first-viewed-at-migration.js",
     "migrate:schedule-counts-toward-capacity": "node scripts/run-schedule-counts-toward-capacity-migration.js",
     "migrate:matches-team-external": "node scripts/run-matches-team-external-migration.js",
     "migrate:matches-result": "node scripts/run-matches-result-migration.js",

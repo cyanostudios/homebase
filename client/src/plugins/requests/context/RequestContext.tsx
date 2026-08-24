@@ -20,6 +20,8 @@ export type RequestsContextType = {
   saveRequestTypes: (types: RequestTypeConfig[]) => Promise<void>;
   isSaving: boolean;
   refreshRequests: () => Promise<void>;
+  unopenedCount: number;
+  markRequestViewed: (id: string) => Promise<void>;
 
   openRequestPanel: (request: Request | null) => void;
   openRequestForEdit: (request: Request) => void;
@@ -74,6 +76,8 @@ const EMPTY_REQUESTS_CONTEXT: RequestsContextType = {
   saveRequestTypes: async () => {},
   isSaving: false,
   refreshRequests: async () => {},
+  unopenedCount: 0,
+  markRequestViewed: async () => {},
   openRequestPanel: () => {},
   openRequestForEdit: () => {},
   openRequestForView: () => {},

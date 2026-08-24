@@ -1,5 +1,10 @@
 import type { AppIcon } from '@/types/icons';
 
+export type NavBadge = {
+  label: string;
+  variant: 'default' | 'secondary' | 'destructive' | 'outline';
+};
+
 export type NavPage =
   | 'dashboard'
   | 'contacts'
@@ -44,10 +49,7 @@ export type NavItemData = {
   icon: AppIcon;
   page: NavPage;
   order: number;
-  badge?: {
-    label: string;
-    variant: 'default' | 'secondary' | 'destructive' | 'outline';
-  };
+  badge?: NavBadge;
   submenu?: SubmenuNavItem[];
 };
 

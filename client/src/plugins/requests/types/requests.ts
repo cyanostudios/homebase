@@ -53,8 +53,15 @@ export interface Request {
   pluginRoutedAt: string | null;
   /** Created entity id after routing (e.g. garment person id). */
   pluginRoutedEntityId: string | null;
+  /** When any staff member first opened/viewed the request. */
+  firstViewedAt: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** True when no staff member has opened the request yet. */
+export function isRequestUnopened(request: Pick<Request, 'firstViewedAt'>): boolean {
+  return !request.firstViewedAt;
 }
 
 export interface RequestValidationError {

@@ -14,6 +14,7 @@ import {
   getDaysUntilResponseDue,
   getResponseDueUrgency,
   getTypeLabel,
+  isRequestUnopened,
   type Request,
 } from '../types/requests';
 import type { RequestSortField, RequestSortOrder } from '../utils/requestListSort';
@@ -32,6 +33,7 @@ export type RequestListTableProps = {
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
   recentlyQuickAddedId: string | null;
+  isRequestHighlighted?: (request: Request) => boolean;
   /** When false, the selection checkbox column is hidden (e.g. quick context open). */
   selectionEnabled?: boolean;
   activeRequestId?: string | number | null;
@@ -68,10 +70,18 @@ export function RequestListTable({
   allVisibleSelected,
   onHeaderCheckboxChange,
   recentlyQuickAddedId,
+  isRequestHighlighted,
   selectionEnabled = true,
   activeRequestId = null,
 }: RequestListTableProps) {
   const { t } = useTranslation();
+
+  const getHighlightClass = (request: Request) => {
+    const highlighted =
+      isRequestHighlighted?.(request) ??
+      (isRequestUnopened(request) || recentlyQuickAddedId === String(request.id));
+    return highlighted ? 'bg-green-50 dark:bg-green-950/30' : undefined;
+  };
 
   const columns = useMemo<SortableListTableColumn<Request, RequestSortField>[]>(
     () => [
@@ -156,9 +166,7 @@ export function RequestListTable({
       onSort={onSort}
       onRowClick={onRowClick}
       rowAriaLabel={(request) => t('requests.openRequest') + `: ${request.title || ''}`}
-      rowClassName={(request) =>
-        recentlyQuickAddedId === String(request.id) ? 'bg-green-50 dark:bg-green-950/30' : undefined
-      }
+      rowClassName={(request) => getHighlightClass(request)}
       isRowActive={(request) =>
         activeRequestId != null && String(request.id) === String(activeRequestId)
       }

@@ -74,6 +74,7 @@ function rowToRequest(row: Record<string, unknown>): Request {
       const rawEntity = row.pluginRoutedEntityId ?? row.plugin_routed_entity_id;
       return rawEntity !== null && rawEntity !== undefined ? String(rawEntity) : null;
     })(),
+    firstViewedAt: ((row.firstViewedAt ?? row.first_viewed_at) as string | null) ?? null,
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
   };
@@ -156,6 +157,11 @@ class RequestsApi {
       request: rowToRequest(result.request as Record<string, unknown>),
       person: (result.person as Record<string, unknown>) ?? {},
     };
+  }
+
+  async markViewed(id: string): Promise<Request> {
+    const row = await this.request(`/${id}/mark-viewed`, { method: 'POST' });
+    return rowToRequest(row);
   }
 
   async publicGetTeams(): Promise<PublicTeam[]> {

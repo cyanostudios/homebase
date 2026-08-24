@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useTranslation } from 'react-i18next';
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useApp } from '@/core/api/AppContext';
 import { buildNavCategories } from '@/core/navigation/buildNavCategories';
 import { findActiveCategoryId, findSubmenuParentPage } from '@/core/navigation/collapsibleState';
 import type { NavPage } from '@/core/navigation/navTypes';
@@ -30,6 +31,7 @@ export function Sidebar({
   onMobileOpenChange,
 }: SidebarProps) {
   const enabledPlugins = useEnabledPlugins();
+  const { navBadges } = useApp();
   const { t, i18n } = useTranslation();
   const isMobile = useIsMobile();
   const [userOpenSubmenus, setUserOpenSubmenus] = useState<Set<NavPage>>(() => new Set());
@@ -38,9 +40,9 @@ export function Sidebar({
   const didInitCategoriesRef = useRef(false);
 
   const navCategories = useMemo(
-    () => buildNavCategories(enabledPlugins, t),
+    () => buildNavCategories(enabledPlugins, t, navBadges),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- t follows i18n.language on locale change
-    [enabledPlugins, i18n.language],
+    [enabledPlugins, i18n.language, navBadges],
   );
 
   const activeCategoryId = useMemo(

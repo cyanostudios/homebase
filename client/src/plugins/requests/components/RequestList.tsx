@@ -10,7 +10,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useRequests } from '../hooks/useRequests';
 import { useRequestTeams } from '../hooks/useRequestTeams';
-import { getTypeLabel } from '../types/requests';
+import { getTypeLabel, isRequestUnopened } from '../types/requests';
 import type { Request, RequestPriority, RequestStatus } from '../types/requests';
 import {
   getInitialRequestColumnCount,
@@ -119,6 +119,7 @@ export function RequestList() {
     selectedCount,
     createRequest,
     saveRequest,
+    markRequestViewed,
   } = useRequests();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [search, setSearch] = useState('');
@@ -288,6 +289,17 @@ export function RequestList() {
   const handleRowActivate = (request: Request) => {
     activateRow(request, (item) => attemptNavigation(() => openRequestForView(item)));
   };
+
+  useEffect(() => {
+    if (previewRequest && showQuickContext) {
+      void markRequestViewed(previewRequest.id);
+    }
+  }, [markRequestViewed, previewRequest, showQuickContext]);
+
+  const isRequestHighlighted = useCallback(
+    (request: Request) => isRequestUnopened(request) || recentlyQuickAddedId === String(request.id),
+    [recentlyQuickAddedId],
+  );
 
   const handleListStatusChange = useCallback(
     async (request: Request, newStatus: RequestStatus) => {
@@ -668,6 +680,7 @@ export function RequestList() {
                   allVisibleSelected={allVisibleSelected}
                   onHeaderCheckboxChange={handleHeaderCheckboxChange}
                   recentlyQuickAddedId={recentlyQuickAddedId}
+                  isRequestHighlighted={isRequestHighlighted}
                   selectionEnabled
                   activeRequestId={previewRequest?.id ?? null}
                 />
@@ -687,7 +700,7 @@ export function RequestList() {
                         key={request.id}
                         request={request}
                         selected={requestIsSelected}
-                        highlighted={recentlyQuickAddedId === String(request.id)}
+                        highlighted={isRequestHighlighted(request)}
                         active={
                           previewRequest != null && String(previewRequest.id) === String(request.id)
                         }

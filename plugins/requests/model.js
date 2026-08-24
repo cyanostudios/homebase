@@ -200,6 +200,27 @@ class RequestModel {
     }
   }
 
+  async markViewed(req, requestId) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query(
+        `UPDATE requests
+         SET first_viewed_at = COALESCE(first_viewed_at, NOW())
+         WHERE id = $1
+         RETURNING *`,
+        [requestId],
+      );
+      if (!rows || rows.length === 0) {
+        throw new AppError('Request not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      return this.transformRow(rows[0]);
+    } catch (error) {
+      Logger.error('Failed to mark request viewed', error, { requestId });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to mark request viewed', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async create(req, requestData) {
     try {
       const db = Database.get(req);
@@ -595,6 +616,7 @@ class RequestModel {
       pluginRoutedAt: row.plugin_routed_at ?? null,
       pluginRoutedEntityId:
         row.plugin_routed_entity_id != null ? String(row.plugin_routed_entity_id) : null,
+      firstViewedAt: row.first_viewed_at ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

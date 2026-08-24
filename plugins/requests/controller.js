@@ -88,6 +88,20 @@ class RequestController {
     }
   }
 
+  async markViewed(req, res) {
+    try {
+      const request = await this.model.markViewed(req, req.params.id);
+      res.json(request);
+    } catch (error) {
+      Logger.error('Mark request viewed failed', error, {
+        requestId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to mark request viewed' });
+    }
+  }
+
   async create(req, res) {
     try {
       const userId = Context.getUserId(req);

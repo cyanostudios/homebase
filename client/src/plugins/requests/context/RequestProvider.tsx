@@ -11,7 +11,7 @@ import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { requestsApi } from '../api/requestsApi';
 import type { RequestPayload } from '../api/requestsApi';
-import { DEFAULT_REQUEST_TYPES } from '../types/requests';
+import { DEFAULT_REQUEST_TYPES, isRequestUnopened } from '../types/requests';
 import type { Request, RequestValidationError } from '../types/requests';
 import { shouldApplyOpenRequestSaveEffects } from '../utils/requestListSave';
 import { coerceRequestTypes, type RequestTypeConfig } from '../utils/requestTypeConfig';
@@ -35,8 +35,13 @@ export function RequestProvider({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, getSettings, updateSettings } =
-    useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    getSettings,
+    updateSettings,
+    setNavBadge,
+  } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/requests');
 
   const [isRequestPanelOpen, setIsRequestPanelOpen] = useState(false);
@@ -119,6 +124,68 @@ export function RequestProvider({
     setRequests(await requestsApi.getRequests());
   }, []);
 
+  const markRequestViewed = useCallback(
+    async (id: string) => {
+      const requestId = String(id);
+      const existing = requests.find((request) => request.id === requestId);
+      if (!existing || !isRequestUnopened(existing)) {
+        return;
+      }
+
+      const optimisticViewedAt = new Date().toISOString();
+      setRequests((prev) =>
+        prev.map((request) =>
+          request.id === requestId ? { ...request, firstViewedAt: optimisticViewedAt } : request,
+        ),
+      );
+      if (currentRequest?.id === requestId) {
+        setCurrentRequest((prev) => (prev ? { ...prev, firstViewedAt: optimisticViewedAt } : prev));
+      }
+
+      try {
+        const updated = await requestsApi.markViewed(requestId);
+        setRequests((prev) =>
+          prev.map((request) => (request.id === requestId ? updated : request)),
+        );
+        if (currentRequest?.id === requestId) {
+          setCurrentRequest(updated);
+        }
+      } catch (error) {
+        console.error('Failed to mark request viewed:', error);
+        setRequests((prev) =>
+          prev.map((request) =>
+            request.id === requestId ? { ...request, firstViewedAt: null } : request,
+          ),
+        );
+        if (currentRequest?.id === requestId) {
+          setCurrentRequest((prev) => (prev ? { ...prev, firstViewedAt: null } : prev));
+        }
+      }
+    },
+    [currentRequest?.id, requests],
+  );
+
+  const unopenedCount = useMemo(
+    () => requests.filter((request) => isRequestUnopened(request)).length,
+    [requests],
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setNavBadge('requests', null);
+      return;
+    }
+    if (unopenedCount > 0) {
+      setNavBadge('requests', {
+        label: String(unopenedCount),
+        variant: 'destructive',
+      });
+    } else {
+      setNavBadge('requests', null);
+    }
+    return () => setNavBadge('requests', null);
+  }, [isAuthenticated, setNavBadge, unopenedCount]);
+
   const closeRequestPanel = useCallback(() => {
     setIsRequestPanelOpen(false);
     setCurrentRequest(null);
@@ -168,6 +235,7 @@ export function RequestProvider({
   const openRequestForViewRef = useRef<(request: Request) => void>(() => {});
   const openRequestForView = useCallback(
     (request: Request) => {
+      void markRequestViewed(request.id);
       if (!window.location.pathname.startsWith('/requests')) {
         navigate(`/requests/${buildSlug(request, requests, 'title')}`);
         return;
@@ -179,7 +247,14 @@ export function RequestProvider({
       onCloseOtherPanels();
       navigateToItem(request, requests, 'title');
     },
-    [navigate, navigateToItem, requests, onCloseOtherPanels, setValidationErrors],
+    [
+      markRequestViewed,
+      navigate,
+      navigateToItem,
+      requests,
+      onCloseOtherPanels,
+      setValidationErrors,
+    ],
   );
   useEffect(() => {
     openRequestForViewRef.current = openRequestForView;
@@ -336,6 +411,8 @@ export function RequestProvider({
     saveRequestTypes,
     isSaving,
     refreshRequests: loadRequests,
+    unopenedCount,
+    markRequestViewed,
     openRequestPanel,
     openRequestForEdit,
     openRequestForView,

@@ -38,6 +38,15 @@ function createRequestRoutes(controller, context) {
     (req, res) => controller.sendToList(req, res),
   );
 
+  router.post(
+    '/:id/mark-viewed',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.markViewed(req, res),
+  );
+
   router.get('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res),
   );
