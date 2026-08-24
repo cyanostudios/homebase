@@ -1273,7 +1273,7 @@ DATABASE_URL="$PROD_MAIN_DATABASE_URL" npm run migrate:task-shares
 
 - Settings-nyckel `defaultHomeTeam` under category `matches` via [`MatchSettingsView.tsx`](../client/src/plugins/matches/components/MatchSettingsView.tsx) (hjälptext täcker listfilter + Teams-flik; statistik-sidan använder samma nyckel — se post “Matches: statistik-sida”)
 - Filter `'homeTeam'` i [`matchListFilter.ts`](../client/src/plugins/matches/utils/matchListFilter.ts) + [`matchDefaultHomeTeam.ts`](../client/src/plugins/matches/utils/matchDefaultHomeTeam.ts)
-- Listkort: [`MatchList.tsx`](../client/src/plugins/matches/components/MatchList.tsx) (visas endast när default är satt; grid `md:grid-cols-5`)
+- Listkort: [`MatchList.tsx`](../client/src/plugins/matches/components/MatchList.tsx) (visas endast när default är satt; grid `lg:grid-cols-5`)
 - Tabellvy: Team-kolumn (`MatchTeamBadge` via `team_id`), `updated_at` borttagen; Team sorterbar (lagnamn); kortvy-sort inkluderar Team
 - Teams flik Matches: [`TeamMatchesSection.tsx`](../client/src/plugins/teams/components/TeamMatchesSection.tsx) — chips **Hemma / borta** (fyra sektioner via `groupTeamMatchesBySide`) och **Kommande efter datum** (`listUpcomingMatchesByDate`); klassning via `defaultHomeTeam` ([`teamMatchSide.ts`](../client/src/plugins/teams/utils/teamMatchSide.ts))
 - Tester: `matchDefaultHomeTeam.test.ts`, `matchListFilter.test.ts`, `matchDefaultHomeTeamFilter.test.js`, `matchListTableView.test.js`, `matchListSort.test.ts`, `teamMatchSide.test.ts`, `teamMatchesSectionViewMode.test.js`

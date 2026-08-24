@@ -51,6 +51,19 @@ Viewport tiers: **phone** &lt;768, **pad** 768–1023, **desktop** ≥1024. ADR:
 | **Provider**         | `MobileActionsProvider` wraps the authenticated shell in `MainLayout`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **Selection / bulk** | Phone: hide select-all/bulk/checkboxes. Pad/desktop: selection enabled (pad has no table mode).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
+### 0.3 Home dashboard (v1, 2026-08-24)
+
+Composed start page — not a grid of `dashboardWidget` cards. Operator detail: [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md).
+
+| Element         | Standard                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------- |
+| **Shell**       | `Dashboard.tsx`: `px-4 pt-2 pb-4 md:px-6 md:py-4`, `max-w-screen-2xl`, `space-y-6`             |
+| **Surfaces**    | Section cards: `rounded-xl bg-white p-4 shadow-sm dark:bg-slate-950`                           |
+| **KPI**         | `grid-cols-2 lg:grid-cols-4`; large tabular number + “Open →” link (not whole-card click)      |
+| **Main / side** | `lg:grid-cols-3` with activity `lg:col-span-2`                                                 |
+| **Charts**      | `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`; SVG donuts / stacked bar (no chart library)       |
+| **Visibility**  | Entire sections omit when relevant plugins are disabled; empty page uses `dashboard.noWidgets` |
+
 **Legacy table/grid shell** (still applies to plugins not yet migrated, e.g. invoices, schedule):
 
 | Element              | Standard                                                                                                                                                 |

@@ -2,6 +2,17 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## QA-cykel: mobilpass — stale doc-fix (2026-08-25)
+
+QA-granskning identifierade testregression (`matchDefaultHomeTeamFilter.test.js` kontrollerade `md:grid-cols-5` men koden använder `lg:grid-cols-5` sedan `LIST_FILTER_STAT_ROW_CLASS`-refaktoringen). Frontend-fix godkänd och Security-godkänd. Dokumentationsfixar:
+
+- `docs/CHANGELOG.md` §"Matches: default home team"-posten: `md:grid-cols-5` → `lg:grid-cols-5` (matchade nu implementationen och `UI_AND_UX_STANDARDS_V3.md`).
+- `tailwind.config.ts`: saknad radbrytning återställd (kosmetisk, bygg opåverkad).
+
+**Tester:** 244 suiter, 1386 tester — alla gröna. **Security Approved.** **Local-first; ej prod-release.**
+
+---
+
 ## Mobile bottom bar — docs sync (2026-08-24)
 
 Docs efter **QA Approved** + **Security Approved** för mobil bottom bar (Search/Add/Settings), `MobileActionsContext`, list header hide under `md`, samt relaterade mobil list-overrides (`effectiveListViewMode`, filter-stat compact horizontal scroll on phone). Operator: `UI_AND_UX_STANDARDS_V3.md` §0.2; checklist + plugin standards uppdaterade. Search öppnas ovanför bottom bar (ingen `homebase:focus-search`). **Local-first; ej prod-release.**
