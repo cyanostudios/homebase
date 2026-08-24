@@ -1,11 +1,16 @@
 # Migrations
 
-## 131–133 – Garments plugin (Kläder) (aug 2026)
+## 131–143 – Garments plugin (Kläder) (aug 2026)
 
 - **`131-garments.sql`** — tenant-DB: `garment_lists`, `garment_list_persons`, `garment_list_shares`, `garment_inventory_items`.
 - **`136-garment-inventory-product-fields.sql`** — tenant-DB: inventory product fields (`sku`, `color`, `description`, `material`, `purchase_price`, `currency`) + unique index includes `color`.
 - **`137-garment-inventory-variants.sql`** — tenant-DB: child table `garment_inventory_variants` (sku/color/size/quantity per variant); drops those columns from items; item unique on `(user_id, article_name, brand)`. Truncates inventory testdata.
 - **`138-garment-inventory-variant-sku-unique.sql`** — tenant-DB: unique non-empty `sku` per item (`item_id`, lower(sku)).
+- **`139-garments-grouped-checkbox-columns.sql`** — tenant-DB: grouped checkbox column template on lists (superseded by `140` on existing tenants).
+- **`140-garments-person-level-checkbox-columns.sql`** — tenant-DB: person-level Paid/Fogis + per-garment Ordered/Delivered/Distributed columns (11 data columns).
+- **`141-garment-list-persons-jersey-name-initials.sql`** — tenant-DB: `jersey_name`, `initials` on `garment_list_persons`.
+- **`142-garments-checkbox-columns-english-labels.sql`** — tenant-DB: English column ids/labels (`person_betalt`, `shorts_bestallt`, …).
+- **`143-garment-list-persons-contact-id.sql`** — tenant-DB: optional `contact_id` FK on `garment_list_persons` (Contacts link).
 - **`132-grant-garments-plugin-access.sql`** — **`MAIN_DB_ONLY`**. Grant plugin `garments` in `tenant_plugin_access` / `user_plugin_access`. Alternative: `npm run set:tenant-plugins -- --enable=garments`.
 - **`133-public-share-routing-garment-list.sql`** — **`MAIN_DB_ONLY`**. Widen `public_share_routing.resource_type` CHECK to include `garment_list`.
 
@@ -18,6 +23,20 @@ npm run set:tenant-plugins -- --enable=garments
 After plugin access: **log out/in**. Local first; prod only on explicit release. Public share URL: `/public/garment-list/:token`.
 
 **ADR:** [`docs/ai/adr/GARMENTS_PLUGIN_ETAPP1.md`](../../docs/ai/adr/GARMENTS_PLUGIN_ETAPP1.md).
+
+---
+
+## 144–145 – Requests plugin extensions (aug 2026)
+
+- **`144-requests-plugin-routing.sql`** — tenant-DB: `plugin_target`, `plugin_target_id`, `extra_data`, `plugin_routed_at`, `plugin_routed_entity_id` on `requests` (hybrid routing → Garments).
+- **`145-requests-add-first-viewed-at.sql`** — tenant-DB: `first_viewed_at` + index (staff unopened indicator).
+
+```bash
+npm run migrate:requests-plugin-routing
+npm run migrate:requests-first-viewed-at
+```
+
+**Operator:** [`docs/REQUESTS_PLUGIN.md`](../../docs/REQUESTS_PLUGIN.md), ADR [`docs/ai/adr/REQUEST_PLUGIN_ROUTING.md`](../../docs/ai/adr/REQUEST_PLUGIN_ROUTING.md). Local first; prod only on explicit release.
 
 ---
 

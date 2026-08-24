@@ -48,7 +48,7 @@ Delete, Duplicate, Export, and Activity Log belong in the **full view**, not in 
 
 ### When to add one
 
-Add a `*QuickContextPanel` when the entity has enough fields that a sticky preview + light inline edit is useful without opening the full detail panel. Existing implementations: contacts, notes, tasks, requests, teams, garments inventory.
+Add a `*QuickContextPanel` when the entity has enough fields that a sticky preview + light inline edit is useful without opening the full detail panel. Existing implementations: contacts, notes, tasks, requests, teams, matches, slots, garments inventory.
 
 Do **not** put Delete / Duplicate / Export in the quick context panel.
 
@@ -703,6 +703,9 @@ Walk in order. No “probably OK” — verify in the running app.
 | `client/src/plugins/garments/components/GarmentForm.tsx`                | Form chrome, variant delete confirm, unsaved warning         |
 | `client/src/plugins/garments/context/GarmentProvider.tsx`               | `usePluginDuplicate`, `getDeleteMessage`, panel open helpers |
 | `client/src/plugins/tasks/components/TaskQuickContextPanel.tsx`         | Rich quick context + link tiles                              |
+| `client/src/plugins/matches/components/MatchQuickContextPanel.tsx`      | Sport entity quick context + contact/team link tiles         |
+| `client/src/plugins/slots/components/SlotQuickContextPanel.tsx`         | Booking slot quick context                                   |
+| `client/src/plugins/teams/components/TeamQuickContextPanel.tsx`         | Team quick context + responsibles link tiles                 |
 | `client/src/plugins/slots/components/SlotView.tsx`                      | Sidebar QuickActions + duplicate pattern                     |
 | `client/src/core/hooks/useQuickContextPreview.ts`                       | Desktop vs compact preview behavior                          |
 | `client/src/core/ui/detailViewCardStyles.ts`                            | Shared class tokens                                          |

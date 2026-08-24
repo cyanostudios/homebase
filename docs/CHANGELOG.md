@@ -4,9 +4,66 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-24 – Requests: unopened indicator (badge + list highlight)
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Personal ser hur många inkommande requests som ingen har öppnat ännu — röd badge i sidofältet och grön radmarkering (samma stil som nyligen duplicerade rader).
+
+**Beteende (verifierat)**
+
+- Kolumn `first_viewed_at` (TIMESTAMPTZ, nullable) på `requests`; satt första gången någon personalmedlem öppnar requesten (tenant-wide, inte per användare)
+- `POST /api/requests/:id/mark-viewed` (auth, `requirePlugin('requests')`, CSRF) — idempotent via `COALESCE(first_viewed_at, NOW())`
+- Klient: optimistisk uppdatering i `RequestProvider`; badge via `setNavBadge('requests', …)` när `unopenedCount > 0`
+- **Öppnad** = desktop quick-context preview **eller** full view (`openRequestForView`); rad/markering försvinner direkt (inte bara efter full view)
+- Grön highlight: `bg-green-50 dark:bg-green-950/30` när `firstViewedAt` saknas eller rad nyligen quick-addades
+
+**Migration:** `145-requests-add-first-viewed-at.sql` via `npm run migrate:requests-first-viewed-at`
+
+**Operator:** [`REQUESTS_PLUGIN.md`](REQUESTS_PLUGIN.md)
+
+**Säkerhet (Security Approved):** Tenant-scoped mutation; auth + CSRF + plugin gate. Delad inbox — alla requests-användare inom tenant får markera (avsiktligt). Informativ residual **S-MV-1**: ingen dedikerad rate limit (låg impact).
+
+**Kvarstår innan release:** kör `npm run migrate:requests-first-viewed-at` mot prod (main + tenants) vid explicit release.
+
+---
+
+## 2026-08-24 – Matches / Slots / Teams: list quick context
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Desktop listrader öppnar sticky förhandsgranskning bredvid listan (Contacts/Tasks-mönster) i stället för att hoppa direkt till full detalj. Kompakt viewport → full view som tidigare.
+
+**Beteende (verifierat)**
+
+- Nya paneler: `MatchQuickContextPanel`, `SlotQuickContextPanel`, `TeamQuickContextPanel`
+- Delad `useQuickContextPreview` + sticky `<aside>` i respektive `*List.tsx`
+- Fact rows, `DetailSection`-rubriker, `QuickContextLinkTile` + quick-info-dialoger (`ContactQuickInfoDialog` / `AssignmentQuickInfoDialog`) före cross-plugin-navigering
+- **Ingen** Delete/Duplicate/Export i quick context (full view only) — enligt [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md)
+
+**Operator:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) § Quick context
+
+**Säkerhet (Security Approved):** Ingen ny backend-endpoint; samma cross-plugin-nav-mönster som Contacts/Tasks (informativ **S-QC-1**).
+
+---
+
+## 2026-08-24 – Sidebar: category headings aligned with detail sections
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Sidofältets kategori-rubriker (Main, Content, Sport, …) använder samma `SubtleSectionHeading` + ikon som detaljvyers sektionsetiketter. Tydligare avgränsning mellan kategorier.
+
+**Beteende (verifierat)**
+
+- `NAV_CATEGORIES` i `categoryConfig.ts` — ikon per kategori (`Home`, `FileText`, `Trophy`, …)
+- `SidebarNavContent`: `SubtleSectionHeading` i collapsible trigger; `border-t border-border/50 pt-3` mellan kategorier (utom första); ingen vänsterkant-border på expanderat innehåll
+- Plugin-listor under kategori utan extra indrag utöver befintlig nav-padding
+
+---
+
 ## 2026-08-23 – Garments: sidofältsnavigering från öppen lista
 
-**Status:** Implementerat lokalt. **Ej QA/Security.** **Ej prod-release.**
+**Status:** Implementerat lokalt. **QA Approved.** **Docs Updated.** **Ej prod-release.**
 
 **Sammanfattning:** Från en öppen klädlista räckte ett klick i sidofältet (Inventory eller annat plugin) inte – panel-close navigerade tillbaka till listindex och åt upp destinationen. Close navigerar nu bara när URL:en fortfarande är ett list-item.
 
@@ -43,7 +100,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-08-23 – Contacts Linked: Garments-listor
 
-**Status:** Implementerat lokalt. **Ej QA/Security.** **Ej prod-release.**
+**Status:** Implementerat lokalt. **QA Approved.** **Docs Updated.** **Ej prod-release.**
 
 **Sammanfattning:** Personrader på klädlistor kan länkas till Contacts via `contact_id`. Import **From Contacts** sparar länken. Kontaktens **Linked**-sektion visar berörda Garments-listor (tile → quick-info → Open).
 
@@ -53,7 +110,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-08-23 – Kläder listor: spreadsheet-tabell (Notes-layout)
 
-**Status:** Implementerat lokalt. **Ej QA/Security.** **Ej prod-release.**
+**Status:** Implementerat lokalt. **QA Approved.** **Docs Updated.** **Ej prod-release.**
 
 **Sammanfattning:** List-fullvy följer Notes-mönster (namn + personmatris i huvudkort; snabbåtgärder/info i sidebar). Personer visas som kalkylblad med fasta kryssrutor.
 
@@ -294,7 +351,7 @@ Internal notes följer Contacts-mönstret: **vänster identitets-/fakta-stack** 
 
 ## 2026-08-21 – Tasks: multi-assignee save root-cause fix (missing tenant migration)
 
-**Status:** Implementerat + migrerat lokalt. **Ej prod-release.**
+**Status:** Implementerat + migrerat lokalt. **QA Approved.** **Docs Updated.** **Ej prod-release.**
 
 **Root cause:** `server/migrations/039-tasks-add-assigned-to-ids.sql` fanns i repo men nya migrationsfiler appliceras bara automatiskt när en tenant **skapas** — befintliga tenants (t.ex. lokal dev-user) fick aldrig kolumnen `assigned_to_ids`. Modellen (`plugins/tasks/model.js`) hade en fallback som tyst hoppade över `assigned_to_ids`-skrivningar när kolumnen saknades (för att inte krascha), vilket gjorde att endast **första** assignee (legacy `assigned_to`) sparades — oavsett om man sparade via quick-edit eller full edit-mode, eftersom båda vägarna går genom samma `create`/`update`.
 

@@ -2,6 +2,22 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Security docs sync — batch homebase-v3.9 (2026-08-24)
+
+Efter **Security Approved** för batchen: produkt-changelog 2026-08-24-poster uppdaterade med Security-status; `REQUESTS_PLUGIN.md` § Unopened requests fick security-notis (**S-MV-1** info; **S3/S4/S5** cross-ref). Ingen ny oacceptabel risk. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
+## QA docs sync — unopened requests, Matches/Slots/Teams QC, sidebar, migrations README (2026-08-24)
+
+Efter **QA Approved** (kod) med dokumentationsluckor: produkt-changelog + operator-notiser för `first_viewed_at` / unopened badge, Matches/Slots/Teams list quick context, sidebar `SubtleSectionHeading`. `REQUESTS_PLUGIN.md` utökad; `server/migrations/README.md` täcker **139–143** (garments) och **144–145** (requests). `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` refererar matches/slots/teams QC-paneler. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## Request plugin routing (Requests → Garments) — docs sync (2026-08-23)
 
 Docs efter **QA Approved** + **Security Approved** + TPM-acceptans av residualer **S3 / S4 / S5** för hybrid request→garments routing. ADR [`adr/REQUEST_PLUGIN_ROUTING.md`](adr/REQUEST_PLUGIN_ROUTING.md). Operator: [`REQUESTS_PLUGIN.md`](../REQUESTS_PLUGIN.md), cross-ref [`GARMENTS_PLUGIN.md`](../GARMENTS_PLUGIN.md). Migration `144`; `npm run migrate:requests-plugin-routing`. Publik submit svarar `{ success: true }` endast. **Local-first; ej prod-release.**
