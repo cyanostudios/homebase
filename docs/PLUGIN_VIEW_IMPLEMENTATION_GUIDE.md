@@ -397,7 +397,7 @@ Sidebar spacing: `space-y-4` (slots/garments) or `space-y-6` (tasks) — stay co
 - [ ] Side-by-side compare with `*View.tsx`: same cards, order, tokens
 - [ ] Inline Save/Cancel present; window globals **absent**
 - [ ] Button size `h-9 text-xs px-3`; Save uses green primary classes above
-- [ ] Edit mode shows Information sidebar only
+- [ ] Edit mode has no QuickActions; Information/Activity stay in full view (Contacts-class 2-col edit) unless a plugin documents an exception
 - [ ] Create mode has no sidebar / full width
 - [ ] Unsaved-changes warning on navigate away when dirty
 
