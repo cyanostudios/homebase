@@ -14,30 +14,22 @@ export function MatchSideSplitSection({
 }) {
   const { t } = useTranslation();
 
+  const blocks = [
+    { key: 'total', title: t('matches.statistics.total'), metrics: sides.total },
+    ...(showSideBreakdown
+      ? [
+          { key: 'home', title: t('matches.statistics.home'), metrics: sides.home },
+          { key: 'away', title: t('matches.statistics.away'), metrics: sides.away },
+        ]
+      : []),
+  ];
+
+  // Three metric cards (Total / Home / Away) at ~⅓ row until more stats exist.
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('matches.statistics.total')}
-        </p>
-        <MatchRecordMetricsGrid metrics={sides.total} />
-      </div>
-      {showSideBreakdown ? (
-        <>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('matches.statistics.home')}
-            </p>
-            <MatchRecordMetricsGrid metrics={sides.home} />
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('matches.statistics.away')}
-            </p>
-            <MatchRecordMetricsGrid metrics={sides.away} />
-          </div>
-        </>
-      ) : null}
+    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {blocks.map((block) => (
+        <MatchRecordMetricsGrid key={block.key} title={block.title} metrics={block.metrics} />
+      ))}
     </div>
   );
 }

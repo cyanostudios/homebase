@@ -76,7 +76,6 @@ export function ClubdeskSettingsView({
         label: t('clubdesk.settings.tabs.view'),
         description: t('clubdesk.settings.tabs.viewDescription'),
         icon: SETTINGS_CATEGORY_ICONS.view,
-        dotClassName: 'bg-blue-500',
       },
     ],
     [t],

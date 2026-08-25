@@ -25,7 +25,6 @@ interface SettingsCategory {
   icon: React.ComponentType<{ className?: string }>;
   category: SettingsCategoryType;
   description: string;
-  dotClassName: string;
 }
 
 const settingsCategories: SettingsCategory[] = [
@@ -35,7 +34,6 @@ const settingsCategories: SettingsCategory[] = [
     icon: Globe,
     category: 'preferences',
     description: 'Theme, language, and timezone',
-    dotClassName: 'bg-blue-500',
   },
   {
     id: 'profile',
@@ -43,7 +41,6 @@ const settingsCategories: SettingsCategory[] = [
     icon: Building2,
     category: 'profile',
     description: 'Shared account identity and billing',
-    dotClassName: 'bg-emerald-500',
   },
   {
     id: 'team',
@@ -51,7 +48,6 @@ const settingsCategories: SettingsCategory[] = [
     icon: Users,
     category: 'team',
     description: 'Your profile, members, and roles',
-    dotClassName: 'bg-amber-500',
   },
   {
     id: 'activity-log',
@@ -59,7 +55,6 @@ const settingsCategories: SettingsCategory[] = [
     icon: History,
     category: 'activity-log',
     description: 'Account activity history',
-    dotClassName: 'bg-orange-500',
   },
 ];
 
@@ -175,7 +170,6 @@ export function SettingsList() {
               label={category.label}
               description={category.description}
               icon={category.icon}
-              dotClassName={category.dotClassName}
               active={selectedCategory === category.id}
               onSelect={() => setSelectedCategory(category.id)}
             />

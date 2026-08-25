@@ -52,6 +52,13 @@ export type PluginSettingsCategory = Pick<
   'id' | 'label' | 'description' | 'icon' | 'dotClassName'
 >;
 
+const MD_GRID_COLS: Record<number, string> = {
+  1: 'md:grid-cols-1',
+  2: 'md:grid-cols-2',
+  3: 'md:grid-cols-3',
+  4: 'md:grid-cols-4',
+};
+
 export interface PluginSettingsPageShellProps {
   title: string;
   subtitle?: string;
@@ -98,6 +105,7 @@ export function PluginSettingsPageShell({
 }: PluginSettingsPageShellProps) {
   const { t } = useTranslation();
   const showCategoryGrid = Boolean(categories && categories.length >= 2);
+  const colCount = Math.min(Math.max(categories?.length ?? 1, 1), 4);
 
   useMobileBarOverride(
     onClose
@@ -142,7 +150,7 @@ export function PluginSettingsPageShell({
       </div>
 
       {showCategoryGrid ? (
-        <div className="grid grid-cols-1 gap-3">
+        <div className={cn('grid grid-cols-1 gap-3', MD_GRID_COLS[colCount] ?? 'md:grid-cols-4')}>
           {categories!.map((category) => (
             <SettingsCategoryCard
               key={category.id}

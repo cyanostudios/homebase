@@ -4,6 +4,75 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-25 – Matches statistics: card shells, team filter, ⅓ metrics
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Matches statistik-vy får Linked-liknande vita kort, lagfilter och kompakta Total/Home/Away-paneler.
+
+**Beteende (verifierat mot kod)**
+
+- Club: ett `DETAIL_VIEW_CARD_CLASS`-kort; per lag: eget kort med lagnamn som `subtleTitle`
+- Team multi-select chips (tomt = alla / visa Club); vald laguppsättning döljer Club
+- Total/Home/Away via `StatCompactPanel` (`bg-muted/40` inuti skalet) i `lg:grid-cols-3`
+- Underrubriker: `SubtleSectionHeading` (All years / år)
+
+**Kod:** [`MatchStats.tsx`](../client/src/plugins/matches/components/stats/MatchStats.tsx), [`MatchSideSplitSection.tsx`](../client/src/plugins/matches/components/stats/MatchSideSplitSection.tsx), [`MatchRecordMetricsGrid.tsx`](../client/src/plugins/matches/components/stats/MatchRecordMetricsGrid.tsx), [`StatCharts.tsx`](../client/src/core/ui/charts/StatCharts.tsx)
+
+**Operator:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1 Filter stats (Matches statistics)
+
+---
+
+## 2026-08-25 – Teams statistics charts + settings category icons
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Teams statistik använder delade `StatCharts`-komponenter (stacked/KPI/ranked/time series). Settings category-kort visar ikon + uppercase-label (Contact Properties-stil) i stället för färgad dot.
+
+**Beteende (verifierat mot kod)**
+
+- [`TeamStats.tsx`](../client/src/plugins/teams/components/stats/TeamStats.tsx) + [`StatCharts.tsx`](../client/src/core/ui/charts/StatCharts.tsx)
+- Players-over-time: se separat post (history-kolumn)
+- [`SettingsCategoryCard`](../client/src/core/ui/SettingsCategoryCard.tsx): `dotClassName` optional/deprecated; labelrad = ikon + `text-xs font-bold uppercase tracking-[0.1em]`
+
+**Operator:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) § Settings category picker
+
+---
+
+## 2026-08-25 – Teams: players-over-time chart tracks player_count edits
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Lagstatistikens tidsserie för spelare speglar ändringar av `player_count` (t.ex. F10 i augusti), via serverägd `player_count_history`.
+
+**Beteende (verifierat)**
+
+- Migration `146-teams-player-count-history.sql` + `npm run migrate:teams-player-count-history` (local first)
+- Create seedar historik; update appendar `{ at, count }` när spelarantalet ändras; klient kan inte skriva historik
+- Diagrammet summerar per månad last-known count per lag (`buildPlayersByMonth`)
+
+**Begränsningar:** Månader före go-live kan fortfarande vara ungefärliga (backfill = nuvarande antal vid `created_at`). Unmigrated tenants: create/update av teams failar tills 146 körts.
+
+**Operator:** [`server/migrations/README.md`](../server/migrations/README.md) §146; [`LOCAL_PROD_PARITY.md`](LOCAL_PROD_PARITY.md) tenant migrate-lista
+
+---
+
+## 2026-08-25 – Mobile: secondary filter chips scroll horizontally
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
+
+**Sammanfattning:** Små sekundära filterchips (Requests types, Instructions/Clubdesk categories, Teams gender, Schedule teams) scrollar horisontellt på phone i stället för att wrappa.
+
+**Beteende (verifierat)**
+
+- Ny token `LIST_FILTER_CHIP_ROW_CLASS` i `detailViewCardStyles.ts` (phone: `flex-nowrap` + `overflow-x-auto` + `no-scrollbar`; `sm+`: wrap)
+- Chip-klasser får `shrink-0` så knapparna inte komprimeras i scrollraden
+- Applicerat i Requests, Instructions, Clubdesk, Teams, Schedule listor (+ Teams detail tabs / Matches view-mode chips)
+
+**Operator:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1 Filter stats
+
+---
+
 ## 2026-08-24 – Home dashboard redesign (v1)
 
 **Status:** Implementerat lokalt. **QA Approved.** Security **N/A** (klient-UI). **Docs Updated.** **Ej prod-release.**

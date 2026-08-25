@@ -92,6 +92,43 @@ function sanitizeSeasonBreaks(value) {
     .slice(0, 50);
 }
 
+/** Append-only { at, count } snapshots for player growth chart. Server-owned. */
+function sanitizePlayerCountHistory(value) {
+  return parseJsonArray(value)
+    .filter((e) => e && typeof e === 'object')
+    .map((e) => {
+      const at = String(e.at ?? '')
+        .trim()
+        .slice(0, 40);
+      if (!at) return null;
+      const count = toIntOrDefault(e.count, 0);
+      return { at, count: Math.max(0, Math.min(9999, count)) };
+    })
+    .filter(Boolean)
+    .slice(0, 500);
+}
+
+function seedPlayerCountHistory(count, atIso) {
+  return [
+    {
+      at: atIso || new Date().toISOString(),
+      count: Math.max(0, Math.min(9999, toIntOrDefault(count, 0))),
+    },
+  ];
+}
+
+function appendPlayerCountHistory(existingRaw, nextCount, atIso) {
+  const history = sanitizePlayerCountHistory(existingRaw);
+  const next = Math.max(0, Math.min(9999, toIntOrDefault(nextCount, 0)));
+  const at = atIso || new Date().toISOString();
+  if (history.length === 0) {
+    return [{ at, count: next }];
+  }
+  const last = history[history.length - 1];
+  if (last.count === next) return history;
+  return [...history, { at, count: next }].slice(0, 500);
+}
+
 function sanitizeSeriesTeams(value) {
   return parseJsonArray(value)
     .filter((st) => st && typeof st === 'object')
@@ -356,12 +393,14 @@ class TeamModel {
       const nextExternalTeamId = sanitizeExternalTeamId(external_team_id);
       await assertExternalTeamIdAvailable(db, nextExternalTeamId, null);
 
+      const initialPlayerCount = toIntOrDefault(player_count, 0);
       const result = await db.insert('teams', {
         name: trimmedName.slice(0, 255),
         age_group: decodeHtmlEntities((age_group || '').trim()) || null,
         gender: TEAM_GENDERS.includes(gender) ? gender : null,
         playing_format: TEAM_PLAYING_FORMATS.includes(playing_format) ? playing_format : null,
-        player_count: toIntOrDefault(player_count, 0),
+        player_count: initialPlayerCount,
+        player_count_history: JSON.stringify(seedPlayerCountHistory(initialPlayerCount)),
         series_teams: JSON.stringify(sanitizedSeriesTeams),
         series_team_count:
           series_teams !== undefined
@@ -436,6 +475,20 @@ class TeamModel {
         await assertExternalTeamIdAvailable(db, nextExternalTeamId, teamId);
       }
 
+      const nextPlayerCount =
+        player_count !== undefined
+          ? toIntOrDefault(player_count, 0)
+          : current.player_count != null
+            ? Number(current.player_count)
+            : 0;
+      const prevPlayerCount = current.player_count != null ? Number(current.player_count) : 0;
+      let nextPlayerCountHistory = current.player_count_history;
+      if (player_count !== undefined && nextPlayerCount !== prevPlayerCount) {
+        nextPlayerCountHistory = JSON.stringify(
+          appendPlayerCountHistory(current.player_count_history, nextPlayerCount),
+        );
+      }
+
       const result = await db.update('teams', teamId, {
         name: trimmedName.slice(0, 255),
         age_group:
@@ -454,10 +507,8 @@ class TeamModel {
               ? playing_format
               : null
             : (current.playing_format ?? null),
-        player_count:
-          player_count !== undefined
-            ? toIntOrDefault(player_count, 0)
-            : (current.player_count ?? 0),
+        player_count: nextPlayerCount,
+        player_count_history: nextPlayerCountHistory,
         series_teams:
           sanitizedSeriesTeams !== null
             ? JSON.stringify(sanitizedSeriesTeams)
@@ -725,6 +776,7 @@ class TeamModel {
       gender: row.gender ?? null,
       playing_format: TEAM_PLAYING_FORMATS.includes(row.playing_format) ? row.playing_format : null,
       player_count: row.player_count != null ? Number(row.player_count) : 0,
+      player_count_history: sanitizePlayerCountHistory(row.player_count_history),
       series_team_count: row.series_team_count != null ? Number(row.series_team_count) : 0,
       series_teams: sanitizeSeriesTeams(row.series_teams),
       status: row.status || 'active',
@@ -743,5 +795,8 @@ class TeamModel {
 }
 
 TeamModel.sanitizeTrainingTimes = sanitizeTrainingTimes;
+TeamModel.sanitizePlayerCountHistory = sanitizePlayerCountHistory;
+TeamModel.seedPlayerCountHistory = seedPlayerCountHistory;
+TeamModel.appendPlayerCountHistory = appendPlayerCountHistory;
 
 module.exports = TeamModel;

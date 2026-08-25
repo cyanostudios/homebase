@@ -8,20 +8,24 @@ export interface SettingsCategoryCardProps {
   label: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
-  dotClassName: string;
+  /**
+   * @deprecated Unused — colored dots were replaced by the category icon
+   * (same style as DetailSection subtleTitle / Contact Properties).
+   */
+  dotClassName?: string;
   active?: boolean;
   onSelect?: () => void;
 }
 
 /**
  * Category picker card used by Core Settings and plugin settings shells.
- * Same surface language as ListFilterStatCard, with a short description under the label.
+ * Label row matches DetailSection `subtleTitle` (icon + uppercase heading);
+ * description sits underneath. Same surface language as ListFilterStatCard.
  */
 export function SettingsCategoryCard({
   label,
   description,
   icon: Icon,
-  dotClassName,
   active = false,
   onSelect,
 }: SettingsCategoryCardProps) {
@@ -49,22 +53,22 @@ export function SettingsCategoryCard({
         }
       }}
     >
-      <div className="flex items-center justify-between gap-5">
-        <div
-          className={cn(
-            'flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] transition-colors group-hover:text-primary',
-            active ? 'text-primary' : 'text-slate-400 dark:text-slate-500',
-          )}
-        >
-          <span className={cn('h-2 w-2 shrink-0 rounded-full', dotClassName)} aria-hidden />
-          <span className="truncate">{label}</span>
-        </div>
+      <div
+        className={cn(
+          'flex min-w-0 items-center gap-2 transition-colors group-hover:text-primary',
+          active ? 'text-primary' : 'text-slate-500 dark:text-slate-400',
+        )}
+      >
         <Icon
           className={cn(
-            'h-5 w-5 shrink-0 transition-colors group-hover:text-primary',
-            active ? 'text-primary' : 'text-muted-foreground',
+            'h-3.5 w-3.5 shrink-0 transition-colors group-hover:text-primary',
+            active ? 'text-primary' : 'text-slate-400 dark:text-slate-500',
           )}
+          aria-hidden
         />
+        <span className="truncate text-xs font-bold uppercase leading-none tracking-[0.1em]">
+          {label}
+        </span>
       </div>
       <p className={cn('mt-2 text-sm', active ? 'text-primary/80' : 'text-muted-foreground')}>
         {description}

@@ -6,6 +6,7 @@ import { isOpenRequestStatus } from '@/plugins/requests/types/requests';
 import type { ResponsibleRole } from '../types/teams';
 import { getDisplaySeriesTeams, isTeamOnBreak } from '../types/teams';
 import type { TeamStatsData } from '../types/teamStats';
+import { buildPlayersByMonth } from '../utils/buildPlayersByMonth';
 import { formatTeamLabel } from '../utils/formatTeamLabel';
 
 import { useTeams } from './useTeams';
@@ -140,6 +141,7 @@ export function useTeamStats(includeRequests: boolean): TeamStatsData {
       byStatus,
       byGender,
       totalPlayers,
+      playersByMonth: buildPlayersByMonth(teams),
       ageGroups,
       withSeriesTeams,
       withoutSeriesTeams,

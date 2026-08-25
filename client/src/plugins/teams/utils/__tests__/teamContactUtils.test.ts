@@ -7,6 +7,7 @@ function makeTeam(overrides: Partial<Team> & Pick<Team, 'id' | 'name'>): Team {
     gender: 'girls',
     playing_format: null,
     player_count: 0,
+    player_count_history: [],
     series_team_count: 0,
     series_teams: [],
     status: 'active',

@@ -11,6 +11,7 @@ const base = {
   gender: 'boys' as const,
   status: 'active' as const,
   player_count: 15,
+  player_count_history: [{ at: '2026-06-01T10:00:00.000Z', count: 15 }],
   updated_at: '2026-07-10T10:00:00.000Z',
   created_at: '2026-06-01T10:00:00.000Z',
 };

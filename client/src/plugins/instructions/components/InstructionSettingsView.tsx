@@ -76,7 +76,6 @@ export function InstructionSettingsView({
         label: t('instructions.settings.tabs.view'),
         description: t('instructions.settings.tabs.viewDescription'),
         icon: SETTINGS_CATEGORY_ICONS.view,
-        dotClassName: 'bg-blue-500',
       },
     ],
     [t],

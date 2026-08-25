@@ -1,62 +1,78 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { StatCompactPanel } from '@/core/ui/charts/StatCharts';
 
 import type { MatchRecordMetrics } from '../../types/matchStats';
 
-const STAT_GRID = 'mt-3 grid grid-cols-1 gap-2 md:grid-cols-4 lg:grid-cols-5';
-
-export function MatchRecordMetricsGrid({ metrics }: { metrics: MatchRecordMetrics }) {
+export function MatchRecordMetricsGrid({
+  metrics,
+  title,
+}: {
+  metrics: MatchRecordMetrics;
+  /** Card title (e.g. Total / Home / Away) — dashboard invoices pattern. */
+  title?: string;
+}) {
   const { t } = useTranslation();
 
+  const resultSegments = useMemo(
+    () => [
+      {
+        key: 'won',
+        label: t('matches.statistics.won'),
+        value: metrics.won,
+        color: '#10b981',
+      },
+      {
+        key: 'drawn',
+        label: t('matches.statistics.drawn'),
+        value: metrics.drawn,
+        color: '#f59e0b',
+      },
+      {
+        key: 'lost',
+        label: t('matches.statistics.lost'),
+        value: metrics.lost,
+        color: '#f43f5e',
+      },
+    ],
+    [metrics.drawn, metrics.lost, metrics.won, t],
+  );
+
+  const kpis = useMemo(
+    () => [
+      { key: 'played', label: t('matches.statistics.played'), value: metrics.played },
+      { key: 'points', label: t('matches.statistics.points'), value: metrics.points },
+      { key: 'winPercent', label: t('matches.statistics.winPercent'), value: metrics.winPercent },
+      {
+        key: 'goalDifference',
+        label: t('matches.statistics.goalDifference'),
+        value: metrics.goalDifference,
+      },
+      { key: 'goalsFor', label: t('matches.statistics.goalsFor'), value: metrics.goalsFor },
+      {
+        key: 'goalsAgainst',
+        label: t('matches.statistics.goalsAgainst'),
+        value: metrics.goalsAgainst,
+      },
+    ],
+    [
+      metrics.goalDifference,
+      metrics.goalsAgainst,
+      metrics.goalsFor,
+      metrics.played,
+      metrics.points,
+      metrics.winPercent,
+      t,
+    ],
+  );
+
   return (
-    <div className={STAT_GRID}>
-      <ListFilterStatCard
-        label={t('matches.statistics.played')}
-        value={metrics.played}
-        dotClassName="bg-slate-500"
-      />
-      <ListFilterStatCard
-        label={t('matches.statistics.won')}
-        value={metrics.won}
-        dotClassName="bg-emerald-500"
-      />
-      <ListFilterStatCard
-        label={t('matches.statistics.drawn')}
-        value={metrics.drawn}
-        dotClassName="bg-amber-500"
-      />
-      <ListFilterStatCard
-        label={t('matches.statistics.lost')}
-        value={metrics.lost}
-        dotClassName="bg-rose-500"
-      />
-      <ListFilterStatCard
-        label={t('matches.statistics.points')}
-        value={metrics.points}
-        dotClassName="bg-indigo-500"
-      />
-      <ListFilterStatCard
-        label={t('matches.statistics.winPercent')}
-        value={metrics.winPercent}
-        dotClassName="bg-violet-500"
-      />
-      <ListFilterStatCard
-        label={t('matches.statistics.goalsFor')}
-        value={metrics.goalsFor}
-        dotClassName="bg-blue-500"
-      />
-      <ListFilterStatCard
-        label={t('matches.statistics.goalsAgainst')}
-        value={metrics.goalsAgainst}
-        dotClassName="bg-orange-500"
-      />
-      <ListFilterStatCard
-        label={t('matches.statistics.goalDifference')}
-        value={metrics.goalDifference}
-        dotClassName="bg-teal-500"
-      />
-    </div>
+    <StatCompactPanel
+      title={title}
+      segments={resultSegments}
+      kpis={kpis}
+      className="bg-muted/40 shadow-none dark:bg-slate-900/40"
+    />
   );
 }

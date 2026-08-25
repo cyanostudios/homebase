@@ -1,17 +1,16 @@
 // Teams settings as full-page content matching Core Settings layout.
 
 import { CalendarRange, Grip, LayoutGrid, MapPin } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import {
   PluginSettingsPageShell,
   SettingsHeaderSaveButton,
+  type PluginSettingsCategory,
 } from '@/core/ui/PluginSettingsPageShell';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { cn } from '@/lib/utils';
@@ -26,6 +25,8 @@ import { TeamsVenuesSettingsSection } from './TeamsVenuesSettingsSection';
 
 const TEAMS_SETTINGS_KEY = 'teams';
 
+export type TeamsSettingsCategory = 'season' | 'overview' | 'venues';
+
 interface TeamsSettingsViewProps {
   onClose?: () => void;
 }
@@ -36,6 +37,7 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
   const enabledPlugins = useEnabledPlugins();
   const hasMatchesPlugin = enabledPlugins.has('matches');
 
+  const [activeCategory, setActiveCategory] = useState<TeamsSettingsCategory>('season');
   const [activeSeason, setActiveSeason] = useState('');
   const [initialSeason, setInitialSeason] = useState('');
   const [overviewCardOrder, setOverviewCardOrder] = useState<OverviewCardId[]>(() =>
@@ -46,6 +48,30 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
   const [isReorderingCards, setIsReorderingCards] = useState(false);
   const [draggingCardId, setDraggingCardId] = useState<OverviewCardId | null>(null);
   const [dragOverCardId, setDragOverCardId] = useState<OverviewCardId | null>(null);
+
+  const categories: PluginSettingsCategory[] = useMemo(
+    () => [
+      {
+        id: 'season',
+        label: t('teams.settingsCategories.season'),
+        description: t('teams.settingsCategories.seasonDescription'),
+        icon: CalendarRange,
+      },
+      {
+        id: 'overview',
+        label: t('teams.settingsCategories.overview'),
+        description: t('teams.settingsCategories.overviewDescription'),
+        icon: LayoutGrid,
+      },
+      {
+        id: 'venues',
+        label: t('teams.settingsCategories.venues'),
+        description: t('teams.settingsCategories.venuesDescription'),
+        icon: MapPin,
+      },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -169,100 +195,79 @@ export function TeamsSettingsView({ onClose }: TeamsSettingsViewProps = {}) {
     <PluginSettingsPageShell
       title={t('teams.settings.title')}
       subtitle={t('teams.settingsSubtitle')}
+      categories={categories}
+      activeCategory={activeCategory}
+      onCategoryChange={(id) => setActiveCategory(id as TeamsSettingsCategory)}
       onClose={onClose}
       onSave={isDirty ? () => void handleSave() : undefined}
       isSaving={isSaving}
-      wrapContentInCard={false}
       saveAction={
         isDirty ? (
           <SettingsHeaderSaveButton onClick={() => void handleSave()} isSaving={isSaving} />
         ) : null
       }
     >
-      <div className="space-y-4">
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <div className="p-4">
-            <DetailSection
-              title={t('teams.settings.seasonSection')}
-              icon={CalendarRange}
-              iconPlugin="teams"
-              className="pt-0"
-            >
-              <div className="space-y-1">
-                <Input
-                  value={activeSeason}
-                  onChange={(e) => setActiveSeason(e.target.value)}
-                  placeholder={String(new Date().getFullYear())}
-                  className="max-w-[200px]"
-                />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {t('teams.settings.activeSeasonHint')}
-                </p>
-              </div>
-            </DetailSection>
+      {activeCategory === 'season' && (
+        <DetailSection title={t('teams.settings.seasonSection')} className="pt-0">
+          <div className="space-y-1">
+            <Input
+              value={activeSeason}
+              onChange={(e) => setActiveSeason(e.target.value)}
+              placeholder={String(new Date().getFullYear())}
+              className="max-w-[200px]"
+            />
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t('teams.settings.activeSeasonHint')}
+            </p>
           </div>
-        </Card>
+        </DetailSection>
+      )}
 
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <div className="p-4">
-            <DetailSection
-              title={t('teams.settings.overviewSection')}
-              icon={LayoutGrid}
-              iconPlugin="teams"
-              className="pt-0"
-            >
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">{t('teams.settings.overviewHint')}</p>
-                <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
-                  {overviewCardOrder.map((cardId) => (
-                    <li
-                      key={cardId}
-                      draggable={!isReorderingCards}
-                      onDragStart={(e) => handleDragStart(e, cardId)}
-                      onDragOver={(e) => handleDragOver(e, cardId)}
-                      onDrop={(e) => void handleDrop(e, cardId)}
-                      onDragEnd={handleDragEnd}
-                      onDragLeave={() => {
-                        if (dragOverCardId === cardId) {
-                          setDragOverCardId(null);
-                        }
-                      }}
-                      className={cn(
-                        'flex items-center justify-between gap-3 px-4 py-2.5 transition-colors',
-                        draggingCardId === cardId && 'opacity-50',
-                        dragOverCardId === cardId && 'bg-muted/60',
-                      )}
-                    >
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <Grip
-                          className="h-3.5 w-3.5 flex-shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
-                          aria-hidden
-                        />
-                        <span className="text-sm font-medium">
-                          {t(`teams.settings.cards.${cardId}`)}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </DetailSection>
+      {activeCategory === 'overview' && (
+        <DetailSection title={t('teams.settings.overviewSection')} className="pt-0">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{t('teams.settings.overviewHint')}</p>
+            <ul className="divide-y divide-border/50 rounded-lg border border-border/50 bg-background">
+              {overviewCardOrder.map((cardId) => (
+                <li
+                  key={cardId}
+                  draggable={!isReorderingCards}
+                  onDragStart={(e) => handleDragStart(e, cardId)}
+                  onDragOver={(e) => handleDragOver(e, cardId)}
+                  onDrop={(e) => void handleDrop(e, cardId)}
+                  onDragEnd={handleDragEnd}
+                  onDragLeave={() => {
+                    if (dragOverCardId === cardId) {
+                      setDragOverCardId(null);
+                    }
+                  }}
+                  className={cn(
+                    'flex items-center justify-between gap-3 px-4 py-2.5 transition-colors',
+                    draggingCardId === cardId && 'opacity-50',
+                    dragOverCardId === cardId && 'bg-muted/60',
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Grip
+                      className="h-3.5 w-3.5 flex-shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
+                      aria-hidden
+                    />
+                    <span className="text-sm font-medium">
+                      {t(`teams.settings.cards.${cardId}`)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-        </Card>
+        </DetailSection>
+      )}
 
-        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-          <div className="p-4">
-            <DetailSection
-              title={t('teams.settings.venuesSection')}
-              icon={MapPin}
-              iconPlugin="teams"
-              className="pt-0"
-            >
-              <TeamsVenuesSettingsSection />
-            </DetailSection>
-          </div>
-        </Card>
-      </div>
+      {activeCategory === 'venues' && (
+        <DetailSection title={t('teams.settings.venuesSection')} className="pt-0">
+          <TeamsVenuesSettingsSection />
+        </DetailSection>
+      )}
     </PluginSettingsPageShell>
   );
 }

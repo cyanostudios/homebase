@@ -57,6 +57,7 @@
     "migrate:teams-series-teams": "node scripts/run-teams-series-teams-migration.js",
     "migrate:teams-playing-format": "node scripts/run-teams-playing-format-migration.js",
     "migrate:teams-venues": "node scripts/run-teams-venues-migration.js",
+    "migrate:teams-player-count-history": "node scripts/run-teams-player-count-history-migration.js",
     "migrate:pulses": "node scripts/run-pulses-migration.js",
     "migrate:mail": "node scripts/run-mail-migration.js",
     "migrate:slots-match-id": "node scripts/run-slots-match-id-migration.js",

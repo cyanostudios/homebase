@@ -2,6 +2,7 @@ import { createApiClient } from '@/core/api/createApiClient';
 
 import type {
   ExternalTeamOptionsResponse,
+  PlayerCountHistoryEntry,
   Responsible,
   SeasonBreak,
   SeriesTeam,
@@ -26,6 +27,15 @@ function parseJsonArray<T>(raw: unknown): T[] {
   return [];
 }
 
+function parsePlayerCountHistory(raw: unknown): PlayerCountHistoryEntry[] {
+  return parseJsonArray<PlayerCountHistoryEntry>(raw)
+    .filter((e) => e && typeof e.at === 'string' && e.at.trim())
+    .map((e) => ({
+      at: String(e.at).trim(),
+      count: Math.max(0, Number(e.count) || 0),
+    }));
+}
+
 function rowToTeam(row: Record<string, unknown>): Team {
   return {
     id: String(row.id),
@@ -34,6 +44,7 @@ function rowToTeam(row: Record<string, unknown>): Team {
     gender: (row.gender as Team['gender']) ?? null,
     playing_format: (row.playing_format as Team['playing_format']) ?? null,
     player_count: row.player_count != null ? Number(row.player_count) : 0,
+    player_count_history: parsePlayerCountHistory(row.player_count_history),
     series_team_count: row.series_team_count != null ? Number(row.series_team_count) : 0,
     series_teams: parseJsonArray<SeriesTeam>(row.series_teams),
     status: (row.status as Team['status']) ?? 'active',

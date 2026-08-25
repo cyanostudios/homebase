@@ -7,6 +7,7 @@ import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { cn } from '@/lib/utils';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
@@ -213,7 +214,7 @@ export function TeamMatchesSection({
   return (
     <>
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={LIST_FILTER_CHIP_ROW_CLASS}>
           <button
             type="button"
             className={cn(

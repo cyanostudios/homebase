@@ -46,22 +46,30 @@ export const DETAIL_QUICK_ACTION_ROW_CLASS =
 /**
  * Compact list filter chips (e.g. Teams boys/girls, Requests types) —
  * same underline language as Select all / bulk actions.
+ * `shrink-0` keeps chips from compressing in horizontal scroll rows.
  */
 export const LIST_FILTER_CHIP_CLASS =
-  'h-9 gap-1.5 rounded-md bg-white px-3 text-xs font-medium text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary dark:bg-slate-950';
+  'h-9 shrink-0 gap-1.5 rounded-md bg-white px-3 text-xs font-medium text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary dark:bg-slate-950';
 
 export const LIST_FILTER_CHIP_ACTIVE_CLASS =
-  'h-9 gap-1.5 rounded-md bg-primary/10 px-3 text-xs font-medium text-primary underline decoration-primary hover:bg-primary/10 hover:text-primary hover:decoration-primary';
+  'h-9 shrink-0 gap-1.5 rounded-md bg-primary/10 px-3 text-xs font-medium text-primary underline decoration-primary hover:bg-primary/10 hover:text-primary hover:decoration-primary';
+
+/**
+ * Phone: single-row horizontal scroll for secondary filter chips.
+ * Pad/desktop (`sm+`): wrap normally.
+ */
+export const LIST_FILTER_CHIP_ROW_CLASS =
+  '-mx-1 flex flex-nowrap items-center gap-1 overflow-x-auto px-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:gap-2 sm:overflow-visible sm:px-0';
 
 /**
  * Large select-style chips (e.g. Teams detail tabs: Overview / Schedule) —
  * same underline language as the small chips, larger padding/type.
  */
 export const LIST_FILTER_CHIP_LG_CLASS =
-  'h-auto gap-1.5 rounded-md bg-white px-3 py-2 text-xs font-medium text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary sm:gap-2 sm:px-5 sm:py-3 sm:text-sm dark:bg-slate-950';
+  'h-auto shrink-0 gap-1.5 rounded-md bg-white px-3 py-2 text-xs font-medium text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary sm:gap-2 sm:px-5 sm:py-3 sm:text-sm dark:bg-slate-950';
 
 export const LIST_FILTER_CHIP_LG_ACTIVE_CLASS =
-  'h-auto gap-1.5 rounded-md bg-primary/10 px-3 py-2 text-xs font-medium text-primary underline decoration-primary hover:bg-primary/10 hover:text-primary hover:decoration-primary sm:gap-2 sm:px-5 sm:py-3 sm:text-sm';
+  'h-auto shrink-0 gap-1.5 rounded-md bg-primary/10 px-3 py-2 text-xs font-medium text-primary underline decoration-primary hover:bg-primary/10 hover:text-primary hover:decoration-primary sm:gap-2 sm:px-5 sm:py-3 sm:text-sm';
 
 /** Dashboard plugin widget card — same surface/hover language as select-style filter chips. */
 export const DASHBOARD_WIDGET_CARD_CLASS =

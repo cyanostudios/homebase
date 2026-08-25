@@ -206,6 +206,11 @@ export function createTeamNoteId(): string {
   return `note-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+export interface PlayerCountHistoryEntry {
+  at: string;
+  count: number;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -213,6 +218,8 @@ export interface Team {
   gender: TeamGender | null;
   playing_format: TeamPlayingFormat | null;
   player_count: number;
+  /** Server-owned snapshots; do not send on create/update. */
+  player_count_history: PlayerCountHistoryEntry[];
   series_team_count: number;
   series_teams: SeriesTeam[];
   status: TeamStatus;

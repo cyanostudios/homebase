@@ -26,6 +26,18 @@ After plugin access: **log out/in**. Local first; prod only on explicit release.
 
 ---
 
+## 146 – Teams player count history (aug 2026)
+
+- **`146-teams-player-count-history.sql`** — tenant-DB: `teams.player_count_history` JSONB (append-only `{ at, count }` for statistics chart). Backfills one point at `created_at` with current `player_count`.
+
+```bash
+npm run migrate:teams-player-count-history
+```
+
+Local first; prod only on explicit release.
+
+---
+
 ## 144–145 – Requests plugin extensions (aug 2026)
 
 - **`144-requests-plugin-routing.sql`** — tenant-DB: `plugin_target`, `plugin_target_id`, `extra_data`, `plugin_routed_at`, `plugin_routed_entity_id` on `requests` (hybrid routing → Garments).

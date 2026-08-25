@@ -305,7 +305,11 @@
       "clubNeedsDefault": "Klubbstatistik kräver ett standard hemmalag.",
       "teamNeedsDefault": "Per-lag-statistik kräver ett standard hemmalag så att hemma/borta och resultat inte räknas fel.",
       "noCountedMatches": "Inga räknade matcher för klubben ännu.",
-      "noTeamMatches": "Inga räknade matcher kopplade till ett lag ännu."
+      "noTeamMatches": "Inga räknade matcher kopplade till ett lag ännu.",
+      "results": "Resultat",
+      "resultsChartAria": "Diagram över vinster, oavgjorda och förluster",
+      "goals": "Mål",
+      "noTeamsMatchFilter": "Inga lag matchar det valda filtret."
     },
     "match": "Match",
     "nameLabel": "Namn",
@@ -2445,6 +2449,11 @@
       "onBreak": "På paus",
       "dormant": "Vilande",
       "totalPlayers": "Totalt antal spelare",
+      "playersOverTime": "Spelare över tid",
+      "playersOverTimeAria": "Diagram över antal spelare per månad",
+      "playersOverTimeValue": "spelare",
+      "playersOverTimeEmpty": "Ingen spelaradata att visa ännu.",
+      "playersOverTimeHint": "Uppdateras när du ändrar ett lags spelarantal. Tidigare månader använder det antal som gällde då.",
       "genderDistribution": "Könsfördelning",
       "unknownGender": "Ej angivet",
       "ageGroups": "Serielag per åldersgrupp",
@@ -2461,7 +2470,21 @@
       "requestsUnlinked": "Olänkade",
       "topOpenRequests": "Flest öppna förfrågningar per lag",
       "openOfTotal": "{{open}} öppna · {{total}} totalt",
-      "noOpenRequests": "Inga lag med öppna förfrågningar just nu."
+      "noOpenRequests": "Inga lag med öppna förfrågningar just nu.",
+      "statusDistribution": "Status",
+      "statusChartAria": "Diagram över lagsstatus",
+      "genderChartAria": "Diagram över könsfördelning",
+      "seriesChartAria": "Diagram över seriedeltagande",
+      "requestsByStatus": "Förfrågningsstatus",
+      "requestsTotalCount": "{{count}} förfrågningar totalt"
+    },
+    "settingsCategories": {
+      "season": "Säsong",
+      "seasonDescription": "Aktiv säsong som visas i listans sidhuvud.",
+      "overview": "Översiktskort",
+      "overviewDescription": "Ordning på korten i varje lags översikt.",
+      "venues": "Spelplatser",
+      "venuesDescription": "Gemensamma träningsplatser för alla lag."
     }
   },
   "dashboard": {

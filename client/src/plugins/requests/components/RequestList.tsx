@@ -33,6 +33,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import {
   LIST_FILTER_CHIP_ACTIVE_CLASS,
   LIST_FILTER_CHIP_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
@@ -450,7 +451,7 @@ export function RequestList() {
         </div>
 
         {requestTypes.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+          <div className={LIST_FILTER_CHIP_ROW_CLASS}>
             {requestTypes.map((type) => {
               const typeKey = type.key;
               const isActive = typeFilter === typeKey;

@@ -305,7 +305,11 @@
       "clubNeedsDefault": "Club statistics require a default home team.",
       "teamNeedsDefault": "Per-team statistics require a default home team so home/away and results are not miscounted.",
       "noCountedMatches": "No counted matches for the club yet.",
-      "noTeamMatches": "No counted matches linked to a team yet."
+      "noTeamMatches": "No counted matches linked to a team yet.",
+      "results": "Results",
+      "resultsChartAria": "Win, draw and loss distribution chart",
+      "goals": "Goals",
+      "noTeamsMatchFilter": "No teams match the current filter."
     },
     "match": "Match",
     "nameLabel": "Name",
@@ -2451,6 +2455,11 @@
       "onBreak": "On break",
       "dormant": "Dormant",
       "totalPlayers": "Total players",
+      "playersOverTime": "Players over time",
+      "playersOverTimeAria": "Monthly player count chart",
+      "playersOverTimeValue": "players",
+      "playersOverTimeEmpty": "No player data to chart yet.",
+      "playersOverTimeHint": "Updates when you change a team's player count. Earlier months use the count known at that time.",
       "genderDistribution": "Gender distribution",
       "unknownGender": "Not set",
       "ageGroups": "Series teams by age group",
@@ -2467,7 +2476,21 @@
       "requestsUnlinked": "Unlinked",
       "topOpenRequests": "Most open requests by team",
       "openOfTotal": "{{open}} open · {{total}} total",
-      "noOpenRequests": "No teams with open requests right now."
+      "noOpenRequests": "No teams with open requests right now.",
+      "statusDistribution": "Status",
+      "statusChartAria": "Team status distribution chart",
+      "genderChartAria": "Gender distribution chart",
+      "seriesChartAria": "Series participation chart",
+      "requestsByStatus": "Request status",
+      "requestsTotalCount": "{{count}} requests in total"
+    },
+    "settingsCategories": {
+      "season": "Season",
+      "seasonDescription": "Active season shown in the list header.",
+      "overview": "Overview cards",
+      "overviewDescription": "Order of cards on each team overview.",
+      "venues": "Venues",
+      "venuesDescription": "Shared training venues for all teams."
     }
   },
   "dashboard": {

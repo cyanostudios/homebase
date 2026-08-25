@@ -15,6 +15,11 @@ interface RoleCount {
   count: number;
 }
 
+export interface PlayersByMonthPoint {
+  monthKey: string;
+  value: number;
+}
+
 export interface TeamStatsData {
   totalTeams: number;
   byStatus: {
@@ -29,6 +34,8 @@ export interface TeamStatsData {
     unknown: number;
   };
   totalPlayers: number;
+  /** Approximate monthly totals from player_count_history (edits over time). */
+  playersByMonth: PlayersByMonthPoint[];
   ageGroups: AgeGroupCount[];
   withSeriesTeams: number;
   withoutSeriesTeams: number;

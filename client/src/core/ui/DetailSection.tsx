@@ -44,13 +44,9 @@ export function SubtleSectionHeading({
       {Icon ? (
         <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden />
       ) : null}
-      <Heading
-        level={3}
-        size="xs"
-        className="truncate font-bold uppercase leading-none tracking-[0.1em] text-slate-500 dark:text-slate-400"
-      >
+      <h3 className="truncate whitespace-nowrap text-xs font-bold uppercase leading-none tracking-[0.1em] text-slate-500 dark:text-slate-400">
         {title}
-      </Heading>
+      </h3>
     </div>
   );
 }

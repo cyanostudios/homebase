@@ -36,6 +36,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
   LIST_FILTER_CHIP_LG_ACTIVE_CLASS,
   LIST_FILTER_CHIP_LG_CLASS,
+  LIST_FILTER_CHIP_ROW_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -782,7 +783,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
             </div>
           </Card>
 
-          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+          <div className={LIST_FILTER_CHIP_ROW_CLASS}>
             {tabs.map((tab) => {
               const TabIcon = tab.icon;
               const isActive = activeTab === tab.id;
