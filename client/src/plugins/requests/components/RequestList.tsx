@@ -493,7 +493,7 @@ export function RequestList() {
           onSuccess={clearRequestSelection}
         />
 
-        <div className="flex flex-col gap-0 md:gap-3">
+        <div className="flex flex-col gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={sorted.length > 0}

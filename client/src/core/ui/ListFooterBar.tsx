@@ -17,7 +17,7 @@ export function ListFooterBar({ leading, meta, className }: ListFooterBarProps) 
   return (
     <div
       className={cn(
-        '-mt-1.5 flex min-h-0 flex-shrink-0 flex-wrap items-center gap-3 bg-transparent px-4 pb-2 pt-0',
+        'flex min-h-0 flex-shrink-0 flex-wrap items-center gap-3 bg-transparent px-4 pb-2 pt-0',
         className,
       )}
     >

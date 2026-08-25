@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## Mobile form focus zoom — docs sync (2026-08-25)
+
+Docs efter **QA Approved** + **Security Approved** för iOS-zoom-fix på formfält (16px under `md`; ingen viewport `maximum-scale`). Operator: `UI_AND_UX_STANDARDS_V3.md` § Form controls — mobile font size. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md).
+
+---
+
 ## QA-cykel: mobilpass — stale doc-fix (2026-08-25)
 
 QA-granskning identifierade testregression (`matchDefaultHomeTeamFilter.test.js` kontrollerade `md:grid-cols-5` men koden använder `lg:grid-cols-5` sedan `LIST_FILTER_STAT_ROW_CLASS`-refaktoringen). Frontend-fix godkänd och Security-godkänd. Dokumentationsfixar:

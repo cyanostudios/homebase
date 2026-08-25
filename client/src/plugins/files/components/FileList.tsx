@@ -355,7 +355,7 @@ export const FileList: React.FC = () => {
           warningMessage={t('files.bulkDeleteWarning')}
         />
 
-        <div className="flex flex-col gap-0 md:gap-3">
+        <div className="flex flex-col gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={filteredAndSorted.length > 0}

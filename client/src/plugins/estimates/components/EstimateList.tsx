@@ -436,7 +436,7 @@ export function EstimateList() {
           isLoading={deleting}
         />
 
-        <div className="flex flex-col gap-0 md:gap-3">
+        <div className="flex flex-col gap-3">
           <ListToolbar
             selectedCount={selectedCount}
             showSelectAll={sortedEstimates.length > 0}

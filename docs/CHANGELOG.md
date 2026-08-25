@@ -4,6 +4,37 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-25 – List footer spacing on mobile (empty state)
+
+**Status:** Implementerat lokalt. **Ej prod-release** utan explicit beslut.
+
+**Typ:** bugfix / UX / frontend  
+**Scope:** `ListFooterBar`, list shells (`*List.tsx`) across card-column plugins
+
+**Sammanfattning:** “Showing 0 of 0 …” låg för nära empty-state-kortet på telefon. Orsak: listkolumn `gap-0 md:gap-3` + footer `-mt-1.5`. Åtgärdat till `gap-3` överallt och utan negativ footer-marginal (alignar med Rhythm i UI-standards).
+
+**Guide:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1 Rhythm / List footer
+
+---
+
+## 2026-08-25 – Mobile: prevent iOS zoom on form field focus
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** bugfix / UX / frontend  
+**Scope:** `client/src/index.css`, `client/src/components/ui/input.tsx`, `textarea.tsx`, `select.tsx` (`NativeSelect`), `client/src/core/ui/PasswordInput.tsx`
+
+**Sammanfattning:** På telefon (<768px) sätts textfält till 16px så iOS Safari inte zooma in hela sidan när man fokuserar ett fält. Desktop behåller `text-sm`. Viewport meta ändras inte (`user-scalable` låses inte).
+
+**Beteende (verifierat i kod)**
+
+- Global CSS under `max-width: 767px` tvingar `font-size: 16px` på text-`input` / `textarea` / `select` (checkbox, radio, file m.fl. undantagna)
+- Delade komponenter: `text-base md:text-sm`
+
+**Guide:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) § Form controls — mobile font size
+
+---
+
 ## 2026-08-25 – Home dashboard widgets + Matches nearest-first + list Quick Context layout
 
 **Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

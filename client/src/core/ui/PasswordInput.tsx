@@ -25,7 +25,7 @@ export function PasswordInput({
         type={visible ? 'text' : 'password'}
         autoComplete={autoComplete}
         className={cn(
-          'appearance-none block w-full h-10 px-3 pr-10 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring',
+          'appearance-none block w-full h-10 px-3 pr-10 border border-input rounded-md bg-background text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring',
           inputClassName,
         )}
         {...props}
