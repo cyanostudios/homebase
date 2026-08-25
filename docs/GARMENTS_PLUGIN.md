@@ -18,35 +18,39 @@ Production / `--both` only when you explicitly request release (Release Discipli
 
 Sidebar submenu (Clubdesk-style), URL-driven:
 
-| View          | URL                   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lists**     | `/garments`           | Clothing checklists: persons + spreadsheet (Betalt & Blankett Fogis per person; Beställt/Levererat/Utdelat per Shorts/Tröja/Strumpor); optional team link                                                                                                                                                                                                                                                                                                      |
-| **Inventory** | `/garments/inventory` | Stock **articles** with product fields (name required; optional brand, description, material, purchase price). Each article has **variants** (color and/or size + SKU + quantity) via a form repeater. Desktop: sticky quick-context (variant list with inline qty) + full view. Full view: platform prev/next when more than one article; closing the panel returns to `/garments/inventory`. Quick Actions include **Duplicate**. Not linked to lists in v1. |
-| **Settings**  | (in-plugin overlay)   | List layout (cards/table, column count)                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| View          | URL                   | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lists**     | `/garments`           | Clothing checklists: persons + spreadsheet (Betalt & Blankett Fogis per person; Beställt/Levererat/Utdelat per Shorts/Tröja/Strumpor); optional team link                                                                                                                                                                                                                                                                                                                          |
+| **Inventory** | `/garments/inventory` | Stock **articles** with product fields (name required; optional brand, description, material, purchase price). Each article has **variants** (optional audience + color and/or size + SKU + quantity) via a form repeater. Desktop: sticky quick-context (variant list with inline qty) + full view. Full view: platform prev/next when more than one article; closing the panel returns to `/garments/inventory`. Quick Actions include **Duplicate**. Not linked to lists in v1. |
+| **Settings**  | (in-plugin overlay)   | List layout (cards/table, column count)                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ### Inventory uniqueness and copy behaviour
 
-- **Color + size:** unique per article (case-insensitive). Enforced in client validation, model assert, and DB index `idx_garment_inventory_variants_unique`.
-- **Article number (SKU):** unique per article when non-empty (case-insensitive). Empty SKUs may repeat. Enforced in client validation, model assert, and DB index `idx_garment_inventory_variants_sku_unique` (migration **`138`**).
-- **Quantity PATCH** (`PATCH /inventory/:id/variants/:variantId/quantity`) updates quantity only; it does **not** re-run uniqueness checks (avoids blocking +/- on legacy rows with duplicate SKUs).
-- **Duplicate article:** copies variants’ color/size/qty; **clears all SKUs** on the copy.
-- **Duplicate variant row (form):** clears **SKU and size** (keeps color) so the new row is immediately saveable.
+- **Audience + color + size:** may repeat. Non-blocking UI warning + red borders when two or more rows share the same triad (migration **`152`** drops the unique index from **`149`**).
+- **Article number (SKU):** may repeat. Non-blocking UI warning + red borders when two or more rows share the same non-empty art.nr (migration **`150`**).
+- **Quantity PATCH** (`PATCH /inventory/:id/variants/:variantId/quantity`) updates quantity only.
+- **Duplicate article:** copies variants’ audience/color/size/qty; **clears all SKUs** on the copy.
+- **Duplicate variant row (form):** clears **SKU and size** (keeps audience and color).
 - Closing inventory create/edit/view navigates to **`/garments/inventory`**, not `/garments`.
 - Leaving an open **list** via the sidebar (Inventory or another plugin) navigates in **one click**. Panel close does not bounce back to the lists index.
 
 ### Migrations (inventory)
 
-| File                                                | Effect                                                                                                      |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `137-garment-inventory-variants.sql`                | Child table `garment_inventory_variants`; truncates inventory test data                                     |
-| `138-garment-inventory-variant-sku-unique.sql`      | Partial unique index on non-empty `sku` per `item_id`                                                       |
-| `139-garments-grouped-checkbox-columns.sql`         | Resets all list `checkbox_columns` to an earlier 15-column grouped template                                 |
-| `140-garments-person-level-checkbox-columns.sql`    | Resets to 11 columns: Betalt + Blankett Fogis (person) + Beställt/Levererat/Utdelat × Shorts/Tröja/Strumpor |
-| `141-garment-list-persons-jersey-name-initials.sql` | Adds `jersey_name` + `initials` on `garment_list_persons`                                                   |
-| `142-garments-checkbox-columns-english-labels.sql`  | Sets English labels/groups on all list checkbox columns                                                     |
-| `143-garment-list-persons-contact-id.sql`           | Adds nullable `contact_id` on `garment_list_persons` (Contacts link)                                        |
+| File                                                   | Effect                                                                                                      |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `137-garment-inventory-variants.sql`                   | Child table `garment_inventory_variants`; truncates inventory test data                                     |
+| `138-garment-inventory-variant-sku-unique.sql`         | Partial unique index on non-empty `sku` per `item_id`                                                       |
+| `139-garments-grouped-checkbox-columns.sql`            | Resets all list `checkbox_columns` to an earlier 15-column grouped template                                 |
+| `140-garments-person-level-checkbox-columns.sql`       | Resets to 11 columns: Betalt + Blankett Fogis (person) + Beställt/Levererat/Utdelat × Shorts/Tröja/Strumpor |
+| `141-garment-list-persons-jersey-name-initials.sql`    | Adds `jersey_name` + `initials` on `garment_list_persons`                                                   |
+| `142-garments-checkbox-columns-english-labels.sql`     | Sets English labels/groups on all list checkbox columns                                                     |
+| `143-garment-list-persons-contact-id.sql`              | Adds nullable `contact_id` on `garment_list_persons` (Contacts link)                                        |
+| `149-garment-inventory-variant-audience.sql`           | Adds `audience` on variants; unique index becomes `(item_id, audience, color, size)`                        |
+| `150-garment-inventory-variant-sku-nonunique.sql`      | Drops SKU unique index so art.nr may repeat per item                                                        |
+| `151-garment-inventory-recommended-sale-price.sql`     | Adds nullable `recommended_price` + `sale_price` on inventory items                                         |
+| `152-garment-inventory-variant-identity-nonunique.sql` | Drops unique index on `(audience, color, size)` so identity may repeat                                      |
 
-Run: `npm run migrate:garments`. Apply **`138` in the target environment** before relying on DB-level SKU uniqueness (app validation alone is not enough for concurrent writers). Apply **`140`** so existing lists get the current spreadsheet column set.
+Run: `npm run migrate:garments`. Apply **`149`–`152` in the target environment** as needed. Apply **`140`** so existing lists get the current spreadsheet column set.
 
 ## Person rows (list detail)
 
@@ -99,7 +103,7 @@ Operator detail: [`REQUESTS_PLUGIN.md`](REQUESTS_PLUGIN.md). ADR: [`docs/ai/adr/
 
 Unauthenticated share links can expose youth names, sizes, jersey numbers, and checkbox status. Same residual class as Notes public shares. See [`docs/ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md`](ai/security/GARMENTS_PUBLIC_SHARE_ETAPP1.md). Prefer short expiry and revoke after use. **Local first; no prod** without an explicit release.
 
-**Inventory (Gate 5, 2026-08-23):** No unacceptable risks. Hardening note (non-blocking): nested `variants[]` on item POST/PUT is validated mainly as an array (max 100); dedicated `/variants` routes use per-field length/int rules. Prefer aligning nested validators with `variantBody` in a follow-up. Ensure migration **`138`** is applied in each target tenant DB before production use of SKU uniqueness.
+**Inventory (Gate 5, 2026-08-23):** No unacceptable risks. Hardening note (non-blocking): nested `variants[]` on item POST/PUT is validated mainly as an array (max 100); dedicated `/variants` routes use per-field length/int rules. Prefer aligning nested validators with `variantBody` in a follow-up. Ensure migrations **`149`** and **`150`** are applied in each target tenant DB (audience uniqueness; art.nr non-unique).
 
 ## ADR
 

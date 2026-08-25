@@ -10,7 +10,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
 
 import { useGarments } from '../hooks/useGarments';
 import type { GarmentList, InventoryItem } from '../types/garments';
+import { findDuplicateVariantIndices } from '../utils/inventoryValidation';
 
 import { GarmentPersonImportDialog } from './GarmentPersonImportDialog';
 import { GarmentShareBlock } from './GarmentShareBlock';
@@ -82,6 +83,7 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
   const comment = item.comment?.trim() || '';
   const material = item.material?.trim() || '';
   const variants = item.variants || [];
+  const duplicateVariantIndices = useMemo(() => findDuplicateVariantIndices(variants), [variants]);
 
   const propertyRows: { label: string; value: string }[] = [
     { label: t('garments.brand'), value: item.brand?.trim() || '—' },
@@ -89,6 +91,22 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
       label: t('garments.purchasePrice'),
       value: formatPurchasePrice(item.purchasePrice, item.currency || 'SEK'),
     },
+    ...(item.recommendedPrice != null && !Number.isNaN(item.recommendedPrice)
+      ? [
+          {
+            label: t('garments.recommendedPrice'),
+            value: formatPurchasePrice(item.recommendedPrice, item.currency || 'SEK'),
+          },
+        ]
+      : []),
+    ...(item.salePrice != null && !Number.isNaN(item.salePrice)
+      ? [
+          {
+            label: t('garments.salePrice'),
+            value: formatPurchasePrice(item.salePrice, item.currency || 'SEK'),
+          },
+        ]
+      : []),
     { label: t('garments.totalQuantity'), value: String(item.totalQuantity ?? 0) },
     {
       label: t('garments.variantCount'),
@@ -270,20 +288,45 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
               <p className="text-sm text-muted-foreground">{t('garments.noVariantsYet')}</p>
             ) : (
               <div className="space-y-2">
-                {variants.map((row) => {
+                {duplicateVariantIndices.identity.size > 0 ? (
+                  <p className="text-sm text-destructive">
+                    {t('garments.variantIdentityDuplicateWarning')}
+                  </p>
+                ) : null}
+                {duplicateVariantIndices.sku.size > 0 ? (
+                  <p className="text-sm text-destructive">
+                    {t('garments.variantSkuDuplicateWarning')}
+                  </p>
+                ) : null}
+                {variants.map((row, index) => {
+                  const rowDup = duplicateVariantIndices.any.has(index);
                   const label =
-                    [row.color?.trim(), row.size?.trim()].filter(Boolean).join(' · ') ||
+                    [row.audience?.trim(), row.color?.trim(), row.size?.trim()]
+                      .filter(Boolean)
+                      .join(' · ') ||
                     row.sku?.trim() ||
                     '—';
                   return (
                     <div
                       key={row.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2.5"
+                      className={cn(
+                        'flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5',
+                        rowDup ? 'border-destructive' : 'border-border/50',
+                      )}
                     >
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium text-foreground">{label}</div>
                         {row.sku?.trim() ? (
-                          <div className="truncate text-xs text-muted-foreground">{row.sku}</div>
+                          <div
+                            className={cn(
+                              'truncate text-xs',
+                              duplicateVariantIndices.sku.has(index)
+                                ? 'text-destructive'
+                                : 'text-muted-foreground',
+                            )}
+                          >
+                            {row.sku}
+                          </div>
                         ) : null}
                       </div>
                       <VariantQuantityEditor

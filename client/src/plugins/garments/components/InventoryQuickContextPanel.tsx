@@ -13,6 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import type { InventoryItem, InventoryVariant } from '../types/garments';
+import { findDuplicateVariantIndices } from '../utils/inventoryValidation';
 
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
@@ -60,7 +61,9 @@ function formatPurchasePrice(price: number | null | undefined, currency: string)
 }
 
 function variantLabel(variant: InventoryVariant): string {
-  const parts = [variant.color?.trim(), variant.size?.trim()].filter(Boolean);
+  const parts = [variant.audience?.trim(), variant.color?.trim(), variant.size?.trim()].filter(
+    Boolean,
+  );
   if (parts.length) {
     return parts.join(' · ');
   }
@@ -190,6 +193,7 @@ export function InventoryQuickContextPanel({
   const displayedDescription = contentExpanded ? description : descriptionPreview.text;
   const showReadMoreToggle = descriptionPreview.truncated && !isFullView;
   const variants = item.variants || [];
+  const duplicateVariantIndices = useMemo(() => findDuplicateVariantIndices(variants), [variants]);
 
   const identityHeader = (
     <div className="flex items-center gap-3">
@@ -258,6 +262,28 @@ export function InventoryQuickContextPanel({
           {formatPurchasePrice(item.purchasePrice, item.currency || 'SEK')}
         </div>
       </div>
+      {item.recommendedPrice != null && !Number.isNaN(item.recommendedPrice) ? (
+        <div>
+          <div className={FACT_LABEL_CLASS}>
+            <ShoppingBag className="h-3 w-3" />
+            {t('garments.recommendedPrice')}
+          </div>
+          <div className={DETAIL_FIELD_VALUE_CLASS}>
+            {formatPurchasePrice(item.recommendedPrice, item.currency || 'SEK')}
+          </div>
+        </div>
+      ) : null}
+      {item.salePrice != null && !Number.isNaN(item.salePrice) ? (
+        <div>
+          <div className={FACT_LABEL_CLASS}>
+            <ShoppingBag className="h-3 w-3" />
+            {t('garments.salePrice')}
+          </div>
+          <div className={DETAIL_FIELD_VALUE_CLASS}>
+            {formatPurchasePrice(item.salePrice, item.currency || 'SEK')}
+          </div>
+        </div>
+      ) : null}
       <div>
         <div className={FACT_LABEL_CLASS}>
           <Hash className="h-3 w-3" />
@@ -340,26 +366,51 @@ export function InventoryQuickContextPanel({
             <p className="text-sm text-muted-foreground">{t('garments.noVariantsYet')}</p>
           ) : (
             <div className="space-y-2">
-              {variants.map((row) => (
-                <div
-                  key={row.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-foreground">
-                      {variantLabel(row)}
+              {duplicateVariantIndices.identity.size > 0 ? (
+                <p className="text-sm text-destructive">
+                  {t('garments.variantIdentityDuplicateWarning')}
+                </p>
+              ) : null}
+              {duplicateVariantIndices.sku.size > 0 ? (
+                <p className="text-sm text-destructive">
+                  {t('garments.variantSkuDuplicateWarning')}
+                </p>
+              ) : null}
+              {variants.map((row, index) => {
+                const rowDup = duplicateVariantIndices.any.has(index);
+                return (
+                  <div
+                    key={row.id}
+                    className={cn(
+                      'flex items-center justify-between gap-3 rounded-lg border px-3 py-2',
+                      rowDup ? 'border-destructive' : 'border-border/50',
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {variantLabel(row)}
+                      </div>
+                      {row.sku?.trim() ? (
+                        <div
+                          className={cn(
+                            'truncate text-xs',
+                            duplicateVariantIndices.sku.has(index)
+                              ? 'text-destructive'
+                              : 'text-muted-foreground',
+                          )}
+                        >
+                          {row.sku}
+                        </div>
+                      ) : null}
                     </div>
-                    {row.sku?.trim() ? (
-                      <div className="truncate text-xs text-muted-foreground">{row.sku}</div>
-                    ) : null}
+                    <VariantQuantityEditor
+                      variant={row}
+                      disabled={quantitySaving}
+                      onQuantityChange={onVariantQuantityChange}
+                    />
                   </div>
-                  <VariantQuantityEditor
-                    variant={row}
-                    disabled={quantitySaving}
-                    onQuantityChange={onVariantQuantityChange}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

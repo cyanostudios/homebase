@@ -26,6 +26,7 @@ export function inventoryItemMatchesSearch(item: InventoryItem, searchTerm: stri
   return (item.variants || []).some(
     (variant) =>
       (variant.sku || '').toLowerCase().includes(needle) ||
+      (variant.audience || '').toLowerCase().includes(needle) ||
       (variant.color || '').toLowerCase().includes(needle) ||
       (variant.size || '').toLowerCase().includes(needle),
   );

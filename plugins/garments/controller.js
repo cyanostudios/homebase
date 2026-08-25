@@ -7,20 +7,6 @@ class GarmentsController {
 
   mapUniqueViolation(error) {
     if (error?.code !== '23505') return null;
-    const constraint = String(error?.constraint || error?.detail || error?.message || '');
-    // Check SKU before generic "variants" — sku unique index name contains both.
-    if (/sku/i.test(constraint)) {
-      return {
-        field: 'variants',
-        message: 'A variant with this article number already exists on this item',
-      };
-    }
-    if (/variants/i.test(constraint) || /color/i.test(constraint)) {
-      return {
-        field: 'variants',
-        message: 'A variant with this color and size already exists on this item',
-      };
-    }
     return {
       field: 'articleName',
       message: 'An inventory item with this article and brand already exists',

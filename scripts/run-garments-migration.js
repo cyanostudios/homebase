@@ -20,6 +20,10 @@ const TENANT_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/141-garment-list-persons-jersey-name-initials.sql'),
   path.join(__dirname, '../server/migrations/142-garments-checkbox-columns-english-labels.sql'),
   path.join(__dirname, '../server/migrations/143-garment-list-persons-contact-id.sql'),
+  path.join(__dirname, '../server/migrations/149-garment-inventory-variant-audience.sql'),
+  path.join(__dirname, '../server/migrations/150-garment-inventory-variant-sku-nonunique.sql'),
+  path.join(__dirname, '../server/migrations/151-garment-inventory-recommended-sale-price.sql'),
+  path.join(__dirname, '../server/migrations/152-garment-inventory-variant-identity-nonunique.sql'),
 ];
 const MAIN_MIGRATIONS = [
   path.join(__dirname, '../server/migrations/132-grant-garments-plugin-access.sql'),
@@ -57,7 +61,9 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
           error.message.includes('already exists') ||
           error.code === '42P07' ||
           error.code === '42710' ||
-          error.code === '42701'
+          error.code === '42701' ||
+          // Re-running older migrations after later ones dropped columns (e.g. 136 after 137).
+          error.code === '42703'
         ) {
           console.log(`   Skipped ${path.basename(filePath)} (already applied)`);
           skipped += 1;

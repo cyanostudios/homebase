@@ -5,7 +5,11 @@
 - **`131-garments.sql`** — tenant-DB: `garment_lists`, `garment_list_persons`, `garment_list_shares`, `garment_inventory_items`.
 - **`136-garment-inventory-product-fields.sql`** — tenant-DB: inventory product fields (`sku`, `color`, `description`, `material`, `purchase_price`, `currency`) + unique index includes `color`.
 - **`137-garment-inventory-variants.sql`** — tenant-DB: child table `garment_inventory_variants` (sku/color/size/quantity per variant); drops those columns from items; item unique on `(user_id, article_name, brand)`. Truncates inventory testdata.
-- **`138-garment-inventory-variant-sku-unique.sql`** — tenant-DB: unique non-empty `sku` per item (`item_id`, lower(sku)).
+- **`138-garment-inventory-variant-sku-unique.sql`** — tenant-DB: unique non-empty `sku` per item (`item_id`, lower(sku)). Superseded by **`150`**.
+- **`149-garment-inventory-variant-audience.sql`** — tenant-DB: `audience` on variants; unique `(item_id, audience, color, size)`.
+- **`150-garment-inventory-variant-sku-nonunique.sql`** — tenant-DB: drop SKU unique index (art.nr may repeat).
+- **`151-garment-inventory-recommended-sale-price.sql`** — tenant-DB: nullable `recommended_price` + `sale_price` on inventory items.
+- **`152-garment-inventory-variant-identity-nonunique.sql`** — tenant-DB: drop unique index on `(audience, color, size)` (UI warns only).
 - **`139-garments-grouped-checkbox-columns.sql`** — tenant-DB: grouped checkbox column template on lists (superseded by `140` on existing tenants).
 - **`140-garments-person-level-checkbox-columns.sql`** — tenant-DB: person-level Paid/Fogis + per-garment Ordered/Delivered/Distributed columns (11 data columns).
 - **`141-garment-list-persons-jersey-name-initials.sql`** — tenant-DB: `jersey_name`, `initials` on `garment_list_persons`.

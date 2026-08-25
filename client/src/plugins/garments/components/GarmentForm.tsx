@@ -1,5 +1,5 @@
 import { Check, Copy, Info, Layers, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
-import React, { useState, useEffect, useCallback, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,10 @@ import type {
   InventoryItemPayload,
   InventoryVariantPayload,
 } from '../types/garments';
-import { buildDuplicatedVariantPayload } from '../utils/inventoryValidation';
+import {
+  buildDuplicatedVariantPayload,
+  findDuplicateVariantIndices,
+} from '../utils/inventoryValidation';
 
 interface GarmentFormProps {
   currentGarment?: GarmentList | null;
@@ -47,7 +50,7 @@ interface GarmentFormProps {
 }
 
 function emptyVariant(): InventoryVariantPayload {
-  return { sku: '', color: '', size: '', quantity: 0 };
+  return { sku: '', audience: '', color: '', size: '', quantity: 0 };
 }
 
 export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(function GarmentForm(
@@ -98,6 +101,8 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     description: null,
     material: '',
     purchasePrice: null,
+    recommendedPrice: null,
+    salePrice: null,
     currency: 'SEK',
     comment: null,
     variants: [],
@@ -122,6 +127,8 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
       description: null,
       material: '',
       purchasePrice: null,
+      recommendedPrice: null,
+      salePrice: null,
       currency: 'SEK',
       comment: null,
       variants: [],
@@ -138,11 +145,14 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
           description: currentInventoryItem.description,
           material: currentInventoryItem.material ?? '',
           purchasePrice: currentInventoryItem.purchasePrice,
+          recommendedPrice: currentInventoryItem.recommendedPrice,
+          salePrice: currentInventoryItem.salePrice,
           currency: currentInventoryItem.currency || 'SEK',
           comment: currentInventoryItem.comment,
           variants: (currentInventoryItem.variants || []).map((variant) => ({
             id: variant.id,
             sku: variant.sku ?? '',
+            audience: variant.audience ?? '',
             color: variant.color ?? '',
             size: variant.size ?? '',
             quantity: variant.quantity ?? 0,
@@ -327,6 +337,10 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     0,
   );
   const inventoryVariantCount = (inventoryForm.variants || []).length;
+  const duplicateVariantIndices = useMemo(
+    () => findDuplicateVariantIndices(inventoryForm.variants || []),
+    [inventoryForm.variants],
+  );
   const articleInitials = (inventoryForm.articleName || '—').trim().slice(0, 2).toUpperCase();
 
   const inventoryLeftSidebar = (
@@ -403,6 +417,48 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                   onChange={(e) => updateInventoryField('currency', e.target.value)}
                   maxLength={10}
                 />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="garment-recommended-price">{t('garments.recommendedPrice')}</Label>
+                <Input
+                  id="garment-recommended-price"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={inventoryForm.recommendedPrice ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    updateInventoryField('recommendedPrice', raw === '' ? null : Number(raw));
+                  }}
+                  className={cn(getFieldError('recommendedPrice') && 'border-destructive')}
+                />
+                {getFieldError('recommendedPrice') ? (
+                  <p className="mt-1 text-sm text-destructive">
+                    {getFieldError('recommendedPrice')?.message}
+                  </p>
+                ) : null}
+              </div>
+              <div>
+                <Label htmlFor="garment-sale-price">{t('garments.salePrice')}</Label>
+                <Input
+                  id="garment-sale-price"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={inventoryForm.salePrice ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    updateInventoryField('salePrice', raw === '' ? null : Number(raw));
+                  }}
+                  className={cn(getFieldError('salePrice') && 'border-destructive')}
+                />
+                {getFieldError('salePrice') ? (
+                  <p className="mt-1 text-sm text-destructive">
+                    {getFieldError('salePrice')?.message}
+                  </p>
+                ) : null}
               </div>
             </div>
             <div>
@@ -507,71 +563,101 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
     <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
       <DetailSection title={t('garments.variants')} icon={Layers} subtleTitle className="p-6">
         <p className="mb-3 text-xs text-muted-foreground">{t('garments.variantsHelp')}</p>
+        {duplicateVariantIndices.identity.size > 0 ? (
+          <p className="mb-2 text-sm text-destructive">
+            {t('garments.variantIdentityDuplicateWarning')}
+          </p>
+        ) : null}
+        {duplicateVariantIndices.sku.size > 0 ? (
+          <p className="mb-2 text-sm text-destructive">
+            {t('garments.variantSkuDuplicateWarning')}
+          </p>
+        ) : null}
         {getFieldError('variants') ? (
           <p className="mb-2 text-sm text-destructive">{getFieldError('variants')?.message}</p>
         ) : null}
         <div className="space-y-2">
-          {(inventoryForm.variants || []).map((variant, index) => (
-            <div
-              key={variant.id ?? `new-${index}`}
-              className="flex flex-col gap-2 rounded-lg border border-border/60 p-2 sm:flex-row sm:items-end"
-            >
-              <div className="min-w-0 flex-1">
-                <Label className="text-[11px]">{t('garments.sku')}</Label>
-                <Input
-                  value={variant.sku ?? ''}
-                  onChange={(e) => updateVariant(index, { sku: e.target.value })}
-                  placeholder={t('garments.skuPlaceholder')}
-                  className={cn(getFieldError(`variants.${index}.sku`) && 'border-destructive')}
-                />
+          {(inventoryForm.variants || []).map((variant, index) => {
+            const rowDup = duplicateVariantIndices.any.has(index);
+            return (
+              <div
+                key={variant.id ?? `new-${index}`}
+                className={cn(
+                  'flex flex-col gap-2 rounded-lg border p-2 sm:flex-row sm:items-end',
+                  rowDup ? 'border-destructive' : 'border-border/60',
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <Label className="text-[11px]">{t('garments.sku')}</Label>
+                  <Input
+                    value={variant.sku ?? ''}
+                    onChange={(e) => updateVariant(index, { sku: e.target.value })}
+                    placeholder={t('garments.skuPlaceholder')}
+                    className={cn(
+                      (duplicateVariantIndices.sku.has(index) ||
+                        getFieldError(`variants.${index}.sku`)) &&
+                        'border-destructive',
+                    )}
+                  />
+                </div>
+                <div className="w-full sm:w-28">
+                  <Label className="text-[11px]">{t('garments.audience')}</Label>
+                  <Input
+                    value={variant.audience ?? ''}
+                    onChange={(e) => updateVariant(index, { audience: e.target.value })}
+                    placeholder={t('garments.audiencePlaceholder')}
+                  />
+                </div>
+                <div className="w-full sm:w-28">
+                  <Label className="text-[11px]">{t('garments.color')}</Label>
+                  <Input
+                    value={variant.color ?? ''}
+                    onChange={(e) => updateVariant(index, { color: e.target.value })}
+                    placeholder={t('garments.colorPlaceholder')}
+                  />
+                </div>
+                <div className="w-full sm:w-24">
+                  <Label className="text-[11px]">{t('garments.size')}</Label>
+                  <Input
+                    value={variant.size ?? ''}
+                    onChange={(e) => updateVariant(index, { size: e.target.value })}
+                    placeholder={t('garments.sizePlaceholder')}
+                  />
+                </div>
+                <div className="w-full sm:w-24">
+                  <Label className="text-[11px]">{t('garments.quantity')}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={variant.quantity ?? 0}
+                    onChange={(e) =>
+                      updateVariant(index, { quantity: Number(e.target.value) || 0 })
+                    }
+                  />
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={Copy}
+                    className="h-9 w-9 p-0 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30"
+                    onClick={() => duplicateVariant(index)}
+                    aria-label={t('garments.duplicateVariant')}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    onClick={() => setPendingDeleteVariantIndex(index)}
+                    aria-label={t('garments.removeVariant')}
+                  />
+                </div>
               </div>
-              <div className="w-full sm:w-28">
-                <Label className="text-[11px]">{t('garments.color')}</Label>
-                <Input
-                  value={variant.color ?? ''}
-                  onChange={(e) => updateVariant(index, { color: e.target.value })}
-                  placeholder={t('garments.colorPlaceholder')}
-                />
-              </div>
-              <div className="w-full sm:w-24">
-                <Label className="text-[11px]">{t('garments.size')}</Label>
-                <Input
-                  value={variant.size ?? ''}
-                  onChange={(e) => updateVariant(index, { size: e.target.value })}
-                  placeholder={t('garments.sizePlaceholder')}
-                />
-              </div>
-              <div className="w-full sm:w-24">
-                <Label className="text-[11px]">{t('garments.quantity')}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={variant.quantity ?? 0}
-                  onChange={(e) => updateVariant(index, { quantity: Number(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={Copy}
-                  className="h-9 w-9 p-0 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/30"
-                  onClick={() => duplicateVariant(index)}
-                  aria-label={t('garments.duplicateVariant')}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                  onClick={() => setPendingDeleteVariantIndex(index)}
-                  aria-label={t('garments.removeVariant')}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
           <Button type="button" variant="secondary" size="sm" icon={Plus} onClick={addVariant}>
             {t('garments.addVariant')}
           </Button>

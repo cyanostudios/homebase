@@ -72,6 +72,7 @@ export interface InventoryVariant {
   id: string;
   itemId: string;
   sku: string;
+  audience: string;
   color: string;
   size: string;
   quantity: number;
@@ -83,6 +84,7 @@ export interface InventoryVariant {
 export interface InventoryVariantPayload {
   id?: string;
   sku?: string;
+  audience?: string;
   color?: string;
   size?: string;
   quantity?: number;
@@ -96,6 +98,8 @@ export interface InventoryItem {
   description: string | null;
   material: string;
   purchasePrice: number | null;
+  recommendedPrice: number | null;
+  salePrice: number | null;
   currency: string;
   comment: string | null;
   variants: InventoryVariant[];
@@ -111,6 +115,8 @@ export interface InventoryItemPayload {
   description?: string | null;
   material?: string;
   purchasePrice?: number | null;
+  recommendedPrice?: number | null;
+  salePrice?: number | null;
   currency?: string;
   comment?: string | null;
   variants?: InventoryVariantPayload[];

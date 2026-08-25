@@ -1,9 +1,20 @@
 -- 137-garment-inventory-variants.sql
 -- Parent item + child variants: product fields on item; sku/color/size/quantity on variants.
--- Local testdata may be wiped (TRUNCATE). No production data migration.
+-- First apply from flat inventory may wipe rows (TRUNCATE). Idempotent on re-run.
 
--- Wipe existing flat inventory rows (testdata OK to reset).
-TRUNCATE TABLE garment_inventory_items RESTART IDENTITY CASCADE;
+DO $$
+BEGIN
+  -- Only wipe when migrating from flat layout (size still on items).
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'garment_inventory_items'
+      AND column_name = 'size'
+  ) THEN
+    TRUNCATE TABLE garment_inventory_items RESTART IDENTITY CASCADE;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS garment_inventory_variants (
   id SERIAL PRIMARY KEY,
@@ -20,8 +31,21 @@ CREATE TABLE IF NOT EXISTS garment_inventory_variants (
 CREATE INDEX IF NOT EXISTS idx_garment_inventory_variants_item
   ON garment_inventory_variants(item_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_garment_inventory_variants_unique
-  ON garment_inventory_variants (item_id, lower(color), lower(size));
+-- Legacy unique index (color, size). Migration 149 replaces with audience+color+size.
+-- Skip creating the old index if audience already exists (149 applied).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'garment_inventory_variants'
+      AND column_name = 'audience'
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_garment_inventory_variants_unique
+      ON garment_inventory_variants (item_id, lower(color), lower(size));
+  END IF;
+END $$;
 
 -- Drop flat variant columns from items (if present from 131/136).
 ALTER TABLE garment_inventory_items

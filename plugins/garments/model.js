@@ -749,6 +749,7 @@ class GarmentsModel {
   normalizeVariantInput(data, sortOrderFallback = 0) {
     return {
       sku: String(data.sku ?? '').trim(),
+      audience: String(data.audience ?? '').trim(),
       color: String(data.color ?? '').trim(),
       size: String(data.size ?? '').trim(),
       quantity: Math.max(0, parseInt(String(data.quantity ?? 0), 10) || 0),
@@ -757,36 +758,6 @@ class GarmentsModel {
           ? parseInt(String(data.sortOrder ?? data.sort_order), 10) || 0
           : sortOrderFallback,
     };
-  }
-
-  assertNoDuplicateVariants(variants) {
-    const seenColorSize = new Set();
-    const seenSku = new Set();
-    for (const variant of variants) {
-      const colorSizeKey = `${String(variant.color || '').toLowerCase()}|${String(variant.size || '').toLowerCase()}`;
-      if (seenColorSize.has(colorSizeKey)) {
-        throw new AppError(
-          'A variant with this color and size already exists on this item',
-          409,
-          AppError.CODES.VALIDATION_ERROR,
-        );
-      }
-      seenColorSize.add(colorSizeKey);
-
-      const skuKey = String(variant.sku || '')
-        .trim()
-        .toLowerCase();
-      if (skuKey) {
-        if (seenSku.has(skuKey)) {
-          throw new AppError(
-            'A variant with this article number already exists on this item',
-            409,
-            AppError.CODES.VALIDATION_ERROR,
-          );
-        }
-        seenSku.add(skuKey);
-      }
-    }
   }
 
   async createInventoryItem(req, data) {
@@ -801,6 +772,10 @@ class GarmentsModel {
         description,
         material: String(data.material ?? '').trim(),
         purchase_price: this.normalizePurchasePrice(data.purchasePrice ?? data.purchase_price),
+        recommended_price: this.normalizePurchasePrice(
+          data.recommendedPrice ?? data.recommended_price,
+        ),
+        sale_price: this.normalizePurchasePrice(data.salePrice ?? data.sale_price),
         currency: this.normalizeCurrency(data.currency),
         comment,
       });
@@ -841,6 +816,14 @@ class GarmentsModel {
         data.purchasePrice !== undefined || data.purchase_price !== undefined
           ? this.normalizePurchasePrice(data.purchasePrice ?? data.purchase_price)
           : existing.purchasePrice;
+      const nextRecommendedPrice =
+        data.recommendedPrice !== undefined || data.recommended_price !== undefined
+          ? this.normalizePurchasePrice(data.recommendedPrice ?? data.recommended_price)
+          : existing.recommendedPrice;
+      const nextSalePrice =
+        data.salePrice !== undefined || data.sale_price !== undefined
+          ? this.normalizePurchasePrice(data.salePrice ?? data.sale_price)
+          : existing.salePrice;
       const nextCurrency =
         data.currency !== undefined
           ? this.normalizeCurrency(data.currency)
@@ -856,10 +839,12 @@ class GarmentsModel {
           description = $3,
           material = $4,
           purchase_price = $5,
-          currency = $6,
-          comment = $7,
+          recommended_price = $6,
+          sale_price = $7,
+          currency = $8,
+          comment = $9,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $8
+        WHERE id = $10
         RETURNING *
         `,
         [
@@ -868,6 +853,8 @@ class GarmentsModel {
           nextDescription,
           nextMaterial,
           nextPurchasePrice,
+          nextRecommendedPrice,
+          nextSalePrice,
           nextCurrency,
           nextComment,
           id,
@@ -899,7 +886,6 @@ class GarmentsModel {
         ...base,
       };
     });
-    this.assertNoDuplicateVariants(normalized);
 
     const existing = await this.getVariantsForItem(req, id);
     const keepIds = new Set(normalized.filter((v) => v.id != null).map((v) => String(v.id)));
@@ -919,32 +905,42 @@ class GarmentsModel {
           `
           UPDATE garment_inventory_variants SET
             sku = $1,
-            color = $2,
-            size = $3,
-            quantity = $4,
-            sort_order = $5,
+            audience = $2,
+            color = $3,
+            size = $4,
+            quantity = $5,
+            sort_order = $6,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $6 AND item_id = $7
+          WHERE id = $7 AND item_id = $8
           RETURNING id
           `,
-          [variant.sku, variant.color, variant.size, variant.quantity, i, variant.id, id],
+          [
+            variant.sku,
+            variant.audience,
+            variant.color,
+            variant.size,
+            variant.quantity,
+            i,
+            variant.id,
+            id,
+          ],
         );
         if (!rows.rows.length) {
           await pool.query(
             `
-            INSERT INTO garment_inventory_variants (item_id, sku, color, size, quantity, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             `,
-            [id, variant.sku, variant.color, variant.size, variant.quantity, i],
+            [id, variant.sku, variant.audience, variant.color, variant.size, variant.quantity, i],
           );
         }
       } else {
         await pool.query(
           `
-          INSERT INTO garment_inventory_variants (item_id, sku, color, size, quantity, sort_order)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           `,
-          [id, variant.sku, variant.color, variant.size, variant.quantity, i],
+          [id, variant.sku, variant.audience, variant.color, variant.size, variant.quantity, i],
         );
       }
     }
@@ -968,15 +964,21 @@ class GarmentsModel {
         [id],
       );
       const variant = this.normalizeVariantInput(data, (maxOrder.rows[0]?.m ?? -1) + 1);
-      const existing = await this.getVariantsForItem(req, id);
-      this.assertNoDuplicateVariants([...existing, variant]);
       const result = await pool.query(
         `
-        INSERT INTO garment_inventory_variants (item_id, sku, color, size, quantity, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO garment_inventory_variants (item_id, sku, audience, color, size, quantity, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
         `,
-        [id, variant.sku, variant.color, variant.size, variant.quantity, variant.sortOrder],
+        [
+          id,
+          variant.sku,
+          variant.audience,
+          variant.color,
+          variant.size,
+          variant.quantity,
+          variant.sortOrder,
+        ],
       );
       await pool.query(
         `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -1009,6 +1011,10 @@ class GarmentsModel {
       }
       const existing = existingResult.rows[0];
       const nextSku = data.sku !== undefined ? String(data.sku ?? '').trim() : (existing.sku ?? '');
+      const nextAudience =
+        data.audience !== undefined
+          ? String(data.audience ?? '').trim()
+          : (existing.audience ?? '');
       const nextColor =
         data.color !== undefined ? String(data.color ?? '').trim() : (existing.color ?? '');
       const nextSize =
@@ -1022,38 +1028,20 @@ class GarmentsModel {
           ? parseInt(String(data.sortOrder ?? data.sort_order), 10) || 0
           : existing.sort_order;
 
-      // Only re-check uniqueness when identity fields change — quantity-only
-      // updates must not fail because of pre-existing duplicate SKUs/color-size.
-      const touchesIdentity =
-        data.sku !== undefined || data.color !== undefined || data.size !== undefined;
-      if (touchesIdentity) {
-        const siblings = (await this.getVariantsForItem(req, lid)).map((row) =>
-          String(row.id) === String(vid)
-            ? {
-                sku: nextSku,
-                color: nextColor,
-                size: nextSize,
-                quantity: nextQuantity,
-                sortOrder: nextSort,
-              }
-            : row,
-        );
-        this.assertNoDuplicateVariants(siblings);
-      }
-
       const rows = await pool.query(
         `
         UPDATE garment_inventory_variants SET
           sku = $1,
-          color = $2,
-          size = $3,
-          quantity = $4,
-          sort_order = $5,
+          audience = $2,
+          color = $3,
+          size = $4,
+          quantity = $5,
+          sort_order = $6,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $6 AND item_id = $7
+        WHERE id = $7 AND item_id = $8
         RETURNING *
         `,
-        [nextSku, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
+        [nextSku, nextAudience, nextColor, nextSize, nextQuantity, nextSort, vid, lid],
       );
       await pool.query(
         `UPDATE garment_inventory_items SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -1204,6 +1192,7 @@ class GarmentsModel {
       id: String(row.id),
       itemId: String(row.item_id),
       sku: row.sku ?? '',
+      audience: row.audience ?? '',
       color: row.color ?? '',
       size: row.size ?? '',
       quantity: row.quantity != null ? Number(row.quantity) : 0,
@@ -1225,19 +1214,20 @@ class GarmentsModel {
   }
 
   transformInventoryRow(row) {
-    const purchaseRaw = row.purchase_price;
-    let purchasePrice = null;
-    if (purchaseRaw !== undefined && purchaseRaw !== null && purchaseRaw !== '') {
-      const num = typeof purchaseRaw === 'number' ? purchaseRaw : parseFloat(String(purchaseRaw));
-      purchasePrice = Number.isNaN(num) ? null : num;
-    }
+    const parseMoney = (raw) => {
+      if (raw === undefined || raw === null || raw === '') return null;
+      const num = typeof raw === 'number' ? raw : parseFloat(String(raw));
+      return Number.isNaN(num) ? null : num;
+    };
     return {
       id: String(row.id),
       articleName: row.article_name ?? '',
       brand: row.brand ?? '',
       description: row.description ?? null,
       material: row.material ?? '',
-      purchasePrice,
+      purchasePrice: parseMoney(row.purchase_price),
+      recommendedPrice: parseMoney(row.recommended_price),
+      salePrice: parseMoney(row.sale_price),
       currency: row.currency ?? 'SEK',
       comment: row.comment ?? null,
       variants: [],

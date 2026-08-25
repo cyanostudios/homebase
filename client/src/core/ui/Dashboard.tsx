@@ -40,7 +40,7 @@ export function Dashboard({ onPageChange }: DashboardProps) {
   const showQuickActions =
     has('requests') || has('tasks') || has('matches') || has('schedule') || has('slots');
   const showActivity = has('matches') || (has('schedule') && has('teams'));
-  const showSidebar = has('slots') || (has('schedule') && has('teams'));
+  const showSidebar = has('slots');
   const showCharts = has('tasks') || has('invoices') || has('teams');
   const hasAnySection = showKpi || showQuickActions || showActivity || showSidebar || showCharts;
 

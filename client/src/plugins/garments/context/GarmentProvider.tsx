@@ -378,9 +378,9 @@ export function GarmentProvider({
       validateInventoryPayload(data, {
         articleNameRequired: t('garments.articleNameRequired'),
         purchasePriceInvalid: t('garments.purchasePriceInvalid'),
+        recommendedPriceInvalid: t('garments.recommendedPriceInvalid'),
+        salePriceInvalid: t('garments.salePriceInvalid'),
         quantityInvalid: t('garments.quantityInvalid'),
-        variantDuplicate: t('garments.variantDuplicate'),
-        variantSkuDuplicate: t('garments.variantSkuDuplicate'),
       }),
     [t],
   );
@@ -457,10 +457,31 @@ export function GarmentProvider({
             : parseFloat(String(purchaseRaw).replace(',', '.'));
         purchasePrice = Number.isNaN(num) ? null : num;
       }
+      const recommendedRaw = raw.recommendedPrice;
+      let recommendedPrice: number | null = null;
+      if (
+        recommendedRaw !== undefined &&
+        recommendedRaw !== null &&
+        String(recommendedRaw) !== ''
+      ) {
+        const num =
+          typeof recommendedRaw === 'number'
+            ? recommendedRaw
+            : parseFloat(String(recommendedRaw).replace(',', '.'));
+        recommendedPrice = Number.isNaN(num) ? null : num;
+      }
+      const saleRaw = raw.salePrice;
+      let salePrice: number | null = null;
+      if (saleRaw !== undefined && saleRaw !== null && String(saleRaw) !== '') {
+        const num =
+          typeof saleRaw === 'number' ? saleRaw : parseFloat(String(saleRaw).replace(',', '.'));
+        salePrice = Number.isNaN(num) ? null : num;
+      }
       const variants = Array.isArray(raw.variants)
         ? raw.variants.map((variant, index) => ({
             id: variant.id,
             sku: (variant.sku ?? '').trim(),
+            audience: (variant.audience ?? '').trim(),
             color: (variant.color ?? '').trim(),
             size: (variant.size ?? '').trim(),
             quantity: variant.quantity != null ? Number(variant.quantity) : 0,
@@ -473,6 +494,8 @@ export function GarmentProvider({
         description: raw.description?.trim() ? raw.description.trim() : null,
         material: (raw.material ?? '').trim(),
         purchasePrice,
+        recommendedPrice,
+        salePrice,
         currency: (raw.currency ?? 'SEK').trim() || 'SEK',
         comment: raw.comment?.trim() ? raw.comment.trim() : null,
         variants,

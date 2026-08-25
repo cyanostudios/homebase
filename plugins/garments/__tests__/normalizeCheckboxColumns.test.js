@@ -69,6 +69,8 @@ describe('GarmentsModel transforms', () => {
       description: 'Matchstrumpor',
       material: 'Bomull',
       purchase_price: '149.50',
+      recommended_price: '299.00',
+      sale_price: '249.00',
       currency: 'SEK',
       comment: 'Hylla A',
       created_at: null,
@@ -81,6 +83,8 @@ describe('GarmentsModel transforms', () => {
       description: 'Matchstrumpor',
       material: 'Bomull',
       purchasePrice: 149.5,
+      recommendedPrice: 299,
+      salePrice: 249,
       currency: 'SEK',
       comment: 'Hylla A',
       variants: [],
@@ -108,6 +112,7 @@ describe('GarmentsModel transforms', () => {
           id: 10,
           item_id: 3,
           sku: 'A1',
+          audience: 'Women',
           color: 'Svart',
           size: 'M',
           quantity: 5,
@@ -119,6 +124,7 @@ describe('GarmentsModel transforms', () => {
           id: 11,
           item_id: 3,
           sku: 'A2',
+          audience: 'Men',
           color: 'Vit',
           size: 'L',
           quantity: 3,
@@ -131,25 +137,7 @@ describe('GarmentsModel transforms', () => {
     expect(item.variantCount).toBe(2);
     expect(item.totalQuantity).toBe(8);
     expect(item.variants[0].sku).toBe('A1');
-  });
-
-  it('rejects duplicate non-empty SKUs on assertNoDuplicateVariants', () => {
-    expect(() =>
-      model.assertNoDuplicateVariants([
-        { sku: 'ABC-1', color: 'Black', size: 'M', quantity: 1 },
-        { sku: 'abc-1', color: 'White', size: 'L', quantity: 1 },
-      ]),
-    ).toThrow(/article number/i);
-  });
-
-  it('allows empty SKUs and unique SKUs on assertNoDuplicateVariants', () => {
-    expect(() =>
-      model.assertNoDuplicateVariants([
-        { sku: '', color: 'Black', size: 'M', quantity: 1 },
-        { sku: '  ', color: 'White', size: 'L', quantity: 1 },
-        { sku: 'ABC-2', color: 'Red', size: 'S', quantity: 1 },
-      ]),
-    ).not.toThrow();
+    expect(item.variants[0].audience).toBe('Women');
   });
 });
 
@@ -157,31 +145,16 @@ describe('GarmentsController mapUniqueViolation', () => {
   const GarmentsController = require('../controller');
   const controller = new GarmentsController(new GarmentsModel());
 
-  it('maps SKU unique index to article-number message (not color/size)', () => {
-    expect(
-      controller.mapUniqueViolation({
-        code: '23505',
-        constraint: 'idx_garment_inventory_variants_sku_unique',
-      }),
-    ).toEqual({
-      field: 'variants',
-      message: 'A variant with this article number already exists on this item',
-    });
-  });
-
-  it('maps color/size unique index to color/size message', () => {
+  it('maps any unique violation to articleName field', () => {
     expect(
       controller.mapUniqueViolation({
         code: '23505',
         constraint: 'idx_garment_inventory_variants_unique',
       }),
     ).toEqual({
-      field: 'variants',
-      message: 'A variant with this color and size already exists on this item',
+      field: 'articleName',
+      message: 'An inventory item with this article and brand already exists',
     });
-  });
-
-  it('maps article unique index to articleName field', () => {
     expect(
       controller.mapUniqueViolation({
         code: '23505',
@@ -201,8 +174,7 @@ describe('GarmentsController mapUniqueViolation', () => {
 describe('GarmentsModel updateInventoryVariantQuantity', () => {
   const model = new GarmentsModel();
 
-  it('does not call assertNoDuplicateVariants (quantity-only path)', async () => {
-    const assertSpy = jest.spyOn(model, 'assertNoDuplicateVariants');
+  it('updates quantity on the quantity-only path', async () => {
     jest.spyOn(model, 'getInventoryById').mockResolvedValue({ id: '1', articleName: 'Tee' });
     jest.spyOn(model, '_pool').mockReturnValue({
       query: jest
@@ -229,9 +201,7 @@ describe('GarmentsModel updateInventoryVariantQuantity', () => {
       quantity: row.quantity,
     }));
 
-    await model.updateInventoryVariantQuantity({}, 1, 2, 5);
-
-    expect(assertSpy).not.toHaveBeenCalled();
-    assertSpy.mockRestore();
+    const result = await model.updateInventoryVariantQuantity({}, 1, 2, 5);
+    expect(result).toEqual({ id: '2', quantity: 5 });
   });
 });

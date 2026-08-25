@@ -95,6 +95,22 @@ function createGarmentsRoutes(controller, context) {
         return !Number.isNaN(num) && num >= 0;
       })
       .withMessage('purchasePrice must be a number >= 0'),
+    body('recommendedPrice')
+      .optional({ values: 'null' })
+      .custom((value) => {
+        if (value === null || value === undefined || value === '') return true;
+        const num = typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'));
+        return !Number.isNaN(num) && num >= 0;
+      })
+      .withMessage('recommendedPrice must be a number >= 0'),
+    body('salePrice')
+      .optional({ values: 'null' })
+      .custom((value) => {
+        if (value === null || value === undefined || value === '') return true;
+        const num = typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'));
+        return !Number.isNaN(num) && num >= 0;
+      })
+      .withMessage('salePrice must be a number >= 0'),
     commonRules.optionalString('currency', 10),
     body('comment')
       .optional({ values: 'falsy' })
@@ -106,6 +122,7 @@ function createGarmentsRoutes(controller, context) {
 
   const variantBody = [
     commonRules.optionalString('sku', 100),
+    commonRules.optionalString('audience', 100),
     commonRules.optionalString('color', 100),
     commonRules.optionalString('size', 100),
     body('quantity').optional().isInt({ min: 0 }).withMessage('quantity must be >= 0'),
