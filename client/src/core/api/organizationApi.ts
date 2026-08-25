@@ -19,6 +19,10 @@ export interface OrganizationBilling {
   bic: string;
   invoiceEmail: string;
   swishNumber: string;
+  /** 'yes' | 'no' — approved for F-tax (Swedish invoicing). */
+  fTax: string;
+  /** Default late-payment interest percent shown on invoices (e.g. "12"). */
+  latePaymentInterest: string;
 }
 
 export interface OrganizationProfile {
@@ -53,8 +57,33 @@ export const EMPTY_ORGANIZATION: OrganizationProfile = Object.freeze({
     bic: '',
     invoiceEmail: '',
     swishNumber: '',
+    fTax: 'yes',
+    latePaymentInterest: '12',
   }),
 }) as OrganizationProfile;
+
+function asFTax(value: unknown): string {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (raw === 'no' || raw === 'false' || raw === '0') {
+    return 'no';
+  }
+  return 'yes';
+}
+
+function asLatePaymentInterest(value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.min(100, Math.max(0, value)));
+  }
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) {
+    return '12';
+  }
+  const n = parseFloat(raw.replace(',', '.'));
+  if (!Number.isFinite(n)) {
+    return '12';
+  }
+  return String(Math.min(100, Math.max(0, n)));
+}
 
 function asString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -98,6 +127,8 @@ export function normalizeOrganizationProfile(raw: unknown): OrganizationProfile 
       bic: asString(billingRaw.bic),
       invoiceEmail: asString(billingRaw.invoiceEmail),
       swishNumber: asString(billingRaw.swishNumber),
+      fTax: asFTax(billingRaw.fTax),
+      latePaymentInterest: asLatePaymentInterest(billingRaw.latePaymentInterest),
     },
   };
 }

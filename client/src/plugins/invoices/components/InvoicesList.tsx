@@ -1,70 +1,135 @@
-import { Plus, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
-import React, { useState, useMemo, useEffect } from 'react';
+import {
+  CheckSquare,
+  ArrowDown,
+  ArrowUp,
+  FileSpreadsheet,
+  FileText,
+  Plus,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useApp } from '@/core/api/AppContext';
+import { useQuickContextPreview } from '@/core/hooks/useQuickContextPreview';
+import { nextListTableSort } from '@/core/list/listViewMode';
+import {
+  useEffectiveCardColumnCount,
+  useEffectiveColumnCount,
+  useIsEffectiveTableView,
+} from '@/core/list/effectiveListViewMode';
 import { useShiftRangeListSelection } from '@/core/hooks/useShiftRangeListSelection';
-import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
+import { ListEmptyState } from '@/core/ui/ListEmptyState';
+import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { ListFooterBar } from '@/core/ui/ListFooterBar';
+import { ListToolbar } from '@/core/ui/ListToolbar';
 import { useMobileActions } from '@/core/ui/MobileActionsContext';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
-import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { GroupedList } from '@/core/ui/GroupedList';
-import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
 import { invoicesNavigation } from '../navigation';
+import type { Invoice } from '../context/InvoicesContext';
+import {
+  getInitialInvoiceColumnCount,
+  resolveInvoiceColumnCount,
+  INVOICES_COLUMN_COUNT_STORAGE_KEY,
+  INVOICES_SETTINGS_KEY,
+  type InvoiceColumnCount,
+} from '../utils/invoiceColumnCount';
 import {
   invoiceMatchesListFilters,
   toggleInvoiceListFilter,
   type InvoiceListFilter,
   type InvoiceListFilterSelection,
 } from '../utils/invoiceListFilter';
+import {
+  compareInvoicesByField,
+  isInvoiceStringSortField,
+  type InvoiceSortField,
+  type InvoiceSortOrder,
+} from '../utils/invoiceListSort';
+import {
+  getInitialInvoiceListViewMode,
+  persistInvoiceListViewModeSession,
+  resolveInvoiceListViewMode,
+  type InvoiceListViewMode,
+} from '../utils/invoiceListViewMode';
 
-type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'status';
-type SortOrder = 'asc' | 'desc';
+import { InvoiceListItem } from './InvoiceListItem';
+import { InvoiceListTable } from './InvoiceListTable';
+import { InvoiceQuickContextPanel } from './InvoiceQuickContextPanel';
+
+type SortField = InvoiceSortField;
+type SortOrder = InvoiceSortOrder;
+
+const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'createdAt', label: 'Created' },
+  { value: 'updatedAt', label: 'Updated' },
+  { value: 'contactName', label: 'Customer' },
+  { value: 'invoiceNumber', label: 'Invoice #' },
+  { value: 'status', label: 'Status' },
+  { value: 'total', label: 'Total' },
+  { value: 'dueDate', label: 'Due date' },
+  { value: 'issueDate', label: 'Issue date' },
+];
 
 export function InvoicesList() {
   const { t } = useTranslation();
   const {
     invoices,
     openInvoiceForView,
+    openInvoiceForEdit,
     openInvoicesPanel,
     deleteInvoices,
     selectedInvoiceIds,
     toggleInvoiceSelected,
     mergeIntoInvoiceSelection,
+    selectAllInvoices,
     clearInvoiceSelection,
     selectedCount,
     isSelected,
+    recentlyDuplicatedInvoiceId,
   } = useInvoices();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   useMobileActions({
     onAdd: () => attemptNavigation(() => openInvoicesPanel(null)),
   });
 
-  const isMobile = useIsMobile();
-
   const [currentPage, setCurrentPage] = useState<string>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [primarySort, setPrimarySort] = useState<SortField>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [columnCount, setColumnCountState] = useState<InvoiceColumnCount>(
+    getInitialInvoiceColumnCount,
+  );
+  const [listViewMode, setListViewModeState] = useState<InvoiceListViewMode>(
+    getInitialInvoiceListViewMode,
+  );
   const [activeFilters, setActiveFilters] = useState<InvoiceListFilterSelection>([]);
 
-  // Read currentPage from localStorage (same as App.tsx does)
   useEffect(() => {
     const saved = localStorage.getItem('homebase:currentPage');
     if (saved) {
       setCurrentPage(saved);
     }
-    // Listen for storage changes
     const handleStorageChange = () => {
       const updated = localStorage.getItem('homebase:currentPage');
       if (updated) {
@@ -75,7 +140,6 @@ export function InvoicesList() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Also listen to custom events if pages change programmatically
   useEffect(() => {
     const handlePageChange = (e: CustomEvent<string>) => {
       setCurrentPage(e.detail);
@@ -83,46 +147,98 @@ export function InvoicesList() {
     window.addEventListener('homebase:pageChange' as any, handlePageChange);
     return () => window.removeEventListener('homebase:pageChange' as any, handlePageChange);
   }, []);
-  const [sortField] = useState<SortField>('createdAt');
-  const [sortOrder] = useState<SortOrder>('desc');
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings(INVOICES_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        const next = resolveInvoiceColumnCount(settings);
+        setColumnCountState(next);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(INVOICES_COLUMN_COUNT_STORAGE_KEY, String(next));
+        }
+        const nextView = resolveInvoiceListViewMode(settings);
+        setListViewModeState(nextView);
+        persistInvoiceListViewModeSession(nextView);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const setColumnCount = useCallback(
+    (count: InvoiceColumnCount) => {
+      setColumnCountState(count);
+      setListViewModeState('cards');
+      persistInvoiceListViewModeSession('cards');
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(INVOICES_COLUMN_COUNT_STORAGE_KEY, String(count));
+      }
+      updateSettings(INVOICES_SETTINGS_KEY, { columnCount: count, listViewMode: 'cards' }).catch(
+        () => {},
+      );
+    },
+    [updateSettings],
+  );
+
+  const setListViewMode = useCallback(
+    (mode: InvoiceListViewMode) => {
+      setListViewModeState(mode);
+      persistInvoiceListViewModeSession(mode);
+      updateSettings(INVOICES_SETTINGS_KEY, { listViewMode: mode }).catch(() => {});
+    },
+    [updateSettings],
+  );
+
+  const handlePrimarySortChange = (field: SortField) => {
+    setPrimarySort(field);
+    setSortOrder(isInvoiceStringSortField(field) ? 'asc' : 'desc');
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  };
+
+  const handleTableSort = useCallback(
+    (field: SortField) => {
+      const next = nextListTableSort(primarySort, sortOrder, field, isInvoiceStringSortField);
+      setPrimarySort(next.field);
+      setSortOrder(next.order);
+    },
+    [primarySort, sortOrder],
+  );
+
+  const isTableView = useIsEffectiveTableView(listViewMode);
+  const effectiveColumnCount = useEffectiveColumnCount(columnCount);
+  const effectiveCardColumnCount = useEffectiveCardColumnCount(columnCount);
 
   const sortedInvoices = useMemo(() => {
     const byFilter = invoices.filter((invoice) =>
       invoiceMatchesListFilters(invoice, activeFilters),
     );
 
-    const filtered = byFilter.filter((invoice) => {
-      const searchStr = searchTerm.toLowerCase();
-      return (
-        (invoice.invoiceNumber || '').toLowerCase().includes(searchStr) ||
-        (invoice.contactName || '').toLowerCase().includes(searchStr) ||
-        (invoice.notes || '').toLowerCase().includes(searchStr) ||
-        invoice.id.toLowerCase().includes(searchStr)
-      );
-    });
+    const q = searchTerm.toLowerCase();
+    const filtered = byFilter.filter(
+      (invoice) =>
+        (invoice.invoiceNumber || '').toLowerCase().includes(q) ||
+        (invoice.contactName || '').toLowerCase().includes(q) ||
+        (invoice.notes || '').toLowerCase().includes(q) ||
+        (invoice.status || '').toLowerCase().includes(q) ||
+        invoice.id.toLowerCase().includes(q),
+    );
 
-    return [...filtered].sort((a, b) => {
-      let aValue: any = a[sortField];
-      let bValue: any = b[sortField];
-
-      if (sortField === 'createdAt') {
-        aValue = new Date(aValue || 0).getTime();
-        bValue = new Date(bValue || 0).getTime();
-      } else if (sortField === 'total') {
-        aValue = parseFloat(String(aValue || 0));
-        bValue = parseFloat(String(bValue || 0));
-      } else if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      }
-
-      return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
-    });
-  }, [invoices, searchTerm, sortField, sortOrder, activeFilters]);
+    return [...filtered].sort((a, b) => compareInvoicesByField(a, b, primarySort, sortOrder));
+  }, [invoices, searchTerm, primarySort, sortOrder, activeFilters]);
 
   const isFilterActive = (filter: InvoiceListFilter) => activeFilters.includes(filter);
   const toggleFilter = (filter: InvoiceListFilter) => {
     setActiveFilters((prev) => toggleInvoiceListFilter(prev, filter));
   };
+
   const stats = useMemo(
     () => ({
       total: invoices.length,
@@ -145,54 +261,23 @@ export function InvoicesList() {
       toggleOne: toggleInvoiceSelected,
     });
 
-  const getStatusBadge = (status: string) => {
-    const statusColors = {
-      draft:
-        'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-secondary/50 text-secondary-foreground',
-      sent: 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold plugin-contacts bg-plugin-subtle text-plugin',
-      paid: 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold plugin-invoices bg-plugin-subtle text-plugin',
-      overdue:
-        'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-rose-50/50 text-rose-700 dark:text-rose-300',
-      canceled:
-        'border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-rose-50/50 text-rose-700 dark:text-rose-300',
-    };
+  const allVisibleSelected = useMemo(
+    () => visibleInvoiceIds.length > 0 && visibleInvoiceIds.every((id) => isSelected(id)),
+    [visibleInvoiceIds, isSelected],
+  );
 
-    const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
-
-    return <Badge className={colorClass}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
-  };
-
-  const getTypeBadge = (invoiceType: string) => {
-    const typeColors = {
-      invoice: 'plugin-contacts bg-plugin-subtle text-plugin',
-      credit_note: 'plugin-notes bg-plugin-subtle text-plugin',
-      cash_invoice: 'plugin-invoices bg-plugin-subtle text-plugin',
-      receipt: 'plugin-tasks bg-plugin-subtle text-plugin',
-    };
-
-    const typeLabels = {
-      invoice: 'Faktura',
-      credit_note: 'Kreditfaktura',
-      cash_invoice: 'Kontantfaktura',
-      receipt: 'Kvitto',
-    };
-
-    const type = invoiceType || 'invoice';
-    const colorClass = typeColors[type as keyof typeof typeColors] || typeColors.invoice;
-    const label = typeLabels[type as keyof typeof typeLabels] || 'Faktura';
-
-    return (
-      <Badge className={cn('border-0 rounded-md px-2 py-0.5 text-xs font-semibold', colorClass)}>
-        {label}
-      </Badge>
-    );
+  const handleHeaderCheckboxChange = () => {
+    if (allVisibleSelected) {
+      clearInvoiceSelection();
+    } else {
+      selectAllInvoices(visibleInvoiceIds);
+    }
   };
 
   const handleBulkDelete = async () => {
     if (selectedInvoiceIds.length === 0) {
       return;
     }
-
     setDeleting(true);
     try {
       await deleteInvoices(selectedInvoiceIds);
@@ -226,21 +311,11 @@ export function InvoicesList() {
       currency: inv.currency ?? '',
       total: inv.total ?? 0,
       status: inv.status ?? '',
-      issueDate: inv.issueDate
-        ? inv.issueDate instanceof Date
-          ? inv.issueDate.toISOString()
-          : String(inv.issueDate)
-        : '',
-      dueDate: inv.dueDate
-        ? inv.dueDate instanceof Date
-          ? inv.dueDate.toISOString()
-          : String(inv.dueDate)
-        : '',
-      createdAt: inv.createdAt
-        ? inv.createdAt instanceof Date
-          ? inv.createdAt.toISOString()
-          : String(inv.createdAt)
-        : '',
+      issueDate:
+        inv.issueDate instanceof Date ? inv.issueDate.toISOString() : String(inv.issueDate ?? ''),
+      dueDate: inv.dueDate instanceof Date ? inv.dueDate.toISOString() : String(inv.dueDate ?? ''),
+      createdAt:
+        inv.createdAt instanceof Date ? inv.createdAt.toISOString() : String(inv.createdAt ?? ''),
     }));
     const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
     exportToCSV(csvData, filename, csvHeaders);
@@ -258,7 +333,6 @@ export function InvoicesList() {
       { key: 'currency', label: 'Currency' },
       { key: 'total', label: 'Total' },
       { key: 'status', label: 'Status' },
-      { key: 'issueDate', label: 'Issue Date' },
       { key: 'dueDate', label: 'Due Date' },
     ];
     const pdfData = selectedInvoices.map((inv) => ({
@@ -267,43 +341,48 @@ export function InvoicesList() {
       currency: inv.currency ?? '',
       total: inv.total ?? 0,
       status: inv.status ?? '',
-      issueDate: inv.issueDate
-        ? inv.issueDate instanceof Date
-          ? inv.issueDate.toLocaleDateString('sv-SE')
-          : String(inv.issueDate)
-        : '',
-      dueDate: inv.dueDate
-        ? inv.dueDate instanceof Date
+      dueDate:
+        inv.dueDate instanceof Date
           ? inv.dueDate.toLocaleDateString('sv-SE')
-          : String(inv.dueDate)
-        : '',
+          : String(inv.dueDate ?? ''),
     }));
     const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
     await exportToPDF(pdfData, filename, pdfHeaders, 'Invoices Export');
   };
 
-  // Protected navigation handlers
-  const handleOpenForView = (invoice: any) => {
-    attemptNavigation(() => {
-      openInvoiceForView(invoice);
-    });
+  const {
+    previewItem: previewInvoice,
+    setPreviewItem: setPreviewInvoice,
+    showQuickContext,
+    markPendingAndOpen,
+    activateRow,
+  } = useQuickContextPreview({
+    storeKey: 'invoices',
+    items: invoices,
+    getItemId: (invoice) => String(invoice.id),
+  });
+
+  const handleOpenForView = (invoice: Invoice) => {
+    markPendingAndOpen(invoice, () => attemptNavigation(() => openInvoiceForView(invoice)));
+  };
+
+  const handleRowActivate = (invoice: Invoice) => {
+    activateRow(invoice, (item) => attemptNavigation(() => openInvoiceForView(item)));
   };
 
   const handleSubNavClick = (page: string) => {
     attemptNavigation(() => {
       localStorage.setItem('homebase:currentPage', page);
       setCurrentPage(page);
-      // Dispatch storage event so App.tsx can react
       window.dispatchEvent(
         new StorageEvent('storage', { key: 'homebase:currentPage', newValue: page }),
       );
-      // Also dispatch custom event for immediate update
       window.dispatchEvent(new CustomEvent('homebase:pageChange', { detail: page }));
     });
   };
 
   return (
-    <div className="plugin-invoices min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
+    <div className="plugin-invoices min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="space-y-3">
         <div className="hidden items-start justify-between gap-4 md:flex">
           <div className="min-w-0 space-y-1">
@@ -314,7 +393,7 @@ export function InvoicesList() {
             variant="primary"
             size="sm"
             icon={Plus}
-            className="h-9 w-full flex-1 px-3 text-xs md:w-auto md:flex-initial"
+            className="h-9 flex-1 md:flex-initial px-3 text-xs"
             onClick={() => attemptNavigation(() => openInvoicesPanel(null))}
           >
             {t('invoices.addInvoice')}
@@ -353,24 +432,23 @@ export function InvoicesList() {
         </div>
 
         {invoicesNavigation.submenu && (
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {invoicesNavigation.submenu
               .sort((a, b) => a.order - b.order)
               .map((subItem) => {
                 const SubIcon = subItem.icon;
                 const isActive = subItem.page === currentPage;
-
                 return (
                   <Button
                     key={subItem.page}
                     variant="ghost"
                     onClick={() => handleSubNavClick(subItem.page)}
                     className={cn(
-                      'h-auto px-3 sm:px-5 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium transition-colors',
+                      'h-auto rounded-lg px-3 py-2 text-xs font-medium transition-colors sm:px-5 sm:py-3 sm:text-sm',
                       'flex items-center gap-1.5 sm:gap-2',
                       isActive
-                        ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
-                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                        ? 'border border-primary bg-primary/10 text-primary hover:bg-primary/15'
+                        : 'border-transparent bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
                     )}
                   >
                     <SubIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -379,33 +457,6 @@ export function InvoicesList() {
                 );
               })}
           </div>
-        )}
-
-        {selectedCount > 0 && (
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearInvoiceSelection}
-            actions={[
-              {
-                label: t('common.exportCsv'),
-                icon: FileSpreadsheet,
-                onClick: handleExportCSV,
-                variant: 'default',
-              },
-              {
-                label: t('common.exportPdf'),
-                icon: FileText,
-                onClick: handleExportPDF,
-                variant: 'default',
-              },
-              {
-                label: t('common.delete'),
-                icon: Trash2,
-                onClick: () => setShowBulkDeleteModal(true),
-                variant: 'destructive',
-              },
-            ]}
-          />
         )}
 
         <BulkDeleteModal
@@ -417,100 +468,230 @@ export function InvoicesList() {
           isLoading={deleting}
         />
 
-        <Card className="overflow-hidden rounded-xl border-0 bg-white shadow-sm dark:bg-slate-950">
-          <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
-            <ListSearchInput
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t('invoices.searchPlaceholder')}
-            />
-          </div>
-          <GroupedList
-            items={sortedInvoices}
-            groupConfig={null}
-            emptyMessage={searchTerm ? t('invoices.noMatch') : t('invoices.noYet')}
-            emptyCreateLabel={!searchTerm ? t('invoices.addInvoice') : undefined}
-            onEmptyCreate={
-              !searchTerm ? () => attemptNavigation(() => openInvoicesPanel(null)) : undefined
+        <div className="flex flex-col gap-0 md:gap-3">
+          <ListToolbar
+            selectedCount={selectedCount}
+            showSelectAll={sortedInvoices.length > 0}
+            selectAll={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary"
+                icon={CheckSquare}
+                onClick={handleHeaderCheckboxChange}
+              >
+                Select all
+              </Button>
             }
-            renderItem={(invoice, idx) => {
-              const invoiceIsSelected = isSelected(invoice.id);
-              return (
-                <div
-                  key={invoice.id}
-                  className="bg-white hover:bg-slate-50 focus:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3 dark:bg-slate-950 dark:hover:bg-slate-900/70 dark:focus:bg-slate-900/70"
-                  tabIndex={0}
-                  data-list-item={JSON.stringify(invoice)}
-                  data-plugin-name="invoices"
-                  role="button"
-                  aria-label={`Open invoice ${formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}`}
-                  onClick={(e) => {
-                    // Don't open if clicking checkbox
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                      return;
-                    }
-                    e.preventDefault();
-                    handleOpenForView(invoice);
-                  }}
-                >
-                  {/* Rad 1: Checkbox + Invoice Number + Badges */}
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="hidden md:block">
-                      <input
-                        type="checkbox"
-                        checked={invoiceIsSelected}
-                        onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, idx)}
-                        onChange={() => onVisibleRowCheckboxChange(invoice.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer flex-shrink-0 h-5 w-5 sm:h-4 sm:w-4"
-                        aria-label={invoiceIsSelected ? 'Unselect invoice' : 'Select invoice'}
-                      />
-                    </div>
-                    <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
-                      {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
-                    </div>
-                    <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-                      {getTypeBadge((invoice as any).invoiceType)}
-                      {getStatusBadge(invoice.status || 'draft')}
-                    </div>
-                  </div>
-
-                  {/* Rad 2: Contact + Total + Due Date */}
-                  <div
-                    className={`flex ${isMobile ? 'flex-col' : 'items-center'} gap-2 sm:gap-3 text-xs text-muted-foreground`}
-                  >
-                    <div className="flex-1 min-w-0 truncate">
-                      {invoice.contactName || '—'}
-                      {invoice.organizationNumber && (
-                        <span className="ml-1">• {invoice.organizationNumber}</span>
-                      )}
-                    </div>
-                    <div
-                      className={`flex items-center gap-2 flex-shrink-0 ${isMobile ? 'flex-wrap' : ''}`}
+            search={
+              <ListSearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t('invoices.searchPlaceholder', { defaultValue: 'Search invoices…' })}
+              />
+            }
+            trailing={
+              <>
+                {!isTableView ? (
+                  <div className="mr-1 flex items-center gap-1">
+                    <Select
+                      value={primarySort}
+                      onValueChange={(value) => handlePrimarySortChange(value as SortField)}
                     >
-                      <span className="text-sm font-medium text-foreground">
-                        {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                      </span>
-                      {invoice.dueDate && (
-                        <span>• Due {new Date(invoice.dueDate).toLocaleDateString()}</span>
+                      <SelectTrigger
+                        className="h-7 w-[140px] rounded-md border-border/30 bg-background px-2 text-xs shadow-none"
+                        aria-label="Sort by"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="item-aligned"
+                        className="rounded-xl border-border/50 shadow-xl"
+                      >
+                        {SORT_FIELD_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-md text-xs"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 px-0 text-xs"
+                      onClick={toggleSortOrder}
+                      aria-label={sortOrder === 'asc' ? 'Sort descending' : 'Sort ascending'}
+                      title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                    >
+                      {sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
                       )}
-                    </div>
+                    </Button>
                   </div>
-
-                  {/* Rad 3: VAT (optional) */}
-                  {invoice.totalVat && invoice.totalVat > 0 && (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                    </div>
-                  )}
-                </div>
-              );
-            }}
+                ) : null}
+                <ListColumnLayoutToggle
+                  columnCount={columnCount}
+                  listViewMode={listViewMode}
+                  onSelectColumns={setColumnCount}
+                  onSelectTable={() => setListViewMode('table')}
+                  columnAriaLabel={(count) => `${count} columns`}
+                  tableAriaLabel={t('common.tableView', { defaultValue: 'Table view' })}
+                />
+              </>
+            }
+            bulkActions={
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-3 text-xs hover:bg-primary/10 hover:text-primary"
+                  icon={FileSpreadsheet}
+                  onClick={handleExportCSV}
+                >
+                  {t('common.exportCsv')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-3 text-xs hover:bg-primary/10 hover:text-primary"
+                  icon={FileText}
+                  onClick={handleExportPDF}
+                >
+                  {t('common.exportPdf')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  icon={Trash2}
+                  onClick={() => setShowBulkDeleteModal(true)}
+                >
+                  {t('common.delete')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-3 text-xs text-destructive hover:bg-destructive/10"
+                  icon={XCircle}
+                  onClick={clearInvoiceSelection}
+                >
+                  {t('common.clearSelection', { defaultValue: 'Clear' })}
+                </Button>
+              </>
+            }
           />
-          <div className="border-t border-border/60 px-4 py-2 text-xs text-muted-foreground">
-            Showing {sortedInvoices.length} of {invoices.length} Invoices
-          </div>
-        </Card>
+
+          {sortedInvoices.length === 0 ? (
+            <ListEmptyState
+              message={
+                searchTerm || activeFilters.length > 0
+                  ? t('invoices.noMatch', { defaultValue: 'No invoices match your filters.' })
+                  : t('invoices.noYet', { defaultValue: 'No invoices yet' })
+              }
+              createLabel={
+                !searchTerm && activeFilters.length === 0 ? t('invoices.addInvoice') : undefined
+              }
+              onCreate={
+                !searchTerm && activeFilters.length === 0
+                  ? () => attemptNavigation(() => openInvoicesPanel(null))
+                  : undefined
+              }
+            />
+          ) : (
+            <div className="flex items-start gap-4">
+              {showQuickContext && previewInvoice ? (
+                <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+                  <InvoiceQuickContextPanel
+                    invoice={previewInvoice}
+                    onClose={() => setPreviewInvoice(null)}
+                    onOpenFullProfile={() => handleOpenForView(previewInvoice)}
+                    onEdit={() => {
+                      markPendingAndOpen(previewInvoice, () =>
+                        attemptNavigation(() => openInvoiceForEdit(previewInvoice)),
+                      );
+                    }}
+                  />
+                </aside>
+              ) : null}
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                {isTableView ? (
+                  <InvoiceListTable
+                    invoices={sortedInvoices}
+                    primarySort={primarySort}
+                    sortOrder={sortOrder}
+                    onSort={handleTableSort}
+                    isSelected={isSelected}
+                    onRowClick={handleRowActivate}
+                    onCheckboxMouseDown={handleRowCheckboxShiftMouseDown}
+                    onCheckboxChange={onVisibleRowCheckboxChange}
+                    allVisibleSelected={allVisibleSelected}
+                    onHeaderCheckboxChange={handleHeaderCheckboxChange}
+                    recentlyDuplicatedInvoiceId={recentlyDuplicatedInvoiceId}
+                    activeInvoiceId={previewInvoice?.id ?? null}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      'grid gap-3',
+                      effectiveColumnCount === 1 && 'grid-cols-1',
+                      effectiveColumnCount === 2 && 'grid-cols-1 sm:grid-cols-2',
+                      effectiveColumnCount === 3 && 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+                    )}
+                  >
+                    {sortedInvoices.map((invoice, index) => (
+                      <InvoiceListItem
+                        key={invoice.id}
+                        invoice={invoice}
+                        selected={isSelected(String(invoice.id))}
+                        highlighted={recentlyDuplicatedInvoiceId === String(invoice.id)}
+                        active={
+                          previewInvoice != null && String(previewInvoice.id) === String(invoice.id)
+                        }
+                        columnCount={effectiveCardColumnCount}
+                        onClick={() => handleRowActivate(invoice)}
+                        checkbox={
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-border"
+                            checked={isSelected(String(invoice.id))}
+                            onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
+                            onChange={() => onVisibleRowCheckboxChange(String(invoice.id))}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={
+                              isSelected(String(invoice.id))
+                                ? t('common.unselectRow')
+                                : t('common.selectRow')
+                            }
+                          />
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <ListFooterBar
+                  meta={t('common.showingOf', {
+                    defaultValue: `Showing ${sortedInvoices.length} of ${invoices.length}`,
+                    showing: sortedInvoices.length,
+                    total: invoices.length,
+                  })}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

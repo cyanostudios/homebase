@@ -69,6 +69,11 @@ const PublicEstimateView = React.lazy(() =>
     default: m.PublicEstimateView,
   })),
 );
+const PublicInvoiceView = React.lazy(() =>
+  import('@/plugins/invoices/components/PublicInvoiceView').then((m) => ({
+    default: m.PublicInvoiceView,
+  })),
+);
 const PublicNoteView = React.lazy(() =>
   import('@/plugins/notes/components/PublicNoteView').then((m) => ({
     default: m.PublicNoteView,
@@ -109,6 +114,10 @@ export function AppRoutes() {
       <Route
         path="/public/estimate/:token"
         element={<PublicTokenRoute Component={PublicEstimateView} />}
+      />
+      <Route
+        path="/public/invoice/:token"
+        element={<PublicTokenRoute Component={PublicInvoiceView} />}
       />
       <Route path="/public/note/:token" element={<PublicTokenRoute Component={PublicNoteView} />} />
       <Route path="/public/task/:token" element={<PublicTokenRoute Component={PublicTaskView} />} />

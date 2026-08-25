@@ -22,6 +22,8 @@ export interface Invoice {
   estimateId?: string | null;
   total?: number;
   totalVat?: number;
+  subtotal?: number;
+  totalDiscount?: number;
 }
 
 export interface InvoicesContextType {
@@ -48,6 +50,15 @@ export interface InvoicesContextType {
   clearValidationErrors: () => void;
   getPanelSubtitle: (mode: string, item: Invoice | null) => any;
   getDeleteMessage: (item: Invoice | null) => string;
+  getDuplicateConfig: (
+    item: Invoice | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
+  executeDuplicate: (
+    item: Invoice,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
+  recentlyDuplicatedInvoiceId: string | null;
+  setRecentlyDuplicatedInvoiceId: (id: string | null) => void;
   navigateToPrevItem: () => void;
   navigateToNextItem: () => void;
   hasPrevItem: boolean;
@@ -90,6 +101,10 @@ const EMPTY_INVOICES_CONTEXT: InvoicesContextType = {
   clearValidationErrors: () => {},
   getPanelSubtitle: () => '',
   getDeleteMessage: () => '',
+  getDuplicateConfig: () => null,
+  executeDuplicate: async () => ({ closePanel: () => {} }),
+  recentlyDuplicatedInvoiceId: null,
+  setRecentlyDuplicatedInvoiceId: () => {},
   navigateToPrevItem: () => {},
   navigateToNextItem: () => {},
   hasPrevItem: false,

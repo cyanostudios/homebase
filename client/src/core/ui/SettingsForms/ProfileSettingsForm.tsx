@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import {
   cloneOrganizationProfile,
@@ -452,6 +453,36 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
                 disabled={readOnlyOrg}
                 onChange={(e) => updateBilling('swishNumber', e.target.value)}
                 placeholder="123 456 78 90"
+              />
+            </div>
+            <div>
+              <Label htmlFor="org-ftax" className={DETAIL_FIELD_LABEL_CLASS}>
+                Approved for F-tax
+              </Label>
+              <NativeSelect
+                id="org-ftax"
+                value={organization.billing.fTax || 'yes'}
+                disabled={readOnlyOrg}
+                onChange={(e) => updateBilling('fTax', e.target.value)}
+              >
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </NativeSelect>
+            </div>
+            <div>
+              <Label htmlFor="org-late-interest" className={DETAIL_FIELD_LABEL_CLASS}>
+                Late payment interest (%)
+              </Label>
+              <Input
+                id="org-late-interest"
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={organization.billing.latePaymentInterest}
+                disabled={readOnlyOrg}
+                onChange={(e) => updateBilling('latePaymentInterest', e.target.value)}
+                placeholder="12"
               />
             </div>
           </div>

@@ -39,8 +39,18 @@ describe('normalizeOrganizationProfile', () => {
         bic: '',
         invoiceEmail: '',
         swishNumber: '123 456 78 90',
+        fTax: 'yes',
+        latePaymentInterest: '12',
       },
     });
+  });
+
+  test('normalizes fTax and latePaymentInterest', () => {
+    expect(
+      normalizeOrganizationProfile({
+        billing: { fTax: 'no', latePaymentInterest: '8' },
+      }).billing,
+    ).toMatchObject({ fTax: 'no', latePaymentInterest: '8' });
   });
 
   test('migrates legacy billing.phone to top-level phone', () => {

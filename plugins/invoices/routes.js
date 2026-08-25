@@ -62,12 +62,12 @@ function createInvoiceRoutes(controller, context) {
   // PDF (auth required)
   router.get('/:id/pdf', gate, (req, res) => controller.generatePDF(req, res));
 
-  // Shares (auth required)
+  // Shares (auth required) — body fields use requiredId/date (not param id)
   router.post(
     '/shares',
     gate,
     csrfProtection,
-    commonRules.id('invoiceId'),
+    commonRules.requiredId('invoiceId'),
     commonRules.date('validUntil'),
     validateRequest,
     (req, res) => controller.createShare(req, res),

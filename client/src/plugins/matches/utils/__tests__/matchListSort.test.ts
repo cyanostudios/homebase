@@ -1,4 +1,11 @@
-import { compareMatchesByField, getMatchSortValue, isMatchStringSortField } from '../matchListSort';
+import { nextListTableSort } from '@/core/list/listViewMode';
+
+import {
+  compareMatchesByField,
+  getMatchSortValue,
+  isMatchAscDefaultField,
+  isMatchStringSortField,
+} from '../matchListSort';
 
 const base = {
   home_team: 'Team Alpha',
@@ -20,6 +27,15 @@ describe('isMatchStringSortField', () => {
     expect(isMatchStringSortField('team_id')).toBe(true);
     expect(isMatchStringSortField('start_time')).toBe(false);
     expect(isMatchStringSortField('updated_at')).toBe(false);
+  });
+});
+
+describe('isMatchAscDefaultField', () => {
+  it('defaults start_time and string fields to ascending (nearest match first)', () => {
+    expect(isMatchAscDefaultField('start_time')).toBe(true);
+    expect(isMatchAscDefaultField('home_team')).toBe(true);
+    expect(isMatchAscDefaultField('created_at')).toBe(false);
+    expect(isMatchAscDefaultField('updated_at')).toBe(false);
   });
 });
 
@@ -65,5 +81,17 @@ describe('compareMatchesByField', () => {
     const later = { ...base, start_time: '2026-08-01T00:00:00.000Z' };
     expect(compareMatchesByField(earlier, later, 'start_time', 'asc')).toBeLessThan(0);
     expect(compareMatchesByField(earlier, later, 'start_time', 'desc')).toBeGreaterThan(0);
+  });
+});
+
+describe('nextListTableSort with isMatchAscDefaultField', () => {
+  it('keeps nearest-first when switching to start_time', () => {
+    const next = nextListTableSort('home_team', 'asc', 'start_time', isMatchAscDefaultField);
+    expect(next).toEqual({ field: 'start_time', order: 'asc' });
+  });
+
+  it('defaults created_at to desc', () => {
+    const next = nextListTableSort('start_time', 'asc', 'created_at', isMatchAscDefaultField);
+    expect(next).toEqual({ field: 'created_at', order: 'desc' });
   });
 });

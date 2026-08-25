@@ -7,6 +7,7 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { usePluginDuplicate } from '@/core/hooks/usePluginDuplicate';
 import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
@@ -14,6 +15,7 @@ import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
+import { computeDueDateFromPaymentTerms } from '../utils/invoiceDueDate';
 
 import { InvoicesContext } from './InvoicesContext';
 import type { Invoice, InvoicesContextType, ValidationError } from './InvoicesContext';
@@ -42,6 +44,9 @@ export function InvoicesProvider({
     usePluginValidation<ValidationError>();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [recentlyDuplicatedInvoiceId, setRecentlyDuplicatedInvoiceId] = useState<string | null>(
+    null,
+  );
 
   const {
     selectedIds: selectedInvoiceIds,
@@ -106,6 +111,7 @@ export function InvoicesProvider({
 
   const openInvoicesPanel = (item: Invoice | null) => {
     clearInvoiceSelectionCore();
+    setRecentlyDuplicatedInvoiceId(null);
     setCurrentInvoice(item);
     setPanelMode(item ? 'edit' : 'create');
     setIsInvoicesPanelOpen(true);
@@ -118,6 +124,7 @@ export function InvoicesProvider({
 
   const openInvoiceForEdit = (item: Invoice) => {
     clearInvoiceSelectionCore();
+    setRecentlyDuplicatedInvoiceId(null);
     setCurrentInvoice(item);
     setPanelMode('edit');
     setIsInvoicesPanelOpen(true);
@@ -128,6 +135,7 @@ export function InvoicesProvider({
 
   const openInvoiceForView = useCallback(
     (item: Invoice) => {
+      setRecentlyDuplicatedInvoiceId(null);
       setCurrentInvoice(item);
       setPanelMode('view');
       setIsInvoicesPanelOpen(true);
@@ -331,6 +339,66 @@ export function InvoicesProvider({
       item ? formatDisplayNumber('invoices', item.invoiceNumber || item.id) : undefined,
     );
 
+  const duplicateInvoice = useCallback(
+    async (original: Invoice, _newName: string): Promise<Invoice | null> => {
+      try {
+        const { invoiceNumber } = await api.getNextNumber();
+        const issueDate = new Date();
+        const paymentTerms = original.paymentTerms || '30';
+        const dueDate =
+          computeDueDateFromPaymentTerms(issueDate, paymentTerms) ??
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const duplicateData: any = {
+          ...original,
+          invoiceNumber,
+          status: 'draft',
+          paidAt: null,
+          paymentTerms,
+          lineItems: (original.lineItems || []).map((item: any) => ({
+            ...item,
+            id: `${Date.now()}-${Math.random()}`,
+          })),
+          issueDate,
+          dueDate,
+        };
+        delete duplicateData.id;
+        delete duplicateData.createdAt;
+        delete duplicateData.updatedAt;
+        delete duplicateData.estimateId;
+
+        const saved = await api.createItem({
+          ...duplicateData,
+          issueDate: duplicateData.issueDate.toISOString(),
+          dueDate: duplicateData.dueDate.toISOString(),
+        });
+        const normalized = {
+          ...saved,
+          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
+          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
+          issueDate: saved.issueDate ? new Date(saved.issueDate) : null,
+          dueDate: saved.dueDate ? new Date(saved.dueDate) : null,
+        };
+        setInvoices((prev) => [normalized, ...prev]);
+        return normalized as Invoice;
+      } catch (err) {
+        console.error('Failed to duplicate invoice:', err);
+        return null;
+      }
+    },
+    [api],
+  );
+
+  const { getDuplicateConfig, executeDuplicate } = usePluginDuplicate({
+    getDefaultName: (item: Invoice) =>
+      item.contactName
+        ? `Copy of ${item.contactName}`
+        : `Copy of ${formatDisplayNumber('invoices', item.invoiceNumber || item.id)}`,
+    nameLabel: t('nav.invoice'),
+    confirmOnly: true,
+    createDuplicate: duplicateInvoice,
+    closePanel: closeInvoicesPanel,
+  });
+
   const value: InvoicesContextType = {
     isInvoicesPanelOpen,
     currentInvoice,
@@ -355,6 +423,10 @@ export function InvoicesProvider({
     isSelected,
     getPanelSubtitle,
     getDeleteMessage,
+    getDuplicateConfig,
+    executeDuplicate,
+    recentlyDuplicatedInvoiceId,
+    setRecentlyDuplicatedInvoiceId,
     navigateToPrevItem,
     navigateToNextItem,
     hasPrevItem,

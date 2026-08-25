@@ -1,13 +1,19 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import {
+  SERIES_TEAM_BADGE_NEUTRAL_STYLE,
+  SERIES_TEAM_BADGE_STYLES,
+} from '@/plugins/teams/types/teams';
+import { formatTeamLabel } from '@/plugins/teams/utils/formatTeamLabel';
+
 import type { DashboardDataProps } from './dashboardTypes';
 import { formatDate } from './dashboardUtils';
 
 export function DashboardActivityPanel({ has, matches, teams }: DashboardDataProps) {
   const { t } = useTranslation();
-  const showMatches = has('matches');
-  const showTeamsTraining = has('schedule') && has('teams');
+
+  const teamsById = useMemo(() => new Map(teams.map((team) => [String(team.id), team])), [teams]);
 
   const upcomingMatches = useMemo(() => {
     const now = new Date();
@@ -17,12 +23,7 @@ export function DashboardActivityPanel({ has, matches, teams }: DashboardDataPro
       .slice(0, 5);
   }, [matches]);
 
-  const teamsWithTraining = useMemo(
-    () => teams.filter((team) => team.training_times.length > 0).slice(0, 5),
-    [teams],
-  );
-
-  if (!showMatches && !showTeamsTraining) {
+  if (!has('matches')) {
     return null;
   }
 
@@ -32,30 +33,31 @@ export function DashboardActivityPanel({ has, matches, teams }: DashboardDataPro
         {t('dashboard.upcomingActivity')}
       </p>
       <div className="space-y-1">
-        {showMatches &&
-          upcomingMatches.map((match) => (
+        {upcomingMatches.map((match) => {
+          const team = match.team_id ? teamsById.get(String(match.team_id)) : undefined;
+          const teamLabel = team ? formatTeamLabel(team) : null;
+          const badgeStyle = team
+            ? (SERIES_TEAM_BADGE_STYLES[team.color] ?? SERIES_TEAM_BADGE_NEUTRAL_STYLE)
+            : SERIES_TEAM_BADGE_NEUTRAL_STYLE;
+          return (
             <div
               key={match.id}
               className="flex min-w-0 items-center justify-between gap-2 rounded-md px-2 py-2 text-xs hover:bg-muted/40"
             >
-              <span className="min-w-0 truncate font-medium text-foreground">
-                {match.home_team} – {match.away_team}
-              </span>
+              <div className="flex min-w-0 items-center gap-2">
+                {teamLabel && (
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 font-semibold ${badgeStyle}`}>
+                    {teamLabel}
+                  </span>
+                )}
+                <span className="min-w-0 truncate font-medium text-foreground">
+                  {match.home_team} – {match.away_team}
+                </span>
+              </div>
               <span className="shrink-0 text-muted-foreground">{formatDate(match.start_time)}</span>
             </div>
-          ))}
-        {showTeamsTraining &&
-          teamsWithTraining.map((team) => (
-            <div
-              key={team.id}
-              className="flex min-w-0 items-center justify-between gap-2 rounded-md px-2 py-2 text-xs hover:bg-muted/40"
-            >
-              <span className="min-w-0 truncate font-medium text-foreground">{team.name}</span>
-              <span className="shrink-0 text-muted-foreground">
-                {t('dashboard.sessionsPerWeek', { count: team.training_times.length })}
-              </span>
-            </div>
-          ))}
+          );
+        })}
       </div>
     </div>
   );

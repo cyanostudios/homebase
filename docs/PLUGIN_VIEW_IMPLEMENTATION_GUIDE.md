@@ -200,28 +200,34 @@ const { previewItem, setPreviewItem, showQuickContext, markPendingAndOpen, activ
 
 ### Wiring in `*List.tsx`
 
+Keep `ListToolbar` **full width above** the split. Do **not** nest the toolbar inside `min-w-0 flex-1` (that shrinks search/bulk when the panel opens). Canonical pattern: Requests / Tasks / Teams / Matches.
+
 ```tsx
-<div className="flex items-start gap-4">
-  {showQuickContext && previewItem ? (
-    <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
-      <MyPluginQuickContextPanel
-        item={previewItem}
-        onClose={() => setPreviewItem(null)}
-        onOpenFullProfile={() =>
-          markPendingAndOpen(previewItem, () =>
-            attemptNavigation(() => openMyPluginForView(previewItem)),
-          )
-        }
-        onEdit={() =>
-          markPendingAndOpen(previewItem, () =>
-            attemptNavigation(() => openMyPluginForEdit(previewItem)),
-          )
-        }
-      />
-    </aside>
-  ) : null}
-  <div className="flex min-w-0 flex-1 flex-col gap-3">
-    {/* table or card grid; pass activeId = previewItem?.id */}
+<div className="flex flex-col gap-0 md:gap-3">
+  <ListToolbar /* search + bulk — full page width */ />
+
+  <div className="flex items-start gap-4">
+    {showQuickContext && previewItem ? (
+      <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+        <MyPluginQuickContextPanel
+          item={previewItem}
+          onClose={() => setPreviewItem(null)}
+          onOpenFullProfile={() =>
+            markPendingAndOpen(previewItem, () =>
+              attemptNavigation(() => openMyPluginForView(previewItem)),
+            )
+          }
+          onEdit={() =>
+            markPendingAndOpen(previewItem, () =>
+              attemptNavigation(() => openMyPluginForEdit(previewItem)),
+            )
+          }
+        />
+      </aside>
+    ) : null}
+    <div className="flex min-w-0 flex-1 flex-col gap-3">
+      {/* table or card grid only; pass activeId = previewItem?.id */}
+    </div>
   </div>
 </div>
 ```
@@ -335,17 +341,17 @@ Sidebar spacing: `space-y-4` (slots/garments) or `space-y-6` (tasks) — stay co
 
 ### Shared rules
 
-| Rule                                 | Detail                                                                                                                                                        |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Same `DetailLayout`                  | Same column structure as view (main + optional sidebar)                                                                                                       |
-| Same card tokens                     | `DETAIL_VIEW_CARD_CLASS` per section                                                                                                                          |
-| Same section titles/icons/order      | Details, variants, description, etc.                                                                                                                          |
-| No bleed shell                       | No `md:-mx-6`, no extra outer padding — content sits in DetailPanel (`px-2 sm:px-3` phone / `px-6` pad/desktop)                                               |
-| No `PANEL_MAX_WIDTH` on form main    | Avoid constraining create/edit differently from view                                                                                                          |
-| No nested max-h scroll in form cards | Phone/desktop: form cards grow with content (same as view); page scroll only — do not use `max-h-[calc(100vh-…)]` + inner `overflow-y-auto` on identity cards |
-| Edit sidebar                         | Information card (ID/dates) only — **no** QuickActionsCard in edit                                                                                            |
-| Create                               | Typically single column (no sidebar)                                                                                                                          |
-| Field grids on phone                 | Prefer `grid-cols-1 … sm:grid-cols-2` / `md:grid-cols-2` so edit matches view stacking                                                                        |
+| Rule                                 | Detail                                                                                                                                                                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Same `DetailLayout`                  | Same column structure as view (main + optional sidebar)                                                                                                                                                                                                                                          |
+| Same card tokens                     | `DETAIL_VIEW_CARD_CLASS` per section                                                                                                                                                                                                                                                             |
+| Same section titles/icons/order      | Details, variants, description, etc.                                                                                                                                                                                                                                                             |
+| No bleed shell                       | No `md:-mx-6`, no extra outer padding — content sits in DetailPanel (`px-2 sm:px-3` phone / `px-6` pad/desktop)                                                                                                                                                                                  |
+| No `PANEL_MAX_WIDTH` on form main    | Avoid constraining create/edit differently from view                                                                                                                                                                                                                                             |
+| No nested max-h scroll in form cards | Phone/desktop: form cards grow with content (same as view); page scroll only — do not use `max-h-[calc(100vh-…)]` + inner `overflow-y-auto` on identity cards                                                                                                                                    |
+| Edit sidebar                         | Prefer Contacts-class pattern: **2 columns** (`leftSidebar` content + main properties); **no** Information/Activity in edit (those stay in full view). Older “Information card only” row is superseded for Contacts / Tasks / Notes / Requests / Invoices — keep tokens/Save-Cancel rules below. |
+| Create                               | Same chrome as edit when the plugin uses 2-column edit (e.g. Contacts, Invoices); otherwise single column OK                                                                                                                                                                                     |
+| Field grids on phone                 | Prefer `grid-cols-1 … sm:grid-cols-2` / `md:grid-cols-2` so edit matches view stacking                                                                                                                                                                                                           |
 
 ### Inline Save / Cancel (required)
 

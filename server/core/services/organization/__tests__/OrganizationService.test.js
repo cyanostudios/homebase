@@ -44,8 +44,26 @@ describe('normalizeOrganization', () => {
         bic: '',
         invoiceEmail: '',
         swishNumber: '123 456 78 90',
+        fTax: 'yes',
+        latePaymentInterest: '12',
       },
     });
+  });
+
+  test('normalizes fTax and latePaymentInterest', () => {
+    expect(
+      normalizeOrganization({
+        billing: { fTax: 'no', latePaymentInterest: '8.5' },
+      }).billing,
+    ).toEqual({
+      ...EMPTY_ORGANIZATION.billing,
+      fTax: 'no',
+      latePaymentInterest: '8.5',
+    });
+    expect(normalizeOrganization({ billing: { fTax: 'false' } }).billing.fTax).toBe('no');
+    expect(
+      normalizeOrganization({ billing: { latePaymentInterest: 150 } }).billing.latePaymentInterest,
+    ).toBe('100');
   });
 
   test('migrates legacy billing.phone to top-level phone', () => {

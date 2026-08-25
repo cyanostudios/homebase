@@ -79,7 +79,11 @@ export class InvoicesApi {
   createShare(invoiceId: string, validUntil: string) {
     return this.request('/shares', {
       method: 'POST',
-      body: JSON.stringify({ invoiceId, validUntil }),
+      body: JSON.stringify({
+        invoiceId: Number(invoiceId),
+        // End of local day so "date only" values are not rejected as already past (UTC midnight).
+        validUntil: /^\d{4}-\d{2}-\d{2}$/.test(validUntil) ? `${validUntil}T23:59:59` : validUntil,
+      }),
     });
   }
 
@@ -92,7 +96,13 @@ export class InvoicesApi {
   }
 
   getPublicInvoice(token: string) {
-    return fetch(`${this.basePath}/public/${token}`).then((r) => r.json());
+    return fetch(`${this.basePath}/public/${token}`).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        throw new Error(data?.error || 'Failed to load invoice');
+      }
+      return data;
+    });
   }
 
   async downloadPdf(id: string): Promise<Blob> {
@@ -100,11 +110,22 @@ export class InvoicesApi {
       method: 'GET',
     });
     if (!response.ok) {
-      const err: any = new Error('Failed to download PDF');
+      let errorMessage = 'Failed to download PDF';
+      try {
+        const text = await response.text();
+        const match = text.match(/"error"\s*:\s*"([^"]+)"/);
+        if (match) {
+          errorMessage = match[1];
+        }
+      } catch {
+        // Ignore parse errors when response body isn't JSON
+      }
+      const err: any = new Error(errorMessage);
       err.status = response.status;
       throw err;
     }
-    return await response.blob();
+    const arrayBuffer = await response.arrayBuffer();
+    return new Blob([arrayBuffer], { type: 'application/pdf' });
   }
 }
 

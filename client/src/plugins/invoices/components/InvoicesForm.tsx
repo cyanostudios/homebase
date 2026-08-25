@@ -1,5 +1,4 @@
-// client/src/plugins/invoices/components/InvoicesForm.tsx
-import { Plus, Trash2, Copy } from 'lucide-react';
+import { Check, Copy, Hash, Plus, SlidersHorizontal, StickyNote, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -12,9 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { Heading } from '@/core/ui/Typography';
+import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
+import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
 import {
@@ -23,6 +26,55 @@ import {
   calculateInvoiceLineItem,
   calculateInvoiceTotals,
 } from '../types/invoices';
+import {
+  computeDueDateFromPaymentTerms,
+  formatInvoiceDueDate,
+  parsePaymentTermsDays,
+} from '../utils/invoiceDueDate';
+
+import { InvoiceStatusSelect } from './InvoiceStatusSelect';
+
+const FACT_LABEL_CLASS =
+  'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
+
+function formInitials(contactName: string, invoiceNumber?: string | number | null): string {
+  const fromContact = String(contactName || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('');
+  if (fromContact) {
+    return fromContact;
+  }
+  const raw = String(invoiceNumber || '').trim();
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length > 0) {
+    return digits.slice(-2);
+  }
+  return raw.slice(0, 2).toUpperCase() || '—';
+}
+
+const PAYMENT_TERMS_OPTIONS = ['0', '15', '30', '60'] as const;
+
+function normalizePaymentTermsSelectValue(
+  paymentTerms: string | number | null | undefined,
+): string {
+  const days = parsePaymentTermsDays(paymentTerms);
+  if (days === null) {
+    return '30';
+  }
+  const asString = String(days);
+  return (PAYMENT_TERMS_OPTIONS as readonly string[]).includes(asString) ? asString : asString;
+}
+
+function dueDateFromIssueAndTerms(issueDate: Date, paymentTerms: string): Date {
+  return (
+    computeDueDateFromPaymentTerms(issueDate, paymentTerms) ??
+    new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+  );
+}
 
 interface InvoicesFormProps {
   currentInvoice?: Invoice | null;
@@ -33,7 +85,7 @@ interface InvoicesFormProps {
 export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>(
   function InvoicesForm({ currentInvoice, onSave, onCancel }, ref) {
     const { t } = useTranslation();
-    const { validationErrors, clearValidationErrors } = useInvoices();
+    const { validationErrors, clearValidationErrors, panelMode } = useInvoices();
     const { contacts } = useApp();
     const safeContacts = contacts || [];
 
@@ -52,35 +104,36 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [formData, setFormData] = useState({
-      contactId: '',
-      contactName: '',
-      organizationNumber: '',
-      currency: 'SEK',
-      lineItems: [] as InvoiceLineItem[],
-      invoiceDiscount: 0,
-      notes: '',
-      paymentTerms: '',
-      issueDate: new Date(),
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      status: 'draft' as 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled',
-      invoiceType: 'invoice' as 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt',
+    const [formData, setFormData] = useState(() => {
+      const issueDate = new Date();
+      const paymentTerms = '30';
+      return {
+        contactId: '',
+        contactName: '',
+        organizationNumber: '',
+        currency: 'SEK',
+        lineItems: [] as InvoiceLineItem[],
+        invoiceDiscount: 0,
+        notes: '',
+        paymentTerms,
+        issueDate,
+        dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
+        status: 'draft' as 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled',
+        invoiceType: 'invoice' as 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt',
+      };
     });
 
-    // Totals
     const totals = useMemo(
       () => calculateInvoiceTotals(formData.lineItems, formData.invoiceDiscount),
       [formData.lineItems, formData.invoiceDiscount],
     );
 
-    // Register unsaved-checker
     useEffect(() => {
       const formKey = `invoice-form-${currentInvoice?.id || 'new'}`;
       registerUnsavedChangesChecker(formKey, () => isDirty);
       return () => unregisterUnsavedChangesChecker(formKey);
     }, [isDirty, currentInvoice, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
-    // Load for edit/view
     useEffect(() => {
       if (currentInvoice) {
         const migrated = (currentInvoice.lineItems || []).map((li) => {
@@ -90,6 +143,11 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           return calculateInvoiceLineItem({ ...li });
         });
 
+        const issueDate = currentInvoice.issueDate
+          ? new Date(currentInvoice.issueDate as any)
+          : new Date();
+        const paymentTerms = normalizePaymentTermsSelectValue(currentInvoice.paymentTerms);
+        const storedDue = currentInvoice.dueDate ? new Date(currentInvoice.dueDate as any) : null;
         setFormData({
           contactId: currentInvoice.contactId || '',
           contactName: currentInvoice.contactName || '',
@@ -98,13 +156,9 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           lineItems: migrated,
           invoiceDiscount: currentInvoice.invoiceDiscount || 0,
           notes: currentInvoice.notes || '',
-          paymentTerms: currentInvoice.paymentTerms || '',
-          issueDate: currentInvoice.issueDate
-            ? new Date(currentInvoice.issueDate as any)
-            : new Date(),
-          dueDate: currentInvoice.dueDate
-            ? new Date(currentInvoice.dueDate as any)
-            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          paymentTerms,
+          issueDate,
+          dueDate: storedDue ?? dueDateFromIssueAndTerms(issueDate, paymentTerms),
           status: (currentInvoice.status as any) || 'draft',
           invoiceType: (currentInvoice.invoiceType as any) || 'invoice',
         });
@@ -117,6 +171,8 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     }, [currentInvoice]);
 
     const resetForm = useCallback(() => {
+      const issueDate = new Date();
+      const paymentTerms = '30';
       setFormData({
         contactId: '',
         contactName: '',
@@ -125,9 +181,9 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
         lineItems: [],
         invoiceDiscount: 0,
         notes: '',
-        paymentTerms: '',
-        issueDate: new Date(),
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        paymentTerms,
+        issueDate,
+        dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
         status: 'draft',
         invoiceType: 'invoice',
       });
@@ -170,9 +226,17 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       [handleSubmit, handleCancel],
     );
 
-    // Helpers
     const updateField = (field: string, value: any) => {
-      setFormData((prev) => ({ ...prev, [field]: value }));
+      setFormData((prev) => {
+        const next = { ...prev, [field]: value };
+        if (field === 'issueDate' || field === 'paymentTerms') {
+          next.dueDate = dueDateFromIssueAndTerms(
+            field === 'issueDate' ? value : next.issueDate,
+            field === 'paymentTerms' ? value : next.paymentTerms,
+          );
+        }
+        return next;
+      });
       if (validationErrors.length > 0) {
         clearValidationErrors();
       }
@@ -182,13 +246,25 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     const handleContactChange = (contactId: string) => {
       const contact = safeContacts.find((c) => c.id === contactId);
       if (contact) {
-        updateField('contactId', contact.id);
-        updateField('contactName', contact.companyName);
-        updateField('organizationNumber', contact.organizationNumber || '');
-        updateField('currency', contact.currency || 'SEK');
-        if ((contact as any).paymentTerms) {
-          updateField('paymentTerms', (contact as any).paymentTerms);
+        const paymentTerms = normalizePaymentTermsSelectValue(
+          (contact as { paymentTerms?: string }).paymentTerms,
+        );
+        setFormData((prev) => {
+          const issueDate = prev.issueDate;
+          return {
+            ...prev,
+            contactId: contact.id,
+            contactName: contact.companyName,
+            organizationNumber: contact.organizationNumber || '',
+            currency: contact.currency || 'SEK',
+            paymentTerms,
+            dueDate: dueDateFromIssueAndTerms(issueDate, paymentTerms),
+          };
+        });
+        if (validationErrors.length > 0) {
+          clearValidationErrors();
         }
+        markDirty();
       } else {
         updateField('contactId', '');
       }
@@ -248,191 +324,169 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
     const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);
     const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
+    const fieldLabelClass =
+      'mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
+    const fieldInputClass = 'h-10 text-sm';
+    const propSelectClass = 'h-9 w-full max-w-[180px] text-sm';
+    const dueDisplay = formatInvoiceDueDate(formData.dueDate);
+    const showDueUrgency = formData.status !== 'paid' && formData.status !== 'canceled';
 
-    return (
-      <div className="space-y-4">
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSubmit();
-          }}
+    const invoiceNumberLabel = currentInvoice
+      ? formatDisplayNumber('invoices', currentInvoice.invoiceNumber || currentInvoice.id)
+      : '';
+
+    const formActions = (
+      <div className="flex justify-end gap-2 border-t border-border pt-4">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          icon={X}
+          onClick={handleCancel}
+          disabled={isSubmitting}
+          className="h-9 px-3 text-xs"
         >
-          {/* Validation summary */}
-          {hasBlockingErrors && (
-            <Card padding="sm" className="shadow-none px-0">
-              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                <div className="text-sm text-red-800 dark:text-red-400 font-medium">
-                  Cannot save invoice
-                </div>
-                <ul className="list-disc list-inside mt-2 text-sm text-red-700 dark:text-red-400">
-                  {validationErrors
-                    .filter((e) => !e.message.includes('Warning'))
-                    .map((e, i) => (
-                      <li key={e.field ?? `err-${i}`}>{e.message}</li>
-                    ))}
-                </ul>
-              </div>
-            </Card>
-          )}
+          {t('common.cancel')}
+        </Button>
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          icon={Check}
+          onClick={() => void handleSubmit()}
+          disabled={hasBlockingErrors || isSubmitting}
+          className="h-9 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
+        >
+          {isSubmitting
+            ? t('common.saving')
+            : panelMode === 'edit'
+              ? t('common.update')
+              : t('common.save')}
+        </Button>
+      </div>
+    );
 
-          {/* Customer */}
-          <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3">
-              Customer
-            </Heading>
-            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-              <div>
-                <Label htmlFor="invoice-contact" className="mb-1">
-                  Customer
-                </Label>
+    const formLeftSidebar = (
+      <div className="space-y-4">
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <div className="border-b border-border/50 px-4 py-2.5">
+            <div className="flex items-start gap-3">
+              <div
+                className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold plugin-invoices bg-plugin-subtle text-plugin"
+                aria-hidden
+              >
+                {formInitials(
+                  formData.contactName,
+                  currentInvoice?.invoiceNumber || currentInvoice?.id,
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
                 <NativeSelect
                   id="invoice-contact"
                   value={formData.contactId}
                   onChange={(e) => handleContactChange(e.target.value)}
-                  className={getFieldError('contactId') ? 'border-destructive' : ''}
+                  className={cn(
+                    'h-9 w-full text-sm font-semibold',
+                    getFieldError('contactId') ? 'border-destructive' : '',
+                  )}
                   required
                 >
-                  <option value="">Select a customer…</option>
-                  {safeContacts.map((c: any) => (
-                    <option key={c.id} value={c.id}>
-                      {c.companyName} {c.organizationNumber ? `(${c.organizationNumber})` : ''}
-                    </option>
-                  ))}
+                  <option value="">
+                    {t('invoices.selectCustomer', { defaultValue: 'Select a customer…' })}
+                  </option>
+                  {safeContacts.map(
+                    (c: { id: string; companyName?: string; organizationNumber?: string }) => (
+                      <option key={c.id} value={c.id}>
+                        {c.companyName} {c.organizationNumber ? `(${c.organizationNumber})` : ''}
+                      </option>
+                    ),
+                  )}
                 </NativeSelect>
-                {getFieldError('contactId') && (
+                {getFieldError('contactId') ? (
                   <p className="mt-1 text-sm text-destructive">
                     {getFieldError('contactId')?.message}
                   </p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="invoice-currency" className="mb-1">
-                  Currency
-                </Label>
-                <NativeSelect
-                  id="invoice-currency"
-                  value={formData.currency}
-                  onChange={(e) => updateField('currency', e.target.value)}
-                >
-                  <option value="SEK">SEK</option>
-                  <option value="EUR">EUR</option>
-                  <option value="USD">USD</option>
-                  <option value="NOK">NOK</option>
-                  <option value="DKK">DKK</option>
-                </NativeSelect>
+                ) : null}
               </div>
             </div>
-          </Card>
+          </div>
 
-          {/* Invoice details */}
-          <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3">
-              Invoice Details
-            </Heading>
-            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+          <div className="space-y-4 px-4 py-4">
+            {currentInvoice ? (
               <div>
-                <Label htmlFor="invoice-issue-date" className="mb-1">
-                  Issue Date
+                <Label className={FACT_LABEL_CLASS}>
+                  <Hash className="h-3 w-3" />
+                  {t('invoices.table.number')}
                 </Label>
                 <Input
-                  id="invoice-issue-date"
-                  type="date"
-                  value={fmtDateInput(formData.issueDate)}
-                  onChange={(e) => updateField('issueDate', parseDateInput(e.target.value))}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="invoice-due-date" className="mb-1">
-                  Due Date
-                </Label>
-                <Input
-                  id="invoice-due-date"
-                  type="date"
-                  value={fmtDateInput(formData.dueDate)}
-                  onChange={(e) => updateField('dueDate', parseDateInput(e.target.value))}
-                  required
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label htmlFor="invoice-payment-terms" className="mb-1">
-                  Payment Terms
-                </Label>
-                <Input
-                  id="invoice-payment-terms"
                   type="text"
-                  value={formData.paymentTerms}
-                  onChange={(e) => updateField('paymentTerms', e.target.value)}
-                  placeholder="e.g. 30 dagar netto"
+                  value={invoiceNumberLabel}
+                  readOnly
+                  className="h-9 cursor-not-allowed bg-muted text-sm text-muted-foreground"
                 />
               </div>
+            ) : null}
 
-              <div>
-                <Label htmlFor="invoice-type" className="mb-1">
-                  Invoice Type
-                </Label>
-                <NativeSelect
-                  id="invoice-type"
-                  value={formData.invoiceType}
-                  onChange={(e) => updateField('invoiceType', e.target.value as any)}
-                >
-                  <option value="invoice">Faktura (Invoice)</option>
-                  <option value="credit_note">Kreditfaktura (Credit Note)</option>
-                  <option value="cash_invoice">Kontantfaktura (Cash Invoice)</option>
-                  <option value="receipt">Kvitto (Receipt)</option>
-                </NativeSelect>
-              </div>
-
-              <div>
-                <Label htmlFor="invoice-status" className="mb-1">
-                  Status
-                </Label>
-                <NativeSelect
-                  id="invoice-status"
-                  value={formData.status}
-                  onChange={(e) => updateField('status', e.target.value as any)}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="sent">Sent</option>
-                  <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="canceled">Canceled</option>
-                </NativeSelect>
-              </div>
+            <div>
+              <Label htmlFor="invoice-notes" className={FACT_LABEL_CLASS}>
+                <StickyNote className="h-3 w-3" />
+                {t('invoices.notesAndTerms')}
+              </Label>
+              <Textarea
+                id="invoice-notes"
+                value={formData.notes}
+                onChange={(e) => updateField('notes', e.target.value)}
+                rows={4}
+                placeholder={t('invoices.notesPlaceholder', {
+                  defaultValue: 'Additional notes or terms…',
+                })}
+                className="text-sm"
+              />
             </div>
-          </Card>
+          </div>
+        </Card>
 
-          {/* Line items */}
-          <Card padding="sm" className="shadow-none px-0">
-            <div className="flex items-center justify-between mb-3">
-              <Heading level={3}>Line Items</Heading>
+        <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+          <DetailSection
+            title={t('invoices.lineItems')}
+            iconPlugin="invoices"
+            subtleTitle
+            className="p-6"
+            action={
               <Button type="button" onClick={addLineItem} variant="secondary" icon={Plus} size="sm">
-                Add Item
+                {t('invoices.addItem', { defaultValue: 'Add Item' })}
               </Button>
-            </div>
-
+            }
+          >
             {formData.lineItems.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No line items added yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {t('invoices.noLineItems', { defaultValue: 'No line items added yet.' })}
+              </p>
             ) : (
               <div className="space-y-3">
                 {formData.lineItems.map((item, index) => (
                   <div
                     key={item.id || index}
-                    className={`border border-border rounded-lg p-3 ${duplicatedItemIds.has(String(item.id)) ? 'bg-green-50 dark:bg-green-950/30' : ''}`}
+                    className={cn(
+                      'rounded-lg border border-border p-3',
+                      duplicatedItemIds.has(String(item.id)) && 'bg-green-50 dark:bg-green-950/30',
+                    )}
                   >
-                    {/* Row 1 */}
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-sm font-medium text-foreground flex-shrink-0 w-12">
-                        Item {index + 1}
+                    <div className="mb-2 flex items-center gap-3">
+                      <span className="w-12 flex-shrink-0 text-sm font-medium text-foreground">
+                        {t('invoices.itemN', {
+                          defaultValue: 'Item {{n}}',
+                          n: index + 1,
+                        })}
                       </span>
                       <Textarea
                         value={item.description || ''}
                         onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                        placeholder="Service or product description"
+                        placeholder={t('invoices.lineDescriptionPlaceholder', {
+                          defaultValue: 'Service or product description',
+                        })}
                         rows={1}
-                        className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
+                        className="h-auto min-h-[2.5rem] flex-1 resize-none text-sm"
                         required
                       />
                       <Button
@@ -442,7 +496,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                         icon={Copy}
                         size="sm"
                         className="h-8 w-8 p-0"
-                        title="Duplicate item"
+                        title={t('common.duplicate')}
                       />
                       <Button
                         type="button"
@@ -453,32 +507,30 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                         className="h-8 w-8 p-0"
                       />
                     </div>
-
-                    {/* Row 2: numbers */}
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-muted/50">
                           <tr>
-                            <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                              Qty
+                            <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {t('invoices.table.qty')}
                             </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                              Unit Price
+                            <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {t('invoices.table.unitPrice')}
                             </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                              Discount %
+                            <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {t('invoices.table.discountPercent')}
                             </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                              VAT %
+                            <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {t('invoices.table.vatPercent')}
                             </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                              Discount
+                            <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {t('invoices.table.discount')}
                             </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                              VAT
+                            <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {t('invoices.table.vat')}
                             </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                              Total
+                            <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {t('invoices.table.total')}
                             </th>
                           </tr>
                         </thead>
@@ -492,7 +544,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                                 onChange={(e) =>
                                   updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)
                                 }
-                                className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="h-8 w-16 px-2 py-1 text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                                 required
                               />
                             </td>
@@ -508,7 +560,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                                     parseFloat(e.target.value) || 0,
                                   )
                                 }
-                                className="w-20 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="h-8 w-20 px-2 py-1 text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                                 required
                               />
                             </td>
@@ -521,25 +573,25 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                                 onChange={(e) =>
                                   updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)
                                 }
-                                className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="h-8 w-16 px-2 py-1 text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                             </td>
                             <td className="px-2 py-1">
                               <NativeSelect
                                 value={item.vatRate || 25}
                                 onChange={(e) =>
-                                  updateLineItem(index, 'vatRate', parseFloat(e.target.value))
+                                  updateLineItem(index, 'vatRate', parseFloat(e.target.value) || 0)
                                 }
-                                className="w-16 h-8 px-1 py-1 text-sm"
+                                className="h-8 w-20 text-sm"
                               >
-                                <option value="0">0%</option>
-                                <option value="6">6%</option>
-                                <option value="12">12%</option>
-                                <option value="25">25%</option>
+                                <option value={0}>0%</option>
+                                <option value={6}>6%</option>
+                                <option value={12}>12%</option>
+                                <option value={25}>25%</option>
                               </NativeSelect>
                             </td>
                             <td className="px-2 py-1 text-right text-sm text-foreground">
-                              -{(item.discountAmount || 0).toFixed(2)}
+                              {(item.discountAmount || 0).toFixed(2)}
                             </td>
                             <td className="px-2 py-1 text-right text-sm text-foreground">
                               {(item.vatAmount || 0).toFixed(2)}
@@ -555,117 +607,308 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
                 ))}
               </div>
             )}
-          </Card>
+          </DetailSection>
+        </Card>
 
-          {/* Invoice-level discount */}
-          {formData.lineItems.length > 0 && (
-            <Card padding="sm" className="shadow-none px-0">
-              <div className="flex items-center gap-4 mb-2">
-                <Label htmlFor="invoice-discount" className="text-sm font-medium text-foreground">
-                  Invoice Discount (%)
+        {formData.lineItems.length > 0 ? (
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })}
+              iconPlugin="invoices"
+              subtleTitle
+              className="p-6"
+            >
+              <div className="max-w-xs">
+                <Label htmlFor="invoice-discount" className={fieldLabelClass}>
+                  {t('invoices.discountPercent', { defaultValue: 'Discount %' })}
                 </Label>
-                <div className="max-w-xs">
-                  <Input
-                    id="invoice-discount"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.invoiceDiscount || 0}
-                    onChange={(e) =>
-                      updateField('invoiceDiscount', parseFloat(e.target.value) || 0)
-                    }
-                    placeholder="0.00"
-                    className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                  />
-                </div>
+                <Input
+                  id="invoice-discount"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.invoiceDiscount}
+                  onChange={(e) => updateField('invoiceDiscount', parseFloat(e.target.value) || 0)}
+                  className={fieldInputClass}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t('invoices.discountHelp', {
+                    defaultValue: 'Discount applied to subtotal after line item discounts',
+                  })}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Discount applied to subtotal after line item discounts
-              </p>
-            </Card>
-          )}
+            </DetailSection>
+          </Card>
+        ) : null}
 
-          {/* Totals */}
-          {formData.lineItems.length > 0 && (
-            <Card padding="sm" className="shadow-none px-0">
-              <Heading level={3} className="mb-3">
-                Summary
-              </Heading>
-              <div className="space-y-2">
+        {formData.lineItems.length > 0 ? (
+          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+            <DetailSection
+              title={t('invoices.pricingSummary')}
+              iconPlugin="invoices"
+              subtleTitle
+              className="p-6"
+            >
+              <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Subtotal:</span>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-muted-foreground">
+                    {t('invoices.subtotal', { defaultValue: 'Subtotal' })}
+                  </span>
+                  <span className="font-medium text-foreground">
                     {(totals.subtotal || 0).toFixed(2)} {formData.currency}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Total Line Item Discounts:</span>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-muted-foreground">
+                    {t('invoices.lineDiscounts', { defaultValue: 'Line Discounts' })}
+                  </span>
+                  <span className="font-medium text-foreground">
                     -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-2">
-                  <span className="text-sm text-muted-foreground">
-                    Subtotal after line discounts:
+                  <span className="text-muted-foreground">
+                    {t('invoices.subtotalAfterLineDiscounts', {
+                      defaultValue: 'Subtotal after line discounts',
+                    })}
                   </span>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="font-medium text-foreground">
                     {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
                   </span>
                 </div>
-                {formData.invoiceDiscount > 0 && (
+                {formData.invoiceDiscount > 0 ? (
                   <>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Invoice Discount ({formData.invoiceDiscount}%):
+                      <span className="text-muted-foreground">
+                        {t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })} (
+                        {formData.invoiceDiscount}%):
                       </span>
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="font-medium text-foreground">
                         -{(totals.invoiceDiscountAmount || 0).toFixed(2)} {formData.currency}
                       </span>
                     </div>
                     <div className="flex justify-between border-t border-border pt-2">
-                      <span className="text-sm text-muted-foreground">
-                        Subtotal after invoice discount:
+                      <span className="text-muted-foreground">
+                        {t('invoices.subtotalAfterInvoiceDiscount', {
+                          defaultValue: 'Subtotal after invoice discount',
+                        })}
                       </span>
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="font-medium text-foreground">
                         {(totals.subtotalAfterInvoiceDiscount || 0).toFixed(2)} {formData.currency}
                       </span>
                     </div>
                   </>
-                )}
+                ) : null}
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Total VAT:</span>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-muted-foreground">
+                    {t('invoices.totalVat', { defaultValue: 'Total VAT' })}
+                  </span>
+                  <span className="font-medium text-foreground">
                     {(totals.totalVat || 0).toFixed(2)} {formData.currency}
                   </span>
                 </div>
-                <div className="flex justify-between text-lg font-semibold border-t border-border pt-2">
-                  <span className="text-foreground">Total:</span>
+                <div className="flex justify-between border-t border-border pt-2 text-lg font-semibold">
+                  <span className="text-foreground">
+                    {t('invoices.totalAmount', { defaultValue: 'Total' })}
+                  </span>
                   <span className="text-foreground">
                     {(totals.total || 0).toFixed(2)} {formData.currency}
                   </span>
                 </div>
               </div>
-            </Card>
-          )}
-
-          {/* Notes */}
-          <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3">
-              Notes
-            </Heading>
-            <Textarea
-              id="invoice-notes"
-              value={formData.notes}
-              onChange={(e) => updateField('notes', e.target.value)}
-              rows={4}
-              placeholder="Additional notes or terms…"
-              className="resize-vertical"
-            />
+            </DetailSection>
           </Card>
-        </form>
+        ) : null}
+      </div>
+    );
 
-        {/* Unsaved Changes Warning */}
+    return (
+      <>
+        <div className="plugin-invoices">
+          <DetailLayout leftSidebar={formLeftSidebar}>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSubmit();
+              }}
+            >
+              {hasBlockingErrors ? (
+                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
+                    <div className="text-sm font-medium text-red-800 dark:text-red-400">
+                      {t('common.cannotSave', { defaultValue: 'Cannot save invoice' })}
+                    </div>
+                    <ul className="mt-2 list-inside list-disc text-sm text-red-700 dark:text-red-400">
+                      {validationErrors
+                        .filter((e) => !e.message.includes('Warning'))
+                        .map((e, i) => (
+                          <li key={e.field ?? `err-${i}`}>{e.message}</li>
+                        ))}
+                    </ul>
+                  </div>
+                </Card>
+              ) : null}
+
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('invoices.invoiceProperties', {
+                    defaultValue: 'Invoice Properties',
+                  })}
+                  icon={SlidersHorizontal}
+                  iconPlugin="invoices"
+                  subtleTitle
+                  className="p-6"
+                >
+                  <div>
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.propertyStatus', { defaultValue: 'Status' })}
+                      </span>
+                      <InvoiceStatusSelect
+                        invoice={{ status: formData.status }}
+                        onStatusChange={(nextStatus) => updateField('status', nextStatus)}
+                        hideInlineLabel
+                      />
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.issueDate', { defaultValue: 'Issue Date' })}
+                      </span>
+                      <Input
+                        id="invoice-issue-date"
+                        type="date"
+                        value={fmtDateInput(formData.issueDate)}
+                        onChange={(e) => updateField('issueDate', parseDateInput(e.target.value))}
+                        className="h-9 w-full max-w-[180px] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.paymentTerms', { defaultValue: 'Payment terms' })}
+                      </span>
+                      <NativeSelect
+                        id="invoice-payment-terms"
+                        value={formData.paymentTerms}
+                        onChange={(e) => updateField('paymentTerms', e.target.value)}
+                        className={propSelectClass}
+                      >
+                        <option value="0">
+                          {t('invoices.paymentTermsImmediate', { defaultValue: 'Immediate' })}
+                        </option>
+                        <option value="15">
+                          {t('invoices.paymentTermsDays', {
+                            defaultValue: '{{count}} days',
+                            count: 15,
+                          })}
+                        </option>
+                        <option value="30">
+                          {t('invoices.paymentTermsDays', {
+                            defaultValue: '{{count}} days',
+                            count: 30,
+                          })}
+                        </option>
+                        <option value="60">
+                          {t('invoices.paymentTermsDays', {
+                            defaultValue: '{{count}} days',
+                            count: 60,
+                          })}
+                        </option>
+                        {!(PAYMENT_TERMS_OPTIONS as readonly string[]).includes(
+                          formData.paymentTerms,
+                        ) ? (
+                          <option value={formData.paymentTerms}>
+                            {t('invoices.paymentTermsDays', {
+                              defaultValue: '{{count}} days',
+                              count: Number(formData.paymentTerms) || 0,
+                            })}
+                          </option>
+                        ) : null}
+                      </NativeSelect>
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.fieldDueDate', { defaultValue: 'Due Date' })}
+                      </span>
+                      <div
+                        className="flex max-w-[180px] flex-col items-end gap-0.5 text-right"
+                        title={t('invoices.dueDateFromPaymentTerms', {
+                          defaultValue: 'Calculated from issue date + payment terms',
+                        })}
+                      >
+                        <span
+                          className={cn(
+                            'text-sm font-medium',
+                            showDueUrgency && dueDisplay ? dueDisplay.className : 'text-foreground',
+                          )}
+                        >
+                          {dueDisplay && showDueUrgency
+                            ? dueDisplay.text
+                            : formData.dueDate.toLocaleDateString()}
+                        </span>
+                        {dueDisplay && showDueUrgency ? (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {formData.dueDate.toLocaleDateString()}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.currency', { defaultValue: 'Currency' })}
+                      </span>
+                      <NativeSelect
+                        id="invoice-currency"
+                        value={formData.currency}
+                        onChange={(e) => updateField('currency', e.target.value)}
+                        className={propSelectClass}
+                      >
+                        <option value="SEK">SEK</option>
+                        <option value="EUR">EUR</option>
+                        <option value="USD">USD</option>
+                        <option value="NOK">NOK</option>
+                        <option value="DKK">DKK</option>
+                      </NativeSelect>
+                    </div>
+
+                    <div className={DETAIL_PROP_ROW_CLASS}>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
+                      </span>
+                      <NativeSelect
+                        id="invoice-type"
+                        value={formData.invoiceType}
+                        onChange={(e) => updateField('invoiceType', e.target.value as any)}
+                        className={propSelectClass}
+                      >
+                        <option value="invoice">
+                          {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
+                        </option>
+                        <option value="credit_note">
+                          {t('invoices.type.credit_note', { defaultValue: 'Credit note' })}
+                        </option>
+                        <option value="cash_invoice">
+                          {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
+                        </option>
+                        <option value="receipt">
+                          {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
+                        </option>
+                      </NativeSelect>
+                    </div>
+                  </div>
+                </DetailSection>
+              </Card>
+
+              {formActions}
+            </form>
+          </DetailLayout>
+        </div>
+
         <ConfirmDialog
           isOpen={showWarning}
           title={t('dialog.unsavedChanges')}
@@ -683,7 +926,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
           onCancel={cancelDiscard}
           variant="warning"
         />
-      </div>
+      </>
     );
   },
 );

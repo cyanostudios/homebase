@@ -22,6 +22,8 @@ const EMPTY_ORGANIZATION = Object.freeze({
     bic: '',
     invoiceEmail: '',
     swishNumber: '',
+    fTax: 'yes',
+    latePaymentInterest: '12',
   }),
 });
 
@@ -34,6 +36,31 @@ function asString(value) {
 function asContactString(value) {
   const trimmed = asString(value);
   return trimmed.length > MAX_CONTACT_STRING ? trimmed.slice(0, MAX_CONTACT_STRING) : trimmed;
+}
+
+/** F-tax approval: 'yes' | 'no' (mirrors contacts). Default yes for company issuers. */
+function asFTax(value) {
+  const raw = asString(value).toLowerCase();
+  if (raw === 'no' || raw === 'false' || raw === '0') {
+    return 'no';
+  }
+  return 'yes';
+}
+
+/** Late payment interest as percent string (e.g. "12"). Clamped 0–100. */
+function asLatePaymentInterest(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.min(100, Math.max(0, value)));
+  }
+  const raw = asString(value);
+  if (!raw) {
+    return '12';
+  }
+  const n = parseFloat(raw.replace(',', '.'));
+  if (!Number.isFinite(n)) {
+    return '12';
+  }
+  return String(Math.min(100, Math.max(0, n)));
 }
 
 function normalizeOrganization(raw) {
@@ -69,6 +96,8 @@ function normalizeOrganization(raw) {
       bic: asString(billing.bic),
       invoiceEmail: asString(billing.invoiceEmail),
       swishNumber: asString(billing.swishNumber),
+      fTax: asFTax(billing.fTax),
+      latePaymentInterest: asLatePaymentInterest(billing.latePaymentInterest),
     },
   };
 }

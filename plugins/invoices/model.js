@@ -51,7 +51,6 @@ class InvoiceModel {
     }
 
     lineItems.forEach((item) => {
-      // Use calculated fields if available, otherwise calculate from raw data
       const lineSubtotal = item.lineSubtotal ?? (item.quantity || 0) * (item.unitPrice || 0);
       const discountAmount = item.discountAmount ?? lineSubtotal * ((item.discount || 0) / 100);
       const lineSubtotalAfterDiscount = lineSubtotal - discountAmount;
@@ -79,10 +78,60 @@ class InvoiceModel {
     };
   }
 
+  /**
+   * Auto-overdue: sent invoices past due date become overdue.
+   * paid / canceled / draft are never auto-changed.
+   */
+  isPastDue(dueDate) {
+    if (!dueDate) {
+      return false;
+    }
+    const due = new Date(dueDate);
+    if (Number.isNaN(due.getTime())) {
+      return false;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDay = new Date(due);
+    dueDay.setHours(0, 0, 0, 0);
+    return dueDay.getTime() < today.getTime();
+  }
+
+  applyEffectiveStatus(invoice) {
+    if (!invoice) {
+      return invoice;
+    }
+    if (
+      invoice.status === 'sent' &&
+      this.isPastDue(invoice.dueDate) &&
+      invoice.status !== 'paid' &&
+      invoice.status !== 'canceled'
+    ) {
+      return { ...invoice, status: 'overdue' };
+    }
+    return invoice;
+  }
+
+  /** Persist overdue status for all eligible invoices (idempotent). */
+  async markOverdueInvoices(req) {
+    try {
+      const db = Database.get(req);
+      await db.query(
+        `UPDATE invoices
+         SET status = 'overdue', updated_at = CURRENT_TIMESTAMP
+         WHERE status = 'sent'
+           AND due_date IS NOT NULL
+           AND due_date::date < CURRENT_DATE`,
+        [],
+      );
+    } catch (error) {
+      Logger.warn('Failed to mark overdue invoices', { message: error?.message });
+    }
+  }
+
   transformRow(row) {
     if (!row) return null;
 
-    // Parse JSON fields if they're strings
     let lineItems = row.line_items || [];
     if (typeof lineItems === 'string') {
       try {
@@ -92,7 +141,7 @@ class InvoiceModel {
       }
     }
 
-    return {
+    const invoice = {
       id: row.id.toString(),
       invoiceNumber: row.invoice_number,
       contactId: row.contact_id ? row.contact_id.toString() : null,
@@ -119,120 +168,82 @@ class InvoiceModel {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+
+    return this.applyEffectiveStatus(invoice);
   }
 
-  // Using same approach as contacts plugin - simple query with automatic tenant isolation
   async getNextInvoiceNumber(req) {
     try {
-      Logger.info('Getting next invoice number', {
-        hasSession: !!req?.session,
-        hasUser: !!req?.session?.user,
-        userId: req?.session?.user?.id,
-        hasTenantPool: !!req?.tenantPool,
-        hasTenantConnectionString: !!req?.session?.tenantConnectionString,
-      });
-
-      const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
+      const pool = context.pool;
 
-      if (!context.userId) {
-        const errorMsg = 'User ID is required. Please ensure you are logged in.';
-        Logger.error(errorMsg, null, {
-          session: req?.session,
-          hasUser: !!req?.session?.user,
-          hasCurrentTenantUserId: !!req?.session?.currentTenantUserId,
-        });
-        throw new AppError(errorMsg, 400, AppError.CODES.VALIDATION_ERROR);
-      }
-
-      Logger.info('Context validated', {
-        userId: context.userId,
-        hasPool: !!context.pool,
-        hasDatabase: !!database,
-        hasDatabasePool: !!(database && database.pool),
-      });
-
-      const currentYear = new Date().getFullYear();
-      const pattern = `${currentYear}-%`;
-
-      Logger.info('Executing query for invoice numbers', {
-        userId: context.userId,
-        year: currentYear,
-        pattern: pattern,
-      });
-
-      const result = await db.query(
-        `SELECT invoice_number 
-         FROM invoices 
-         WHERE invoice_number LIKE $1
-         ORDER BY invoice_number DESC 
-         LIMIT 1`,
-        [pattern],
-        context,
-      );
-
-      Logger.info('Query executed successfully', {
-        rowCount: rows?.length || 0,
-        firstRow: rows?.[0] || null,
-        isEmpty: !rows || rows.length === 0,
-      });
-
-      let nextNumber = 1;
-      if (rows && rows.length > 0 && rows[0] && rows[0].invoice_number) {
-        const lastNumber = rows[0].invoice_number;
-        Logger.info('Found existing invoice number', { lastNumber });
-        const parts = lastNumber.split('-');
-        if (parts.length >= 2) {
-          const numberPart = parseInt(parts[1], 10);
-          if (!isNaN(numberPart) && numberPart > 0) {
-            nextNumber = numberPart + 1;
-          }
-        }
-      } else {
-        Logger.info(
-          'No existing invoices found (rows.length=0), returning nextNumber=1 for empty DB case',
-        );
-      }
-
-      const invoiceNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
-
-      if (!rows || rows.length === 0) {
-        Logger.info(`Empty DB case: rows.length=0 -> returning ${invoiceNumber}`);
-      }
-
-      Logger.info('Next invoice number generated successfully', {
-        invoiceNumber,
-        userId: context.userId,
-        year: currentYear,
-        nextNumber,
-      });
-
-      return invoiceNumber;
-    } catch (error) {
-      const errorDetails = {
-        userId: req?.session?.user?.id,
-        currentTenantUserId: req?.session?.currentTenantUserId,
-        errorMessage: error?.message,
-        errorName: error?.name,
-        errorCode: error?.code,
-        errorStack: error?.stack?.substring(0, 500), // Limit stack trace
-        hasDatabase: false,
-        hasContext: false,
-      };
-
+      const client = await pool.connect();
       try {
-        const database = ServiceManager.get('database', req);
-        errorDetails.hasDatabase = !!database;
-        errorDetails.hasDatabasePool = !!(database && database.pool);
+        await client.query('BEGIN');
 
-        const context = this._getContext(req);
-        errorDetails.hasContext = !!context;
-        errorDetails.contextUserId = context?.userId;
-      } catch (e) {
-        // Ignore errors when trying to get context for logging
+        const currentYear = new Date().getFullYear();
+        let attempts = 0;
+        const maxAttempts = 100;
+
+        do {
+          const result = await client.query(
+            `
+            SELECT invoice_number
+            FROM invoices
+            WHERE invoice_number LIKE $1
+            ORDER BY invoice_number DESC
+            LIMIT 1
+          `,
+            [`${currentYear}-%`],
+          );
+
+          let nextNumber = 1;
+          if (result.rows.length > 0 && result.rows[0].invoice_number) {
+            const lastNumber = result.rows[0].invoice_number;
+            const parts = lastNumber.split('-');
+            if (parts.length >= 2) {
+              const numberPart = parseInt(parts[1], 10);
+              if (!isNaN(numberPart) && numberPart > 0) {
+                nextNumber = numberPart + 1;
+              }
+            }
+          }
+
+          const invoiceNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+
+          const checkResult = await client.query(
+            'SELECT id FROM invoices WHERE invoice_number = $1',
+            [invoiceNumber],
+          );
+
+          if (checkResult.rows.length === 0) {
+            await client.query('COMMIT');
+            Logger.info('Next invoice number generated', { invoiceNumber });
+            return invoiceNumber;
+          }
+
+          attempts += 1;
+          if (attempts >= maxAttempts) {
+            await client.query('ROLLBACK');
+            throw new AppError(
+              'Failed to allocate unique invoice number',
+              500,
+              AppError.CODES.DATABASE_ERROR,
+            );
+          }
+        } while (true);
+      } catch (error) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (_) {
+          /* ignore */
+        }
+        throw error;
+      } finally {
+        client.release();
       }
-
-      Logger.error('Failed to get next invoice number - DETAILED ERROR', error, errorDetails);
+    } catch (error) {
+      Logger.error('Failed to get next invoice number', error);
 
       if (error instanceof AppError) {
         throw error;
@@ -241,14 +252,6 @@ class InvoiceModel {
       if (error?.code === '42P01') {
         throw new AppError(
           'Invoices table not found. Please run database migrations.',
-          500,
-          AppError.CODES.DATABASE_ERROR,
-        );
-      }
-
-      if (error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT') {
-        throw new AppError(
-          'Database connection failed. Please check your database configuration.',
           500,
           AppError.CODES.DATABASE_ERROR,
         );
@@ -264,31 +267,9 @@ class InvoiceModel {
 
   async create(req, invoiceData) {
     try {
-      Logger.info('Creating invoice', {
-        hasInvoiceNumber: !!invoiceData.invoiceNumber,
-        userId: req?.session?.user?.id,
-        currentTenantUserId: req?.session?.currentTenantUserId,
-        hasTenantPool: !!req?.tenantPool,
-        hasTenantConnectionString: !!req?.session?.tenantConnectionString,
-      });
+      const db = Database.get(req);
 
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
-
-      Logger.info('Context retrieved', {
-        userId: context.userId,
-        hasPool: !!context.pool,
-      });
-
-      let invoiceNumber;
-      if (invoiceData.invoiceNumber) {
-        invoiceNumber = invoiceData.invoiceNumber;
-        Logger.info('Using provided invoice number', { invoiceNumber });
-      } else {
-        Logger.info('Getting next invoice number...');
-        invoiceNumber = await this.getNextInvoiceNumber(req);
-        Logger.info('Got next invoice number', { invoiceNumber });
-      }
+      const invoiceNumber = invoiceData.invoiceNumber || (await this.getNextInvoiceNumber(req));
       const {
         subtotal,
         totalDiscount,
@@ -310,19 +291,16 @@ class InvoiceModel {
           : invoiceData.estimateId
         : null;
 
-      // Format dates for PostgreSQL (accept ISO strings, Date objects, or null)
       const formatDateForDB = (dateValue) => {
         if (!dateValue) return null;
         if (dateValue instanceof Date) {
           return dateValue.toISOString();
         }
         if (typeof dateValue === 'string') {
-          // If already ISO string, return as-is (PostgreSQL accepts ISO format)
-          // If it's a date-only string (YYYY-MM-DD), convert to timestamp
           if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
             return new Date(dateValue + 'T12:00:00Z').toISOString();
           }
-          return dateValue; // Assume already ISO format
+          return dateValue;
         }
         return null;
       };
@@ -330,14 +308,10 @@ class InvoiceModel {
       const issueDate = formatDateForDB(invoiceData.issueDate);
       const dueDate = formatDateForDB(invoiceData.dueDate);
 
-      Logger.info('Preparing invoice data for insert', {
-        invoiceNumber,
-        contactId,
-        issueDate,
-        dueDate,
-        hasLineItems: !!(invoiceData.lineItems && invoiceData.lineItems.length > 0),
-        lineItemsCount: invoiceData.lineItems?.length || 0,
-      });
+      let status = invoiceData.status || 'draft';
+      if (status === 'sent' && this.isPastDue(dueDate)) {
+        status = 'overdue';
+      }
 
       const result = await db.insert('invoices', {
         invoice_number: invoiceNumber,
@@ -359,36 +333,21 @@ class InvoiceModel {
         subtotal_after_invoice_discount: subtotalAfterInvoiceDiscount,
         total_vat: totalVat,
         total: total,
-        status: invoiceData.status || 'draft',
-        paid_at: invoiceData.status === 'paid' ? new Date().toISOString() : null,
+        status,
+        paid_at: status === 'paid' ? new Date().toISOString() : null,
         estimate_id: estimateId,
       });
 
       Logger.info('Invoice created successfully', {
         invoiceId: result.id,
         invoiceNumber,
-        userId: context.userId,
       });
 
       return this.transformRow(result);
     } catch (error) {
-      Logger.error('Failed to create invoice - DETAILED ERROR', error, {
-        userId: req?.session?.user?.id,
-        currentTenantUserId: req?.session?.currentTenantUserId,
-        invoiceData: {
-          invoiceNumber: invoiceData.invoiceNumber,
-          contactId: invoiceData.contactId,
-          hasLineItems: !!(invoiceData.lineItems && invoiceData.lineItems.length > 0),
-          lineItemsCount: invoiceData.lineItems?.length || 0,
-          issueDate: invoiceData.issueDate,
-          dueDate: invoiceData.dueDate,
-          status: invoiceData.status,
-        },
-        errorCode: error.code,
-        errorMessage: error.message,
-        errorDetail: error.detail,
-        errorHint: error.hint,
-        errorStack: error.stack?.substring(0, 1000),
+      Logger.error('Failed to create invoice', error, {
+        invoiceNumber: invoiceData.invoiceNumber,
+        contactId: invoiceData.contactId,
       });
 
       if (error instanceof AppError) {
@@ -402,9 +361,6 @@ class InvoiceModel {
         {
           originalError: error.message,
           errorCode: error.code,
-          errorDetail: error.detail,
-          errorHint: error.hint,
-          constraint: error.constraint,
         },
       );
     }
@@ -412,10 +368,9 @@ class InvoiceModel {
 
   async getAll(req) {
     try {
+      await this.markOverdueInvoices(req);
       const db = Database.get(req);
-
       const rows = await db.query('SELECT * FROM invoices ORDER BY created_at DESC', []);
-
       return rows.map((row) => this.transformRow(row));
     } catch (error) {
       Logger.error('Failed to fetch invoices', error);
@@ -425,8 +380,8 @@ class InvoiceModel {
 
   async getById(req, invoiceId) {
     try {
+      await this.markOverdueInvoices(req);
       const db = Database.get(req);
-
       const rows = await db.query('SELECT * FROM invoices WHERE id = $1', [invoiceId]);
 
       if (rows.length === 0) {
@@ -472,6 +427,11 @@ class InvoiceModel {
           : invoiceData.estimateId
         : null;
 
+      let status = invoiceData.status || 'draft';
+      if (status === 'sent' && this.isPastDue(invoiceData.dueDate || currentInvoice.dueDate)) {
+        status = 'overdue';
+      }
+
       const result = await db.update('invoices', invoiceId, {
         contact_id: contactId,
         contact_name: invoiceData.contactName || '',
@@ -491,7 +451,7 @@ class InvoiceModel {
         subtotal_after_invoice_discount: subtotalAfterInvoiceDiscount,
         total_vat: totalVat,
         total: total,
-        status: invoiceData.status || 'draft',
+        status,
         paid_at: isBecomingPaid ? new Date() : currentInvoice.paidAt,
         estimate_id: estimateId,
       });
@@ -509,7 +469,6 @@ class InvoiceModel {
     }
   }
 
-  // Bulk delete invoices (hybrid approach - pre-delete invoice_shares)
   async bulkDelete(req, idsTextArray) {
     try {
       const pool = req.tenantPool;
@@ -528,7 +487,6 @@ class InvoiceModel {
             return parsed;
           });
 
-          // Delete invoice_shares (even though CASCADE handles it, explicit deletion is cleaner)
           await pool.query('DELETE FROM invoice_shares WHERE invoice_id = ANY($1::int[])', [
             integerIds,
           ]);
@@ -548,11 +506,8 @@ class InvoiceModel {
   async delete(req, invoiceId) {
     try {
       const db = Database.get(req);
-
       await db.deleteRecord('invoices', invoiceId);
-
       Logger.info('Invoice deleted', { invoiceId });
-
       return true;
     } catch (error) {
       Logger.error('Failed to delete invoice', error, { invoiceId });
@@ -594,7 +549,6 @@ class InvoiceModel {
 
       const shareToken = this.generateShareToken();
 
-      // Insert share with user_id for tenant isolation
       const result = await pool.query(
         `
         INSERT INTO invoice_shares (user_id, invoice_id, share_token, valid_until)
@@ -651,11 +605,12 @@ class InvoiceModel {
         `
         SELECT 
           i.*,
-          is.accessed_count,
-          is.valid_until as share_valid_until
+          ins.accessed_count,
+          ins.valid_until as share_valid_until,
+          ins.user_id as share_owner_user_id
         FROM invoices i
-        JOIN invoice_shares is ON i.id = is.invoice_id
-        WHERE is.share_token = $1 AND is.valid_until > NOW()
+        JOIN invoice_shares ins ON i.id = ins.invoice_id
+        WHERE ins.share_token = $1 AND ins.valid_until > NOW()
       `,
         [shareToken],
       );
@@ -679,6 +634,7 @@ class InvoiceModel {
       const invoice = this.transformRow(row);
       invoice.shareValidUntil = row.share_valid_until;
       invoice.accessedCount = currentAccessCount + 1;
+      invoice.shareOwnerUserId = row.share_owner_user_id;
 
       return invoice;
     } catch (error) {
@@ -695,7 +651,6 @@ class InvoiceModel {
 
   async getSharesForInvoice(req, invoiceId) {
     try {
-      const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
 
@@ -734,7 +689,6 @@ class InvoiceModel {
 
   async revokeShare(req, shareId) {
     try {
-      const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
 
@@ -784,7 +738,6 @@ class InvoiceModel {
     try {
       const pool = req.tenantPool || this._getContext(req).pool;
       const result = await pool.query('DELETE FROM invoice_shares WHERE valid_until < NOW()');
-
       return result.rowCount;
     } catch (error) {
       Logger.error('Failed to clean expired shares', error);

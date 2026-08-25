@@ -29,6 +29,14 @@ export function isMatchDateSortField(field: MatchSortField): boolean {
   return DATE_SORT_FIELDS.includes(field);
 }
 
+/**
+ * Default sort direction when selecting a field.
+ * Strings and start_time → asc (nearest kickoff first); created/updated → desc.
+ */
+export function isMatchAscDefaultField(field: MatchSortField): boolean {
+  return isMatchStringSortField(field) || field === 'start_time';
+}
+
 type MatchSortable = Pick<
   Match,
   | 'home_team'

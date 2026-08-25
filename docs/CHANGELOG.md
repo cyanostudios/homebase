@@ -4,6 +4,125 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-25 – Home dashboard widgets + Matches nearest-first + list Quick Context layout
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX / frontend / docs  
+**Scope:** `client/src/core/ui/Dashboard.tsx`, `client/src/core/ui/dashboard/*`, `MatchList.tsx`, `TeamList.tsx`, `matchListSort.ts`, i18n, docs
+
+**Sammanfattning:** Dashboard får Today’s schedule (schedule-liknande read-only slots), Upcoming activity med lagbadge (endast matcher), Open requests- och Active tasks-listor (max 5, ej completed/cancelled). Today/Upcoming i sidokolumnen ovanför Bookable slots. Matches-listan defaultar till `start_time` asc (närmaste först). Teams/Matches `ListToolbar` flyttad ovanför Quick Context-splitten så sök/bulk inte krymper.
+
+**Beteende (verifierat)**
+
+- Today’s schedule: `buildTeamSlots` + dagens weekday; `SERIES_TEAM_ROW_STYLES`
+- Upcoming: max 5 kommande matcher; `formatTeamLabel` + `SERIES_TEAM_BADGE_STYLES`
+- Requests/Tasks widgets: `selectActive*` i `dashboardUtils.ts`, limit `DASHBOARD_LIST_WIDGET_LIMIT` (5)
+- Matches: `isMatchAscDefaultField` för dropdown + tabellsort
+- List layout: `flex flex-col` → `ListToolbar` → `flex items-start` (panel + list)
+
+**Operator:** [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md)  
+**Guide:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) (ListToolbar ovanför Quick Context-split)
+
+---
+
+## 2026-08-25 – Invoices: Contacts-style 2-column edit (no Information/Activity)
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX / frontend / docs / security note  
+**Scope:** `InvoicesForm`, list Quick Context, i18n, `docs/INVOICES_PLUGIN.md`, Matches/Teams list JSX (tsc)
+
+**Sammanfattning:** Edit/create använder Contacts 2-kolumnslayout (`leftSidebar` = kund/anteckningar/rader/pris; main = Invoice Properties + Save/Cancel). Information och Activity endast i full view. List Quick Context visar antal rader (inte radtabell). Radtabell-headers i18n. Publik share dokumenterad inkl. nuvarande JSON-payload och rekommenderad public DTO (ej ship-blocker).
+
+**Operator:** [`INVOICES_PLUGIN.md`](INVOICES_PLUGIN.md)
+
+---
+
+## 2026-08-25 – Invoices: payment terms drive due date + Contacts 3-column full view
+
+**Typ:** UX / frontend  
+**Scope:** `InvoicesView`, `InvoicesForm`, `invoiceDueDate`, PDF/web templates, i18n
+
+**Sammanfattning:** Betalningsvillkor (dagar, samma som Contacts) beräknar förfallodatum från fakturadatum. Full view följer Contacts 3-kolumnslayout: Quick Context + innehåll | Properties + Relations | Actions/Export/Info/Activity.
+
+---
+
+## 2026-08-25 – Invoices: align Quick Context / View chrome with Contacts, Notes, Tasks
+
+**Typ:** UX / frontend  
+**Scope:** `client/src/plugins/invoices/*`, `ShareDialog`, i18n en+sv, docs
+
+**Sammanfattning:** Quick Context följer Contacts (avatar + 2-kolumnsfakta). Full view: Properties (status-select som Tasks), Information endast ID/Created/Updated, Relations + share-panel i huvudkolumnen, en konsoliderad innehållskort, share via gemensam `ShareDialog` (+ AlertDialog för giltighetsdatum).
+
+**Kod:** `InvoiceQuickContextPanel.tsx`, `InvoiceStatusSelect.tsx`, `InvoiceShareBlock.tsx`, `InvoicesView.tsx`, `InvoiceActions.tsx`, `ShareDialog.tsx`
+
+---
+
+## 2026-08-25 – Invoices: fix share create validation + PDF binary response
+
+**Typ:** bugfix  
+**Scope:** `plugins/invoices/routes.js`, `plugins/invoices/controller.js`, `client/.../invoicesApi.ts`
+
+**Sammanfattning:** Share-skapande validerade `invoiceId` som URL-param (alltid fail) istället för body (`requiredId`, samma som Estimates). PDF-svar alignat med Estimates (`res.end` + Content-Length) och klienten läser PDF via `arrayBuffer`.
+
+---
+
+## 2026-08-25 – Invoices: align List / Quick Context / View / Form with plugin view guide
+
+**Typ:** UX / frontend  
+**Scope:** `client/src/plugins/invoices/*`, i18n en+sv, docs
+
+**Sammanfattning:** Invoices följer nu `PLUGIN_VIEW_IMPLEMENTATION_GUIDE` — sticky Quick Context från listan, full view med sidofält (Quick Actions → Export → Relations → Information → Activity), edit-form med samma DetailLayout-chrome och inline Save/Cancel, samt duplicate via `usePluginDuplicate`.
+
+**Detaljer:**
+
+- List: `useQuickContextPreview` + `InvoiceQuickContextPanel` (ingen Delete/Duplicate/Export i quick context); active-row highlight; duplicate-rad highlight.
+- View: Edit/Delete/Duplicate i Quick Actions; PDF/share i Export; kontakt-relation; Activity log (`entityType="invoice"`).
+- Form: Information-sidebar i edit; grön Save / Cancel inline.
+
+**Kod:** `InvoiceQuickContextPanel.tsx`, `InvoicesList.tsx`, `InvoicesView.tsx`, `InvoicesForm.tsx`, `InvoicesProvider.tsx`, `InvoiceActions.tsx`
+
+**Operator:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md), [`INVOICES_PLUGIN.md`](INVOICES_PLUGIN.md)
+
+---
+
+## 2026-08-25 – Invoices: align tenant schema (`estimate_id` + columns)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Admin-tenant saknade bl.a. `estimate_id` (samma CREATE IF NOT EXISTS-problem). Idempotent `148-invoices-align-schema.sql` lägger till alla kolumner/index från `004-invoices.sql`. Kör: `npm run migrate:invoices-align-schema`.
+
+---
+
+## 2026-08-25 – Invoices: add missing `paid_at` column
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Äldre tenant-DB:er saknade `invoices.paid_at` (CREATE TABLE IF NOT EXISTS uppdaterar inte befintliga tabeller), vilket blockerade create. Idempotent migration `147-invoices-add-paid-at.sql` via `npm run migrate:invoices-paid-at`.
+
+---
+
+## 2026-08-25 – Invoices Facio-style rebuild (PDF, share, list, org billing)
+
+**Status:** Implementerat lokalt. **Ej prod-release.**
+
+**Sammanfattning:** Invoices byggs om så fakturadokument (PDF + publik delningslänk) följer svensk Facio-layout; avsändare från Settings → Account; lista migrerad till card-column-shell; förfallodatum med Tasks-liknande färger och auto-status `overdue`.
+
+**Beteende**
+
+- PDF (`plugins/invoices/pdfTemplate.js`) och publik vy (`/public/invoice/:token`) använder samma svenska layout (avsändare/mottagare, radtabell, moms, Bankgiro, F-skatt, referens = fakturanummer, dröjsmålsränta från Account).
+- Organization billing: nya fält `fTax` (`yes`/`no`) och `latePaymentInterest` (%, default 12) i `tenants.organization` JSONB via Settings → Account.
+- Auto-overdue: `sent` + passerat `due_date` → `overdue` vid läsning (SQL update) och i transform.
+- Model-buggar åtgärdade (`Database.get`, share-alias `ins`, numrering/create).
+- List: card-column + table (`InvoiceListItem` / `InvoiceListTable`), due-date badges.
+
+**Kod:** `plugins/invoices/*`, `client/src/plugins/invoices/*`, `OrganizationService.js`, `organizationApi.ts`, `ProfileSettingsForm.tsx`, `AppRoutes.tsx`
+
+**Operator:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0.1 (Invoices i card-column-listan)
+
+---
+
 ## 2026-08-25 – Matches statistics: card shells, team filter, ⅓ metrics
 
 **Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release.**
@@ -75,7 +194,8 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ## 2026-08-24 – Home dashboard redesign (v1)
 
-**Status:** Implementerat lokalt. **QA Approved.** Security **N/A** (klient-UI). **Docs Updated.** **Ej prod-release.**
+**Status:** Implementerat lokalt. **QA Approved.** Security **N/A** (klient-UI). **Docs Updated.** **Ej prod-release.**  
+**Obs:** Layout och widgetar utökade 2026-08-25 — se aktuell [`HOME_DASHBOARD.md`](HOME_DASHBOARD.md) och changelog-posten samma datum.
 
 **Sammanfattning:** Startsidan (`/` / dashboard) byter från ett plugin-widget-grid till en sektionsindelad översikt med KPI, snabbåtgärder, aktivitet/sidopanel och diagram — villkorligt per aktiverat plugin.
 

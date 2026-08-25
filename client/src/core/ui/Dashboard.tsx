@@ -6,7 +6,10 @@ import { DashboardActivityPanel } from '@/core/ui/dashboard/DashboardActivityPan
 import { DashboardChartsSection } from '@/core/ui/dashboard/DashboardChartsSection';
 import { DashboardKpiSection } from '@/core/ui/dashboard/DashboardKpiSection';
 import { DashboardQuickActions } from '@/core/ui/dashboard/DashboardQuickActions';
+import { DashboardRequestsWidget } from '@/core/ui/dashboard/DashboardRequestsWidget';
 import { DashboardSidebar } from '@/core/ui/dashboard/DashboardSidebar';
+import { DashboardTasksWidget } from '@/core/ui/dashboard/DashboardTasksWidget';
+import { DashboardTodaySchedule } from '@/core/ui/dashboard/DashboardTodaySchedule';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
@@ -72,9 +75,14 @@ export function Dashboard({ onPageChange }: DashboardProps) {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="space-y-4 lg:col-span-2">
                 <DashboardQuickActions has={has} onPageChange={onPageChange} />
-                <DashboardActivityPanel {...dataProps} />
+                <DashboardRequestsWidget {...dataProps} />
+                <DashboardTasksWidget {...dataProps} />
               </div>
               <div className="space-y-4">
+                <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                  <DashboardTodaySchedule {...dataProps} />
+                  <DashboardActivityPanel {...dataProps} />
+                </div>
                 <DashboardSidebar {...dataProps} />
               </div>
             </div>
