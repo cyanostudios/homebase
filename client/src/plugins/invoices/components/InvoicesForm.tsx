@@ -1,8 +1,7 @@
-import { Check, Copy, Hash, Plus, SlidersHorizontal, StickyNote, Trash2, X } from 'lucide-react';
+import { Hash, SlidersHorizontal, StickyNote } from 'lucide-react';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +10,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import type { PanelFormHandle } from '@/core/types/panelFormHandle';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_PROP_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -32,6 +30,8 @@ import {
   parsePaymentTermsDays,
 } from '../utils/invoiceDueDate';
 
+import { InvoiceLineItemsEditor } from './InvoiceLineItemsEditor';
+import { InvoicePreviewDialog } from './InvoicePreviewDialog';
 import { InvoiceStatusSelect } from './InvoiceStatusSelect';
 
 const FACT_LABEL_CLASS =
@@ -85,7 +85,7 @@ interface InvoicesFormProps {
 export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>(
   function InvoicesForm({ currentInvoice, onSave, onCancel }, ref) {
     const { t } = useTranslation();
-    const { validationErrors, clearValidationErrors, panelMode } = useInvoices();
+    const { validationErrors, clearValidationErrors } = useInvoices();
     const { contacts } = useApp();
     const safeContacts = contacts || [];
 
@@ -103,6 +103,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
     const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     const [formData, setFormData] = useState(() => {
       const issueDate = new Date();
@@ -222,6 +223,7 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       () => ({
         submit: () => handleSubmit(),
         cancel: handleCancel,
+        preview: () => setShowPreview(true),
       }),
       [handleSubmit, handleCancel],
     );
@@ -319,6 +321,17 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
       updateField('lineItems', updated);
     };
 
+    const moveLineItem = (index: number, direction: 'up' | 'down') => {
+      const items = [...formData.lineItems];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= items.length) return;
+      [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
+      items.forEach((item, i) => {
+        item.sortOrder = i;
+      });
+      updateField('lineItems', items);
+    };
+
     const fmtDateInput = (d: Date) => d.toISOString().split('T')[0];
     const parseDateInput = (s: string) => new Date(s + 'T12:00:00');
 
@@ -334,37 +347,6 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
     const invoiceNumberLabel = currentInvoice
       ? formatDisplayNumber('invoices', currentInvoice.invoiceNumber || currentInvoice.id)
       : '';
-
-    const formActions = (
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          icon={X}
-          onClick={handleCancel}
-          disabled={isSubmitting}
-          className="h-9 px-3 text-xs"
-        >
-          {t('common.cancel')}
-        </Button>
-        <Button
-          type="button"
-          variant="primary"
-          size="sm"
-          icon={Check}
-          onClick={() => void handleSubmit()}
-          disabled={hasBlockingErrors || isSubmitting}
-          className="h-9 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
-        >
-          {isSubmitting
-            ? t('common.saving')
-            : panelMode === 'edit'
-              ? t('common.update')
-              : t('common.save')}
-        </Button>
-      </div>
-    );
 
     const formLeftSidebar = (
       <div className="space-y-4">
@@ -448,466 +430,328 @@ export const InvoicesForm = React.forwardRef<PanelFormHandle, InvoicesFormProps>
 
         <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
           <DetailSection
-            title={t('invoices.lineItems')}
+            title={t('invoices.invoiceProperties', {
+              defaultValue: 'Invoice Properties',
+            })}
+            icon={SlidersHorizontal}
             iconPlugin="invoices"
             subtleTitle
             className="p-6"
-            action={
-              <Button type="button" onClick={addLineItem} variant="secondary" icon={Plus} size="sm">
-                {t('invoices.addItem', { defaultValue: 'Add Item' })}
-              </Button>
-            }
           >
-            {formData.lineItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t('invoices.noLineItems', { defaultValue: 'No line items added yet.' })}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {formData.lineItems.map((item, index) => (
-                  <div
-                    key={item.id || index}
+            <div>
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('invoices.propertyStatus', { defaultValue: 'Status' })}
+                </span>
+                <InvoiceStatusSelect
+                  invoice={{ status: formData.status }}
+                  onStatusChange={(nextStatus) => updateField('status', nextStatus)}
+                  hideInlineLabel
+                />
+              </div>
+
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('invoices.issueDate', { defaultValue: 'Issue Date' })}
+                </span>
+                <Input
+                  id="invoice-issue-date"
+                  type="date"
+                  value={fmtDateInput(formData.issueDate)}
+                  onChange={(e) => updateField('issueDate', parseDateInput(e.target.value))}
+                  className="h-9 w-full max-w-[180px] text-sm"
+                  required
+                />
+              </div>
+
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('invoices.paymentTerms', { defaultValue: 'Payment terms' })}
+                </span>
+                <NativeSelect
+                  id="invoice-payment-terms"
+                  value={formData.paymentTerms}
+                  onChange={(e) => updateField('paymentTerms', e.target.value)}
+                  className={propSelectClass}
+                >
+                  <option value="0">
+                    {t('invoices.paymentTermsImmediate', { defaultValue: 'Immediate' })}
+                  </option>
+                  <option value="15">
+                    {t('invoices.paymentTermsDays', {
+                      defaultValue: '{{count}} days',
+                      count: 15,
+                    })}
+                  </option>
+                  <option value="30">
+                    {t('invoices.paymentTermsDays', {
+                      defaultValue: '{{count}} days',
+                      count: 30,
+                    })}
+                  </option>
+                  <option value="60">
+                    {t('invoices.paymentTermsDays', {
+                      defaultValue: '{{count}} days',
+                      count: 60,
+                    })}
+                  </option>
+                  {!(PAYMENT_TERMS_OPTIONS as readonly string[]).includes(formData.paymentTerms) ? (
+                    <option value={formData.paymentTerms}>
+                      {t('invoices.paymentTermsDays', {
+                        defaultValue: '{{count}} days',
+                        count: Number(formData.paymentTerms) || 0,
+                      })}
+                    </option>
+                  ) : null}
+                </NativeSelect>
+              </div>
+
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('invoices.fieldDueDate', { defaultValue: 'Due Date' })}
+                </span>
+                <div
+                  className="flex max-w-[180px] flex-col items-end gap-0.5 text-right"
+                  title={t('invoices.dueDateFromPaymentTerms', {
+                    defaultValue: 'Calculated from issue date + payment terms',
+                  })}
+                >
+                  <span
                     className={cn(
-                      'rounded-lg border border-border p-3',
-                      duplicatedItemIds.has(String(item.id)) && 'bg-green-50 dark:bg-green-950/30',
+                      'text-sm font-medium',
+                      showDueUrgency && dueDisplay ? dueDisplay.className : 'text-foreground',
                     )}
                   >
-                    <div className="mb-2 flex items-center gap-3">
-                      <span className="w-12 flex-shrink-0 text-sm font-medium text-foreground">
-                        {t('invoices.itemN', {
-                          defaultValue: 'Item {{n}}',
-                          n: index + 1,
-                        })}
-                      </span>
-                      <Textarea
-                        value={item.description || ''}
-                        onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                        placeholder={t('invoices.lineDescriptionPlaceholder', {
-                          defaultValue: 'Service or product description',
-                        })}
-                        rows={1}
-                        className="h-auto min-h-[2.5rem] flex-1 resize-none text-sm"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => duplicateLineItem(index)}
-                        variant="secondary"
-                        icon={Copy}
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        title={t('common.duplicate')}
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => removeLineItem(index)}
-                        variant="danger"
-                        icon={Trash2}
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                      />
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                              {t('invoices.table.qty')}
-                            </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                              {t('invoices.table.unitPrice')}
-                            </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                              {t('invoices.table.discountPercent')}
-                            </th>
-                            <th className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                              {t('invoices.table.vatPercent')}
-                            </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                              {t('invoices.table.discount')}
-                            </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                              {t('invoices.table.vat')}
-                            </th>
-                            <th className="px-2 py-1 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                              {t('invoices.table.total')}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td className="px-2 py-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)
-                                }
-                                className="h-8 w-16 px-2 py-1 text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-                                required
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={item.unitPrice}
-                                onChange={(e) =>
-                                  updateLineItem(
-                                    index,
-                                    'unitPrice',
-                                    parseFloat(e.target.value) || 0,
-                                  )
-                                }
-                                className="h-8 w-20 px-2 py-1 text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-                                required
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={item.discount || 0}
-                                onChange={(e) =>
-                                  updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)
-                                }
-                                className="h-8 w-16 px-2 py-1 text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-                              />
-                            </td>
-                            <td className="px-2 py-1">
-                              <NativeSelect
-                                value={item.vatRate || 25}
-                                onChange={(e) =>
-                                  updateLineItem(index, 'vatRate', parseFloat(e.target.value) || 0)
-                                }
-                                className="h-8 w-20 text-sm"
-                              >
-                                <option value={0}>0%</option>
-                                <option value={6}>6%</option>
-                                <option value={12}>12%</option>
-                                <option value={25}>25%</option>
-                              </NativeSelect>
-                            </td>
-                            <td className="px-2 py-1 text-right text-sm text-foreground">
-                              {(item.discountAmount || 0).toFixed(2)}
-                            </td>
-                            <td className="px-2 py-1 text-right text-sm text-foreground">
-                              {(item.vatAmount || 0).toFixed(2)}
-                            </td>
-                            <td className="px-2 py-1 text-right text-sm font-medium text-foreground">
-                              {(item.lineTotal || 0).toFixed(2)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ))}
+                    {dueDisplay && showDueUrgency
+                      ? dueDisplay.text
+                      : formData.dueDate.toLocaleDateString()}
+                  </span>
+                  {dueDisplay && showDueUrgency ? (
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {formData.dueDate.toLocaleDateString()}
+                    </span>
+                  ) : null}
+                </div>
               </div>
-            )}
+
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('invoices.currency', { defaultValue: 'Currency' })}
+                </span>
+                <NativeSelect
+                  id="invoice-currency"
+                  value={formData.currency}
+                  onChange={(e) => updateField('currency', e.target.value)}
+                  className={propSelectClass}
+                >
+                  <option value="SEK">SEK</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                  <option value="NOK">NOK</option>
+                  <option value="DKK">DKK</option>
+                </NativeSelect>
+              </div>
+
+              <div className={DETAIL_PROP_ROW_CLASS}>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
+                </span>
+                <NativeSelect
+                  id="invoice-type"
+                  value={formData.invoiceType}
+                  onChange={(e) => updateField('invoiceType', e.target.value as any)}
+                  className={propSelectClass}
+                >
+                  <option value="invoice">
+                    {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
+                  </option>
+                  <option value="credit_note">
+                    {t('invoices.type.credit_note', { defaultValue: 'Credit note' })}
+                  </option>
+                  <option value="cash_invoice">
+                    {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
+                  </option>
+                  <option value="receipt">
+                    {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
+                  </option>
+                </NativeSelect>
+              </div>
+            </div>
           </DetailSection>
         </Card>
-
-        {formData.lineItems.length > 0 ? (
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })}
-              iconPlugin="invoices"
-              subtleTitle
-              className="p-6"
-            >
-              <div className="max-w-xs">
-                <Label htmlFor="invoice-discount" className={fieldLabelClass}>
-                  {t('invoices.discountPercent', { defaultValue: 'Discount %' })}
-                </Label>
-                <Input
-                  id="invoice-discount"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.invoiceDiscount}
-                  onChange={(e) => updateField('invoiceDiscount', parseFloat(e.target.value) || 0)}
-                  className={fieldInputClass}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('invoices.discountHelp', {
-                    defaultValue: 'Discount applied to subtotal after line item discounts',
-                  })}
-                </p>
-              </div>
-            </DetailSection>
-          </Card>
-        ) : null}
-
-        {formData.lineItems.length > 0 ? (
-          <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-            <DetailSection
-              title={t('invoices.pricingSummary')}
-              iconPlugin="invoices"
-              subtleTitle
-              className="p-6"
-            >
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {t('invoices.subtotal', { defaultValue: 'Subtotal' })}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {(totals.subtotal || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {t('invoices.lineDiscounts', { defaultValue: 'Line Discounts' })}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t border-border pt-2">
-                  <span className="text-muted-foreground">
-                    {t('invoices.subtotalAfterLineDiscounts', {
-                      defaultValue: 'Subtotal after line discounts',
-                    })}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-                {formData.invoiceDiscount > 0 ? (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })} (
-                        {formData.invoiceDiscount}%):
-                      </span>
-                      <span className="font-medium text-foreground">
-                        -{(totals.invoiceDiscountAmount || 0).toFixed(2)} {formData.currency}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t border-border pt-2">
-                      <span className="text-muted-foreground">
-                        {t('invoices.subtotalAfterInvoiceDiscount', {
-                          defaultValue: 'Subtotal after invoice discount',
-                        })}
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {(totals.subtotalAfterInvoiceDiscount || 0).toFixed(2)} {formData.currency}
-                      </span>
-                    </div>
-                  </>
-                ) : null}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {t('invoices.totalVat', { defaultValue: 'Total VAT' })}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {(totals.totalVat || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t border-border pt-2 text-lg font-semibold">
-                  <span className="text-foreground">
-                    {t('invoices.totalAmount', { defaultValue: 'Total' })}
-                  </span>
-                  <span className="text-foreground">
-                    {(totals.total || 0).toFixed(2)} {formData.currency}
-                  </span>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-        ) : null}
       </div>
     );
 
     return (
       <>
         <div className="plugin-invoices">
-          <DetailLayout leftSidebar={formLeftSidebar}>
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleSubmit();
-              }}
-            >
-              {hasBlockingErrors ? (
-                <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
-                    <div className="text-sm font-medium text-red-800 dark:text-red-400">
-                      {t('common.cannotSave', { defaultValue: 'Cannot save invoice' })}
-                    </div>
-                    <ul className="mt-2 list-inside list-disc text-sm text-red-700 dark:text-red-400">
-                      {validationErrors
-                        .filter((e) => !e.message.includes('Warning'))
-                        .map((e, i) => (
-                          <li key={e.field ?? `err-${i}`}>{e.message}</li>
-                        ))}
-                    </ul>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleSubmit();
+            }}
+          >
+            {formLeftSidebar}
+            {hasBlockingErrors ? (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
+                  <div className="text-sm font-medium text-red-800 dark:text-red-400">
+                    {t('common.cannotSave', { defaultValue: 'Cannot save invoice' })}
                   </div>
-                </Card>
-              ) : null}
+                  <ul className="mt-2 list-inside list-disc text-sm text-red-700 dark:text-red-400">
+                    {validationErrors
+                      .filter((e) => !e.message.includes('Warning'))
+                      .map((e, i) => (
+                        <li key={e.field ?? `err-${i}`}>{e.message}</li>
+                      ))}
+                  </ul>
+                </div>
+              </Card>
+            ) : null}
 
+            <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+              <DetailSection
+                title={t('invoices.lineItems')}
+                iconPlugin="invoices"
+                subtleTitle
+                className="p-6"
+              >
+                <InvoiceLineItemsEditor
+                  items={formData.lineItems}
+                  duplicatedItemIds={duplicatedItemIds}
+                  onAdd={addLineItem}
+                  onUpdate={updateLineItem}
+                  onDuplicate={duplicateLineItem}
+                  onRemove={removeLineItem}
+                  onMoveUp={(i) => moveLineItem(i, 'up')}
+                  onMoveDown={(i) => moveLineItem(i, 'down')}
+                />
+              </DetailSection>
+            </Card>
+
+            {formData.lineItems.length > 0 ? (
               <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
                 <DetailSection
-                  title={t('invoices.invoiceProperties', {
-                    defaultValue: 'Invoice Properties',
-                  })}
-                  icon={SlidersHorizontal}
+                  title={t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })}
                   iconPlugin="invoices"
                   subtleTitle
                   className="p-6"
                 >
-                  <div>
-                    <div className={DETAIL_PROP_ROW_CLASS}>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {t('invoices.propertyStatus', { defaultValue: 'Status' })}
-                      </span>
-                      <InvoiceStatusSelect
-                        invoice={{ status: formData.status }}
-                        onStatusChange={(nextStatus) => updateField('status', nextStatus)}
-                        hideInlineLabel
-                      />
-                    </div>
+                  <div className="max-w-xs">
+                    <Label htmlFor="invoice-discount" className={fieldLabelClass}>
+                      {t('invoices.discountPercent', { defaultValue: 'Discount %' })}
+                    </Label>
+                    <Input
+                      id="invoice-discount"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={formData.invoiceDiscount}
+                      onChange={(e) =>
+                        updateField('invoiceDiscount', parseFloat(e.target.value) || 0)
+                      }
+                      className={fieldInputClass}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t('invoices.discountHelp', {
+                        defaultValue: 'Discount applied to subtotal after line item discounts',
+                      })}
+                    </p>
+                  </div>
+                </DetailSection>
+              </Card>
+            ) : null}
 
-                    <div className={DETAIL_PROP_ROW_CLASS}>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {t('invoices.issueDate', { defaultValue: 'Issue Date' })}
+            {formData.lineItems.length > 0 ? (
+              <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
+                <DetailSection
+                  title={t('invoices.pricingSummary')}
+                  iconPlugin="invoices"
+                  subtleTitle
+                  className="p-6"
+                >
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {t('invoices.subtotal', { defaultValue: 'Subtotal' })}
                       </span>
-                      <Input
-                        id="invoice-issue-date"
-                        type="date"
-                        value={fmtDateInput(formData.issueDate)}
-                        onChange={(e) => updateField('issueDate', parseDateInput(e.target.value))}
-                        className="h-9 w-full max-w-[180px] text-sm"
-                        required
-                      />
+                      <span className="font-medium tabular-nums text-foreground">
+                        {(totals.subtotal || 0).toFixed(2)} {formData.currency}
+                      </span>
                     </div>
-
-                    <div className={DETAIL_PROP_ROW_CLASS}>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {t('invoices.paymentTerms', { defaultValue: 'Payment terms' })}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {t('invoices.lineDiscounts', { defaultValue: 'Line Discounts' })}
                       </span>
-                      <NativeSelect
-                        id="invoice-payment-terms"
-                        value={formData.paymentTerms}
-                        onChange={(e) => updateField('paymentTerms', e.target.value)}
-                        className={propSelectClass}
-                      >
-                        <option value="0">
-                          {t('invoices.paymentTermsImmediate', { defaultValue: 'Immediate' })}
-                        </option>
-                        <option value="15">
-                          {t('invoices.paymentTermsDays', {
-                            defaultValue: '{{count}} days',
-                            count: 15,
-                          })}
-                        </option>
-                        <option value="30">
-                          {t('invoices.paymentTermsDays', {
-                            defaultValue: '{{count}} days',
-                            count: 30,
-                          })}
-                        </option>
-                        <option value="60">
-                          {t('invoices.paymentTermsDays', {
-                            defaultValue: '{{count}} days',
-                            count: 60,
-                          })}
-                        </option>
-                        {!(PAYMENT_TERMS_OPTIONS as readonly string[]).includes(
-                          formData.paymentTerms,
-                        ) ? (
-                          <option value={formData.paymentTerms}>
-                            {t('invoices.paymentTermsDays', {
-                              defaultValue: '{{count}} days',
-                              count: Number(formData.paymentTerms) || 0,
-                            })}
-                          </option>
-                        ) : null}
-                      </NativeSelect>
+                      <span className="font-medium tabular-nums text-foreground">
+                        -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
+                      </span>
                     </div>
-
-                    <div className={DETAIL_PROP_ROW_CLASS}>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {t('invoices.fieldDueDate', { defaultValue: 'Due Date' })}
-                      </span>
-                      <div
-                        className="flex max-w-[180px] flex-col items-end gap-0.5 text-right"
-                        title={t('invoices.dueDateFromPaymentTerms', {
-                          defaultValue: 'Calculated from issue date + payment terms',
+                    <div className="flex justify-between border-t border-border pt-2">
+                      <span className="text-muted-foreground">
+                        {t('invoices.subtotalAfterLineDiscounts', {
+                          defaultValue: 'Subtotal after line discounts',
                         })}
-                      >
-                        <span
-                          className={cn(
-                            'text-sm font-medium',
-                            showDueUrgency && dueDisplay ? dueDisplay.className : 'text-foreground',
-                          )}
-                        >
-                          {dueDisplay && showDueUrgency
-                            ? dueDisplay.text
-                            : formData.dueDate.toLocaleDateString()}
-                        </span>
-                        {dueDisplay && showDueUrgency ? (
-                          <span className="text-xs tabular-nums text-muted-foreground">
-                            {formData.dueDate.toLocaleDateString()}
+                      </span>
+                      <span className="font-medium tabular-nums text-foreground">
+                        {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
+                      </span>
+                    </div>
+                    {formData.invoiceDiscount > 0 ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            {t('invoices.invoiceDiscount', { defaultValue: 'Invoice Discount' })} (
+                            {formData.invoiceDiscount}%):
                           </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className={DETAIL_PROP_ROW_CLASS}>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {t('invoices.currency', { defaultValue: 'Currency' })}
+                          <span className="font-medium tabular-nums text-foreground">
+                            -{(totals.invoiceDiscountAmount || 0).toFixed(2)} {formData.currency}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t border-border pt-2">
+                          <span className="text-muted-foreground">
+                            {t('invoices.subtotalAfterInvoiceDiscount', {
+                              defaultValue: 'Subtotal after invoice discount',
+                            })}
+                          </span>
+                          <span className="font-medium tabular-nums text-foreground">
+                            {(totals.subtotalAfterInvoiceDiscount || 0).toFixed(2)}{' '}
+                            {formData.currency}
+                          </span>
+                        </div>
+                      </>
+                    ) : null}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {t('invoices.totalVat', { defaultValue: 'Total VAT' })}
                       </span>
-                      <NativeSelect
-                        id="invoice-currency"
-                        value={formData.currency}
-                        onChange={(e) => updateField('currency', e.target.value)}
-                        className={propSelectClass}
-                      >
-                        <option value="SEK">SEK</option>
-                        <option value="EUR">EUR</option>
-                        <option value="USD">USD</option>
-                        <option value="NOK">NOK</option>
-                        <option value="DKK">DKK</option>
-                      </NativeSelect>
-                    </div>
-
-                    <div className={DETAIL_PROP_ROW_CLASS}>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {t('invoices.invoiceType', { defaultValue: 'Invoice type' })}
+                      <span className="font-medium tabular-nums text-foreground">
+                        {(totals.totalVat || 0).toFixed(2)} {formData.currency}
                       </span>
-                      <NativeSelect
-                        id="invoice-type"
-                        value={formData.invoiceType}
-                        onChange={(e) => updateField('invoiceType', e.target.value as any)}
-                        className={propSelectClass}
-                      >
-                        <option value="invoice">
-                          {t('invoices.type.invoice', { defaultValue: 'Invoice' })}
-                        </option>
-                        <option value="credit_note">
-                          {t('invoices.type.credit_note', { defaultValue: 'Credit note' })}
-                        </option>
-                        <option value="cash_invoice">
-                          {t('invoices.type.cash_invoice', { defaultValue: 'Cash invoice' })}
-                        </option>
-                        <option value="receipt">
-                          {t('invoices.type.receipt', { defaultValue: 'Receipt' })}
-                        </option>
-                      </NativeSelect>
+                    </div>
+                    <div className="flex justify-between border-t border-border pt-2 text-lg font-semibold">
+                      <span className="text-foreground">
+                        {t('invoices.totalAmount', { defaultValue: 'Total' })}
+                      </span>
+                      <span className="tabular-nums text-foreground">
+                        {(totals.total || 0).toFixed(2)} {formData.currency}
+                      </span>
                     </div>
                   </div>
                 </DetailSection>
               </Card>
-
-              {formActions}
-            </form>
-          </DetailLayout>
+            ) : null}
+          </form>
         </div>
+
+        <InvoicePreviewDialog
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          formData={formData}
+          invoiceId={currentInvoice?.id}
+          invoiceNumber={currentInvoice?.invoiceNumber}
+        />
 
         <ConfirmDialog
           isOpen={showWarning}

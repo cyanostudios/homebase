@@ -2,7 +2,7 @@
  * Detail panel header actions (view: nav + update/edit + close; edit/create: close + save).
  * Extracted from App.tsx — behavior must stay identical. See docs/CORE_ARCHITECTURE_V2.md.
  */
-import { Check, Edit, X } from 'lucide-react';
+import { Check, Edit, Eye, X } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ export type PanelHeaderHandlers = {
   handleEditItem: () => void;
   handleCancelClick: () => void;
   handleSaveClick: () => void;
+  handlePreviewClick?: () => void;
 };
 
 export type DetailPanelHeaderRightParams = {
@@ -39,6 +40,8 @@ export function renderDetailPanelHeaderRight({
     (e: any) => !String(e?.message || '').includes('Warning'),
   );
   const pluginName = currentPlugin?.name;
+  const showInvoicePreview =
+    pluginName === 'invoices' && typeof handlers.handlePreviewClick === 'function';
   const hasViewQuickUpdate =
     currentMode === 'view' &&
     ((Boolean(
@@ -126,6 +129,18 @@ export function renderDetailPanelHeaderRight({
   if (currentMode === 'edit') {
     return (
       <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
+        {showInvoicePreview ? (
+          <Button
+            type="button"
+            onClick={handlers.handlePreviewClick}
+            variant="secondary"
+            size="sm"
+            icon={Eye}
+            className="h-9 flex-1 px-3 text-xs sm:flex-initial"
+          >
+            {t('common.preview')}
+          </Button>
+        ) : null}
         <Button
           type="button"
           onClick={handlers.handleCancelClick}
@@ -154,6 +169,18 @@ export function renderDetailPanelHeaderRight({
   if (currentMode === 'create') {
     return (
       <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
+        {showInvoicePreview ? (
+          <Button
+            type="button"
+            onClick={handlers.handlePreviewClick}
+            variant="secondary"
+            size="sm"
+            icon={Eye}
+            className="h-9 flex-1 px-3 text-xs sm:flex-initial"
+          >
+            {t('common.preview')}
+          </Button>
+        ) : null}
         <Button
           type="button"
           onClick={handlers.handleCancelClick}

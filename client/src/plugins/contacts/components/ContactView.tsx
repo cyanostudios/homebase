@@ -388,6 +388,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
   return (
     <>
       <DetailLayout
+        gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
         leftSidebar={
           <div className="space-y-4">
             <ContactQuickContextPanel

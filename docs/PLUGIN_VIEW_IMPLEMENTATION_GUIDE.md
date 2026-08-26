@@ -273,6 +273,10 @@ Full view renders inside core `DetailPanel` (wired by `AppContent` + `pluginRegi
 
 Desktop columns share the same top edge (`items-start`); sticky preview belongs on the **list** quick-context aside, not on `DetailLayout` columns. On phone, column 3 (`sidebar` / `rightSidebar`) stacks last via `order-*`.
 
+**App right rail:** On desktop (`lg+`), when `AppRightSidebar` is **open**, `DetailLayout` portals the `sidebar` prop into that rail (plugin Views/Forms keep passing `sidebar` unchanged). When the rail is **closed**, or on phone/pad, `sidebar` stays inline in the detail grid. Do not special-case plugins for the rail. Helpers: `client/src/core/ui/detailLayoutPortal.ts`.
+
+**Limits (verified):** widgets are desktop-rail-only (unavailable on phone/pad); Settings category shortcuts call `openSettingsPanel` and close other panels; Form sidebars portal the same way as View sidebars when the rail is open.
+
 Do **not** put primary content properties only in the right sidebar — see §6 in `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`.
 
 ### Cards and sections

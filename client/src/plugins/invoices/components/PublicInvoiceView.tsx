@@ -109,7 +109,7 @@ export function PublicInvoiceView({ token }: PublicInvoiceViewProps) {
         srcDoc={webHTML}
         className="w-full h-full border-none"
         title={`Faktura ${invoice.invoiceNumber || invoice.id}`}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox=""
       />
     </div>
   );

@@ -4,10 +4,18 @@ Swedish invoicing with Facio-style PDF/public documents.
 
 ## Document layout (PDF + share link)
 
-- **Issuer** (rendered on document): name, address, email / invoice email, org-nr, VAT-nr, Bankgiro, F-tax approval, late-payment interest %. Source: Settings → Account (`GET /api/organization` / `tenants.organization` JSONB).
-- **Customer** from linked Contact: name + organization number.
-- **Reference** = invoice number (no OCR).
-- **Language** of the document: Swedish labels (momsterminologi, Bankgiro, F-skatt).
+Facio-inspired Swedish invoice layout (matches uploaded reference):
+
+- **Header:** issuer (left) · “Faktura” + label/value rows (förfallo, summa, referens, Bankgiro) and customer address (right).
+- **Meta strip** between light-blue rules: fakturanummer, fakturadatum, kund, betalningsvillkor, referens, dröjsmålsränta.
+- **Line items** then totals (ex moms / moms / summa att betala).
+- **Footer:** issuer contact + Org-nr / VAT-nr / Bankgiro / F-skatt.
+
+- **Issuer** from Settings → Account (`GET /api/organization`): **logo** (`logoUrl`) + **name**, address, email, org-nr, VAT, Bankgiro, F-tax, interest.
+- **Referens** (meta strip + issuer person line) = account user display name derived from the session / share-owner email local-part (users have no separate name column).
+- **Ange referens** (payment summary) = invoice number.
+- **Customer** from linked Contact (name, org-nr, preferred address when available).
+- **Language:** Swedish labels.
 
 Routes:
 
@@ -21,7 +29,7 @@ Authenticated share management: `POST /api/invoices/shares` (CSRF), `GET /api/in
 
 ### Public JSON payload (current behavior)
 
-`GET /api/invoices/public/:token` returns the invoice transform (after stripping `shareOwnerUserId`) plus the **full** organization object when resolvable. The public **document UI** only displays issuer fields listed above (name, address, email, org-nr, VAT-nr, Bankgiro, F-tax, interest); it does not render IBAN/BIC/Swish/phone even if present in JSON.
+`GET /api/invoices/public/:token` returns the invoice transform (after stripping `shareOwnerUserId`) plus the **full** organization object when resolvable (logo embedded as data URI when possible), `customer`, and `referencePerson` (share-owner display name). The public **document UI** only displays issuer fields listed above (logo, name, address, email, org-nr, VAT-nr, Bankgiro, F-tax, interest, reference person); it does not render IBAN/BIC/Swish/phone even if present in JSON.
 
 **Security note (2026-08-25 review):** A narrower public DTO (whitelist document fields + limited org) is recommended as a follow-up; not required for current ship. Same iframe sandbox pattern as Estimates (`allow-scripts allow-same-origin` + CDN Tailwind).
 

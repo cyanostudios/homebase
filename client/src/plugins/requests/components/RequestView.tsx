@@ -540,6 +540,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
   return (
     <>
       <DetailLayout
+        gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
         leftSidebar={contentColumn}
         sidebar={
           <div className="space-y-6">

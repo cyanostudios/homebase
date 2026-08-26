@@ -3,6 +3,7 @@
 const puppeteer = require('puppeteer');
 const { setPdfHtmlContent } = require('../../server/core/utils/puppeteerPdf');
 const { generatePDFHTML } = require('./pdfTemplate');
+const { displayNameFromEmail, resolveLogoDataUrl } = require('./documentAssets');
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
@@ -12,6 +13,25 @@ function stripInternalShareFields(invoice) {
   }
   const { shareOwnerUserId, ...rest } = invoice;
   return rest;
+}
+
+function pickContactAddress(addresses) {
+  if (!Array.isArray(addresses) || addresses.length === 0) {
+    return null;
+  }
+  const preferred =
+    addresses.find((a) => /billing|faktura|invoice/i.test(String(a?.type || ''))) ||
+    addresses.find((a) => /main|huvud|office/i.test(String(a?.type || ''))) ||
+    addresses[0];
+  if (!preferred || typeof preferred !== 'object') {
+    return null;
+  }
+  return {
+    line1: preferred.addressLine1 || preferred.line1 || '',
+    line2: preferred.addressLine2 || preferred.line2 || '',
+    postalCode: preferred.postalCode || '',
+    city: preferred.city || '',
+  };
 }
 
 class InvoiceController {
@@ -50,6 +70,87 @@ class InvoiceController {
     } catch (error) {
       Logger.warn('Failed to load organization for invoice', { message: error?.message });
       return null;
+    }
+  }
+
+  /**
+   * Account user label for document "Referens" / issuer person line (users have email only).
+   * @param {number|string|null|undefined} userId
+   * @returns {Promise<string>}
+   */
+  async loadReferencePerson(userId) {
+    if (userId == null || userId === '') {
+      return '';
+    }
+    try {
+      const UserService = require('../../server/core/services/user/UserService');
+      const user = await new UserService().findById(userId);
+      return displayNameFromEmail(user?.email) || '';
+    } catch (error) {
+      Logger.warn('Failed to load reference person for invoice', { message: error?.message });
+      return '';
+    }
+  }
+
+  /**
+   * Organization with logo embedded as data URI (PDF network block + iframe srcDoc).
+   */
+  async prepareOrganizationForDocument(organization) {
+    if (!organization || typeof organization !== 'object') {
+      return {};
+    }
+    const logoUrl = await resolveLogoDataUrl(organization.logoUrl);
+    return { ...organization, logoUrl };
+  }
+
+  /**
+   * Resolve customer block for Facio document (name + address from Contacts when linked).
+   */
+  async loadCustomerForInvoice(req, invoice) {
+    const base = {
+      name: invoice?.contactName || '',
+      organizationNumber: invoice?.organizationNumber || '',
+      line1: '',
+      line2: '',
+      postalCode: '',
+      city: '',
+    };
+
+    if (!invoice?.contactId) {
+      return base;
+    }
+
+    try {
+      const { Database } = require('@homebase/core');
+      const db = Database.get(req);
+      const rows = await db.query('SELECT * FROM contacts WHERE id = $1', [invoice.contactId]);
+      if (!rows?.length) {
+        return base;
+      }
+      const row = rows[0];
+      let addresses = row.addresses || [];
+      if (typeof addresses === 'string') {
+        try {
+          addresses = JSON.parse(addresses);
+        } catch {
+          addresses = [];
+        }
+      }
+      const addr = pickContactAddress(addresses) || {};
+      return {
+        name: row.company_name || base.name,
+        organizationNumber: row.organization_number || base.organizationNumber,
+        line1: addr.line1 || '',
+        line2: addr.line2 || '',
+        postalCode: addr.postalCode || '',
+        city: addr.city || '',
+      };
+    } catch (error) {
+      Logger.warn('Failed to load contact for invoice document', {
+        contactId: invoice.contactId,
+        message: error?.message,
+      });
+      return base;
     }
   }
 
@@ -192,7 +293,13 @@ class InvoiceController {
         return res.status(404).json({ error: 'Invoice not found' });
       }
 
-      const organization = await this.loadOrganization(req, Context.getUserId(req));
+      const userId = Context.getUserId(req);
+      const [organizationRaw, customer, referencePerson] = await Promise.all([
+        this.loadOrganization(req, userId),
+        this.loadCustomerForInvoice(req, invoice),
+        this.loadReferencePerson(userId),
+      ]);
+      const organization = await this.prepareOrganizationForDocument(organizationRaw);
 
       browser = await puppeteer.launch({
         headless: true,
@@ -200,7 +307,7 @@ class InvoiceController {
       });
       const page = await browser.newPage();
 
-      const html = generatePDFHTML(invoice, organization || {});
+      const html = generatePDFHTML(invoice, organization, customer, { referencePerson });
       await setPdfHtmlContent(page, html);
 
       const pdfBuffer = await page.pdf({
@@ -239,12 +346,19 @@ class InvoiceController {
       const invoice = await this.model.getInvoiceByShareToken(req, token);
       if (!invoice) return res.status(404).json({ error: 'Invoice not found or link expired' });
 
-      const organization = await this.loadOrganization(req, invoice.shareOwnerUserId);
+      const [organizationRaw, customer, referencePerson] = await Promise.all([
+        this.loadOrganization(req, invoice.shareOwnerUserId),
+        this.loadCustomerForInvoice(req, invoice),
+        this.loadReferencePerson(invoice.shareOwnerUserId),
+      ]);
+      const organization = await this.prepareOrganizationForDocument(organizationRaw);
       const publicInvoice = stripInternalShareFields(invoice);
 
       res.json({
         ...publicInvoice,
-        organization: organization || null,
+        organization: organization && Object.keys(organization).length ? organization : null,
+        customer,
+        referencePerson: referencePerson || null,
       });
     } catch (error) {
       Logger.error('Get public invoice failed', error, {

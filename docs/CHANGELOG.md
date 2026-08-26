@@ -4,6 +4,38 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-26 – App right sidebar (widgets, settings shortcuts, detail actions)
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** `client/src/core/ui/{AppRightSidebar,RightSidebarContext,DetailLayout,detailLayoutPortal,MainLayout,TopBar}.tsx`, i18n `rightSidebar.*`
+
+**Sammanfattning:** Collapsible höger rail på desktop (`lg+`, default stängd). Innehåller tidigare TopBar-widgets (Pomodoro, klocka, time-tracking), genvägar till Settings-kategorier, och portaler plugin-detailens tredje kolumn (Quick Actions / Information / Activity) när railen är öppen. Phone/pad: rail dold; tredje kolumnen förblir inline i `DetailLayout`. TopBar renderar inte längre widgets.
+
+**Beteende:** `DetailLayout` `sidebar`-prop API oförändrat. Portal endast när desktop + rail öppen + slot monterad (`detailLayoutPortal.ts` + React `createPortal` till ref-slot). Settings-genväg anropar `openSettingsPanel(categoryId)` (stänger övriga paneler via `onCloseOtherPanels`).
+
+**Begränsningar:**
+
+- Phone/pad har ingen åtkomst till Pomodoro/klocka/time-tracking (rail dold; planbeslut).
+- När rail är öppen portaler även **Form**-`sidebar` (samma `DetailLayout`-mekanism).
+- Settings-kategori-genväg stänger aktiv entity-detail.
+
+**Guide:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §0 shell / §0.2 / §3 App right sidebar, [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) §2, [`PLUGIN_RUNTIME_CONVENTIONS.md`](PLUGIN_RUNTIME_CONVENTIONS.md) DetailLayout grid
+
+---
+
+## 2026-08-26 – Invoices: issuer logo/name from Settings + Referens from account user
+
+**Status:** Implementerat lokalt. **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / invoices  
+**Scope:** `plugins/invoices/{pdfTemplate,controller,documentAssets}.js`, `client/.../webTemplate.ts`, `InvoicePreviewDialog.tsx`, `invoiceDocumentIdentity.ts`, `docs/INVOICES_PLUGIN.md`
+
+**Sammanfattning:** Fakturaunderlag visar företags**logo** + **namn** från Settings → Account. Meta **Referens** (och personrad under utställaren) hämtas från kontots användare (e-post → visningsnamn). Betalningsraden **Ange referens** förblir fakturanummer. Logo bäddas in som data-URI för PDF (nätverksblock) och iframe `srcDoc`.
+
+---
+
 ## 2026-08-25 – List footer spacing on mobile (empty state)
 
 **Status:** Implementerat lokalt. **Ej prod-release** utan explicit beslut.
@@ -35,7 +67,16 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
-## 2026-08-25 – Home dashboard widgets + Matches nearest-first + list Quick Context layout
+## 2026-08-26 – Invoices: Facio document layout closer to reference PDF
+
+**Status:** Implementerat lokalt. **Ej prod-release** utan explicit beslut.
+
+**Typ:** UX / PDF / public share  
+**Scope:** `pdfTemplate.js`, `webTemplate.ts`, `controller.js` (customer address), `PublicInvoiceView`, docs
+
+**Sammanfattning:** PDF och publik/faktura-förhandsvisning följer Facio-förlagan: tvåkolumns header (avsändare | Faktura + summa/bankgiro + kundadress), ljusblå skiljelinjer, meta-rad, svensk sifferformatering, footer. Kundadress hämtas från Contact när `contactId` finns.
+
+---
 
 **Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
 

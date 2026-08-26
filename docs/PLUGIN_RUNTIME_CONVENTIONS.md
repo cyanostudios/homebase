@@ -94,8 +94,9 @@ Default deep-link slug uses numeric `id`. Plugins whose primary key is not `id` 
 `DetailLayout` (`client/src/core/ui/DetailLayout.tsx`):
 
 - **No sidebar:** single column — main content uses full panel width (add/create forms).
-- **With sidebar:** `lg:grid-cols-[1fr_320px]` — main + information/quick actions.
+- **With sidebar:** `lg:grid-cols-[1fr_320px]` — main + information/quick actions (default; plugins may override via `gridClassName`).
 - **With `rightSidebar`:** three columns on lg.
+- **App right rail open (desktop):** when `AppRightSidebar` is open, the `sidebar` prop is portaled into the rail (`detailLayoutPortal.ts` + `createPortal`). Inline third column is omitted; phone/pad and closed rail keep inline layout. Plugin Views/Forms do not change their `sidebar` API.
 
 Use `mainClassName={PANEL_MAX_WIDTH}` (`max-w-[920px]`) on the main column when following the contacts/ingest form pattern.
 

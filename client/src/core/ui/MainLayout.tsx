@@ -4,12 +4,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useViewportTier } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
+import { AppRightSidebar } from './AppRightSidebar';
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
 import { ContentSurface, MAIN_CONTENT_SHELL_CLASS } from './ContentSurface';
 import { DetailPanel } from './DetailPanel';
 import { MobileActionsProvider, useMobileSearchBar } from './MobileActionsContext';
 import { MobileBottomBar } from './MobileBottomBar';
+import { RightSidebarProvider } from './RightSidebarContext';
 import { Sidebar } from './Sidebar';
 import type { NavPage } from '@/core/navigation/navTypes';
 import { TopBar } from './TopBar';
@@ -168,61 +170,69 @@ function MainLayoutShell(props: MainLayoutProps) {
         detailPanelPluginName={detailPanelOpen ? detailPanelPluginName : undefined}
       />
 
-      <main
-        className={cn(
-          'flex min-h-0 flex-1 overflow-hidden bg-workspace lg:pl-[252px]',
-          !isPhone && 'pr-4',
-        )}
-      >
-        {isPhone ? (
-          detailPanelOpen ? (
-            <ContentSurface flush className="flex min-h-0 w-full flex-1 flex-col">
-              <DetailPanel
-                isOpen={detailPanelOpen}
-                onClose={onDetailPanelClose}
-                title={detailPanelTitle}
-                subtitle={detailPanelSubtitle}
-                footer={detailPanelFooter}
-                headerRight={detailPanelHeaderRight}
-                showCloseButton={detailPanelShowCloseButton}
-                contentKey={detailPanelContentKey}
-                isMobile
-              >
-                <React.Fragment key={detailPanelContentKey ?? 'detail'}>
-                  {detailPanelContent}
-                </React.Fragment>
-              </DetailPanel>
-            </ContentSurface>
-          ) : (
-            listSurface
-          )
-        ) : isPad ? (
-          <div
-            className={cn(
-              'flex min-h-0 w-full flex-1',
-              detailPanelOpen ? 'flex-row gap-4' : undefined,
-            )}
-          >
+      <div className="flex min-h-0 flex-1 overflow-hidden lg:pl-[252px]">
+        <main
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 overflow-hidden bg-workspace',
+            !isPhone && 'pr-4',
+          )}
+        >
+          {isPhone ? (
+            detailPanelOpen ? (
+              <ContentSurface flush className="flex min-h-0 w-full flex-1 flex-col">
+                <DetailPanel
+                  isOpen={detailPanelOpen}
+                  onClose={onDetailPanelClose}
+                  title={detailPanelTitle}
+                  subtitle={detailPanelSubtitle}
+                  footer={detailPanelFooter}
+                  headerRight={detailPanelHeaderRight}
+                  showCloseButton={detailPanelShowCloseButton}
+                  contentKey={detailPanelContentKey}
+                  isMobile
+                >
+                  <React.Fragment key={detailPanelContentKey ?? 'detail'}>
+                    {detailPanelContent}
+                  </React.Fragment>
+                </DetailPanel>
+              </ContentSurface>
+            ) : (
+              listSurface
+            )
+          ) : isPad ? (
             <div
               className={cn(
-                'min-h-0 min-w-0',
-                detailPanelOpen ? 'w-[38%] min-w-[280px] max-w-[42%] flex-none' : 'w-full flex-1',
+                'flex min-h-0 w-full flex-1',
+                detailPanelOpen ? 'flex-row gap-4' : undefined,
               )}
             >
-              {listSurface}
-            </div>
-            {detailPanelOpen ? (
-              <div className="min-h-0 min-w-0 flex-1">
-                <ContentSurface flush>{detailInline}</ContentSurface>
+              <div
+                className={cn(
+                  'min-h-0 min-w-0',
+                  detailPanelOpen ? 'w-[38%] min-w-[280px] max-w-[42%] flex-none' : 'w-full flex-1',
+                )}
+              >
+                {listSurface}
               </div>
-            ) : null}
-          </div>
-        ) : (
-          <>
-            {detailPanelOpen ? <ContentSurface flush>{detailInline}</ContentSurface> : listSurface}
-          </>
-        )}
-      </main>
+              {detailPanelOpen ? (
+                <div className="min-h-0 min-w-0 flex-1">
+                  <ContentSurface flush>{detailInline}</ContentSurface>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              {detailPanelOpen ? (
+                <ContentSurface flush>{detailInline}</ContentSurface>
+              ) : (
+                listSurface
+              )}
+            </>
+          )}
+        </main>
+
+        <AppRightSidebar />
+      </div>
 
       <MobileBottomBar detailPanelOpen={detailPanelOpen} />
     </div>
@@ -231,8 +241,10 @@ function MainLayoutShell(props: MainLayoutProps) {
 
 export function MainLayout(props: MainLayoutProps) {
   return (
-    <MobileActionsProvider>
-      <MainLayoutShell {...props} />
-    </MobileActionsProvider>
+    <RightSidebarProvider>
+      <MobileActionsProvider>
+        <MainLayoutShell {...props} />
+      </MobileActionsProvider>
+    </RightSidebarProvider>
   );
 }

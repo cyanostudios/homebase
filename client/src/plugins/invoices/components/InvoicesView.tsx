@@ -250,6 +250,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
     <InvoiceShareProvider invoice={actualItem}>
       <div className="plugin-invoices">
         <DetailLayout
+          gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
           leftSidebar={
             <div className="space-y-4">
               <InvoiceQuickContextPanel

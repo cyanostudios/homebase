@@ -118,6 +118,7 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
   return (
     <>
       <DetailLayout
+        gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
         leftSidebar={
           <div className="space-y-4">
             <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>

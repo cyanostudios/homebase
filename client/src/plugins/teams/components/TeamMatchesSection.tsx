@@ -12,12 +12,19 @@ import {
 import { cn } from '@/lib/utils';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
 import { MatchQuickInfoDialog } from '@/plugins/matches/components/MatchQuickInfoDialog';
-import { formatMatchDateTime, formatMatchScore, type Match } from '@/plugins/matches/types/match';
+import { MatchStatusBadges } from '@/plugins/matches/components/MatchStatusBadges';
+import {
+  formatMatchDateTime,
+  formatMatchScore,
+  isMatchStarted,
+  type Match,
+} from '@/plugins/matches/types/match';
 import { MATCHES_SETTINGS_KEY } from '@/plugins/matches/utils/matchColumnCount';
 import { resolveMatchDefaultHomeTeam } from '@/plugins/matches/utils/matchDefaultHomeTeam';
 
 import {
   groupTeamMatchesBySide,
+  listPlayedMatchesByDate,
   listUpcomingMatchesByDate,
   type TeamMatchesViewMode,
 } from '../utils/teamMatchSide';
@@ -44,7 +51,7 @@ export function TeamMatchesSection({
   useTimeFormat();
   const [matches, setMatches] = useState<Match[]>([]);
   const [defaultHomeTeam, setDefaultHomeTeam] = useState('');
-  const [viewMode, setViewMode] = useState<TeamMatchesViewMode>('bySide');
+  const [viewMode, setViewMode] = useState<TeamMatchesViewMode>('byDate');
   const [isLoading, setIsLoading] = useState(true);
   const [viewingMatch, setViewingMatch] = useState<Match | null>(null);
 
@@ -99,6 +106,7 @@ export function TeamMatchesSection({
   );
 
   const matchesByDate = useMemo(() => listUpcomingMatchesByDate(matches), [matches]);
+  const playedMatchesByDate = useMemo(() => listPlayedMatchesByDate(matches), [matches]);
 
   const handleOpenMatchPreview = (match: Match) => {
     if (!onOpenMatch) return;
@@ -190,6 +198,11 @@ export function TeamMatchesSection({
           {match.location ? ` · ${match.location}` : ''}
           {match.competition_name ? ` · ${match.competition_name}` : ''}
         </p>
+        {match.is_canceled || match.is_postponed || match.is_finished || isMatchStarted(match) ? (
+          <div className="mt-1">
+            <MatchStatusBadges match={match} />
+          </div>
+        ) : null}
       </button>
       {onOpenMatch ? (
         <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
@@ -218,22 +231,32 @@ export function TeamMatchesSection({
           <button
             type="button"
             className={cn(
-              viewMode === 'bySide' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
-            )}
-            aria-pressed={viewMode === 'bySide'}
-            onClick={() => setViewMode('bySide')}
-          >
-            {t('teams.matchViewBySide')}
-          </button>
-          <button
-            type="button"
-            className={cn(
               viewMode === 'byDate' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
             )}
             aria-pressed={viewMode === 'byDate'}
             onClick={() => setViewMode('byDate')}
           >
             {t('teams.matchViewByDate')}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              viewMode === 'byPlayed' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+            aria-pressed={viewMode === 'byPlayed'}
+            onClick={() => setViewMode('byPlayed')}
+          >
+            {t('teams.matchViewByPlayed')}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              viewMode === 'bySide' ? LIST_FILTER_CHIP_ACTIVE_CLASS : LIST_FILTER_CHIP_CLASS,
+            )}
+            aria-pressed={viewMode === 'bySide'}
+            onClick={() => setViewMode('bySide')}
+          >
+            {t('teams.matchViewBySide')}
           </button>
         </div>
 
@@ -246,6 +269,17 @@ export function TeamMatchesSection({
               matchesByDate.map(renderMatchRow)
             ) : (
               <p className="text-sm text-muted-foreground">{t('teams.noUpcomingMatches')}</p>
+            )}
+          </div>
+        ) : viewMode === 'byPlayed' ? (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('teams.playedMatchesByDate')}
+            </p>
+            {playedMatchesByDate.length > 0 ? (
+              playedMatchesByDate.map(renderMatchRow)
+            ) : (
+              <p className="text-sm text-muted-foreground">{t('teams.noPlayedMatches')}</p>
             )}
           </div>
         ) : (

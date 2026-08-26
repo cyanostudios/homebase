@@ -1,8 +1,11 @@
 import {
   groupTeamMatchesBySide,
+  isPlayedOrPassedMatch,
+  isStillUpcomingMatch,
   isTeamAwayMatch,
   isTeamHomeMatch,
   isUpcomingMatch,
+  listPlayedMatchesByDate,
   listUpcomingMatchesByDate,
 } from '../teamMatchSide';
 
@@ -13,24 +16,40 @@ const homeUpcoming = {
   home_team: 'AIK P16',
   away_team: 'Other',
   start_time: '2026-08-12T15:00:00.000Z',
+  is_canceled: false,
+  is_finished: false,
 };
 const awayUpcoming = {
   id: '2',
   home_team: 'Other',
   away_team: 'AIK P16',
   start_time: '2026-08-11T15:00:00.000Z',
+  is_canceled: false,
+  is_finished: false,
 };
 const homePast = {
   id: '3',
   home_team: 'AIK P16',
   away_team: 'Other',
   start_time: '2026-08-01T15:00:00.000Z',
+  is_canceled: false,
+  is_finished: false,
 };
 const awayPast = {
   id: '4',
   home_team: 'Other',
   away_team: 'AIK P16',
   start_time: '2026-08-02T15:00:00.000Z',
+  is_canceled: false,
+  is_finished: false,
+};
+const canceledFuture = {
+  id: '7',
+  home_team: 'AIK P16',
+  away_team: 'Other',
+  start_time: '2026-08-20T15:00:00.000Z',
+  is_canceled: true,
+  is_finished: false,
 };
 
 describe('isUpcomingMatch', () => {
@@ -41,6 +60,21 @@ describe('isUpcomingMatch', () => {
 
   it('treats past as not upcoming', () => {
     expect(isUpcomingMatch({ start_time: '2026-08-09T11:59:59.000Z' }, NOW)).toBe(false);
+  });
+});
+
+describe('isPlayedOrPassedMatch / isStillUpcomingMatch', () => {
+  it('treats canceled and finished as played even when kickoff is future', () => {
+    expect(isPlayedOrPassedMatch(canceledFuture, NOW)).toBe(true);
+    expect(isStillUpcomingMatch(canceledFuture, NOW)).toBe(false);
+    expect(
+      isPlayedOrPassedMatch({ ...homeUpcoming, is_finished: true, is_canceled: false }, NOW),
+    ).toBe(true);
+  });
+
+  it('treats past kickoff as played and future open fixtures as upcoming', () => {
+    expect(isPlayedOrPassedMatch(homePast, NOW)).toBe(true);
+    expect(isStillUpcomingMatch(homeUpcoming, NOW)).toBe(true);
   });
 });
 
@@ -91,15 +125,38 @@ describe('groupTeamMatchesBySide', () => {
     expect(groups.upcomingHome.map((m) => m.id)).toEqual(['1', '5']);
     expect(groups.pastHome.map((m) => m.id)).toEqual(['3', '6']);
   });
+
+  it('puts canceled future matches in past buckets', () => {
+    const groups = groupTeamMatchesBySide([canceledFuture, homeUpcoming], 'AIK P16', NOW);
+    expect(groups.upcomingHome.map((m) => m.id)).toEqual(['1']);
+    expect(groups.pastHome.map((m) => m.id)).toEqual(['7']);
+  });
 });
 
 describe('listUpcomingMatchesByDate', () => {
   it('returns only upcoming matches sorted by start_time ascending', () => {
-    const listed = listUpcomingMatchesByDate([homePast, homeUpcoming, awayUpcoming, awayPast], NOW);
+    const listed = listUpcomingMatchesByDate(
+      [homePast, homeUpcoming, awayUpcoming, awayPast, canceledFuture],
+      NOW,
+    );
     expect(listed.map((m) => m.id)).toEqual(['2', '1']);
   });
 
   it('returns empty when no upcoming matches', () => {
-    expect(listUpcomingMatchesByDate([homePast, awayPast], NOW)).toEqual([]);
+    expect(listUpcomingMatchesByDate([homePast, awayPast, canceledFuture], NOW)).toEqual([]);
+  });
+});
+
+describe('listPlayedMatchesByDate', () => {
+  it('returns past and canceled matches sorted descending', () => {
+    const listed = listPlayedMatchesByDate(
+      [homePast, homeUpcoming, awayUpcoming, awayPast, canceledFuture],
+      NOW,
+    );
+    expect(listed.map((m) => m.id)).toEqual(['7', '4', '3']);
+  });
+
+  it('returns empty when nothing is played or passed', () => {
+    expect(listPlayedMatchesByDate([homeUpcoming, awayUpcoming], NOW)).toEqual([]);
   });
 });

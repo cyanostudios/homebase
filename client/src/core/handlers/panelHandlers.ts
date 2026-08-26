@@ -102,6 +102,19 @@ export const createPanelHandlers = (
     }
   };
 
+  const handlePreviewClick = () => {
+    if (!currentPlugin) {
+      return;
+    }
+    if (typeof formRef.current?.preview === 'function') {
+      formRef.current.preview();
+    } else if (isDev) {
+      console.warn(
+        `[panelHandlers] Header Preview: no preview handle registered for plugin "${currentPlugin.name}".`,
+      );
+    }
+  };
+
   const handleCancelClick = () => {
     if (!currentPlugin) {
       return;
@@ -199,6 +212,7 @@ export const createPanelHandlers = (
     handleSave,
     handleCancel,
     handleSaveClick,
+    handlePreviewClick,
     handleCancelClick,
     getCloseHandler,
     handleEstimateContactClick,
