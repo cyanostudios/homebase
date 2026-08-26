@@ -172,13 +172,13 @@ export const MailProviderView: React.FC<MailProviderViewProps> = ({ mail: mailPr
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('mail.colProvider', { defaultValue: 'Provider' })}
                     </span>
-                    <span className="font-semibold text-foreground">{title}</span>
+                    <span className="font-extrabold text-foreground">{title}</span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('mail.providerKey', { defaultValue: 'Key' })}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.providerKey}
                     </span>
                   </div>
@@ -186,7 +186,7 @@ export const MailProviderView: React.FC<MailProviderViewProps> = ({ mail: mailPr
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('mail.enabled', { defaultValue: 'Enabled' })}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {provider.enabled ? t('common.yes') : t('common.no')}
                     </span>
                   </div>
@@ -194,7 +194,7 @@ export const MailProviderView: React.FC<MailProviderViewProps> = ({ mail: mailPr
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('mail.capability', { defaultValue: 'Capability' })}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {provider.emailCapable
                         ? t('mail.emailCapable', { defaultValue: 'Email' })
                         : t('mail.notEmailCapable', { defaultValue: 'Not email capable' })}
@@ -204,7 +204,7 @@ export const MailProviderView: React.FC<MailProviderViewProps> = ({ mail: mailPr
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('mail.credentials', { defaultValue: 'Credentials' })}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {provider.configured
                         ? t('mail.keyConfigured', { defaultValue: 'Configured' })
                         : t('mail.keyMissing', { defaultValue: 'Missing' })}
@@ -214,7 +214,7 @@ export const MailProviderView: React.FC<MailProviderViewProps> = ({ mail: mailPr
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.createdAt ? new Date(provider.createdAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
@@ -222,7 +222,7 @@ export const MailProviderView: React.FC<MailProviderViewProps> = ({ mail: mailPr
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.updatedAt ? new Date(provider.updatedAt).toLocaleDateString() : '—'}
                     </span>
                   </div>

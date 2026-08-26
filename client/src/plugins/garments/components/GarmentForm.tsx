@@ -19,6 +19,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DETAIL_INFO_ROW_CLASS, DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_FORM_TITLE_INPUT_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useEnabledPlugins } from '@/hooks/useEnabledPlugins';
@@ -306,14 +307,14 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
           <div>
             <div className={DETAIL_INFO_ROW_CLASS}>
               <span className="text-slate-500 dark:text-slate-400">ID</span>
-              <span className="font-mono font-semibold text-foreground">
+              <span className="font-mono font-extrabold text-foreground">
                 {formatDisplayNumber('garments', sidebarItem.id)}
               </span>
             </div>
             {'createdAt' in sidebarItem && sidebarItem.createdAt ? (
               <div className={DETAIL_INFO_ROW_CLASS}>
                 <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
-                <span className="font-mono font-semibold text-foreground">
+                <span className="font-mono font-extrabold text-foreground">
                   {formatDate(sidebarItem.createdAt)}
                 </span>
               </div>
@@ -321,7 +322,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
             {'updatedAt' in sidebarItem && sidebarItem.updatedAt ? (
               <div className={DETAIL_INFO_ROW_CLASS}>
                 <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
-                <span className="font-mono font-semibold text-foreground">
+                <span className="font-mono font-extrabold text-foreground">
                   {formatDate(sidebarItem.updatedAt)}
                 </span>
               </div>
@@ -361,7 +362,7 @@ export const GarmentForm = React.forwardRef<PanelFormHandle, GarmentFormProps>(f
                 onChange={(e) => updateInventoryField('articleName', e.target.value)}
                 placeholder={t('garments.articleName')}
                 className={cn(
-                  'h-9 text-lg font-semibold tracking-tight',
+                  DETAIL_FORM_TITLE_INPUT_CLASS,
                   getFieldError('articleName') && 'border-destructive',
                 )}
               />

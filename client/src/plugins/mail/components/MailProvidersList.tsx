@@ -57,6 +57,7 @@ import {
 import { MailProvidersListItem } from './MailProvidersListItem';
 import { MailProvidersListTable } from './MailProvidersListTable';
 import { MailProvidersRouting } from './MailProvidersRouting';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 function providerTitle(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -216,9 +217,7 @@ export const MailProvidersList: React.FC = () => {
       <div className="space-y-3">
         <div className="hidden items-start justify-between gap-4 md:flex">
           <div className="min-w-0 space-y-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight">
-              {t('nav.mail', { defaultValue: 'Mail' })}
-            </h2>
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.mail', { defaultValue: 'Mail' })}</h2>
             <p className="text-sm text-muted-foreground">
               {t('mail.listDescription', {
                 defaultValue:

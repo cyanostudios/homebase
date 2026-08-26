@@ -26,7 +26,7 @@ export function StatChartShell({
   return (
     <div className={cn(CHART_SHELL, className)}>
       {title ? (
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        <p className="mb-3 text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">
           {title}
         </p>
       ) : null}
@@ -47,10 +47,8 @@ export function StatKpiTile({
 }) {
   return (
     <div className={cn(CHART_SHELL, className)}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-        {label}
-      </p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-foreground sm:text-3xl">
+      <p className="text-[10px] font-normal uppercase tracking-[0.08em] text-slate-400">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-foreground sm:text-3xl">
         {value}
       </p>
     </div>
@@ -70,7 +68,7 @@ export function StatKpiStrip({
       {items.map((item) => (
         <div key={item.key} className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-muted-foreground">{item.label}</span>
-          <span className="tabular-nums font-semibold text-foreground">{item.value}</span>
+          <span className="tabular-nums font-extrabold text-foreground">{item.value}</span>
         </div>
       ))}
     </div>
@@ -88,7 +86,7 @@ function StatBarLegend({ segments }: { segments: StatChartSegment[] }) {
             aria-hidden
           />
           <span className="truncate">
-            {segment.label} <span className="tabular-nums font-semibold">({segment.value})</span>
+            {segment.label} <span className="tabular-nums font-extrabold">({segment.value})</span>
           </span>
         </div>
       ))}

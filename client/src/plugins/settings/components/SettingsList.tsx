@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
 import { navPageToPath } from '@/core/routing/routeMap';
 import type { SettingsCategory as SettingsCategoryType } from '@/core/settings/types';
@@ -16,6 +16,7 @@ import { SettingsCategoryCard } from '@/core/ui/SettingsCategoryCard';
 import { useSettingsContext } from '../context/SettingsContext';
 
 import { SettingsForm } from './SettingsForm';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 const SETTINGS_RETURN_TO_KEY = 'homebase:settings-return-to';
 
@@ -130,34 +131,30 @@ export function SettingsList() {
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
           <div className="hidden min-w-0 space-y-1 md:block">
-            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.settings')}</h2>
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.settings')}</h2>
             <p className="text-sm text-muted-foreground">
               Manage preferences, account profile, team, and activity.
             </p>
           </div>
           <div className="hidden w-full flex-shrink-0 items-center justify-end gap-2 md:flex md:w-auto md:gap-1">
-            <Button
+            <RoundIconLabelButton
               type="button"
-              variant="secondary"
-              size="sm"
               icon={X}
-              className="h-9 px-3 text-xs"
+              label={t('common.close')}
+              variant="secondary"
+              alwaysExpanded
               onClick={handleClose}
-            >
-              {t('common.close')}
-            </Button>
+            />
             {showSave ? (
-              <Button
+              <RoundIconLabelButton
                 type="button"
                 onClick={() => submitSave()}
-                variant="primary"
-                size="sm"
                 icon={Check}
+                label={isSaving ? t('common.saving') : t('common.save')}
+                variant="success"
+                alwaysExpanded
                 disabled={isSaving}
-                className="h-9 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
-              >
-                {isSaving ? t('common.saving') : t('common.save')}
-              </Button>
+              />
             ) : null}
           </div>
         </div>

@@ -1,15 +1,18 @@
-import { Calendar, Edit, ExternalLink, Hash, ListOrdered, Receipt, Wallet, X } from 'lucide-react';
+import { Calendar, Hash, ListOrdered, Receipt, Wallet } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import {
+  QuickContextHeaderActions,
+  QuickContextOpenFullFooter,
+} from '@/core/ui/QuickContextHeaderActions';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
@@ -93,41 +96,13 @@ export function InvoiceQuickContextPanel({
               {formatInvoiceStatusForDisplay(status)}
             </Badge>
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            {!isFullView && onOpenFullProfile ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={ExternalLink}
-                className="h-8 w-8 p-0"
-                onClick={onOpenFullProfile}
-                aria-label={t('invoices.quickContext.openFull')}
-                title={t('invoices.quickContext.openFull')}
-              />
-            ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={Edit}
-              className="hidden h-8 w-8 p-0 md:inline-flex"
-              onClick={onEdit}
-              aria-label={t('common.edit')}
-              title={t('common.edit')}
-            />
-            {!isFullView && onClose ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={X}
-                className="h-8 w-8 p-0"
-                onClick={onClose}
-                aria-label={t('common.close')}
-              />
-            ) : null}
-          </div>
+          <QuickContextHeaderActions
+            onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+            onEdit={onEdit}
+            onClose={!isFullView && onClose ? onClose : undefined}
+            editLabel={t('common.edit')}
+            closeLabel={t('common.close')}
+          />
         </div>
       </div>
     </div>
@@ -237,18 +212,7 @@ export function InvoiceQuickContextPanel({
       </div>
 
       {!isFullView && onOpenFullProfile ? (
-        <div className="border-t border-border/50 px-4 py-3">
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            className="h-9 w-full text-xs"
-            icon={ExternalLink}
-            onClick={onOpenFullProfile}
-          >
-            {t('invoices.quickContext.openFull')}
-          </Button>
-        </div>
+        <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />
       ) : null}
     </Card>
   );

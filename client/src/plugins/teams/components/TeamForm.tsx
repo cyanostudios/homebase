@@ -380,7 +380,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('teams', item.id)}
                     </span>
                   </div>
@@ -793,7 +793,7 @@ export const TeamForm = React.forwardRef<PanelFormHandle, TeamFormProps>(functio
                             <span className="truncate text-sm font-medium">{name}</span>
                             <span
                               className={cn(
-                                'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold',
                                 RESPONSIBLE_ROLE_BADGES[
                                   roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES
                                 ],

@@ -4,15 +4,13 @@ import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { AlertDialogRoundAction, AlertDialogRoundCancel } from '@/core/ui/DialogRoundButtons';
 import { cn } from '@/lib/utils';
 
 import {
@@ -70,7 +68,7 @@ export function RequestQuickInfoDialog({
               <div className="flex flex-wrap items-center gap-1.5">
                 <span
                   className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                    'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold',
                     REQUEST_STATUS_COLORS[request.status],
                   )}
                 >
@@ -78,13 +76,13 @@ export function RequestQuickInfoDialog({
                 </span>
                 <span
                   className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                    'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold',
                     REQUEST_PRIORITY_COLORS[request.priority],
                   )}
                 >
                   {request.priority}
                 </span>
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   {getTypeLabel(request.requestType, t)}
                 </span>
               </div>
@@ -133,16 +131,12 @@ export function RequestQuickInfoDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <AlertDialogCancel asChild>
-            <Button variant="secondary" onClick={onClose}>
-              {t('common.close')}
-            </Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button variant="default" icon={ExternalLink} onClick={onOpenRequest}>
-              {t('requests.openRequest')}
-            </Button>
-          </AlertDialogAction>
+          <AlertDialogRoundCancel close onClick={onClose} />
+          <AlertDialogRoundAction
+            icon={ExternalLink}
+            label={t('requests.openRequest')}
+            onClick={onOpenRequest}
+          />
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

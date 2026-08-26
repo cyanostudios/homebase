@@ -173,13 +173,13 @@ export const PulseProviderView: React.FC<PulseProviderViewProps> = ({ pulse: pul
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('pulses.colProvider', { defaultValue: 'Provider' })}
                     </span>
-                    <span className="font-semibold text-foreground">{title}</span>
+                    <span className="font-extrabold text-foreground">{title}</span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('pulses.providerKey', { defaultValue: 'Key' })}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.providerKey}
                     </span>
                   </div>
@@ -187,7 +187,7 @@ export const PulseProviderView: React.FC<PulseProviderViewProps> = ({ pulse: pul
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('pulses.enabled')}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {provider.enabled ? t('common.yes') : t('common.no')}
                     </span>
                   </div>
@@ -195,7 +195,7 @@ export const PulseProviderView: React.FC<PulseProviderViewProps> = ({ pulse: pul
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('pulses.capability', { defaultValue: 'Capability' })}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {provider.smsNotificationCapable
                         ? t('pulses.smsCapable', { defaultValue: 'SMS' })
                         : t('pulses.verifyOnly', { defaultValue: 'Verify only' })}
@@ -205,7 +205,7 @@ export const PulseProviderView: React.FC<PulseProviderViewProps> = ({ pulse: pul
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('pulses.credentials')}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {provider.configured
                         ? t('pulses.keyConfigured', { defaultValue: 'Configured' })
                         : t('pulses.keyMissing', { defaultValue: 'Missing' })}
@@ -215,7 +215,7 @@ export const PulseProviderView: React.FC<PulseProviderViewProps> = ({ pulse: pul
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.createdAt ? new Date(provider.createdAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
@@ -223,7 +223,7 @@ export const PulseProviderView: React.FC<PulseProviderViewProps> = ({ pulse: pul
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.updatedAt ? new Date(provider.updatedAt).toLocaleDateString() : '—'}
                     </span>
                   </div>

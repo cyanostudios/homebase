@@ -52,7 +52,7 @@ export function ListFilterStatCard({
       <div className="flex items-center justify-between gap-3 md:gap-5">
         <div
           className={cn(
-            'flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors group-hover:text-primary md:gap-2 md:text-xs',
+            'flex min-w-0 items-center gap-1.5 text-[10px] font-normal uppercase tracking-[0.08em] transition-colors group-hover:text-primary md:gap-2 md:text-xs',
             active ? 'text-primary' : 'text-slate-400 dark:text-slate-500',
           )}
         >
@@ -64,7 +64,7 @@ export function ListFilterStatCard({
         </div>
         <div
           className={cn(
-            'shrink-0 text-lg font-semibold leading-none tracking-tight tabular-nums transition-colors group-hover:text-primary md:text-3xl',
+            'shrink-0 text-lg font-extrabold leading-none tracking-tight tabular-nums transition-colors group-hover:text-primary md:text-3xl',
             active ? 'text-primary' : 'text-foreground',
           )}
         >

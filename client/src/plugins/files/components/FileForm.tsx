@@ -232,7 +232,7 @@ export const FileForm = React.forwardRef<PanelFormHandle, FileFormProps>(functio
           <div>
             <div className={DETAIL_INFO_ROW_CLASS}>
               <span className="text-slate-500 dark:text-slate-400">{t('files.viewId')}</span>
-              <span className="font-mono font-semibold text-foreground">
+              <span className="font-mono font-extrabold text-foreground">
                 {currentItem?.id != null ? formatDisplayNumber('files', currentItem.id) : '—'}
               </span>
             </div>

@@ -1,18 +1,15 @@
 import { ExternalLink } from 'lucide-react';
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { AlertDialogRoundAction, AlertDialogRoundCancel } from '@/core/ui/DialogRoundButtons';
 
 export type AssignmentQuickInfoDetail = {
   icon: React.ComponentType<{ className?: string }>;
@@ -40,8 +37,6 @@ export function AssignmentQuickInfoDialog({
   onOpen: () => void;
   onClose: () => void;
 }) {
-  const { t } = useTranslation();
-
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
@@ -78,16 +73,8 @@ export function AssignmentQuickInfoDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <AlertDialogCancel asChild>
-            <Button variant="secondary" onClick={onClose}>
-              {t('common.close')}
-            </Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button variant="default" icon={ExternalLink} onClick={onOpen}>
-              {openLabel}
-            </Button>
-          </AlertDialogAction>
+          <AlertDialogRoundCancel close onClick={onClose} />
+          <AlertDialogRoundAction icon={ExternalLink} label={openLabel} onClick={onOpen} />
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -33,7 +33,10 @@ export function DashboardTasksWidget({ has, tasks }: DashboardDataProps) {
               <div className="flex min-w-0 items-center gap-2">
                 <Badge
                   variant="outline"
-                  className={cn('h-5 shrink-0 px-1.5 text-[10px]', TASK_STATUS_COLORS[task.status])}
+                  className={cn(
+                    'h-5 shrink-0 px-1.5 text-[10px] font-extrabold',
+                    TASK_STATUS_COLORS[task.status],
+                  )}
                 >
                   {formatStatusForDisplay(task.status)}
                 </Badge>

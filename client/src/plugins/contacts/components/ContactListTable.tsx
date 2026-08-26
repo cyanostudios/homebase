@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { CHECKBOX_CLASS, CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
@@ -19,7 +20,7 @@ import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
 import type { ContactSortField, ContactSortOrder } from '../utils/contactListSort';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 const SORTABLE_COLUMNS: {
   field: ContactSortField;
@@ -44,7 +45,7 @@ export type ContactListTableProps = {
   onCheckboxChange: (id: string) => void;
   allVisibleSelected: boolean;
   onHeaderCheckboxChange: () => void;
-  /** When false, the selection checkbox column is hidden (e.g. quick context open). */
+  /** When false, the selection checkbox column is hidden until bulk select mode is active. */
   selectionEnabled?: boolean;
   activeTimeTrackingContactId: string | null;
   contactIdsWithTimeEntries: ReadonlySet<string | number>;
@@ -87,17 +88,17 @@ export function ContactListTable({
       <Table rowBorders={false}>
         <TableHeader className="bg-slate-50/90 dark:bg-slate-900/50">
           <TableRow>
-            {selectionOn ? (
-              <TableHead className="w-8 px-3 pr-1">
+            <TableHead className="w-8 px-3 pr-1">
+              {selectionOn ? (
                 <input
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={onHeaderCheckboxChange}
-                  className="h-4 w-4 cursor-pointer align-middle"
+                  className={cn(CHECKBOX_CLASS, CHECKBOX_SM_CLASS)}
                   aria-label={t('contacts.selectAllVisible')}
                 />
-              </TableHead>
-            ) : null}
+              ) : null}
+            </TableHead>
             {SORTABLE_COLUMNS.map((col) => (
               <TableHead
                 key={col.field}
@@ -152,22 +153,22 @@ export function ContactListTable({
                 role="button"
                 aria-label={t('contacts.openContact', { name: contact.companyName })}
               >
-                {selectionOn ? (
-                  <TableCell className="w-8 px-3 py-4 pr-1" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="w-8 px-3 py-4 pr-1" onClick={(e) => e.stopPropagation()}>
+                  {selectionOn ? (
                     <input
                       type="checkbox"
                       checked={selected}
                       onMouseDown={(e) => onCheckboxMouseDown(e, index)}
                       onChange={() => onCheckboxChange(String(contact.id))}
                       onClick={(e) => e.stopPropagation()}
-                      className="relative -top-[2px] h-4 w-4 cursor-pointer align-middle"
+                      className={cn(CHECKBOX_CLASS, CHECKBOX_SM_CLASS, 'relative -top-[2px]')}
                       aria-label={
                         selected ? t('contacts.unselectContact') : t('contacts.selectContact')
                       }
                     />
-                  </TableCell>
-                ) : null}
-                <TableCell className={selectionOn ? 'pl-2' : undefined}>
+                  ) : null}
+                </TableCell>
+                <TableCell className="pl-2">
                   <span className="font-medium leading-4 text-foreground">
                     {contact.companyName}
                   </span>
@@ -235,7 +236,7 @@ export function ContactListTable({
                   ) : hasTimeLogged ? (
                     <Badge
                       variant="outline"
-                      className="inline-flex h-5 items-center gap-1 border-amber-200/60 bg-amber-50/60 px-1.5 text-[10px] font-medium text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300"
+                      className="inline-flex h-5 items-center gap-1 border-amber-200/60 bg-amber-50/60 px-1.5 text-[10px] font-extrabold text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300"
                     >
                       <Timer className="h-2.5 w-2.5" aria-hidden />
                       {t('contacts.timeLoggedBadge')}

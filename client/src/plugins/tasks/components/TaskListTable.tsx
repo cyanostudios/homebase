@@ -9,7 +9,7 @@ import type { Task } from '../types/tasks';
 import { TASK_PRIORITY_COLORS, TASK_STATUS_COLORS, formatStatusForDisplay } from '../types/tasks';
 import type { TaskSortField, TaskSortOrder } from '../utils/taskListSort';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 export type TaskListTableProps = {
   tasks: Task[];

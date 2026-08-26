@@ -22,7 +22,7 @@ export const INVOICE_STATUS_COLORS: Record<string, string> = {
 };
 
 /** UI standards V3 badge shell. */
-export const INVOICE_STATUS_BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+export const INVOICE_STATUS_BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 export function formatInvoiceStatusForDisplay(status: string): string {
   if (!status) {
@@ -60,8 +60,8 @@ export function InvoiceStatusSelect({
           <Badge
             variant="outline"
             className={cn(
-              'flex items-center border-transparent px-2 font-medium',
-              compact ? 'h-5 text-[10px]' : 'h-5 text-xs',
+              'flex items-center border-transparent px-2 font-extrabold',
+              compact ? 'h-5 text-[10px] font-extrabold' : 'h-5 text-xs font-extrabold',
               INVOICE_STATUS_COLORS[status] || INVOICE_STATUS_COLORS.draft,
             )}
           >
@@ -79,7 +79,7 @@ export function InvoiceStatusSelect({
             <Badge
               variant="outline"
               className={cn(
-                'h-5 border-transparent px-2 text-xs font-medium',
+                'h-5 border-transparent px-2 text-xs font-extrabold',
                 INVOICE_STATUS_COLORS[option],
               )}
             >

@@ -19,7 +19,7 @@ import type { MatchColumnCount } from '../utils/matchColumnCount';
 import { MatchStatusBadges } from './MatchStatusBadges';
 import { MatchTeamBadge } from './MatchTeamBadge';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function MatchScoreBadge({ match }: { match: Match }) {
   const score = formatMatchScore(match);
@@ -27,7 +27,7 @@ function MatchScoreBadge({ match }: { match: Match }) {
     return null;
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-extrabold tabular-nums text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
       <Trophy className="h-3 w-3 flex-shrink-0" />
       {score}
     </span>

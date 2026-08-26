@@ -1,25 +1,17 @@
-import {
-  Bell,
-  CalendarDays,
-  Edit,
-  ExternalLink,
-  FileText,
-  Info,
-  MapPin,
-  User,
-  Users,
-  X,
-} from 'lucide-react';
+import { Bell, CalendarDays, FileText, Info, MapPin, User, Users } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { QuickContextSection } from '@/core/ui/QuickContextSection';
+import {
+  QuickContextHeaderActions,
+  QuickContextOpenFullFooter,
+} from '@/core/ui/QuickContextHeaderActions';
 import {
   DETAIL_FIELD_VALUE_CLASS,
   DETAIL_NOTE_CALLOUT_CLASS,
@@ -40,7 +32,7 @@ import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
 const LIST_CONTENT_PREVIEW_CHARS = 1200;
@@ -162,39 +154,13 @@ export function SlotQuickContextPanel({
           </Badge>
         ) : null}
       </div>
-      {!isFullView && onOpenFullProfile ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          icon={ExternalLink}
-          className="h-8 w-8 shrink-0 p-0"
-          onClick={onOpenFullProfile}
-          aria-label={t('slots.quickContext.openFullProfile')}
-          title={t('slots.quickContext.openFullProfile')}
-        />
-      ) : null}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        icon={Edit}
-        className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
-        onClick={onEdit}
-        aria-label={t('common.edit')}
-        title={t('common.edit')}
+      <QuickContextHeaderActions
+        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onEdit={onEdit}
+        onClose={!isFullView && onClose ? onClose : undefined}
+        editLabel={t('common.edit')}
+        closeLabel={t('common.close')}
       />
-      {!isFullView && onClose ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          icon={X}
-          className="h-8 w-8 shrink-0 p-0"
-          onClick={onClose}
-          aria-label={t('common.close')}
-        />
-      ) : null}
     </div>
   );
 
@@ -347,17 +313,7 @@ export function SlotQuickContextPanel({
         </div>
 
         {!isFullView && onOpenFullProfile ? (
-          <div className="border-t border-border/50 px-4 py-3">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              className="h-9 w-full text-xs"
-              onClick={onOpenFullProfile}
-            >
-              {t('slots.quickContext.openFullProfile')}
-            </Button>
-          </div>
+          <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />
         ) : null}
       </Card>
 

@@ -57,6 +57,7 @@ import {
 import { PulseProvidersListItem } from './PulseProvidersListItem';
 import { PulseProvidersListTable } from './PulseProvidersListTable';
 import { PulseProvidersRouting } from './PulseProvidersRouting';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 function providerTitle(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -216,7 +217,7 @@ export const PulseProvidersList: React.FC = () => {
       <div className="space-y-3">
         <div className="hidden items-start justify-between gap-4 md:flex">
           <div className="min-w-0 space-y-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight">
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
               {t('nav.pulses', { defaultValue: 'Pulse' })}
             </h2>
             <p className="text-sm text-muted-foreground">

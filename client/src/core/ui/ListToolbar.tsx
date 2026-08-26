@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 export interface ListToolbarProps {
   /** When > 0, idle controls are replaced by bulkActions (unless quick-add is expanded). */
   selectedCount: number;
+  /** When true, bulkActions replace idle controls even if selectedCount is 0. */
+  selectionMode?: boolean;
   /** Show select-all control (typically when the list has visible rows). */
   showSelectAll?: boolean;
   /** Select-all button (idle only). */
@@ -14,7 +16,8 @@ export interface ListToolbarProps {
   leadingActions?: React.ReactNode;
   /** Idle-only control immediately before the search field. */
   beforeSearch?: React.ReactNode;
-  search: React.ReactNode;
+  /** Idle-only search field. Omit when search lives elsewhere (e.g. list header). */
+  search?: React.ReactNode;
   /** Sort + column toggles (idle only). */
   trailing: React.ReactNode;
   /** Clear, count badge, and plugin bulk actions (selection only). */
@@ -35,9 +38,11 @@ export interface ListToolbarProps {
  * - pad/desktop idle: full toolbar with inline search
  * - quick-add open: expanded quick-add form takes the whole row
  * - selection: bulk actions take the whole row (pad/desktop; suppressed on phone)
+ * - selectionMode: bulk bar visible before any rows are checked
  */
 export function ListToolbar({
   selectedCount,
+  selectionMode = false,
   showSelectAll = false,
   selectAll,
   leadingActions,
@@ -51,15 +56,15 @@ export function ListToolbar({
 }: ListToolbarProps) {
   const isMobile = useIsMobile();
   const effectiveSelectedCount = isMobile ? 0 : selectedCount;
-  const isSelecting = effectiveSelectedCount > 0 && !quickAddOpen;
+  const isSelecting = (selectionMode || effectiveSelectedCount > 0) && !quickAddOpen;
 
-  // Mobile: no sort/select/search card — keep search mounted for bottom-bar registration only.
+  // Mobile: no sort/select/search card — keep optional search mounted for bottom-bar registration.
   if (isMobile && !quickAddOpen) {
-    return (
+    return search ? (
       <div className="hidden" aria-hidden>
         {search}
       </div>
-    );
+    ) : null;
   }
 
   return (
@@ -83,7 +88,9 @@ export function ListToolbar({
           </div>
           <div className="order-1 flex w-full min-w-0 flex-col gap-2 md:order-2 md:ml-auto md:flex-1 md:flex-row md:flex-wrap md:items-center md:justify-end md:gap-2 lg:flex-nowrap">
             {beforeSearch ? <div className="flex shrink-0 items-center">{beforeSearch}</div> : null}
-            <div className="min-w-0 w-full md:max-w-sm md:w-56 lg:w-64">{search}</div>
+            {search ? (
+              <div className="min-w-0 w-full md:max-w-sm md:w-56 lg:w-64">{search}</div>
+            ) : null}
             <div className="order-2 flex w-full min-w-0 shrink-0 items-center gap-1 md:w-auto [&>div]:flex [&>div]:min-w-0 [&>div]:flex-1 [&>div]:items-center md:[&>div]:flex-none [&_button[role=combobox]]:w-full md:[&_button[role=combobox]]:w-[140px]">
               {trailing}
             </div>

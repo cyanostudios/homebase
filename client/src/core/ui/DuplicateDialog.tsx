@@ -3,16 +3,19 @@ import React, { useState, useEffect } from 'react';
 
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+
+import {
+  AlertDialogRoundCancel,
+  AlertDialogRoundSave,
+  DialogDeleteButton,
+} from './DialogRoundButtons';
 
 interface DuplicateDialogProps {
   isOpen: boolean;
@@ -105,25 +108,19 @@ export const DuplicateDialog: React.FC<DuplicateDialogProps> = ({
         )}
 
         <AlertDialogFooter className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-          <AlertDialogCancel asChild>
-            <Button variant="secondary" onClick={onCancel}>
-              Cancel
-            </Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button variant="default" onClick={handleConfirm} disabled={nameInvalid}>
-              {confirmText}
-            </Button>
-          </AlertDialogAction>
+          <AlertDialogRoundCancel onClick={onCancel} />
+          <AlertDialogRoundSave
+            label={confirmText}
+            onClick={handleConfirm}
+            disabled={nameInvalid}
+          />
           {secondActionText && onSecondAction ? (
-            <Button
+            <DialogDeleteButton
               type="button"
-              variant="destructive"
+              label={secondActionText}
               onClick={handleSecondAction}
               disabled={nameInvalid}
-            >
-              {secondActionText}
-            </Button>
+            />
           ) : null}
         </AlertDialogFooter>
       </AlertDialogContent>

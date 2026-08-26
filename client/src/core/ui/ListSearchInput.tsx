@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Input } from '@/components/ui/input';
+import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
 import { cn } from '@/lib/utils';
 
 import { useRegisterMobileSearch } from './MobileActionsContext';
@@ -32,7 +33,7 @@ export function ListSearchInput({
     <div className={cn('relative w-full max-w-md', className)}>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
-        type="text"
+        {...LIST_SEARCH_FIELD_PROPS}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

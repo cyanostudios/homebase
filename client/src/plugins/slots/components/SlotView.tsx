@@ -33,6 +33,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateOnly, formatDateTime, formatTime } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import type { ExportFormat } from '@/core/utils/exportUtils';
@@ -243,19 +244,19 @@ function SlotMetadataCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMet
         <div>
           <div className={DETAIL_INFO_ROW_CLASS}>
             <span className="text-slate-500 dark:text-slate-400">ID</span>
-            <span className="font-mono font-semibold text-foreground">
+            <span className="font-mono font-extrabold text-foreground">
               {formatDisplayNumber('slots', slot.id)}
             </span>
           </div>
           <div className={DETAIL_INFO_ROW_CLASS}>
             <span className="text-slate-500 dark:text-slate-400">Created</span>
-            <span className="font-mono font-semibold text-foreground">
+            <span className="font-mono font-extrabold text-foreground">
               {slot.created_at ? new Date(slot.created_at).toLocaleDateString() : '—'}
             </span>
           </div>
           <div className={DETAIL_INFO_ROW_CLASS}>
             <span className="text-slate-500 dark:text-slate-400">Updated</span>
-            <span className="font-mono font-semibold text-foreground">
+            <span className="font-mono font-extrabold text-foreground">
               {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString() : '—'}
             </span>
           </div>
@@ -299,10 +300,10 @@ function SlotMainInfoCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMai
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'plugin-slots')}>
       <div className="p-6 space-y-5">
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+          <div className="text-[10px] uppercase tracking-wider font-normal text-muted-foreground mb-0.5">
             {t('slots.nameLabel')}
           </div>
-          <div className="text-2xl font-semibold text-foreground">{displayName}</div>
+          <div className={PLUGIN_PAGE_TITLE_CLASS}>{displayName}</div>
         </div>
         {slotDatePassed ? (
           <div

@@ -158,7 +158,7 @@ export const CupForm = React.forwardRef<PanelFormHandle, Props>(function CupForm
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('cups', item.id)}
                     </span>
                   </div>

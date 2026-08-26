@@ -2,9 +2,19 @@ import { UserCheck } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import {
+  DIALOG_BODY_SCROLL_CLASS,
+  DIALOG_FOOTER_CLASS,
+  DIALOG_HEADER_CLASS,
+  DIALOG_SUBTITLE_CLASS,
+} from '@/core/ui/dialogStyles';
+import {
+  DialogCancelButton,
+  DialogCloseButton,
+  DialogSaveButton,
+} from '@/core/ui/DialogRoundButtons';
 import { NativeSelect } from '@/components/ui/select';
-import { Heading } from '@/core/ui/Typography';
+import { DialogHeading } from '@/core/ui/DialogHeading';
 
 import type { Contact } from '../types/contacts';
 
@@ -99,17 +109,17 @@ export function ContactBulkAssignableDialog({
       />
       <div className="absolute left-1/2 top-1/2 flex w-[92vw] max-w-lg max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex-col">
         <div className="flex max-h-full flex-col overflow-hidden rounded-xl border bg-background shadow-xl">
-          <div className="shrink-0 border-b p-4">
-            <Heading level={3} className="mb-0 flex items-center gap-2">
+          <div className={DIALOG_HEADER_CLASS}>
+            <DialogHeading className="mb-0 flex items-center gap-2">
               <UserCheck className="h-5 w-5 text-muted-foreground" />
               {t('contacts.bulkAssignableTitle')}
-            </Heading>
-            <div className="mt-1 text-xs text-muted-foreground">
+            </DialogHeading>
+            <div className={DIALOG_SUBTITLE_CLASS}>
               {t('contacts.bulkAssignableSubtitle', { count })}
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-col gap-4 overflow-auto p-4">
+          <div className={DIALOG_BODY_SCROLL_CLASS}>
             {phase === 'idle' && (
               <div className="space-y-2">
                 <label
@@ -159,30 +169,21 @@ export function ContactBulkAssignableDialog({
             )}
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-2 border-t p-4">
+          <div className={DIALOG_FOOTER_CLASS}>
             {phase === 'done' ? (
-              <Button variant="secondary" size="sm" onClick={handleDoneClose}>
-                {t('common.close')}
-              </Button>
+              <DialogCloseButton onClick={handleDoneClose} />
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClose}
-                  disabled={phase === 'applying'}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  size="sm"
+                <DialogCancelButton onClick={handleClose} disabled={phase === 'applying'} />
+                <DialogSaveButton
                   onClick={() => void handleApply()}
                   disabled={phase === 'applying' || count === 0}
-                >
-                  {phase === 'applying'
-                    ? t('contacts.bulkAssignableApplyingShort')
-                    : t('contacts.bulkAssignableApply')}
-                </Button>
+                  label={
+                    phase === 'applying'
+                      ? t('contacts.bulkAssignableApplyingShort')
+                      : t('contacts.bulkAssignableApply')
+                  }
+                />
               </>
             )}
           </div>

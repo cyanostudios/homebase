@@ -65,6 +65,7 @@ import { BulkStatusDialog } from './BulkStatusDialog';
 import { GuideListItem } from './GuideListItem';
 import { GuideListTable } from './GuideListTable';
 import { GuideSettingsView, type GuideSettingsCategory } from './GuideSettingsView';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 type SortField = GuideSortField;
 type SortOrder = GuideSortOrder;
@@ -262,7 +263,7 @@ export const GuideList: React.FC = () => {
       <div className="space-y-3">
         <div className="hidden items-start justify-between gap-4 md:flex">
           <div className="min-w-0 space-y-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight">{t('guides.title')}</h2>
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('guides.title')}</h2>
             <p className="text-sm text-muted-foreground">{t('guides.listDescription')}</p>
           </div>
           <div className="flex w-full flex-shrink-0 items-center gap-2 md:w-auto md:gap-1">
@@ -428,7 +429,7 @@ export const GuideList: React.FC = () => {
                 >
                   {t('common.clearSelection')}
                 </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                   {t('bulk.selected', { count: selectedCount })}
                 </span>
                 <Button

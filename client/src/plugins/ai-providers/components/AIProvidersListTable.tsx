@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import type { ProviderSettings } from '../types/aiProviders';
 import type { AIProviderSortField, AIProviderSortOrder } from '../utils/aiProvidersListSort';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function enabledBadgeClass(enabled: boolean) {
   return enabled

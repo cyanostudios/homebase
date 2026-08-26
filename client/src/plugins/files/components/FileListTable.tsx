@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import type { FileItem } from '../types/files';
 import type { FileSortField, FileSortOrder } from '../utils/fileListSort';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function humanSize(bytes?: number | null): string {
   if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) {

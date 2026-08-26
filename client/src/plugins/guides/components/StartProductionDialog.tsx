@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -15,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { AlertDialogRoundCancel, DialogActionButton } from '@/core/ui/DialogRoundButtons';
 import { Label } from '@/components/ui/label';
 
 import {
@@ -274,49 +274,37 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
         <AlertDialogFooter>
           {hasFailure ? (
             <>
-              <AlertDialogCancel asChild>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    onClearFailure?.();
-                    onCancel();
-                  }}
-                >
-                  {t('common.close')}
-                </Button>
-              </AlertDialogCancel>
+              <AlertDialogRoundCancel
+                close
+                onClick={() => {
+                  onClearFailure?.();
+                  onCancel();
+                }}
+              />
               {settingsLink && (
                 <Button variant="primary" asChild>
                   <Link to="/ai-providers">{t('guides.generation.openSettings')}</Link>
                 </Button>
               )}
               {retryable && (
-                <Button variant="primary" disabled={isBusy} onClick={() => onRetry?.()}>
-                  {isBusy ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('common.checking')}
-                    </>
-                  ) : (
-                    t('guides.generation.retry')
-                  )}
-                </Button>
+                <DialogActionButton
+                  icon={Loader2}
+                  label={isBusy ? t('common.checking') : t('guides.generation.retry')}
+                  disabled={isBusy}
+                  onClick={() => onRetry?.()}
+                />
               )}
             </>
           ) : (
             <>
-              <AlertDialogCancel asChild>
-                <Button variant="secondary" onClick={onCancel} disabled={isBusy}>
-                  {t('common.cancel')}
-                </Button>
-              </AlertDialogCancel>
+              <AlertDialogRoundCancel onClick={onCancel} disabled={isBusy} />
               <AlertDialogAction
+                asChild
                 disabled={
                   isBusy || hasActiveJob || (mode === 'translation' && selectedLanguages.size === 0)
                 }
                 aria-busy={isBusy}
                 onClick={(event) => {
-                  // Keep dialog open so 422 readiness failures (e.g. no AI provider) stay visible.
                   event.preventDefault();
                   onConfirm({
                     force,
@@ -324,14 +312,15 @@ export const StartProductionDialog: React.FC<StartProductionDialogProps> = ({
                   });
                 }}
               >
-                {isBusy ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t('common.checking')}
-                  </>
-                ) : (
-                  t(confirmKey)
-                )}
+                <DialogActionButton
+                  icon={Loader2}
+                  label={isBusy ? t('common.checking') : t(confirmKey)}
+                  disabled={
+                    isBusy ||
+                    hasActiveJob ||
+                    (mode === 'translation' && selectedLanguages.size === 0)
+                  }
+                />
               </AlertDialogAction>
             </>
           )}

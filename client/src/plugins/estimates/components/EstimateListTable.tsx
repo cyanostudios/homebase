@@ -13,7 +13,7 @@ import {
 } from '../types/estimate';
 import type { EstimateSortField, EstimateSortOrder } from '../utils/estimateListSort';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 export type EstimateListTableProps = {
   estimates: Estimate[];

@@ -81,7 +81,7 @@ export function SeriesTeamsSection({ team }: { team: Team }) {
               return (
                 <span
                   key={responsibleKey(responsible)}
-                  className="inline-flex max-w-full items-center truncate rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  className="inline-flex max-w-full items-center truncate rounded-full bg-muted px-2 py-0.5 text-[10px] font-extrabold text-muted-foreground"
                   title={`${contactName} · ${t(`teams.roles.${roleKey}`)} · ${scopeLabel}`}
                 >
                   {contactName}

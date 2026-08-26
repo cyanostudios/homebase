@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { DialogCloseButton } from '@/core/ui/DialogRoundButtons';
 
 interface ShareDialogProps {
   isOpen: boolean;
@@ -76,7 +77,7 @@ export function ShareDialog({
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <AlertDialogTitle className="flex items-center gap-2 text-lg font-semibold">
+          <AlertDialogTitle className="flex items-center gap-2">
             <Share className="h-5 w-5 text-blue-600" />
             {title}
           </AlertDialogTitle>
@@ -111,9 +112,7 @@ export function ShareDialog({
             >
               {t('common.view')}
             </Button>
-            <Button variant="secondary" size="sm" onClick={onClose} className="h-9 px-3 text-xs">
-              {t('common.close')}
-            </Button>
+            <DialogCloseButton onClick={onClose} />
           </div>
         </div>
       </AlertDialogContent>

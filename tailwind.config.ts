@@ -6,12 +6,12 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Noto Sans"', 'system-ui', 'sans-serif'],
+        sans: ['Mulish', 'system-ui', 'sans-serif'],
         poppins: ['Poppins', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        xs: '11px',
-        sm: '13px',
+        xs: '12px',
+        sm: '14px',
         base: '15px',
         lg: '17px',
         xl: '19px',

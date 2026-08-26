@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Heading, Text } from '@/core/ui/Typography';
+import { DialogHeading } from '@/core/ui/DialogHeading';
+import { Text } from '@/core/ui/Typography';
 
 import { ClockSettings, COMMON_TIMEZONES } from './clockSettings';
 import { useClock } from './useClock';
@@ -65,9 +66,7 @@ export function ClockDisplay({
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-muted-foreground" />
-                <Heading level={3} className="mb-0">
-                  Clock
-                </Heading>
+                <DialogHeading className="mb-0">Clock</DialogHeading>
               </div>
               <div className="flex items-center gap-1">
                 <Button
@@ -118,9 +117,7 @@ export function ClockDisplay({
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-muted-foreground" />
-                <Heading level={3} className="mb-0">
-                  Clock Settings
-                </Heading>
+                <DialogHeading className="mb-0">Clock Settings</DialogHeading>
               </div>
               <Button
                 onClick={() => setShowSettings(false)}

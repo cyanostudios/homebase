@@ -15,9 +15,9 @@ const VALUE_YES = 'true';
 const VALUE_NO = 'false';
 
 const YES_BADGE_CLASS =
-  'border-0 rounded-md bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-950/40 dark:text-emerald-300';
+  'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
 const NO_BADGE_CLASS =
-  'border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300';
+  'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
 
 function boolToSelectValue(value: boolean): string {
   return value ? VALUE_YES : VALUE_NO;

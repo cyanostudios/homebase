@@ -19,14 +19,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { AlertDialogRoundCancel, AlertDialogRoundDelete } from '@/core/ui/DialogRoundButtons';
 import {
   Select,
   SelectContent,
@@ -488,13 +487,13 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
             <div>
               <div className={DETAIL_INFO_ROW_CLASS}>
                 <span className="text-slate-500 dark:text-slate-400">ID</span>
-                <span className="font-mono font-semibold text-foreground">
+                <span className="font-mono font-extrabold text-foreground">
                   {formatDisplayNumber('instructions', instruction.id)}
                 </span>
               </div>
               <div className={DETAIL_INFO_ROW_CLASS}>
                 <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
-                <span className="font-mono font-semibold text-foreground">
+                <span className="font-mono font-extrabold text-foreground">
                   {instruction.createdAt
                     ? new Date(instruction.createdAt).toLocaleDateString()
                     : '—'}
@@ -502,7 +501,7 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
               </div>
               <div className={DETAIL_INFO_ROW_CLASS}>
                 <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
-                <span className="font-mono font-semibold text-foreground">
+                <span className="font-mono font-extrabold text-foreground">
                   {instruction.updatedAt
                     ? new Date(instruction.updatedAt).toLocaleDateString()
                     : '—'}
@@ -993,28 +992,19 @@ export const InstructionForm = React.forwardRef<PanelFormHandle, InstructionForm
               </Select>
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel asChild>
-                <Button
-                  variant="secondary"
-                  disabled={deletingCategory}
-                  onClick={() => {
-                    setCategoryPendingDelete(null);
-                    setMoveToCategory('__uncategorized__');
-                    setCategoryDeleteError(null);
-                  }}
-                >
-                  {t('common.cancel')}
-                </Button>
-              </AlertDialogCancel>
-              <AlertDialogAction asChild>
-                <Button
-                  variant="destructive"
-                  disabled={deletingCategory}
-                  onClick={handleConfirmDeleteCategory}
-                >
-                  {deletingCategory ? t('common.saving') : t('common.delete')}
-                </Button>
-              </AlertDialogAction>
+              <AlertDialogRoundCancel
+                disabled={deletingCategory}
+                onClick={() => {
+                  setCategoryPendingDelete(null);
+                  setMoveToCategory('__uncategorized__');
+                  setCategoryDeleteError(null);
+                }}
+              />
+              <AlertDialogRoundDelete
+                disabled={deletingCategory}
+                label={deletingCategory ? t('common.saving') : t('common.delete')}
+                onClick={handleConfirmDeleteCategory}
+              />
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

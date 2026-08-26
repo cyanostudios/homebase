@@ -405,7 +405,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
                   <div>
                     <div className={DETAIL_INFO_ROW_CLASS}>
                       <span className="text-slate-500 dark:text-slate-400">ID</span>
-                      <span className="font-mono font-semibold text-foreground">
+                      <span className="font-mono font-extrabold text-foreground">
                         {invoiceNumberDisplay || '—'}
                       </span>
                     </div>
@@ -413,7 +413,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
                       <span className="text-slate-500 dark:text-slate-400">
                         {t('common.created', { defaultValue: 'Created' })}
                       </span>
-                      <span className="font-mono font-semibold text-foreground">
+                      <span className="font-mono font-extrabold text-foreground">
                         {created ? created.toLocaleDateString() : '—'}
                       </span>
                     </div>
@@ -421,7 +421,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
                       <span className="text-slate-500 dark:text-slate-400">
                         {t('common.updated', { defaultValue: 'Updated' })}
                       </span>
-                      <span className="font-mono font-semibold text-foreground">
+                      <span className="font-mono font-extrabold text-foreground">
                         {updated ? updated.toLocaleDateString() : '—'}
                       </span>
                     </div>

@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 import { useAIProviders } from '../hooks/useAIProviders';
 import type {
@@ -227,7 +228,7 @@ export const AIProvidersRouting: React.FC = () => {
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold tracking-tight">
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
               {t('aiProviders.routing.title', { defaultValue: 'Provider routing' })}
             </h2>
             <p className="text-sm text-muted-foreground">

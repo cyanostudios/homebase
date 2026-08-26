@@ -167,13 +167,13 @@ export const AIProviderView: React.FC<AIProviderViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('aiProviders.colProvider', { defaultValue: 'Provider' })}
                     </span>
-                    <span className="font-semibold text-foreground">{title}</span>
+                    <span className="font-extrabold text-foreground">{title}</span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('aiProviders.providerKey', { defaultValue: 'Key' })}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.providerKey}
                     </span>
                   </div>
@@ -181,7 +181,7 @@ export const AIProviderView: React.FC<AIProviderViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('aiProviders.enabled')}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {provider.enabled ? t('common.yes') : t('common.no')}
                     </span>
                   </div>
@@ -189,7 +189,7 @@ export const AIProviderView: React.FC<AIProviderViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('aiProviders.defaultModel')}
                     </span>
-                    <span className="truncate text-right font-semibold text-foreground">
+                    <span className="truncate text-right font-extrabold text-foreground">
                       {provider.defaultModel || '—'}
                     </span>
                   </div>
@@ -198,7 +198,7 @@ export const AIProviderView: React.FC<AIProviderViewProps> = ({
                       <span className="text-slate-500 dark:text-slate-400">
                         {t('aiProviders.voice', { defaultValue: 'Voice' })}
                       </span>
-                      <span className="truncate text-right font-mono text-sm font-semibold text-foreground">
+                      <span className="truncate text-right font-mono text-sm font-extrabold text-foreground">
                         {provider.voiceId || '—'}
                       </span>
                     </div>
@@ -207,7 +207,7 @@ export const AIProviderView: React.FC<AIProviderViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('aiProviders.apiKey')}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {provider.hasApiKey
                         ? t('aiProviders.keyConfigured')
                         : t('aiProviders.keyMissing')}
@@ -217,7 +217,7 @@ export const AIProviderView: React.FC<AIProviderViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.createdAt ? new Date(provider.createdAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
@@ -225,7 +225,7 @@ export const AIProviderView: React.FC<AIProviderViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {provider.updatedAt ? new Date(provider.updatedAt).toLocaleDateString() : '—'}
                     </span>
                   </div>

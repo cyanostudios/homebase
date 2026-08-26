@@ -15,7 +15,7 @@ import { ListSelectionCheckboxSlot } from '@/core/ui/ListSelectionCheckboxSlot';
 import type { FileItem } from '../types/files';
 import type { FileColumnCount } from '../utils/fileColumnCount';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function humanSize(bytes?: number | null): string | null {
   if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) {

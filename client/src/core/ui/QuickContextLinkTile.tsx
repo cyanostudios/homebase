@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import React from 'react';
 
-import { Badge } from '@/components/ui/badge';
+import { LINKED_TILE_META_BADGE_CLASS } from '@/core/ui/badgeStyles';
 import { cn } from '@/lib/utils';
 
 const TILE_CLASS = 'min-h-[4.5rem] rounded-xl bg-muted/40 px-3 py-3.5 text-left transition-colors';
@@ -39,15 +39,7 @@ export function QuickContextLinkTile({
         <p className={cn(TILE_LABEL_CLASS, 'shrink-0 truncate')}>{label}</p>
         {meta ? (
           metaClassName ? (
-            <Badge
-              variant="outline"
-              className={cn(
-                'h-5 max-w-full shrink truncate px-1.5 text-[10px] font-medium',
-                metaClassName,
-              )}
-            >
-              {meta}
-            </Badge>
+            <span className={cn(metaClassName, LINKED_TILE_META_BADGE_CLASS)}>{meta}</span>
           ) : (
             <span className="min-w-0 truncate text-xs text-muted-foreground">{meta}</span>
           )

@@ -2,14 +2,15 @@ import { Check, X } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Card } from '@/components/ui/card';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
 import { useMobileBarOverride } from '@/core/ui/MobileActionsContext';
 import {
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_HEADER_CLASS,
-  PLUGIN_PAGE_SUBTITLE_CLASS,
   PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
 import {
   SettingsCategoryCard,
@@ -33,17 +34,15 @@ export function SettingsHeaderSaveButton({
 }) {
   const { t } = useTranslation();
   return (
-    <Button
+    <RoundIconLabelButton
       type="button"
       onClick={onClick}
-      variant="primary"
-      size="sm"
       icon={Check}
+      label={isSaving ? (savingLabel ?? t('common.saving')) : (label ?? t('common.save'))}
+      variant="success"
+      alwaysExpanded
       disabled={disabled || isSaving}
-      className="h-9 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
-    >
-      {isSaving ? (savingLabel ?? t('common.saving')) : (label ?? t('common.save'))}
-    </Button>
+    />
   );
 }
 
@@ -85,12 +84,12 @@ export interface PluginSettingsPageShellProps {
 
 /**
  * Full-page plugin settings shell matching Core Settings layout:
- * title + subtitle, optional Save + Close in header (desktop), category cards, detail content card.
+ * title row + optional Save + Close in header (desktop), category cards, detail content card.
  * On phone, Close (+ Save when provided) replace the mobile bottom bar.
  */
 export function PluginSettingsPageShell({
   title,
-  subtitle,
+  subtitle: _subtitle,
   categories,
   activeCategory,
   onCategoryChange,
@@ -120,16 +119,14 @@ export function PluginSettingsPageShell({
   const desktopTrailing =
     trailing ??
     (onClose ? (
-      <Button
+      <RoundIconLabelButton
         type="button"
-        variant="secondary"
-        size="sm"
         icon={X}
-        className="h-9 px-3 text-xs"
+        label={t('common.close')}
+        variant="secondary"
+        alwaysExpanded
         onClick={onClose}
-      >
-        {t('common.close')}
-      </Button>
+      />
     ) : null);
 
   const showHeaderActions = Boolean(saveAction || desktopTrailing);
@@ -137,12 +134,11 @@ export function PluginSettingsPageShell({
   return (
     <div className={cn('space-y-4', className)}>
       <div className={PLUGIN_PAGE_HEADER_CLASS}>
-        <div className="min-w-0 space-y-1">
+        <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>
           <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{title}</h2>
-          {subtitle ? <p className={PLUGIN_PAGE_SUBTITLE_CLASS}>{subtitle}</p> : null}
         </div>
         {showHeaderActions ? (
-          <div className="flex flex-shrink-0 items-center gap-1">
+          <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
             {saveAction}
             {desktopTrailing}
           </div>

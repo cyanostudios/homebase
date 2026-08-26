@@ -3,22 +3,50 @@
  * Keep list and detail title rows visually aligned (inset, gap, title scale).
  */
 
-/** Outer page padding (phone + pad/desktop). */
-export const PLUGIN_PAGE_SHELL_CLASS = 'min-h-full bg-background px-4 pt-2 pb-4 md:px-6 md:py-4';
+/** Outer list page shell — ContactList reference (top/side/bottom inset). */
+export const PLUGIN_PAGE_LIST_SHELL_CLASS =
+  'min-h-full overflow-x-hidden bg-background px-4 pt-4 pb-4 md:px-6 md:pt-6 md:pb-5';
 
-/** In-page title row: title/subtitle left, actions right. Phone-hidden for lists/settings. */
-export const PLUGIN_PAGE_HEADER_CLASS = 'hidden items-start justify-between gap-4 md:flex';
+/** Vertical gap between title row and next block (filter cards, toolbar, detail body). */
+export const PLUGIN_PAGE_SECTION_GAP_CLASS = 'space-y-6';
 
-export const PLUGIN_PAGE_TITLE_CLASS = 'truncate text-xl font-semibold tracking-tight';
+/** In-page title row: title left, actions right (matches ContactList header row). */
+export const PLUGIN_PAGE_HEADER_CLASS = 'hidden items-start justify-between gap-6 md:flex';
+
+/** Page / panel title — matches list headers (e.g. Contacts). */
+export const PLUGIN_PAGE_TITLE_CLASS =
+  'truncate text-2xl font-extrabold tracking-tight text-foreground';
+
+/** Title row: heading inline with adjacent header controls. */
+export const PLUGIN_PAGE_TITLE_ROW_CLASS = 'flex min-w-0 flex-1 flex-wrap items-center gap-2.5';
+
+/** Trailing header actions (search, add, edit, close). */
+export const PLUGIN_PAGE_HEADER_ACTIONS_CLASS = 'flex shrink-0 items-center gap-2 pt-0.5';
+
+/** Slightly smaller title on phone detail headers. */
+export const PLUGIN_PAGE_TITLE_MOBILE_CLASS = 'text-xl';
+
+/** Primary name/title field in edit forms — same scale as list title. */
+export const DETAIL_FORM_TITLE_INPUT_CLASS =
+  'h-auto min-h-11 border-0 bg-transparent px-0 text-2xl font-extrabold tracking-tight shadow-none focus-visible:ring-0 focus-visible:ring-offset-0';
 
 export const PLUGIN_PAGE_SUBTITLE_CLASS = 'text-sm text-muted-foreground';
 
-/** Detail panel desktop header — same inset/gap/alignment as list page header. */
-export const DETAIL_PANEL_HEADER_DESKTOP_CLASS =
-  'flex flex-shrink-0 items-start justify-between gap-4 px-6 py-4';
+/** Detail panel shell — same pt-6 / gap-6 / pb-5 rhythm as PLUGIN_PAGE_LIST_SHELL_CLASS. */
+export const DETAIL_PANEL_SHELL_CLASS = 'flex min-h-0 flex-1 flex-col gap-6 px-6 pt-6 pb-5';
 
-/** Detail panel desktop scroll body — same horizontal inset as list page. */
-export const DETAIL_PANEL_BODY_DESKTOP_CLASS = 'px-6 pb-4 pt-4';
+/** Title + actions row inside detail panel. */
+export const DETAIL_PANEL_HEADER_ROW_CLASS = 'flex shrink-0 items-start justify-between gap-6';
+
+/** Scrollable detail content (no extra top padding — gap-6 on shell handles title spacing). */
+export const DETAIL_PANEL_BODY_CLASS =
+  'min-h-0 flex-1 overflow-y-auto overflow-x-hidden [&_.shadow-none]:border-none';
+
+/** @deprecated Use DETAIL_PANEL_SHELL_CLASS + DETAIL_PANEL_HEADER_ROW_CLASS */
+export const DETAIL_PANEL_HEADER_DESKTOP_CLASS = DETAIL_PANEL_HEADER_ROW_CLASS;
+
+/** @deprecated Use DETAIL_PANEL_BODY_CLASS */
+export const DETAIL_PANEL_BODY_DESKTOP_CLASS = DETAIL_PANEL_BODY_CLASS;
 
 /** Phone floating chrome (bottom bar + detail Edit/Close) — translucent over content. */
 export const MOBILE_FLOATING_CHROME_CLASS =

@@ -6,13 +6,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { AlertDialogRoundCancel, DialogSaveButton } from '@/core/ui/DialogRoundButtons';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -61,6 +61,7 @@ import { ScheduleSlotDetailDialog } from './ScheduleSlotDetailDialog';
 import { ScheduleTimeGrid } from './ScheduleTimeGrid';
 import { ScheduleWeekView } from './ScheduleWeekView';
 import { ScheduleTrainingDialog } from './ScheduleTrainingDialog';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 export function ScheduleList() {
   const { t } = useTranslation();
@@ -343,7 +344,7 @@ export function ScheduleList() {
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
           <div className="hidden min-w-0 space-y-1 md:block">
             <div className="flex items-center gap-2">
-              <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.schedule')}</h2>
+              <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.schedule')}</h2>
             </div>
             <p className="text-sm text-muted-foreground">{t('schedule.listDescription')}</p>
           </div>
@@ -577,19 +578,13 @@ export function ScheduleList() {
             ) : null}
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isCreatingSchedule}>
-              {t('common.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button
+            <AlertDialogRoundCancel disabled={isCreatingSchedule} />
+            <AlertDialogAction asChild onClick={(event) => event.preventDefault()}>
+              <DialogSaveButton
+                label={isCreatingSchedule ? t('common.saving') : t('common.save')}
                 disabled={!newScheduleName.trim() || isCreatingSchedule}
-                onClick={(event) => {
-                  event.preventDefault();
-                  void handleCreateSchedule();
-                }}
-              >
-                {isCreatingSchedule ? t('common.saving') : t('common.save')}
-              </Button>
+                onClick={() => void handleCreateSchedule()}
+              />
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

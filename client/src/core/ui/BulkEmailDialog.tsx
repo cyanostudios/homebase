@@ -7,9 +7,16 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DialogCancelButton, DialogCloseButton, DialogSendButton } from './DialogRoundButtons';
 import { mailApi } from '@/plugins/mail/api/mailApi';
 
-import { Heading } from './Typography';
+import {
+  DIALOG_BODY_SCROLL_CLASS,
+  DIALOG_FOOTER_CLASS,
+  DIALOG_HEADER_CLASS,
+  DIALOG_SUBTITLE_CLASS,
+} from './dialogStyles';
+import { DialogHeading } from './DialogHeading';
 
 export interface BulkEmailRecipient {
   id: string;
@@ -188,11 +195,9 @@ export function BulkEmailDialog({
       />
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-lg max-h-[90vh] flex flex-col">
         <div className="bg-background rounded-xl shadow-xl border overflow-hidden flex flex-col max-h-full">
-          <div className="p-4 border-b shrink-0">
-            <Heading level={3} className="mb-0">
-              {t('bulk.sendEmailTitle')}
-            </Heading>
-            <div className="text-xs text-muted-foreground mt-1">
+          <div className={DIALOG_HEADER_CLASS}>
+            <DialogHeading className="mb-0">{t('bulk.sendEmailTitle')}</DialogHeading>
+            <div className={DIALOG_SUBTITLE_CLASS}>
               {showRecipientSelection ? (
                 <>
                   <span>
@@ -222,7 +227,7 @@ export function BulkEmailDialog({
             </div>
           </div>
 
-          <div className="p-4 flex flex-col gap-3 min-h-0 overflow-auto">
+          <div className={`${DIALOG_BODY_SCROLL_CLASS} gap-3`}>
             {phase === 'idle' && (
               <>
                 {showRecipientSelection && recipients.length > 0 && (
@@ -268,7 +273,7 @@ export function BulkEmailDialog({
                           >
                             <input
                               type="checkbox"
-                              className="rounded border-input shrink-0"
+                              className="h-4 w-4 shrink-0"
                               checked={checked}
                               disabled={!eligible}
                               onChange={() => eligible && toggleRecipient(r.id)}
@@ -347,24 +352,19 @@ export function BulkEmailDialog({
             )}
           </div>
 
-          <div className="p-4 border-t flex items-center justify-end gap-2 shrink-0">
+          <div className={DIALOG_FOOTER_CLASS}>
             {phase === 'done' ? (
-              <Button variant="secondary" size="sm" onClick={handleClose}>
-                {t('common.close')}
-              </Button>
+              <DialogCloseButton onClick={handleClose} />
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClose}
-                  disabled={phase === 'sending'}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button size="sm" onClick={handleSend} disabled={phase === 'sending' || !canSend}>
-                  {phase === 'sending' ? t('bulk.sendEmailSendingShort') : t('bulk.sendEmailSend')}
-                </Button>
+                <DialogCancelButton onClick={handleClose} disabled={phase === 'sending'} />
+                <DialogSendButton
+                  onClick={handleSend}
+                  disabled={phase === 'sending' || !canSend}
+                  label={
+                    phase === 'sending' ? t('bulk.sendEmailSendingShort') : t('bulk.sendEmailSend')
+                  }
+                />
               </>
             )}
           </div>

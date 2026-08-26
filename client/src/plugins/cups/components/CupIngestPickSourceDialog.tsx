@@ -1,16 +1,16 @@
+import { Download } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
   AlertDialog,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { AlertDialogRoundCancel, DialogActionButton } from '@/core/ui/DialogRoundButtons';
 import { NativeSelect } from '@/components/ui/select';
 import { ingestApi } from '@/plugins/ingest/api/ingestApi';
 import type { IngestSource } from '@/plugins/ingest/types/ingest';
@@ -137,25 +137,14 @@ export function CupIngestPickSourceDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:gap-2">
-          <AlertDialogCancel asChild>
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-9 px-3 text-xs"
-              disabled={confirming}
-            >
-              Cancel
-            </Button>
-          </AlertDialogCancel>
-          <Button
+          <AlertDialogRoundCancel disabled={confirming} />
+          <DialogActionButton
             type="button"
-            variant="primary"
-            className="h-9 px-3 text-xs"
+            icon={Download}
+            label={confirming ? 'Importing…' : 'Import'}
             disabled={confirming || !selectedId || options.length === 0}
             onClick={() => onConfirm(selectedId)}
-          >
-            {confirming ? 'Importing…' : 'Import'}
-          </Button>
+          />
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

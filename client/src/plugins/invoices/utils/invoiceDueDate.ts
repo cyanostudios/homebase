@@ -9,7 +9,7 @@ export type InvoiceDueDateDisplay = {
   badgeClassName: string;
 };
 
-const BADGE_SHELL = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_SHELL = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 /** Extract day count from contact-style ("30") or free-text ("30 dagar netto") payment terms. */
 export function parsePaymentTermsDays(

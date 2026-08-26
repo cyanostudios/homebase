@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DialogCancelButton, DialogSaveButton } from '@/core/ui/DialogRoundButtons';
 import { DETAIL_QUICK_ACTION_ROW_CLASS } from '@/core/ui/detailViewCardStyles';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
@@ -184,7 +185,7 @@ export function InvoiceShareProvider({
       >
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-lg font-semibold">
+            <AlertDialogTitle className="flex items-center gap-2">
               <Share className="h-5 w-5 text-blue-600" />
               {t('invoices.createShareTitle')}
             </AlertDialogTitle>
@@ -211,17 +212,12 @@ export function InvoiceShareProvider({
             </p>
           </div>
           <AlertDialogFooter>
-            <Button variant="secondary" size="sm" onClick={() => setShowCreateShareModal(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
+            <DialogCancelButton onClick={() => setShowCreateShareModal(false)} />
+            <DialogSaveButton
+              label={isCreatingShare ? t('common.creating') : t('invoices.createShare')}
               onClick={() => void handleCreateShare()}
               disabled={isCreatingShare || !shareValidUntil}
-            >
-              {isCreatingShare ? t('common.creating') : t('invoices.createShare')}
-            </Button>
+            />
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

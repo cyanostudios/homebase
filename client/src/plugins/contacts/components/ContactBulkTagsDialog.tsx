@@ -2,9 +2,20 @@ import { Eraser, Tag } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/select';
-import { Heading } from '@/core/ui/Typography';
+import {
+  DIALOG_BODY_SCROLL_CLASS,
+  DIALOG_FOOTER_SPLIT_CLASS,
+  DIALOG_HEADER_CLASS,
+  DIALOG_SUBTITLE_CLASS,
+} from '@/core/ui/dialogStyles';
+import {
+  DialogActionButton,
+  DialogCancelButton,
+  DialogCloseButton,
+  DialogSaveButton,
+} from '@/core/ui/DialogRoundButtons';
+import { DialogHeading } from '@/core/ui/DialogHeading';
 
 import type { Contact } from '../types/contacts';
 
@@ -116,17 +127,15 @@ export function ContactBulkTagsDialog({
       />
       <div className="absolute left-1/2 top-1/2 flex w-[92vw] max-w-lg max-h-[90vh] -translate-x-1/2 -translate-y-1/2 flex-col">
         <div className="flex max-h-full flex-col overflow-hidden rounded-xl border bg-background shadow-xl">
-          <div className="shrink-0 border-b p-4">
-            <Heading level={3} className="mb-0 flex items-center gap-2">
+          <div className={DIALOG_HEADER_CLASS}>
+            <DialogHeading className="mb-0 flex items-center gap-2">
               <Tag className="h-5 w-5 text-muted-foreground" />
               {t('contacts.bulkTagsTitle')}
-            </Heading>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {t('contacts.bulkTagsSubtitle', { count })}
-            </div>
+            </DialogHeading>
+            <div className={DIALOG_SUBTITLE_CLASS}>{t('contacts.bulkTagsSubtitle', { count })}</div>
           </div>
 
-          <div className="flex min-h-0 flex-col gap-4 overflow-auto p-4">
+          <div className={DIALOG_BODY_SCROLL_CLASS}>
             {phase === 'idle' && (
               <div className="space-y-2">
                 {hasTags ? (
@@ -186,45 +195,35 @@ export function ContactBulkTagsDialog({
             )}
           </div>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className={DIALOG_FOOTER_SPLIT_CLASS}>
             {phase === 'done' ? (
               <div className="flex w-full justify-end">
-                <Button variant="secondary" size="sm" onClick={handleDoneClose}>
-                  {t('common.close')}
-                </Button>
+                <DialogCloseButton onClick={handleDoneClose} />
               </div>
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <DialogActionButton
                   icon={Eraser}
-                  className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  variant="danger"
+                  label={
+                    activeAction === 'clear' && phase === 'applying'
+                      ? t('contacts.bulkTagsApplyingShort')
+                      : t('contacts.bulkClearTagsAction')
+                  }
                   onClick={() => void runBulk('clear')}
                   disabled={phase === 'applying' || count === 0}
-                >
-                  {activeAction === 'clear' && phase === 'applying'
-                    ? t('contacts.bulkTagsApplyingShort')
-                    : t('contacts.bulkClearTagsAction')}
-                </Button>
+                />
                 <div className="flex items-center justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleClose}
-                    disabled={phase === 'applying'}
-                  >
-                    {t('common.cancel')}
-                  </Button>
-                  <Button
-                    size="sm"
+                  <DialogCancelButton onClick={handleClose} disabled={phase === 'applying'} />
+                  <DialogSaveButton
                     onClick={() => void runBulk('add')}
                     disabled={phase === 'applying' || count === 0 || !hasTags || !tag.trim()}
-                  >
-                    {activeAction === 'add' && phase === 'applying'
-                      ? t('contacts.bulkTagsApplyingShort')
-                      : t('contacts.bulkTagsApply')}
-                  </Button>
+                    label={
+                      activeAction === 'add' && phase === 'applying'
+                        ? t('contacts.bulkTagsApplyingShort')
+                        : t('contacts.bulkTagsApply')
+                    }
+                  />
                 </div>
               </>
             )}

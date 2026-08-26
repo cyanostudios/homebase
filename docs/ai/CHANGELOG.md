@@ -2,6 +2,14 @@
 
 Versionshistorik för design- och specifikationsdokument under `docs/ai/`.
 
+## UI v3.7 round buttons — docs sync (2026-08-27)
+
+Docs efter **QA Approved** + **Security Approved** för UI v3.7: round pill buttons (`RoundIconLabelButton`, `DialogRoundButtons`, `QuickContextHeaderActions`, `BulkActionRoundBar`), dialog chrome tokens (`dialogStyles.ts`, `DialogHeading`), Contacts table select mode (header Select/Clear + bulk bar; quick context stays open), Mulish typography, round checkboxes (`.hb-checkbox`), `ItemNavigation` gray pills. Operator: `UI_AND_UX_STANDARDS_V3.md` §4.0–4.0.1, §0.1 List toolbar (Contacts exception), `PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md` quick context + §5.6 dialog chrome. **Local-first; ej prod-release.**
+
+**Produkt-changelog:** [`docs/CHANGELOG.md`](../CHANGELOG.md) §2026-08-27.
+
+---
+
 ## Mobile form focus zoom — docs sync (2026-08-25)
 
 Docs efter **QA Approved** + **Security Approved** för iOS-zoom-fix på formfält (16px under `md`; ingen viewport `maximum-scale`). Operator: `UI_AND_UX_STANDARDS_V3.md` § Form controls — mobile font size. **Local-first; ej prod-release.**

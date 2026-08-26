@@ -149,7 +149,7 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item }) => {
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('clubdesk', viewItem.id)}
                     </span>
                   </div>
@@ -157,7 +157,7 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item }) => {
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {viewItem.createdAt ? new Date(viewItem.createdAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
@@ -165,7 +165,7 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item }) => {
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {viewItem.updatedAt ? new Date(viewItem.updatedAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
@@ -196,7 +196,7 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item }) => {
                 <Badge
                   variant={isPublished ? 'default' : 'secondary'}
                   className={cn(
-                    'text-[10px]',
+                    'text-[10px] font-extrabold',
                     isPublished &&
                       'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200',
                   )}
@@ -204,7 +204,7 @@ const ClubdeskGuideView: React.FC<ClubdeskViewProps> = ({ clubdesk, item }) => {
                   {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
                 </Badge>
                 {viewItem.category ? (
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-[10px] font-extrabold">
                     {viewItem.category}
                   </Badge>
                 ) : null}

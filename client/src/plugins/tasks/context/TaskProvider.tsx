@@ -775,7 +775,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
               {dueDateInfo && (
-                <span className={cn('text-[10px] font-medium shrink-0', dueDateInfo.className)}>
+                <span className={cn('text-[10px] font-extrabold shrink-0', dueDateInfo.className)}>
                   {dueDateInfo.text}
                 </span>
               )}
@@ -783,7 +783,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
                 <Badge
                   key={`${badge.text}-${badge.color}`}
                   variant="outline"
-                  className={cn('text-[10px] px-1.5 h-5 shrink-0 font-medium', badge.color)}
+                  className={cn('text-[12px] px-1.5 h-5 shrink-0 font-extrabold', badge.color)}
                 >
                   {badge.text === item.status ? formatStatusForDisplay(badge.text) : badge.text}
                 </Badge>

@@ -206,7 +206,7 @@ export const createPanelTitles = (
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
               <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${subtitleData.badge.color}`}
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${subtitleData.badge.color}`}
               >
                 {subtitleData.badge.text}
               </span>

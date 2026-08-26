@@ -5,7 +5,7 @@
 import { Check, Edit, Eye, X } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { ItemNavigation } from '@/core/ui/ItemNavigation';
 
 export type PanelHeaderHandlers = {
@@ -59,6 +59,8 @@ export function renderDetailPanelHeaderRight({
           currentPluginContext.hasTagsChanges,
       )) as boolean);
 
+  const actionButtonClass = 'min-w-0 flex-1 sm:flex-initial';
+
   if (currentMode === 'view' && currentPluginContext && currentItem) {
     return (
       <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-1">
@@ -75,7 +77,7 @@ export function renderDetailPanelHeaderRight({
           })}
         <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
           {hasViewQuickUpdate ? (
-            <Button
+            <RoundIconLabelButton
               type="button"
               onClick={() => {
                 if (
@@ -92,35 +94,32 @@ export function renderDetailPanelHeaderRight({
                   currentPluginContext?.onApplyTagsEdit?.();
                 }
               }}
-              variant="primary"
-              size="sm"
               icon={Check}
-              className="h-9 flex-1 px-3 text-xs border-none bg-green-600 text-white hover:bg-green-700 sm:flex-initial"
-            >
-              {t('common.update')}
-            </Button>
+              label={t('common.update')}
+              variant="success"
+              alwaysExpanded
+              className={actionButtonClass}
+            />
           ) : (
-            <Button
+            <RoundIconLabelButton
               type="button"
               onClick={handlers.handleEditItem}
-              variant="primary"
-              size="sm"
               icon={Edit}
-              className="h-9 flex-1 px-3 text-xs sm:flex-initial"
-            >
-              {t('common.edit')}
-            </Button>
+              label={t('common.edit')}
+              variant="primary"
+              alwaysExpanded
+              className={actionButtonClass}
+            />
           )}
-          <Button
+          <RoundIconLabelButton
             type="button"
             onClick={onDetailPanelClose}
-            variant="secondary"
-            size="sm"
             icon={X}
-            className="h-9 flex-1 px-3 text-xs sm:flex-initial"
-          >
-            {t('common.close')}
-          </Button>
+            label={t('common.close')}
+            variant="secondary"
+            alwaysExpanded
+            className={actionButtonClass}
+          />
         </div>
       </div>
     );
@@ -130,38 +129,35 @@ export function renderDetailPanelHeaderRight({
     return (
       <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
         {showInvoicePreview ? (
-          <Button
+          <RoundIconLabelButton
             type="button"
             onClick={handlers.handlePreviewClick}
-            variant="secondary"
-            size="sm"
             icon={Eye}
-            className="h-9 flex-1 px-3 text-xs sm:flex-initial"
-          >
-            {t('common.preview')}
-          </Button>
+            label={t('common.preview')}
+            variant="secondary"
+            alwaysExpanded
+            className={actionButtonClass}
+          />
         ) : null}
-        <Button
+        <RoundIconLabelButton
           type="button"
           onClick={handlers.handleCancelClick}
-          variant="secondary"
-          size="sm"
           icon={X}
-          className="h-9 flex-1 px-3 text-xs sm:flex-initial"
-        >
-          {t('common.close')}
-        </Button>
-        <Button
+          label={t('common.close')}
+          variant="secondary"
+          alwaysExpanded
+          className={actionButtonClass}
+        />
+        <RoundIconLabelButton
           type="button"
           onClick={handlers.handleSaveClick}
-          variant="primary"
-          size="sm"
           icon={Check}
+          label={currentPluginContext?.isSaving ? t('common.saving') : t('common.update')}
+          variant="success"
+          alwaysExpanded
           disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
-          className="h-9 flex-1 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:flex-initial"
-        >
-          {currentPluginContext?.isSaving ? t('common.saving') : t('common.update')}
-        </Button>
+          className={actionButtonClass}
+        />
       </div>
     );
   }
@@ -170,38 +166,35 @@ export function renderDetailPanelHeaderRight({
     return (
       <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:gap-1">
         {showInvoicePreview ? (
-          <Button
+          <RoundIconLabelButton
             type="button"
             onClick={handlers.handlePreviewClick}
-            variant="secondary"
-            size="sm"
             icon={Eye}
-            className="h-9 flex-1 px-3 text-xs sm:flex-initial"
-          >
-            {t('common.preview')}
-          </Button>
+            label={t('common.preview')}
+            variant="secondary"
+            alwaysExpanded
+            className={actionButtonClass}
+          />
         ) : null}
-        <Button
+        <RoundIconLabelButton
           type="button"
           onClick={handlers.handleCancelClick}
-          variant="secondary"
-          size="sm"
           icon={X}
-          className="h-9 flex-1 px-3 text-xs sm:flex-initial"
-        >
-          {t('common.close')}
-        </Button>
-        <Button
+          label={t('common.close')}
+          variant="secondary"
+          alwaysExpanded
+          className={actionButtonClass}
+        />
+        <RoundIconLabelButton
           type="button"
           onClick={handlers.handleSaveClick}
-          variant="primary"
-          size="sm"
           icon={Check}
+          label={currentPluginContext?.isSaving ? t('common.saving') : t('common.save')}
+          variant="success"
+          alwaysExpanded
           disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
-          className="h-9 flex-1 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700 sm:flex-initial"
-        >
-          {currentPluginContext?.isSaving ? t('common.saving') : t('common.save')}
-        </Button>
+          className={actionButtonClass}
+        />
       </div>
     );
   }

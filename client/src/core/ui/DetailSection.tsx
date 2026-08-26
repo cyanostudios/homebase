@@ -6,6 +6,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import type { AppIcon } from '@/types/icons';
 
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
+
 import { Heading } from './Typography';
 
 export type DetailSectionIconPlugin =
@@ -91,9 +93,7 @@ export function DetailSection({
       : 'text-muted-foreground';
 
   const titleNode = prominentTitle ? (
-    <Heading level={3} size="2xl" className="truncate font-semibold text-foreground">
-      {title}
-    </Heading>
+    <h3 className={PLUGIN_PAGE_TITLE_CLASS}>{title}</h3>
   ) : subtleTitle ? (
     <SubtleSectionHeading title={title} icon={Icon} className="min-w-0 flex-1" />
   ) : (

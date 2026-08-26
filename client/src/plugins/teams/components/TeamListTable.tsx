@@ -81,7 +81,7 @@ export function TeamListTable({
           return (
             <Badge
               className={cn(
-                'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
+                'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold',
                 TEAM_STATUS_BADGES[statusKey],
               )}
             >

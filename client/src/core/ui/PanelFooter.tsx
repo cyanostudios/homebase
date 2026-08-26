@@ -7,7 +7,7 @@ import { Check, X } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 
 interface PanelFooterProps {
   currentMode: string;
@@ -36,29 +36,25 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   // Settings plugin: Profile/Preferences = Cancel + Save; others = Close only
   if (currentPlugin?.name === 'settings') {
     return (
-      <div className="flex justify-end space-x-2">
-        <Button
+      <div className="flex justify-end gap-2">
+        <RoundIconLabelButton
           type="button"
           onClick={onCancelClick}
-          variant="secondary"
-          size="sm"
           icon={X}
+          label={t('common.close')}
+          variant="secondary"
+          alwaysExpanded
           disabled={isSubmitting}
-          className="h-9 text-xs px-3"
-        >
-          {t('common.close')}
-        </Button>
-        <Button
+        />
+        <RoundIconLabelButton
           type="button"
           onClick={onSaveClick}
-          variant="primary"
-          size="sm"
           icon={Check}
+          label={isSubmitting ? t('common.saving') : t('common.save')}
+          variant="success"
+          alwaysExpanded
           disabled={hasBlockingErrors || isSubmitting}
-          className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-        >
-          {isSubmitting ? t('common.saving') : t('common.save')}
-        </Button>
+        />
       </div>
     );
   }
@@ -67,16 +63,14 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   if (currentMode === 'settings') {
     return (
       <div className="flex justify-end w-full">
-        <Button
+        <RoundIconLabelButton
           type="button"
           onClick={onClosePanel}
-          variant="secondary"
-          size="sm"
           icon={X}
-          className="h-9 text-xs px-3"
-        >
-          {t('common.close')}
-        </Button>
+          label={t('common.close')}
+          variant="secondary"
+          alwaysExpanded
+        />
       </div>
     );
   }

@@ -3,8 +3,10 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CHECKBOX_SM_CLASS } from '@/core/ui/checkboxStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { cn } from '@/lib/utils';
 
@@ -90,22 +92,14 @@ function MasterStatusCheckbox({
   ariaLabel: string;
   onToggle: () => void;
 }) {
-  const ref = React.useRef<HTMLInputElement>(null);
-  React.useEffect(() => {
-    if (ref.current) {
-      ref.current.indeterminate = indeterminate;
-    }
-  }, [indeterminate]);
-
   return (
-    <input
-      ref={ref}
-      type="checkbox"
+    <Checkbox
       checked={checked}
+      indeterminate={indeterminate}
       disabled={disabled}
       onChange={onToggle}
       aria-label={ariaLabel}
-      className="h-4 w-4 cursor-pointer disabled:cursor-default"
+      className={CHECKBOX_SM_CLASS}
     />
   );
 }

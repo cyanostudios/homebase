@@ -19,6 +19,7 @@ import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -165,7 +166,7 @@ export const PulseHistoryView: React.FC = () => {
       <div className="space-y-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight">
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
               {t('pulses.historyTitle', { defaultValue: 'SMS history' })}
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -177,13 +178,13 @@ export const PulseHistoryView: React.FC = () => {
           <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
             <Badge
               variant="secondary"
-              className="border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-secondary/50 text-secondary-foreground"
+              className="border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-secondary/50 text-secondary-foreground"
             >
               {totalCount} {t('pulses.total')}
             </Badge>
             <Badge
               className={cn(
-                'border-0 rounded-md px-2 py-0.5 text-xs font-semibold',
+                'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold',
                 statusBadge.isOk
                   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                   : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
@@ -360,7 +361,7 @@ export const PulseHistoryView: React.FC = () => {
                         {entry.body || '—'}
                       </TableCell>
                       <TableCell className="text-xs">
-                        <Badge className="border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        <Badge className="border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                           {entry.status || '—'}
                         </Badge>
                       </TableCell>
@@ -368,7 +369,7 @@ export const PulseHistoryView: React.FC = () => {
                         {entry.pluginSource ? (
                           <Badge
                             className={cn(
-                              'border-0 rounded-md px-2 py-0.5 text-xs font-semibold capitalize',
+                              'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold capitalize',
                               entry.pluginSource === 'notes' &&
                                 'plugin-notes bg-plugin-subtle text-plugin',
                               entry.pluginSource === 'contacts' &&

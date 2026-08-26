@@ -5,11 +5,14 @@ import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { MAIN_CONTENT_SHELL_CLASS } from '@/core/ui/ContentSurface';
 import {
-  DETAIL_PANEL_BODY_DESKTOP_CLASS,
-  DETAIL_PANEL_HEADER_DESKTOP_CLASS,
+  DETAIL_PANEL_BODY_CLASS,
+  DETAIL_PANEL_HEADER_ROW_CLASS,
+  DETAIL_PANEL_SHELL_CLASS,
   MOBILE_FLOATING_CHROME_CLASS,
-  PLUGIN_PAGE_SUBTITLE_CLASS,
+  PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
   PLUGIN_PAGE_TITLE_CLASS,
+  PLUGIN_PAGE_TITLE_MOBILE_CLASS,
+  PLUGIN_PAGE_TITLE_ROW_CLASS,
 } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
@@ -37,7 +40,7 @@ export function DetailPanel({
   isOpen,
   onClose,
   title,
-  subtitle,
+  subtitle: _subtitle,
   children,
   footer,
   headerRight,
@@ -47,8 +50,9 @@ export function DetailPanel({
   contentKey,
 }: DetailPanelProps) {
   const hasTitle = typeof title === 'string' ? title.trim().length > 0 : Boolean(title);
-  const hasSubtitle = Boolean(subtitle);
-  const showTitleBlock = hasTitle || hasSubtitle;
+  const showTitleBlock = hasTitle;
+  const showDesktopHeaderRow =
+    !isMobile && (showTitleBlock || Boolean(headerRight || showCloseButton));
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const previousContentKeyRef = useRef<string>('');
   const previousOpenRef = useRef(false);
@@ -115,89 +119,85 @@ export function DetailPanel({
 
   const titleNode = hasTitle ? (
     typeof title === 'string' ? (
-      <h2 className={cn(PLUGIN_PAGE_TITLE_CLASS, isMobile && 'text-lg')}>
+      <h2 className={cn(PLUGIN_PAGE_TITLE_CLASS, isMobile && PLUGIN_PAGE_TITLE_MOBILE_CLASS)}>
         {title.length > 70 ? `${title.substring(0, 70)}...` : title}
       </h2>
     ) : (
-      <div className={cn(PLUGIN_PAGE_TITLE_CLASS, isMobile && 'text-lg')}>{title}</div>
+      <div className={cn(PLUGIN_PAGE_TITLE_CLASS, isMobile && PLUGIN_PAGE_TITLE_MOBILE_CLASS)}>
+        {title}
+      </div>
     )
   ) : null;
 
-  const subtitleNode = subtitle ? (
-    <div className={cn(PLUGIN_PAGE_SUBTITLE_CLASS, 'min-w-0')}>
-      {typeof subtitle === 'string' ? <p className="truncate">{subtitle}</p> : subtitle}
+  const desktopHeaderRow = showDesktopHeaderRow ? (
+    <div className={DETAIL_PANEL_HEADER_ROW_CLASS}>
+      {showTitleBlock ? (
+        <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>{titleNode}</div>
+      ) : (
+        <div className="min-w-0 flex-1" />
+      )}
+      <div className={PLUGIN_PAGE_HEADER_ACTIONS_CLASS}>
+        {headerRight}
+        {showCloseButton ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 flex-shrink-0"
+            aria-label="Close panel"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        ) : null}
+      </div>
     </div>
   ) : null;
 
   return (
     <div className={cn(MAIN_CONTENT_SHELL_CLASS, isMobile && 'relative min-h-0 flex-1')}>
-      {/* Fixed Header — on phone, primary actions float over content at the bottom */}
-      {(showTitleBlock || (!isMobile && (headerRight || showCloseButton))) && (
-        <div
-          className={cn(
-            isMobile
-              ? cn(
-                  'flex flex-shrink-0 items-start justify-between gap-4',
-                  showTitleBlock ? 'px-2 pb-2 pt-2 sm:px-3' : 'px-2 pb-0 pt-2 sm:px-3',
-                )
-              : showTitleBlock
-                ? DETAIL_PANEL_HEADER_DESKTOP_CLASS
-                : 'flex flex-shrink-0 items-start justify-between gap-4 px-6 py-2',
-          )}
-        >
-          <div className="min-w-0 flex-1 space-y-1 overflow-hidden">
-            {showTitleBlock ? (
-              <>
-                {titleNode}
-                {subtitleNode}
-              </>
-            ) : null}
-          </div>
-          {!isMobile ? (
-            <div className="flex shrink-0 items-center gap-1">
-              {headerRight}
-              {showCloseButton && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClose}
-                  className="h-8 w-8 flex-shrink-0"
-                  aria-label="Close panel"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+      {isMobile ? (
+        <>
+          {(showTitleBlock || headerRight) && (
+            <div
+              className={cn(
+                'flex flex-shrink-0 items-start justify-between gap-4',
+                showTitleBlock ? 'px-2 pb-2 pt-4 sm:px-3' : 'px-2 pb-0 pt-4 sm:px-3',
+              )}
+            >
+              {showTitleBlock ? (
+                <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>{titleNode}</div>
+              ) : (
+                <div className="min-w-0 flex-1" />
               )}
             </div>
+          )}
+
+          <div
+            ref={scrollContainerRef}
+            className={cn(
+              'min-h-0 flex-1 overflow-y-auto overflow-x-hidden [&_.shadow-none]:border-none',
+              'px-2 sm:px-3',
+              hasBottomActions ? 'pb-20' : 'pb-4',
+              showTitleBlock ? 'pt-0' : 'pt-4',
+            )}
+          >
+            {children}
+            {footer ? (
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">{footer}</div>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <div className={DETAIL_PANEL_SHELL_CLASS}>
+          {desktopHeaderRow}
+          <div ref={scrollContainerRef} className={DETAIL_PANEL_BODY_CLASS}>
+            {children}
+          </div>
+          {footer ? (
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:justify-end">{footer}</div>
           ) : null}
         </div>
       )}
-
-      {/* Scrollable Content — fills panel; phone bottom actions float over it */}
-      <div
-        ref={scrollContainerRef}
-        className={cn(
-          'min-h-0 flex-1 overflow-y-auto overflow-x-hidden [&_.shadow-none]:border-none',
-          isMobile
-            ? cn(
-                'px-2 sm:px-3',
-                hasBottomActions ? 'pb-20' : 'pb-4',
-                showTitleBlock ? 'pt-3' : 'pt-1',
-              )
-            : DETAIL_PANEL_BODY_DESKTOP_CLASS,
-        )}
-      >
-        {children}
-        {footer && isMobile ? (
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">{footer}</div>
-        ) : null}
-      </div>
-
-      {/* Desktop/pad: optional plugin footer in flow */}
-      {footer && !isMobile ? (
-        <div className="flex flex-shrink-0 flex-col gap-3 px-6 py-4 sm:flex-row sm:justify-end">
-          {footer}
-        </div>
-      ) : null}
 
       {/* Phone: Edit/Close fixed to viewport (portaled) — always visible while scrolling */}
       {hasBottomActions && typeof document !== 'undefined'

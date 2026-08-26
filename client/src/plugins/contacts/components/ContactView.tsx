@@ -406,7 +406,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                         key={address.id}
                         className={cn('space-y-4', idx > 0 && 'border-t border-border/50 pt-6')}
                       >
-                        <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                        <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                           {address.type || 'Address'}
                         </Badge>
                         <div className="grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-4">
@@ -527,19 +527,19 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                 <div>
                   <div className={INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {contactIdLabel}
                     </span>
                   </div>
                   <div className={INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Created</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {new Date(contact.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                   <div className={INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {new Date(contact.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -688,7 +688,7 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                         className={cn('space-y-4', idx > 0 && 'border-t border-border/50 pt-6')}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-xs font-semibold text-slate-700 dark:from-slate-700 dark:to-slate-600 dark:text-slate-300">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-sm font-extrabold text-slate-700 dark:from-slate-700 dark:to-slate-600 dark:text-slate-300">
                             {personInitials || <User className="h-3.5 w-3.5" />}
                           </div>
                           <div className="min-w-0 flex-1">

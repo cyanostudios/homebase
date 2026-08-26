@@ -1,9 +1,8 @@
-import { Clock, Edit, ExternalLink, Globe, Hash, Mail, Phone, Tag, X } from 'lucide-react';
+import { Clock, Globe, Hash, Mail, Phone, Tag, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   Select,
@@ -18,6 +17,10 @@ import {
   DETAIL_NOTE_CALLOUT_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import {
+  QuickContextHeaderActions,
+  QuickContextOpenFullFooter,
+} from '@/core/ui/QuickContextHeaderActions';
 import { cn } from '@/lib/utils';
 
 import { ContactCopyableLink, mailtoHref, telHref, websiteHref } from './ContactCopyableLink';
@@ -165,41 +168,13 @@ export function ContactQuickContextPanel({
               />
             ) : null}
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            {!isFullView && onOpenFullProfile ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={ExternalLink}
-                className="h-8 w-8 p-0"
-                onClick={onOpenFullProfile}
-                aria-label={t('contacts.quickContext.openFullProfile')}
-                title={t('contacts.quickContext.openFullProfile')}
-              />
-            ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={Edit}
-              className="h-8 w-8 p-0 hidden md:inline-flex"
-              onClick={onEdit}
-              aria-label={t('contacts.edit')}
-              title={t('contacts.edit')}
-            />
-            {!isFullView && onClose ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                icon={X}
-                className="h-8 w-8 p-0"
-                onClick={onClose}
-                aria-label={t('common.close')}
-              />
-            ) : null}
-          </div>
+          <QuickContextHeaderActions
+            onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+            onEdit={onEdit}
+            onClose={!isFullView && onClose ? onClose : undefined}
+            editLabel={t('contacts.edit')}
+            closeLabel={t('common.close')}
+          />
         </div>
       </div>
     </div>
@@ -333,7 +308,7 @@ export function ContactQuickContextPanel({
                 {displayTags.map((item) => (
                   <Badge
                     key={item}
-                    className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-extrabold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
                     <Tag className="h-3 w-3" />
                     {item}
@@ -386,17 +361,7 @@ export function ContactQuickContextPanel({
       </div>
 
       {!isFullView && onOpenFullProfile ? (
-        <div className="border-t border-border/50 px-4 py-3">
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            className="h-9 w-full text-xs"
-            onClick={onOpenFullProfile}
-          >
-            {t('contacts.quickContext.openFullProfile')}
-          </Button>
-        </div>
+        <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />
       ) : null}
     </Card>
   );

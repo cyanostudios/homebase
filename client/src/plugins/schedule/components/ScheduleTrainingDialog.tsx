@@ -1,18 +1,21 @@
-import { CalendarClock, Loader2 } from 'lucide-react';
+import { CalendarClock } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import {
+  AlertDialogRoundCancel,
+  AlertDialogRoundSave,
+  DialogDeleteButton,
+} from '@/core/ui/DialogRoundButtons';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -321,36 +324,22 @@ export function ScheduleTrainingDialog({
 
           <AlertDialogFooter className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-between">
             {isEdit ? (
-              <Button
+              <DialogDeleteButton
                 type="button"
-                variant="outline"
-                className="text-destructive hover:text-destructive"
+                label={t('schedule.deleteTraining')}
                 disabled={isSaving}
                 onClick={() => setShowDeleteConfirm(true)}
-              >
-                {t('schedule.deleteTraining')}
-              </Button>
+              />
             ) : (
               <span className="hidden sm:block sm:flex-1" aria-hidden />
             )}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <AlertDialogCancel asChild>
-                <Button variant="secondary" onClick={onClose} disabled={isSaving}>
-                  {t('common.cancel')}
-                </Button>
-              </AlertDialogCancel>
-              <AlertDialogAction asChild>
-                <Button disabled={!isValid || isSaving} onClick={handleSave}>
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('schedule.savingTraining')}
-                    </>
-                  ) : (
-                    t('schedule.saveTraining')
-                  )}
-                </Button>
-              </AlertDialogAction>
+              <AlertDialogRoundCancel onClick={onClose} disabled={isSaving} />
+              <AlertDialogRoundSave
+                label={isSaving ? t('schedule.savingTraining') : t('schedule.saveTraining')}
+                disabled={!isValid || isSaving}
+                onClick={handleSave}
+              />
             </div>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -365,16 +354,13 @@ export function ScheduleTrainingDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSaving}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isSaving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDelete();
-              }}
-            >
-              {t('schedule.deleteTraining')}
+            <AlertDialogRoundCancel disabled={isSaving} />
+            <AlertDialogAction asChild onClick={(event) => event.preventDefault()}>
+              <DialogDeleteButton
+                label={t('schedule.deleteTraining')}
+                disabled={isSaving}
+                onClick={() => void handleDelete()}
+              />
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

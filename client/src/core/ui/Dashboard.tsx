@@ -18,6 +18,7 @@ import { useSchedulePlans } from '@/plugins/schedule/hooks/useSchedulePlans';
 import { useSlotsContext } from '@/plugins/slots/context/SlotsContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 import { useTeams } from '@/plugins/teams/hooks/useTeams';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 interface DashboardProps {
   onPageChange: (page: NavPage) => void;
@@ -60,7 +61,7 @@ export function Dashboard({ onPageChange }: DashboardProps) {
     <div className="min-h-full overflow-x-hidden bg-background px-4 pt-2 pb-4 md:px-6 md:py-4">
       <div className="mx-auto min-w-0 max-w-screen-2xl space-y-6">
         <div className="min-w-0">
-          <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.dashboard')}</h2>
+          <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.dashboard')}</h2>
           <p className="text-sm text-muted-foreground">{t('dashboard.description')}</p>
         </div>
 

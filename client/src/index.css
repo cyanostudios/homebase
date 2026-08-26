@@ -1,4 +1,4 @@
-@import './core/styles/noto-sans.css';
+@import './core/styles/mulish.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -162,7 +162,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-base font-normal;
     font-feature-settings:
       'liga' 1,
       'calt' 1;
@@ -173,6 +173,61 @@
   input::placeholder,
   textarea::placeholder {
     @apply text-muted-foreground;
+  }
+
+  /*
+   * Round checkboxes — match RoundIconLabelButton (secondary idle, primary checked).
+   * Opt out: class="sr-only" or data-checkbox-unstyled.
+   */
+  .hb-checkbox,
+  input[type='checkbox']:not(.sr-only):not([data-checkbox-unstyled]) {
+    @apply h-5 w-5 shrink-0 cursor-pointer appearance-none rounded-full border-0 bg-secondary align-middle;
+    @apply transition-[background-color,opacity] duration-200 ease-out;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .hb-checkbox:hover:not(:disabled):not(:checked):not(:indeterminate),
+  input[type='checkbox']:not(.sr-only):not([data-checkbox-unstyled]):hover:not(:disabled):not(
+      :checked
+    ):not(:indeterminate) {
+    @apply bg-primary opacity-50;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+    background-size: 62%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .hb-checkbox:checked,
+  input[type='checkbox']:not(.sr-only):not([data-checkbox-unstyled]):checked {
+    @apply bg-primary opacity-100;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+    background-size: 62%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .hb-checkbox:indeterminate,
+  input[type='checkbox']:not(.sr-only):not([data-checkbox-unstyled]):indeterminate {
+    @apply bg-primary opacity-100;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3Cline x1='5' y1='12' x2='19' y2='12'/%3E%3C/svg%3E");
+    background-size: 55%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  /* Hover preview only when unchecked — checked stays full opacity while pointer remains. */
+  /* Suppress list row/card hover highlight while pointer is over the checkbox. */
+  tr:hover:has(input[type='checkbox']:not(.sr-only):not([data-checkbox-unstyled]):hover):not(
+      [class*='bg-plugin-subtle']
+    ) {
+    @apply bg-transparent dark:bg-transparent;
+  }
+
+  .group:hover:has(input[type='checkbox']:not(.sr-only):not([data-checkbox-unstyled]):hover):not(
+      [class*='bg-plugin-subtle']
+    ) {
+    background-color: hsl(var(--card));
   }
 
   /*
@@ -348,7 +403,7 @@
 
 /* Mention nodes in editor */
 .rich-text-editor .ProseMirror .mention {
-  @apply inline-flex items-center rounded px-1 py-0.5 text-xs font-medium;
+  @apply inline-flex items-center rounded px-1 py-0.5 text-xs font-extrabold;
   background-color: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
   cursor: default;
@@ -403,7 +458,7 @@
 }
 
 .rich-text-content .mention {
-  @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer;
+  @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-extrabold cursor-pointer;
   background-color: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
 }
@@ -411,7 +466,7 @@
   background-color: hsl(var(--primary) / 0.2);
 }
 .rich-text-content .mention-deleted {
-  @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium;
+  @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-extrabold;
   @apply bg-muted text-muted-foreground;
 }
 

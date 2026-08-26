@@ -71,7 +71,7 @@ export function RequestResponseDueControl({
         variant="outline"
         className={cn(
           'border-transparent font-medium',
-          compact ? 'h-5 px-1.5 text-[10px]' : 'h-5 px-2 text-xs',
+          compact ? 'h-5 px-1.5 text-[10px] font-extrabold' : 'h-5 px-2 text-xs font-extrabold',
           RESPONSE_DUE_URGENCY_COLORS[urgency],
         )}
       >

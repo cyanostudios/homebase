@@ -123,31 +123,31 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('cups', current.id)}
                     </span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Source URL</span>
-                    <span className="max-w-[170px] truncate font-semibold text-foreground">
+                    <span className="max-w-[170px] truncate font-extrabold text-foreground">
                       {current.source_url || '—'}
                     </span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Ingest source</span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {ingestSourceName(current.ingest_source_id)}
                     </span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Ingest run</span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {current.ingest_run_id || '—'}
                     </span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {current.updated_at
                         ? new Date(current.updated_at).toLocaleDateString('sv-SE')
                         : '—'}
@@ -155,7 +155,7 @@ export function CupView({ cup, item }: { cup?: Cup | null; item?: Cup | null }) 
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">Created</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {current.created_at
                         ? new Date(current.created_at).toLocaleDateString('sv-SE')
                         : '—'}

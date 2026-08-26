@@ -19,7 +19,7 @@ import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function formatSlotDateTime(s: string | null) {
   return s ? formatDateTimeShort(s) : '—';

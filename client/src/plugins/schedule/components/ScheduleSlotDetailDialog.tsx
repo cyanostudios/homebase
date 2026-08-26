@@ -4,15 +4,17 @@ import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import {
+  AlertDialogRoundAction,
+  AlertDialogRoundCancel,
+  DialogActionButton,
+} from '@/core/ui/DialogRoundButtons';
 import { useTeamVenues } from '@/plugins/teams/hooks/useTeamVenues';
 import { resolveTrainingLocation } from '@/plugins/teams/utils/resolveTrainingLocation';
 
@@ -120,37 +122,28 @@ export function ScheduleSlotDetailDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <AlertDialogCancel asChild>
-            <Button variant="secondary" onClick={onClose}>
-              {t('common.close')}
-            </Button>
-          </AlertDialogCancel>
+          <AlertDialogRoundCancel close onClick={onClose} />
           {canEdit ? (
-            <Button
+            <DialogActionButton
               type="button"
-              variant="outline"
+              variant="secondary"
               icon={Pencil}
+              label={t('schedule.slotDetail.edit')}
               onClick={() => {
                 onEdit?.(slot);
                 onClose();
               }}
-            >
-              {t('schedule.slotDetail.edit')}
-            </Button>
+            />
           ) : null}
           {canGoToTeam ? (
-            <AlertDialogAction asChild>
-              <Button
-                variant="default"
-                icon={ExternalLink}
-                onClick={() => {
-                  onNavigateToTeam?.(slot);
-                  onClose();
-                }}
-              >
-                {t('schedule.slotDetail.goToTeam')}
-              </Button>
-            </AlertDialogAction>
+            <AlertDialogRoundAction
+              icon={ExternalLink}
+              label={t('schedule.slotDetail.goToTeam')}
+              onClick={() => {
+                onNavigateToTeam?.(slot);
+                onClose();
+              }}
+            />
           ) : null}
         </AlertDialogFooter>
       </AlertDialogContent>

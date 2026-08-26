@@ -28,7 +28,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ListColumnLayoutToggle } from '@/core/ui/ListColumnLayoutToggle';
 import { ListEmptyState } from '@/core/ui/ListEmptyState';
 import { ListFooterBar } from '@/core/ui/ListFooterBar';
-import { ListToolbar } from '@/core/ui/ListToolbar';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -273,7 +273,7 @@ export const YourItemList: React.FC = () => {
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold tracking-tight">Your items</h2>
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>Your items</h2>
             <p className="text-sm text-muted-foreground">{yourItems.length} items</p>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">

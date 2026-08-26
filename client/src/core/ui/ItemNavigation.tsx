@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
 
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { cn } from '@/lib/utils';
 
 export interface ItemNavigationProps {
@@ -12,8 +13,8 @@ export interface ItemNavigationProps {
   className?: string;
 }
 
-const PAGER_BTN_CLASS =
-  'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent';
+const countPillClass =
+  'inline-flex h-11 shrink-0 items-center rounded-full bg-secondary px-3.5 text-sm font-extrabold tabular-nums text-secondary-foreground';
 
 export function ItemNavigation({
   onPrev,
@@ -24,30 +25,26 @@ export function ItemNavigation({
   className,
 }: ItemNavigationProps) {
   return (
-    <div
-      className={cn('inline-flex items-center gap-1 rounded-md bg-card p-1 shadow-sm', className)}
-    >
-      <button
+    <div className={cn('inline-flex items-center gap-1', className)}>
+      <RoundIconLabelButton
         type="button"
         onClick={onPrev}
         disabled={!hasPrev}
-        aria-label="Previous item"
-        className={PAGER_BTN_CLASS}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-      <span className="min-w-0 flex-1 px-1.5 text-center text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-400 sm:flex-none">
-        {label}
-      </span>
-      <button
+        icon={ChevronLeft}
+        label="Previous item"
+        variant="secondary"
+        expandOnHover={false}
+      />
+      <span className={countPillClass}>{label}</span>
+      <RoundIconLabelButton
         type="button"
         onClick={onNext}
         disabled={!hasNext}
-        aria-label="Next item"
-        className={PAGER_BTN_CLASS}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
+        icon={ChevronRight}
+        label="Next item"
+        variant="secondary"
+        expandOnHover={false}
+      />
     </div>
   );
 }

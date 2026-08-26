@@ -646,7 +646,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('teams', team.id)}
                     </span>
                   </div>
@@ -654,13 +654,13 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('teams.form.ageGroupLabel')}
                     </span>
-                    <span className="font-semibold text-foreground">{team.age_group || '—'}</span>
+                    <span className="font-extrabold text-foreground">{team.age_group || '—'}</span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('teams.form.playingFormatLabel')}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {team.playing_format || '—'}
                     </span>
                   </div>
@@ -668,7 +668,7 @@ export function TeamView({ team: teamProp, item }: { team?: Team | null; item?: 
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {team.updated_at
                         ? new Date(team.updated_at).toLocaleDateString('sv-SE')
                         : '—'}

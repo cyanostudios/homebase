@@ -19,7 +19,7 @@ import {
 } from '../types/requests';
 import type { RequestSortField, RequestSortOrder } from '../utils/requestListSort';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 export type RequestListTableProps = {
   requests: Request[];
@@ -143,7 +143,7 @@ export function RequestListTable({
             <Badge
               variant="outline"
               className={cn(
-                'h-5 border-transparent px-1.5 text-[10px] font-medium',
+                'h-5 border-transparent px-1.5 text-[10px] font-extrabold',
                 RESPONSE_DUE_URGENCY_COLORS[urgency],
               )}
             >

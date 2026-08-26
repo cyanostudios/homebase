@@ -10,8 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DialogCloseButton } from '@/core/ui/DialogRoundButtons';
 import { cn } from '@/lib/utils';
 
 export type CupIngestImportResultVariant = 'success' | 'partial' | 'error';
@@ -142,9 +142,7 @@ export function CupIngestImportResultDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogAction asChild>
-            <Button type="button" variant="primary" className="h-9 px-4 text-xs">
-              OK
-            </Button>
+            <DialogCloseButton type="button" label="OK" />
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

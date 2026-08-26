@@ -55,7 +55,9 @@ function ScheduleSlotBlock({ slot }: { slot: ScheduleSlot }) {
     <div className="flex min-w-[7rem] max-w-[10rem] flex-col items-start gap-0.5 text-left">
       <span className="text-xs font-semibold leading-tight">{timeLabel}</span>
       {label ? (
-        <span className="truncate text-[10px] font-medium leading-tight opacity-90">{label}</span>
+        <span className="truncate text-[10px] font-extrabold leading-tight opacity-90">
+          {label}
+        </span>
       ) : null}
       {slot.location ? (
         <span className="inline-flex max-w-full items-center gap-0.5 text-[10px] leading-tight opacity-75">

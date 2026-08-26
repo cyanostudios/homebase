@@ -38,8 +38,8 @@ export function TaskPrioritySelect({
           <Badge
             variant="outline"
             className={cn(
-              'flex items-center border-transparent px-2 font-medium',
-              compact ? 'h-5 text-[10px]' : 'h-5 text-xs',
+              'flex items-center border-transparent px-2 font-extrabold',
+              compact ? 'h-5 text-[10px] font-extrabold' : 'h-5 text-xs font-extrabold',
               TASK_PRIORITY_COLORS[task.priority as keyof typeof TASK_PRIORITY_COLORS],
             )}
           >

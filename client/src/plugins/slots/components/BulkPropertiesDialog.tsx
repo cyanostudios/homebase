@@ -4,9 +4,19 @@ import { SlidersHorizontal } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Heading } from '@/core/ui/Typography';
+import {
+  DialogCancelButton,
+  DialogCloseButton,
+  DialogSaveButton,
+} from '@/core/ui/DialogRoundButtons';
+import {
+  DIALOG_BODY_SCROLL_CLASS,
+  DIALOG_FOOTER_CLASS,
+  DIALOG_HEADER_CLASS,
+  DIALOG_SUBTITLE_CLASS,
+} from '@/core/ui/dialogStyles';
+import { DialogHeading } from '@/core/ui/DialogHeading';
 
 import { slotsApi } from '../api/slotsApi';
 import type { Slot } from '../types/slots';
@@ -86,12 +96,12 @@ export function BulkPropertiesDialog({
       />
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-lg max-h-[90vh] flex flex-col">
         <div className="bg-background rounded-xl shadow-xl border overflow-hidden flex flex-col max-h-full">
-          <div className="p-4 border-b shrink-0">
-            <Heading level={3} className="mb-0 flex items-center gap-2">
+          <div className={DIALOG_HEADER_CLASS}>
+            <DialogHeading className="mb-0 flex items-center gap-2">
               <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
               {t('slots.bulkPropertiesTitle', { defaultValue: 'Properties' })}
-            </Heading>
-            <div className="text-xs text-muted-foreground mt-1">
+            </DialogHeading>
+            <div className={DIALOG_SUBTITLE_CLASS}>
               {t('slots.bulkPropertiesSubtitle', {
                 count,
                 defaultValue: 'Apply to {{count}} slot(s)',
@@ -99,7 +109,7 @@ export function BulkPropertiesDialog({
             </div>
           </div>
 
-          <div className="p-4 flex flex-col gap-4 min-h-0 overflow-auto">
+          <div className={DIALOG_BODY_SCROLL_CLASS}>
             {phase === 'idle' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
@@ -157,30 +167,21 @@ export function BulkPropertiesDialog({
             )}
           </div>
 
-          <div className="p-4 border-t flex items-center justify-end gap-2 shrink-0">
+          <div className={DIALOG_FOOTER_CLASS}>
             {phase === 'done' ? (
-              <Button variant="secondary" size="sm" onClick={handleDoneClose}>
-                {t('common.close')}
-              </Button>
+              <DialogCloseButton onClick={handleDoneClose} />
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClose}
-                  disabled={phase === 'applying'}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  size="sm"
+                <DialogCancelButton onClick={handleClose} disabled={phase === 'applying'} />
+                <DialogSaveButton
                   onClick={handleApply}
                   disabled={phase === 'applying' || count === 0}
-                >
-                  {phase === 'applying'
-                    ? t('slots.bulkPropertiesApplyingShort', { defaultValue: 'Updating…' })
-                    : t('slots.bulkPropertiesApply', { defaultValue: 'Apply' })}
-                </Button>
+                  label={
+                    phase === 'applying'
+                      ? t('slots.bulkPropertiesApplyingShort', { defaultValue: 'Updating…' })
+                      : t('slots.bulkPropertiesApply', { defaultValue: 'Apply' })
+                  }
+                />
               </>
             )}
           </div>

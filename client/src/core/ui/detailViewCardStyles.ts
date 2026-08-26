@@ -12,11 +12,18 @@ export const DETAIL_LIST_ITEM_TITLE_CLASS =
   'text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-primary';
 
 export const DETAIL_FIELD_LABEL_CLASS =
-  'inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] font-semibold text-slate-400 dark:text-slate-500 mb-0.5';
+  'inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] font-normal text-slate-400 dark:text-slate-500 mb-0.5';
 
 export const DETAIL_FIELD_LABEL_ICON_CLASS = 'h-3 w-3 shrink-0';
 
-export const DETAIL_FIELD_VALUE_CLASS = 'text-[14px] font-medium text-foreground';
+/** Primary field values in detail panels — weight 800. */
+export const DETAIL_FIELD_VALUE_CLASS = 'text-base font-extrabold text-foreground';
+
+/** Monospace values in Information rows (ID, dates, etc.). */
+export const DETAIL_INFO_VALUE_CLASS = 'font-mono font-extrabold text-foreground';
+
+/** Non-monospace values in Information rows. */
+export const DETAIL_INFO_VALUE_TEXT_CLASS = 'font-extrabold text-foreground';
 
 export const DETAIL_PROP_ROW_CLASS =
   'flex items-center justify-between gap-3 py-3 border-b border-border/50 last:border-0';
@@ -32,27 +39,30 @@ export const DETAIL_INFO_ROW_CLASS =
 export const DETAIL_SURFACE_ROW_CLASS =
   'flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 transition-colors hover:bg-muted/70 dark:bg-muted/25';
 
+/** Gray link label — normal state (muted-foreground is too dark in this theme). */
+export const LINK_BUTTON_TEXT_IDLE_CLASS = 'text-slate-400 dark:text-slate-500';
+
+/** Black/dark link label — selected or hover emphasis. */
+export const LINK_BUTTON_TEXT_ACTIVE_CLASS = 'text-foreground';
+
+/** Link-style controls — text weight 800 (icons unchanged). */
+export const LINK_BUTTON_FONT_CLASS = 'font-extrabold';
+
+/** ExternalLink + label control for related entities / quick-info. */
+export const DETAIL_ENTITY_LINK_TRIGGER_CLASS = `h-9 shrink-0 gap-1.5 rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-border transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground hover:decoration-foreground`;
+
+/** Ghost row buttons in Quick actions / Export sidebars — gray text, no fill. */
+export const DETAIL_QUICK_ACTION_ROW_CLASS = `h-9 justify-start rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:bg-muted/40 hover:text-foreground`;
+
+/** Ghost row buttons in Quick actions — selected (black text). */
+export const DETAIL_QUICK_ACTION_ROW_ACTIVE_CLASS = `h-9 justify-start rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} ${LINK_BUTTON_TEXT_ACTIVE_CLASS} transition-colors hover:text-foreground`;
+
 /**
- * ExternalLink + label control for related entities / quick-info
- * (same visual language as list Select all / bulk actions).
+ * Compact list filter chips — gray text idle, black text when selected.
  */
-export const DETAIL_ENTITY_LINK_TRIGGER_CLASS =
-  'h-9 shrink-0 gap-1.5 px-3 text-xs text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary';
+export const LIST_FILTER_CHIP_CLASS = `h-9 shrink-0 gap-1.5 rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-border transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground hover:decoration-foreground`;
 
-/** Ghost row buttons in Quick actions / Export sidebars */
-export const DETAIL_QUICK_ACTION_ROW_CLASS =
-  'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted/50 transition-colors';
-
-/**
- * Compact list filter chips (e.g. Teams boys/girls, Requests types) —
- * same underline language as Select all / bulk actions.
- * `shrink-0` keeps chips from compressing in horizontal scroll rows.
- */
-export const LIST_FILTER_CHIP_CLASS =
-  'h-9 shrink-0 gap-1.5 rounded-md bg-white px-3 text-xs font-medium text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary dark:bg-slate-950';
-
-export const LIST_FILTER_CHIP_ACTIVE_CLASS =
-  'h-9 shrink-0 gap-1.5 rounded-md bg-primary/10 px-3 text-xs font-medium text-primary underline decoration-primary hover:bg-primary/10 hover:text-primary hover:decoration-primary';
+export const LIST_FILTER_CHIP_ACTIVE_CLASS = `h-9 shrink-0 gap-1.5 rounded-md px-3 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-foreground transition-colors ${LINK_BUTTON_TEXT_ACTIVE_CLASS} hover:text-foreground hover:decoration-foreground`;
 
 /**
  * Phone: single-row horizontal scroll for secondary filter chips.
@@ -65,11 +75,9 @@ export const LIST_FILTER_CHIP_ROW_CLASS =
  * Large select-style chips (e.g. Teams detail tabs: Overview / Schedule) —
  * same underline language as the small chips, larger padding/type.
  */
-export const LIST_FILTER_CHIP_LG_CLASS =
-  'h-auto shrink-0 gap-1.5 rounded-md bg-white px-3 py-2 text-xs font-medium text-foreground underline decoration-border hover:bg-primary/10 hover:text-primary hover:decoration-primary sm:gap-2 sm:px-5 sm:py-3 sm:text-sm dark:bg-slate-950';
+export const LIST_FILTER_CHIP_LG_CLASS = `h-auto shrink-0 gap-1.5 rounded-md px-3 py-2 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-border transition-colors ${LINK_BUTTON_TEXT_IDLE_CLASS} hover:text-foreground hover:decoration-foreground sm:gap-2 sm:px-5 sm:py-3 sm:text-sm`;
 
-export const LIST_FILTER_CHIP_LG_ACTIVE_CLASS =
-  'h-auto shrink-0 gap-1.5 rounded-md bg-primary/10 px-3 py-2 text-xs font-medium text-primary underline decoration-primary hover:bg-primary/10 hover:text-primary hover:decoration-primary sm:gap-2 sm:px-5 sm:py-3 sm:text-sm';
+export const LIST_FILTER_CHIP_LG_ACTIVE_CLASS = `h-auto shrink-0 gap-1.5 rounded-md px-3 py-2 text-xs ${LINK_BUTTON_FONT_CLASS} underline decoration-foreground transition-colors ${LINK_BUTTON_TEXT_ACTIVE_CLASS} hover:text-foreground hover:decoration-foreground sm:gap-2 sm:px-5 sm:py-3 sm:text-sm`;
 
 /** Dashboard plugin widget card — same surface/hover language as select-style filter chips. */
 export const DASHBOARD_WIDGET_CARD_CLASS =

@@ -1,12 +1,15 @@
-import { Edit, ExternalLink, Users, X } from 'lucide-react';
+import { Users } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import {
+  QuickContextHeaderActions,
+  QuickContextOpenFullFooter,
+} from '@/core/ui/QuickContextHeaderActions';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -202,39 +205,13 @@ export function NoteQuickContextPanel({
           {note.title || '—'}
         </h3>
       </div>
-      {!isFullView && onOpenFullProfile ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          icon={ExternalLink}
-          className="h-8 w-8 shrink-0 p-0"
-          onClick={onOpenFullProfile}
-          aria-label={t('notes.quickContext.openFullProfile')}
-          title={t('notes.quickContext.openFullProfile')}
-        />
-      ) : null}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        icon={Edit}
-        className="h-8 w-8 shrink-0 p-0 hidden md:inline-flex"
-        onClick={onEdit}
-        aria-label={t('common.edit')}
-        title={t('common.edit')}
+      <QuickContextHeaderActions
+        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onEdit={onEdit}
+        onClose={!isFullView && onClose ? onClose : undefined}
+        editLabel={t('common.edit')}
+        closeLabel={t('common.close')}
       />
-      {!isFullView && onClose ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          icon={X}
-          className="h-8 w-8 shrink-0 p-0"
-          onClick={onClose}
-          aria-label={t('common.close')}
-        />
-      ) : null}
     </div>
   );
 
@@ -324,17 +301,7 @@ export function NoteQuickContextPanel({
         </div>
 
         {!isFullView && onOpenFullProfile ? (
-          <div className="border-t border-border/50 px-4 py-3">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              className="h-9 w-full text-xs"
-              onClick={onOpenFullProfile}
-            >
-              {t('notes.quickContext.openFullProfile')}
-            </Button>
-          </div>
+          <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />
         ) : null}
       </Card>
 

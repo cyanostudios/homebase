@@ -18,7 +18,7 @@ import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import {
   DETAIL_FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS,
@@ -130,7 +130,7 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
                   >
                     {(item.articleName || '—').trim().slice(0, 2).toUpperCase()}
                   </div>
-                  <h2 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-foreground">
+                  <h2 className={cn('min-w-0 flex-1', PLUGIN_PAGE_TITLE_CLASS)}>
                     {item.articleName || '—'}
                   </h2>
                   <Button
@@ -257,7 +257,7 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('garments', item.id)}
                     </span>
                   </div>
@@ -265,7 +265,7 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDate(item.createdAt)}
                     </span>
                   </div>
@@ -273,7 +273,7 @@ function InventoryDetailView({ item }: { item: InventoryItem }) {
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDate(item.updatedAt)}
                     </span>
                   </div>
@@ -456,6 +456,38 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                     variant="ghost"
                     size="sm"
                     icon={(props) => (
+                      <Trash2
+                        {...props}
+                        className={cn(props.className, 'text-red-600 dark:text-red-400')}
+                      />
+                    )}
+                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                  {canDuplicate ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      icon={(props) => (
+                        <Copy
+                          {...props}
+                          className={cn(props.className, 'text-green-600 dark:text-green-400')}
+                        />
+                      )}
+                      className={DETAIL_QUICK_ACTION_ROW_CLASS}
+                      onClick={() => setShowDuplicateDialog(true)}
+                    >
+                      {t('common.duplicate')}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={(props) => (
                       <Upload
                         {...props}
                         className={cn(props.className, 'text-emerald-600 dark:text-emerald-400')}
@@ -484,38 +516,6 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                       ? t('garments.creatingShare')
                       : t('garments.shareList')}
                   </Button>
-                  {canDuplicate ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      icon={(props) => (
-                        <Copy
-                          {...props}
-                          className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                        />
-                      )}
-                      className={DETAIL_QUICK_ACTION_ROW_CLASS}
-                      onClick={() => setShowDuplicateDialog(true)}
-                    >
-                      {t('common.duplicate')}
-                    </Button>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    icon={(props) => (
-                      <Trash2
-                        {...props}
-                        className={cn(props.className, 'text-red-600 dark:text-red-400')}
-                      />
-                    )}
-                    className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    {t('common.delete')}
-                  </Button>
                 </div>
               </DetailSection>
             </Card>
@@ -530,7 +530,7 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('garments', list.id)}
                     </span>
                   </div>
@@ -539,14 +539,14 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                       <span className="text-slate-500 dark:text-slate-400">
                         {t('garments.team')}
                       </span>
-                      <span className="font-semibold text-foreground">{teamLabel}</span>
+                      <span className="font-extrabold text-foreground">{teamLabel}</span>
                     </div>
                   ) : null}
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDate(list.createdAt)}
                     </span>
                   </div>
@@ -554,7 +554,7 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDate(list.updatedAt)}
                     </span>
                   </div>
@@ -567,9 +567,7 @@ export const GarmentView: React.FC<GarmentViewProps> = ({ garment, item }) => {
         <div className="space-y-4">
           <Card padding="none" className={DETAIL_VIEW_CARD_CLASS}>
             <div className="border-b border-border/50 px-6 py-4">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                {list.name || '—'}
-              </h2>
+              <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{list.name || '—'}</h2>
             </div>
             <DetailSection title={t('garments.persons')} icon={Users} subtleTitle className="p-6">
               <PersonMatrix list={list} />

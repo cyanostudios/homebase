@@ -40,6 +40,7 @@ import {
   DETAIL_PROP_ROW_CLASS as PROP_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
+import { DETAIL_FORM_TITLE_INPUT_CLASS } from '@/core/ui/pluginPageStyles';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
@@ -407,7 +408,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                 onChange={(e) => updateField('companyName', e.target.value)}
                 placeholder={isCompanyType ? 'Company Name *' : 'Full Name *'}
                 className={cn(
-                  'h-9 text-lg font-semibold tracking-tight',
+                  DETAIL_FORM_TITLE_INPUT_CLASS,
                   getFieldError('companyName') && 'border-red-500',
                 )}
                 required
@@ -755,7 +756,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                   <div className={PROP_ROW_CLASS}>
                     <span className="text-sm text-slate-500 dark:text-slate-400">Tax rate</span>
                     {formData.contactType === 'private' ? (
-                      <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 font-semibold dark:bg-slate-800 dark:text-slate-300">
+                      <Badge className="border-0 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         0% (Tax Free)
                       </Badge>
                     ) : (
@@ -877,7 +878,7 @@ export const ContactForm = React.forwardRef<PanelFormHandle, ContactFormProps>(f
                           {(formData.tags as string[]).map((item) => (
                             <Badge
                               key={item}
-                              className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                              className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-extrabold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                             >
                               <Tag className="h-3 w-3" />
                               {item}

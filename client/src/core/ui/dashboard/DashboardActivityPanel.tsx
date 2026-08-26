@@ -46,7 +46,9 @@ export function DashboardActivityPanel({ has, matches, teams }: DashboardDataPro
             >
               <div className="flex min-w-0 items-center gap-2">
                 {teamLabel && (
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 font-semibold ${badgeStyle}`}>
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-extrabold ${badgeStyle}`}
+                  >
                     {teamLabel}
                   </span>
                 )}

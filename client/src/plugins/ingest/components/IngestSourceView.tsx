@@ -203,7 +203,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">{t('ingest.colId')}</span>
-                    <span className="truncate text-right font-mono font-semibold text-foreground">
+                    <span className="truncate text-right font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('ingest', source.id)}
                     </span>
                   </div>
@@ -211,19 +211,19 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('ingest.sourceType')}
                     </span>
-                    <span className="font-semibold text-foreground">{source.sourceType}</span>
+                    <span className="font-extrabold text-foreground">{source.sourceType}</span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('ingest.fetchMethod')}
                     </span>
-                    <span className="truncate text-right font-mono font-semibold text-foreground">
+                    <span className="truncate text-right font-mono font-extrabold text-foreground">
                       {source.fetchMethod}
                     </span>
                   </div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">{t('ingest.active')}</span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-extrabold text-foreground">
                       {source.isActive ? t('common.yes') : t('common.no')}
                     </span>
                   </div>
@@ -231,7 +231,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('ingest.lastFetch')}
                     </span>
-                    <span className="text-right font-semibold text-foreground">
+                    <span className="text-right font-extrabold text-foreground">
                       {source.lastFetchedAt ? formatDateTime(source.lastFetchedAt) : '—'}
                     </span>
                   </div>
@@ -239,13 +239,13 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('ingest.lastStatus')}
                     </span>
-                    <span className="font-semibold text-foreground">{source.lastFetchStatus}</span>
+                    <span className="font-extrabold text-foreground">{source.lastFetchStatus}</span>
                   </div>
                   <div className={cn(DETAIL_INFO_ROW_CLASS, 'border-t border-border/50 pt-2')}>
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {new Date(source.createdAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -253,7 +253,7 @@ export const IngestSourceView: React.FC<IngestSourceViewProps> = ({
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {new Date(source.updatedAt).toLocaleDateString()}
                     </span>
                   </div>

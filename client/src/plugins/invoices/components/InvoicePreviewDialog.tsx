@@ -3,14 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { AlertDialogRoundCancel } from '@/core/ui/DialogRoundButtons';
 import { useApp } from '@/core/api/AppContext';
 import {
   EMPTY_ORGANIZATION,
@@ -123,7 +122,7 @@ export function InvoicePreviewDialog({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <AlertDialogContent className="flex h-[90vh] max-h-[90vh] w-[min(960px,95vw)] max-w-[960px] flex-col gap-3 overflow-hidden p-4 sm:rounded-lg">
+      <AlertDialogContent className="flex h-[90vh] max-h-[90vh] w-[min(960px,95vw)] max-w-[960px] flex-col gap-3 overflow-hidden px-5 py-5 sm:rounded-lg sm:px-6 sm:py-6">
         <AlertDialogHeader className="shrink-0 space-y-1 text-left">
           <AlertDialogTitle>
             {t('invoices.previewTitle', { defaultValue: 'Invoice preview' })}
@@ -160,11 +159,7 @@ export function InvoicePreviewDialog({
         ) : null}
 
         <AlertDialogFooter className="shrink-0">
-          <AlertDialogCancel asChild>
-            <Button type="button" variant="secondary" onClick={onClose}>
-              {t('common.close')}
-            </Button>
-          </AlertDialogCancel>
+          <AlertDialogRoundCancel close onClick={onClose} />
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

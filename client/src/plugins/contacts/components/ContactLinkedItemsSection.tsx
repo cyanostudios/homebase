@@ -14,8 +14,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { LINKED_SECTION_BADGE_CLASS } from '@/core/ui/badgeStyles';
 import { QuickContextLinkTile, QuickContextLinkTileGrid } from '@/core/ui/QuickContextLinkTile';
 import { formatDateTime } from '@/core/utils/dateFormat';
 import { buildSlug } from '@/core/utils/slugUtils';
@@ -54,7 +54,7 @@ import {
   type AssignmentQuickInfoDetail,
 } from './AssignmentQuickInfoDialog';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = LINKED_SECTION_BADGE_CLASS;
 
 function formatMatchLine(match: Match): string {
   return `${match.home_team} – ${match.away_team}`;
@@ -301,17 +301,17 @@ export function ContactLinkedItemsSection({
             icon: CheckSquare,
             badges: (
               <>
-                <Badge className={cn(BADGE_CLASS, taskStatusTone(task.status))}>
+                <span className={cn(taskStatusTone(task.status), BADGE_CLASS)}>
                   {formatStatusForDisplay(task.status)}
-                </Badge>
-                <Badge
+                </span>
+                <span
                   className={cn(
-                    BADGE_CLASS,
                     TASK_PRIORITY_COLORS[task.priority as keyof typeof TASK_PRIORITY_COLORS],
+                    BADGE_CLASS,
                   )}
                 >
                   {task.priority}
-                </Badge>
+                </span>
               </>
             ),
             details,
@@ -384,6 +384,8 @@ export function ContactLinkedItemsSection({
         key: `team-${team.id}-${responsible.role}-${responsible.seriesTeam ?? ''}`,
         label: t('nav.team'),
         meta: roleLabel,
+        metaClassName:
+          'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
         text: teamTitle,
         icon: Users,
         iconClassName: 'text-emerald-600',
@@ -393,14 +395,14 @@ export function ContactLinkedItemsSection({
             title: teamTitle,
             icon: Users,
             badges: (
-              <Badge
+              <span
                 className={cn(
-                  BADGE_CLASS,
                   'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                  BADGE_CLASS,
                 )}
               >
                 {roleLabel}
-              </Badge>
+              </span>
             ),
             details: [
               {
@@ -435,6 +437,7 @@ export function ContactLinkedItemsSection({
         key: `slot-${slot.id}`,
         label: t('nav.slots'),
         meta: when,
+        metaClassName: 'bg-muted/40 text-muted-foreground',
         text: slotTitle,
         icon: Store,
         iconClassName: 'text-indigo-600',
@@ -489,9 +492,9 @@ export function ContactLinkedItemsSection({
             title: estimateTitle,
             icon: FileText,
             badges: (
-              <Badge className={cn(BADGE_CLASS, estimateStatusTone(estimate.status))}>
+              <span className={cn(estimateStatusTone(estimate.status), BADGE_CLASS)}>
                 {formatEstimateStatusForDisplay(estimate.status)}
-              </Badge>
+              </span>
             ),
             details: [
               {
@@ -534,6 +537,7 @@ export function ContactLinkedItemsSection({
           list.personCount != null
             ? t('garments.personCount', { count: list.personCount })
             : undefined,
+        metaClassName: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300',
         text: listTitle,
         icon: Shirt,
         iconClassName: 'text-rose-600',

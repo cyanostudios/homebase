@@ -28,15 +28,15 @@ export function ContactsDashboardWidget({ onOpenPlugin }: DashboardWidgetProps) 
           {t('contacts.stats.total')}
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-extrabold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
             {stats.companies} {t('contacts.stats.companies')}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-extrabold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
             {stats.privateCount} {t('contacts.stats.private')}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2 py-1 text-[10px] font-medium text-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2 py-1 text-[10px] font-extrabold text-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
             <span className="h-1.5 w-1.5 rounded-full bg-orange-500" aria-hidden />
             {stats.withTags} {t('contacts.stats.withTags')}
           </span>

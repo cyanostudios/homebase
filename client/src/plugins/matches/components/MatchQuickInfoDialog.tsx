@@ -4,15 +4,13 @@ import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { AlertDialogRoundAction, AlertDialogRoundCancel } from '@/core/ui/DialogRoundButtons';
 import { useTimeFormat } from '@/core/settings/useTimeFormat';
 import { cn } from '@/lib/utils';
 import { formatMatchDateTime, formatMatchScore, type Match } from '@/plugins/matches/types/match';
@@ -110,16 +108,12 @@ export function MatchQuickInfoDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <AlertDialogCancel asChild>
-            <Button variant="secondary" onClick={onClose}>
-              {t('common.close')}
-            </Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button variant="default" icon={ExternalLink} onClick={onOpenMatch}>
-              {t('matches.openMatch')}
-            </Button>
-          </AlertDialogAction>
+          <AlertDialogRoundCancel close onClick={onClose} />
+          <AlertDialogRoundAction
+            icon={ExternalLink}
+            label={t('matches.openMatch')}
+            onClick={onOpenMatch}
+          />
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

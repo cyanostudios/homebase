@@ -28,7 +28,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
-import { Heading, Text } from '@/core/ui/Typography';
+import { DialogHeading } from '@/core/ui/DialogHeading';
+import { Text } from '@/core/ui/Typography';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
@@ -238,9 +239,7 @@ export function TimeTrackingWidget({
           <div className="flex items-center justify-between gap-2 mb-4 min-w-0">
             <div className="flex items-center gap-2 min-w-0 shrink">
               <Timer className="w-5 h-5 shrink-0 text-muted-foreground" />
-              <Heading level={3} className="mb-0 truncate">
-                Time tracking
-              </Heading>
+              <DialogHeading className="mb-0 truncate">Time tracking</DialogHeading>
             </div>
             <div className="flex items-center gap-1">
               <Button
@@ -313,7 +312,7 @@ export function TimeTrackingWidget({
                       <button
                         type="button"
                         className={cn(
-                          'w-full h-8 flex items-center justify-between rounded-md border border-border bg-background px-2 text-[10px] font-medium',
+                          'w-full h-8 flex items-center justify-between rounded-md border border-border bg-background px-2 text-[10px] font-extrabold',
                           'transition-colors hover:bg-accent/50 cursor-pointer',
                         )}
                       >
@@ -399,9 +398,7 @@ export function TimeTrackingWidget({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Settings className="w-5 h-5 text-muted-foreground" />
-              <Heading level={3} className="mb-0">
-                Time tracking Settings
-              </Heading>
+              <DialogHeading className="mb-0">Time tracking Settings</DialogHeading>
             </div>
             <Button
               onClick={() => setShowSettings(false)}

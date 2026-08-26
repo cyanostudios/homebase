@@ -77,64 +77,49 @@ Do **not** put Delete / Duplicate / Export in the quick context panel.
 ```
 Card (DETAIL_VIEW_CARD_CLASS, flex-col; natural height — no max-h / no internal scroll)
 ├── Header row (border-b, px-4 py-2.5)
-│     initials avatar | title | ExternalLink? | Edit | X?
+│     initials avatar | title | QuickContextHeaderActions (Open / Edit / Close)
 ├── Body (px-4 py-4) — grows with content; list scrollport sticks the aside (`lg:sticky lg:top-4 self-start`)
 │     updated timestamp
 │     2×2 fact grid (uppercase labels)
 │     domain list / inline editors
 │     truncated description + read more
 │     amber comment callout
-└── Footer (list only): full-width primary “Open full profile”
+└── Footer (list only): `QuickContextOpenFullFooter` — right-aligned round “Open full profile”
 ```
 
 ### Header (exact pattern)
 
+Use **`QuickContextHeaderActions`** — do not copy ghost `Button` icons.
+
 ```tsx
-<div className="flex items-center gap-3">
-  <div
-    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-semibold text-rose-800 dark:bg-rose-950/50 dark:text-rose-200"
-    aria-hidden
-  >
-    {initials}
-  </div>
-  <div className="flex min-w-0 flex-1 items-center gap-2">
-    <h3 className="truncate text-lg font-semibold tracking-tight text-foreground">{title}</h3>
-  </div>
-  {!isFullView && onOpenFullProfile ? (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      icon={ExternalLink}
-      className="h-8 w-8 shrink-0 p-0"
-      onClick={onOpenFullProfile}
-      aria-label={t('myPlugin.quickContext.openFullProfile')}
-    />
-  ) : null}
-  <Button
-    type="button"
-    variant="ghost"
-    size="sm"
-    icon={Edit}
-    className="h-8 w-8 shrink-0 p-0"
-    onClick={onEdit}
-    aria-label={t('common.edit')}
-  />
-  {!isFullView && onClose ? (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      icon={X}
-      className="h-8 w-8 shrink-0 p-0"
-      onClick={onClose}
-      aria-label={t('common.close')}
-    />
-  ) : null}
-</div>
+import { QuickContextHeaderActions } from '@/core/ui/QuickContextHeaderActions';
+
+<QuickContextHeaderActions
+  onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+  onEdit={onEdit}
+  onClose={!isFullView && onClose ? onClose : undefined}
+  editLabel={t('common.edit')}
+  closeLabel={t('common.close')}
+/>;
 ```
 
-Icon-only header buttons always use `h-8 w-8 shrink-0 p-0`.
+| Control   | Expansion                                     |
+| --------- | --------------------------------------------- |
+| **Open**  | `alwaysExpanded` (`common.open`)              |
+| **Edit**  | Collapsed; label on hover                     |
+| **Close** | Collapsed icon-only (`expandOnHover={false}`) |
+
+Footer (list variant only):
+
+```tsx
+import { QuickContextOpenFullFooter } from '@/core/ui/QuickContextHeaderActions';
+
+{
+  !isFullView && onOpenFullProfile ? (
+    <QuickContextOpenFullFooter onOpen={onOpenFullProfile} />
+  ) : null;
+}
+```
 
 ### Fact grid labels
 
@@ -165,19 +150,7 @@ Fact grid: `grid grid-cols-2 gap-x-4 gap-y-3`.
 
 ### Footer CTA (list mode only)
 
-```tsx
-<div className="border-t border-border/50 px-4 py-3">
-  <Button
-    type="button"
-    variant="primary"
-    size="sm"
-    className="h-9 w-full text-xs"
-    onClick={onOpenFullProfile}
-  >
-    {t('myPlugin.quickContext.openFullProfile')}
-  </Button>
-</div>
-```
+Use **`QuickContextOpenFullFooter`** (see Header section above) — right-aligned round button, `alwaysExpanded`, label `common.openFullProfile`. Do not use full-width primary `Button` rows.
 
 ### Hook: `useQuickContextPreview`
 
@@ -241,12 +214,12 @@ Pass `active*Id={previewItem?.id ?? null}` into `*ListItem` / `*ListTable` so th
 - [ ] Component lives at `plugins/<name>/components/*QuickContextPanel.tsx`
 - [ ] Props include `item`, `onEdit`, optional `onClose` / `onOpenFullProfile`, `variant?: 'list' | 'full'`
 - [ ] Uses `DETAIL_VIEW_CARD_CLASS` on the outer `Card`
-- [ ] Header icon buttons are `h-8 w-8 shrink-0 p-0`
-- [ ] Footer CTA only when `variant !== 'full'`
+- [ ] Header uses `QuickContextHeaderActions` (Open expanded; Edit hover-expand; Close icon-only)
+- [ ] Footer uses `QuickContextOpenFullFooter` when `variant !== 'full'`
 - [ ] No Delete / Duplicate / Export in the panel
-- [ ] List uses `useQuickContextPreview` + sticky `<aside className="w-[min(100%,36rem)] …">`
-- [ ] Active row id synced to preview
-- [ ] i18n keys for openFullProfile / readMore / showLess in **en** and **sv**
+- [ ] List uses `useQuickContextPreview` + sticky `<aside className="w-[min(100%,36rem)] …">` (Contacts: legacy inline preview state — same UX rules apply)
+- [ ] Active row id synced to preview; bulk selection may run while panel is open
+- [ ] i18n: `common.open`, `common.openFullProfile`, `common.edit`, `common.close`; plugin keys for readMore / showLess in **en** and **sv**
 
 ---
 
@@ -443,16 +416,18 @@ Use `icon` prop + label for Settings / primary toolbar actions — not icon-only
 
 ### Bulk selection actions
 
-Neutral bulk actions: hover `bg-primary/10` + `text-primary`.  
-Clear selection and Delete: red underline / red hover language matching garments/tasks lists.
+**Default (ListToolbar):** neutral bulk actions hover `bg-primary/10` + `text-primary`; Clear selection and Delete use red hover language.
+
+**Contacts (`BulkActionRoundBar`):** gray secondary pills, `alwaysExpanded`; count pill blue; message icon `text-sky-500`, email `text-red-800`, delete `tone: 'destructive'`. Reference: `ContactList.tsx`.
 
 ### Checklist — Buttons
 
 - [ ] Quick action icon colors match the table
 - [ ] Delete has red hover background
 - [ ] No `variant="default"` full-width rows in Quick actions
-- [ ] List toolbar secondary buttons are `h-9 text-xs px-3`
-- [ ] Quick context header controls are icon-only `h-8 w-8`
+- [ ] List toolbar secondary buttons are `h-9 text-xs px-3` (or round `ExpandableIconButton` in custom headers — Contacts)
+- [ ] Quick context header uses `QuickContextHeaderActions` (not ghost `h-8 w-8` icons)
+- [ ] Dialog footers use `DialogRoundButtons` / `AlertDialogRound*` with `alwaysExpanded`
 
 ---
 
@@ -565,6 +540,27 @@ const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null
 />
 ```
 
+### 5.6 Dialog chrome — layout tokens + round actions
+
+Custom modals and shared dialogs use `@/core/ui/dialogStyles.ts` for consistent padding and typography:
+
+```tsx
+import { DIALOG_HEADER_CLASS, DIALOG_BODY_SCROLL_CLASS, DIALOG_FOOTER_CLASS } from '@/core/ui/dialogStyles';
+import { DialogHeading } from '@/core/ui/DialogHeading';
+import { DialogCancelButton, DialogSaveButton } from '@/core/ui/DialogRoundButtons';
+
+<div className={DIALOG_HEADER_CLASS}>
+  <DialogHeading>{title}</DialogHeading>
+</div>
+<div className={DIALOG_BODY_SCROLL_CLASS}>{/* fields */}</div>
+<div className={DIALOG_FOOTER_CLASS}>
+  <DialogCancelButton onClick={onClose} />
+  <DialogSaveButton onClick={onSave} />
+</div>
+```
+
+Radix alert dialogs: `AlertDialogRoundCancel`, `AlertDialogRoundSave`, `AlertDialogRoundDelete` — always `asChild` + round buttons. Do not use raw `Button` rows in modal footers for standard Save/Cancel/Delete.
+
 ### Checklist — Dialogs
 
 - [ ] Item delete: `ConfirmDialog` + `variant="danger"` + `getDeleteMessage`
@@ -573,6 +569,8 @@ const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null
 - [ ] Unsaved changes: warning variant / nav guard
 - [ ] Bulk delete: `BulkDeleteModal` from list selection
 - [ ] Nested row delete: local danger confirm
+- [ ] Modal headers use `DialogHeading`; body/footer use `dialogStyles` tokens
+- [ ] Footer actions use `DialogRoundButtons` (not legacy filled `Button` pairs)
 - [ ] Quick context has **none** of the above destructive dialogs
 
 ---
@@ -625,9 +623,12 @@ Keys in **both** `client/src/i18n/locales/en.json` and `sv.json`.
 ### Quick context
 
 ```json
+"common": {
+  "open": "…",
+  "openFullProfile": "…"
+},
 "myPlugin": {
   "quickContext": {
-    "openFullProfile": "…",
     "readMore": "…",
     "showLess": "…"
   }
@@ -680,9 +681,9 @@ Walk in order. No “probably OK” — verify in the running app.
 
 ### List defaults
 
-- [ ] `ListToolbar` + cards/table toggle + empty state Create
+- [ ] `ListToolbar` + cards/table toggle + empty state Create (Contacts: custom title row + `BulkActionRoundBar` instead)
 - [ ] Bulk delete uses `BulkDeleteModal`
-- [ ] Toolbar buttons `h-9 text-xs px-3`
+- [ ] Toolbar buttons `h-9 text-xs px-3` or round header pattern where documented
 
 ### Quality gates
 
@@ -711,6 +712,11 @@ Walk in order. No “probably OK” — verify in the running app.
 
 | File                                                                    | Shows                                                        |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `client/src/core/ui/QuickContextHeaderActions.tsx`                      | Shared quick context Open/Edit/Close + footer CTA            |
+| `client/src/core/ui/dialogStyles.ts`                                    | Dialog header/body/footer layout tokens                      |
+| `client/src/core/ui/DialogHeading.tsx`                                  | Shared dialog title component                                |
+| `client/src/core/ui/DialogRoundButtons.tsx`                             | Round dialog action buttons                                  |
+| `client/src/components/ui/round-icon-label-button.tsx`                  | Base round pill button                                       |
 | `client/src/plugins/garments/components/InventoryQuickContextPanel.tsx` | Canonical quick context (header, facts, variants, footer)    |
 | `client/src/plugins/garments/components/GarmentList.tsx`                | Sticky aside + `useQuickContextPreview` + bulk delete        |
 | `client/src/plugins/garments/components/GarmentView.tsx`                | Full inventory detail, QuickActions, Confirm + Duplicate     |

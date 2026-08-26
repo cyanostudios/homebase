@@ -72,6 +72,7 @@ import {
 import { InvoiceListItem } from './InvoiceListItem';
 import { InvoiceListTable } from './InvoiceListTable';
 import { InvoiceQuickContextPanel } from './InvoiceQuickContextPanel';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 type SortField = InvoiceSortField;
 type SortOrder = InvoiceSortOrder;
@@ -386,7 +387,7 @@ export function InvoicesList() {
       <div className="space-y-3">
         <div className="hidden items-start justify-between gap-4 md:flex">
           <div className="min-w-0 space-y-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.invoices')}</h2>
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.invoices')}</h2>
             <p className="text-sm text-muted-foreground">{t('invoices.listDescription')}</p>
           </div>
           <Button
@@ -664,7 +665,7 @@ export function InvoicesList() {
                         checkbox={
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-border"
+                            className="h-4 w-4"
                             checked={isSelected(String(invoice.id))}
                             onMouseDown={(e) => handleRowCheckboxShiftMouseDown(e, index)}
                             onChange={() => onVisibleRowCheckboxChange(String(invoice.id))}

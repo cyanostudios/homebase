@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { DETAIL_VIEW_CARD_CLASS } from '@/core/ui/detailViewCardStyles';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { formatDate } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -436,7 +436,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ guide, item }) => {
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {t('guides.displayName')}
                   </div>
-                  <div className="text-lg font-semibold">{actualGuide.displayName}</div>
+                  <div className={PLUGIN_PAGE_TITLE_CLASS}>{actualGuide.displayName}</div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">

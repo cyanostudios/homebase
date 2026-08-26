@@ -28,6 +28,7 @@ import {
   DETAIL_VIEW_CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateTime } from '@/core/utils/dateFormat';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
@@ -204,9 +205,7 @@ function MatchMainInfoCard({ match, sportLabel }: MatchMainInfoCardProps) {
         <div>
           <div className={DETAIL_FIELD_LABEL_CLASS}>{t('matches.nameLabel')}</div>
           <div className="mt-0.5 flex flex-wrap items-center gap-2">
-            <span className="text-[17px] font-semibold tracking-[-0.01em] text-foreground">
-              {displayName}
-            </span>
+            <span className={cn(PLUGIN_PAGE_TITLE_CLASS, 'whitespace-normal')}>{displayName}</span>
             {match.team_id ? <MatchTeamBadge teamId={match.team_id} size="header" /> : null}
           </div>
         </div>
@@ -352,19 +351,19 @@ function MatchMetadataCard({ match }: { match: Match }) {
         <div>
           <div className={DETAIL_INFO_ROW_CLASS}>
             <span className="text-slate-500 dark:text-slate-400">ID</span>
-            <span className="font-mono font-semibold text-foreground">
+            <span className="font-mono font-extrabold text-foreground">
               {formatDisplayNumber('matches', match.id)}
             </span>
           </div>
           <div className={DETAIL_INFO_ROW_CLASS}>
             <span className="text-slate-500 dark:text-slate-400">{t('matches.created')}</span>
-            <span className="font-mono font-semibold text-foreground">
+            <span className="font-mono font-extrabold text-foreground">
               {match.created_at ? new Date(match.created_at).toLocaleDateString('sv-SE') : '—'}
             </span>
           </div>
           <div className={DETAIL_INFO_ROW_CLASS}>
             <span className="text-slate-500 dark:text-slate-400">{t('matches.updated')}</span>
-            <span className="font-mono font-semibold text-foreground">
+            <span className="font-mono font-extrabold text-foreground">
               {match.updated_at ? new Date(match.updated_at).toLocaleDateString('sv-SE') : '—'}
             </span>
           </div>
@@ -802,7 +801,6 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
         title={t('matches.quickActionUnavailable')}
         message={quickActionDialogMessage}
         confirmText={t('common.close')}
-        cancelText={t('common.close')}
         onConfirm={closeQuickActionDialog}
         onCancel={closeQuickActionDialog}
         variant="warning"

@@ -122,7 +122,7 @@ export function InstructionListItem({
             <Badge
               variant={isPublished ? 'default' : 'secondary'}
               className={cn(
-                'text-[10px]',
+                'text-[10px] font-extrabold',
                 isPublished &&
                   'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200',
               )}
@@ -130,7 +130,7 @@ export function InstructionListItem({
               {isPublished ? t('instructions.status.published') : t('instructions.status.draft')}
             </Badge>
             {instruction.category?.trim() ? (
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-[10px] font-extrabold">
                 {instruction.category.trim()}
               </Badge>
             ) : null}

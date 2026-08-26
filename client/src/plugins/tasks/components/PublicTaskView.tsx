@@ -99,7 +99,7 @@ export function PublicTaskView({ token }: PublicTaskViewProps) {
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span
-                className={`inline-flex items-center rounded-md border px-2 py-0.5 font-medium ${TASK_STATUS_COLORS[task.status] ?? ''}`}
+                className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-extrabold ${TASK_STATUS_COLORS[task.status] ?? ''}`}
               >
                 {formatStatusForDisplay(task.status)}
               </span>

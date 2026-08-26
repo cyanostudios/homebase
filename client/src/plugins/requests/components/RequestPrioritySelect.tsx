@@ -46,8 +46,8 @@ export function RequestPrioritySelect({
           <Badge
             variant="outline"
             className={cn(
-              'flex items-center border-transparent px-2 font-medium',
-              compact ? 'h-5 text-[10px]' : 'h-5 text-xs',
+              'flex items-center border-transparent px-2 font-extrabold',
+              compact ? 'h-5 text-[10px] font-extrabold' : 'h-5 text-xs font-extrabold',
               REQUEST_PRIORITY_COLORS[request.priority],
             )}
           >
@@ -65,7 +65,7 @@ export function RequestPrioritySelect({
             <Badge
               variant="outline"
               className={cn(
-                'h-5 border-transparent px-2 text-xs font-medium',
+                'h-5 border-transparent px-2 text-xs font-extrabold',
                 REQUEST_PRIORITY_COLORS[priority],
               )}
             >

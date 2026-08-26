@@ -8,14 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { AlertDialogRoundCancel, AlertDialogRoundDelete } from '@/core/ui/DialogRoundButtons';
 import {
   Select,
   SelectContent,
@@ -504,19 +503,19 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
           <div>
             <div className={DETAIL_INFO_ROW_CLASS}>
               <span className="text-slate-500 dark:text-slate-400">ID</span>
-              <span className="font-mono font-semibold text-foreground">
+              <span className="font-mono font-extrabold text-foreground">
                 {formatDisplayNumber('clubdesk', priceList.id)}
               </span>
             </div>
             <div className={DETAIL_INFO_ROW_CLASS}>
               <span className="text-slate-500 dark:text-slate-400">{t('common.created')}</span>
-              <span className="font-mono font-semibold text-foreground">
+              <span className="font-mono font-extrabold text-foreground">
                 {priceList.createdAt ? new Date(priceList.createdAt).toLocaleDateString() : '—'}
               </span>
             </div>
             <div className={DETAIL_INFO_ROW_CLASS}>
               <span className="text-slate-500 dark:text-slate-400">{t('common.updated')}</span>
-              <span className="font-mono font-semibold text-foreground">
+              <span className="font-mono font-extrabold text-foreground">
                 {priceList.updatedAt ? new Date(priceList.updatedAt).toLocaleDateString() : '—'}
               </span>
             </div>
@@ -648,7 +647,7 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
                         type="checkbox"
                         checked={formData.featured === true}
                         onChange={(e) => updateField('featured', e.target.checked)}
-                        className="h-4 w-4 rounded border-border"
+                        className="h-4 w-4"
                       />
                       <Label htmlFor="price-list-featured" className="font-normal">
                         {t('clubdesk.featured')}
@@ -1013,30 +1012,23 @@ export const PriceListForm = React.forwardRef<PanelFormHandle>(function PriceLis
             </Select>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button
-                variant="secondary"
-                disabled={deletingCategory}
-                onClick={() => {
-                  setCategoryPendingDelete(null);
-                  setMoveToCategory('__uncategorized__');
-                  setCategoryDeleteError(null);
-                }}
-              >
-                {t('common.cancel')}
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button
-                variant="destructive"
-                disabled={deletingCategory}
-                onClick={handleConfirmDeleteCategory}
-              >
-                {deletingCategory
+            <AlertDialogRoundCancel
+              disabled={deletingCategory}
+              onClick={() => {
+                setCategoryPendingDelete(null);
+                setMoveToCategory('__uncategorized__');
+                setCategoryDeleteError(null);
+              }}
+            />
+            <AlertDialogRoundDelete
+              disabled={deletingCategory}
+              label={
+                deletingCategory
                   ? t('common.saving')
-                  : t('clubdesk.priceList.deleteCategoryConfirm')}
-              </Button>
-            </AlertDialogAction>
+                  : t('clubdesk.priceList.deleteCategoryConfirm')
+              }
+              onClick={handleConfirmDeleteCategory}
+            />
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

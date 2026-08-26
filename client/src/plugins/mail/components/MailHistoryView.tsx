@@ -19,6 +19,7 @@ import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { ListSearchInput } from '@/core/ui/ListSearchInput';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { LIST_FILTER_STAT_ROW_CLASS, ListFilterStatCard } from '@/core/ui/ListFilterStatCard';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { formatDateTimeShort } from '@/core/utils/dateFormat';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -152,7 +153,7 @@ export const MailHistoryView: React.FC = () => {
       <div className="space-y-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight">
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
               {t('mail.historyTitle', { defaultValue: 'Mail history' })}
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -164,7 +165,7 @@ export const MailHistoryView: React.FC = () => {
           <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
             <Badge
               variant="secondary"
-              className="border-0 rounded-md px-2 py-0.5 text-xs font-semibold bg-secondary/50 text-secondary-foreground"
+              className="border-0 rounded-md px-2 py-0.5 text-xs font-extrabold bg-secondary/50 text-secondary-foreground"
             >
               {totalCount} {t('mail.total', { defaultValue: 'Total' })}
             </Badge>
@@ -349,7 +350,7 @@ export const MailHistoryView: React.FC = () => {
                         {entry.pluginSource ? (
                           <Badge
                             className={cn(
-                              'border-0 rounded-md px-2 py-0.5 text-xs font-semibold capitalize',
+                              'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold capitalize',
                               entry.pluginSource === 'notes' &&
                                 'plugin-notes bg-plugin-subtle text-plugin',
                               entry.pluginSource === 'contacts' &&

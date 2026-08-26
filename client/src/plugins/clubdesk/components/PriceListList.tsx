@@ -60,6 +60,7 @@ import {
 
 import { PriceListListItem } from './PriceListListItem';
 import { PriceListListTable } from './PriceListListTable';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 const SORT_FIELD_OPTIONS: { value: PriceListSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'clubdesk.sort.updated' },
@@ -303,7 +304,7 @@ export const PriceListList: React.FC = () => {
       <div className="space-y-3">
         <div className="hidden items-start justify-between gap-4 md:flex">
           <div className="min-w-0 space-y-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight">{t('nav.clubdesk')}</h2>
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>{t('nav.clubdesk')}</h2>
             <p className="text-sm text-muted-foreground">
               {t('clubdesk.priceList.listDescription')}
             </p>
@@ -456,7 +457,7 @@ export const PriceListList: React.FC = () => {
                 >
                   {t('common.clearSelection')}
                 </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                   {t('bulk.selected', { count: priceListSelectedCount })}
                 </span>
                 <Button

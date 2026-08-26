@@ -4,13 +4,17 @@ import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialogRoundCancel,
+  AlertDialogRoundClose,
+  DialogSaveButton,
+} from '@/core/ui/DialogRoundButtons';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { NativeSelect } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
@@ -283,16 +287,14 @@ export function GarmentPersonImportDialog({
           ) : null}
 
           <AlertDialogFooter>
-            {step === 'chooser' ? (
-              <AlertDialogCancel onClick={handleClose}>{t('common.cancel')}</AlertDialogCancel>
-            ) : null}
+            {step === 'chooser' ? <AlertDialogRoundCancel onClick={handleClose} /> : null}
             {step === 'contacts' ? (
               <>
                 <Button type="button" variant="ghost" onClick={() => setStep('chooser')}>
                   {t('common.back')}
                 </Button>
-                <AlertDialogCancel onClick={handleClose}>{t('common.cancel')}</AlertDialogCancel>
-                <Button
+                <AlertDialogRoundCancel onClick={handleClose} />
+                <DialogSaveButton
                   type="button"
                   onClick={() => void handleImportFromContacts()}
                   disabled={
@@ -301,18 +303,15 @@ export function GarmentPersonImportDialog({
                     !selectedTag ||
                     matchingContacts.length === 0
                   }
-                >
-                  {isImporting
-                    ? t('common.importing')
-                    : t('garments.importContactsConfirm', { count: matchingContacts.length })}
-                </Button>
+                  label={
+                    isImporting
+                      ? t('common.importing')
+                      : t('garments.importContactsConfirm', { count: matchingContacts.length })
+                  }
+                />
               </>
             ) : null}
-            {step === 'result' ? (
-              <Button type="button" onClick={handleClose}>
-                {t('common.close')}
-              </Button>
-            ) : null}
+            {step === 'result' ? <AlertDialogRoundClose onClick={handleClose} /> : null}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -383,7 +383,7 @@ export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}
                       />
                       <span className="text-sm font-medium">{label}</span>
                       {isBuiltin && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-extrabold text-muted-foreground">
                           {t('requests.settings.builtIn')}
                         </span>
                       )}
@@ -391,7 +391,7 @@ export function RequestsSettingsView({ onClose }: RequestsSettingsViewProps = {}
                         <span className="sr-only">{t('requests.settings.linkedToGarments')}</span>
                       ) : null}
                       {garmentsEnabled && isLinked ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                           <Link2 className="h-3 w-3" aria-hidden />
                           {t('requests.settings.linkGarments')}
                         </span>

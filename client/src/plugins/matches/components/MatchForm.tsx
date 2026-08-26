@@ -668,7 +668,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                         type="checkbox"
                         checked={formData.is_canceled}
                         onChange={(e) => updateField('is_canceled', e.target.checked)}
-                        className="h-4 w-4 rounded border-border"
+                        className="h-4 w-4"
                       />
                       {t('matches.statusCanceled')}
                     </label>
@@ -677,7 +677,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                         type="checkbox"
                         checked={formData.is_postponed}
                         onChange={(e) => updateField('is_postponed', e.target.checked)}
-                        className="h-4 w-4 rounded border-border"
+                        className="h-4 w-4"
                       />
                       {t('matches.statusPostponed')}
                     </label>
@@ -686,7 +686,7 @@ export const MatchForm = React.forwardRef<PanelFormHandle, MatchFormProps>(funct
                         type="checkbox"
                         checked={formData.is_finished}
                         onChange={(e) => updateField('is_finished', e.target.checked)}
-                        className="h-4 w-4 rounded border-border"
+                        className="h-4 w-4"
                       />
                       {t('matches.statusFinished')}
                     </label>

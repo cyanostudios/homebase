@@ -4,6 +4,37 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-27 – UI v3.7: round buttons, dialog chrome, quick context, Contacts select mode
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** `RoundIconLabelButton`, `DialogRoundButtons`, `QuickContextHeaderActions`, `BulkActionRoundBar`, `dialogStyles.ts`, `pluginPageStyles.ts`, `ItemNavigation`, `index.css` (checkbox + Mulish), Contacts list/quick context, dialog/bulk modals app-wide
+
+**Sammanfattning:** Plattformsgemensam “round pill”-knappstil (ikon + etikett) för dialoger, bulk-actions och quick context. Dialogrubriker fetare/större; enhetlig body/footer-padding. Quick context-paneler delar header/footer-komponenter. Contacts: select-läge via **Select** / **Clear** i titelraden (checkboxar dolda tills läget aktiveras). Typografi Mulish (ersätter Noto Sans).
+
+**Beteende (verifierat i kod)**
+
+- **`RoundIconLabelButton`** (`client/src/components/ui/round-icon-label-button.tsx`): varianter `primary` | `secondary` | `success` | `danger`; `alwaysExpanded` (alltid etikett) eller ikon-only med valfri hover-expansion (`expandOnHover`, default `true`).
+- **Dialog chrome:** `dialogStyles.ts` — `DIALOG_HEADER_CLASS`, `DIALOG_BODY_*`, `DIALOG_FOOTER_CLASS`, `DIALOG_TITLE_CLASS`, `DIALOG_SUBTITLE_CLASS`; `DialogHeading` för titlar. Footer-actions högerjusterade med `gap-3`.
+- **Dialog actions:** `DialogRoundButtons` / `AlertDialogRound*` — Save (success), Cancel/Close (secondary), Delete (danger), Send (primary); Radix `AlertDialogAction` / `AlertDialogCancel` via `asChild` + `alwaysExpanded`.
+- **Quick context (9 paneler):** `QuickContextHeaderActions` — Open (öppen, `common.open`), Edit (stängd, expanderar vid hover), Close (stängd ikon-only). Footer: `QuickContextOpenFullFooter` — högerställd rund knapp (`common.openFullProfile`).
+- **Contacts bulk select:** `selectionMode` state; `BulkActionRoundBar` under titelrad (message `text-sky-500`, email `text-red-800`, delete destructive); checkbox-kolumn reserverad (`w-8`); quick context **stannar öppen** i select-läge; radklick **markerar** (byter inte preview). Select/Clear-knappar `alwaysExpanded`. Sök via `RoundExpandableSearch` i headern.
+- **Detail view prev/next:** `ItemNavigation` — grå `secondary` round pills + räknare-pill (`h-11`).
+- **Checkboxes:** global `.hb-checkbox` i `index.css` + `CHECKBOX_CLASS` / `CHECKBOX_SM_CLASS` — rund, secondary idle, primary checked (matchar round buttons). List-rad-hover dämpas över checkbox-yta.
+- **Page/detail titles:** `PLUGIN_PAGE_TITLE_CLASS` = `text-2xl font-extrabold tracking-tight`; detail shell `DETAIL_PANEL_SHELL_CLASS` (samma rhythm som list).
+- **Font:** self-hosted Mulish (`client/public/fonts/mulish/`, `core/styles/mulish.css`).
+
+**Begränsningar / avvikelser**
+
+- **Contacts** använder inte längre `ListToolbar` för select/bulk — egen titelrad + `BulkActionRoundBar` (tabell-only list).
+- **`ItemNavigation`:** aria-labels “Previous item” / “Next item” hårdkodade (ej i18n ännu).
+- **`bulkRoundActions`:** export-handlers utan `useCallback` (kosmetisk re-render; ej funktionell risk).
+
+**Guides:** [`UI_AND_UX_STANDARDS_V3.md`](UI_AND_UX_STANDARDS_V3.md) §4.0–4.0.1 (round buttons + dialog chrome), §0.1 (Contacts list toolbar exception), [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) quick context + §5.6 dialog chrome
+
+---
+
 ## 2026-08-26 – App right sidebar (widgets, settings shortcuts, detail actions)
 
 **Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

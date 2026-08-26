@@ -48,7 +48,7 @@ export function RequestTypeSelect({
         )}
       >
         <SelectValue placeholder={t('requests.form.requestType')}>
-          <span className={cn('truncate font-medium', compact ? 'text-[10px]' : 'text-xs')}>
+          <span className={cn('truncate font-extrabold', compact ? 'text-[10px]' : 'text-xs')}>
             {getTypeLabel(request.requestType, t)}
           </span>
         </SelectValue>

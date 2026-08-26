@@ -63,6 +63,7 @@ import { GarmentSettingsView } from './GarmentSettingsView';
 import { InventoryListItem } from './InventoryListItem';
 import { InventoryListTable } from './InventoryListTable';
 import { InventoryQuickContextPanel } from './InventoryQuickContextPanel';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 
 const LIST_SORT_OPTIONS: { value: GarmentSortField; labelKey: string }[] = [
   { value: 'updatedAt', labelKey: 'common.updated' },
@@ -341,7 +342,7 @@ export const GarmentList: React.FC = () => {
       <div className="space-y-3">
         <div className="hidden items-start justify-between gap-4 md:flex">
           <div className="min-w-0 space-y-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight">
+            <h2 className={PLUGIN_PAGE_TITLE_CLASS}>
               {t(isInventory ? 'nav.garments-inventory' : 'nav.garments-lists')}
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -508,7 +509,7 @@ export const GarmentList: React.FC = () => {
                 >
                   {t('common.clearSelection')}
                 </Button>
-                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                <span className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                   {t('bulk.selected', { count: selectedCount })}
                 </span>
                 <Button

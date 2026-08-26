@@ -2,6 +2,8 @@ import { CalendarDays, CheckSquare, Inbox, Store, Trophy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { NavPage } from '@/core/navigation/navTypes';
+import { DETAIL_QUICK_ACTION_ROW_CLASS } from '@/core/ui/detailViewCardStyles';
+import { cn } from '@/lib/utils';
 
 import type { DashboardSectionProps } from './dashboardTypes';
 
@@ -38,7 +40,7 @@ export function DashboardQuickActions({ has, onPageChange }: DashboardSectionPro
             key={plugin}
             type="button"
             onClick={() => onPageChange(plugin)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            className={cn('inline-flex items-center gap-1.5', DETAIL_QUICK_ACTION_ROW_CLASS)}
           >
             <Icon className="h-3.5 w-3.5" />
             {t(labelKey)}

@@ -47,8 +47,8 @@ export function RequestStatusSelect({
           <Badge
             variant="outline"
             className={cn(
-              'flex items-center border-transparent px-2 font-medium',
-              compact ? 'h-5 text-[10px]' : 'h-5 text-xs',
+              'flex items-center border-transparent px-2 font-extrabold',
+              compact ? 'h-5 text-[10px] font-extrabold' : 'h-5 text-xs font-extrabold',
               REQUEST_STATUS_COLORS[request.status],
             )}
           >
@@ -66,7 +66,7 @@ export function RequestStatusSelect({
             <Badge
               variant="outline"
               className={cn(
-                'h-5 border-transparent px-2 text-xs font-medium',
+                'h-5 border-transparent px-2 text-xs font-extrabold',
                 REQUEST_STATUS_COLORS[status],
               )}
             >

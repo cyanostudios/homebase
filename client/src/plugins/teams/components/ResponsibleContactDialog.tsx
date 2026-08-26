@@ -51,7 +51,7 @@ export function ResponsibleContactDialog({
         <>
           <span
             className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold',
               RESPONSIBLE_ROLE_BADGES[roleKey as keyof typeof RESPONSIBLE_ROLE_BADGES],
             )}
           >

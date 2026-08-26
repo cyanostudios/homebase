@@ -190,7 +190,7 @@ export function TeamCard({
           <div className="flex flex-shrink-0 items-center gap-1.5">
             <span
               className={cn(
-                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold',
                 onSeasonBreak ? 'bg-orange-100 text-orange-700' : TEAM_STATUS_BADGES[team.status],
               )}
             >

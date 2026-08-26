@@ -341,7 +341,7 @@ export function ClubdeskSwishProfilesPanel({ disabled }: { disabled?: boolean })
                 {priceListIds.map((id) => (
                   <Badge
                     key={id}
-                    className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    className="flex items-center gap-1 rounded-md border-0 bg-slate-100 text-xs font-extrabold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
                     <Tag className="h-3 w-3" />
                     {listTitleById.get(id) ?? id}

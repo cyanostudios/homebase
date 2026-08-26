@@ -16,7 +16,7 @@ import type { Contact } from '../types/contacts';
 import { CONTACT_TYPE_BADGE_CLASS, CONTACT_TYPE_COLORS } from '../types/contacts';
 import type { ContactColumnCount } from '../utils/contactColumnCount';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 export function ContactListItem({
   contact,
@@ -126,7 +126,7 @@ export function ContactListItem({
               <Badge
                 key={tag}
                 variant="outline"
-                className="h-5 border-border/50 px-1.5 text-[10px] font-normal"
+                className="h-5 border-border/50 px-1.5 text-[10px] font-extrabold"
               >
                 {tag}
               </Badge>
@@ -161,7 +161,7 @@ export function ContactListItem({
             {hasTimeLogged ? (
               <Badge
                 variant="outline"
-                className="h-5 shrink-0 px-1.5 text-[10px] font-medium inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50"
+                className="h-5 shrink-0 px-1.5 text-[10px] font-extrabold inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50"
               >
                 <Timer className="h-2.5 w-2.5" aria-hidden />
                 {t('contacts.timeLoggedBadge')}

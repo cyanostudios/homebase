@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import type { IngestSource } from '../types/ingest';
 import type { IngestSortField, IngestSortOrder } from '../utils/ingestListSort';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function statusBadgeClass(status: string) {
   if (status === 'success') {

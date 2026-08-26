@@ -4,7 +4,7 @@ export const CONTACT_TYPE_COLORS = {
   private: 'bg-green-50/50 text-green-700 dark:text-green-300 dark:bg-green-950/30',
 } as const;
 
-export const CONTACT_TYPE_BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+export const CONTACT_TYPE_BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 /** Company type codes → dropdown labels (ContactForm / ContactView). */
 export const COMPANY_TYPE_OPTIONS = [

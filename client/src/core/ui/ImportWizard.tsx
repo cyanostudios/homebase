@@ -8,10 +8,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogFooter,
-  AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { AlertDialogRoundCancel, DialogCloseButton } from '@/core/ui/DialogRoundButtons';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -227,7 +227,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             {title}
-            <Badge variant="outline" className="text-[10px] uppercase">
+            <Badge variant="outline" className="text-[10px] font-extrabold uppercase">
               {step}
             </Badge>
           </AlertDialogTitle>
@@ -354,7 +354,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                         <div className="text-sm font-medium flex items-center gap-2">
                           {field.label}
                           {field.required && (
-                            <Badge className="text-[10px] h-4 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/50">
+                            <Badge className="text-[10px] font-extrabold h-4 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/50">
                               {t('importWizard.required')}
                             </Badge>
                           )}
@@ -465,7 +465,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   {t('common.back')}
                 </Button>
               ) : null}
-              <AlertDialogCancel onClick={handleOnClose}>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogRoundCancel onClick={handleOnClose} />
             </>
           )}
 
@@ -509,9 +509,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           )}
 
           {step === 'result' && (
-            <Button type="button" onClick={handleOnClose}>
-              {t('importWizard.done')}
-            </Button>
+            <DialogCloseButton
+              type="button"
+              label={t('importWizard.done')}
+              onClick={handleOnClose}
+            />
           )}
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -3,8 +3,9 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
+import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
 import { Input } from '@/components/ui/input';
+import { LIST_SEARCH_FIELD_PROPS } from '@/core/ui/listSearchFieldProps';
 import { MOBILE_FLOATING_CHROME_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
@@ -93,28 +94,26 @@ export function MobileBottomBar({ detailPanelOpen = false }: MobileBottomBarProp
           <div
             className={cn('flex w-full items-center gap-2 px-2 py-2', MOBILE_FLOATING_CHROME_CLASS)}
           >
-            <Button
+            <RoundIconLabelButton
               type="button"
               onClick={() => barOverride?.onClose()}
-              variant="secondary"
-              size="sm"
               icon={X}
-              className="h-9 flex-1 px-3 text-xs shadow-sm"
-            >
-              {t('common.close')}
-            </Button>
+              label={t('common.close')}
+              variant="secondary"
+              alwaysExpanded
+              className="min-w-0 flex-1 shadow-sm"
+            />
             {barOverride?.onSave ? (
-              <Button
+              <RoundIconLabelButton
                 type="button"
                 onClick={() => barOverride.onSave?.()}
-                variant="primary"
-                size="sm"
                 icon={Check}
+                label={barOverride.isSaving ? t('common.saving') : t('common.save')}
+                variant="success"
+                alwaysExpanded
                 disabled={barOverride.saveDisabled || barOverride.isSaving}
-                className="h-9 flex-1 border-none bg-green-600 px-3 text-xs text-white shadow-sm hover:bg-green-700"
-              >
-                {barOverride.isSaving ? t('common.saving') : t('common.save')}
-              </Button>
+                className="min-w-0 flex-1 shadow-sm"
+              />
             ) : null}
           </div>
         ) : (
@@ -127,7 +126,7 @@ export function MobileBottomBar({ detailPanelOpen = false }: MobileBottomBarProp
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     ref={inputRef}
-                    type="text"
+                    {...LIST_SEARCH_FIELD_PROPS}
                     value={search.value}
                     onChange={(event) => search.onChange(event.target.value)}
                     placeholder={search.placeholder ?? t('common.search')}

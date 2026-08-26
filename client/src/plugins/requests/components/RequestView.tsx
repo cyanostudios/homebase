@@ -117,6 +117,21 @@ function RequestQuickActionsCard({
           >
             {t('common.edit')}
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={(props) => (
+              <Trash2
+                {...props}
+                className={cn(props.className, 'text-red-600 dark:text-red-400')}
+              />
+            )}
+            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+            onClick={onDeleteClick}
+          >
+            {t('common.delete')}
+          </Button>
           {canSendToList ? (
             <Button
               type="button"
@@ -144,21 +159,6 @@ function RequestQuickActionsCard({
               {sendError}
             </p>
           ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-            onClick={onDeleteClick}
-          >
-            {t('common.delete')}
-          </Button>
         </div>
       </DetailSection>
     </Card>
@@ -388,7 +388,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
-              className="border-0 rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground"
+              className="border-0 rounded-md bg-muted px-2 py-0.5 text-xs font-extrabold text-muted-foreground"
             >
               {getTypeLabel(request.requestType, t)}
             </Badge>
@@ -572,7 +572,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('requests.view.id')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('requests', request.id)}
                     </span>
                   </div>
@@ -580,7 +580,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('requests.view.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatSubmittedDateWithAge(request.created_at, t) ?? '—'}
                     </span>
                   </div>
@@ -588,7 +588,7 @@ export function RequestView({ request: requestProp, item }: RequestViewProps) {
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {request.updated_at ? new Date(request.updated_at).toLocaleDateString() : '—'}
                     </span>
                   </div>

@@ -764,7 +764,10 @@ export function EstimateProvider({
 
       return (
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className={cn('text-[10px] px-1.5 h-5', badgeColor)}>
+          <Badge
+            variant="outline"
+            className={cn('text-[10px] px-1.5 h-5 font-extrabold', badgeColor)}
+          >
             {badgeText}
           </Badge>
           <span className="text-xs text-muted-foreground">• {validToText}</span>

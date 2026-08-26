@@ -3,16 +3,19 @@ import React from 'react';
 
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+
+import {
+  AlertDialogRoundCancel,
+  AlertDialogRoundAction,
+  AlertDialogRoundClose,
+  AlertDialogRoundDelete,
+} from './DialogRoundButtons';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -57,28 +60,29 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </AlertDialogHeader>
         <AlertDialogFooter>
           {cancelText ? (
-            <AlertDialogCancel asChild>
-              <Button variant="secondary" onClick={onCancel}>
-                {cancelText}
-              </Button>
-            </AlertDialogCancel>
-          ) : null}
-          {/*
-            Pass destructive styles via className (twMerge in AlertDialogAction)
-            instead of asChild+Button — otherwise Action's default primary classes
-            win and the Delete button stays non-red.
-          */}
-          <AlertDialogAction
-            onClick={onConfirm}
-            disabled={confirmDisabled}
-            className={cn(
-              buttonVariants({
-                variant: isDanger ? 'destructive' : 'default',
-              }),
-            )}
-          >
-            {confirmText}
-          </AlertDialogAction>
+            <>
+              <AlertDialogRoundCancel label={cancelText} onClick={onCancel} />
+              {isDanger ? (
+                <AlertDialogRoundDelete
+                  label={confirmText}
+                  onClick={onConfirm}
+                  disabled={confirmDisabled}
+                />
+              ) : (
+                <AlertDialogRoundAction
+                  label={confirmText}
+                  onClick={onConfirm}
+                  disabled={confirmDisabled}
+                />
+              )}
+            </>
+          ) : (
+            <AlertDialogRoundClose
+              label={confirmText}
+              onClick={onConfirm}
+              disabled={confirmDisabled}
+            />
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -1,6 +1,14 @@
+import { Check } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
+import { DialogActionButton, DialogCancelButton } from '@/core/ui/DialogRoundButtons';
+import {
+  DIALOG_BODY_CLASS,
+  DIALOG_FOOTER_CLASS,
+  DIALOG_HEADER_CLASS,
+  DIALOG_SUBTITLE_CLASS,
+  DIALOG_TITLE_CLASS,
+} from '@/core/ui/dialogStyles';
 
 interface InvoiceStatusModalProps {
   isOpen: boolean;
@@ -70,27 +78,21 @@ export function InvoiceStatusModal({
     <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-card border border-border rounded-lg shadow-xl max-w-md w-full">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className={DIALOG_HEADER_CLASS}>
           <div>
-            <h2 className="text-sm font-semibold text-foreground">{content.title}</h2>
-            <p className="text-xs text-muted-foreground">Invoice {invoiceNumber}</p>
+            <h2 className={DIALOG_TITLE_CLASS}>{content.title}</h2>
+            <p className={DIALOG_SUBTITLE_CLASS}>Invoice {invoiceNumber}</p>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-4">
-          <p className="text-sm text-muted-foreground mb-4">{content.message}</p>
+        <div className={`${DIALOG_BODY_CLASS} space-y-4`}>
+          <p className="text-sm text-muted-foreground">{content.message}</p>
           <p className="text-xs text-muted-foreground italic">{content.helpText}</p>
         </div>
-
-        {/* Footer */}
-        <div className="flex justify-end space-x-3 p-4 border-t border-border">
-          <Button variant="secondary" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" size="sm" onClick={onConfirm}>
-            {content.buttonText}
-          </Button>
+        <div className={DIALOG_FOOTER_CLASS}>
+          <DialogCancelButton onClick={onClose} />
+          <DialogActionButton icon={Check} label={content.buttonText} onClick={onConfirm} />
         </div>
       </div>
     </div>

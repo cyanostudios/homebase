@@ -137,7 +137,7 @@ export const InstructionView: React.FC<InstructionViewProps> = ({ instruction, i
                 <div>
                   <div className={DETAIL_INFO_ROW_CLASS}>
                     <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {formatDisplayNumber('instructions', viewItem.id)}
                     </span>
                   </div>
@@ -145,7 +145,7 @@ export const InstructionView: React.FC<InstructionViewProps> = ({ instruction, i
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.created')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {viewItem.createdAt ? new Date(viewItem.createdAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
@@ -153,7 +153,7 @@ export const InstructionView: React.FC<InstructionViewProps> = ({ instruction, i
                     <span className="text-slate-500 dark:text-slate-400">
                       {t('common.updated')}
                     </span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-extrabold text-foreground">
                       {viewItem.updatedAt ? new Date(viewItem.updatedAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
@@ -184,7 +184,7 @@ export const InstructionView: React.FC<InstructionViewProps> = ({ instruction, i
                 <Badge
                   variant={isPublished ? 'default' : 'secondary'}
                   className={cn(
-                    'text-[10px]',
+                    'text-[10px] font-extrabold',
                     isPublished &&
                       'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200',
                   )}
@@ -194,7 +194,7 @@ export const InstructionView: React.FC<InstructionViewProps> = ({ instruction, i
                     : t('instructions.status.draft')}
                 </Badge>
                 {viewItem.category ? (
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-[10px] font-extrabold">
                     {viewItem.category}
                   </Badge>
                 ) : null}

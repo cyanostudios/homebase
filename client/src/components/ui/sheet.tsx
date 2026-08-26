@@ -3,6 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { X } from 'lucide-react';
 import * as React from 'react';
 
+import { DIALOG_TITLE_CLASS } from '@/core/ui/dialogStyles';
 import { cn } from '@/lib/utils';
 
 const Sheet = DialogPrimitive.Root;
@@ -94,11 +95,7 @@ const SheetTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title
-    ref={ref}
-    className={cn('text-lg font-semibold text-foreground', className)}
-    {...props}
-  />
+  <DialogPrimitive.Title ref={ref} className={cn(DIALOG_TITLE_CLASS, className)} {...props} />
 ));
 SheetTitle.displayName = DialogPrimitive.Title.displayName;
 

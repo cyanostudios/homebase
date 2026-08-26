@@ -4,8 +4,6 @@ import { useTranslation } from 'react-i18next';
 
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -13,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { AlertDialogRoundAction, AlertDialogRoundCancel } from '@/core/ui/DialogRoundButtons';
 
 import type { Contact } from '../types/contacts';
 
@@ -164,16 +163,12 @@ export function ContactQuickInfoDialog({
             <span className="hidden sm:block sm:flex-1" aria-hidden />
           )}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <AlertDialogCancel asChild>
-              <Button variant="secondary" onClick={onClose}>
-                {t('common.close')}
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button variant="default" icon={ExternalLink} onClick={onOpenContact}>
-                {t('contacts.quickInfo.openContact')}
-              </Button>
-            </AlertDialogAction>
+            <AlertDialogRoundCancel close onClick={onClose} />
+            <AlertDialogRoundAction
+              icon={ExternalLink}
+              label={t('contacts.quickInfo.openContact')}
+              onClick={onOpenContact}
+            />
           </div>
         </AlertDialogFooter>
       </AlertDialogContent>

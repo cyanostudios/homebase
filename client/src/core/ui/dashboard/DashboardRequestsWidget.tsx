@@ -38,7 +38,7 @@ export function DashboardRequestsWidget({ has, requests }: DashboardDataProps) {
                 <Badge
                   variant="outline"
                   className={cn(
-                    'h-5 shrink-0 border-transparent px-1.5 text-[10px] font-medium',
+                    'h-5 shrink-0 border-transparent px-1.5 text-[10px] font-extrabold',
                     REQUEST_STATUS_COLORS[request.status],
                   )}
                 >

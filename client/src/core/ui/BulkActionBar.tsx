@@ -43,7 +43,7 @@ export function BulkActionBar({
   return (
     <div className={`mt-2 flex flex-col gap-2 md:flex-row md:items-center ${className}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+        <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-extrabold text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
           {t('bulk.selected', { count: selectedCount })}
         </span>
         <Button

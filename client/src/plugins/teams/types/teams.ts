@@ -480,7 +480,7 @@ export const SEASON_BREAK_TIMING_STYLES: Record<SeasonBreakTiming, string> = {
 };
 
 /** Shared sizing for badges in the team gradient header (~25% smaller than the enlarged header badges). */
-export const TEAM_HEADER_BADGE_CLASS = 'px-4 py-1.5 text-xs font-medium';
+export const TEAM_HEADER_BADGE_CLASS = 'px-4 py-1.5 text-xs font-extrabold';
 
 /** Season break badge on the team gradient header (ongoing break). */
 export const SEASON_BREAK_HEADER_BADGE_CLASS =

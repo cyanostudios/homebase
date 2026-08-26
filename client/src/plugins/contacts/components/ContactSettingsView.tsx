@@ -16,21 +16,9 @@ import {
 import { SETTINGS_CATEGORY_ICONS } from '@/core/ui/settingsCategoryIcons';
 import type { ImportSchema } from '@/core/utils/importUtils';
 import { downloadImportCsvTemplate } from '@/core/utils/importUtils';
-import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
-import {
-  CONTACTS_COLUMN_COUNT_STORAGE_KEY,
-  CONTACTS_SETTINGS_KEY,
-  resolveContactColumnCount,
-  type ContactColumnCount,
-} from '../utils/contactColumnCount';
-import {
-  CONTACTS_LIST_VIEW_MODE_STORAGE_KEY,
-  persistContactListViewModeSession,
-  resolveContactListViewMode,
-  type ContactListViewMode,
-} from '../utils/contactListViewMode';
+import { CONTACTS_SETTINGS_KEY } from '../utils/contactColumnCount';
 
 const getContactImportSchema = (): ImportSchema => ({
   fields: [
@@ -50,10 +38,7 @@ const CONTACT_IMPORT_EXAMPLE_ROW: Record<string, string> = {
   notes: 'Imported sample',
 };
 
-export type ContactSettingsCategory = 'view' | 'tags' | 'import';
-
-const COLUMN_OPTIONS: ContactColumnCount[] = [1, 2, 3];
-const VIEW_MODE_OPTIONS: ContactListViewMode[] = ['cards', 'table'];
+export type ContactSettingsCategory = 'tags' | 'import';
 
 interface ContactSettingsViewProps {
   selectedCategory?: ContactSettingsCategory;
@@ -73,14 +58,10 @@ export function ContactSettingsView({
   const { importContacts } = useContacts();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
-  const [internalCategory, setInternalCategory] = useState<ContactSettingsCategory>('view');
+  const [internalCategory, setInternalCategory] = useState<ContactSettingsCategory>('tags');
   const activeCategory = selectedCategory ?? internalCategory;
   const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
 
-  const [columnCount, setColumnCount] = useState<ContactColumnCount>(1);
-  const [initialColumnCount, setInitialColumnCount] = useState<ContactColumnCount>(1);
-  const [listViewMode, setListViewMode] = useState<ContactListViewMode>('cards');
-  const [initialListViewMode, setInitialListViewMode] = useState<ContactListViewMode>('cards');
   const [tags, setTags] = useState<string[]>([]);
   const [initialTags, setInitialTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
@@ -89,12 +70,6 @@ export function ContactSettingsView({
 
   const categories: PluginSettingsCategory[] = useMemo(
     () => [
-      {
-        id: 'view',
-        label: t('contacts.settingsCategories.view'),
-        description: t('contacts.settingsCategories.viewDescription'),
-        icon: SETTINGS_CATEGORY_ICONS.view,
-      },
       {
         id: 'tags',
         label: t('contacts.settingsCategories.tags'),
@@ -118,12 +93,6 @@ export function ContactSettingsView({
         if (cancelled) {
           return;
         }
-        const loadedColumns = resolveContactColumnCount(settings);
-        setColumnCount(loadedColumns);
-        setInitialColumnCount(loadedColumns);
-        const loadedView = resolveContactListViewMode(settings);
-        setListViewMode(loadedView);
-        setInitialListViewMode(loadedView);
         const loadedTags = Array.isArray(settings?.tags)
           ? settings.tags
               .filter((tag: unknown) => typeof tag === 'string')
@@ -146,27 +115,19 @@ export function ContactSettingsView({
 
   const tagsEqual =
     tags.length === initialTags.length && tags.every((tag, i) => tag === initialTags[i]);
-  const isDirty =
-    columnCount !== initialColumnCount || listViewMode !== initialListViewMode || !tagsEqual;
+  const isDirty = !tagsEqual;
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await updateSettings(CONTACTS_SETTINGS_KEY, { columnCount, listViewMode, tags });
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(CONTACTS_COLUMN_COUNT_STORAGE_KEY, String(columnCount));
-        window.sessionStorage.setItem(CONTACTS_LIST_VIEW_MODE_STORAGE_KEY, listViewMode);
-      }
-      persistContactListViewModeSession(listViewMode);
-      setInitialColumnCount(columnCount);
-      setInitialListViewMode(listViewMode);
+      await updateSettings(CONTACTS_SETTINGS_KEY, { tags });
       setInitialTags([...tags]);
     } catch (error) {
       console.error('Failed to save contacts settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [columnCount, listViewMode, tags, updateSettings]);
+  }, [tags, updateSettings]);
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -212,65 +173,6 @@ export function ContactSettingsView({
           ) : null
         }
       >
-        {activeCategory === 'view' && (
-          <>
-            <DetailSection title={t('contacts.defaultListView')} className="pt-0">
-              <div className="flex flex-wrap items-center gap-2">
-                {VIEW_MODE_OPTIONS.map((mode) => {
-                  const isActive = listViewMode === mode;
-                  return (
-                    <Button
-                      key={mode}
-                      variant="ghost"
-                      onClick={() => setListViewMode(mode)}
-                      className={cn(
-                        'h-9 text-xs px-3 rounded-lg font-medium',
-                        isActive
-                          ? 'bg-primary/10 text-primary border border-primary'
-                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                      )}
-                      aria-label={
-                        mode === 'cards' ? t('contacts.cardsView') : t('contacts.tableView')
-                      }
-                      aria-pressed={isActive}
-                    >
-                      {mode === 'cards' ? t('contacts.cardsView') : t('contacts.tableView')}
-                    </Button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{t('contacts.listViewHelp')}</p>
-            </DetailSection>
-            {listViewMode === 'cards' ? (
-              <DetailSection title={t('contacts.defaultColumns')}>
-                <div className="flex flex-wrap items-center gap-2">
-                  {COLUMN_OPTIONS.map((count) => {
-                    const isActive = columnCount === count;
-                    return (
-                      <Button
-                        key={count}
-                        variant="ghost"
-                        onClick={() => setColumnCount(count)}
-                        className={cn(
-                          'h-9 min-w-9 text-xs px-3 rounded-lg font-medium',
-                          isActive
-                            ? 'bg-primary/10 text-primary border border-primary'
-                            : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                        )}
-                        aria-label={t(`contacts.columns${count}`)}
-                        aria-pressed={isActive}
-                      >
-                        {count}
-                      </Button>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">{t('contacts.columnsHelp')}</p>
-              </DetailSection>
-            ) : null}
-          </>
-        )}
-
         {activeCategory === 'tags' && (
           <DetailSection title="Tags" className="pt-0">
             <div className="space-y-3">

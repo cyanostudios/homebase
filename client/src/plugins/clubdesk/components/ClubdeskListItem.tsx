@@ -124,7 +124,7 @@ export function ClubdeskListItem({
             <Badge
               variant={isPublished ? 'default' : 'secondary'}
               className={cn(
-                'text-[10px]',
+                'text-[10px] font-extrabold',
                 isPublished &&
                   'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200',
               )}
@@ -132,14 +132,14 @@ export function ClubdeskListItem({
               {isPublished ? t('clubdesk.status.published') : t('clubdesk.status.draft')}
             </Badge>
             {clubdesk.category?.trim() ? (
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-[10px] font-extrabold">
                 {clubdesk.category.trim()}
               </Badge>
             ) : null}
             {clubdesk.featured ? (
               <Badge
                 variant="outline"
-                className="border-0 bg-violet-50 text-[10px] font-semibold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+                className="border-0 bg-violet-50 text-[10px] font-extrabold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
               >
                 {t('clubdesk.featuredShort')}
               </Badge>

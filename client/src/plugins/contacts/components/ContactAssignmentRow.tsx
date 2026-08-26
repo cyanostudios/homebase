@@ -65,7 +65,7 @@ export function ContactAssignmentRow({
           <span
             key={`${badge.label}-${badge.className ?? ''}`}
             className={cn(
-              'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+              'inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold',
               badge.className ??
                 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
             )}

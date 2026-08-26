@@ -20,7 +20,7 @@ import type { RequestColumnCount } from '../utils/requestColumnCount';
 import { RequestPrioritySelect } from './RequestPrioritySelect';
 import { RequestStatusSelect } from './RequestStatusSelect';
 
-const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-semibold';
+const BADGE_CLASS = 'border-0 rounded-md px-2 py-0.5 text-xs font-extrabold';
 
 function truncateContent(content: string, maxLength = 150): string {
   const plain = htmlToPlainTextWithBreaks(content);
