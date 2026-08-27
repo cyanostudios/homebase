@@ -117,3 +117,10 @@ The **Add** / **Close** button on list pages is resolved in `resolvePrimaryActio
 ## Legacy: `import` plugin titles
 
 `PanelTitles.tsx` still contains a **legacy** config only for the `import` plugin. **Do not extend** that pattern for new plugins; use `getPanelTitle` / `getPanelSubtitle` on context instead.
+
+### `getPanelTitle` as React node (Contacts)
+
+Contacts view mode may return JSX (`ContactDetailHeaderMenus`) from `getPanelTitle`. That node is the **DetailPanel** title only.
+
+- Wire it in `PanelTitles` **before** the mobile view early-return that blanks other plugins’ titles (so menus appear on phone).
+- Pass a separate **string** `detailPanelBreadcrumbLabel` into `MainLayout` → `TopBar` (never the React menus). `AppContent` derives the label from item name / `formatDisplayNumber` when the title is not a string.

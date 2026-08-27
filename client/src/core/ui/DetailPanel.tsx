@@ -7,6 +7,7 @@ import { MAIN_CONTENT_SHELL_CLASS } from '@/core/ui/ContentSurface';
 import {
   DETAIL_PANEL_BODY_CLASS,
   DETAIL_PANEL_HEADER_ROW_CLASS,
+  DETAIL_PANEL_INSET_CLASS,
   DETAIL_PANEL_SHELL_CLASS,
   MOBILE_FLOATING_CHROME_CLASS,
   PLUGIN_PAGE_HEADER_ACTIONS_CLASS,
@@ -123,14 +124,12 @@ export function DetailPanel({
         {title.length > 70 ? `${title.substring(0, 70)}...` : title}
       </h2>
     ) : (
-      <div className={cn(PLUGIN_PAGE_TITLE_CLASS, isMobile && PLUGIN_PAGE_TITLE_MOBILE_CLASS)}>
-        {title}
-      </div>
+      <div className="min-w-0 flex-1">{title}</div>
     )
   ) : null;
 
   const desktopHeaderRow = showDesktopHeaderRow ? (
-    <div className={DETAIL_PANEL_HEADER_ROW_CLASS}>
+    <div className={cn(DETAIL_PANEL_HEADER_ROW_CLASS, DETAIL_PANEL_INSET_CLASS)}>
       {showTitleBlock ? (
         <div className={PLUGIN_PAGE_TITLE_ROW_CLASS}>{titleNode}</div>
       ) : (
@@ -156,12 +155,20 @@ export function DetailPanel({
   return (
     <div className={cn(MAIN_CONTENT_SHELL_CLASS, isMobile && 'relative min-h-0 flex-1')}>
       {isMobile ? (
-        <>
+        <div
+          ref={scrollContainerRef}
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto overflow-x-hidden [&_.shadow-none]:border-none',
+            'px-2 sm:px-3',
+            hasBottomActions ? 'pb-20' : 'pb-4',
+            'pt-4',
+          )}
+        >
           {(showTitleBlock || headerRight) && (
             <div
               className={cn(
                 'flex flex-shrink-0 items-start justify-between gap-4',
-                showTitleBlock ? 'px-2 pb-2 pt-4 sm:px-3' : 'px-2 pb-0 pt-4 sm:px-3',
+                showTitleBlock ? 'pb-2' : 'pb-0',
               )}
             >
               {showTitleBlock ? (
@@ -171,30 +178,24 @@ export function DetailPanel({
               )}
             </div>
           )}
-
-          <div
-            ref={scrollContainerRef}
-            className={cn(
-              'min-h-0 flex-1 overflow-y-auto overflow-x-hidden [&_.shadow-none]:border-none',
-              'px-2 sm:px-3',
-              hasBottomActions ? 'pb-20' : 'pb-4',
-              showTitleBlock ? 'pt-0' : 'pt-4',
-            )}
-          >
-            {children}
-            {footer ? (
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">{footer}</div>
-            ) : null}
-          </div>
-        </>
-      ) : (
-        <div className={DETAIL_PANEL_SHELL_CLASS}>
-          {desktopHeaderRow}
-          <div ref={scrollContainerRef} className={DETAIL_PANEL_BODY_CLASS}>
-            {children}
-          </div>
+          {children}
           {footer ? (
-            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:justify-end">{footer}</div>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">{footer}</div>
+          ) : null}
+        </div>
+      ) : (
+        <div ref={scrollContainerRef} className={DETAIL_PANEL_SHELL_CLASS}>
+          {desktopHeaderRow}
+          <div className={cn(DETAIL_PANEL_BODY_CLASS, DETAIL_PANEL_INSET_CLASS)}>{children}</div>
+          {footer ? (
+            <div
+              className={cn(
+                DETAIL_PANEL_INSET_CLASS,
+                'flex shrink-0 flex-col gap-3 sm:flex-row sm:justify-end',
+              )}
+            >
+              {footer}
+            </div>
           ) : null}
         </div>
       )}

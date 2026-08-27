@@ -1,24 +1,8 @@
-import {
-  Clock,
-  Copy,
-  Download,
-  Edit,
-  Info,
-  Link2,
-  MapPin,
-  SlidersHorizontal,
-  Tag,
-  Trash2,
-  User,
-  Users,
-  X,
-  Zap,
-} from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link2, MapPin, SlidersHorizontal, Tag, User, Users, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   Select,
@@ -27,25 +11,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { apiFetch } from '@/core/api/apiFetch';
 import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import {
   DETAIL_FIELD_LABEL_CLASS as FIELD_LABEL_CLASS,
   DETAIL_FIELD_VALUE_CLASS as FIELD_VALUE_CLASS,
-  DETAIL_INFO_ROW_CLASS as INFO_ROW_CLASS,
   DETAIL_PROP_ROW_CLASS as PROP_ROW_CLASS,
-  DETAIL_QUICK_ACTION_ROW_CLASS,
   DETAIL_VIEW_CARD_CLASS as CARD_CLASS,
 } from '@/core/ui/detailViewCardStyles';
-import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
-import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 
 import { ContactCopyableLink, mailtoHref, telHref } from './ContactCopyableLink';
@@ -59,201 +36,18 @@ interface ContactViewProps {
   contact: Contact;
 }
 
-function ContactQuickActionsCard({
-  contact,
-  onEdit,
-  onDeleteClick,
-  onDuplicate,
-  getDuplicateConfig,
-  detailFooterActions,
-}: {
-  contact: any;
-  onEdit: (contact: any) => void;
-  onDeleteClick: () => void;
-  onDuplicate: (contact: any) => void;
-  getDuplicateConfig: (
-    item: any | null,
-  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
-  detailFooterActions?: Array<{
-    id: string;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    onClick: (item: any) => void;
-    className?: string;
-    disabled?: boolean;
-  }>;
-}) {
-  const { t } = useTranslation();
-  const canDuplicate = Boolean(getDuplicateConfig(contact));
-  const actionRowClass = DETAIL_QUICK_ACTION_ROW_CLASS;
-
-  const getActionIconColorClass = (actionId: string): string => {
-    if (actionId === 'send-message') {
-      return 'text-violet-600 dark:text-violet-400';
-    }
-    if (actionId === 'send-email') {
-      return 'text-red-600 dark:text-red-400';
-    }
-    return '';
-  };
-
-  return (
-    <Card padding="none" className={CARD_CLASS}>
-      <DetailSection
-        title={t('contacts.quickActions')}
-        icon={Zap}
-        iconPlugin="contacts"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Edit
-                {...props}
-                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
-              />
-            )}
-            className={actionRowClass}
-            onClick={() => onEdit(contact)}
-          >
-            {t('contacts.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={(props) => (
-              <Trash2
-                {...props}
-                className={cn(props.className, 'text-red-600 dark:text-red-400')}
-              />
-            )}
-            className="h-9 justify-start rounded-md px-3 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-            onClick={onDeleteClick}
-          >
-            {t('contacts.delete')}
-          </Button>
-          {canDuplicate && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={(props) => (
-                <Copy
-                  {...props}
-                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
-                />
-              )}
-              className={actionRowClass}
-              onClick={() => onDuplicate(contact)}
-            >
-              {t('contacts.duplicate')}
-            </Button>
-          )}
-          {Array.isArray(detailFooterActions) &&
-            detailFooterActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Button
-                  key={action.id}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  icon={(props) => (
-                    <Icon
-                      {...props}
-                      className={cn(props.className, getActionIconColorClass(action.id))}
-                    />
-                  )}
-                  disabled={action.disabled}
-                  className={cn(actionRowClass, 'disabled:opacity-50', action.className)}
-                  onClick={() => action.onClick(contact)}
-                >
-                  {action.label}
-                </Button>
-              );
-            })}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
-function ContactExportOptionsCard({
-  contact,
-  exportFormats,
-  onExportItem,
-}: {
-  contact: any;
-  exportFormats: ExportFormat[];
-  onExportItem: (format: ExportFormat, item: any) => void;
-}) {
-  const { t } = useTranslation();
-  if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
-    return null;
-  }
-  const actionRowClass = DETAIL_QUICK_ACTION_ROW_CLASS;
-  const exportLabelByFormat: Record<ExportFormat, string> = {
-    txt: t('contacts.exportTxt'),
-    csv: t('contacts.exportCsv'),
-    pdf: t('contacts.exportPdf'),
-  };
-
-  return (
-    <Card padding="none" className={CARD_CLASS}>
-      <DetailSection
-        title={t('contacts.exportOptions')}
-        icon={Download}
-        iconPlugin="contacts"
-        subtleTitle
-        className="p-4"
-      >
-        <div className="flex flex-col items-start gap-1">
-          {exportFormats.map((format) => (
-            <Button
-              key={format}
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={Download}
-              className={actionRowClass}
-              onClick={() => onExportItem(format, contact)}
-            >
-              {exportLabelByFormat[format]}
-            </Button>
-          ))}
-        </div>
-      </DetailSection>
-    </Card>
-  );
-}
-
 export const ContactView = React.memo(function ContactView({ contact }: ContactViewProps) {
   const { t } = useTranslation();
   const { getSettings, settingsVersion } = useApp();
 
   const {
-    closeContactPanel,
     openContactForEdit,
-    deleteContact,
-    getDeleteMessage,
     showSendMessageDialog,
     sendMessageRecipients,
     closeSendMessageDialog,
     showSendEmailDialog,
     sendEmailRecipients,
     closeSendEmailDialog,
-    detailFooterActions,
-    exportFormats,
-    onExportItem,
-    getDuplicateConfig,
-    executeDuplicate,
-    setRecentlyDuplicatedContactId,
-    setContactHasTimeEntries,
     displayTags,
     addTagToDraft,
     removeTagFromDraft,
@@ -264,13 +58,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     setContactAssignable,
   } = useContacts();
 
-  const [timeEntries, setTimeEntries] = useState<
-    { id: string; seconds: number; loggedAt: string }[]
-  >([]);
-  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
-  const [confirmDeleteEntryId, setConfirmDeleteEntryId] = useState<string | null>(null);
-  const [showDeleteContactConfirm, setShowDeleteContactConfirm] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [tagToAdd, setTagToAdd] = useState('');
 
@@ -310,85 +97,16 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
     [availableTags, displayTags],
   );
 
-  useEffect(() => {
-    if (!contact?.id) {
-      setTimeEntries([]);
-      return;
-    }
-    const contactId = contact.id;
-    const loadTimeEntries = async () => {
-      try {
-        const response = await apiFetch(`/api/contacts/${contactId}/time-entries`);
-        if (!response.ok) {
-          setTimeEntries([]);
-          return;
-        }
-        const data = await response.json();
-        setTimeEntries(Array.isArray(data) ? data : []);
-      } catch {
-        setTimeEntries([]);
-      }
-    };
-    loadTimeEntries();
-  }, [contact?.id]);
-
-  useEffect(() => {
-    if (!contact?.id) {
-      return;
-    }
-    setContactHasTimeEntries(contact.id, timeEntries.length > 0);
-  }, [contact?.id, timeEntries.length, setContactHasTimeEntries]);
-
-  const formatDuration = useCallback((seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes} min`;
-  }, []);
-
-  const handleDeleteTimeEntry = useCallback(
-    async (entryId: string) => {
-      if (!contact?.id) {
-        return;
-      }
-      setDeletingEntryId(entryId);
-      try {
-        const response = await apiFetch(`/api/contacts/${contact.id}/time-entries/${entryId}`, {
-          method: 'DELETE',
-        });
-        if (response.ok) {
-          setTimeEntries((prev) => prev.filter((entry) => entry.id !== entryId));
-        }
-      } finally {
-        setDeletingEntryId(null);
-      }
-    },
-    [contact?.id],
-  );
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (!contact) {
-      return;
-    }
-    await deleteContact(contact.id);
-    setShowDeleteContactConfirm(false);
-    closeContactPanel();
-  }, [contact, deleteContact, closeContactPanel]);
-
   if (!contact) {
     return null;
   }
-  const duplicateConfig = getDuplicateConfig(contact);
 
   const isCompany = contact.contactType === 'company';
-  const contactIdLabel = formatDisplayNumber('contacts', contact.id);
 
   return (
     <>
       <DetailLayout
-        gridClassName="grid-cols-1 lg:grid-cols-[1.3fr_1fr_260px]"
+        gridClassName="grid-cols-1 lg:grid-cols-2"
         leftSidebar={
           <div className="space-y-4">
             <ContactQuickContextPanel
@@ -458,108 +176,8 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
             ) : null}
           </div>
         }
-        sidebar={
-          <div className="space-y-4">
-            <ContactQuickActionsCard
-              contact={contact}
-              onEdit={openContactForEdit}
-              onDeleteClick={() => setShowDeleteContactConfirm(true)}
-              onDuplicate={() => setShowDuplicateDialog(true)}
-              getDuplicateConfig={getDuplicateConfig}
-              detailFooterActions={detailFooterActions}
-            />
-            <ContactExportOptionsCard
-              contact={contact}
-              exportFormats={exportFormats}
-              onExportItem={onExportItem}
-            />
-
-            <Card
-              padding="none"
-              className={cn(
-                CARD_CLASS,
-                'border border-amber-200/60 bg-amber-50/60 dark:border-amber-800/50 dark:bg-amber-950/40',
-              )}
-            >
-              <DetailSection title="Time log" icon={Clock} subtleTitle className="p-4">
-                {timeEntries.length === 0 ? (
-                  <p className="text-xs text-amber-700/70 dark:text-amber-300/70">
-                    No time entries
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {timeEntries.map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="flex items-center justify-between gap-2 rounded-md border border-amber-200/60 bg-amber-50/80 px-2.5 py-1.5 dark:border-amber-800/50 dark:bg-amber-950/50"
-                      >
-                        <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                          {formatDuration(entry.seconds)} -{' '}
-                          {new Date(entry.loggedAt).toLocaleDateString()}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          icon={Trash2}
-                          className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                          onClick={() => setConfirmDeleteEntryId(entry.id)}
-                          disabled={deletingEntryId === entry.id}
-                        >
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </DetailSection>
-            </Card>
-
-            {/* Information card — divider-row pattern */}
-            <Card padding="none" className={CARD_CLASS}>
-              <DetailSection
-                title={t('contacts.information')}
-                icon={Info}
-                subtleTitle
-                className="p-5"
-                collapsible
-              >
-                <div>
-                  <div className={INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">ID</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {contactIdLabel}
-                    </span>
-                  </div>
-                  <div className={INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Created</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {new Date(contact.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className={INFO_ROW_CLASS}>
-                    <span className="text-slate-500 dark:text-slate-400">Updated</span>
-                    <span className="font-mono font-extrabold text-foreground">
-                      {new Date(contact.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
-
-            <DetailActivityLog
-              entityType="contact"
-              entityId={contact.id}
-              limit={30}
-              title={t('contacts.activity')}
-              showClearButton
-              refreshKey={String(contact.updatedAt ?? contact.id)}
-            />
-          </div>
-        }
       >
         <div className="space-y-4">
-          {/* Contact Properties — label + value on one row, plain text */}
           <Card padding="none" className={CARD_CLASS}>
             <DetailSection
               title={t('contacts.contactProperties')}
@@ -611,7 +229,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
                     </SelectContent>
                   </Select>
                 </div>
-                {/* Tags row — draft edit; header Update calls onApplyTagsEdit */}
                 <div className={cn(PROP_ROW_CLASS, 'items-start')}>
                   <span className="text-sm text-slate-500 dark:text-slate-400">Tags</span>
                   <div className="flex min-w-0 max-w-[70%] flex-col items-end gap-1.5">
@@ -670,7 +287,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
             </DetailSection>
           </Card>
 
-          {/* Contact Persons card */}
           {Array.isArray(contact.contactPersons) && contact.contactPersons.length > 0 && (
             <Card padding="none" className={CARD_CLASS}>
               <DetailSection title="Contact Persons" icon={Users} subtleTitle className="p-6">
@@ -766,54 +382,6 @@ export const ContactView = React.memo(function ContactView({ contact }: ContactV
         onConfirm={onDiscardTagsAndClose}
         onCancel={() => setShowDiscardTagsDialog(false)}
         variant="warning"
-      />
-
-      <ConfirmDialog
-        isOpen={confirmDeleteEntryId !== null}
-        title={t('contacts.deleteTimeEntryTitle')}
-        message={t('contacts.deleteTimeEntryMessage')}
-        confirmText={t('contacts.delete')}
-        cancelText={t('contacts.cancel')}
-        onConfirm={async () => {
-          if (confirmDeleteEntryId) {
-            await handleDeleteTimeEntry(confirmDeleteEntryId);
-          }
-          setConfirmDeleteEntryId(null);
-        }}
-        onCancel={() => setConfirmDeleteEntryId(null)}
-        variant="danger"
-      />
-
-      <ConfirmDialog
-        isOpen={showDeleteContactConfirm}
-        title={t('dialog.deleteItem', { label: t('nav.contact') })}
-        message={contact ? getDeleteMessage(contact) : ''}
-        confirmText={t('contacts.delete')}
-        cancelText={t('contacts.cancel')}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteContactConfirm(false)}
-        variant="danger"
-      />
-
-      <DuplicateDialog
-        isOpen={showDuplicateDialog}
-        onConfirm={(newName) => {
-          executeDuplicate(contact, newName)
-            .then(({ closePanel, highlightId }) => {
-              closePanel();
-              if (highlightId) {
-                setRecentlyDuplicatedContactId(highlightId);
-              }
-              setShowDuplicateDialog(false);
-            })
-            .catch(() => {
-              setShowDuplicateDialog(false);
-            });
-        }}
-        onCancel={() => setShowDuplicateDialog(false)}
-        defaultName={duplicateConfig?.defaultName ?? ''}
-        nameLabel={duplicateConfig?.nameLabel ?? t('contacts.title')}
-        confirmOnly={Boolean(duplicateConfig?.confirmOnly)}
       />
 
       <BulkMessageDialog

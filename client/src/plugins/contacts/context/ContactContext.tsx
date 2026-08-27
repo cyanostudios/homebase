@@ -31,6 +31,7 @@ export interface ContactContextType {
   selectedCount: number;
   isSelected: (id: string) => boolean;
   getPanelSubtitle: (mode: string, item: Contact | null) => any;
+  getPanelTitle: (mode: string, item: Contact | null) => React.ReactNode;
   getDeleteMessage: (item: Contact | null) => string;
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Contact) => void;
@@ -122,6 +123,7 @@ const EMPTY_CONTACT_CONTEXT: ContactContextType = {
   selectedCount: 0,
   isSelected: () => false,
   getPanelSubtitle: () => '',
+  getPanelTitle: () => null,
   getDeleteMessage: () => '',
   exportFormats: [],
   onExportItem: () => {},

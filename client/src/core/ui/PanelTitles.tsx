@@ -58,6 +58,19 @@ export const createPanelTitles = (
       return '';
     }
 
+    // Contacts full view: Quick Actions bar replaces the text title (desktop + mobile).
+    // Must run before the mobile early-return that blanks other plugins' titles.
+    if (
+      currentPlugin.name === 'contacts' &&
+      currentMode === 'view' &&
+      pluginContext?.getPanelTitle
+    ) {
+      const custom = pluginContext.getPanelTitle(currentMode, currentItem);
+      if (custom != null) {
+        return custom;
+      }
+    }
+
     // Phone full view: title lives inside view cards — no duplicate above Edit/Close.
     // Desktop keeps the panel title next to the header actions.
     if (currentMode === 'view' && isMobileView) {

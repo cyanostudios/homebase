@@ -14,7 +14,8 @@ interface TopBarProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
   onOpenMobileNav: () => void;
-  detailPanelTitle?: string | React.ReactNode;
+  /** Breadcrumb chip label only — must be a plain string, never action UI. */
+  detailPanelTitle?: string;
   onDetailPanelClose?: () => void;
   detailPanelPluginName?: string;
 }

@@ -32,6 +32,8 @@ interface DetailActivityLogProps {
   showClearButton?: boolean;
   /** When this value changes, the log is refetched (e.g. slot.updated_at after save). */
   refreshKey?: string | number | null;
+  /** Start expanded (e.g. when embedded in a header popover). */
+  defaultOpen?: boolean;
 }
 
 export function DetailActivityLog({
@@ -42,13 +44,14 @@ export function DetailActivityLog({
   className,
   showClearButton = false,
   refreshKey,
+  defaultOpen = false,
 }: DetailActivityLogProps) {
   const { t } = useTranslation();
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   const fetchLogs = useCallback(() => {
     setLoading(true);

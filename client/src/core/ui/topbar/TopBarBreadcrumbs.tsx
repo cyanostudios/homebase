@@ -22,12 +22,12 @@ export const TopBarBreadcrumbs = React.memo(function TopBarBreadcrumbs({
 }: {
   brandLabel?: string;
   activeBreadcrumbLabel: string;
-  detailPanelTitle?: string | React.ReactNode;
+  detailPanelTitle?: string;
   onGoDashboard: () => void;
   onBreadcrumbPrimaryClick: () => void;
   onDetailChipClose: (e: React.MouseEvent) => void;
 }) {
-  const hasDetail = Boolean(detailPanelTitle);
+  const hasDetail = Boolean(detailPanelTitle && detailPanelTitle.trim());
 
   return (
     <Breadcrumb className="min-w-0 flex-1 overflow-hidden">

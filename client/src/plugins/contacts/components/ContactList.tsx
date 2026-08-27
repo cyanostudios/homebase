@@ -482,6 +482,7 @@ export const ContactList: React.FC = () => {
                 <ExpandableIconButton
                   icon={Settings}
                   label={t('contacts.settings')}
+                  variant="soft"
                   onClick={() => openContactSettings()}
                 />
                 {sortedContacts.length > 0 ? (
@@ -497,6 +498,7 @@ export const ContactList: React.FC = () => {
                     <ExpandableIconButton
                       icon={CheckSquare}
                       label={t('common.select')}
+                      variant="soft"
                       alwaysExpanded
                       onClick={handleEnterSelectionMode}
                     />
@@ -520,6 +522,7 @@ export const ContactList: React.FC = () => {
               <ExpandableIconButton
                 icon={Plus}
                 label={t('contacts.addContact')}
+                variant="soft"
                 alwaysExpanded
                 onClick={() => attemptNavigation(() => openContactPanel(null))}
               />
@@ -611,12 +614,18 @@ export const ContactList: React.FC = () => {
         />
 
         <div className="flex flex-col gap-3">
-          <div className="flex items-start gap-4">
+          <div
+            className={cn(
+              'grid items-start gap-4',
+              showQuickContext && previewContact ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1',
+            )}
+          >
             {showQuickContext && previewContact ? (
-              <aside className="w-[min(100%,36rem)] shrink-0 self-start lg:sticky lg:top-4">
+              <aside className="min-w-0 self-start lg:sticky lg:top-4 lg:z-10">
                 <ContactQuickContextPanel
                   contact={previewContact}
                   availableTags={availableTags}
+                  selectionMode={selectionMode}
                   onClose={() => setPreviewContact(null)}
                   onOpenFullProfile={() => handleOpenForView(previewContact)}
                   onEdit={() => {
@@ -626,7 +635,7 @@ export const ContactList: React.FC = () => {
                 />
               </aside>
             ) : null}
-            <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-3">
               {sortedContacts.length === 0 ? (
                 <ListEmptyState
                   message={searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}

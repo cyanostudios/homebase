@@ -21,17 +21,14 @@ import {
   QuickContextHeaderActions,
   QuickContextOpenFullFooter,
 } from '@/core/ui/QuickContextHeaderActions';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { cn } from '@/lib/utils';
 
 import { ContactCopyableLink, mailtoHref, telHref, websiteHref } from './ContactCopyableLink';
 import { ContactLinkedItemsSection } from './ContactLinkedItemsSection';
 import { useContacts } from '../hooks/useContacts';
 import type { Contact } from '../types/contacts';
-import {
-  CONTACT_TYPE_BADGE_CLASS,
-  CONTACT_TYPE_COLORS,
-  formatCompanyTypeLabel,
-} from '../types/contacts';
+import { formatCompanyTypeLabel } from '../types/contacts';
 
 const FACT_LABEL_CLASS =
   'mb-0.5 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400';
@@ -60,6 +57,7 @@ export function ContactQuickContextPanel({
   onOpenFullProfile,
   onEdit,
   variant = 'list',
+  selectionMode = false,
 }: {
   contact: Contact;
   availableTags: string[];
@@ -68,6 +66,8 @@ export function ContactQuickContextPanel({
   onEdit: () => void;
   /** `list` = small preview beside the list; `full` = first column in full detail view. */
   variant?: 'list' | 'full';
+  /** When true, header Open uses soft primary (bulk select active). */
+  selectionMode?: boolean;
 }) {
   const isFullView = variant === 'full';
   const { t } = useTranslation();
@@ -128,61 +128,31 @@ export function ContactQuickContextPanel({
     : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200';
 
   const identityHeader = (
-    <div className="flex items-start gap-3">
+    <div className="flex items-center gap-3">
       <div
         className={cn(
-          'mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+          'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
           avatarClass,
         )}
         aria-hidden
       >
         {contactInitials(contact.companyName)}
       </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="break-words text-base font-semibold leading-snug tracking-tight text-foreground sm:text-lg">
-          {contact.companyName}
-        </h3>
-        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge
-              className={cn(
-                'shrink-0',
-                CONTACT_TYPE_BADGE_CLASS,
-                CONTACT_TYPE_COLORS[contact.contactType],
-              )}
-            >
-              {t(`contacts.type.${contact.contactType}`)}
-            </Badge>
-            {!isFullView ? (
-              <span
-                className={cn(
-                  'h-2 w-2 shrink-0 rounded-full',
-                  contact.isAssignable ? 'bg-emerald-500' : 'bg-red-500',
-                )}
-                title={
-                  contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')
-                }
-                aria-label={
-                  contact.isAssignable ? t('contacts.assignableYes') : t('contacts.assignableNo')
-                }
-              />
-            ) : null}
-          </div>
-          <QuickContextHeaderActions
-            onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
-            onEdit={onEdit}
-            onClose={!isFullView && onClose ? onClose : undefined}
-            editLabel={t('contacts.edit')}
-            closeLabel={t('common.close')}
-          />
-        </div>
-      </div>
+      <h3 className={cn(PLUGIN_PAGE_TITLE_CLASS, 'min-w-0 flex-1')}>{contact.companyName}</h3>
+      <QuickContextHeaderActions
+        onOpen={!isFullView && onOpenFullProfile ? onOpenFullProfile : undefined}
+        onEdit={onEdit}
+        onClose={!isFullView && onClose ? onClose : undefined}
+        editLabel={t('contacts.edit')}
+        closeLabel={t('common.close')}
+        openVariant={selectionMode ? 'soft' : 'primary'}
+      />
     </div>
   );
 
   return (
     <Card padding="none" className={cn(DETAIL_VIEW_CARD_CLASS, 'flex flex-col')}>
-      <div className="border-b border-border/50 px-4 py-3">{identityHeader}</div>
+      <div className="border-b border-border/50 px-4 py-5">{identityHeader}</div>
 
       <div className={cn('px-4 py-4', isFullView ? 'space-y-4' : 'space-y-6')}>
         <div className="grid grid-cols-1 gap-y-3 md:grid-cols-2 md:gap-x-4">

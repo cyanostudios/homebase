@@ -4,6 +4,34 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-27 – Contacts full view: Actions / Export / Time log in panel title
+
+**Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** enhancement / UX / frontend  
+**Scope:** Contacts detail header menus, panel title wiring, TopBar breadcrumb label split
+
+**Sammanfattning:** Contacts full view ersätter den fristående namn-rubriken med toggle-knappar **Actions**, **Export** och (vid behov) **Time log** — samma Select→bulk-liknande mönster som listvyn. Sidebar behåller Information + Activity. TopBar-breadcrumb visar kontaktnamn (sträng), inte meny-UI.
+
+**Beteende (verifierat i kod)**
+
+- **`ContactDetailHeaderMenus`** via `ContactProvider.getPanelTitle` / `PanelTitles` (även mobil).
+- **Actions:** soft/primary toggle; rad med Edit (`soft`), Delete/Duplicate, Message/Mail (bulk-färger).
+- **Export:** TXT/CSV/PDF secondary pills.
+- **Time log:** visas bara om ≥1 post; orange count-badge; amber pills + trash; `ConfirmDialog` vid delete.
+- **Breadcrumb:** `detailPanelBreadcrumbLabel` i `AppContent` → `MainLayout` → `TopBar` (hooks-safe: ingen `useMemo` efter auth early-return).
+- Detail chrome Edit: `variant="soft"`.
+- **Sidebar:** Information + Activity temporarily removed from Contacts layout (awaiting new placement); grid is two columns.
+
+**Begränsningar / säkerhet (Security)**
+
+- UI flyttar befintliga authenticated actions; delete/duplicate bakom dialoger.
+- Pre-existing (utanför scope): GET time-entries utan `user_id`-filter; CSRF saknas på time-entry POST/DELETE — backlog till TPM.
+
+**Guides:** [`PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md`](PLUGIN_VIEW_IMPLEMENTATION_GUIDE.md) §2 Contacts exception + §4 header menus; [`PLUGIN_RUNTIME_CONVENTIONS.md`](PLUGIN_RUNTIME_CONVENTIONS.md) getPanelTitle React node + breadcrumb
+
+---
+
 ## 2026-08-27 – UI v3.7: round buttons, dialog chrome, quick context, Contacts select mode
 
 **Status:** Implementerat lokalt. **QA Approved.** **Security Approved.** **Docs Updated.** **Ej prod-release** utan explicit beslut.

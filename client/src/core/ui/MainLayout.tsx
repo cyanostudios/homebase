@@ -28,7 +28,9 @@ interface MainLayoutProps {
   onContentAction?: () => void;
   // DetailPanel props
   detailPanelOpen: boolean;
-  detailPanelTitle: string;
+  detailPanelTitle: string | React.ReactNode;
+  /** String label for TopBar breadcrumb chip (never React action bars). */
+  detailPanelBreadcrumbLabel?: string;
   detailPanelSubtitle?: string | React.ReactNode;
   detailPanelContent: React.ReactNode;
   detailPanelFooter?: React.ReactNode;
@@ -55,6 +57,7 @@ function MainLayoutShell(props: MainLayoutProps) {
     onContentAction,
     detailPanelOpen,
     detailPanelTitle,
+    detailPanelBreadcrumbLabel,
     detailPanelSubtitle,
     detailPanelContent,
     detailPanelFooter,
@@ -165,7 +168,12 @@ function MainLayoutShell(props: MainLayoutProps) {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onOpenMobileNav={openMobileNav}
-        detailPanelTitle={detailPanelOpen ? detailPanelTitle : undefined}
+        detailPanelTitle={
+          detailPanelOpen
+            ? (detailPanelBreadcrumbLabel ??
+              (typeof detailPanelTitle === 'string' ? detailPanelTitle : undefined))
+            : undefined
+        }
         onDetailPanelClose={detailPanelOpen ? onDetailPanelClose : undefined}
         detailPanelPluginName={detailPanelOpen ? detailPanelPluginName : undefined}
       />

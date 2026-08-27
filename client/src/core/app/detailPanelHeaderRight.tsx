@@ -106,7 +106,7 @@ export function renderDetailPanelHeaderRight({
               onClick={handlers.handleEditItem}
               icon={Edit}
               label={t('common.edit')}
-              variant="primary"
+              variant="soft"
               alwaysExpanded
               className={actionButtonClass}
             />

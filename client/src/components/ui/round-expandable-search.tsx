@@ -99,7 +99,15 @@ export function RoundExpandableSearch({
           autoComplete="off"
           onSubmit={(event) => event.preventDefault()}
         >
-          <Search className="size-5 shrink-0 opacity-90" aria-hidden />
+          <button
+            type="button"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-primary-foreground/15"
+            onClick={() => setExpanded(false)}
+            aria-label={t('common.close')}
+            title={t('common.close')}
+          >
+            <Search className="size-5 shrink-0 opacity-90" aria-hidden />
+          </button>
           <input
             ref={inputRef}
             {...LIST_SEARCH_FIELD_PROPS}

@@ -3,9 +3,12 @@
  * Keep list and detail title rows visually aligned (inset, gap, title scale).
  */
 
-/** Outer list page shell — ContactList reference (top/side/bottom inset). */
+/**
+ * Outer list page shell — ContactList reference (top/side/bottom inset).
+ * Use overflow-x-clip (not hidden): hidden forces overflow-y to auto and breaks sticky quick context.
+ */
 export const PLUGIN_PAGE_LIST_SHELL_CLASS =
-  'min-h-full overflow-x-hidden bg-background px-4 pt-4 pb-4 md:px-6 md:pt-6 md:pb-5';
+  'min-h-full overflow-x-clip bg-background px-4 pt-4 pb-4 md:px-6 md:pt-6 md:pb-5';
 
 /** Vertical gap between title row and next block (filter cards, toolbar, detail body). */
 export const PLUGIN_PAGE_SECTION_GAP_CLASS = 'space-y-6';
@@ -32,15 +35,21 @@ export const DETAIL_FORM_TITLE_INPUT_CLASS =
 
 export const PLUGIN_PAGE_SUBTITLE_CLASS = 'text-sm text-muted-foreground';
 
-/** Detail panel shell — same pt-6 / gap-6 / pb-5 rhythm as PLUGIN_PAGE_LIST_SHELL_CLASS. */
-export const DETAIL_PANEL_SHELL_CLASS = 'flex min-h-0 flex-1 flex-col gap-6 px-6 pt-6 pb-5';
+/**
+ * Detail panel scrollport — whole page scrolls (header + body + footer), like list view.
+ * Horizontal inset lives on children so the scrollbar sits on the outer edge.
+ */
+export const DETAIL_PANEL_SHELL_CLASS =
+  'flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden pt-6 pb-5';
+
+/** Horizontal inset matching list `md:px-6` — apply to header, body, footer (not the scrollport). */
+export const DETAIL_PANEL_INSET_CLASS = 'px-6';
 
 /** Title + actions row inside detail panel. */
 export const DETAIL_PANEL_HEADER_ROW_CLASS = 'flex shrink-0 items-start justify-between gap-6';
 
-/** Scrollable detail content (no extra top padding — gap-6 on shell handles title spacing). */
-export const DETAIL_PANEL_BODY_CLASS =
-  'min-h-0 flex-1 overflow-y-auto overflow-x-hidden [&_.shadow-none]:border-none';
+/** Detail body inside the shell scrollport — pad with DETAIL_PANEL_INSET_CLASS. */
+export const DETAIL_PANEL_BODY_CLASS = '[&_.shadow-none]:border-none';
 
 /** @deprecated Use DETAIL_PANEL_SHELL_CLASS + DETAIL_PANEL_HEADER_ROW_CLASS */
 export const DETAIL_PANEL_HEADER_DESKTOP_CLASS = DETAIL_PANEL_HEADER_ROW_CLASS;

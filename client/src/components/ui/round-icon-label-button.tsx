@@ -3,7 +3,13 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-export type RoundIconLabelButtonVariant = 'primary' | 'secondary' | 'success' | 'danger';
+export type RoundIconLabelButtonVariant =
+  | 'primary'
+  | 'soft'
+  | 'secondary'
+  | 'success'
+  | 'danger'
+  | 'dangerSoft';
 
 export interface RoundIconLabelButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon: AppIcon;
@@ -20,11 +26,16 @@ export interface RoundIconLabelButtonProps extends React.ButtonHTMLAttributes<HT
 
 const variantClasses: Record<RoundIconLabelButtonVariant, string> = {
   primary: 'bg-primary text-primary-foreground hover:brightness-[0.92] dark:hover:brightness-110',
+  /** Idle: light blue like selected filter stats; hover: solid primary. */
+  soft: 'bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground',
   secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
   success:
     'border-none bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700',
   danger:
     'border-none bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700',
+  /** Idle: soft primary; hover: solid red. */
+  dangerSoft:
+    'bg-primary/10 text-primary hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white',
 };
 
 export function RoundIconLabelButton({
@@ -48,7 +59,8 @@ export function RoundIconLabelButton({
       title={label}
       className={cn(
         'group inline-flex items-center overflow-hidden rounded-full',
-        'transition-[width,padding,filter] duration-200 ease-out',
+        'transition-[width,padding,filter,background-color,color] ease-out',
+        '[transition-duration:320ms,320ms,320ms,450ms,450ms]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         'disabled:pointer-events-none disabled:opacity-50',
         variantClasses[variant],
@@ -71,7 +83,7 @@ export function RoundIconLabelButton({
           contentClassName,
           !alwaysExpanded &&
             expandOnHover &&
-            'transition-transform duration-200 ease-out group-hover:-translate-x-0.5',
+            'transition-transform duration-[320ms] ease-out group-hover:-translate-x-0.5',
         )}
         aria-hidden
       />
@@ -84,7 +96,7 @@ export function RoundIconLabelButton({
             : expandOnHover
               ? cn(
                   'max-w-0 overflow-hidden opacity-0',
-                  'transition-[max-width,opacity,margin] duration-200 ease-out',
+                  'transition-[max-width,opacity,margin] duration-[320ms] ease-out',
                   'group-hover:ml-2 group-hover:max-w-[12rem] group-hover:opacity-100',
                 )
               : 'sr-only',

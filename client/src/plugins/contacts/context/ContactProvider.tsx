@@ -1,4 +1,4 @@
-import { Mail, MessageCircle } from 'lucide-react';
+import { Mail, MessageSquare } from 'lucide-react';
 import React, { useCallback, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 
 import { contactsApi } from '../api/contactsApi';
+import { ContactDetailHeaderMenus } from '../components/ContactDetailHeaderMenus';
 import { Contact, ValidationError } from '../types/contacts';
 import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
 import {
@@ -125,8 +126,8 @@ export function ContactProvider({
     if (canSendMessages) {
       actions.push({
         id: 'send-message',
-        label: t('bulk.sendMessageTitle'),
-        icon: MessageCircle,
+        label: t('contacts.actionMessage'),
+        icon: MessageSquare,
         onClick: (item: Contact) => {
           const phone =
             (item.phone && String(item.phone).trim()) ||
@@ -141,14 +142,13 @@ export function ContactProvider({
           ]);
           setShowSendMessageDialog(true);
         },
-        className: 'h-9 text-xs px-3',
       });
     }
 
     if (canSendEmail) {
       actions.push({
         id: 'send-email',
-        label: t('bulk.sendEmailTitle'),
+        label: t('contacts.actionMail'),
         icon: Mail,
         onClick: (item: Contact) => {
           const email = item.email ? String(item.email).trim() : '';
@@ -161,7 +161,6 @@ export function ContactProvider({
           ]);
           setShowSendEmailDialog(true);
         },
-        className: 'h-9 text-xs px-3',
       });
     }
 
@@ -745,6 +744,13 @@ export function ContactProvider({
     }
   };
 
+  const getPanelTitle = (mode: string, item: Contact | null) => {
+    if (mode === 'view' && item) {
+      return <ContactDetailHeaderMenus key={String(item.id)} contact={item} />;
+    }
+    return null;
+  };
+
   const getPanelSubtitle = (mode: string, item: Contact | null) => {
     if (mode === 'settings') {
       return null;
@@ -870,6 +876,7 @@ export function ContactProvider({
     selectedCount,
     isSelected,
     getPanelSubtitle,
+    getPanelTitle,
     getDeleteMessage,
     exportFormats,
     onExportItem,

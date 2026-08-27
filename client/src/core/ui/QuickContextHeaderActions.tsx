@@ -2,7 +2,10 @@ import { Edit, ExternalLink, X } from 'lucide-react';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { RoundIconLabelButton } from '@/components/ui/round-icon-label-button';
+import {
+  RoundIconLabelButton,
+  type RoundIconLabelButtonVariant,
+} from '@/components/ui/round-icon-label-button';
 import { cn } from '@/lib/utils';
 
 export function QuickContextHeaderActions({
@@ -11,6 +14,7 @@ export function QuickContextHeaderActions({
   onClose,
   editLabel,
   closeLabel,
+  openVariant = 'primary',
   className,
 }: {
   onOpen?: () => void;
@@ -18,6 +22,8 @@ export function QuickContextHeaderActions({
   onClose?: () => void;
   editLabel: string;
   closeLabel: string;
+  /** Open button variant (e.g. `soft` while list bulk-select is active). */
+  openVariant?: RoundIconLabelButtonVariant;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -30,7 +36,7 @@ export function QuickContextHeaderActions({
           onClick={onOpen}
           icon={ExternalLink}
           label={t('common.open')}
-          variant="primary"
+          variant={openVariant}
           alwaysExpanded
         />
       ) : null}
@@ -39,7 +45,7 @@ export function QuickContextHeaderActions({
         onClick={onEdit}
         icon={Edit}
         label={editLabel}
-        variant="primary"
+        variant="soft"
       />
       {onClose ? (
         <RoundIconLabelButton
@@ -47,7 +53,7 @@ export function QuickContextHeaderActions({
           onClick={onClose}
           icon={X}
           label={closeLabel}
-          variant="secondary"
+          variant="dangerSoft"
           expandOnHover={false}
         />
       ) : null}

@@ -14,6 +14,7 @@ import { usePluginNavigation } from '@/core/hooks/usePluginNavigation';
 import { usePluginValidation } from '@/core/hooks/usePluginValidation';
 import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { PLUGIN_PAGE_TITLE_CLASS } from '@/core/ui/pluginPageStyles';
 import { buildSlug, resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
@@ -711,12 +712,12 @@ export function EstimateProvider({
 
       if (isMobileView) {
         return (
-          <div>
+          <div className={PLUGIN_PAGE_TITLE_CLASS}>
             <div className="flex items-center gap-2">
               <span>{estimateNumber} • </span>
               {ContactChunk}
             </div>
-            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">
+            <div className="mt-1 text-sm font-normal text-gray-600 dark:text-gray-400">
               {total} {currency}
             </div>
           </div>
@@ -724,12 +725,12 @@ export function EstimateProvider({
       }
 
       return (
-        <div className="flex items-center gap-2">
+        <div className={cn(PLUGIN_PAGE_TITLE_CLASS, 'flex items-center gap-2')}>
           <span>{estimateNumber}</span>
-          <span className="text-muted-foreground/30 font-light mx-1">|</span>
+          <span className="mx-1 font-light text-muted-foreground/30">|</span>
           {ContactChunk}
-          <span className="text-muted-foreground/30 font-light mx-1">|</span>
-          <span className="text-muted-foreground whitespace-nowrap">
+          <span className="mx-1 font-light text-muted-foreground/30">|</span>
+          <span className="whitespace-nowrap text-muted-foreground">
             {total} {currency}
           </span>
         </div>
