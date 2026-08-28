@@ -4,6 +4,21 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-08-28 – Fix: vit skärm efter deploy (Vite chunk TDZ)
+
+**Status:** Implementerat lokalt. **Cykelcheck grön.** **Docs Updated.** **Ej prod-release** utan explicit beslut.
+
+**Typ:** bugfix / build  
+**Scope:** `vite.config.ts`, `displayNumber.ts`, `AppContext.tsx`, chart constants, chunk-cycle script, ADR
+
+**Sammanfattning:** Produktion (`home.livesolutions.se`) visade vit ruta med `ReferenceError: Cannot access '…' before initialization` i `vendor-shared` (t.ex. från `plugin-schedule`). Rotorsak: cirkulära ES-modul-chunks via `manualChunks`. Permanent DAG-regel + `npm run check:chunk-cycles`.
+
+**Verifiering (lokalt):** `npm run build:ui && npm run check:chunk-cycles` → inga ömsesidiga cykler; `tsc` grönt.
+
+**ADR:** [`docs/ai/adr/VITE_CHUNK_DAG_TDZ.md`](ai/adr/VITE_CHUNK_DAG_TDZ.md)
+
+---
+
 ## 2026-08-28 – Platform list UX: filter chips through iPad; DetailHeaderMenus mobile; Requests filters
 
 **Status:** Implementerat lokalt. **QA: approved.** **Security: approved (UI-only / prior garments APIs).** **Docs Updated.** **Ej prod-release** utan explicit beslut.

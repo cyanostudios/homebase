@@ -343,6 +343,14 @@ useEffect(() => {
 💡 **Why (lesson learned):**
 I JavaScript/React gäller "Temporal Dead Zone" (TDZ): en variabel får inte användas före sin deklaration. Om en `useEffect` (eller annan kod) refererar till `resetForm` innan `const resetForm = useCallback(...)` har körts, får du `ReferenceError: Cannot access 'resetForm' before initialization`. Alltid deklarera `useCallback`/`useMemo` (och andra identifierare) **ovanför** alla `useEffect` som använder dem.
 
+### Vite `manualChunks` får inte skapa cirkulära ES-chunks (vit skärm i prod)
+
+❌ **What we did (that didn't work):**
+Aggresiv `manualChunks` som lade leaf-UI i `vendor-shared` samtidigt som samma chunk (via Sidebar/navigation eller delad `react-day-picker`) importerade `app-shell` / `plugin-*`, och tvärtom. Konsolen: `Cannot access 'X' before initialization` i `vendor-shared` — blank page efter deploy.
+
+✅ **What we do instead (that works):**
+Håll chunk-DAG acyklisk (`vendor-shared` → `app-context` → `app-shell` → plugins). Tvinga aldrig hela `/plugins/<name>/` in i en chunk. Kör `npm run check:chunk-cycles` efter UI-build. Se `docs/ai/adr/VITE_CHUNK_DAG_TDZ.md`.
+
 ---
 
 ## API & Context

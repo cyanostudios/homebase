@@ -1,7 +1,7 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
-import { DONUT_CIRCUMFERENCE } from '@/core/ui/dashboard/dashboardUtils';
+import { DONUT_CIRCUMFERENCE } from '@/core/ui/charts/chartConstants';
 import { cn } from '@/lib/utils';
 
 export type StatChartSegment = {

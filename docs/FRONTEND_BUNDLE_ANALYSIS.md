@@ -2,7 +2,17 @@
 
 Syfte: se **var JavaScript-vikten sitter** i produktionsbygget (moduler, vendor-kod, plugins) utan att ändra normal build.
 
-## Kommando
+## Chunk DAG (obligatoriskt)
+
+Produktionsbygget använder `manualChunks` i `vite.config.ts` med en **acyklisk** dependency-ordning. Ömsesidiga imports mellan `vendor-shared` och `app-shell` / `app-context` / `plugin-*` ger ES-modul-TDZ och vit skärm efter deploy.
+
+Se ADR: [`docs/ai/adr/VITE_CHUNK_DAG_TDZ.md`](ai/adr/VITE_CHUNK_DAG_TDZ.md).
+
+```bash
+npm run build:ui && npm run check:chunk-cycles
+```
+
+## Kommando (storleksanalys)
 
 ```bash
 npm run build:ui:analyze
@@ -35,4 +45,4 @@ Ingen visualizer; marginellt snabbare build.
 
 ## Vidare åtgärder
 
-Om huvudchunken är stor: **dynamic `import()`**, **`manualChunks`** i `build.rollupOptions.output`, eller lazy `providerLoader` per plugin (se `PLUGIN_ARCHITECTURE_V3.md`).
+Om huvudchunken är stor: **dynamic `import()`**, justera **`manualChunks`** (utan att bryta DAG-regeln ovan), eller lazy `providerLoader` per plugin (se `PLUGIN_ARCHITECTURE_V3.md`).

@@ -29,9 +29,19 @@ import {
 } from '@/core/settings/timeFormatPreference';
 import { pomodoroAudio } from '@/core/widgets/pomodoro/pomodoroAudio';
 import i18n from '@/i18n';
-import { filterSlotsForContact } from '@/plugins/slots/utils/slotContactUtils';
 import type { Contact, Estimate, Match, Note, Slot, Task } from '@/types/pluginTypes';
 import type { NavBadge, NavPage } from '@/core/navigation/navTypes';
+
+/** Slots where contact is primary assignee or mentioned (keep in core — avoid AppContext → plugins cycle in Vite chunks). */
+function filterSlotsForContact(slots: Slot[], contactId: string): Slot[] {
+  const id = String(contactId);
+  return slots.filter(
+    (slot) =>
+      (slot.contact_id != null && String(slot.contact_id) === id) ||
+      (Array.isArray(slot.mentions) &&
+        slot.mentions.some((mention) => String(mention.contactId) === id)),
+  );
+}
 
 interface User {
   id: number;

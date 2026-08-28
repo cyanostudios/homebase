@@ -1,12 +1,35 @@
-import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+/**
+ * Display prefixes for entity numbers (CNT-1, EST-2025-001).
+ * Kept separate from pluginRegistry so Vite vendor-shared can import this
+ * without pulling every plugin NullProvider into the shared chunk.
+ */
+const DISPLAY_PREFIX_BY_PLUGIN: Record<string, string> = {
+  contacts: 'CNT',
+  notes: 'NTS',
+  tasks: 'TSK',
+  estimates: 'EST',
+  invoices: 'INV',
+  files: 'FLS',
+  teams: 'TEAM',
+  matches: 'MAT',
+  garments: 'GRM',
+  requests: 'REQ',
+  slots: 'SLT',
+  cups: 'CUP',
+  ingest: 'ING',
+  guides: 'GDS',
+  instructions: 'INS',
+  clubdesk: 'CDK',
+  mail: 'MAIL',
+  pulses: 'PULSE',
+};
 
 /**
  * Returns the display prefix for a plugin (e.g. CNT, NTS).
  * Used when formatting entity numbers for display (e.g. CNT-1, EST-2025-001).
  */
 export function getDisplayPrefix(pluginName: string): string {
-  const entry = PLUGIN_REGISTRY.find((p) => p.name === pluginName);
-  return entry?.displayPrefix ?? '';
+  return DISPLAY_PREFIX_BY_PLUGIN[pluginName] ?? '';
 }
 
 /**

@@ -27,7 +27,7 @@ export function formatDateTime(dateStr: string): string {
   }
 }
 
-export const DONUT_CIRCUMFERENCE = 2 * Math.PI * 32;
+export { DONUT_CIRCUMFERENCE } from '@/core/ui/charts/chartConstants';
 
 /** Max rows in compact dashboard list widgets (requests, tasks, upcoming matches). */
 export const DASHBOARD_LIST_WIDGET_LIMIT = 5;
