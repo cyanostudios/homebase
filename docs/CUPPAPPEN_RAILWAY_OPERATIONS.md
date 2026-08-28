@@ -45,9 +45,13 @@ Mall: [`public-cups/railway.env.example`](../public-cups/railway.env.example)
 ### 3. Verifiera efter deploy (obligatoriskt)
 
 ```bash
-# 1) Health — ska vara ok
+# 1) Liveness (Railway/Docker probes — ingen DB-ping)
 curl -sS https://www.cupappen.se/api/health.php
-# {"status":"ok"}
+# {"status":"ok","check":"live"}
+
+# 1b) Readiness efter deploy — pingar tenant Postgres
+curl -sS 'https://www.cupappen.se/api/health.php?db=1'
+# {"status":"ok","check":"db"}
 
 # 2) Cup-lista — ska vara JSON med cups-array
 curl -sS https://www.cupappen.se/api/cups.php | head -c 200

@@ -110,10 +110,12 @@ Sätt dessa **i den miljö där Node-servern kör** (`.env.local` respektive Rai
 
    ```bash
    curl -sS https://www.cupappen.se/api/health.php
+   curl -sS 'https://www.cupappen.se/api/health.php?db=1'
    curl -sS https://www.cupappen.se/api/cups.php | head -c 200
    ```
 
-   - `{"status":"ok"}` → DB OK.
+   - `{"status":"ok","check":"live"}` → process OK (probes pingar inte DB).
+   - `{"status":"ok","check":"db"}` → tenant Postgres OK.
    - `{"status":"unhealthy"}` eller HTTP 500 `Failed to fetch cups` → **`CUPS_DB_URL` saknas/fel** på Cupappen Railway, **eller** PHP kan inte ladda `pdo_pgsql` (deploy-logg: `libpq.so.5: No such file` → rebuild med fixad `public-cups/Dockerfile` som behåller `postgresql-libs`).
    - HTML-sida istället för JSON på `https://cupappen.se/api/cups.php` → Cloudflare redirectar apex `/api/*` till startsidan; använd **www** eller fixa redirect (behåll path `/api/...`).
 
@@ -125,7 +127,7 @@ Sätt dessa **i den miljö där Node-servern kör** (`.env.local` respektive Rai
 
 5. **Railway Cupappen-tjänst:** `Root Directory` = `public-cups`, deploy via `public-cups/Dockerfile` (se `public-cups/railway.toml`). Deploy **inte** Homebase `railway.toml` på samma tjänst.
 
-6. Tillfällig debug: `CUPS_DEBUG_ERRORS=1` → `GET /api/health.php` returnerar `details` (t.ex. `pdo_pgsql extension not loaded` eller `Missing CUPS_DB_URL`).
+6. Tillfällig debug: `CUPS_DEBUG_ERRORS=1` → `GET /api/health.php?db=1` returnerar `details` (t.ex. `pdo_pgsql extension not loaded` eller `Missing CUPS_DB_URL`).
 
 | Symtom                                                                | Trolig orsak                                                                                                                     |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |

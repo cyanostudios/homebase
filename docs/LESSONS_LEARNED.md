@@ -27,7 +27,7 @@
 - **Två Railway-tjänster:** Homebase (rot, Node) och Cupappen (**Root Directory = `public-cups`**, `public-cups/Dockerfile`).
 - **`CUPS_DB_URL`** = tenant Postgres (`tenants.neon_connection_string`), samma DB som cups-plugin i admin.
 - Dockerfile: **`postgresql-libs` stannar kvar** efter `docker-php-ext-install pdo_pgsql`; bara build-deps tas bort.
-- Efter varje Cupappen-deploy: `curl https://www.cupappen.se/api/health.php` → `{"status":"ok"}` och `api/cups.php` → JSON.
+- Efter varje Cupappen-deploy: `curl …/api/health.php` → `{"status":"ok","check":"live"}`; DB: `?db=1`. `api/cups.php` → JSON.
 - API-URL i prod: **`https://www.cupappen.se/api/...`** (apex kan redirecta `/api/*` till HTML).
 
 💡 **Why:** Cupappen är PHP + Caddy + egen env. Homebase-refaktorer påverkar den inte. 500 = server/DB/Docker, inte tom databas (det ger `{"cups":[]}` med 200).

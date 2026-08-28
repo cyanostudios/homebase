@@ -10,7 +10,7 @@ Publika endpoints för Cupappen mot samma tenant-Postgres som cups-datan (`CUPS_
 - Pageviews (första-part): `public-cups/api/pageview.php` — `POST` JSON `{ page_kind: "cup"|"district", cup_id?: number, district_slug?: string, referrer?: string }` → UPSERT i `cupappen_pageviews_daily`; session-cooldown ~45s; server klassar bucket/domän via `referrer_classify.php` (klient-bucket ignoreras). Svar `204` vid OK, `429` vid cooldown.
 - Fallback covers: `public-cups/api/fallback_images.php` — `GET` JSON `{ "urls": ["https://…"] }` från tenant `cups_site_config` (`fallback_images`); tom lista → klient/SSR använder `assets/fallback/`. Residual **R-FB-1** (publik URL-lista) — se produkt-CHANGELOG.
 - Klassning (testspegel): `public-cups/lib/referrerClassify.js` (håll synkad med PHP)
-- Liv / readiness: `public-cups/api/health.php` (`GET`, JSON `{ "status": "ok" }` vid lyckad DB-ping — används av Docker `HEALTHCHECK`)
+- Liv / readiness: `public-cups/api/health.php` — Docker/Railway `HEALTHCHECK` använder **liveness** (`GET` → `{"status":"ok","check":"live"}` utan DB). Efter deploy: `GET ?db=1` för Postgres-ping (`{"status":"ok","check":"db"}`).
 - Delad DB-hantering: `public-cups/api/pdo_env.php` (`getPdoFromEnv()`)
 - Gemensamma säkerhetsheaders: `public-cups/api/security_headers.php` (`applyPublicCupsSecurityHeaders()`)
 
@@ -79,10 +79,11 @@ Om variabeln är tom skickas ingen CORS allow-header.
 
 ## Felsökning
 
-| Test                  | Förväntat         |
-| --------------------- | ----------------- |
-| `GET /api/health.php` | `{"status":"ok"}` |
-| `GET /api/cups.php`   | `{"cups":[...]}`  |
+| Test                       | Förväntat                                     |
+| -------------------------- | --------------------------------------------- |
+| `GET /api/health.php`      | `{"status":"ok","check":"live"}` (probes)     |
+| `GET /api/health.php?db=1` | `{"status":"ok","check":"db"}` (verifiera DB) |
+| `GET /api/cups.php`        | `{"cups":[...]}`                              |
 
 Om health är `unhealthy` eller cups ger 500: kontrollera `CUPS_DB_URL` på Cupappen Railway (tenant Postgres, inte Homebase main DB). Se `docs/CUPPAPPEN_PATHS_AND_STORAGE.md` §7.
 

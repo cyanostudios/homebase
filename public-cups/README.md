@@ -76,7 +76,7 @@ Se [api/README.md](./api/README.md).
 
 ## Docker & Railway (produktion)
 
-[`Dockerfile`](Dockerfile) kör **Caddy** + **PHP-FPM** (Alpine). **HEALTHCHECK** = `GET /api/health.php`.
+[`Dockerfile`](Dockerfile) kör **Caddy** + **PHP-FPM** (Alpine). **HEALTHCHECK** = `GET /api/health.php` (liveness, ingen DB-ping; DB: `?db=1`).
 
 Caddy routar:
 

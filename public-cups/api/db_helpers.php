@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 /**
  * Shared helpers for public-cups API scripts (tenant Postgres schema may lag migrations).
+ * Column presence is cached per PHP-FPM worker to avoid repeated information_schema hits.
  */
 function publicCupsTableHasColumn(PDO $pdo, string $table, string $column): bool
 {
+    static $cache = [];
+
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
     $stmt = $pdo->prepare(
         'SELECT 1 FROM information_schema.columns
          WHERE table_schema = current_schema()
@@ -16,7 +24,9 @@ function publicCupsTableHasColumn(PDO $pdo, string $table, string $column): bool
     );
     $stmt->execute(['table' => $table, 'column' => $column]);
 
-    return (bool) $stmt->fetchColumn();
+    $cache[$key] = (bool) $stmt->fetchColumn();
+
+    return $cache[$key];
 }
 
 /**
@@ -24,6 +34,11 @@ function publicCupsTableHasColumn(PDO $pdo, string $table, string $column): bool
  */
 function publicCupsListSql(PDO $pdo): string
 {
+    static $cachedSql = null;
+    if ($cachedSql !== null) {
+        return $cachedSql;
+    }
+
     $deletedFilter = publicCupsTableHasColumn($pdo, 'cups', 'deleted_at')
         ? '  AND c.deleted_at IS NULL'
         : '';
@@ -36,7 +51,7 @@ function publicCupsListSql(PDO $pdo): string
         ? 'src.name AS ingest_source_name'
         : 'NULL::text AS ingest_source_name';
 
-    return <<<SQL
+    $cachedSql = <<<SQL
 SELECT
   c.id,
   c.name,
@@ -62,11 +77,18 @@ WHERE COALESCE(c.visible, TRUE) = TRUE
 {$deletedFilter}
 ORDER BY c.start_date ASC NULLS LAST, c.name ASC
 SQL;
+
+    return $cachedSql;
 }
 
 /** Sitemap rows (subset of columns). */
 function publicCupsSitemapSql(PDO $pdo): string
 {
+    static $cachedSql = null;
+    if ($cachedSql !== null) {
+        return $cachedSql;
+    }
+
     $deletedFilter = publicCupsTableHasColumn($pdo, 'cups', 'deleted_at')
         ? '  AND c.deleted_at IS NULL'
         : '';
@@ -79,7 +101,7 @@ function publicCupsSitemapSql(PDO $pdo): string
         ? 'src.name AS ingest_source_name'
         : 'NULL::text AS ingest_source_name';
 
-    return <<<SQL
+    $cachedSql = <<<SQL
 SELECT c.id, c.name, c.start_date, c.end_date, c.updated_at,
        {$ingestSelect}
 FROM cups c
@@ -88,4 +110,6 @@ WHERE COALESCE(c.visible, TRUE) = TRUE
 {$deletedFilter}
 ORDER BY c.start_date ASC NULLS LAST, c.name ASC, c.id ASC
 SQL;
+
+    return $cachedSql;
 }
